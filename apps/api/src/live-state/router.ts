@@ -46,6 +46,7 @@ export const router = createRouter({
     message: privateRoute.collectionRoute(schema.message),
     user: privateRoute.collectionRoute(schema.user),
     author: privateRoute.collectionRoute(schema.author),
+    invite: privateRoute.collectionRoute(schema.invite),
   },
 });
 

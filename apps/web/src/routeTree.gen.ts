@@ -8,276 +8,282 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
-import { Route as AppRouteRouteImport } from './routes/app/route'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
-import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
-import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
-import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
-import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
-import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
-import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
-import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as AppWorkspaceMainIndexRouteImport } from "./routes/app/_workspace/_main/index";
+import { Route as AppWorkspaceMainRouteRouteImport } from "./routes/app/_workspace/_main/route";
+import { Route as AppWorkspaceMainThreadsIdRouteImport } from "./routes/app/_workspace/_main/threads/$id";
+import { Route as AppWorkspaceMainThreadsIndexRouteImport } from "./routes/app/_workspace/_main/threads/index";
+import { Route as AppWorkspaceRouteRouteImport } from "./routes/app/_workspace/route";
+import { Route as AppWorkspaceSettingsIndexRouteImport } from "./routes/app/_workspace/settings/index";
+import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from "./routes/app/_workspace/settings/organization/index";
+import { Route as AppWorkspaceSettingsRouteRouteImport } from "./routes/app/_workspace/settings/route";
+import { Route as AppRouteRouteImport } from "./routes/app/route";
+import { Route as IndexRouteImport } from "./routes/index";
+import { Route as OnboardingRouteImport } from "./routes/onboarding";
+import { Route as SignUpRouteImport } from "./routes/sign-up";
 
 const SignUpRoute = SignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
+  id: "/sign-up",
+  path: "/sign-up",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
+  id: "/onboarding",
+  path: "/onboarding",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AppRouteRoute = AppRouteRouteImport.update({
-  id: '/app',
-  path: '/app',
+  id: "/app",
+  path: "/app",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
-  id: '/_workspace',
+  id: "/_workspace",
   getParentRoute: () => AppRouteRoute,
-} as any)
+} as any);
 const AppWorkspaceSettingsRouteRoute =
   AppWorkspaceSettingsRouteRouteImport.update({
-    id: '/settings',
-    path: '/settings',
+    id: "/settings",
+    path: "/settings",
     getParentRoute: () => AppWorkspaceRouteRoute,
-  } as any)
+  } as any);
 const AppWorkspaceMainRouteRoute = AppWorkspaceMainRouteRouteImport.update({
-  id: '/_main',
+  id: "/_main",
   getParentRoute: () => AppWorkspaceRouteRoute,
-} as any)
+} as any);
 const AppWorkspaceSettingsIndexRoute =
   AppWorkspaceSettingsIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
-  } as any)
+  } as any);
 const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => AppWorkspaceMainRouteRoute,
-} as any)
+} as any);
 const AppWorkspaceSettingsOrganizationIndexRoute =
   AppWorkspaceSettingsOrganizationIndexRouteImport.update({
-    id: '/organization/',
-    path: '/organization/',
+    id: "/organization/",
+    path: "/organization/",
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
-  } as any)
+  } as any);
 const AppWorkspaceMainThreadsIndexRoute =
   AppWorkspaceMainThreadsIndexRouteImport.update({
-    id: '/threads/',
-    path: '/threads/',
+    id: "/threads/",
+    path: "/threads/",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
-  } as any)
+  } as any);
 const AppWorkspaceMainThreadsIdRoute =
   AppWorkspaceMainThreadsIdRouteImport.update({
-    id: '/threads/$id',
-    path: '/threads/$id',
+    id: "/threads/$id",
+    path: "/threads/$id",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
-  } as any)
+  } as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/app': typeof AppWorkspaceMainRouteRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
-  '/sign-up': typeof SignUpRoute
-  '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
-  '/app/': typeof AppWorkspaceMainIndexRoute
-  '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
-  '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
-  '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
+  "/": typeof IndexRoute;
+  "/app": typeof AppWorkspaceMainRouteRouteWithChildren;
+  "/onboarding": typeof OnboardingRoute;
+  "/sign-up": typeof SignUpRoute;
+  "/app/settings": typeof AppWorkspaceSettingsRouteRouteWithChildren;
+  "/app/invitation/$id": typeof AppInvitationIdRoute;
+  "/app/": typeof AppWorkspaceMainIndexRoute;
+  "/app/settings/": typeof AppWorkspaceSettingsIndexRoute;
+  "/app/threads/$id": typeof AppWorkspaceMainThreadsIdRoute;
+  "/app/threads": typeof AppWorkspaceMainThreadsIndexRoute;
+  "/app/settings/organization": typeof AppWorkspaceSettingsOrganizationIndexRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/app': typeof AppWorkspaceMainIndexRoute
-  '/onboarding': typeof OnboardingRoute
-  '/sign-up': typeof SignUpRoute
-  '/app/settings': typeof AppWorkspaceSettingsIndexRoute
-  '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
-  '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
+  "/": typeof IndexRoute;
+  "/app": typeof AppWorkspaceMainIndexRoute;
+  "/onboarding": typeof OnboardingRoute;
+  "/sign-up": typeof SignUpRoute;
+  "/app/invitation/$id": typeof AppInvitationIdRoute;
+  "/app/settings": typeof AppWorkspaceSettingsIndexRoute;
+  "/app/threads/$id": typeof AppWorkspaceMainThreadsIdRoute;
+  "/app/threads": typeof AppWorkspaceMainThreadsIndexRoute;
+  "/app/settings/organization": typeof AppWorkspaceSettingsOrganizationIndexRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/app': typeof AppRouteRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
-  '/sign-up': typeof SignUpRoute
-  '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
-  '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
-  '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
-  '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
-  '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
-  '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
-  '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
+  __root__: typeof rootRouteImport;
+  "/": typeof IndexRoute;
+  "/app": typeof AppRouteRouteWithChildren;
+  "/onboarding": typeof OnboardingRoute;
+  "/sign-up": typeof SignUpRoute;
+  "/app/_workspace": typeof AppWorkspaceRouteRouteWithChildren;
+  "/app/_workspace/_main": typeof AppWorkspaceMainRouteRouteWithChildren;
+  "/app/_workspace/settings": typeof AppWorkspaceSettingsRouteRouteWithChildren;
+  "/app/invitation/$id": typeof AppInvitationIdRoute;
+  "/app/_workspace/_main/": typeof AppWorkspaceMainIndexRoute;
+  "/app/_workspace/settings/": typeof AppWorkspaceSettingsIndexRoute;
+  "/app/_workspace/_main/threads/$id": typeof AppWorkspaceMainThreadsIdRoute;
+  "/app/_workspace/_main/threads/": typeof AppWorkspaceMainThreadsIndexRoute;
+  "/app/_workspace/settings/organization/": typeof AppWorkspaceSettingsOrganizationIndexRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/app'
-    | '/onboarding'
-    | '/sign-up'
-    | '/app/settings'
-    | '/app/'
-    | '/app/settings/'
-    | '/app/threads/$id'
-    | '/app/threads'
-    | '/app/settings/organization'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/app"
+    | "/onboarding"
+    | "/sign-up"
+    | "/app/settings"
+    | "/app/invitation/$id"
+    | "/app/"
+    | "/app/settings/"
+    | "/app/threads/$id"
+    | "/app/threads"
+    | "/app/settings/organization";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
-    | '/app'
-    | '/onboarding'
-    | '/sign-up'
-    | '/app/settings'
-    | '/app/threads/$id'
-    | '/app/threads'
-    | '/app/settings/organization'
+    | "/"
+    | "/app"
+    | "/onboarding"
+    | "/sign-up"
+    | "/app/invitation/$id"
+    | "/app/settings"
+    | "/app/threads/$id"
+    | "/app/threads"
+    | "/app/settings/organization";
   id:
-    | '__root__'
-    | '/'
-    | '/app'
-    | '/onboarding'
-    | '/sign-up'
-    | '/app/_workspace'
-    | '/app/_workspace/_main'
-    | '/app/_workspace/settings'
-    | '/app/_workspace/_main/'
-    | '/app/_workspace/settings/'
-    | '/app/_workspace/_main/threads/$id'
-    | '/app/_workspace/_main/threads/'
-    | '/app/_workspace/settings/organization/'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/"
+    | "/app"
+    | "/onboarding"
+    | "/sign-up"
+    | "/app/_workspace"
+    | "/app/_workspace/_main"
+    | "/app/_workspace/settings"
+    | "/app/invitation/$id"
+    | "/app/_workspace/_main/"
+    | "/app/_workspace/settings/"
+    | "/app/_workspace/_main/threads/$id"
+    | "/app/_workspace/_main/threads/"
+    | "/app/_workspace/settings/organization/";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  AppRouteRoute: typeof AppRouteRouteWithChildren
-  OnboardingRoute: typeof OnboardingRoute
-  SignUpRoute: typeof SignUpRoute
+  IndexRoute: typeof IndexRoute;
+  AppRouteRoute: typeof AppRouteRouteWithChildren;
+  OnboardingRoute: typeof OnboardingRoute;
+  SignUpRoute: typeof SignUpRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
-      preLoaderRoute: typeof SignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
-      preLoaderRoute: typeof AppRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/app/_workspace': {
-      id: '/app/_workspace'
-      path: ''
-      fullPath: '/app'
-      preLoaderRoute: typeof AppWorkspaceRouteRouteImport
-      parentRoute: typeof AppRouteRoute
-    }
-    '/app/_workspace/settings': {
-      id: '/app/_workspace/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
-      preLoaderRoute: typeof AppWorkspaceSettingsRouteRouteImport
-      parentRoute: typeof AppWorkspaceRouteRoute
-    }
-    '/app/_workspace/_main': {
-      id: '/app/_workspace/_main'
-      path: ''
-      fullPath: '/app'
-      preLoaderRoute: typeof AppWorkspaceMainRouteRouteImport
-      parentRoute: typeof AppWorkspaceRouteRoute
-    }
-    '/app/_workspace/settings/': {
-      id: '/app/_workspace/settings/'
-      path: '/'
-      fullPath: '/app/settings/'
-      preLoaderRoute: typeof AppWorkspaceSettingsIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
-    }
-    '/app/_workspace/_main/': {
-      id: '/app/_workspace/_main/'
-      path: '/'
-      fullPath: '/app/'
-      preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
-    }
-    '/app/_workspace/settings/organization/': {
-      id: '/app/_workspace/settings/organization/'
-      path: '/organization'
-      fullPath: '/app/settings/organization'
-      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
-    }
-    '/app/_workspace/_main/threads/': {
-      id: '/app/_workspace/_main/threads/'
-      path: '/threads'
-      fullPath: '/app/threads'
-      preLoaderRoute: typeof AppWorkspaceMainThreadsIndexRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
-    }
-    '/app/_workspace/_main/threads/$id': {
-      id: '/app/_workspace/_main/threads/$id'
-      path: '/threads/$id'
-      fullPath: '/app/threads/$id'
-      preLoaderRoute: typeof AppWorkspaceMainThreadsIdRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
-    }
+    "/sign-up": {
+      id: "/sign-up";
+      path: "/sign-up";
+      fullPath: "/sign-up";
+      preLoaderRoute: typeof SignUpRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/onboarding": {
+      id: "/onboarding";
+      path: "/onboarding";
+      fullPath: "/onboarding";
+      preLoaderRoute: typeof OnboardingRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/app": {
+      id: "/app";
+      path: "/app";
+      fullPath: "/app";
+      preLoaderRoute: typeof AppRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/app/_workspace": {
+      id: "/app/_workspace";
+      path: "";
+      fullPath: "/app";
+      preLoaderRoute: typeof AppWorkspaceRouteRouteImport;
+      parentRoute: typeof AppRouteRoute;
+    };
+    "/app/_workspace/settings": {
+      id: "/app/_workspace/settings";
+      path: "/settings";
+      fullPath: "/app/settings";
+      preLoaderRoute: typeof AppWorkspaceSettingsRouteRouteImport;
+      parentRoute: typeof AppWorkspaceRouteRoute;
+    };
+    "/app/_workspace/_main": {
+      id: "/app/_workspace/_main";
+      path: "";
+      fullPath: "/app";
+      preLoaderRoute: typeof AppWorkspaceMainRouteRouteImport;
+      parentRoute: typeof AppWorkspaceRouteRoute;
+    };
+    "/app/_workspace/settings/": {
+      id: "/app/_workspace/settings/";
+      path: "/";
+      fullPath: "/app/settings/";
+      preLoaderRoute: typeof AppWorkspaceSettingsIndexRouteImport;
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute;
+    };
+    "/app/_workspace/_main/": {
+      id: "/app/_workspace/_main/";
+      path: "/";
+      fullPath: "/app/";
+      preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport;
+      parentRoute: typeof AppWorkspaceMainRouteRoute;
+    };
+    "/app/_workspace/settings/organization/": {
+      id: "/app/_workspace/settings/organization/";
+      path: "/organization";
+      fullPath: "/app/settings/organization";
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIndexRouteImport;
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute;
+    };
+    "/app/_workspace/_main/threads/": {
+      id: "/app/_workspace/_main/threads/";
+      path: "/threads";
+      fullPath: "/app/threads";
+      preLoaderRoute: typeof AppWorkspaceMainThreadsIndexRouteImport;
+      parentRoute: typeof AppWorkspaceMainRouteRoute;
+    };
+    "/app/_workspace/_main/threads/$id": {
+      id: "/app/_workspace/_main/threads/$id";
+      path: "/threads/$id";
+      fullPath: "/app/threads/$id";
+      preLoaderRoute: typeof AppWorkspaceMainThreadsIdRouteImport;
+      parentRoute: typeof AppWorkspaceMainRouteRoute;
+    };
   }
 }
 
 interface AppWorkspaceMainRouteRouteChildren {
-  AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
-  AppWorkspaceMainThreadsIdRoute: typeof AppWorkspaceMainThreadsIdRoute
-  AppWorkspaceMainThreadsIndexRoute: typeof AppWorkspaceMainThreadsIndexRoute
+  AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute;
+  AppWorkspaceMainThreadsIdRoute: typeof AppWorkspaceMainThreadsIdRoute;
+  AppWorkspaceMainThreadsIndexRoute: typeof AppWorkspaceMainThreadsIndexRoute;
 }
 
 const AppWorkspaceMainRouteRouteChildren: AppWorkspaceMainRouteRouteChildren = {
   AppWorkspaceMainIndexRoute: AppWorkspaceMainIndexRoute,
   AppWorkspaceMainThreadsIdRoute: AppWorkspaceMainThreadsIdRoute,
   AppWorkspaceMainThreadsIndexRoute: AppWorkspaceMainThreadsIndexRoute,
-}
+};
 
 const AppWorkspaceMainRouteRouteWithChildren =
   AppWorkspaceMainRouteRoute._addFileChildren(
-    AppWorkspaceMainRouteRouteChildren,
-  )
+    AppWorkspaceMainRouteRouteChildren
+  );
 
 interface AppWorkspaceSettingsRouteRouteChildren {
-  AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
-  AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
+  AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute;
+  AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute;
 }
 
 const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
@@ -285,44 +291,46 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
     AppWorkspaceSettingsIndexRoute: AppWorkspaceSettingsIndexRoute,
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
-  }
+  };
 
 const AppWorkspaceSettingsRouteRouteWithChildren =
   AppWorkspaceSettingsRouteRoute._addFileChildren(
-    AppWorkspaceSettingsRouteRouteChildren,
-  )
+    AppWorkspaceSettingsRouteRouteChildren
+  );
 
 interface AppWorkspaceRouteRouteChildren {
-  AppWorkspaceMainRouteRoute: typeof AppWorkspaceMainRouteRouteWithChildren
-  AppWorkspaceSettingsRouteRoute: typeof AppWorkspaceSettingsRouteRouteWithChildren
+  AppWorkspaceMainRouteRoute: typeof AppWorkspaceMainRouteRouteWithChildren;
+  AppWorkspaceSettingsRouteRoute: typeof AppWorkspaceSettingsRouteRouteWithChildren;
 }
 
 const AppWorkspaceRouteRouteChildren: AppWorkspaceRouteRouteChildren = {
   AppWorkspaceMainRouteRoute: AppWorkspaceMainRouteRouteWithChildren,
   AppWorkspaceSettingsRouteRoute: AppWorkspaceSettingsRouteRouteWithChildren,
-}
+};
 
 const AppWorkspaceRouteRouteWithChildren =
-  AppWorkspaceRouteRoute._addFileChildren(AppWorkspaceRouteRouteChildren)
+  AppWorkspaceRouteRoute._addFileChildren(AppWorkspaceRouteRouteChildren);
 
 interface AppRouteRouteChildren {
-  AppWorkspaceRouteRoute: typeof AppWorkspaceRouteRouteWithChildren
+  AppWorkspaceRouteRoute: typeof AppWorkspaceRouteRouteWithChildren;
+  AppInvitationIdRoute: typeof AppInvitationIdRoute;
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppWorkspaceRouteRoute: AppWorkspaceRouteRouteWithChildren,
-}
+  AppInvitationIdRoute: AppInvitationIdRoute,
+};
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
-  AppRouteRouteChildren,
-)
+  AppRouteRouteChildren
+);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   OnboardingRoute: OnboardingRoute,
   SignUpRoute: SignUpRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
