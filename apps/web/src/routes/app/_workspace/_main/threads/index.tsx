@@ -269,7 +269,7 @@ function RouteComponent() {
         </CardAction>
       </CardHeader>
       <CardContent className="overflow-y-auto gap-0 items-center">
-        {threads.map((thread) => (
+        {threads?.map((thread) => (
           <ListItem key={thread.id} threadId={thread.id} />
         ))}
       </CardContent>
