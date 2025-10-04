@@ -18,6 +18,7 @@ import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_wor
 import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
 import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
 import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
+import { Route as AppWorkspaceInvitationIdRouteImport } from './routes/app/_workspace/invitation.$id'
 import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
@@ -67,6 +68,12 @@ const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppWorkspaceMainRouteRoute,
 } as any)
+const AppWorkspaceInvitationIdRoute =
+  AppWorkspaceInvitationIdRouteImport.update({
+    id: '/invitation/$id',
+    path: '/invitation/$id',
+    getParentRoute: () => AppWorkspaceRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationIndexRoute =
   AppWorkspaceSettingsOrganizationIndexRouteImport.update({
     id: '/organization/',
@@ -92,6 +99,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
+  '/app/invitation/$id': typeof AppWorkspaceInvitationIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -103,6 +111,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
+  '/app/invitation/$id': typeof AppWorkspaceInvitationIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -117,6 +126,7 @@ export interface FileRoutesById {
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
   '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
+  '/app/_workspace/invitation/$id': typeof AppWorkspaceInvitationIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sign-up'
     | '/app/settings'
+    | '/app/invitation/$id'
     | '/app/'
     | '/app/settings/'
     | '/app/threads/$id'
@@ -142,6 +153,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/onboarding'
     | '/sign-up'
+    | '/app/invitation/$id'
     | '/app/settings'
     | '/app/threads/$id'
     | '/app/threads'
@@ -155,6 +167,7 @@ export interface FileRouteTypes {
     | '/app/_workspace'
     | '/app/_workspace/_main'
     | '/app/_workspace/settings'
+    | '/app/_workspace/invitation/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/app/_workspace/_main/threads/$id'
@@ -234,6 +247,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/invitation/$id': {
+      id: '/app/_workspace/invitation/$id'
+      path: '/invitation/$id'
+      fullPath: '/app/invitation/$id'
+      preLoaderRoute: typeof AppWorkspaceInvitationIdRouteImport
+      parentRoute: typeof AppWorkspaceRouteRoute
+    }
     '/app/_workspace/settings/organization/': {
       id: '/app/_workspace/settings/organization/'
       path: '/organization'
@@ -295,11 +315,13 @@ const AppWorkspaceSettingsRouteRouteWithChildren =
 interface AppWorkspaceRouteRouteChildren {
   AppWorkspaceMainRouteRoute: typeof AppWorkspaceMainRouteRouteWithChildren
   AppWorkspaceSettingsRouteRoute: typeof AppWorkspaceSettingsRouteRouteWithChildren
+  AppWorkspaceInvitationIdRoute: typeof AppWorkspaceInvitationIdRoute
 }
 
 const AppWorkspaceRouteRouteChildren: AppWorkspaceRouteRouteChildren = {
   AppWorkspaceMainRouteRoute: AppWorkspaceMainRouteRouteWithChildren,
   AppWorkspaceSettingsRouteRoute: AppWorkspaceSettingsRouteRouteWithChildren,
+  AppWorkspaceInvitationIdRoute: AppWorkspaceInvitationIdRoute,
 }
 
 const AppWorkspaceRouteRouteWithChildren =
