@@ -1,5 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { createFileRoute, getRouteApi } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
 import {
@@ -9,7 +9,7 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 import {
-  BaseItem,
+  type BaseItem,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -32,6 +32,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
@@ -69,7 +76,28 @@ function RouteComponent() {
     <div className="flex size-full">
       <div className="flex-1 flex flex-col">
         <CardHeader>
-          <CardTitle className="justify-self-center">{thread?.name}</CardTitle>
+          <CardTitle>
+            {" "}
+            {thread && (
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link to="/app/threads">Threads</Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild className="text-white">
+                      <Link to="/app/threads/$id" params={{ id: id }}>
+                        {thread.name}
+                      </Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+            )}
+          </CardTitle>
         </CardHeader>
         <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
           <div
