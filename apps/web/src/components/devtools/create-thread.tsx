@@ -43,6 +43,9 @@ export const CreateThread = () => {
         name: value.author,
       });
 
+      // TODO: Remove this timeout after new live-state version release
+      setTimeout(() => {}, 300);
+
       mutate.thread.insert({
         id: ulid().toLowerCase(),
         name: value.title,
