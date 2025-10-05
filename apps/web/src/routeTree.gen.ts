@@ -14,11 +14,11 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
+import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
 import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
 import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
 import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
-import { Route as AppWorkspaceInvitationIdRouteImport } from './routes/app/_workspace/invitation.$id'
 import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
@@ -47,6 +47,11 @@ const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const AppInvitationIdRoute = AppInvitationIdRouteImport.update({
+  id: '/invitation/$id',
+  path: '/invitation/$id',
+  getParentRoute: () => AppRouteRoute,
+} as any)
 const AppWorkspaceSettingsRouteRoute =
   AppWorkspaceSettingsRouteRouteImport.update({
     id: '/settings',
@@ -68,12 +73,6 @@ const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppWorkspaceMainRouteRoute,
 } as any)
-const AppWorkspaceInvitationIdRoute =
-  AppWorkspaceInvitationIdRouteImport.update({
-    id: '/invitation/$id',
-    path: '/invitation/$id',
-    getParentRoute: () => AppWorkspaceRouteRoute,
-  } as any)
 const AppWorkspaceSettingsOrganizationIndexRoute =
   AppWorkspaceSettingsOrganizationIndexRouteImport.update({
     id: '/organization/',
@@ -99,7 +98,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
-  '/app/invitation/$id': typeof AppWorkspaceInvitationIdRoute
+  '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -111,7 +110,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
-  '/app/invitation/$id': typeof AppWorkspaceInvitationIdRoute
+  '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -126,7 +125,7 @@ export interface FileRoutesById {
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
   '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
-  '/app/_workspace/invitation/$id': typeof AppWorkspaceInvitationIdRoute
+  '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -167,7 +166,7 @@ export interface FileRouteTypes {
     | '/app/_workspace'
     | '/app/_workspace/_main'
     | '/app/_workspace/settings'
-    | '/app/_workspace/invitation/$id'
+    | '/app/invitation/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/app/_workspace/_main/threads/$id'
@@ -219,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceRouteRouteImport
       parentRoute: typeof AppRouteRoute
     }
+    '/app/invitation/$id': {
+      id: '/app/invitation/$id'
+      path: '/invitation/$id'
+      fullPath: '/app/invitation/$id'
+      preLoaderRoute: typeof AppInvitationIdRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
     '/app/_workspace/settings': {
       id: '/app/_workspace/settings'
       path: '/settings'
@@ -246,13 +252,6 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/'
       preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
-    }
-    '/app/_workspace/invitation/$id': {
-      id: '/app/_workspace/invitation/$id'
-      path: '/invitation/$id'
-      fullPath: '/app/invitation/$id'
-      preLoaderRoute: typeof AppWorkspaceInvitationIdRouteImport
-      parentRoute: typeof AppWorkspaceRouteRoute
     }
     '/app/_workspace/settings/organization/': {
       id: '/app/_workspace/settings/organization/'
@@ -315,13 +314,11 @@ const AppWorkspaceSettingsRouteRouteWithChildren =
 interface AppWorkspaceRouteRouteChildren {
   AppWorkspaceMainRouteRoute: typeof AppWorkspaceMainRouteRouteWithChildren
   AppWorkspaceSettingsRouteRoute: typeof AppWorkspaceSettingsRouteRouteWithChildren
-  AppWorkspaceInvitationIdRoute: typeof AppWorkspaceInvitationIdRoute
 }
 
 const AppWorkspaceRouteRouteChildren: AppWorkspaceRouteRouteChildren = {
   AppWorkspaceMainRouteRoute: AppWorkspaceMainRouteRouteWithChildren,
   AppWorkspaceSettingsRouteRoute: AppWorkspaceSettingsRouteRouteWithChildren,
-  AppWorkspaceInvitationIdRoute: AppWorkspaceInvitationIdRoute,
 }
 
 const AppWorkspaceRouteRouteWithChildren =
@@ -329,10 +326,12 @@ const AppWorkspaceRouteRouteWithChildren =
 
 interface AppRouteRouteChildren {
   AppWorkspaceRouteRoute: typeof AppWorkspaceRouteRouteWithChildren
+  AppInvitationIdRoute: typeof AppInvitationIdRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppWorkspaceRouteRoute: AppWorkspaceRouteRouteWithChildren,
+  AppInvitationIdRoute: AppInvitationIdRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
