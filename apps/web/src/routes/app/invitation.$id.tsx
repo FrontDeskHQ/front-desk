@@ -55,7 +55,7 @@ function RouteComponent() {
                   Invitation expires in{" "}
                   {formatDistanceToNowStrict(data?.expiresAt as Date)}
                 </p>
-                <div className="flex gap-4 shrink-0 w-full sm:w-auto border">
+                <div className="flex gap-4 shrink-0 w-full sm:w-auto">
                   <Button variant="link" className="grow">
                     Decline
                   </Button>
