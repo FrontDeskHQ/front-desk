@@ -24,7 +24,7 @@
     "lint": "biome lint .",
     "lint:fix": "biome lint --fix .",
     "build": "tsdown",
-    "dev": "tsdown --watch --on-success \"node dist/index.js\" --dts",
+    "dev": "tsdown --watch --on-success \"node dist/index.js\"",
     "typecheck": "tsc --noEmit",
     "format": "pnpm biome format ./src --fix"
   },

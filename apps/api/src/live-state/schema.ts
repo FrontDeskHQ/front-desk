@@ -67,6 +67,7 @@ const user = object("user", {
 const invite = object("invite", {
   id: id(),
   organizationId: reference("organization.id"),
+  creatorId: reference("user.id"),
   email: string(),
   createdAt: timestamp(),
   expiresAt: timestamp(),
@@ -105,6 +106,7 @@ const authorRelations = createRelations(author, ({ one }) => ({
 
 const inviteRelations = createRelations(invite, ({ one }) => ({
   organization: one(organization, "organizationId"),
+  creator: one(user, "creatorId"),
 }));
 
 export const schema = createSchema({
