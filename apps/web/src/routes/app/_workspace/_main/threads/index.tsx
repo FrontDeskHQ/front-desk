@@ -127,14 +127,14 @@ function RouteComponent() {
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
-      .where({ organizationId: currentOrg!.id })
+      .where({ organizationId: currentOrg?.id })
       .include({ user: true }),
   );
 
   const [filter, setFilter] = useState<FilterValue>({});
 
   let threadsQuery = query.thread.where({
-    organizationId: currentOrg!.id,
+    organizationId: currentOrg?.id,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
@@ -202,15 +202,13 @@ function RouteComponent() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="gap-4">
-          Threads
+        <CardTitle className="gap-4">Threads</CardTitle>
+        <CardAction side="right">
           <Filter
             options={filterOptions}
             value={filter}
             onValueChange={setFilter}
           />
-        </CardTitle>
-        <CardAction side="right">
           <Popover>
             <PopoverTrigger>
               <Button variant="ghost" size="sm">
