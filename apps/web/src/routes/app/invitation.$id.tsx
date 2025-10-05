@@ -65,45 +65,43 @@ function RouteComponent() {
                 </div>
               </div>
             </>
-          ) : error === "INVITATION_EXPIRED" ? (
-            <>
-              <p className="text-center">
-                This invitation has expired.
-                <br /> Please contact the sender to get a new invitation.
-              </p>
-              <Button variant="link" asChild>
-                <Link to="/app">
-                  <ArrowLeft />
-                  Back to App
-                </Link>
-              </Button>
-            </>
-          ) : error === "INVALID_USER" ? (
-            <>
-              <p className="text-center">
-                This invitation is not for {user.email}.<br /> Please log in
-                with the correct email address.
-              </p>
-              <Button
-                variant="link"
-                onClick={() =>
-                  authClient.signOut({
-                    fetchOptions: { onSuccess: () => navigate({ to: "/" }) },
-                  })
-                }
-              >
-                Logout
-              </Button>
-            </>
           ) : (
             <>
-              <p className="text-center">This invitation is not valid.</p>
-              <Button variant="link" asChild>
-                <Link to="/app">
-                  <ArrowLeft />
-                  Back to App
-                </Link>
-              </Button>
+              {error === "INVITATION_EXPIRED" ? (
+                <p className="text-center">
+                  This invitation has expired.
+                  <br /> Please contact the sender to get a new invitation.
+                </p>
+              ) : error === "INVALID_USER" ? (
+                <p className="text-center">
+                  This invitation is not for {user.email}.<br /> Please log in
+                  with the correct email address.
+                </p>
+              ) : (
+                <p className="text-center">This invitation is not valid.</p>
+              )}
+              <div className="flex justify-between items-center gap-4">
+                <Button variant="link" asChild>
+                  <Link to="/app">
+                    <ArrowLeft />
+                    Back to App
+                  </Link>
+                </Button>
+                {error === "INVALID_USER" && (
+                  <Button
+                    variant="link"
+                    onClick={() =>
+                      authClient.signOut({
+                        fetchOptions: {
+                          onSuccess: () => navigate({ to: "/" }),
+                        },
+                      })
+                    }
+                  >
+                    Logout
+                  </Button>
+                )}
+              </div>
             </>
           )}
         </CardContent>
