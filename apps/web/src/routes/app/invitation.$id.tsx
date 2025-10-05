@@ -31,11 +31,13 @@ function RouteComponent() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex flex-col gap-6 w-full max-w-xl items-center justify-center mx-auto p-8">
-      <div className="size-fit p-4 border rounded-2xl bg-muted">
-        <Icon className="size-6" />
+    <div className="flex flex-col gap-4 w-full max-w-xl items-center justify-center mx-auto p-8">
+      <div className="absolute left-4 top-4 flex items-center gap-2">
+        <div className="size-fit p-2 border rounded-md bg-muted">
+          <Icon className="size-4" />
+        </div>
+        <h1 className="text-xl">FrontDesk</h1>
       </div>
-      <h1 className="text-xl font-medium">FrontDesk</h1>
       <Card className="w-full p-8 bg-muted/50">
         <CardContent className="items-center gap-6">
           {data ? (
