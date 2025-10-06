@@ -62,7 +62,19 @@ function RouteComponent() {
                   {formatDistanceToNowStrict(data?.expiresAt as Date)}
                 </p>
                 <div className="flex gap-4 shrink-0 w-full sm:w-auto">
-                  <Button variant="link" className="grow">
+                  <Button
+                    variant="link"
+                    className="grow"
+                    onClick={() => {
+                      startTransition(async () => {
+                        await fetchClient.mutate.invite.decline({
+                          id: data?.id,
+                        });
+                        navigate({ to: "/app" });
+                      });
+                    }}
+                    disabled={isPending}
+                  >
                     Decline
                   </Button>
                   <Button

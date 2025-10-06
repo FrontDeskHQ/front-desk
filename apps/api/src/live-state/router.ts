@@ -58,6 +58,10 @@ export const router = createRouter({
                 throw new Error("INVITATION_NOT_FOUND");
               }
 
+              if (invite.email !== req.context?.user?.email) {
+                throw new Error("INVALID_USER");
+              }
+
               await trx.insert(schema.organizationUser, {
                 id: ulid().toLowerCase(),
                 organizationId: invite.organizationId,
@@ -69,6 +73,27 @@ export const router = createRouter({
               await trx.update(schema.invite, req.input!.id, {
                 active: false,
               });
+            });
+
+            return {
+              success: true,
+            };
+          }
+        ),
+        decline: mutation(z.object({ id: z.string() })).handler(
+          async ({ req, db }) => {
+            const invite = await db.findOne(schema.invite, req.input!.id);
+
+            if (!invite) {
+              throw new Error("INVITATION_NOT_FOUND");
+            }
+
+            if (invite.email !== req.context?.user?.email) {
+              throw new Error("INVALID_USER");
+            }
+
+            await db.update(schema.invite, req.input!.id, {
+              active: false,
             });
 
             return {
