@@ -36,22 +36,29 @@ export const CreateThread = () => {
       onSubmit: createThreadSchema,
     },
     onSubmit: async ({ value }) => {
+      if (!currentOrg?.id) return;
+
       const authorId = ulid().toLowerCase();
 
       mutate.author.insert({
         id: authorId,
         name: value.author,
+        userId: null,
       });
 
       // TODO: Remove this timeout after new live-state version release
-      setTimeout(() => {}, 300);
+      await new Promise((resolve) => setTimeout(resolve, 300));
 
       mutate.thread.insert({
         id: ulid().toLowerCase(),
         name: value.title,
         authorId: authorId,
-        organizationId: currentOrg?.id,
+        organizationId: currentOrg.id,
         createdAt: new Date(),
+        discordChannelId: null,
+        assignedUserId: null,
+        status: 0,
+        priority: 0,
       });
     },
   });
