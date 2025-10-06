@@ -3,7 +3,7 @@ packages:
   - packages/*
 
 catalog:
-  '@live-state/sync': ^0.0.4-beta.3
+  '@live-state/sync': ^0.0.4-beta.6
   zod: 4.1.9
 
 ignoredBuiltDependencies:

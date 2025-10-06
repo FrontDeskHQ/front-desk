@@ -10,15 +10,14 @@ export const Route = createFileRoute("/app/_workspace")({
   beforeLoad: async ({ context }) => {
     const user = context.user;
 
-    const orgUsers = await fetchClient.organizationUser
-      .get({
-        include: {
-          organization: true,
-        },
-        where: {
-          userId: user.id,
-        },
+    const orgUsers = await fetchClient.query.organizationUser
+      .where({
+        userId: user.id,
       })
+      .include({
+        organization: true,
+      })
+      .get()
       .catch(() => null);
 
     if (!orgUsers || Object.keys(orgUsers).length === 0) {
