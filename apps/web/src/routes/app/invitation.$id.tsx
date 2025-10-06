@@ -7,9 +7,12 @@ import {
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Icon } from "@workspace/ui/components/logo";
+import { Spinner } from "@workspace/ui/components/spinner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowLeft } from "lucide-react";
+import { useTransition } from "react";
 import { authClient } from "~/lib/auth-client";
+import { fetchClient } from "~/lib/live-state";
 import { getInvitation } from "~/lib/server-funcs/invitations";
 
 export const Route = createFileRoute("/app/invitation/$id")({
@@ -29,6 +32,7 @@ function RouteComponent() {
   const { data, error } = invite;
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
+  const [isPending, startTransition] = useTransition();
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-xl items-center justify-center mx-auto p-8">
@@ -61,7 +65,27 @@ function RouteComponent() {
                   <Button variant="link" className="grow">
                     Decline
                   </Button>
-                  <Button variant="default" className="grow">
+                  <Button
+                    variant="default"
+                    className="grow"
+                    disabled={isPending}
+                    onClick={() => {
+                      startTransition(async () => {
+                        await fetchClient.mutate.invite
+                          .accept({
+                            id: data?.id,
+                          })
+                          .then(() => {
+                            navigate({ to: "/app" });
+                          })
+                          .catch((error) => {
+                            // FIXME add toast to show error
+                            console.error(error);
+                          });
+                      });
+                    }}
+                  >
+                    {isPending && <Spinner />}
                     Accept
                   </Button>
                 </div>

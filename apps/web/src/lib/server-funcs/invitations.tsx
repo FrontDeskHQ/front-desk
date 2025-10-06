@@ -1,7 +1,5 @@
-import { InferLiveObject } from "@live-state/sync";
 import { createServerFn } from "@tanstack/react-start";
 import { getHeaders } from "@tanstack/react-start/server";
-import { schema } from "api/schema";
 import { z } from "zod";
 import { authClient } from "../auth-client";
 import { fetchClient } from "../live-state";
@@ -27,20 +25,17 @@ export const getInvitation = createServerFn({
 
     const { user } = sessionData;
 
-    const invitation = Object.values(
-      await fetchClient.invite.get({
-        where: {
-          id: data.id,
-        },
-        include: {
-          organization: true,
-          creator: true,
-        },
-      }),
-    )[0] as InferLiveObject<
-      (typeof schema)["invite"],
-      { organization: true; creator: true }
-    >;
+    const invitation = await fetchClient.query.invite
+      .where({
+        id: data.id,
+      })
+      .include({
+        organization: true,
+        creator: true,
+      })
+      .get()
+      .then((v) => v[0])
+      .catch(() => null);
 
     if (!invitation) {
       throw new Error("INVITATION_NOT_FOUND");

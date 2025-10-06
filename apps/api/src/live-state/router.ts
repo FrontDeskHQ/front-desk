@@ -46,7 +46,37 @@ export const router = createRouter({
     message: privateRoute.collectionRoute(schema.message),
     user: privateRoute.collectionRoute(schema.user),
     author: privateRoute.collectionRoute(schema.author),
-    invite: privateRoute.collectionRoute(schema.invite),
+    invite: privateRoute
+      .collectionRoute(schema.invite)
+      .withMutations(({ mutation }) => ({
+        accept: mutation(z.object({ id: z.string() })).handler(
+          async ({ req, db }) => {
+            await db.transaction(async ({ trx }) => {
+              const invite = await trx.findOne(schema.invite, req.input!.id);
+
+              if (!invite) {
+                throw new Error("INVITATION_NOT_FOUND");
+              }
+
+              await trx.insert(schema.organizationUser, {
+                id: ulid().toLowerCase(),
+                organizationId: invite.organizationId,
+                userId: req.context.session.userId,
+                enabled: true,
+                role: "user",
+              });
+
+              await trx.update(schema.invite, req.input!.id, {
+                active: false,
+              });
+            });
+
+            return {
+              success: true,
+            };
+          }
+        ),
+      })),
   },
 });
 
