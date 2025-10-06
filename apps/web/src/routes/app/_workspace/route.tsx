@@ -20,8 +20,6 @@ export const Route = createFileRoute("/app/_workspace")({
       .get()
       .catch(() => null);
 
-    console.log("orgUsers", JSON.stringify(orgUsers, null, 2));
-
     if (!orgUsers || Object.keys(orgUsers).length === 0) {
       throw redirect({
         to: "/onboarding",
