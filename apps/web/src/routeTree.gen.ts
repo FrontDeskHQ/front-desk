@@ -21,6 +21,7 @@ import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_wor
 import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
 import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
+import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
 
 const SignUpRoute = SignUpRouteImport.update({
@@ -85,6 +86,12 @@ const AppWorkspaceMainThreadsIndexRoute =
     path: '/threads/',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationTeamRoute =
+  AppWorkspaceSettingsOrganizationTeamRouteImport.update({
+    id: '/organization/team',
+    path: '/organization/team',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
 const AppWorkspaceMainThreadsIdRoute =
   AppWorkspaceMainThreadsIdRouteImport.update({
     id: '/threads/$id',
@@ -102,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
+  '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
 }
@@ -113,6 +121,7 @@ export interface FileRoutesByTo {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
+  '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
 }
@@ -129,6 +138,7 @@ export interface FileRoutesById {
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
+  '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
 }
@@ -144,6 +154,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/settings/'
     | '/app/threads/$id'
+    | '/app/settings/organization/team'
     | '/app/threads'
     | '/app/settings/organization'
   fileRoutesByTo: FileRoutesByTo
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/settings'
     | '/app/threads/$id'
+    | '/app/settings/organization/team'
     | '/app/threads'
     | '/app/settings/organization'
   id:
@@ -170,6 +182,7 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/app/_workspace/_main/threads/$id'
+    | '/app/_workspace/settings/organization/team'
     | '/app/_workspace/_main/threads/'
     | '/app/_workspace/settings/organization/'
   fileRoutesById: FileRoutesById
@@ -267,6 +280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainThreadsIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/settings/organization/team': {
+      id: '/app/_workspace/settings/organization/team'
+      path: '/organization/team'
+      fullPath: '/app/settings/organization/team'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationTeamRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
     '/app/_workspace/_main/threads/$id': {
       id: '/app/_workspace/_main/threads/$id'
       path: '/threads/$id'
@@ -296,12 +316,15 @@ const AppWorkspaceMainRouteRouteWithChildren =
 
 interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
+  AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
 }
 
 const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
   {
     AppWorkspaceSettingsIndexRoute: AppWorkspaceSettingsIndexRoute,
+    AppWorkspaceSettingsOrganizationTeamRoute:
+      AppWorkspaceSettingsOrganizationTeamRoute,
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
   }
