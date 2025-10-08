@@ -113,7 +113,6 @@ function RouteComponent() {
                 email: inviteValue.split(",").map((email) => email.trim()),
               }),
             ).then(() => {
-              console.log("invites sent");
               setInviteValue(null);
             });
           }}
