@@ -84,6 +84,12 @@ export const router = createRouter({
             await db.find(schema.invite, {
               where: {
                 organizationId: orgId,
+                active: true,
+                expiresAt: {
+                  // FIXME follow https://github.com/pedroscosta/live-state/issues/75
+                  // @ts-ignore
+                  $gt: new Date(),
+                },
               },
             })
           );

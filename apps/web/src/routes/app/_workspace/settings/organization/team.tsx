@@ -62,10 +62,14 @@ function RouteComponent() {
 
   const { user: currentUser } = Route.useRouteContext();
 
+  const selfOrgUser = organizationUsers?.find(
+    (orgUser) => orgUser.user.id === currentUser?.id,
+  );
+
   const [inviteValue, setInviteValue] = useState<string | null>(null);
   const [isPending, asyncAction] = useAsyncAction();
 
-  if (!currentOrg) return null;
+  if (!currentOrg || !selfOrgUser) return null;
 
   return (
     <div className="p-4 flex flex-col gap-4 w-full">
@@ -86,7 +90,13 @@ function RouteComponent() {
               </div>
               <div className="flex items-center gap-2">
                 <Select value={orgUser.role} items={roleOptions}>
-                  <SelectTrigger className="w-40">
+                  <SelectTrigger
+                    className="w-40"
+                    disabled={
+                      orgUser.user.id === currentUser?.id ||
+                      selfOrgUser.role !== "owner"
+                    }
+                  >
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -97,42 +107,44 @@ function RouteComponent() {
                     ))}
                   </SelectContent>
                 </Select>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      variant="ghost"
-                      className={cn(
-                        "text-red-700 w-24 dark:hover:text-red-500",
-                        orgUser.user.id === currentUser?.id &&
-                          "opacity-0 pointer-events-none",
-                      )}
-                    >
-                      Remove
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Are you absolutely sure?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        This action cannot be undone. This will remove{" "}
-                        <strong>{orgUser.user.name}</strong> from the
-                        organization.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction variant="destructive">
+                {selfOrgUser.role === "owner" && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        className={cn(
+                          "text-red-700 w-24 dark:hover:text-red-500",
+                          orgUser.user.id === currentUser?.id &&
+                            "opacity-0 pointer-events-none",
+                        )}
+                      >
                         Remove
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will remove{" "}
+                          <strong>{orgUser.user.name}</strong> from the
+                          organization.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction variant="destructive">
+                          Remove
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
               </div>
             </div>
           ))}
-          {invites?.length ? (
+          {invites?.length && selfOrgUser.role === "owner" && (
             <div className="flex flex-col gap-px px-2">
               <Separator className="my-6" />
               <h2 className="mb-4 text-primary/85">Pending invitations</h2>
@@ -183,35 +195,37 @@ function RouteComponent() {
                 </div>
               ))}
             </div>
-          ) : null}
+          )}
         </CardContent>
       </Card>
-      <div className="flex gap-4">
-        <Input
-          value={inviteValue ?? ""}
-          onChange={(e) => setInviteValue(e.target.value)}
-          className="bg-muted/45 dark:bg-muted/45"
-          placeholder="member1@example.com, member2@example.com, ..."
-        />
-        <Button
-          disabled={!inviteValue}
-          onClick={async () => {
-            if (!inviteValue || !currentOrg?.id) return;
+      {selfOrgUser.role === "owner" && (
+        <div className="flex gap-4">
+          <Input
+            value={inviteValue ?? ""}
+            onChange={(e) => setInviteValue(e.target.value)}
+            className="bg-muted/45 dark:bg-muted/45"
+            placeholder="member1@example.com, member2@example.com, ..."
+          />
+          <Button
+            disabled={!inviteValue}
+            onClick={async () => {
+              if (!inviteValue || !currentOrg?.id) return;
 
-            asyncAction(() =>
-              fetchClient.mutate.organizationUser.inviteUser({
-                organizationId: currentOrg.id,
-                email: inviteValue.split(",").map((email) => email.trim()),
-              }),
-            ).then(() => {
-              setInviteValue(null);
-            });
-          }}
-        >
-          {isPending ? <Spinner /> : null}
-          Send invitations
-        </Button>
-      </div>
+              asyncAction(() =>
+                fetchClient.mutate.organizationUser.inviteUser({
+                  organizationId: currentOrg.id,
+                  email: inviteValue.split(",").map((email) => email.trim()),
+                }),
+              ).then(() => {
+                setInviteValue(null);
+              });
+            }}
+          >
+            {isPending ? <Spinner /> : null}
+            Send invitations
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
