@@ -7,6 +7,7 @@ import {
 } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
+import { Input } from "@workspace/ui/components/input";
 import {
   Select,
   SelectContent,
@@ -14,10 +15,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { Spinner } from "@workspace/ui/components/spinner";
+import { useAsyncAction } from "@workspace/ui/hooks/use-action";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
+import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { query } from "~/lib/live-state";
+import { fetchClient, query } from "~/lib/live-state";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/team",
@@ -40,6 +44,9 @@ function RouteComponent() {
   );
 
   const { user: currentUser } = Route.useRouteContext();
+
+  const [inviteValue, setInviteValue] = useState<string | null>(null);
+  const [isPending, asyncAction] = useAsyncAction();
 
   if (!currentOrg) return null;
 
@@ -88,6 +95,33 @@ function RouteComponent() {
           ))}
         </CardContent>
       </Card>
+      <div className="flex gap-4">
+        <Input
+          value={inviteValue ?? ""}
+          onChange={(e) => setInviteValue(e.target.value)}
+          className="bg-muted/45 dark:bg-muted/45"
+          placeholder="member1@example.com, member2@example.com, ..."
+        />
+        <Button
+          disabled={!inviteValue}
+          onClick={async () => {
+            if (!inviteValue || !currentOrg?.id) return;
+
+            asyncAction(() =>
+              fetchClient.mutate.organizationUser.inviteUser({
+                organizationId: currentOrg.id,
+                email: inviteValue.split(",").map((email) => email.trim()),
+              }),
+            ).then(() => {
+              console.log("invites sent");
+              setInviteValue(null);
+            });
+          }}
+        >
+          {isPending ? <Spinner /> : null}
+          Send invitations
+        </Button>
+      </div>
     </div>
   );
 }
