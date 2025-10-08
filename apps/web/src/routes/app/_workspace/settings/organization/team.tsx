@@ -52,7 +52,7 @@ function RouteComponent() {
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
-      .where({ organizationId: currentOrg?.id })
+      .where({ organizationId: currentOrg?.id, enabled: true })
       .include({ user: true }),
   );
 
@@ -89,7 +89,15 @@ function RouteComponent() {
                 {orgUser.user.name}
               </div>
               <div className="flex items-center gap-2">
-                <Select value={orgUser.role} items={roleOptions}>
+                <Select
+                  value={orgUser.role}
+                  items={roleOptions}
+                  onValueChange={(value) => {
+                    mutate.organizationUser.update(orgUser.id, {
+                      role: value as string,
+                    });
+                  }}
+                >
                   <SelectTrigger
                     className="w-40"
                     disabled={
@@ -134,7 +142,14 @@ function RouteComponent() {
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction variant="destructive">
+                        <AlertDialogAction
+                          variant="destructive"
+                          onClick={() => {
+                            mutate.organizationUser.update(orgUser.id, {
+                              enabled: false,
+                            });
+                          }}
+                        >
                           Remove
                         </AlertDialogAction>
                       </AlertDialogFooter>
