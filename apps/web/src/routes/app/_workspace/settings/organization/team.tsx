@@ -1,6 +1,17 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@workspace/ui/components/alert-dialog";
+import {
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -15,13 +26,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { Separator } from "@workspace/ui/components/separator";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { useAsyncAction } from "@workspace/ui/hooks/use-action";
 import { cn } from "@workspace/ui/lib/utils";
+import { formatDistanceToNowStrict } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { fetchClient, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/team",
@@ -41,6 +54,10 @@ function RouteComponent() {
     query.organizationUser
       .where({ organizationId: currentOrg?.id })
       .include({ user: true }),
+  );
+
+  const invites = useLiveQuery(
+    query.invite.where({ organizationId: currentOrg?.id, active: true }),
   );
 
   const { user: currentUser } = Route.useRouteContext();
@@ -80,19 +97,93 @@ function RouteComponent() {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  variant="ghost"
-                  className={cn(
-                    "text-red-700 w-24 dark:hover:text-red-500",
-                    orgUser.user.id === currentUser?.id &&
-                      "opacity-0 pointer-events-none",
-                  )}
-                >
-                  Remove
-                </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className={cn(
+                        "text-red-700 w-24 dark:hover:text-red-500",
+                        orgUser.user.id === currentUser?.id &&
+                          "opacity-0 pointer-events-none",
+                      )}
+                    >
+                      Remove
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        This action cannot be undone. This will remove{" "}
+                        <strong>{orgUser.user.name}</strong> from the
+                        organization.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction variant="destructive">
+                        Remove
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </div>
           ))}
+          {invites?.length ? (
+            <div className="flex flex-col gap-px px-2">
+              <Separator className="my-6" />
+              <h2 className="mb-4 text-primary/85">Pending invitations</h2>
+              {invites?.map((invite) => (
+                <div
+                  key={invite.id}
+                  className="grid grid-cols-3 items-center h-8 gap-4"
+                >
+                  <div>{invite.email}</div>
+                  <span className="text-xs text-muted-foreground">
+                    Expires in {formatDistanceToNowStrict(invite.expiresAt)}
+                  </span>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-700 w-24 dark:hover:text-red-500 justify-self-end px-4"
+                      >
+                        Revoke
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          Are you absolutely sure?
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This action cannot be undone. This will revoke the
+                          invitation for <strong>{invite.email}</strong>.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          variant="destructive"
+                          onClick={() => {
+                            mutate.invite.update(invite.id, {
+                              active: false,
+                            });
+                          }}
+                        >
+                          Revoke
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
+              ))}
+            </div>
+          ) : null}
         </CardContent>
       </Card>
       <div className="flex gap-4">
