@@ -64,9 +64,20 @@ const user = object("user", {
   updatedAt: timestamp(),
 });
 
+const invite = object("invite", {
+  id: id(),
+  organizationId: reference("organization.id"),
+  creatorId: reference("user.id"),
+  email: string(),
+  createdAt: timestamp(),
+  expiresAt: timestamp(),
+  active: boolean().default(true),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
+  invites: many(invite, "organizationId"),
 }));
 
 const organizationUserRelations = createRelations(
@@ -93,6 +104,11 @@ const authorRelations = createRelations(author, ({ one }) => ({
   user: one(user, "userId", false),
 }));
 
+const inviteRelations = createRelations(invite, ({ one }) => ({
+  organization: one(organization, "organizationId"),
+  creator: one(user, "creatorId"),
+}));
+
 export const schema = createSchema({
   // models
   organization,
@@ -101,10 +117,12 @@ export const schema = createSchema({
   thread,
   message,
   user,
+  invite,
   // relations
   organizationUserRelations,
   organizationRelations,
   threadRelations,
   messageRelations,
   authorRelations,
+  inviteRelations,
 });

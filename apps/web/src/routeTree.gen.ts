@@ -14,6 +14,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
+import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
 import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
 import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
@@ -44,6 +45,11 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppInvitationIdRoute = AppInvitationIdRouteImport.update({
+  id: '/invitation/$id',
+  path: '/invitation/$id',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppWorkspaceSettingsRouteRoute =
@@ -92,6 +98,7 @@ export interface FileRoutesByFullPath {
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
+  '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -103,6 +110,7 @@ export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
   '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
+  '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -117,6 +125,7 @@ export interface FileRoutesById {
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
   '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
+  '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -131,6 +140,7 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/sign-up'
     | '/app/settings'
+    | '/app/invitation/$id'
     | '/app/'
     | '/app/settings/'
     | '/app/threads/$id'
@@ -142,6 +152,7 @@ export interface FileRouteTypes {
     | '/app'
     | '/onboarding'
     | '/sign-up'
+    | '/app/invitation/$id'
     | '/app/settings'
     | '/app/threads/$id'
     | '/app/threads'
@@ -155,6 +166,7 @@ export interface FileRouteTypes {
     | '/app/_workspace'
     | '/app/_workspace/_main'
     | '/app/_workspace/settings'
+    | '/app/invitation/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/app/_workspace/_main/threads/$id'
@@ -204,6 +216,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/app'
       preLoaderRoute: typeof AppWorkspaceRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/invitation/$id': {
+      id: '/app/invitation/$id'
+      path: '/invitation/$id'
+      fullPath: '/app/invitation/$id'
+      preLoaderRoute: typeof AppInvitationIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/_workspace/settings': {
@@ -307,10 +326,12 @@ const AppWorkspaceRouteRouteWithChildren =
 
 interface AppRouteRouteChildren {
   AppWorkspaceRouteRoute: typeof AppWorkspaceRouteRouteWithChildren
+  AppInvitationIdRoute: typeof AppInvitationIdRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppWorkspaceRouteRoute: AppWorkspaceRouteRouteWithChildren,
+  AppInvitationIdRoute: AppInvitationIdRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(

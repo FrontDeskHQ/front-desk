@@ -12,7 +12,8 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "declaration": false
   },
   "include": ["src", "tests"]
 }
