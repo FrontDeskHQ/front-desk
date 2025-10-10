@@ -95,7 +95,9 @@ export const router = createRouter({
           );
 
           // FIXME follow https://github.com/pedroscosta/live-state/issues/74
-          const filteredEmails = req.input!.email.filter(
+          const filteredEmails = Array.from(
+            new Set(req.input!.email.map((e) => e.trim().toLowerCase()))
+          ).filter(
             (email) =>
               !existingMembers.some(
                 (member) => (member as any).user?.email === email

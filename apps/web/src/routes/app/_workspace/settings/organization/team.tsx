@@ -83,10 +83,12 @@ function RouteComponent() {
             >
               <div className="flex items-center gap-2.5">
                 <Avatar>
-                  <AvatarImage src={orgUser.user.image ?? undefined} />
-                  <AvatarFallback>{orgUser.user.name.charAt(0)}</AvatarFallback>
+                  <AvatarImage src={orgUser?.user?.image ?? undefined} />
+                  <AvatarFallback>
+                    {orgUser?.user?.name?.charAt(0)}
+                  </AvatarFallback>
                 </Avatar>
-                {orgUser.user.name}
+                {orgUser?.user?.name}
               </div>
               <div className="flex items-center gap-2">
                 <Select
