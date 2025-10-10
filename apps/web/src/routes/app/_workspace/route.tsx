@@ -22,7 +22,7 @@ export const Route = createFileRoute("/app/_workspace")({
 
     if (!orgUsers || Object.keys(orgUsers).length === 0) {
       throw redirect({
-        to: "/onboarding",
+        to: "/app/onboarding",
       });
     }
 

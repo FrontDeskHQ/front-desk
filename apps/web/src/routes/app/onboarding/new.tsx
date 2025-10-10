@@ -14,7 +14,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { mutate } from "~/lib/live-state";
 
-export const Route = createFileRoute("/onboarding")({
+export const Route = createFileRoute("/app/onboarding/new")({
   component: RouteComponent,
 });
 
@@ -27,7 +27,7 @@ const onboardingFormSchema = z.object({
     .min(3, "Slug must be at least 3 characters")
     .regex(
       /^[a-z0-9-]+$/,
-      "Slug can only contain lowercase letters, numbers, and hyphens"
+      "Slug can only contain lowercase letters, numbers, and hyphens",
     ),
   teamMembers: z.string().optional(),
 });
@@ -82,10 +82,13 @@ function OnboardingForm() {
 
   return (
     <div className="flex flex-col gap-6 w-96 items-center">
-      <div className="size-fit p-4 border rounded-2xl bg-muted">
-        <Icon className="size-12" />
+      <div className="absolute left-4 top-4 flex items-center gap-2">
+        <div className="size-fit p-2 border rounded-md bg-muted">
+          <Icon className="size-4" />
+        </div>
+        <h1 className="text-xl">FrontDesk</h1>
       </div>
-      <h1 className="text-xl font-medium">Create Your Organization</h1>
+      <h1 className="text-xl font-medium">Create new organization</h1>
       {error ? <p className="text-destructive">{error}</p> : null}
       <form
         onSubmit={(e) => {
@@ -94,9 +97,8 @@ function OnboardingForm() {
         }}
         className="flex flex-col gap-4 w-full"
       >
-        <Field
-          name="organizationName"
-          children={(field) => (
+        <Field name="organizationName">
+          {(field) => (
             <FormItem field={field}>
               <FormLabel>Organization Name</FormLabel>
               <FormControl>
@@ -113,7 +115,7 @@ function OnboardingForm() {
 
                     // Get the current slug value
                     const currentSlug = getFieldValue(
-                      "organizationSlug"
+                      "organizationSlug",
                     ) as string;
 
                     // Only update the slug if it's empty or matches the previously generated value
@@ -131,14 +133,15 @@ function OnboardingForm() {
               <FormMessage />
             </FormItem>
           )}
-        />
+        </Field>
         {/* TODO validate uniqueness */}
         <Field
           name="organizationSlug"
           validators={{
             onChangeListenTo: ["organizationName"],
           }}
-          children={(field) => (
+        >
+          {(field) => (
             <FormItem field={field}>
               <FormLabel>Organization Slug</FormLabel>
               <FormControl>
@@ -156,27 +159,7 @@ function OnboardingForm() {
               </p>
             </FormItem>
           )}
-        />
-        {/* <Field
-          name="teamMembers"
-          children={(field) => (
-            <FormItem field={field}>
-              <FormLabel>Invite Team Members (Optional)</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="email1@example.com, email2@example.com"
-                  id={field.name}
-                  value={field.state.value}
-                  onChange={(e) => field.setValue(e.target.value)}
-                />
-              </FormControl>
-              <FormMessage />
-              <p className="text-xs text-muted-foreground">
-                Separate multiple email addresses with commas
-              </p>
-            </FormItem>
-          )}
-        /> */}
+        </Field>
         <Button type="submit" className="mt-6 w-full" disabled={loading}>
           {loading ? <Spinner /> : null} Create Organization
         </Button>
