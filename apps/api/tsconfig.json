@@ -13,7 +13,8 @@
     "isolatedModules": true,
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "declaration": false
+    "declaration": false,
+    "jsx": "react-jsx"
   },
   "include": ["src", "tests"]
 }

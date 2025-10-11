@@ -10,4 +10,5 @@ export default defineConfig({
   clean: (process.env.NODE_ENV ?? "development") !== "development",
   dts: false,
   platform: "node",
+  noExternal: [/^@workspace\//],
 });

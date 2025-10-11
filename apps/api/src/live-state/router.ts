@@ -1,7 +1,9 @@
 import { router as createRouter, routeFactory } from "@live-state/sync/server";
+import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
 import { addDays } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { resend } from "../lib/resend";
 import { schema } from "./schema";
 
 const publicRoute = routeFactory();
@@ -53,6 +55,7 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const orgId = req.input!.organizationId;
 
+          // FIXME follow https://github.com/pedroscosta/live-state/issues/74
           const selfOrgUser = Object.values(
             await db.find(schema.organizationUser, {
               where: {
@@ -61,9 +64,10 @@ export const router = createRouter({
               },
               include: {
                 user: true,
+                organization: true,
               },
             })
-          )[0];
+          )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
             throw new Error("UNAUTHORIZED");
@@ -109,8 +113,9 @@ export const router = createRouter({
 
           await Promise.allSettled(
             filteredEmails.map(async (email) => {
+              const inviteId = ulid().toLowerCase();
               await db.insert(schema.invite, {
-                id: ulid().toLowerCase(),
+                id: inviteId,
                 organizationId: req.input!.organizationId,
                 creatorId: req.context.session.userId,
                 email,
@@ -118,6 +123,22 @@ export const router = createRouter({
                 expiresAt: addDays(new Date(), 7),
                 active: true,
               });
+
+              await resend.emails
+                .send({
+                  from: "FrontDesk <notifications@tryfrontdesk.app>",
+                  to: [email],
+                  subject: `${selfOrgUser.user.name} invited you to join ${selfOrgUser.organization.name} on FrontDesk`,
+                  react: InviteUserEmail({
+                    invitedByName: selfOrgUser.user.name,
+                    organizationName: selfOrgUser.organization.name,
+                    organizationImage: selfOrgUser.organization.logoUrl,
+                    inviteLink: `https://tryfrontdesk.app/app/invitation/${inviteId}`,
+                  }),
+                })
+                .catch((error) => {
+                  console.error("Error sending email", error);
+                });
             })
           );
 
