@@ -30,6 +30,7 @@ function RouteComponent() {
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
       userName: user?.name ?? "",
+      userEmail: user?.email ?? "",
       userImage: undefined,
     } as z.infer<typeof userProfileSchema>,
     validators: {
@@ -44,6 +45,7 @@ function RouteComponent() {
         const formData = new FormData();
 
         formData.set("file", value.userImage);
+        formData.set("path", `users/${user.id}/avatar`);
 
         imageUrl = await uploadFile({ data: formData });
       }
@@ -72,7 +74,7 @@ function RouteComponent() {
       <h2 className="text-base">Profile</h2>
       <Card className="bg-[#27272A]/30">
         <CardContent>
-          <Field name="userName">
+          <Field name="userEmail">
             {(field) => (
               <FormItem field={field} className="flex justify-between">
                 <FormLabel>Profile picture</FormLabel>
@@ -96,7 +98,7 @@ function RouteComponent() {
                         backgroundSize: "cover",
                         backgroundPosition: "center",
                       }}
-                      aria-label="Upload organization logo"
+                      aria-label="Upload profile picture"
                     />
                   </FormControl>
                   <div className="absolute inset-0 border bg-background/50 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity peer-focus-visible:opacity-100 pointer-events-none">
