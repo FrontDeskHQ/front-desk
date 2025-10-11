@@ -10,10 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
+import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
+import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
 import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
@@ -29,11 +30,6 @@ const SignUpRoute = SignUpRouteImport.update({
   path: '/sign-up',
   getParentRoute: () => rootRouteImport,
 } as any)
-const OnboardingRoute = OnboardingRouteImport.update({
-  id: '/onboarding',
-  path: '/onboarding',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppRouteRoute = AppRouteRouteImport.update({
   id: '/app',
   path: '/app',
@@ -46,6 +42,16 @@ const IndexRoute = IndexRouteImport.update({
 } as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
+  id: '/onboarding/',
+  path: '/onboarding/',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
+  id: '/onboarding/new',
+  path: '/onboarding/new',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppInvitationIdRoute = AppInvitationIdRouteImport.update({
@@ -102,10 +108,11 @@ const AppWorkspaceMainThreadsIdRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/app': typeof AppWorkspaceMainRouteRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
   '/app/invitation/$id': typeof AppInvitationIdRoute
+  '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/app/onboarding': typeof AppOnboardingIndexRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -116,9 +123,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/app': typeof AppWorkspaceMainIndexRoute
-  '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
+  '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/app/onboarding': typeof AppOnboardingIndexRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
@@ -129,12 +137,13 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/app': typeof AppRouteRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
   '/sign-up': typeof SignUpRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
   '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
   '/app/invitation/$id': typeof AppInvitationIdRoute
+  '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
@@ -147,10 +156,11 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/app'
-    | '/onboarding'
     | '/sign-up'
     | '/app/settings'
     | '/app/invitation/$id'
+    | '/app/onboarding/new'
+    | '/app/onboarding'
     | '/app/'
     | '/app/settings/'
     | '/app/threads/$id'
@@ -161,9 +171,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/app'
-    | '/onboarding'
     | '/sign-up'
     | '/app/invitation/$id'
+    | '/app/onboarding/new'
+    | '/app/onboarding'
     | '/app/settings'
     | '/app/threads/$id'
     | '/app/settings/organization/team'
@@ -173,12 +184,13 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/app'
-    | '/onboarding'
     | '/sign-up'
     | '/app/_workspace'
     | '/app/_workspace/_main'
     | '/app/_workspace/settings'
     | '/app/invitation/$id'
+    | '/app/onboarding/new'
+    | '/app/onboarding/'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/app/_workspace/_main/threads/$id'
@@ -190,7 +202,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
-  OnboardingRoute: typeof OnboardingRoute
   SignUpRoute: typeof SignUpRoute
 }
 
@@ -201,13 +212,6 @@ declare module '@tanstack/react-router' {
       path: '/sign-up'
       fullPath: '/sign-up'
       preLoaderRoute: typeof SignUpRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/onboarding': {
-      id: '/onboarding'
-      path: '/onboarding'
-      fullPath: '/onboarding'
-      preLoaderRoute: typeof OnboardingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -229,6 +233,20 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/app'
       preLoaderRoute: typeof AppWorkspaceRouteRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/onboarding/': {
+      id: '/app/onboarding/'
+      path: '/onboarding'
+      fullPath: '/app/onboarding'
+      preLoaderRoute: typeof AppOnboardingIndexRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/onboarding/new': {
+      id: '/app/onboarding/new'
+      path: '/onboarding/new'
+      fullPath: '/app/onboarding/new'
+      preLoaderRoute: typeof AppOnboardingNewRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/invitation/$id': {
@@ -350,11 +368,15 @@ const AppWorkspaceRouteRouteWithChildren =
 interface AppRouteRouteChildren {
   AppWorkspaceRouteRoute: typeof AppWorkspaceRouteRouteWithChildren
   AppInvitationIdRoute: typeof AppInvitationIdRoute
+  AppOnboardingNewRoute: typeof AppOnboardingNewRoute
+  AppOnboardingIndexRoute: typeof AppOnboardingIndexRoute
 }
 
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppWorkspaceRouteRoute: AppWorkspaceRouteRouteWithChildren,
   AppInvitationIdRoute: AppInvitationIdRoute,
+  AppOnboardingNewRoute: AppOnboardingNewRoute,
+  AppOnboardingIndexRoute: AppOnboardingIndexRoute,
 }
 
 const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
@@ -364,7 +386,6 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
-  OnboardingRoute: OnboardingRoute,
   SignUpRoute: SignUpRoute,
 }
 export const routeTree = rootRouteImport

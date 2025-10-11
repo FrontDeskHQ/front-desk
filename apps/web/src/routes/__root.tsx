@@ -6,7 +6,6 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { Providers } from "~/components/providers";
@@ -82,7 +81,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="w-screen min-h-screen text-sm">
         <Providers>
           {children}
-          <TanStackRouterDevtools position="bottom-right" />
+          {/* <TanStackRouterDevtools position="bottom-right" /> */}
         </Providers>
         <Scripts />
       </body>
