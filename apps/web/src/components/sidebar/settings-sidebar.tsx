@@ -11,12 +11,22 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Settings, UserRoundPen } from "lucide-react";
 
 const groups: {
   title: string;
   items: { title: string; url: string; icon: React.ComponentType<any> }[];
 }[] = [
+  {
+    title: "Personal",
+    items: [
+      {
+        title: "Profile",
+        url: "/app/settings/user/",
+        icon: UserRoundPen,
+      },
+    ],
+  },
   {
     title: "Organization",
     items: [
