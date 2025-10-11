@@ -1,4 +1,5 @@
 import { router as createRouter, routeFactory } from "@live-state/sync/server";
+import { addDays } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { schema } from "./schema";
@@ -41,7 +42,90 @@ export const router = createRouter({
           });
         }),
       })),
-    organizationUser: privateRoute.collectionRoute(schema.organizationUser),
+    organizationUser: privateRoute
+      .collectionRoute(schema.organizationUser)
+      .withMutations(({ mutation }) => ({
+        inviteUser: mutation(
+          z.object({
+            organizationId: z.string(),
+            email: z.email().array(),
+          })
+        ).handler(async ({ req, db }) => {
+          const orgId = req.input!.organizationId;
+
+          const selfOrgUser = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                organizationId: orgId,
+                userId: req.context.session.userId,
+              },
+              include: {
+                user: true,
+              },
+            })
+          )[0];
+
+          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const existingMembers = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                organizationId: orgId,
+              },
+              include: {
+                user: true,
+              },
+            })
+          );
+
+          const existingInvites = Object.values(
+            await db.find(schema.invite, {
+              where: {
+                organizationId: orgId,
+                active: true,
+                expiresAt: {
+                  // FIXME follow https://github.com/pedroscosta/live-state/issues/75
+                  // @ts-ignore
+                  $gt: new Date(),
+                },
+              },
+            })
+          );
+
+          // FIXME follow https://github.com/pedroscosta/live-state/issues/74
+          const filteredEmails = Array.from(
+            new Set(req.input!.email.map((e) => e.trim().toLowerCase()))
+          ).filter(
+            (email) =>
+              !existingMembers.some(
+                (member) => (member as any).user?.email.toLowerCase() === email
+              ) &&
+              !existingInvites.some(
+                (invite) => (invite as any).email.toLowerCase() === email
+              )
+          );
+
+          await Promise.allSettled(
+            filteredEmails.map(async (email) => {
+              await db.insert(schema.invite, {
+                id: ulid().toLowerCase(),
+                organizationId: req.input!.organizationId,
+                creatorId: req.context.session.userId,
+                email,
+                createdAt: new Date(),
+                expiresAt: addDays(new Date(), 7),
+                active: true,
+              });
+            })
+          );
+
+          return {
+            success: true,
+          };
+        }),
+      })),
     thread: privateRoute.collectionRoute(schema.thread),
     message: privateRoute.collectionRoute(schema.message),
     user: privateRoute.collectionRoute(schema.user),

@@ -11,7 +11,9 @@ function RouteComponent() {
     <div className="w-screen h-screen flex overflow-hidden">
       <SettingsSidebar />
       <Card className="flex-1 bg-muted/30 relative m-2 ml-0 h-auto p-4">
-        <Outlet />
+        <div className="max-w-3xl mx-auto w-full flex flex-col">
+          <Outlet />
+        </div>
       </Card>
     </div>
   );

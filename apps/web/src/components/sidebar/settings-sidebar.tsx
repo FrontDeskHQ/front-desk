@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
-import { ArrowLeft, Settings } from "lucide-react";
+import { ArrowLeft, Settings, Users } from "lucide-react";
 
 const groups: {
   title: string;
@@ -24,6 +24,11 @@ const groups: {
         title: "General",
         url: "/app/settings/organization/",
         icon: Settings,
+      },
+      {
+        title: "Members",
+        url: "/app/settings/organization/team",
+        icon: Users,
       },
     ],
   },
