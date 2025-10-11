@@ -100,9 +100,11 @@ export const router = createRouter({
           ).filter(
             (email) =>
               !existingMembers.some(
-                (member) => (member as any).user?.email === email
+                (member) => (member as any).user?.email.toLowerCase() === email
               ) &&
-              !existingInvites.some((invite) => (invite as any).email === email)
+              !existingInvites.some(
+                (invite) => (invite as any).email.toLowerCase() === email
+              )
           );
 
           await Promise.allSettled(
