@@ -9,8 +9,8 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
-import { Upload } from "lucide-react";
 import { z } from "zod";
+import AvatarUpload from "~/components/avatarUpload";
 import { mutate } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
 
@@ -29,6 +29,8 @@ function RouteComponent() {
 
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
+      userImage: undefined,
+      userEmail: user?.email ?? "",
       userName: user?.name ?? "",
       userEmail: user?.email ?? "",
       userImage: undefined,
@@ -74,37 +76,18 @@ function RouteComponent() {
       <h2 className="text-base">Profile</h2>
       <Card className="bg-[#27272A]/30">
         <CardContent>
-          <Field name="userEmail">
+          <Field name="userImage">
             {(field) => (
               <FormItem field={field} className="flex justify-between">
                 <FormLabel>Profile picture</FormLabel>
-                <div className="group relative">
-                  <FormControl>
-                    <Input
-                      id={field.name}
-                      type="file"
-                      onChange={(e) =>
-                        e.target.files?.[0] &&
-                        field.setValue(e.target.files?.[0])
-                      }
-                      autoComplete="off"
-                      className="size-10 text-transparent file:text-transparent peer"
-                      style={{
-                        backgroundImage:
-                          field.state.value &&
-                          typeof field.state.value !== "string"
-                            ? `url(${URL.createObjectURL(field.state.value)})`
-                            : (user?.image ?? "none"),
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                      aria-label="Upload profile picture"
-                    />
-                  </FormControl>
-                  <div className="absolute inset-0 border bg-background/50 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity peer-focus-visible:opacity-100 pointer-events-none">
-                    <Upload className="size-5" />
-                  </div>
-                </div>
+                <FormControl>
+                  <AvatarUpload
+                    type="user"
+                    src={user.image || "none"}
+                    fallback={user.name || "Unknown User"}
+                    onFileChange={(file) => field.setValue(file)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
