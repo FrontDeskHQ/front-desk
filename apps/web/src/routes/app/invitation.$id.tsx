@@ -1,9 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar";
+import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Icon } from "@workspace/ui/components/logo";
@@ -46,12 +42,11 @@ function RouteComponent() {
         <CardContent className="items-center gap-6">
           {data ? (
             <>
-              <Avatar className="size-10 rounded-md">
-                <AvatarImage src={data?.organization.logoUrl ?? undefined} />
-                <AvatarFallback className="scale-200">
-                  {data?.organization.name[0]?.toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <Avatar
+                type="org"
+                src={data?.organization.logoUrl ?? undefined}
+                fallback={data?.organization.name}
+              />
               <h2 className="text-lg font-normal text-center">
                 {data?.creator.name} has invited you to join{" "}
                 {data?.organization.name}
