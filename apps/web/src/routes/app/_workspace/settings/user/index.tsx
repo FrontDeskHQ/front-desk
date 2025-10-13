@@ -1,5 +1,6 @@
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
+import { AvatarUpload } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
@@ -10,7 +11,6 @@ import {
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { z } from "zod";
-import AvatarUpload from "~/components/avatarUpload";
 import { mutate } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
 
