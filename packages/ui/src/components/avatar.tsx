@@ -3,6 +3,7 @@
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { Input } from "@workspace/ui/components/input";
 import { cn } from "@workspace/ui/lib/utils";
+import { cva } from "class-variance-authority";
 import { Pencil } from "lucide-react";
 import { useState } from "react";
 
@@ -59,6 +60,24 @@ interface AvatarProps {
   fallback: React.ReactNode;
 }
 
+const avatarVariants = cva("", {
+  variants: {
+    size: {
+      sm: "w-4 h-4",
+      md: "w-7 h-7",
+      lg: "w-10 h-10",
+    },
+    type: {
+      user: "rounded-full",
+      org: "rounded-md",
+    },
+  },
+  defaultVariants: {
+    size: "md",
+    type: "user",
+  },
+});
+
 function getInitials(name: string) {
   return name
     .split(" ")
@@ -67,19 +86,10 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function Avatar({ type, src, alt, size = "md", fallback }: AvatarProps) {
-  const isOrg = type === "org";
-  const sizeClasses = {
-    sm: "w-4 h-4",
-    md: "w-7 h-7",
-    lg: "w-10 h-10",
-  };
-
+function Avatar({ type, src, alt, size, fallback }: AvatarProps) {
   return (
     <div className="flex flex-row flex-wrap items-center gap-12">
-      <BaseAvatar
-        className={`${sizeClasses[size]} ${isOrg ? " rounded-md" : ""}`}
-      >
+      <BaseAvatar className={avatarVariants({ size, type })}>
         <BaseAvatarImage src={src} alt={alt} />
         <BaseAvatarFallback className="text-md text-black bg-white scale-100">
           {typeof fallback === "string" ? getInitials(fallback) : fallback}
