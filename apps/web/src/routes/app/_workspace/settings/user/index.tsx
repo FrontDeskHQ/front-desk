@@ -83,8 +83,8 @@ function RouteComponent() {
                 <FormControl>
                   <AvatarUpload
                     type="user"
-                    src={user.image || "none"}
-                    fallback={user.name || "Unknown User"}
+                    src={user?.image || "none"}
+                    fallback={user?.name || "Unknown User"}
                     onFileChange={(file) => field.setValue(file)}
                   />
                 </FormControl>
