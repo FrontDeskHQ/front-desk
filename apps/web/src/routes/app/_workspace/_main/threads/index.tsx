@@ -1,7 +1,7 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
+import { Avatar } from "@workspace/ui/components/avatar";
 import {
   Filter,
   type FilterOptions,
@@ -75,16 +75,16 @@ const ListItem = ({ threadId }: { threadId: string }) => {
     >
       <div className="flex justify-between">
         <div className="flex items-center gap-2">
-          <Avatar className="size-5">
-            <AvatarFallback>P</AvatarFallback>
-          </Avatar>
+          <Avatar variant="user" size="md" fallback={"P"} />
           <div>{thread?.name}</div>
         </div>
         <div className="flex items-center gap-2">
           {thread?.assignedUser ? (
-            <Avatar className="size-5">
-              <AvatarFallback>{thread.assignedUser.name[0]}</AvatarFallback>
-            </Avatar>
+            <Avatar
+              variant="user"
+              size="md"
+              fallback={thread.assignedUser.name}
+            />
           ) : (
             <CircleUser className="size-4" />
           )}
@@ -179,11 +179,7 @@ function RouteComponent() {
       options: (organizationUsers ?? []).map((user) => ({
         label: user.user.name,
         value: user.userId,
-        icon: (
-          <Avatar className="size-5">
-            <AvatarFallback>{user.user.name[0]}</AvatarFallback>
-          </Avatar>
-        ),
+        icon: <Avatar variant="user" size="md" fallback={user.user.name} />,
       })),
     },
   };

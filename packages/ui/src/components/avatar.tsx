@@ -3,9 +3,9 @@
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { Input } from "@workspace/ui/components/input";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva } from "class-variance-authority";
+import { cva, type VariantProps } from "class-variance-authority";
 import { Pencil } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 function BaseAvatar({
   className,
@@ -52,50 +52,62 @@ function BaseAvatarFallback({
   );
 }
 
-interface AvatarProps {
-  type: "user" | "org";
-  src?: string;
-  alt?: string;
-  size?: "sm" | "md" | "lg";
-  fallback: React.ReactNode;
-}
-
 const avatarVariants = cva("", {
   variants: {
     size: {
-      sm: "w-4 h-4",
-      md: "w-7 h-7",
-      lg: "w-10 h-10",
+      sm: "size-4",
+      md: "size-5",
+      lg: "size-7",
+      xl: "size-10",
     },
-    type: {
+    variant: {
       user: "rounded-full",
       org: "rounded-md",
     },
   },
   defaultVariants: {
     size: "md",
-    type: "user",
+    variant: "user",
   },
 });
+
+const avatarFallbackVariants = cva("text-black bg-white", {
+  variants: {
+    size: {
+      sm: "scale-50 text-[0.5rem]",
+      md: "scale-75 text-[0.625rem]",
+      lg: "scale-90 text-xs",
+      xl: "scale-100 text-sm",
+    },
+  },
+  defaultVariants: {
+    size: "md",
+  },
+});
+
+interface AvatarProps extends VariantProps<typeof avatarVariants> {
+  src?: string | null;
+  alt?: string | null;
+  fallback: React.ReactNode;
+}
 
 function getInitials(name: string) {
   return name
     .split(" ")
     .map((n) => n[0])
+    .slice(0, 2)
     .join("")
     .toUpperCase();
 }
 
-function Avatar({ type, src, alt, size, fallback }: AvatarProps) {
+function Avatar({ variant, src, alt, size, fallback }: AvatarProps) {
   return (
-    <div className="flex flex-row flex-wrap items-center gap-12">
-      <BaseAvatar className={avatarVariants({ size, type })}>
-        <BaseAvatarImage src={src} alt={alt} />
-        <BaseAvatarFallback className="text-md text-black bg-white scale-100">
-          {typeof fallback === "string" ? getInitials(fallback) : fallback}
-        </BaseAvatarFallback>
-      </BaseAvatar>
-    </div>
+    <BaseAvatar className={avatarVariants({ size, variant })}>
+      <BaseAvatarImage src={src ?? undefined} alt={alt ?? undefined} />
+      <BaseAvatarFallback className={avatarFallbackVariants({ size })}>
+        {typeof fallback === "string" ? getInitials(fallback) : fallback}
+      </BaseAvatarFallback>
+    </BaseAvatar>
   );
 }
 
@@ -104,9 +116,10 @@ interface AvatarUploadProps extends AvatarProps {
 }
 
 function AvatarUpload({
-  type,
+  variant,
   src,
   alt,
+  size,
   fallback,
   onFileChange,
 }: AvatarUploadProps) {
@@ -119,22 +132,24 @@ function AvatarUpload({
       const objectUrl = URL.createObjectURL(file);
       setPreview(objectUrl);
       onFileChange?.(file);
-
-      // Cleanup the object URL when component unmounts
-      return () => URL.revokeObjectURL(objectUrl);
     } else {
       setPreview(null);
       onFileChange?.(undefined);
     }
   };
 
+  useEffect(() => {
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
   return (
     <div className="relative group cursor-pointer">
       <Avatar
-        type={type}
+        variant={variant}
         src={preview || src}
         alt={alt}
-        size="lg"
+        size={size}
         fallback={fallback}
       />
       <Input
@@ -142,7 +157,7 @@ function AvatarUpload({
         onChange={handleFileChange}
         accept="image/*"
         className="absolute inset-0 opacity-0 cursor-pointer"
-        aria-label={`Upload ${type} avatar`}
+        aria-label={`Upload ${variant} avatar`}
       />
       <div className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
         <Pencil className="w-5 h-5 text-white" />

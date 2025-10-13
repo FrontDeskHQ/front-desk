@@ -1,3 +1,4 @@
+import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { AvatarUpload } from "@workspace/ui/components/avatar";
@@ -11,7 +12,7 @@ import {
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { z } from "zod";
-import { mutate } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
 
 export const Route = createFileRoute("/app/_workspace/settings/user/")({
@@ -25,15 +26,16 @@ const userProfileSchema = z.object({
 });
 
 function RouteComponent() {
-  const { user } = Route.useRouteContext();
+  const { user: userFromContext } = Route.useRouteContext();
+
+  // Query user reactively so it updates after mutations
+  const user = useLiveQuery(query.user.first({ id: userFromContext?.id }));
 
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
       userImage: undefined,
-      userEmail: user?.email ?? "",
       userName: user?.name ?? "",
       userEmail: user?.email ?? "",
-      userImage: undefined,
     } as z.infer<typeof userProfileSchema>,
     validators: {
       onSubmit: userProfileSchema,
@@ -60,13 +62,15 @@ function RouteComponent() {
     },
   });
 
-  const isDirty = useStore(store, (s) => s.isDirty);
+  const nonPersistentIsDirty = useStore(store, (s) => {
+    return Object.values(s.fieldMeta).some((field) => !field.isDefaultValue);
+  });
 
   if (!user) return null;
 
   return (
     <form
-      className="flex flex-col gap-4 max-w-4xl mx-auto w-full"
+      className="p-4 flex flex-col gap-4 w-full"
       onSubmit={(e) => {
         e.preventDefault();
         handleSubmit();
@@ -82,7 +86,8 @@ function RouteComponent() {
                 <FormLabel>Profile picture</FormLabel>
                 <FormControl>
                   <AvatarUpload
-                    type="user"
+                    variant="user"
+                    size="xl"
                     src={user?.image || "none"}
                     fallback={user?.name || "Unknown User"}
                     onFileChange={(file) => field.setValue(file)}
@@ -103,6 +108,7 @@ function RouteComponent() {
                     onChange={(e) => field.setValue(e.target.value)}
                     autoComplete="off"
                     className="w-full max-w-3xs"
+                    disabled
                   />
                 </FormControl>
                 <FormMessage />
@@ -129,7 +135,7 @@ function RouteComponent() {
         </CardContent>
       </Card>
       <div className="flex justify-end">
-        <Button disabled={!isDirty}>Save</Button>
+        <Button disabled={!nonPersistentIsDirty}>Save</Button>
       </div>
     </form>
   );

@@ -1,9 +1,5 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar";
+import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Icon } from "@workspace/ui/components/logo";
@@ -85,15 +81,12 @@ function OnboardingForm() {
           {invites.map((invite) => (
             <div key={invite.id} className="flex justify-between w-full">
               <div className="flex gap-2 items-center">
-                <Avatar className="size-10 rounded-none">
-                  <AvatarImage
-                    className="rounded-md"
-                    src={invite.organization.logoUrl ?? undefined}
-                  />
-                  <AvatarFallback className="rounded-md text-xl">
-                    {invite.organization.name[0].toUpperCase()}
-                  </AvatarFallback>
-                </Avatar>
+                <Avatar
+                  variant="org"
+                  size="xl"
+                  src={invite.organization.logoUrl ?? undefined}
+                  fallback={invite.organization.name}
+                />
                 <h2>{invite.organization.name}</h2>
               </div>
               <Button

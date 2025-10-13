@@ -85,8 +85,9 @@ function RouteComponent() {
                 <FormLabel>Logo</FormLabel>
                 <FormControl>
                   <AvatarUpload
-                    type="org"
-                    src={org?.logoUrl || "none"}
+                    variant="org"
+                    size="xl"
+                    src={org?.logoUrl}
                     fallback={org?.name || "Unknown Organization"}
                     onFileChange={(file) => field.setValue(file)}
                   />
