@@ -26,7 +26,7 @@ import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_
 import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationSlugRouteImport } from './routes/app/_workspace/settings/organization/integration/$slug'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRouteImport } from './routes/app/_workspace/settings/organization/integration/discord'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -119,10 +119,10 @@ const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
     path: '/organization/integration/',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
-const AppWorkspaceSettingsOrganizationIntegrationSlugRoute =
-  AppWorkspaceSettingsOrganizationIntegrationSlugRouteImport.update({
-    id: '/organization/integration/$slug',
-    path: '/organization/integration/$slug',
+const AppWorkspaceSettingsOrganizationIntegrationDiscordRoute =
+  AppWorkspaceSettingsOrganizationIntegrationDiscordRouteImport.update({
+    id: '/organization/integration/discord',
+    path: '/organization/integration/discord',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
 
@@ -141,9 +141,13 @@ export interface FileRoutesByFullPath {
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
 <<<<<<< HEAD
+<<<<<<< HEAD
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
 =======
   '/app/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+=======
+  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
+>>>>>>> ef426cb (remove slug page)
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
 >>>>>>> 6edb951 (feat(web): add integration settings)
 }
@@ -160,9 +164,13 @@ export interface FileRoutesByTo {
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
 <<<<<<< HEAD
+<<<<<<< HEAD
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
 =======
   '/app/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+=======
+  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
+>>>>>>> ef426cb (remove slug page)
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
 >>>>>>> 6edb951 (feat(web): add integration settings)
 }
@@ -184,9 +192,13 @@ export interface FileRoutesById {
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
 <<<<<<< HEAD
+<<<<<<< HEAD
   '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
 =======
   '/app/_workspace/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+=======
+  '/app/_workspace/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
+>>>>>>> ef426cb (remove slug page)
   '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
 >>>>>>> 6edb951 (feat(web): add integration settings)
 }
@@ -207,9 +219,13 @@ export interface FileRouteTypes {
     | '/app/threads'
     | '/app/settings/organization'
 <<<<<<< HEAD
+<<<<<<< HEAD
     | '/app/settings/user'
 =======
     | '/app/settings/organization/integration/$slug'
+=======
+    | '/app/settings/organization/integration/discord'
+>>>>>>> ef426cb (remove slug page)
     | '/app/settings/organization/integration'
 >>>>>>> 6edb951 (feat(web): add integration settings)
   fileRoutesByTo: FileRoutesByTo
@@ -226,9 +242,13 @@ export interface FileRouteTypes {
     | '/app/threads'
     | '/app/settings/organization'
 <<<<<<< HEAD
+<<<<<<< HEAD
     | '/app/settings/user'
 =======
     | '/app/settings/organization/integration/$slug'
+=======
+    | '/app/settings/organization/integration/discord'
+>>>>>>> ef426cb (remove slug page)
     | '/app/settings/organization/integration'
 >>>>>>> 6edb951 (feat(web): add integration settings)
   id:
@@ -249,9 +269,13 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/threads/'
     | '/app/_workspace/settings/organization/'
 <<<<<<< HEAD
+<<<<<<< HEAD
     | '/app/_workspace/settings/user/'
 =======
     | '/app/_workspace/settings/organization/integration/$slug'
+=======
+    | '/app/_workspace/settings/organization/integration/discord'
+>>>>>>> ef426cb (remove slug page)
     | '/app/_workspace/settings/organization/integration/'
 >>>>>>> 6edb951 (feat(web): add integration settings)
   fileRoutesById: FileRoutesById
@@ -383,11 +407,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/$slug': {
-      id: '/app/_workspace/settings/organization/integration/$slug'
-      path: '/organization/integration/$slug'
-      fullPath: '/app/settings/organization/integration/$slug'
-      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlugRouteImport
+    '/app/_workspace/settings/organization/integration/discord': {
+      id: '/app/_workspace/settings/organization/integration/discord'
+      path: '/organization/integration/discord'
+      fullPath: '/app/settings/organization/integration/discord'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
   }
@@ -415,9 +439,13 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
 <<<<<<< HEAD
+<<<<<<< HEAD
   AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
 =======
   AppWorkspaceSettingsOrganizationIntegrationSlugRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+=======
+  AppWorkspaceSettingsOrganizationIntegrationDiscordRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
+>>>>>>> ef426cb (remove slug page)
   AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
 >>>>>>> 6edb951 (feat(web): add integration settings)
 }
@@ -430,10 +458,15 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
 <<<<<<< HEAD
+<<<<<<< HEAD
     AppWorkspaceSettingsUserIndexRoute: AppWorkspaceSettingsUserIndexRoute,
 =======
     AppWorkspaceSettingsOrganizationIntegrationSlugRoute:
       AppWorkspaceSettingsOrganizationIntegrationSlugRoute,
+=======
+    AppWorkspaceSettingsOrganizationIntegrationDiscordRoute:
+      AppWorkspaceSettingsOrganizationIntegrationDiscordRoute,
+>>>>>>> ef426cb (remove slug page)
     AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
       AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
 >>>>>>> 6edb951 (feat(web): add integration settings)

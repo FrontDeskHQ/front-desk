@@ -6,30 +6,20 @@ import {
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { ArrowLeft } from "lucide-react";
-import { useMemo } from "react";
 import { integrationOptions } from ".";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/$slug",
+  "/app/_workspace/settings/organization/integration/discord",
 )({
   component: RouteComponent,
 });
 
+// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
+const integration = integrationOptions
+  .flatMap((option) => option.options)
+  .find((option) => option.id === "discord")!;
+
 function RouteComponent() {
-  const params = Route.useParams();
-
-  const integration = useMemo(
-    () =>
-      integrationOptions
-        .flatMap((option) => option.options)
-        .find((option) => option.id === params.slug),
-    [params.slug],
-  );
-
-  if (!integration) {
-    return <div>Integration not found</div>;
-  }
-
   return (
     <>
       <Button variant="ghost" asChild className="absolute top-2 left-2">
