@@ -6,13 +6,14 @@ export const Route = createFileRoute(
   component: RouteComponent,
 });
 
-const integrationOptions: {
+export const integrationOptions: {
   label: string;
   options: {
     label: string;
     id: string;
     icon: React.ReactNode;
     description: string;
+    fullDescription: string;
   }[];
 }[] = [
   {
@@ -37,6 +38,16 @@ const integrationOptions: {
             </svg>
           </div>
         ),
+        // FIXME write a good description
+        fullDescription: `
+#### Overview
+This integration brings your vibrant Discord community directly into Frontdesk, transforming live conversations into fully trackable support tickets. Additionally, leverage Frontdesk’s powerful reporting and automation tools to analyze and streamline the support you provide directly within your community channels.
+
+#### How it works
+When a support request appears in any of your Discord channels, a team member can create a ticket by using a slash command (e.g., /ticket on a message), reacting to it with a pre-configured emoji (like 🎫), or selecting Create Frontdesk Ticket from the message's context menu.
+
+Instead of a plain link, a new, fully-featured ticket is created in your Frontdesk workspace. For each ticket, the preview automatically captures the original message content, the author's Discord username and avatar, the channel of origin, and a direct link back to the conversation for full context.
+`,
       },
     ],
   },
