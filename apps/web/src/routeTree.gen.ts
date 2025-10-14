@@ -25,6 +25,8 @@ import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './rou
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
 import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationSlugRouteImport } from './routes/app/_workspace/settings/organization/integration/$slug'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -111,6 +113,18 @@ const AppWorkspaceMainThreadsIdRoute =
     path: '/threads/$id',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
+  AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport.update({
+    id: '/organization/integration/',
+    path: '/organization/integration/',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
+const AppWorkspaceSettingsOrganizationIntegrationSlugRoute =
+  AppWorkspaceSettingsOrganizationIntegrationSlugRouteImport.update({
+    id: '/organization/integration/$slug',
+    path: '/organization/integration/$slug',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -126,7 +140,12 @@ export interface FileRoutesByFullPath {
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
+<<<<<<< HEAD
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
+=======
+  '/app/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+  '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+>>>>>>> 6edb951 (feat(web): add integration settings)
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -140,7 +159,12 @@ export interface FileRoutesByTo {
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
+<<<<<<< HEAD
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
+=======
+  '/app/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+  '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+>>>>>>> 6edb951 (feat(web): add integration settings)
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -159,7 +183,12 @@ export interface FileRoutesById {
   '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
+<<<<<<< HEAD
   '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
+=======
+  '/app/_workspace/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+  '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+>>>>>>> 6edb951 (feat(web): add integration settings)
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -177,7 +206,12 @@ export interface FileRouteTypes {
     | '/app/settings/organization/team'
     | '/app/threads'
     | '/app/settings/organization'
+<<<<<<< HEAD
     | '/app/settings/user'
+=======
+    | '/app/settings/organization/integration/$slug'
+    | '/app/settings/organization/integration'
+>>>>>>> 6edb951 (feat(web): add integration settings)
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -191,7 +225,12 @@ export interface FileRouteTypes {
     | '/app/settings/organization/team'
     | '/app/threads'
     | '/app/settings/organization'
+<<<<<<< HEAD
     | '/app/settings/user'
+=======
+    | '/app/settings/organization/integration/$slug'
+    | '/app/settings/organization/integration'
+>>>>>>> 6edb951 (feat(web): add integration settings)
   id:
     | '__root__'
     | '/'
@@ -209,7 +248,12 @@ export interface FileRouteTypes {
     | '/app/_workspace/settings/organization/team'
     | '/app/_workspace/_main/threads/'
     | '/app/_workspace/settings/organization/'
+<<<<<<< HEAD
     | '/app/_workspace/settings/user/'
+=======
+    | '/app/_workspace/settings/organization/integration/$slug'
+    | '/app/_workspace/settings/organization/integration/'
+>>>>>>> 6edb951 (feat(web): add integration settings)
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -332,6 +376,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainThreadsIdRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/settings/organization/integration/': {
+      id: '/app/_workspace/settings/organization/integration/'
+      path: '/organization/integration'
+      fullPath: '/app/settings/organization/integration'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
+    '/app/_workspace/settings/organization/integration/$slug': {
+      id: '/app/_workspace/settings/organization/integration/$slug'
+      path: '/organization/integration/$slug'
+      fullPath: '/app/settings/organization/integration/$slug'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlugRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
   }
 }
 
@@ -356,7 +414,12 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
+<<<<<<< HEAD
   AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
+=======
+  AppWorkspaceSettingsOrganizationIntegrationSlugRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
+  AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+>>>>>>> 6edb951 (feat(web): add integration settings)
 }
 
 const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
@@ -366,7 +429,14 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
       AppWorkspaceSettingsOrganizationTeamRoute,
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
+<<<<<<< HEAD
     AppWorkspaceSettingsUserIndexRoute: AppWorkspaceSettingsUserIndexRoute,
+=======
+    AppWorkspaceSettingsOrganizationIntegrationSlugRoute:
+      AppWorkspaceSettingsOrganizationIntegrationSlugRoute,
+    AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
+>>>>>>> 6edb951 (feat(web): add integration settings)
   }
 
 const AppWorkspaceSettingsRouteRouteWithChildren =
