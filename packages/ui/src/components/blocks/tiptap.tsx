@@ -1,5 +1,5 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import { Level } from "@tiptap/extension-heading";
+import type { Level } from "@tiptap/extension-heading";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -97,7 +97,7 @@ export function InputBox({
     <div
       className={cn(
         "border-input border focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text",
-        className
+        className,
       )}
       onClick={() => editor?.chain().focus().run()}
       onKeyUp={() => editor?.chain().focus().run()}
@@ -111,7 +111,7 @@ export function InputBox({
         className="bg-[#1B1B1E] border rounded-sm shadow"
         editor={editor}
       >
-        <TooltipProvider delayDuration={500}>
+        <TooltipProvider timeout={500}>
           <div ref={containerRef} className="flex items-center">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -133,12 +133,12 @@ export function InputBox({
                     editor.isActive("paragraph")
                       ? "paragraph"
                       : editor.isActive("heading", { level: 1 })
-                      ? "heading-1"
-                      : editor.isActive("heading", { level: 2 })
-                      ? "heading-2"
-                      : editor.isActive("heading", { level: 3 })
-                      ? "heading-3"
-                      : "heading-4"
+                        ? "heading-1"
+                        : editor.isActive("heading", { level: 2 })
+                          ? "heading-2"
+                          : editor.isActive("heading", { level: 3 })
+                            ? "heading-3"
+                            : "heading-4"
                   }
                   onValueChange={(value) => {
                     if (value === "paragraph") {
@@ -149,7 +149,7 @@ export function InputBox({
                         .focus()
                         .setHeading({
                           level: parseInt(
-                            value.replace("heading-", "")
+                            value.replace("heading-", ""),
                           ) as Level,
                         })
                         .run();
@@ -284,8 +284,8 @@ export function InputBox({
                     editor.isActive("bulletList")
                       ? "bulletList"
                       : editor.isActive("orderedList")
-                      ? "orderedList"
-                      : undefined
+                        ? "orderedList"
+                        : undefined
                   }
                   onValueChange={(value) => {
                     if (value === "bulletList") {
