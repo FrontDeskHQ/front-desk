@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getHeaders } from "@tanstack/react-start/server";
+import { getRequestHeaders } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { authClient } from "../auth-client";
 import { fetchClient } from "../live-state";
@@ -7,7 +7,7 @@ import { fetchClient } from "../live-state";
 export const getInvitation = createServerFn({
   method: "GET",
 })
-  .validator(
+  .inputValidator(
     z.object({
       id: z.string(),
     }),
@@ -15,7 +15,7 @@ export const getInvitation = createServerFn({
   .handler(async ({ data }) => {
     const { data: sessionData } = await authClient.getSession({
       fetchOptions: {
-        headers: getHeaders() as HeadersInit,
+        headers: getRequestHeaders() as HeadersInit,
       },
     });
 

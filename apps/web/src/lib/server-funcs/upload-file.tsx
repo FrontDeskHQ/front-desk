@@ -19,7 +19,7 @@ const s3client = new S3Client({
 export const uploadFile = createServerFn({
   method: "POST",
 })
-  .validator(z.instanceof(FormData))
+  .inputValidator(z.instanceof(FormData))
   .handler(async ({ data: formData }) => {
     const { file, path } = uploadFileSchema.parse(
       Object.fromEntries(formData.entries()),
