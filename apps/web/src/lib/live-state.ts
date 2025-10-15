@@ -28,6 +28,6 @@ export const fetchClient = createFetchClient<Router>({
       : "http://localhost:3333/api/ls",
   schema,
   credentials: createIsomorphicFn()
-    .server(() => getRequestHeaders() as unknown as Record<string, string>)
+    .server(() => Object.fromEntries(getRequestHeaders()))
     .client(() => ({})),
 });
