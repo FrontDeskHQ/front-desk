@@ -1,0 +1,12 @@
+{
+  "name": "@workspace/schemas",
+  "version": "1.0.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    "./integration/*": "./src/integration/*.ts"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  }
+}
