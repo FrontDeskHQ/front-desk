@@ -14,10 +14,16 @@ export const Route = createFileRoute(
   component: RouteComponent,
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const integration = integrationOptions
-  .flatMap((option) => option.options)
-  .find((option) => option.id === "discord")!;
+
+function RouteComponent() {
+  const integration = integrationOptions
+    .flatMap((option) => option.options)
+    .find((option) => option.id === "discord");
+
+  if (!integration) {
+    return <div>Integration not found</div>;
+  }
+
 
 function RouteComponent() {
   return (
