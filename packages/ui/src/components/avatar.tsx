@@ -86,6 +86,7 @@ const avatarFallbackVariants = cva("text-black bg-white", {
 });
 
 interface AvatarProps extends VariantProps<typeof avatarVariants> {
+  className?: string;
   src?: string | null;
   alt?: string | null;
   fallback: React.ReactNode;
@@ -100,9 +101,9 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-function Avatar({ variant, src, alt, size, fallback }: AvatarProps) {
+function Avatar({ className, src, alt, variant, size, fallback }: AvatarProps) {
   return (
-    <BaseAvatar className={avatarVariants({ size, variant })}>
+    <BaseAvatar className={avatarVariants({ size, variant, className })}>
       <BaseAvatarImage src={src ?? undefined} alt={alt ?? undefined} />
       <BaseAvatarFallback className={avatarFallbackVariants({ size })}>
         {typeof fallback === "string" ? getInitials(fallback) : fallback}
@@ -116,12 +117,10 @@ interface AvatarUploadProps extends AvatarProps {
 }
 
 function AvatarUpload({
-  variant,
-  src,
-  alt,
-  size,
-  fallback,
   onFileChange,
+  src,
+  variant,
+  ...props
 }: AvatarUploadProps) {
   const [preview, setPreview] = useState<string | null>(null);
 
@@ -145,13 +144,7 @@ function AvatarUpload({
 
   return (
     <div className="relative group cursor-pointer">
-      <Avatar
-        variant={variant}
-        src={preview || src}
-        alt={alt}
-        size={size}
-        fallback={fallback}
-      />
+      <Avatar variant={variant} src={preview || src} {...props} />
       <Input
         type="file"
         onChange={handleFileChange}
