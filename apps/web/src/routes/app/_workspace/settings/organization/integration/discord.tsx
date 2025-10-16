@@ -14,7 +14,6 @@ export const Route = createFileRoute(
   component: RouteComponent,
 });
 
-
 function RouteComponent() {
   const integration = integrationOptions
     .flatMap((option) => option.options)
@@ -24,8 +23,6 @@ function RouteComponent() {
     return <div>Integration not found</div>;
   }
 
-
-function RouteComponent() {
   return (
     <>
       <Button variant="ghost" asChild className="absolute top-2 left-2">
