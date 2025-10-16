@@ -11,7 +11,6 @@ import {
   ArrowUp,
   Bold,
   ChevronDown,
-  ChevronDown as ChevronDownIcon,
   Code,
   Italic,
   List,
