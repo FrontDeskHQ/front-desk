@@ -390,7 +390,6 @@ export function TruncatedText({
         ref={contentRef}
         className={cn(
           "overflow-hidden transition-all duration-200 relative",
-          !isExpanded && "max-h-0",
           isOverflowing && !isExpanded && "mask-b-from-70% mask-b-to-100%",
         )}
         style={{
