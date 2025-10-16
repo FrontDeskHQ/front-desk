@@ -1,7 +1,14 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
+import { Avatar } from "@workspace/ui/components/avatar";
 import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
 import {
   Card,
   CardContent,
@@ -32,13 +39,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
@@ -124,10 +124,8 @@ function RouteComponent() {
                     )}
                   >
                     <CardTitle>
-                      <Avatar className="size-5">
-                        {/* TODO update when live-state supports deep includes */}
-                        <AvatarFallback>P</AvatarFallback>
-                      </Avatar>
+                      {/* TODO update when live-state supports deep includes */}
+                      <Avatar variant="user" size="md" fallback={"P"} />
                       {/* TODO update when live-state supports deep includes */}
                       <p>message.author.name</p>
                       <p className="text-muted-foreground">
@@ -327,11 +325,11 @@ function RouteComponent() {
                             )}
                           >
                             {thread?.assignedUser ? (
-                              <Avatar className="size-5">
-                                <AvatarFallback>
-                                  {thread?.assignedUser.name[0]}
-                                </AvatarFallback>
-                              </Avatar>
+                              <Avatar
+                                variant="user"
+                                size="md"
+                                fallback={thread?.assignedUser.name}
+                              />
                             ) : (
                               <CircleUser className="mx-0.5" />
                             )}
@@ -349,9 +347,11 @@ function RouteComponent() {
                       {(item: BaseItem) => (
                         <ComboboxItem key={item.value} value={item.value}>
                           {item.value ? (
-                            <Avatar className="size-5">
-                              <AvatarFallback>{item.label[0]}</AvatarFallback>
-                            </Avatar>
+                            <Avatar
+                              variant="user"
+                              size="md"
+                              fallback={item.label}
+                            />
                           ) : (
                             <CircleUser className="mx-0.5" />
                           )}

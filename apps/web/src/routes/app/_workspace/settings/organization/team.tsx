@@ -11,11 +11,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@workspace/ui/components/alert-dialog";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@workspace/ui/components/avatar";
+import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
@@ -82,12 +78,12 @@ function RouteComponent() {
               className="flex items-center justify-between p-2"
             >
               <div className="flex items-center gap-2.5">
-                <Avatar>
-                  <AvatarImage src={orgUser?.user?.image ?? undefined} />
-                  <AvatarFallback>
-                    {orgUser?.user?.name?.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
+                <Avatar
+                  variant="user"
+                  size="lg"
+                  src={orgUser?.user?.image ?? undefined}
+                  fallback={orgUser?.user?.name}
+                />
                 {orgUser?.user?.name}
               </div>
               <div className="flex items-center gap-2">

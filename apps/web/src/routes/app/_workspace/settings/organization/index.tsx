@@ -1,6 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
+import { AvatarUpload } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
@@ -11,7 +12,6 @@ import {
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { useAtomValue } from "jotai/react";
-import { Upload } from "lucide-react";
 import { z } from "zod";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
@@ -83,33 +83,15 @@ function RouteComponent() {
             {(field) => (
               <FormItem field={field} className="flex justify-between">
                 <FormLabel>Logo</FormLabel>
-                <div className="group relative">
-                  <FormControl>
-                    <Input
-                      id={field.name}
-                      type="file"
-                      onChange={(e) =>
-                        e.target.files?.[0] &&
-                        field.setValue(e.target.files?.[0])
-                      }
-                      autoComplete="off"
-                      className="size-10 text-transparent file:text-transparent peer"
-                      style={{
-                        backgroundImage:
-                          field.state.value &&
-                          typeof field.state.value !== "string"
-                            ? `url(${URL.createObjectURL(field.state.value)})`
-                            : (org?.logoUrl ?? "none"),
-                        backgroundSize: "cover",
-                        backgroundPosition: "center",
-                      }}
-                      aria-label="Upload organization logo"
-                    />
-                  </FormControl>
-                  <div className="absolute inset-0 border bg-background/50 flex items-center justify-center rounded-md opacity-0 group-hover:opacity-100 transition-opacity peer-focus-visible:opacity-100 pointer-events-none">
-                    <Upload className="size-5" />
-                  </div>
-                </div>
+                <FormControl>
+                  <AvatarUpload
+                    variant="org"
+                    size="xl"
+                    src={org?.logoUrl}
+                    fallback={org?.name || "Unknown Organization"}
+                    onFileChange={(file) => field.setValue(file)}
+                  />
+                </FormControl>
                 <FormMessage />
               </FormItem>
             )}
