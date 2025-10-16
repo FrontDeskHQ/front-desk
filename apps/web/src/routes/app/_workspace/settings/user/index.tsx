@@ -88,7 +88,7 @@ function RouteComponent() {
                   <AvatarUpload
                     variant="user"
                     size="xl"
-                    src={user?.image || "none"}
+                    src={user?.image}
                     fallback={user?.name || "Unknown User"}
                     onFileChange={(file) => field.setValue(file)}
                   />
