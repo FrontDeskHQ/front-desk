@@ -407,7 +407,7 @@ export function TruncatedText({
           className="text-muted-foreground hover:text-foreground mt-2"
         >
           {isExpanded ? showLessText : showMoreText}
-          <ChevronDownIcon
+          <ChevronDown
             className={cn(
               "ml-1 h-4 w-4 transition-transform duration-200",
               isExpanded && "rotate-180",
