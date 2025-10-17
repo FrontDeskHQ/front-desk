@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/style/noNonNullAssertion: Too much type work - PRs welcome */
-import { Level } from "@tiptap/extension-heading";
+import type { Level } from "@tiptap/extension-heading";
 import type { JSONContent } from "@tiptap/react";
 import type {
   BlockContent,
