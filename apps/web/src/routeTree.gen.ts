@@ -140,16 +140,9 @@ export interface FileRoutesByFullPath {
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
-<<<<<<< HEAD
-<<<<<<< HEAD
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-=======
-  '/app/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
-=======
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
->>>>>>> ef426cb (remove slug page)
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
->>>>>>> 6edb951 (feat(web): add integration settings)
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -163,16 +156,9 @@ export interface FileRoutesByTo {
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
-<<<<<<< HEAD
-<<<<<<< HEAD
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-=======
-  '/app/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
-=======
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
->>>>>>> ef426cb (remove slug page)
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
->>>>>>> 6edb951 (feat(web): add integration settings)
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -191,16 +177,9 @@ export interface FileRoutesById {
   '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
-<<<<<<< HEAD
-<<<<<<< HEAD
   '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
-=======
-  '/app/_workspace/settings/organization/integration/$slug': typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
-=======
   '/app/_workspace/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
->>>>>>> ef426cb (remove slug page)
   '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
->>>>>>> 6edb951 (feat(web): add integration settings)
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -218,16 +197,9 @@ export interface FileRouteTypes {
     | '/app/settings/organization/team'
     | '/app/threads'
     | '/app/settings/organization'
-<<<<<<< HEAD
-<<<<<<< HEAD
     | '/app/settings/user'
-=======
-    | '/app/settings/organization/integration/$slug'
-=======
     | '/app/settings/organization/integration/discord'
->>>>>>> ef426cb (remove slug page)
     | '/app/settings/organization/integration'
->>>>>>> 6edb951 (feat(web): add integration settings)
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -241,16 +213,9 @@ export interface FileRouteTypes {
     | '/app/settings/organization/team'
     | '/app/threads'
     | '/app/settings/organization'
-<<<<<<< HEAD
-<<<<<<< HEAD
     | '/app/settings/user'
-=======
-    | '/app/settings/organization/integration/$slug'
-=======
     | '/app/settings/organization/integration/discord'
->>>>>>> ef426cb (remove slug page)
     | '/app/settings/organization/integration'
->>>>>>> 6edb951 (feat(web): add integration settings)
   id:
     | '__root__'
     | '/'
@@ -268,16 +233,9 @@ export interface FileRouteTypes {
     | '/app/_workspace/settings/organization/team'
     | '/app/_workspace/_main/threads/'
     | '/app/_workspace/settings/organization/'
-<<<<<<< HEAD
-<<<<<<< HEAD
     | '/app/_workspace/settings/user/'
-=======
-    | '/app/_workspace/settings/organization/integration/$slug'
-=======
     | '/app/_workspace/settings/organization/integration/discord'
->>>>>>> ef426cb (remove slug page)
     | '/app/_workspace/settings/organization/integration/'
->>>>>>> 6edb951 (feat(web): add integration settings)
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -438,16 +396,9 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
-<<<<<<< HEAD
-<<<<<<< HEAD
   AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
-=======
-  AppWorkspaceSettingsOrganizationIntegrationSlugRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlugRoute
-=======
   AppWorkspaceSettingsOrganizationIntegrationDiscordRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
->>>>>>> ef426cb (remove slug page)
   AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
->>>>>>> 6edb951 (feat(web): add integration settings)
 }
 
 const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
@@ -457,19 +408,11 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
       AppWorkspaceSettingsOrganizationTeamRoute,
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
-<<<<<<< HEAD
-<<<<<<< HEAD
     AppWorkspaceSettingsUserIndexRoute: AppWorkspaceSettingsUserIndexRoute,
-=======
-    AppWorkspaceSettingsOrganizationIntegrationSlugRoute:
-      AppWorkspaceSettingsOrganizationIntegrationSlugRoute,
-=======
     AppWorkspaceSettingsOrganizationIntegrationDiscordRoute:
       AppWorkspaceSettingsOrganizationIntegrationDiscordRoute,
->>>>>>> ef426cb (remove slug page)
     AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
       AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
->>>>>>> 6edb951 (feat(web): add integration settings)
   }
 
 const AppWorkspaceSettingsRouteRouteWithChildren =
