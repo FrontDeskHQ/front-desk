@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getHeaders } from "@tanstack/react-start/server";
+import { getRequestHeaders } from "@tanstack/react-start/server";
 import { authClient } from "../auth-client";
 
 export const getAuthUser = createServerFn({
@@ -7,7 +7,7 @@ export const getAuthUser = createServerFn({
 }).handler(async () => {
   const res = await authClient.getSession({
     fetchOptions: {
-      headers: getHeaders() as HeadersInit,
+      headers: getRequestHeaders() as HeadersInit,
     },
   });
 

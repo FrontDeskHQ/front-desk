@@ -15,9 +15,9 @@
     "@fontsource-variable/inter": "^5.2.6",
     "@live-state/sync": "catalog:",
     "@tanstack/react-form": "^1.11.1",
-    "@tanstack/react-router": "^1.131.27",
-    "@tanstack/react-router-devtools": "^1.131.27",
-    "@tanstack/react-start": "^1.131.27",
+    "@tanstack/react-router": "^1.133.3",
+    "@tanstack/react-router-devtools": "^1.133.3",
+    "@tanstack/react-start": "^1.133.3",
     "@workspace/ui": "workspace:*",
     "api": "workspace:*",
     "better-auth": "^1.2.7",
@@ -45,7 +45,7 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.7.2",
-    "vite": "^6.3.5",
+    "vite": "^7.1.10",
     "vite-tsconfig-paths": "^5.1.4"
   }
 }
