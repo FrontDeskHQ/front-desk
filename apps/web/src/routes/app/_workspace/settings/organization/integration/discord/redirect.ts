@@ -49,12 +49,13 @@ export const Route = createFileRoute(
               enabled: true,
               updatedAt: new Date(),
               configStr: JSON.stringify({
+                ...config,
                 guildId: data.guild_id,
               }),
             });
           }
         } catch (error) {
-          console.error("[Discord] Error handling redirect", rawQs, error);
+          console.error("[Discord] Error handling redirect", error);
         }
 
         throw redirect({

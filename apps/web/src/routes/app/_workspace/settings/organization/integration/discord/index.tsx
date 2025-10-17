@@ -46,9 +46,23 @@ function RouteComponent() {
     query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
   );
 
-  const parsedConfig = integration?.configStr
-    ? discordIntegrationSchema.safeParse(JSON.parse(integration.configStr))
-    : null;
+  const parsedConfig: ReturnType<
+    typeof discordIntegrationSchema.safeParse
+  > | null = (() => {
+    if (!integration?.configStr) return null;
+    try {
+      return discordIntegrationSchema.safeParse(
+        JSON.parse(integration.configStr),
+      );
+    } catch {
+      return {
+        // FIXME: this wont be required once we have a proper JSON type in live-state
+        // keep shape compatible with safeParse result
+        success: false,
+        error: new Error("Invalid JSON in integration.configStr"),
+      } as any;
+    }
+  })();
 
   const updateIntegration = useCallback(
     (
@@ -90,6 +104,11 @@ function RouteComponent() {
       return;
     }
 
+    if (!activeOrg?.id) {
+      console.error("[Discord] No active organization selected");
+      return;
+    }
+
     const csrfToken = generateStateToken();
 
     if (integration) {
@@ -114,12 +133,17 @@ function RouteComponent() {
       });
     }
 
+    const baseUrl = window.location.href
+      .replace(/[?#].*$/, "")
+      .replace(/\/$/, "");
+    const redirectUri = `${baseUrl}/redirect`;
+
     const queryParams = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,
       permissions: DISCORD_BOT_PERMISSIONS,
       scope: "identify+bot", // We need identify because we wont get a redirect otherwise
       integration_type: "0", // Add to guild
-      redirect_uri: `${window.location.href.split("?")[0]}/redirect`,
+      redirect_uri: redirectUri,
       state: `${activeOrg?.id}_${csrfToken}`,
       response_type: "code",
     });
