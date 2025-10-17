@@ -3,6 +3,7 @@ import type { Level } from "@tiptap/extension-heading";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
+import { parse } from "@workspace/ui/lib/md-tiptap";
 import { EditorExtensions, KeyBinds } from "@workspace/ui/lib/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
 import {
@@ -17,7 +18,7 @@ import {
   SquareCode,
   Strikethrough,
 } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { Button } from "../button";
 import {
   DropdownMenu,
@@ -335,13 +336,84 @@ export function RichText({ content }: { content?: JSONContent[] | string }) {
   useLayoutEffect(() => {
     if (!editor) return;
     if (typeof content === "string") {
-      editor.commands.setContent([
-        { type: "paragraph", content: [{ type: "text", text: content }] },
-      ]);
+      editor.commands.setContent(parse(content));
     } else {
       editor.commands.setContent(content ?? []);
     }
   }, [content, editor]);
 
   return <EditorContent editor={editor} />;
+}
+
+export function TruncatedText({
+  children,
+  maxHeight = 256,
+  className,
+  showMoreText = "Show more",
+  showLessText = "Show less",
+  ...props
+}: React.ComponentProps<"div"> & {
+  maxHeight?: number;
+  showMoreText?: string;
+  showLessText?: string;
+}) {
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [isOverflowing, setIsOverflowing] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const element = contentRef.current;
+    if (!element) return;
+
+    const checkOverflow = () => {
+      setIsOverflowing(element.scrollHeight > maxHeight);
+    };
+
+    checkOverflow();
+
+    // Check on resize
+    const resizeObserver = new ResizeObserver(checkOverflow);
+    resizeObserver.observe(element);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [maxHeight]);
+
+  const handleToggle = () => {
+    setIsExpanded(!isExpanded);
+  };
+
+  return (
+    <div className={cn("relative", className)} {...props}>
+      <div
+        ref={contentRef}
+        className={cn(
+          "overflow-hidden transition-all duration-200 relative",
+          isOverflowing && !isExpanded && "mask-b-from-70% mask-b-to-100%",
+        )}
+        style={{
+          maxHeight: isExpanded ? "none" : `${maxHeight}px`,
+        }}
+      >
+        {children}
+      </div>
+      {isOverflowing && (
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleToggle}
+          className="text-muted-foreground hover:text-foreground mt-2"
+        >
+          {isExpanded ? showLessText : showMoreText}
+          <ChevronDown
+            className={cn(
+              "ml-1 h-4 w-4 transition-transform duration-200",
+              isExpanded && "rotate-180",
+            )}
+          />
+        </Button>
+      )}
+    </div>
+  );
 }
