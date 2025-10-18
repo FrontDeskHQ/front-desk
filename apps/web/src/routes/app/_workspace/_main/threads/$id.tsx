@@ -157,8 +157,9 @@ function RouteComponent() {
                 authorId = ulid().toLowerCase();
 
                 mutate.author.insert({
-                  id: ulid().toLowerCase(),
+                  id: authorId,
                   userId: user.id,
+                  metaId: null,
                   name: user.name,
                 });
               }

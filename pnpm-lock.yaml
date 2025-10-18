@@ -97,6 +97,9 @@ importers:
       '@live-state/sync':
         specifier: 'catalog:'
         version: 0.0.4-beta.6(@types/react@19.2.2)(react@19.2.0)
+      '@workspace/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       api:
         specifier: workspace:*
         version: link:../api
@@ -109,6 +112,9 @@ importers:
       ulid:
         specifier: ^3.0.0
         version: 3.0.0
+      zod:
+        specifier: 'catalog:'
+        version: 4.1.9
     devDependencies:
       '@types/node':
         specifier: ^22.15.2

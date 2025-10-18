@@ -35,8 +35,12 @@ const lsServer = server({
   contextProvider: async ({ transport, headers, query }) => {
     if (transport === "WEBSOCKET") {
       if (query.discordBotKey) {
+        const botKey = query.discordBotKey;
+
+        if (botKey !== process.env.DISCORD_BOT_KEY) return;
+
         return {
-          discordBotKey: query.discordBotKey,
+          apiKey: botKey,
         };
       }
 
@@ -48,6 +52,16 @@ const lsServer = server({
             token: query.token,
           },
         })),
+      };
+    }
+
+    if (headers["x-discord-bot-key"]) {
+      const botKey = headers["x-discord-bot-key"];
+
+      if (botKey !== process.env.DISCORD_BOT_KEY) return;
+
+      return {
+        apiKey: botKey,
       };
     }
 
