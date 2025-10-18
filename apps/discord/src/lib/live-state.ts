@@ -1,4 +1,5 @@
 import { createClient } from "@live-state/sync/client";
+import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 
@@ -26,3 +27,11 @@ client.ws.addEventListener("error", (error) => {
 });
 
 client.subscribe();
+
+export const fetchClient = createFetchClient<Router>({
+  url: "http://localhost:3333/api/ls",
+  schema,
+  credentials: async () => ({
+    "x-discord-bot-key": process.env.DISCORD_BOT_KEY ?? "",
+  }),
+});
