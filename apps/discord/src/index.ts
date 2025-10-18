@@ -109,14 +109,11 @@ client.on("messageCreate", async (message) => {
       return parsed?.guildId === message.guild?.id;
     });
 
-  console.info("Integration:", integration);
   if (!integration) return;
 
   const integrationSettings = safeParseIntegrationSettings(
     integration.configStr
   );
-
-  console.info("Integration settings:", integrationSettings);
 
   if (
     !(integrationSettings?.selectedChannels ?? [])?.includes(
@@ -164,7 +161,6 @@ client.on("messageCreate", async (message) => {
     threadId = thread.id;
   }
 
-  console.info("Thread ID:", threadId);
   if (!threadId) return;
 
   store.mutate.message.insert({
@@ -176,7 +172,6 @@ client.on("messageCreate", async (message) => {
     origin: "discord",
     externalMessageId: message.id,
   });
-  console.info("Message inserted:", message);
 });
 
 const handleMessages = async (
@@ -185,8 +180,6 @@ const handleMessages = async (
     { thread: true; author: true }
   >[]
 ) => {
-  console.info("Messages to send:", messages);
-
   for (const message of messages) {
     // FIXME this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
     const integration = store.query.integration
@@ -195,8 +188,6 @@ const handleMessages = async (
         type: "discord",
       })
       .get();
-
-    console.info("Integration:", integration);
 
     if (!integration || !integration.configStr) continue;
 
@@ -211,7 +202,6 @@ const handleMessages = async (
       continue;
     }
 
-    console.info("Parsed config:", parsedConfig);
     if (!parsedConfig) continue;
 
     const guildId = parsedConfig.guildId;
@@ -220,19 +210,14 @@ const handleMessages = async (
 
     const channelId = message.thread.discordChannelId;
 
-    console.info("Channel ID:", channelId);
-
     if (!channelId) continue;
 
     const guild = client.guilds.cache.get(guildId);
-
-    console.info("Guild:", guild);
 
     if (!guild) continue;
 
     const channel = guild.channels.cache.get(channelId);
 
-    console.info("Channel:", channel);
     if (!channel) continue;
 
     try {
