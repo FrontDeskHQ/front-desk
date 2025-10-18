@@ -116,6 +116,7 @@ function RouteComponent() {
         enabled: false,
         updatedAt: new Date(),
         configStr: JSON.stringify({
+          ...(parsedConfig?.data ?? {}),
           csrfToken,
         }),
       });
@@ -128,6 +129,7 @@ function RouteComponent() {
         updatedAt: new Date(),
         createdAt: new Date(),
         configStr: JSON.stringify({
+          ...(parsedConfig?.data ?? {}),
           csrfToken,
         }),
       });

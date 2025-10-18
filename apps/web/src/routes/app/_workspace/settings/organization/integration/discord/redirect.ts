@@ -15,7 +15,10 @@ export const Route = createFileRoute(
   server: {
     handlers: {
       GET: async ({ request }) => {
-        const rawQs = qs.parse(request.url.split("?")[1] ?? "");
+        const rawQs = qs.parse(request.url.split("?")[1] ?? "", {
+          plainObjects: true,
+          allowPrototypes: false,
+        });
         try {
           const data = discordCallbackSchema.parse(rawQs);
 
@@ -39,9 +42,11 @@ export const Route = createFileRoute(
               throw new Error("INTEGRATION_CONFIG_NOT_FOUND");
             }
 
-            const config = JSON.parse(integration.configStr);
+            const { csrfToken: csrfTokenFromConfig, ...config } = JSON.parse(
+              integration.configStr
+            );
 
-            if (config.csrfToken !== csrfToken) {
+            if (csrfTokenFromConfig !== csrfToken) {
               throw new Error("CSRF_TOKEN_MISMATCH");
             }
 
