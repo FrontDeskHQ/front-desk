@@ -50,7 +50,7 @@ function InputWithSeparator({
     >
       <ComboboxTextInput
         className={className}
-        placeholder={placeholder}
+        placeholder={value.length > 0 ? undefined : placeholder}
         value={inputValue}
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={(e) => {

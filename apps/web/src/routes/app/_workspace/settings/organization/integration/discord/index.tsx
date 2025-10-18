@@ -230,8 +230,8 @@ function RouteComponent() {
                 <div className="flex gap-5 items-center">
                   Disable integration
                   <Button
-                    className="ml-auto"
-                    variant="destructive"
+                    variant="ghost"
+                    className="ml-auto text-red-700 dark:hover:text-red-500"
                     onClick={() => {
                       mutate.integration.update(integration?.id, {
                         enabled: false,
