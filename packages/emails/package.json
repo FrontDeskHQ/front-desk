@@ -4,7 +4,8 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "email:dev": "email dev -d ./src/transactional -p 3100"
+    "email:dev": "email dev -d ./src/transactional -p 3100",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@react-email/preview-server": "^4.3.0",
