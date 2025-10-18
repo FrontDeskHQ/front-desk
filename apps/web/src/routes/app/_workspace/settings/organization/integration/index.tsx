@@ -62,8 +62,9 @@ function RouteComponent() {
           <div className="grid grid-cols-3 gap-4">
             {option.options.map((option) => (
               <Link
-                to="/app/settings/organization/integration/$slug"
-                params={{ slug: option.id }}
+                to={
+                  `/app/settings/organization/integration/${option.id}` as string
+                }
                 className="flex flex-col rounded-md border bg-muted/30 h-36 p-4 gap-2 hover:bg-muted/50 transition-colors cursor-pointer"
                 key={option.id}
               >
