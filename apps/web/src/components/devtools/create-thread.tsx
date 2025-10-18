@@ -44,6 +44,7 @@ export const CreateThread = () => {
         id: authorId,
         name: value.author,
         userId: null,
+        metaId: null,
       });
 
       // TODO: Remove this timeout after new live-state version release
