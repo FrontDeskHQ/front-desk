@@ -4,7 +4,7 @@ import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { ulid } from "ulid";
-import { store } from "./lib/live-state";
+import { fetchClient, store } from "./lib/live-state";
 import { getOrCreateWebhook } from "./utils";
 
 const safeParseJSON = (raw: string) => {
@@ -95,17 +95,35 @@ client.on("messageCreate", async (message) => {
 
   let threadId: string | null = null;
 
+  // FIXME do this in a transaction
+
+  let authorId = store.query.author
+    .first({ metaId: message.author.id })
+    .get()?.id;
+
+  if (!authorId) {
+    authorId = ulid().toLowerCase();
+    await fetchClient.mutate.author.insert({
+      id: authorId,
+      name: message.author.username,
+      userId: null,
+      metaId: message.author.id,
+    });
+  }
+
   if (isFirstMessage) {
     threadId = ulid().toLowerCase();
     store.mutate.thread.insert({
       id: threadId,
       // TODO: get organization ID from integration settings
-      organizationId: "01k54wwfyz75nyatf3cp6w84h8",
+      organizationId: "01k70mhsbfya10kdez683rq8yk",
       name: message.channel.name,
       createdAt: new Date(),
       discordChannelId: message.channel.id,
+      authorId: authorId,
+      assignedUserId: null,
     });
-    await new Promise((resolve) => setTimeout(resolve, 150)); // TODO debug this issue
+    await new Promise((resolve) => setTimeout(resolve, 150)); // FIXME remove this once we have a proper transaction
   } else {
     const thread = store.query.thread
       .where({
@@ -123,7 +141,7 @@ client.on("messageCreate", async (message) => {
   store.mutate.message.insert({
     id: ulid().toLowerCase(),
     threadId,
-    author: message.author.username,
+    authorId: authorId,
     content: JSON.stringify(parse(message.content)),
     createdAt: message.createdAt,
     origin: "discord",
@@ -139,12 +157,12 @@ store.query.message
       discordChannelId: { $not: null },
     },
   })
-  .include({ thread: true })
-  .subscribe(async (v) => {
-    // TODO: migrate this when live state supports select null and not null
-    const messages = Object.values(v).filter(
-      (m) => m.thread?.discordChannelId && !m.externalMessageId
-    );
+  .include({ thread: true, author: true })
+  .subscribe(async (messages) => {
+    // // TODO: migrate this when live state supports select null and not null
+    // const messages = Object.values(v).filter(
+    //   (m) => m.thread?.discordChannelId && !m.externalMessageId
+    // );
 
     console.info("Messages to send:", messages);
 
@@ -170,7 +188,7 @@ store.query.message
             horizontalRule: true,
           }),
           threadId: channel.id,
-          username: message.author,
+          username: message.author.name,
           // avatarURL: message.author.displayAvatarURL(),
         });
         store.mutate.message.update(message.id, {

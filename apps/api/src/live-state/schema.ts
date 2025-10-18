@@ -51,6 +51,11 @@ const message = object("message", {
 const author = object("author", {
   id: id(),
   name: string(),
+  /**
+   * This is used to identify the author in the external system.
+   * For example, in Discord, this is the user ID.
+   */
+  metaId: string().nullable(),
   userId: reference("user.id").nullable(),
 });
 
