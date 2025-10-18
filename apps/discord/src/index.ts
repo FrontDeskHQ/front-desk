@@ -1,10 +1,15 @@
 import "./env";
 
+import type { InferLiveObject } from "@live-state/sync";
+import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
+import type { schema } from "api/schema";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { ulid } from "ulid";
+import type z from "zod";
 import { fetchClient, store } from "./lib/live-state";
+import { safeParseIntegrationSettings } from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
 
 const safeParseJSON = (raw: string) => {
@@ -86,7 +91,8 @@ client.on("error", (error) => {
 const THREAD_CREATION_THRESHOLD_MS = 1000;
 
 client.on("messageCreate", async (message) => {
-  if (!message.channel.isThread() || message.author.bot) return;
+  if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
+    return;
 
   const isFirstMessage =
     Math.abs(
@@ -94,6 +100,30 @@ client.on("messageCreate", async (message) => {
     ) < THREAD_CREATION_THRESHOLD_MS;
 
   let threadId: string | null = null;
+
+  const integration = store.query.integration
+    .where({ type: "discord" })
+    .get()
+    .find((i) => {
+      const parsed = safeParseIntegrationSettings(i.configStr);
+      return parsed?.guildId === message.guild?.id;
+    });
+
+  console.info("Integration:", integration);
+  if (!integration) return;
+
+  const integrationSettings = safeParseIntegrationSettings(
+    integration.configStr
+  );
+
+  console.info("Integration settings:", integrationSettings);
+
+  if (
+    !(integrationSettings?.selectedChannels ?? [])?.includes(
+      message.channel.parent?.name ?? ""
+    )
+  )
+    return;
 
   // FIXME do this in a transaction
 
@@ -115,8 +145,7 @@ client.on("messageCreate", async (message) => {
     threadId = ulid().toLowerCase();
     store.mutate.thread.insert({
       id: threadId,
-      // TODO: get organization ID from integration settings
-      organizationId: "01k70mhsbfya10kdez683rq8yk",
+      organizationId: integration.organizationId,
       name: message.channel.name,
       createdAt: new Date(),
       discordChannelId: message.channel.id,
@@ -150,54 +179,104 @@ client.on("messageCreate", async (message) => {
   console.info("Message inserted:", message);
 });
 
-store.query.message
-  .where({
-    externalMessageId: null,
-    thread: {
-      discordChannelId: { $not: null },
-    },
-  })
-  .include({ thread: true, author: true })
-  .subscribe(async (messages) => {
-    // // TODO: migrate this when live state supports select null and not null
-    // const messages = Object.values(v).filter(
-    //   (m) => m.thread?.discordChannelId && !m.externalMessageId
-    // );
+const handleMessages = async (
+  messages: InferLiveObject<
+    (typeof schema)["message"],
+    { thread: true; author: true }
+  >[]
+) => {
+  console.info("Messages to send:", messages);
 
-    console.info("Messages to send:", messages);
+  for (const message of messages) {
+    // FIXME this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
+    const integration = store.query.integration
+      .first({
+        organizationId: messages[0]?.thread?.organizationId,
+        type: "discord",
+      })
+      .get();
 
-    for (const message of messages) {
-      const channelId = message.thread.discordChannelId;
+    console.info("Integration:", integration);
 
-      console.info("Channel ID:", channelId);
+    if (!integration || !integration.configStr) continue;
 
-      if (!channelId) continue;
+    let parsedConfig: z.infer<typeof discordIntegrationSchema> | undefined;
 
-      const channel = client.guilds.cache
-        .values()
-        .next()
-        ?.value?.channels.cache.get(channelId);
-      console.info("Channel:", channel);
-      if (!channel) continue;
-
-      try {
-        const webhookClient = await getOrCreateWebhook(channel as TextChannel);
-        const webhookMessage = await webhookClient.send({
-          content: stringify(safeParseJSON(message.content), {
-            heading: true,
-            horizontalRule: true,
-          }),
-          threadId: channel.id,
-          username: message.author.name,
-          // avatarURL: message.author.displayAvatarURL(),
-        });
-        store.mutate.message.update(message.id, {
-          externalMessageId: webhookMessage.id,
-        });
-      } catch (error) {
-        console.error("Error sending webhook message:", error);
-      }
+    try {
+      parsedConfig = discordIntegrationSchema.parse(
+        JSON.parse(integration.configStr)
+      );
+    } catch (error) {
+      console.error("Error parsing integration config:", error);
+      continue;
     }
-  });
+
+    console.info("Parsed config:", parsedConfig);
+    if (!parsedConfig) continue;
+
+    const guildId = parsedConfig.guildId;
+
+    if (!guildId) continue;
+
+    const channelId = message.thread.discordChannelId;
+
+    console.info("Channel ID:", channelId);
+
+    if (!channelId) continue;
+
+    const guild = client.guilds.cache.get(guildId);
+
+    console.info("Guild:", guild);
+
+    if (!guild) continue;
+
+    const channel = guild.channels.cache.get(channelId);
+
+    console.info("Channel:", channel);
+    if (!channel) continue;
+
+    try {
+      const webhookClient = await getOrCreateWebhook(channel as TextChannel);
+      const webhookMessage = await webhookClient.send({
+        content: stringify(safeParseJSON(message.content), {
+          heading: true,
+          horizontalRule: true,
+        }),
+        threadId: channel.id,
+        username: message.author.name,
+        // avatarURL: message.author.displayAvatarURL(),
+      });
+      store.mutate.message.update(message.id, {
+        externalMessageId: webhookMessage.id,
+      });
+    } catch (error) {
+      console.error("Error sending webhook message:", error);
+    }
+  }
+};
+
+setTimeout(async () => {
+  // FIXME Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
+  await handleMessages(
+    await store.query.message
+      .where({
+        externalMessageId: null,
+        thread: {
+          discordChannelId: { $not: null },
+        },
+      })
+      .include({ thread: true, author: true })
+      .get()
+  );
+  store.query.message
+    .where({
+      externalMessageId: null,
+      thread: {
+        discordChannelId: { $not: null },
+      },
+    })
+    .include({ thread: true, author: true })
+    .subscribe(handleMessages);
+}, 1000);
 
 client.login(token).catch(console.error);
