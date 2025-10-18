@@ -26,7 +26,8 @@ import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_
 import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRouteImport } from './routes/app/_workspace/settings/organization/integration/discord'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/redirect'
 
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
@@ -119,10 +120,16 @@ const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
     path: '/organization/integration/',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
-const AppWorkspaceSettingsOrganizationIntegrationDiscordRoute =
-  AppWorkspaceSettingsOrganizationIntegrationDiscordRouteImport.update({
-    id: '/organization/integration/discord',
-    path: '/organization/integration/discord',
+const AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute =
+  AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport.update({
+    id: '/organization/integration/discord/',
+    path: '/organization/integration/discord/',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
+const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
+  AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport.update({
+    id: '/organization/integration/discord/redirect',
+    path: '/organization/integration/discord/redirect',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
 
@@ -141,8 +148,9 @@ export interface FileRoutesByFullPath {
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -157,8 +165,9 @@ export interface FileRoutesByTo {
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -178,8 +187,9 @@ export interface FileRoutesById {
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
   '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/_workspace/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
   '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  '/app/_workspace/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  '/app/_workspace/settings/organization/integration/discord/': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -198,8 +208,9 @@ export interface FileRouteTypes {
     | '/app/threads'
     | '/app/settings/organization'
     | '/app/settings/user'
-    | '/app/settings/organization/integration/discord'
     | '/app/settings/organization/integration'
+    | '/app/settings/organization/integration/discord/redirect'
+    | '/app/settings/organization/integration/discord'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -214,8 +225,9 @@ export interface FileRouteTypes {
     | '/app/threads'
     | '/app/settings/organization'
     | '/app/settings/user'
-    | '/app/settings/organization/integration/discord'
     | '/app/settings/organization/integration'
+    | '/app/settings/organization/integration/discord/redirect'
+    | '/app/settings/organization/integration/discord'
   id:
     | '__root__'
     | '/'
@@ -234,8 +246,9 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/threads/'
     | '/app/_workspace/settings/organization/'
     | '/app/_workspace/settings/user/'
-    | '/app/_workspace/settings/organization/integration/discord'
     | '/app/_workspace/settings/organization/integration/'
+    | '/app/_workspace/settings/organization/integration/discord/redirect'
+    | '/app/_workspace/settings/organization/integration/discord/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -365,11 +378,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/discord': {
-      id: '/app/_workspace/settings/organization/integration/discord'
+    '/app/_workspace/settings/organization/integration/discord/': {
+      id: '/app/_workspace/settings/organization/integration/discord/'
       path: '/organization/integration/discord'
       fullPath: '/app/settings/organization/integration/discord'
-      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRouteImport
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
+    '/app/_workspace/settings/organization/integration/discord/redirect': {
+      id: '/app/_workspace/settings/organization/integration/discord/redirect'
+      path: '/organization/integration/discord/redirect'
+      fullPath: '/app/settings/organization/integration/discord/redirect'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
   }
@@ -397,8 +417,9 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
   AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
-  AppWorkspaceSettingsOrganizationIntegrationDiscordRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRoute
   AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
 }
 
 const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
@@ -409,10 +430,12 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
     AppWorkspaceSettingsUserIndexRoute: AppWorkspaceSettingsUserIndexRoute,
-    AppWorkspaceSettingsOrganizationIntegrationDiscordRoute:
-      AppWorkspaceSettingsOrganizationIntegrationDiscordRoute,
     AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
       AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
+    AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute:
+      AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute,
+    AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute,
   }
 
 const AppWorkspaceSettingsRouteRouteWithChildren =

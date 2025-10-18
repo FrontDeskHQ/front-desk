@@ -207,6 +207,7 @@ export const router = createRouter({
           }
         ),
       })),
+    integration: privateRoute.collectionRoute(schema.integration),
   },
 });
 

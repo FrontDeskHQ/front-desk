@@ -19,6 +19,6 @@
       "@workspace/ui/*": ["../../packages/ui/src/*"]
     },
     "noEmit": true,
-    "types": ["vite/client"]
+    "types": ["vite/client", "react"]
   }
 }

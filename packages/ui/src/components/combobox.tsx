@@ -1,7 +1,8 @@
 import { Combobox as ComboboxPrimitive } from "@base-ui-components/react/combobox";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, VariantProps } from "class-variance-authority";
-import { CheckIcon, ChevronsUpDown } from "lucide-react";
+import { CheckIcon, ChevronsUpDown, XIcon } from "lucide-react";
+import { useRef } from "react";
 
 export const Combobox = ComboboxPrimitive.Root;
 
@@ -47,7 +48,7 @@ export const ComboboxContent = ({
         <ComboboxPrimitive.Popup
           className={cn(
             "bg-popover text-popover-foreground flex flex-col h-full w-full overflow-hidden rounded-md origin-[var(--transform-origin)] max-w-[min(--spacing(100),var(--available-width))] max-h-[min(24rem,var(--available-height))] transition-[transform,scale,opacity] data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 duration-100 border",
-            className
+            className,
           )}
           {...props}
         />
@@ -65,7 +66,7 @@ export const ComboboxInput = ({
       <ComboboxPrimitive.Input
         className={cn(
           "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input flex h-9 w-full min-w-0 rounded-md bg-transparent px-2 text-base transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
-          className
+          className,
         )}
         {...props}
       />
@@ -101,7 +102,7 @@ export const ComboboxItem = ({
     <ComboboxPrimitive.Item
       className={cn(
         "flex cursor-default select-none items-center rounded-md px-3 py-1.5 text-sm outline-none transition-colors data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='text-'])]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 gap-2",
-        className
+        className,
       )}
       {...props}
     >
@@ -116,4 +117,49 @@ export const ComboboxItem = ({
 export type BaseItem<T = string> = {
   value: T;
   label: string;
+};
+
+export const ComboboxTextInput = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Input>) => {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  return (
+    <ComboboxPrimitive.Chips
+      className={cn(
+        "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex flex-wrap items-center gap-0.5 h-auto min-h-9 w-full min-w-0 rounded-md border bg-transparent px-1.5 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+        "focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
+        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+        className,
+      )}
+      ref={containerRef}
+    >
+      <ComboboxPrimitive.Value>
+        {(value: BaseItem[]) => (
+          <>
+            {(value ?? []).map((item) => (
+              <ComboboxPrimitive.Chip
+                key={item.value}
+                className="flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs outline-none cursor-default focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]"
+                aria-label={item.label}
+              >
+                {item.label}
+                <ComboboxPrimitive.ChipRemove
+                  className="rounded-md p-1 text-inherit hover:bg-muted-foreground/10"
+                  aria-label="Remove"
+                >
+                  <XIcon className="size-3.5" />
+                </ComboboxPrimitive.ChipRemove>
+              </ComboboxPrimitive.Chip>
+            ))}
+            <ComboboxPrimitive.Input
+              {...props}
+              className="min-w-12 flex-1 h-full border-0 bg-transparent pl-2 outline-none"
+            />
+          </>
+        )}
+      </ComboboxPrimitive.Value>
+    </ComboboxPrimitive.Chips>
+  );
 };
