@@ -3,6 +3,7 @@
   "tasks": {
     "build": {},
     "lint": {},
+    "typecheck": {},
     "dev": {
       "cache": false,
       "persistent": true
