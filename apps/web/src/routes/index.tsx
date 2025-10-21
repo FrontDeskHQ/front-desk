@@ -1,4 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@workspace/ui/components/accordion";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Icon } from "@workspace/ui/components/logo";
@@ -14,7 +20,7 @@ export const Route = createFileRoute("/")({
 
 function RouteComponent() {
   return (
-    <div className="w-screen min-h-screen flex flex-col overflow-hidden items-center overflow-x-hidden relative">
+    <div className="w-full min-h-screen flex flex-col overflow-hidden items-center overflow-x-hidden relative">
       <header className="h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-md">
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
           <a href="/" className="flex items-center gap-2">
@@ -99,6 +105,189 @@ function RouteComponent() {
               Customers can find answers without waiting for a response.
             </div>
           </div>
+        </section>
+        <HorizontalLine variant="outer" />
+        <section
+          id="pricing"
+          className="col-span-full grid grid-cols-subgrid border-x"
+        >
+          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+            02 - Pricing
+          </div>
+          <DashedPattern className="h-full border-r" />
+          <div className="col-span-10 grid grid-cols-subgrid">
+            <div className="text-center col-span-full h-fit flex flex-col items-center justify-center py-10">
+              <div className="text-3xl font-bold mb-4">
+                Simple pricing that scales with you
+              </div>
+              <div className="col-span-full text-center text-lg">
+                Start today, no demo calls, no credit card required.
+              </div>
+            </div>
+            <div className="col-span-3 border-y py-6 px-4">
+              <div className="text-lg font-medium">Hobby</div>
+              <div className="mb-4">
+                <span className="text-2xl font-semibold text-primary">$0</span>
+                <span className="text-sm text-muted-foreground">
+                  /seat/month
+                </span>
+              </div>
+              <div className="mb-2 h-5" />
+              <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
+                <li>Unlimited support tickets</li>
+                <li>Unlimited customers</li>
+                <li>Public support portal</li>
+                <li>1 support channel</li>
+              </ul>
+            </div>
+            <div className="col-span-7 border-l border-y py-6 px-4">
+              <div className="text-lg font-medium">Pro</div>
+              <div className="mb-4">
+                <span className="text-2xl font-semibold text-primary">$12</span>
+                <span className="text-sm text-muted-foreground">
+                  /seat/month
+                </span>
+              </div>
+              <div className="text-muted-foreground text-sm mb-2 h-5">
+                Everything in Hobby, plus:
+              </div>
+              <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
+                <li>Unlimited team members</li>
+                <li>Unlimited support channels</li>
+                <li>Custom domain for your support portal</li>
+                <li>Priority support</li>
+              </ul>
+            </div>
+            <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+              FREQUENTLY ASKED QUESTIONS
+            </div>
+            <div className="col-span-full">
+              <Accordion
+                type="single"
+                collapsible
+                className="w-full"
+                defaultValue="item-1"
+              >
+                <AccordionItem value="item-1">
+                  <AccordionTrigger>
+                    What makes FrontDesk different from other support tools?
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <p>
+                      FrontDesk transforms your support conversations into a
+                      public, searchable knowledge base. Every ticket you
+                      resolve becomes a resource that future customers can find
+                      through search engines, reducing repetitive questions and
+                      improving your SEO.
+                    </p>
+                    <p>
+                      FrontDesk is a modern support tool built for speed, not
+                      complexity. We believe in simplicity, not bloat. Our
+                      internal architecture is designed to be fast, with
+                      realtime sync, instant feedback, zero page loads and even
+                      offline support.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+                {/* TODO: uncomment when migration is implemented - it's a good question but we don't have it yet */}
+                {/* <AccordionItem value="item-2">
+                  <AccordionTrigger>
+                    Can I migrate my existing support tickets from another
+                    platform?
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <p>
+                      Yes! We provide migration tools to help you import your
+                      existing support tickets, customer data, and conversation
+                      history from popular platforms like Zendesk, Intercom, and
+                      Help Scout.
+                    </p>
+                    <p>
+                      Our team will work with you during the migration process
+                      to ensure a smooth transition. All your historical data,
+                      including attachments and metadata, will be preserved and
+                      fully searchable in FrontDesk.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem> */}
+                <AccordionItem value="item-3">
+                  <AccordionTrigger>
+                    How does the public support portal work?
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <p>
+                      Your public support portal is where all users can see
+                      previous support threads. Customers can search for
+                      answers, browse by topic, and find solutions to common
+                      problems without contacting support.
+                    </p>
+                    <p>
+                      It also doubles as a free SEO tool for your business.
+                      Since a lot of times potential customers are searching for
+                      answers before they even know you exist, having a public
+                      support portal helps them discover your business and feel
+                      confident that you care about your customers needs.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-4">
+                  <AccordionTrigger>
+                    What support channels can I connect?
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <p>
+                      FrontDesk aims to unify all your support channels in one
+                      inbox. Currently, we only support Discord, with more
+                      integrations including email, our built-in web widget,
+                      Slack, Telegram, WhatsApp, and social media coming soon.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+                <AccordionItem value="item-5">
+                  <AccordionTrigger>
+                    Can I upgrade or downgrade my plan at any time?
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <p>
+                      Absolutely! You can upgrade or downgrade your plan at any
+                      time with no penalties or long-term commitments. Changes
+                      take effect immediately, and we&apos;ll prorate any
+                      billing adjustments.
+                    </p>
+                    <p>
+                      Start with the free Hobby plan to explore FrontDesk, and
+                      upgrade to Pro when you need more team members, multiple
+                      support channels, or a custom domain. You can also
+                      downgrade if your needs change, and all your data remains
+                      intact.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem>
+                {/* TODO: uncomment when compliance is implemented - it's a good thing to have but we don't have it yet */}
+                {/* <AccordionItem value="item-6">
+                  <AccordionTrigger>
+                    Is my customer data secure and private?
+                  </AccordionTrigger>
+                  <AccordionContent className="flex flex-col gap-4 text-balance">
+                    <p>
+                      Security is our top priority. All data is encrypted in
+                      transit and at rest using industry-standard encryption.
+                      We&apos;re SOC 2 compliant and undergo regular security
+                      audits to ensure your customer data is protected.
+                    </p>
+                    <p>
+                      You maintain full ownership of your data and can export it
+                      at any time. Our public portal only displays information
+                      you choose to publish, and we automatically filter out
+                      sensitive data like email addresses, phone numbers, and
+                      payment information.
+                    </p>
+                  </AccordionContent>
+                </AccordionItem> */}
+              </Accordion>
+            </div>
+          </div>
+          <DashedPattern className="h-full border-l" />
         </section>
       </main>
     </div>

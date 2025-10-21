@@ -78,7 +78,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="w-screen min-h-screen text-sm">
+      <body className="w-full min-h-screen text-sm">
         <Providers>
           {children}
           {/* <TanStackRouterDevtools position="bottom-right" /> */}

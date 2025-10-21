@@ -121,31 +121,33 @@ export const DashedPattern = ({
   const patternId = `dashed-pattern-${spacing}-${strokeWidth}`;
 
   return (
-    <svg
-      className={cn("w-full h-full", className)}
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <pattern
-          id={patternId}
-          width={spacing}
-          height={spacing}
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <line
-            x1="0"
-            y1="0"
-            x2="0"
-            y2={spacing}
-            stroke={color}
-            strokeWidth={strokeWidth}
-          />
-        </pattern>
-      </defs>
-      <rect width="100%" height="100%" fill={`url(#${patternId})`} />
-    </svg>
+    <div className={cn("w-full", className)}>
+      <svg
+        className="w-full h-full"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <defs>
+          <pattern
+            id={patternId}
+            width={spacing}
+            height={spacing}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <line
+              x1="0"
+              y1="0"
+              x2="0"
+              y2={spacing}
+              stroke={color}
+              strokeWidth={strokeWidth}
+            />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill={`url(#${patternId})`} />
+      </svg>
+    </div>
   );
 };
 
