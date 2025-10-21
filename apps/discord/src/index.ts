@@ -1,13 +1,11 @@
 import "./env";
 
 import type { InferLiveObject } from "@live-state/sync";
-import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { ulid } from "ulid";
-import type z from "zod";
 import { fetchClient, store } from "./lib/live-state";
 import { safeParseIntegrationSettings } from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
@@ -191,16 +189,7 @@ const handleMessages = async (
 
     if (!integration || !integration.configStr) continue;
 
-    let parsedConfig: z.infer<typeof discordIntegrationSchema> | undefined;
-
-    try {
-      parsedConfig = discordIntegrationSchema.parse(
-        JSON.parse(integration.configStr)
-      );
-    } catch (error) {
-      console.error("Error parsing integration config:", error);
-      continue;
-    }
+    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
 
     if (!parsedConfig) continue;
 
