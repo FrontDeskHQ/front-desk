@@ -6,6 +6,7 @@ import Dither, {
   DashedPattern,
   HorizontalLine,
 } from "@workspace/ui/components/surface";
+import { BookOpenText, Inbox, Zap } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -67,6 +68,38 @@ function RouteComponent() {
         <HorizontalLine variant="outer" />
         <DashedPattern className="col-span-full h-3 text-muted-foreground/50 border-x border-b" />
         <HorizontalLine variant="outer" />
+        <section
+          id="features"
+          className="grid grid-cols-3 col-span-full border-x"
+        >
+          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4">
+            01 - Main features
+          </div>
+          <div className="border-y h-48 flex flex-col px-4 py-6 gap-2">
+            <Inbox className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
+            <div className="text-lg font-medium">Unified inbox</div>
+            <div className="text-muted-foreground">
+              All your support channels in one place. No more switching between
+              apps.
+            </div>
+          </div>
+          <div className="border-y border-x h-48 flex flex-col px-4 py-6 gap-2">
+            <Zap className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
+            <div className="text-lg font-medium">Built for speed</div>
+            <div className="text-muted-foreground">
+              Realtime sync, no page loads, instant searches. FrontDesk doesn't
+              make you wait.
+            </div>
+          </div>
+          <div className="border-y h-48 flex flex-col px-4 py-6 gap-2">
+            <BookOpenText className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
+            <div className="text-lg font-medium">Public support</div>
+            <div className="text-muted-foreground">
+              Your support threads are public, indexable, and searchable.
+              Customers can find answers without waiting for a response.
+            </div>
+          </div>
+        </section>
       </main>
     </div>
   );

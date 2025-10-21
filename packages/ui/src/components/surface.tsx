@@ -15,7 +15,7 @@ export const HorizontalLine = ({
   style = "dashed",
   className,
 }: {
-  variant?: "full" | "outer";
+  variant?: "full" | "outer" | "contained";
   style?: "dashed" | "solid";
   className?: string;
 }) => {
@@ -24,14 +24,32 @@ export const HorizontalLine = ({
   return (
     <div
       className={cn(
-        "w-full h-px col-span-full text-border",
-        variant === "outer" && "-translate-y-full",
+        "w-full col-span-full text-border",
+        variant === "outer" ? "-translate-y-px" : "h-px",
         className,
       )}
     >
       {variant === "full" ? (
         <svg
           className="absolute left-0 w-screen h-px"
+          preserveAspectRatio="none"
+          xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true"
+        >
+          <line
+            x1="0"
+            y1="0.5"
+            x2="100%"
+            y2="0.5"
+            stroke="currentColor"
+            strokeWidth="1"
+            strokeDasharray={strokeDasharray}
+            vectorEffect="non-scaling-stroke"
+          />
+        </svg>
+      ) : variant === "contained" ? (
+        <svg
+          className="w-full h-px"
           preserveAspectRatio="none"
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
