@@ -38,15 +38,12 @@ export const integrationOptions: {
             </svg>
           </div>
         ),
-        // FIXME write a good description
         fullDescription: `
 #### Overview
-This integration brings your vibrant Discord community directly into Frontdesk, transforming live conversations into fully trackable support tickets. Additionally, leverage Frontdesk’s powerful reporting and automation tools to analyze and streamline the support you provide directly within your community channels.
+By using the Discord integration in FrontDesk, you enable your users to reach out for help directly from your Discord server, while your team can respond and manage those conversations from a single shared inbox. This keeps all support channels unified, organized, and consistent—no matter where your customers prefer to reach you.
 
 #### How it works
-When a support request appears in any of your Discord channels, a team member can create a ticket by using a slash command (e.g., /ticket on a message), reacting to it with a pre-configured emoji (like 🎫), or selecting Create Frontdesk Ticket from the message's context menu.
-
-Instead of a plain link, a new, fully-featured ticket is created in your Frontdesk workspace. For each ticket, the preview automatically captures the original message content, the author's Discord username and avatar, the channel of origin, and a direct link back to the conversation for full context.
+To get started, simply add the FrontDesk Discord bot to your server and select which channels you want to use for customer support. When users create a support thread in those channels, it will automatically sync with FrontDesk in real time. Messages sent on Discord will instantly appear in FrontDesk, and replies from your support team in FrontDesk will post back to the corresponding Discord thread. Every synced thread includes full FrontDesk functionality—such as status updates, priority settings, assignee management, and more—so your team can handle Discord conversations with the same efficiency and visibility as any other support channel.
 `,
       },
     ],
