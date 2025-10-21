@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Icon } from "@workspace/ui/components/logo";
-import {
+import Dither, {
   DashedPattern,
   HorizontalLine,
 } from "@workspace/ui/components/surface";
@@ -31,9 +31,20 @@ function RouteComponent() {
           id="hero"
           className="col-span-12 flex flex-col items-center py-32 relative border-b border-x"
         >
-          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)]">
-            <DashedPattern className="border-r" />
-            <DashedPattern className="col-start-20 border-l" />
+          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50">
+            {/* <DashedPattern className="border-r" /> */}
+            <Dither
+              waveColor={[0.7, 0.7, 0.7]}
+              disableAnimation={false}
+              enableMouseInteraction={false}
+              colorNum={4}
+              pixelSize={3.5}
+              waveAmplitude={0.3}
+              waveFrequency={3}
+              waveSpeed={0.05}
+              className="col-span-full opacity-15"
+            />
+            {/* <DashedPattern className="col-start-20 border-l" /> */}
           </div>
           <div className="w-full max-w-2xl text-center flex flex-col gap-10 px-6">
             <h1 className="text-5xl font-bold text-center">
@@ -45,11 +56,16 @@ function RouteComponent() {
               searchable knowledge base — getting pSEO for free
             </span>
             <div className="flex gap-4 mx-auto max-w-md w-full">
-              <Input placeholder="Enter your email..." className="w-full" />
+              <Input
+                placeholder="Enter your email..."
+                className="w-full dark:bg-background/75"
+              />
               <Button variant="default">Request access</Button>
             </div>
           </div>
         </section>
+        <HorizontalLine variant="outer" />
+        <DashedPattern className="col-span-full h-3 text-muted-foreground/50 border-x border-b" />
         <HorizontalLine variant="outer" />
       </main>
     </div>
