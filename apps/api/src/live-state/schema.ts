@@ -74,10 +74,22 @@ const invite = object("invite", {
   active: boolean().default(true),
 });
 
+const integration = object("integration", {
+  id: id(),
+  organizationId: reference("organization.id"),
+  type: string(),
+  enabled: boolean().default(false),
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+  // FIXME make this a JSON object when live-state supports it
+  configStr: string().nullable(),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
   invites: many(invite, "organizationId"),
+  integrations: many(integration, "organizationId"),
 }));
 
 const organizationUserRelations = createRelations(
@@ -109,6 +121,10 @@ const inviteRelations = createRelations(invite, ({ one }) => ({
   creator: one(user, "creatorId"),
 }));
 
+const integrationRelations = createRelations(integration, ({ one }) => ({
+  organization: one(organization, "organizationId"),
+}));
+
 export const schema = createSchema({
   // models
   organization,
@@ -118,6 +134,7 @@ export const schema = createSchema({
   message,
   user,
   invite,
+  integration,
   // relations
   organizationUserRelations,
   organizationRelations,
@@ -125,4 +142,5 @@ export const schema = createSchema({
   messageRelations,
   authorRelations,
   inviteRelations,
+  integrationRelations,
 });
