@@ -58,7 +58,7 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/")({
   component: RouteComponent,
 });
 
-const ListItem = ({ threadId }: { threadId: string }) => {
+export const ListItem = ({ threadId }: { threadId: string }) => {
   // TODO reverse sort messages by createdAt
   const thread = useLiveQuery(
     query.thread.one(threadId).include({
