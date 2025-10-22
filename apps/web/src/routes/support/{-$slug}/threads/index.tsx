@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
+import { Navbar } from "@workspace/ui/components/navbar";
 import { fetchClient } from "~/lib/live-state";
 import { ListItem } from "~/routes/app/_workspace/_main/threads";
 
@@ -28,8 +29,8 @@ function RouteComponent() {
   const organization = Route.useLoaderData().organization;
 
   return (
-    <>
-      <nav>navbar</nav>
+    <div className="w-full bg-neutral-950">
+      <Navbar />
       <div className=" mx-auto w-full px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8 flex items-center gap-6 rounded-lg bg-neutral-900 p-6 shadow-sm border border-neutral-800">
           <Avatar
@@ -60,6 +61,6 @@ function RouteComponent() {
           ))}
         </div>
       </div>
-    </>
+    </div>
   );
 }
