@@ -76,4 +76,33 @@ function InputWithSeparator({
   );
 }
 
-export { Input, InputWithSeparator };
+interface SearchProps extends React.InputHTMLAttributes<HTMLInputElement> {
+  onSearchChange?: (value: string) => void;
+}
+
+const Search = React.forwardRef<HTMLInputElement, SearchProps>(
+  (
+    { className, placeholder = "Search threads...", onSearchChange, ...props },
+    ref,
+  ) => {
+    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      onSearchChange?.(e.target.value);
+      props.onChange?.(e);
+    };
+
+    return (
+      <Input
+        ref={ref}
+        type="search"
+        placeholder={placeholder}
+        className={`w-full border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
+        onChange={handleChange}
+        {...props}
+      />
+    );
+  },
+);
+
+Search.displayName = "Search";
+
+export { Input, InputWithSeparator, Search };
