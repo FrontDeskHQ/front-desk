@@ -1,6 +1,7 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import { SquareArrowOutUpRight } from "lucide-react";
 import * as React from "react";
 
 const buttonVariants = cva(
@@ -39,10 +40,13 @@ function Button({
   variant,
   size,
   asChild = false,
+  externalLink = false,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    externalLink?: boolean;
   }) {
   const Comp = asChild ? Slot : "button";
 
@@ -51,7 +55,10 @@ function Button({
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {children}
+      {externalLink && <SquareArrowOutUpRight />}
+    </Comp>
   );
 }
 
