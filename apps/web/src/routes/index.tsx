@@ -12,11 +12,166 @@ import Dither, {
   DashedPattern,
   HorizontalLine,
 } from "@workspace/ui/components/surface";
-import { BookOpenText, Inbox, Zap } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
+import { cn } from "@workspace/ui/lib/utils";
+import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
 });
+
+type CommitWeek = {
+  days: number[];
+  total: number;
+  week: number;
+};
+
+const getCommitLevel = (count: number): number => {
+  if (count === 0) return 0;
+  if (count <= 3) return 1;
+  if (count <= 6) return 2;
+  if (count <= 9) return 3;
+  return 4;
+};
+
+const getCommitColor = (level: number): string => {
+  const colors = [
+    "bg-muted-foreground/5", // 0 commits
+    "bg-muted-foreground/20", // 1-3 commits
+    "bg-muted-foreground/50", // 4-6 commits
+    "bg-muted-foreground/70", // 7-9 commits
+    "bg-muted-foreground/90", // 10+ commits
+  ];
+  return colors[level];
+};
+
+function CommitHeatmap({ className }: { className?: string }) {
+  const [commitData, setCommitData] = useState<CommitWeek[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchCommitActivity = async (retryCount = 0): Promise<void> => {
+      try {
+        setIsLoading(true);
+        const response = await fetch(
+          "https://api.github.com/repos/frontdeskhq/front-desk/stats/commit_activity",
+        );
+        // 202 means github is generating the data, wait and retry
+        if (response.status === 202) {
+          if (retryCount < 3) {
+            // Max 3 retries
+            await new Promise((resolve) =>
+              setTimeout(resolve, 3000 + retryCount ** 2 * 1000),
+            );
+            return fetchCommitActivity(retryCount + 1);
+          }
+          throw new Error(
+            "Data is still being generated. Please try again later.",
+          );
+        }
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch commit activity");
+        }
+
+        const data: CommitWeek[] = await response.json();
+        setCommitData(data);
+        setError(null);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "An error occurred");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchCommitActivity();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="w-full h-full flex items-center justify-center py-12">
+        <div className="text-muted-foreground">Loading commit activity...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full h-full flex items-center justify-center py-12">
+        <div className="text-muted-foreground">
+          Failed to load commit activity
+        </div>
+      </div>
+    );
+  }
+
+  // Get the last 52 weeks for full year display
+  const recentWeeks = commitData.slice(-52);
+
+  // Calculate total commits
+  const totalCommits = recentWeeks.reduce((sum, week) => sum + week.total, 0);
+
+  return (
+    <TooltipProvider>
+      <div className="w-full flex flex-col gap-4">
+        <div className="text-sm text-muted-foreground">
+          <span className="font-semibold text-foreground">{totalCommits}</span>{" "}
+          commits in the last year
+        </div>
+        <div
+          className={cn(
+            "grid grid-rows-7 grid-flow-col grid-cols-52 w-full gap-0.5",
+            className,
+          )}
+        >
+          {recentWeeks.map((week, weekIndex) => (
+            <>
+              {week.days.map((commitCount, dayIndex) => {
+                const level = getCommitLevel(commitCount);
+                const dayDate = new Date(week.week * 1000);
+                dayDate.setDate(dayDate.getDate() + dayIndex);
+
+                const formattedDate = dayDate.toLocaleDateString("en-US", {
+                  weekday: "short",
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                  timeZone: "UTC",
+                });
+
+                return (
+                  <Tooltip key={`commit-${dayIndex}-${week.week}`}>
+                    <TooltipTrigger
+                      className={`rounded-xs aspect-square ${getCommitColor(level)} cursor-pointer`}
+                    />
+                    <TooltipContent side="top" sideOffset={4}>
+                      <div className="flex flex-col gap-0.5">
+                        <div className="font-medium">
+                          {commitCount}{" "}
+                          {commitCount === 1 ? "commit" : "commits"}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          {formattedDate}
+                        </div>
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </>
+          ))}
+        </div>
+      </div>
+    </TooltipProvider>
+  );
+}
 
 function RouteComponent() {
   return (
@@ -162,12 +317,7 @@ function RouteComponent() {
               FREQUENTLY ASKED QUESTIONS
             </div>
             <div className="col-span-full">
-              <Accordion
-                type="single"
-                collapsible
-                className="w-full"
-                defaultValue="item-1"
-              >
+              <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="item-1">
                   <AccordionTrigger>
                     What makes FrontDesk different from other support tools?
@@ -288,6 +438,26 @@ function RouteComponent() {
             </div>
           </div>
           <DashedPattern className="h-full border-l" />
+        </section>
+        <section className="col-span-full grid grid-cols-subgrid border-t border-x">
+          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+            03 - Engineering
+          </div>
+          <div className="col-span-full text-center pt-12 pb-6 px-4">
+            <div className="text-2xl font-medium">Proudly open source</div>
+            <a
+              href="https://github.com/frontdeskhq/front-desk"
+              className="text-lg text-muted-foreground hover:underline"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Star us on GitHub
+              <ArrowUpRight className="size-5 inline-block" />
+            </a>
+          </div>
+          <div className="col-span-10 col-start-2 pb-12">
+            <CommitHeatmap />
+          </div>
         </section>
       </main>
     </div>
