@@ -97,7 +97,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
           ref={ref}
           type="search"
           placeholder={placeholder}
-          className={`border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
+          className={`h-7 py-0.5 text-sm border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
           onChange={handleChange}
           {...props}
         />

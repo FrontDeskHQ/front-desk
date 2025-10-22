@@ -72,7 +72,7 @@ const avatarVariants = cva("", {
   },
 });
 
-const avatarFallbackVariants = cva("text-black bg-white", {
+const avatarFallbackVariants = cva("text-black bg-white select-none", {
   variants: {
     size: {
       sm: "scale-50 text-[0.5rem]",

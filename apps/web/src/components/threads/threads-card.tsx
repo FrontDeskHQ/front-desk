@@ -3,51 +3,52 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import {
-    Filter,
-    type FilterOptions,
-    type FilterValue,
+  Filter,
+  type FilterOptions,
+  type FilterValue,
 } from "@workspace/ui/components/blocks/filter";
 import { Button } from "@workspace/ui/components/button";
 import {
-    Card,
-    CardAction,
-    CardContent,
-    CardFooter,
-    CardHeader,
-    CardTitle,
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
 } from "@workspace/ui/components/card";
 import {
-    PriorityIndicator,
-    priorityText,
-    StatusIndicator,
-    statusValues,
+  PriorityIndicator,
+  priorityText,
+  StatusIndicator,
+  statusValues,
 } from "@workspace/ui/components/indicator";
+import { Search } from "@workspace/ui/components/input";
 import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
 } from "@workspace/ui/components/popover";
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@workspace/ui/components/select";
 import {
-    Tooltip,
-    TooltipContent,
-    TooltipProvider,
-    TooltipTrigger,
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import {
-    ArrowDownWideNarrow,
-    ArrowUpNarrowWide,
-    CircleUser,
-    Settings2,
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+  CircleUser,
+  Settings2,
 } from "lucide-react";
 import { useState } from "react";
 import { CreateThread } from "~/components/devtools/create-thread";
@@ -117,13 +118,6 @@ const ThreadListItem = ({ threadId, onPublicPage }: ThreadListItemProps) => {
   );
 };
 
-const orderByOptions = [
-  { label: "Created", value: "createdAt" },
-  { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
-  { label: "Priority", value: "priority" },
-  { label: "Status", value: "status" },
-];
-
 interface ThreadsCardProps {
   organizationId: string | undefined;
   onPublicPage?: boolean;
@@ -140,6 +134,17 @@ export function ThreadsCard({
   );
 
   const [filter, setFilter] = useState<FilterValue>({});
+
+  const orderByOptions = [
+    { label: "Created", value: "createdAt" },
+    { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
+    ...(!onPublicPage
+      ? [
+          { label: "Priority", value: "priority" },
+          { label: "Status", value: "status" },
+        ]
+      : []),
+  ];
 
   let threadsQuery = query.thread.where({
     organizationId: organizationId,
@@ -208,6 +213,7 @@ export function ThreadsCard({
       <CardHeader>
         <CardTitle className="gap-4">Threads</CardTitle>
         <CardAction side="right">
+          <Search placeholder="Search" />
           {!onPublicPage && (
             <Filter
               options={filterOptions}
