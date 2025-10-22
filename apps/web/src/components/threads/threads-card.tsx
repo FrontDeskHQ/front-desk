@@ -22,7 +22,6 @@ import {
   StatusIndicator,
   statusValues,
 } from "@workspace/ui/components/indicator";
-import { Search } from "@workspace/ui/components/input";
 import {
   Popover,
   PopoverContent,
@@ -213,7 +212,7 @@ export function ThreadsCard({
       <CardHeader>
         <CardTitle className="gap-4">Threads</CardTitle>
         <CardAction side="right">
-          <Search placeholder="Search" />
+          {/* <Search placeholder="Search" /> */}
           {!onPublicPage && (
             <Filter
               options={filterOptions}

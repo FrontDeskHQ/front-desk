@@ -2,7 +2,15 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Header } from "@workspace/ui/components/header";
-import { ArrowLeft, ArrowRight } from "lucide-react";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationEllipsis,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from "@workspace/ui/components/pagination";
 import { useState } from "react";
 import { ThreadsCard } from "~/components/threads/threads-card";
 import { fetchClient } from "~/lib/live-state";
@@ -29,6 +37,8 @@ export const Route = createFileRoute("/support/{-$slug}/threads/")({
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const [page] = useState(0);
+  // TODO: Update URL to reflect real organization discord link
+  const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
   return (
     <div className="w-full">
@@ -43,23 +53,42 @@ function RouteComponent() {
           />
           <div className="flex justify-between w-full">
             <h1 className="font-bold text-3xl">{organization?.name}</h1>
-            <Button size="lg" externalLink={true}>
+            <Button
+              size="lg"
+              externalLink={true}
+              onClick={() => {
+                window.open(integrationPaths.discord, "_blank");
+              }}
+            >
               Join Discord
             </Button>
           </div>
         </div>
         <ThreadsCard organizationId={organization?.id} onPublicPage={true} />
-        <div className={`flex ${page > 0 ? `justify-between` : `justify-end`}`}>
-          {page > 0 && (
-            <Button variant="outline">
-              <ArrowLeft />
-              Previous
-            </Button>
-          )}
-          <Button variant="outline">
-            Next <ArrowRight />
-          </Button>
-        </div>
+        <Pagination>
+          <PaginationContent>
+            <PaginationItem>
+              <PaginationPrevious href="#" />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#">1</PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#" isActive>
+                2
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink href="#">3</PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationEllipsis />
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationNext href="#" />
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
       </div>
     </div>
   );
