@@ -13,9 +13,9 @@ export function Header({ className }: HeaderProps) {
         className,
       )}
     >
-      <div className="container flex h-16 items-center px-8">
+      <div className="container flex items-center px-8 py-4">
         <div className="flex items-center gap-3">
-          <div className="size-fit p-2 border rounded-xl bg-muted">
+          <div className="size-fit border rounded-xl bg-muted">
             <Icon className="size-6" />
           </div>
           <span className="text-lg font-medium">FrontDesk</span>

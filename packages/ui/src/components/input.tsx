@@ -1,4 +1,5 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { Kbd, KbdGroup } from "@workspace/ui/components/kbd";
 import { cn } from "@workspace/ui/lib/utils";
 import * as React from "react";
 import { useState } from "react";
@@ -91,18 +92,24 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
     };
 
     return (
-      <Input
-        ref={ref}
-        type="search"
-        placeholder={placeholder}
-        className={`w-full border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
-        onChange={handleChange}
-        {...props}
-      />
+      <div className="w-full relative">
+        <Input
+          ref={ref}
+          type="search"
+          placeholder={placeholder}
+          className={`border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
+          onChange={handleChange}
+          {...props}
+        />
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+          <KbdGroup>
+            <Kbd>⌘</Kbd>
+            <Kbd>K</Kbd>
+          </KbdGroup>
+        </div>
+      </div>
     );
   },
 );
-
-Search.displayName = "Search";
 
 export { Input, InputWithSeparator, Search };
