@@ -1,3 +1,4 @@
+import { useForm } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Accordion,
@@ -6,9 +7,15 @@ import {
   AccordionTrigger,
 } from "@workspace/ui/components/accordion";
 import { Button } from "@workspace/ui/components/button";
+import {
+  FormControl,
+  FormItem,
+  FormMessage,
+} from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { Icon } from "@workspace/ui/components/logo";
 import { AnimatedGroup } from "@workspace/ui/components/motion";
+import { Spinner } from "@workspace/ui/components/spinner";
 import Dither, {
   DashedPattern,
   HorizontalLine,
@@ -22,6 +29,8 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
+import z from "zod";
+import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -179,6 +188,65 @@ function CommitHeatmap({ className }: { className?: string }) {
   );
 }
 
+const applyToWaitlistSchema = z.object({
+  email: z.email(),
+});
+
+function ApplyToWaitlistForm() {
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const { Field, handleSubmit } = useForm({
+    defaultValues: {
+      email: "",
+    },
+    validators: {
+      onSubmit: applyToWaitlistSchema,
+    },
+    onSubmit: async ({ value }) => {
+      setLoading(true);
+      await applyToWaitlist({ data: value })
+        .then(() => {
+          setSuccess(true);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    },
+  });
+
+  return (
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSubmit();
+      }}
+      className="flex gap-4 mx-auto max-w-md w-full flex-col md:flex-row"
+    >
+      <Field name="email">
+        {(field) => (
+          <FormItem field={field} className="w-full">
+            <FormControl>
+              <Input
+                placeholder="Enter your email..."
+                className="w-full dark:bg-background/75"
+                id={field.name}
+                value={field.state.value}
+                onChange={(e) => field.setValue(e.target.value)}
+              />
+            </FormControl>
+            <FormMessage />
+          </FormItem>
+        )}
+      </Field>
+      <Button variant="default" type="submit" disabled={loading}>
+        {loading ? <Spinner /> : null}
+        {success ? "Thank you!" : "Request access"}
+      </Button>
+    </form>
+  );
+}
+
 function RouteComponent() {
   return (
     <div className="w-full min-h-screen flex flex-col items-center relative">
@@ -238,13 +306,7 @@ function RouteComponent() {
                 simplicity. Transform support tickets into a public, indexable,
                 searchable knowledge base — getting pSEO for free
               </span>
-              <div className="flex gap-4 mx-auto max-w-md w-full flex-col md:flex-row">
-                <Input
-                  placeholder="Enter your email..."
-                  className="w-full dark:bg-background/75"
-                />
-                <Button variant="default">Request access</Button>
-              </div>
+              <ApplyToWaitlistForm />
             </AnimatedGroup>
           </section>
           <HorizontalLine variant="outer" />
@@ -500,13 +562,7 @@ function RouteComponent() {
               <div className="text-3xl font-medium mb-12">
                 Join the future of customer support
               </div>
-              <div className="flex gap-4 mx-auto max-w-md w-full flex-col md:flex-row">
-                <Input
-                  placeholder="Enter your email..."
-                  className="w-full dark:bg-background/75"
-                />
-                <Button variant="default">Request access</Button>
-              </div>
+              <ApplyToWaitlistForm />
             </div>
           </section>
           <HorizontalLine variant="outer" />
