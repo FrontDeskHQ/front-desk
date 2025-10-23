@@ -439,7 +439,11 @@ function RouteComponent() {
           </div>
           <DashedPattern className="h-full border-l" />
         </section>
-        <section className="col-span-full grid grid-cols-subgrid border-t border-x">
+        <HorizontalLine variant="outer" />
+        <section
+          className="col-span-full grid grid-cols-subgrid border-t border-x"
+          id="engineering"
+        >
           <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             03 - Engineering
           </div>
@@ -457,6 +461,26 @@ function RouteComponent() {
           </div>
           <div className="col-span-10 col-start-2 pb-12">
             <CommitHeatmap />
+          </div>
+        </section>
+        <HorizontalLine variant="outer" />
+        <section
+          className="col-span-full grid grid-cols-subgrid border-t border-x relative"
+          id="cta"
+        >
+          <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white" />
+          {/* <DashedPattern className="absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_40%_50%_at_center,transparent_60%,black_100%)]" /> */}
+          <div className="col-span-full text-center px-4 py-40">
+            <div className="text-3xl font-medium mb-12">
+              Join the future of customer support
+            </div>
+            <div className="flex gap-4 mx-auto max-w-md w-full">
+              <Input
+                placeholder="Enter your email..."
+                className="w-full dark:bg-background/75"
+              />
+              <Button variant="default">Request access</Button>
+            </div>
           </div>
         </section>
       </main>
