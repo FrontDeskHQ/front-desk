@@ -221,7 +221,7 @@ function RouteComponent() {
               simplicity. Transform support tickets into a public, indexable,
               searchable knowledge base — getting pSEO for free
             </span>
-            <div className="flex gap-4 mx-auto max-w-md w-full">
+            <div className="flex gap-4 mx-auto max-w-md w-full flex-col md:flex-row">
               <Input
                 placeholder="Enter your email..."
                 className="w-full dark:bg-background/75"
@@ -240,7 +240,7 @@ function RouteComponent() {
           <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4">
             01 - Main features
           </div>
-          <div className="border-y h-48 flex flex-col px-4 py-6 gap-2">
+          <div className="border-y min-h-48 flex flex-col px-4 py-6 gap-2 col-span-full md:col-span-1">
             <Inbox className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
             <div className="text-lg font-medium">Unified inbox</div>
             <div className="text-muted-foreground">
@@ -248,7 +248,7 @@ function RouteComponent() {
               apps.
             </div>
           </div>
-          <div className="border-y border-x h-48 flex flex-col px-4 py-6 gap-2">
+          <div className="border-y border-x min-h-48 flex flex-col px-4 py-6 gap-2 col-span-full md:col-span-1">
             <Zap className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
             <div className="text-lg font-medium">Built for speed</div>
             <div className="text-muted-foreground">
@@ -256,7 +256,7 @@ function RouteComponent() {
               make you wait.
             </div>
           </div>
-          <div className="border-y h-48 flex flex-col px-4 py-6 gap-2">
+          <div className="border-y min-h-48 flex flex-col px-4 py-6 gap-2 col-span-full md:col-span-1">
             <BookOpenText className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
             <div className="text-lg font-medium">Public support</div>
             <div className="text-muted-foreground">
@@ -275,7 +275,7 @@ function RouteComponent() {
           </div>
           <DashedPattern className="h-full border-r" />
           <div className="col-span-10 grid grid-cols-subgrid">
-            <div className="text-center col-span-full h-fit flex flex-col items-center justify-center py-10">
+            <div className="text-center col-span-full h-fit flex flex-col items-center justify-center py-10 px-8">
               <div className="text-3xl font-bold mb-4">
                 Simple pricing that scales with you
               </div>
@@ -283,7 +283,7 @@ function RouteComponent() {
                 Start today, no demo calls, no credit card required.
               </div>
             </div>
-            <div className="col-span-3 border-y py-6 px-4">
+            <div className="md:col-span-3 col-span-full border-y py-6 px-4">
               <div className="text-lg font-medium">Hobby</div>
               <div className="mb-4">
                 <span className="text-2xl font-semibold text-primary">$0</span>
@@ -299,7 +299,7 @@ function RouteComponent() {
                 <li>1 support channel</li>
               </ul>
             </div>
-            <div className="col-span-7 border-l border-y py-6 px-4">
+            <div className="md:col-span-7 col-span-full border-l border-y py-6 px-4">
               <div className="text-lg font-medium">Pro</div>
               <div className="mb-4">
                 <span className="text-2xl font-semibold text-primary">$12</span>
@@ -474,11 +474,11 @@ function RouteComponent() {
         >
           <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white" />
           {/* <DashedPattern className="absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_40%_50%_at_center,transparent_60%,black_100%)]" /> */}
-          <div className="col-span-full text-center px-4 py-40">
+          <div className="col-span-full text-center px-8 md:px-4 py-40">
             <div className="text-3xl font-medium mb-12">
               Join the future of customer support
             </div>
-            <div className="flex gap-4 mx-auto max-w-md w-full">
+            <div className="flex gap-4 mx-auto max-w-md w-full flex-col md:flex-row">
               <Input
                 placeholder="Enter your email..."
                 className="w-full dark:bg-background/75"
@@ -489,17 +489,17 @@ function RouteComponent() {
         </section>
         <HorizontalLine variant="outer" />
         <footer className="col-span-full grid grid-cols-subgrid border-x">
-          <div className="col-span-full border-b row-span-2 grid grid-cols-6 px-4 py-12">
-            <div className="p-4 space-y-4">
+          <div className="col-span-full border-b grid grid-cols-6 px-4 py-12">
+            <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
               <div className="flex gap-2">
                 <Icon className="size-6" />{" "}
                 <span className="text-base font-medium">FrontDesk</span>
               </div>
               <div className="text-sm text-muted-foreground">
-                Support your customers wherever they are
+                Support your customers wherever they are.
               </div>
             </div>
-            <div className="p-4 space-y-4 col-start-5">
+            <div className="p-4 space-y-4 col-span-3 md:col-start-5 md:col-span-1">
               <div className="text-base font-medium">Connect</div>
               <div className="flex flex-col gap-2">
                 <a
@@ -518,7 +518,7 @@ function RouteComponent() {
                 </a>
               </div>
             </div>
-            <div className="p-4 space-y-4 col-start-6">
+            <div className="p-4 space-y-4 col-span-3 md:col-start-6 md:col-span-1">
               <div className="text-base font-medium">Legal</div>
               <div className="flex flex-col gap-2">
                 <a
