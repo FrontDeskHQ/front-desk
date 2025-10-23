@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Accordion,
   AccordionContent,
@@ -21,7 +21,7 @@ import {
 } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 export const Route = createFileRoute("/")({
   component: RouteComponent,
@@ -133,7 +133,12 @@ function CommitHeatmap({ className }: { className?: string }) {
           )}
         >
           {recentWeeks.map((week, weekIndex) => (
-            <>
+            <Fragment
+              key={`week-${
+                // biome-ignore lint/suspicious/noArrayIndexKey: false positive
+                weekIndex
+              }`}
+            >
               {week.days.map((commitCount, dayIndex) => {
                 const level = getCommitLevel(commitCount);
                 const dayDate = new Date(week.week * 1000);
@@ -166,7 +171,7 @@ function CommitHeatmap({ className }: { className?: string }) {
                   </Tooltip>
                 );
               })}
-            </>
+            </Fragment>
           ))}
         </div>
       </div>
@@ -180,17 +185,23 @@ function RouteComponent() {
       <header className="h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background/80">
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
           <div className="flex gap-4">
-            <a href="/" className="flex items-center gap-2">
+            <Link to="/" className="flex items-center gap-2">
               <Icon className="size-5" />
               <h1 className="text-lg font-normal">FrontDesk</h1>
-            </a>
+            </Link>
             <Button variant="link" asChild>
-              <a href="/#pricing">Pricing</a>
+              <Link to="/" params={{ hash: "pricing" }}>
+                Pricing
+              </Link>
             </Button>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost">Sign In</Button>
-            <Button variant="default">Sign Up</Button>
+            <Button variant="ghost" asChild>
+              <Link to="/sign-in">Sign In</Link>
+            </Button>
+            <Button variant="default" asChild>
+              <Link to="/sign-up">Sign Up</Link>
+            </Button>
           </div>
         </div>
       </header>
@@ -279,7 +290,7 @@ function RouteComponent() {
             <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
               02 - Pricing
             </div>
-            <DashedPattern className="h-full border-r" />
+            <DashedPattern className="h-full border-r text-muted-foreground" />
             <div className="col-span-10 grid grid-cols-subgrid">
               <div className="text-center col-span-full h-fit flex flex-col items-center justify-center py-10 px-8">
                 <div className="text-3xl font-bold mb-4">
@@ -452,7 +463,7 @@ function RouteComponent() {
                 </Accordion>
               </div>
             </div>
-            <DashedPattern className="h-full border-l" />
+            <DashedPattern className="h-full border-l text-muted-foreground" />
           </section>
           <HorizontalLine variant="outer" />
           <section
@@ -483,7 +494,7 @@ function RouteComponent() {
             className="col-span-full grid grid-cols-subgrid border-x border-b relative"
             id="cta"
           >
-            <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white" />
+            <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white text-muted-foreground" />
             {/* <DashedPattern className="absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_40%_50%_at_center,transparent_60%,black_100%)]" /> */}
             <div className="col-span-full text-center px-8 md:px-4 py-40">
               <div className="text-3xl font-medium mb-12">

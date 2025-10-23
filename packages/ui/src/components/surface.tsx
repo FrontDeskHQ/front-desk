@@ -7,7 +7,7 @@ import {
 } from "@react-three/fiber";
 import { EffectComposer, wrapEffect } from "@react-three/postprocessing";
 import { Effect } from "postprocessing";
-import { forwardRef, useEffect, useRef } from "react";
+import { forwardRef, useEffect, useId, useRef } from "react";
 import * as THREE from "three";
 import { cn } from "../lib/utils";
 
@@ -128,7 +128,8 @@ export const DashedPattern = ({
   className?: string;
   color?: string;
 }) => {
-  const patternId = `dashed-pattern-${spacing}-${strokeWidth}`;
+  const reactId = useId();
+  const patternId = `dashed-pattern-${reactId}-${spacing}-${strokeWidth}-${color}`;
 
   return (
     <div className={cn("w-full", className)}>
