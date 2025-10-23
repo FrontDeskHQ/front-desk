@@ -264,7 +264,7 @@ function RouteComponent() {
         <HorizontalLine variant="outer" />
         <section
           id="pricing"
-          className="col-span-full grid grid-cols-subgrid border-x"
+          className="col-span-full grid grid-cols-subgrid border-x border-b"
         >
           <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             02 - Pricing
@@ -441,7 +441,7 @@ function RouteComponent() {
         </section>
         <HorizontalLine variant="outer" />
         <section
-          className="col-span-full grid grid-cols-subgrid border-t border-x"
+          className="col-span-full grid grid-cols-subgrid border-x border-b"
           id="engineering"
         >
           <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
@@ -465,7 +465,7 @@ function RouteComponent() {
         </section>
         <HorizontalLine variant="outer" />
         <section
-          className="col-span-full grid grid-cols-subgrid border-t border-x relative"
+          className="col-span-full grid grid-cols-subgrid border-x border-b relative"
           id="cta"
         >
           <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white" />
