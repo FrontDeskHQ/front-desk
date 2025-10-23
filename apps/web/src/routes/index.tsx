@@ -483,6 +483,85 @@ function RouteComponent() {
             </div>
           </div>
         </section>
+        <HorizontalLine variant="outer" />
+        <footer className="col-span-full grid grid-cols-subgrid border-x">
+          <div className="col-span-full border-b row-span-2 grid grid-cols-6 px-4 py-12">
+            <div className="p-4 space-y-4">
+              <div className="flex gap-2">
+                <Icon className="size-6" />{" "}
+                <span className="text-base font-medium">FrontDesk</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Support your customers wherever they are
+              </div>
+            </div>
+            <div className="p-4 space-y-4 col-start-5">
+              <div className="text-base font-medium">Connect</div>
+              <div className="flex flex-col gap-2">
+                <a
+                  href="https://github.com/frontdeskhq/front-desk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="https://x.com/frontdeskhq"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  X (Twitter)
+                </a>
+              </div>
+            </div>
+            <div className="p-4 space-y-4 col-start-6">
+              <div className="text-base font-medium">Legal</div>
+              <div className="flex flex-col gap-2">
+                <a
+                  href="https://github.com/frontdeskhq/front-desk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Privacy Policy
+                </a>
+                <a
+                  href="https://x.com/frontdeskhq"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Terms of Service
+                </a>
+              </div>
+            </div>
+          </div>
+          <div className="col-span-full text-center px-4 select-none text-muted-foreground/40">
+            <svg
+              width="100%"
+              height="1.1em"
+              viewBox="0 0 460 50"
+              fill="none"
+              style={{ fontSize: "calc(var(--spacing)*24)" }}
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <title>FrontDesk</title>
+              <text
+                x="50%"
+                y="50%"
+                dominantBaseline="middle"
+                textAnchor="middle"
+                fontFamily="inherit"
+                fontWeight="450"
+                fontSize="48"
+                fill="transparent"
+                stroke="currentColor"
+                strokeWidth="1"
+                style={{ letterSpacing: "-0.02em" }}
+              >
+                FrontDesk
+              </text>
+            </svg>
+          </div>
+        </footer>
       </main>
     </div>
   );
