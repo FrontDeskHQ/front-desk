@@ -1,3 +1,4 @@
+import type { ThreeElements } from "@react-three/fiber";
 import {
   Canvas,
   type ThreeEvent,
@@ -9,6 +10,15 @@ import { Effect } from "postprocessing";
 import { forwardRef, useEffect, useRef } from "react";
 import * as THREE from "three";
 import { cn } from "../lib/utils";
+
+// This is a workaround to avoid type errors when using ThreeElements in JSX.
+declare global {
+  namespace React {
+    namespace JSX {
+      interface IntrinsicElements extends ThreeElements {}
+    }
+  }
+}
 
 export const HorizontalLine = ({
   variant = "full",
