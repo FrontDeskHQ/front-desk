@@ -8,6 +8,7 @@ import {
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Icon } from "@workspace/ui/components/logo";
+import { AnimatedGroup } from "@workspace/ui/components/motion";
 import Dither, {
   DashedPattern,
   HorizontalLine,
@@ -193,7 +194,7 @@ function RouteComponent() {
           id="hero"
           className="col-span-12 flex flex-col items-center py-32 relative border-b border-x"
         >
-          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50">
+          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-15 ease-in duration-[2s]">
             {/* <DashedPattern className="border-r" /> */}
             <Dither
               waveColor={[0.7, 0.7, 0.7]}
@@ -204,11 +205,14 @@ function RouteComponent() {
               waveAmplitude={0.3}
               waveFrequency={3}
               waveSpeed={0.05}
-              className="col-span-full opacity-15"
+              className="col-span-full"
             />
             {/* <DashedPattern className="col-start-20 border-l" /> */}
           </div>
-          <div className="w-full max-w-2xl text-center flex flex-col gap-10 px-6">
+          <AnimatedGroup
+            preset="blur-slide"
+            className="w-full max-w-2xl text-center flex flex-col gap-10 px-6"
+          >
             <h1 className="text-5xl font-bold text-center">
               Support your customers wherever they are
             </h1>
@@ -224,7 +228,7 @@ function RouteComponent() {
               />
               <Button variant="default">Request access</Button>
             </div>
-          </div>
+          </AnimatedGroup>
         </section>
         <HorizontalLine variant="outer" />
         <DashedPattern className="col-span-full h-3 text-muted-foreground/50 border-x border-b" />
