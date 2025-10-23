@@ -190,7 +190,7 @@ function RouteComponent() {
               <h1 className="text-lg font-normal">FrontDesk</h1>
             </Link>
             <Button variant="link" asChild>
-              <Link to="/" params={{ hash: "pricing" }}>
+              <Link to="/" hash="pricing">
                 Pricing
               </Link>
             </Button>
@@ -209,7 +209,7 @@ function RouteComponent() {
         <div className="w-full max-w-6xl grid grid-cols-12 mx-auto">
           <section
             id="hero"
-            className="col-span-12 flex flex-col items-center py-32 relative border-b border-x"
+            className="col-span-12 flex flex-col items-center py-32 relative border-b border-x scroll-mt-15"
           >
             <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-15 ease-in duration-[2s]">
               {/* <DashedPattern className="border-r" /> */}
@@ -252,7 +252,7 @@ function RouteComponent() {
           <HorizontalLine variant="outer" />
           <section
             id="features"
-            className="grid grid-cols-3 col-span-full border-x"
+            className="grid grid-cols-3 col-span-full border-x scroll-mt-15"
           >
             <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4">
               01 - Main features
@@ -285,7 +285,7 @@ function RouteComponent() {
           <HorizontalLine variant="outer" />
           <section
             id="pricing"
-            className="col-span-full grid grid-cols-subgrid border-x border-b"
+            className="col-span-full grid grid-cols-subgrid border-x border-b scroll-mt-15"
           >
             <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
               02 - Pricing
@@ -467,7 +467,7 @@ function RouteComponent() {
           </section>
           <HorizontalLine variant="outer" />
           <section
-            className="col-span-full grid grid-cols-subgrid border-x border-b"
+            className="col-span-full grid grid-cols-subgrid border-x border-b scroll-mt-15"
             id="engineering"
           >
             <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
@@ -491,7 +491,7 @@ function RouteComponent() {
           </section>
           <HorizontalLine variant="outer" />
           <section
-            className="col-span-full grid grid-cols-subgrid border-x border-b relative"
+            className="col-span-full grid grid-cols-subgrid border-x border-b relative scroll-mt-15"
             id="cta"
           >
             <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white text-muted-foreground" />
