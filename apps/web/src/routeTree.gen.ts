@@ -12,11 +12,14 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AppRouteRouteImport } from './routes/app/route'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as PublicRouteRouteImport } from './routes/_public/route'
+import { Route as PublicIndexRouteImport } from './routes/_public/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
+import { Route as PublicLegalTermsOfServiceRouteImport } from './routes/_public/legal/terms-of-service'
+import { Route as PublicLegalPrivacyPolicyRouteImport } from './routes/_public/legal/privacy-policy'
 import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
 import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
 import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
@@ -45,10 +48,14 @@ const AppRouteRoute = AppRouteRouteImport.update({
   path: '/app',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
+const PublicRouteRoute = PublicRouteRouteImport.update({
+  id: '/_public',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
   path: '/',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => PublicRouteRoute,
 } as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
@@ -69,6 +76,18 @@ const AppInvitationIdRoute = AppInvitationIdRouteImport.update({
   path: '/invitation/$id',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const PublicLegalTermsOfServiceRoute =
+  PublicLegalTermsOfServiceRouteImport.update({
+    id: '/legal/terms-of-service',
+    path: '/legal/terms-of-service',
+    getParentRoute: () => PublicRouteRoute,
+  } as any)
+const PublicLegalPrivacyPolicyRoute =
+  PublicLegalPrivacyPolicyRouteImport.update({
+    id: '/legal/privacy-policy',
+    path: '/legal/privacy-policy',
+    getParentRoute: () => PublicRouteRoute,
+  } as any)
 const AppWorkspaceSettingsRouteRoute =
   AppWorkspaceSettingsRouteRouteImport.update({
     id: '/settings',
@@ -140,11 +159,13 @@ const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
   '/app': typeof AppWorkspaceMainRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/': typeof PublicIndexRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
+  '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
+  '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
@@ -160,10 +181,12 @@ export interface FileRoutesByFullPath {
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
   '/app': typeof AppWorkspaceMainIndexRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/': typeof PublicIndexRoute
+  '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
+  '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
@@ -179,13 +202,16 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_public': typeof PublicRouteRouteWithChildren
   '/app': typeof AppRouteRouteWithChildren
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
+  '/_public/': typeof PublicIndexRoute
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
   '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
+  '/_public/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
+  '/_public/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
@@ -203,11 +229,13 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/'
     | '/app'
     | '/sign-in'
     | '/sign-up'
+    | '/'
     | '/app/settings'
+    | '/legal/privacy-policy'
+    | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding'
@@ -223,10 +251,12 @@ export interface FileRouteTypes {
     | '/app/settings/organization/integration/discord'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/'
     | '/app'
     | '/sign-in'
     | '/sign-up'
+    | '/'
+    | '/legal/privacy-policy'
+    | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding'
@@ -241,13 +271,16 @@ export interface FileRouteTypes {
     | '/app/settings/organization/integration/discord'
   id:
     | '__root__'
-    | '/'
+    | '/_public'
     | '/app'
     | '/sign-in'
     | '/sign-up'
     | '/app/_workspace'
+    | '/_public/'
     | '/app/_workspace/_main'
     | '/app/_workspace/settings'
+    | '/_public/legal/privacy-policy'
+    | '/_public/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding/'
@@ -264,7 +297,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  PublicRouteRoute: typeof PublicRouteRouteWithChildren
   AppRouteRoute: typeof AppRouteRouteWithChildren
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
@@ -293,12 +326,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
+    '/_public': {
+      id: '/_public'
+      path: ''
+      fullPath: ''
+      preLoaderRoute: typeof PublicRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_public/': {
+      id: '/_public/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof PublicIndexRouteImport
+      parentRoute: typeof PublicRouteRoute
     }
     '/app/_workspace': {
       id: '/app/_workspace'
@@ -327,6 +367,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/invitation/$id'
       preLoaderRoute: typeof AppInvitationIdRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/_public/legal/terms-of-service': {
+      id: '/_public/legal/terms-of-service'
+      path: '/legal/terms-of-service'
+      fullPath: '/legal/terms-of-service'
+      preLoaderRoute: typeof PublicLegalTermsOfServiceRouteImport
+      parentRoute: typeof PublicRouteRoute
+    }
+    '/_public/legal/privacy-policy': {
+      id: '/_public/legal/privacy-policy'
+      path: '/legal/privacy-policy'
+      fullPath: '/legal/privacy-policy'
+      preLoaderRoute: typeof PublicLegalPrivacyPolicyRouteImport
+      parentRoute: typeof PublicRouteRoute
     }
     '/app/_workspace/settings': {
       id: '/app/_workspace/settings'
@@ -415,6 +469,22 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface PublicRouteRouteChildren {
+  PublicIndexRoute: typeof PublicIndexRoute
+  PublicLegalPrivacyPolicyRoute: typeof PublicLegalPrivacyPolicyRoute
+  PublicLegalTermsOfServiceRoute: typeof PublicLegalTermsOfServiceRoute
+}
+
+const PublicRouteRouteChildren: PublicRouteRouteChildren = {
+  PublicIndexRoute: PublicIndexRoute,
+  PublicLegalPrivacyPolicyRoute: PublicLegalPrivacyPolicyRoute,
+  PublicLegalTermsOfServiceRoute: PublicLegalTermsOfServiceRoute,
+}
+
+const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
+  PublicRouteRouteChildren,
+)
+
 interface AppWorkspaceMainRouteRouteChildren {
   AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
   AppWorkspaceMainThreadsIdRoute: typeof AppWorkspaceMainThreadsIdRoute
@@ -495,7 +565,7 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 )
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,

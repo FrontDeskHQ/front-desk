@@ -41,7 +41,7 @@ export const HorizontalLine = ({
     >
       {variant === "full" ? (
         <svg
-          className="absolute left-0 w-screen h-px"
+          className="absolute left-0 w-full h-px"
           preserveAspectRatio="none"
           xmlns="http://www.w3.org/2000/svg"
           aria-hidden="true"
