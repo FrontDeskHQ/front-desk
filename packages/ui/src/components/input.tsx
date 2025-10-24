@@ -1,5 +1,5 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
-import { Kbd, KbdGroup } from "@workspace/ui/components/kbd";
+import { Keybind } from "@workspace/ui/components/keybind";
 import { cn } from "@workspace/ui/lib/utils";
 import * as React from "react";
 import { useState } from "react";
@@ -102,10 +102,7 @@ const Search = React.forwardRef<HTMLInputElement, SearchProps>(
           {...props}
         />
         <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <KbdGroup>
-            <Kbd>⌘</Kbd>
-            <Kbd>K</Kbd>
-          </KbdGroup>
+          <Keybind keybind="mod-K" />
         </div>
       </div>
     );
