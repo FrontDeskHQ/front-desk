@@ -30,6 +30,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
+import { AuthButtonGroup } from "~/components/auth";
 import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
 
 export const Route = createFileRoute("/")({
@@ -263,14 +264,7 @@ function RouteComponent() {
               </Link>
             </Button>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" asChild>
-              <Link to="/sign-in">Sign In</Link>
-            </Button>
-            <Button variant="default" asChild>
-              <Link to="/sign-up">Sign Up</Link>
-            </Button>
-          </div>
+          <AuthButtonGroup />
         </div>
       </header>
       <main className="w-full overflow-x-hidden">
