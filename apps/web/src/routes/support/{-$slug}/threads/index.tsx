@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, notFound } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Header } from "@workspace/ui/components/header";
@@ -27,6 +27,10 @@ export const Route = createFileRoute("/support/{-$slug}/threads/")({
         .get()
     )[0];
 
+    if (!organization) {
+      throw notFound();
+    }
+
     return {
       organization: organization as typeof organization | undefined,
     };
@@ -37,6 +41,10 @@ function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
+
+  if (!organization) {
+    return null;
+  }
 
   return (
     <div className="w-full">
@@ -51,14 +59,14 @@ function RouteComponent() {
           />
           <div className="flex justify-between w-full">
             <h1 className="font-bold text-3xl">{organization?.name}</h1>
-            <Button
-              size="lg"
-              externalLink={true}
-              onClick={() => {
-                window.open(integrationPaths.discord, "_blank");
-              }}
-            >
-              Join Discord
+            <Button size="lg" externalLink asChild>
+              <a
+                href={integrationPaths.discord}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Join Discord
+              </a>
             </Button>
           </div>
         </div>

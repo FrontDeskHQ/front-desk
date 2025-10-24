@@ -50,6 +50,26 @@ function Button({
   }) {
   const Comp = asChild ? Slot : "button";
 
+  if (asChild && externalLink) {
+    // When using asChild with externalLink, clone the child and add the icon
+    return (
+      <Comp
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...props}
+      >
+        {React.isValidElement(children)
+          ? React.cloneElement(
+              children,
+              {},
+              (children.props as { children?: React.ReactNode }).children,
+              <SquareArrowOutUpRight key="external-icon" />,
+            )
+          : children}
+      </Comp>
+    );
+  }
+
   return (
     <Comp
       data-slot="button"
@@ -57,7 +77,12 @@ function Button({
       {...props}
     >
       {children}
-      {externalLink && <SquareArrowOutUpRight />}
+      {externalLink && (
+        <>
+          <SquareArrowOutUpRight aria-hidden="true" />
+          <span className="sr-only">(opens in new window)</span>
+        </>
+      )}
     </Comp>
   );
 }

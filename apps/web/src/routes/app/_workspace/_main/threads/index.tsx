@@ -16,5 +16,9 @@ function RouteComponent() {
     query.organization.where({ id: currentOrg?.id }).include({ threads: true }),
   )?.[0];
 
+  if (!organization) {
+    return null;
+  }
+
   return <ThreadsCard organization={organization} />;
 }
