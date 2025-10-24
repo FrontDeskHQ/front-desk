@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import {
   FormControl,
@@ -12,7 +13,6 @@ import { Spinner } from "@workspace/ui/components/spinner";
 import { useState } from "react";
 import { z } from "zod";
 import { authClient } from "~/lib/auth-client";
-import { useNavigate } from "@tanstack/react-router";
 
 const signInFormSchema = z.object({
   email: z.string().email(),
@@ -59,52 +59,68 @@ export const SignInForm = () => {
       <div className="size-fit p-4 border rounded-2xl bg-muted">
         <Icon className="size-12" />
       </div>
-      <h1 className="text-xl font-medium">Sign In to FrontDesk</h1>
+      <h1 className="text-xl font-medium">Log in to FrontDesk</h1>
       {error ? <p className="text-destructive">{error}</p> : null}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          handleSubmit();
-        }}
-        className="flex flex-col gap-4 w-full"
-      >
-        <Field name="email">
-          {(field) => (
-            <FormItem field={field}>
-              <FormLabel>Email</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="you@example.com"
-                  id={field.name}
-                  value={field.state.value}
-                  onChange={(e) => field.setValue(e.target.value)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        </Field>
-        <Field name="password">
-          {(field) => (
-            <FormItem field={field}>
-              <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input
-                  placeholder="********"
-                  type="password"
-                  id={field.name}
-                  value={field.state.value}
-                  onChange={(e) => field.setValue(e.target.value)}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        </Field>
-        <Button type="submit" className="mt-6 w-full" disabled={loading}>
-          {loading ? <Spinner /> : null} Sign In
+      {import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? (
+        <Button
+          type="button"
+          className="mt-6 w-full"
+          onClick={() => {
+            authClient.signIn.social({
+              provider: "google",
+              callbackURL: `${window.location.origin}/app`,
+            });
+          }}
+        >
+          Continue with Google
         </Button>
-      </form>
+      ) : null}
+      {!import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? (
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit();
+          }}
+          className="flex flex-col gap-4 w-full"
+        >
+          <Field name="email">
+            {(field) => (
+              <FormItem field={field}>
+                <FormLabel>Email</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="you@example.com"
+                    id={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.setValue(e.target.value)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          </Field>
+          <Field name="password">
+            {(field) => (
+              <FormItem field={field}>
+                <FormLabel>Password</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="********"
+                    type="password"
+                    id={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.setValue(e.target.value)}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          </Field>
+          <Button type="submit" className="mt-6 w-full" disabled={loading}>
+            {loading ? <Spinner /> : null} Log in
+          </Button>
+        </form>
+      ) : null}
     </div>
   );
 };
@@ -249,6 +265,35 @@ export const SignUpForm = () => {
           {loading ? <Spinner /> : null} Sign Up
         </Button>
       </form>
+    </div>
+  );
+};
+
+export const AuthButtonGroup = () => {
+  const { data: session } = authClient.useSession();
+  return (
+    <div className="flex items-center gap-2">
+      {session ? (
+        <Button variant="default" asChild>
+          <Link to="/app">Go to app</Link>
+        </Button>
+      ) : (
+        <>
+          <Button
+            variant={
+              import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? "default" : "ghost"
+            }
+            asChild
+          >
+            <Link to="/sign-in">Log in</Link>
+          </Button>
+          {!import.meta.env.VITE_ENABLE_GOOGLE_LOGIN && (
+            <Button variant="default" asChild>
+              <Link to="/sign-up">Sign Up</Link>
+            </Button>
+          )}
+        </>
+      )}
     </div>
   );
 };
