@@ -77,36 +77,24 @@ function InputWithSeparator({
   );
 }
 
-interface SearchProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  onSearchChange?: (value: string) => void;
-}
-
-const Search = React.forwardRef<HTMLInputElement, SearchProps>(
-  (
-    { className, placeholder = "Search threads...", onSearchChange, ...props },
-    ref,
-  ) => {
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      onSearchChange?.(e.target.value);
-      props.onChange?.(e);
-    };
-
-    return (
-      <div className="w-full relative">
-        <Input
-          ref={ref}
-          type="search"
-          placeholder={placeholder}
-          className={`h-7 py-0.5 text-sm border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
-          onChange={handleChange}
-          {...props}
-        />
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-          <Keybind keybind="mod-K" />
-        </div>
+const Search = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, placeholder = "Search threads...", ...props }, ref) => {
+  return (
+    <div className="w-full relative">
+      <Input
+        ref={ref}
+        type="search"
+        placeholder={placeholder}
+        className={`h-7 py-0.5 text-sm border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
+        {...props}
+      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+        <Keybind keybind="mod-K" />
       </div>
-    );
-  },
-);
+    </div>
+  );
+});
 
 export { Input, InputWithSeparator, Search };

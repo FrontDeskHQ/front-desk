@@ -1,5 +1,3 @@
-import type { InferLiveObject } from "@live-state/sync";
-import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
@@ -40,14 +38,13 @@ import {
 } from "@workspace/ui/components/tooltip";
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
-import type { schema } from "api/schema";
 import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   Settings2,
 } from "lucide-react";
 import { useState } from "react";
-import { fetchClient, query } from "~/lib/live-state";
+import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute("/support/{-$slug}/threads/")({
   component: RouteComponent,
@@ -66,14 +63,26 @@ export const Route = createFileRoute("/support/{-$slug}/threads/")({
       throw notFound();
     }
 
+    // TODO Deep include thread messages and assigned user when live-state supports it
+    // TODO reverse sort messages by createdAt
+    const threads = await fetchClient.query.thread
+      .where({
+        organizationId: organization.id,
+      })
+      .include({ messages: true, assignedUser: true })
+      .get();
+
     return {
       organization: organization as typeof organization | undefined,
+      threads: threads as typeof threads | undefined,
     };
   },
 });
 
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
+  const threads = Route.useLoaderData().threads;
+
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
@@ -82,23 +91,20 @@ function RouteComponent() {
     { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
   ];
 
-  const threadsQuery = query.thread.where({
-    organizationId: organization?.id,
-  });
-
   const [orderBy, setOrderBy] = useState<string>("createdAt");
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
 
-  // TODO Deep include thread messages and assigned user when live-state supports it
-  // TODO reverse sort messages by createdAt
-  const threads = useLiveQuery(
-    threadsQuery
-      .include({ messages: true })
-      .orderBy(
-        orderBy as keyof InferLiveObject<typeof schema.thread>,
-        orderDirection,
-      ),
-  );
+  const sortedThreads = [...(threads ?? [])].sort((a, b) => {
+    const aValue = a[orderBy as keyof typeof a] ?? -Infinity;
+    const bValue = b[orderBy as keyof typeof b] ?? -Infinity;
+    return orderDirection === "asc"
+      ? aValue > bValue
+        ? 1
+        : -1
+      : aValue < bValue
+        ? 1
+        : -1;
+  });
 
   if (!organization) {
     return null;
@@ -192,7 +198,7 @@ function RouteComponent() {
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
-            {threads?.map((thread) => (
+            {sortedThreads?.map((thread) => (
               <Link
                 key={thread.id}
                 to={"/app/threads/$id"}

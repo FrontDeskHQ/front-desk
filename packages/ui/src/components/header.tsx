@@ -3,7 +3,6 @@ import { Icon } from "./logo";
 
 interface HeaderProps {
   className?: string;
-  children?: React.ReactNode;
 }
 
 export function Header({ className }: HeaderProps) {
