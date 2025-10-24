@@ -11,7 +11,6 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from "@workspace/ui/components/pagination";
-import { useState } from "react";
 import { ThreadsCard } from "~/components/threads/threads-card";
 import { fetchClient } from "~/lib/live-state";
 
@@ -36,7 +35,6 @@ export const Route = createFileRoute("/support/{-$slug}/threads/")({
 
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
-  const [page] = useState(0);
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
@@ -64,7 +62,7 @@ function RouteComponent() {
             </Button>
           </div>
         </div>
-        <ThreadsCard organizationId={organization?.id} onPublicPage={true} />
+        <ThreadsCard organization={organization} hidePrivateProps={true} />
         <Pagination>
           <PaginationContent>
             <PaginationItem>

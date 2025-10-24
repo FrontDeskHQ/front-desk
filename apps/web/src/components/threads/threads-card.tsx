@@ -54,23 +54,18 @@ import { CreateThread } from "~/components/devtools/create-thread";
 import { query } from "~/lib/live-state";
 
 interface ThreadListItemProps {
-  threadId: string;
-  onPublicPage?: boolean;
+  thread: InferLiveObject<
+    typeof schema.thread,
+    { messages: true; assignedUser: true }
+  >;
+  hidePrivateProps?: boolean;
 }
 
-const ThreadListItem = ({ threadId, onPublicPage }: ThreadListItemProps) => {
-  // TODO reverse sort messages by createdAt
-  const thread = useLiveQuery(
-    query.thread.one(threadId).include({
-      messages: true,
-      assignedUser: true,
-    }),
-  );
-
+const ThreadListItem = ({ thread, hidePrivateProps }: ThreadListItemProps) => {
   return (
     <Link
       to={"/app/threads/$id"}
-      params={{ id: threadId }}
+      params={{ id: thread.id }}
       className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
     >
       <div className="flex justify-between">
@@ -78,13 +73,13 @@ const ThreadListItem = ({ threadId, onPublicPage }: ThreadListItemProps) => {
           <Avatar variant="user" size="md" fallback={"P"} />
           <div>{thread?.name}</div>
         </div>
-        {!onPublicPage && (
+        {!hidePrivateProps && (
           <div className="flex items-center gap-2">
-            {thread?.assignedUser ? (
+            {thread?.assignedUserId ? (
               <Avatar
                 variant="user"
                 size="md"
-                fallback={thread.assignedUser.name}
+                fallback={thread.assignedUser?.name}
               />
             ) : (
               <CircleUser className="size-4" />
@@ -110,7 +105,9 @@ const ThreadListItem = ({ threadId, onPublicPage }: ThreadListItemProps) => {
           </span>
         </span>
         <div className="text-muted-foreground">
-          {formatRelativeTime(thread?.createdAt as Date)}
+          {thread?.createdAt
+            ? formatRelativeTime(thread?.createdAt as Date)
+            : null}
         </div>
       </div>
     </Link>
@@ -118,17 +115,17 @@ const ThreadListItem = ({ threadId, onPublicPage }: ThreadListItemProps) => {
 };
 
 interface ThreadsCardProps {
-  organizationId: string | undefined;
-  onPublicPage?: boolean;
+  organization?: InferLiveObject<typeof schema.organization, { threads: true }>;
+  hidePrivateProps?: boolean;
 }
 
 export function ThreadsCard({
-  organizationId,
-  onPublicPage,
+  organization,
+  hidePrivateProps,
 }: ThreadsCardProps) {
   const organizationUsers = useLiveQuery(
     query.organizationUser
-      .where({ organizationId: organizationId })
+      .where({ organizationId: organization?.id })
       .include({ user: true }),
   );
 
@@ -137,7 +134,7 @@ export function ThreadsCard({
   const orderByOptions = [
     { label: "Created", value: "createdAt" },
     { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
-    ...(!onPublicPage
+    ...(!hidePrivateProps
       ? [
           { label: "Priority", value: "priority" },
           { label: "Status", value: "status" },
@@ -146,7 +143,7 @@ export function ThreadsCard({
   ];
 
   let threadsQuery = query.thread.where({
-    organizationId: organizationId,
+    organizationId: organization?.id,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
@@ -200,6 +197,7 @@ export function ThreadsCard({
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
 
   // TODO Deep include thread messages and assigned user when live-state supports it
+  // TODO reverse sort messages by createdAt
   const threads = useLiveQuery(
     threadsQuery.orderBy(
       orderBy as keyof InferLiveObject<typeof schema.thread>,
@@ -212,8 +210,9 @@ export function ThreadsCard({
       <CardHeader>
         <CardTitle className="gap-4">Threads</CardTitle>
         <CardAction side="right">
+          {/* TODO: Implement search functionality when live-state supports full text search */}
           {/* <Search placeholder="Search" /> */}
-          {!onPublicPage && (
+          {!hidePrivateProps && (
             <Filter
               options={filterOptions}
               value={filter}
@@ -281,12 +280,17 @@ export function ThreadsCard({
         {threads?.map((thread) => (
           <ThreadListItem
             key={thread.id}
-            threadId={thread.id}
-            onPublicPage={onPublicPage}
+            thread={
+              thread as InferLiveObject<
+                typeof schema.thread,
+                { messages: true; assignedUser: true }
+              >
+            }
+            hidePrivateProps={hidePrivateProps}
           />
         ))}
       </CardContent>
-      {import.meta.env.MODE === "development" && !onPublicPage && (
+      {import.meta.env.MODE === "development" && !hidePrivateProps && (
         <CardFooter>
           <CreateThread />
         </CardFooter>
