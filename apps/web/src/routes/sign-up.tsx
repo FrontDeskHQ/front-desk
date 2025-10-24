@@ -4,7 +4,7 @@ import { SignUpForm } from "~/components/auth";
 export const Route = createFileRoute("/sign-up")({
   component: RouteComponent,
   loader: async () => {
-    if (import.meta.env.VITE_ENABLE_GOOGLE_LOGIN) {
+    if (import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === "true") {
       throw redirect({ to: "/sign-in" });
     }
   },

@@ -61,7 +61,7 @@ export const SignInForm = () => {
       </div>
       <h1 className="text-xl font-medium">Log in to FrontDesk</h1>
       {error ? <p className="text-destructive">{error}</p> : null}
-      {import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? (
+      {import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === "true" ? (
         <Button
           type="button"
           className="mt-6 w-full"
@@ -74,8 +74,7 @@ export const SignInForm = () => {
         >
           Continue with Google
         </Button>
-      ) : null}
-      {!import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? (
+      ) : (
         <form
           onSubmit={(e) => {
             e.preventDefault();
@@ -120,7 +119,7 @@ export const SignInForm = () => {
             {loading ? <Spinner /> : null} Log in
           </Button>
         </form>
-      ) : null}
+      )}
     </div>
   );
 };
