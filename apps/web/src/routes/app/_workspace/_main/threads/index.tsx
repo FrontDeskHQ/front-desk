@@ -9,12 +9,11 @@ import {
 } from "@workspace/ui/components/blocks/filter";
 import { Button } from "@workspace/ui/components/button";
 import {
-  Card,
   CardAction,
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from "@workspace/ui/components/card";
 import {
   PriorityIndicator,
@@ -151,7 +150,7 @@ function RouteComponent() {
   }
 
   return (
-    <Card className="bg-muted/30">
+    <>
       <CardHeader>
         <CardTitle className="gap-4">Threads</CardTitle>
         <CardAction side="right">
@@ -278,6 +277,6 @@ function RouteComponent() {
           <CreateThread />
         </CardFooter>
       )}
-    </Card>
+    </>
   );
 }
