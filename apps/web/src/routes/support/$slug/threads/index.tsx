@@ -37,7 +37,7 @@ type ThreadsSearchOrderOptions = z.infer<
   typeof threadsSearchSchema.shape.order
 >;
 
-export const Route = createFileRoute("/support/{-$slug}/threads/")({
+export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
   validateSearch: (search) => threadsSearchSchema.parse(search),
@@ -198,7 +198,7 @@ function RouteComponent() {
             {threadsInPage?.map((thread) => (
               <Link
                 key={thread.id}
-                to={"/support/{-$slug}/threads/$id"}
+                to={"/support/$slug/threads/$id"}
                 params={{ slug: organization.slug, id: thread.id }}
                 className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
               >

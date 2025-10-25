@@ -18,10 +18,10 @@ import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/ne
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
 import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
-import { Route as SupportChar123SlugChar125ThreadsIndexRouteImport } from './routes/support/{-$slug}/threads/index'
+import { Route as SupportSlugThreadsIndexRouteImport } from './routes/support/$slug/threads/index'
 import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
 import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
-import { Route as SupportChar123SlugChar125ThreadsIdRouteImport } from './routes/support/{-$slug}/threads/$id'
+import { Route as SupportSlugThreadsIdRouteImport } from './routes/support/$slug/threads/$id'
 import { Route as AppWorkspaceSettingsUserIndexRouteImport } from './routes/app/_workspace/settings/user/index'
 import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
@@ -75,12 +75,11 @@ const AppWorkspaceMainRouteRoute = AppWorkspaceMainRouteRouteImport.update({
   id: '/_main',
   getParentRoute: () => AppWorkspaceRouteRoute,
 } as any)
-const SupportChar123SlugChar125ThreadsIndexRoute =
-  SupportChar123SlugChar125ThreadsIndexRouteImport.update({
-    id: '/support/{-$slug}/threads/',
-    path: '/support/{-$slug}/threads/',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const SupportSlugThreadsIndexRoute = SupportSlugThreadsIndexRouteImport.update({
+  id: '/support/$slug/threads/',
+  path: '/support/$slug/threads/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppWorkspaceSettingsIndexRoute =
   AppWorkspaceSettingsIndexRouteImport.update({
     id: '/',
@@ -92,12 +91,11 @@ const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppWorkspaceMainRouteRoute,
 } as any)
-const SupportChar123SlugChar125ThreadsIdRoute =
-  SupportChar123SlugChar125ThreadsIdRouteImport.update({
-    id: '/support/{-$slug}/threads/$id',
-    path: '/support/{-$slug}/threads/$id',
-    getParentRoute: () => rootRouteImport,
-  } as any)
+const SupportSlugThreadsIdRoute = SupportSlugThreadsIdRouteImport.update({
+  id: '/support/$slug/threads/$id',
+  path: '/support/$slug/threads/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppWorkspaceSettingsUserIndexRoute =
   AppWorkspaceSettingsUserIndexRouteImport.update({
     id: '/user/',
@@ -155,10 +153,10 @@ export interface FileRoutesByFullPath {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
-  '/support/{-$slug}/threads/$id': typeof SupportChar123SlugChar125ThreadsIdRoute
+  '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
-  '/support/{-$slug}/threads': typeof SupportChar123SlugChar125ThreadsIndexRoute
+  '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -175,9 +173,9 @@ export interface FileRoutesByTo {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
-  '/support/{-$slug}/threads/$id': typeof SupportChar123SlugChar125ThreadsIdRoute
+  '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
-  '/support/{-$slug}/threads': typeof SupportChar123SlugChar125ThreadsIndexRoute
+  '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -198,10 +196,10 @@ export interface FileRoutesById {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
-  '/support/{-$slug}/threads/$id': typeof SupportChar123SlugChar125ThreadsIdRoute
+  '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
-  '/support/{-$slug}/threads/': typeof SupportChar123SlugChar125ThreadsIndexRoute
+  '/support/$slug/threads/': typeof SupportSlugThreadsIndexRoute
   '/app/_workspace/_main/threads/$id': typeof AppWorkspaceMainThreadsIdRoute
   '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
@@ -221,10 +219,10 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding'
-    | '/support/{-$slug}/threads/$id'
+    | '/support/$slug/threads/$id'
     | '/app/'
     | '/app/settings/'
-    | '/support/{-$slug}/threads'
+    | '/support/$slug/threads'
     | '/app/threads/$id'
     | '/app/settings/organization/team'
     | '/app/threads'
@@ -241,9 +239,9 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding'
-    | '/support/{-$slug}/threads/$id'
+    | '/support/$slug/threads/$id'
     | '/app/settings'
-    | '/support/{-$slug}/threads'
+    | '/support/$slug/threads'
     | '/app/threads/$id'
     | '/app/settings/organization/team'
     | '/app/threads'
@@ -263,10 +261,10 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding/'
-    | '/support/{-$slug}/threads/$id'
+    | '/support/$slug/threads/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
-    | '/support/{-$slug}/threads/'
+    | '/support/$slug/threads/'
     | '/app/_workspace/_main/threads/$id'
     | '/app/_workspace/settings/organization/team'
     | '/app/_workspace/_main/threads/'
@@ -281,8 +279,8 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRouteRoute: typeof AppRouteRouteWithChildren
   SignUpRoute: typeof SignUpRoute
-  SupportChar123SlugChar125ThreadsIdRoute: typeof SupportChar123SlugChar125ThreadsIdRoute
-  SupportChar123SlugChar125ThreadsIndexRoute: typeof SupportChar123SlugChar125ThreadsIndexRoute
+  SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
+  SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -350,11 +348,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainRouteRouteImport
       parentRoute: typeof AppWorkspaceRouteRoute
     }
-    '/support/{-$slug}/threads/': {
-      id: '/support/{-$slug}/threads/'
-      path: '/support/{-$slug}/threads'
-      fullPath: '/support/{-$slug}/threads'
-      preLoaderRoute: typeof SupportChar123SlugChar125ThreadsIndexRouteImport
+    '/support/$slug/threads/': {
+      id: '/support/$slug/threads/'
+      path: '/support/$slug/threads'
+      fullPath: '/support/$slug/threads'
+      preLoaderRoute: typeof SupportSlugThreadsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/_workspace/settings/': {
@@ -371,11 +369,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/support/{-$slug}/threads/$id': {
-      id: '/support/{-$slug}/threads/$id'
-      path: '/support/{-$slug}/threads/$id'
-      fullPath: '/support/{-$slug}/threads/$id'
-      preLoaderRoute: typeof SupportChar123SlugChar125ThreadsIdRouteImport
+    '/support/$slug/threads/$id': {
+      id: '/support/$slug/threads/$id'
+      path: '/support/$slug/threads/$id'
+      fullPath: '/support/$slug/threads/$id'
+      preLoaderRoute: typeof SupportSlugThreadsIdRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/_workspace/settings/user/': {
@@ -520,10 +518,8 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRouteRoute: AppRouteRouteWithChildren,
   SignUpRoute: SignUpRoute,
-  SupportChar123SlugChar125ThreadsIdRoute:
-    SupportChar123SlugChar125ThreadsIdRoute,
-  SupportChar123SlugChar125ThreadsIndexRoute:
-    SupportChar123SlugChar125ThreadsIndexRoute,
+  SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
+  SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
