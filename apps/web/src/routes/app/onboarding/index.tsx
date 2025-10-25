@@ -32,8 +32,6 @@ export const Route = createFileRoute("/app/onboarding/")({
           email: user.email,
           active: true,
           expiresAt: {
-            // FIXME follow https://github.com/pedroscosta/live-state/issues/75
-            // @ts-ignore
             $gt: new Date(),
           },
         })
