@@ -32,10 +32,10 @@ const lsServer = server({
     })
   ),
   schema,
-  contextProvider: async ({ transport, headers, query }) => {
+  contextProvider: async ({ transport, headers, queryParams }) => {
     if (transport === "WEBSOCKET") {
-      if (query.discordBotKey) {
-        const botKey = query.discordBotKey;
+      if (queryParams.discordBotKey) {
+        const botKey = queryParams.discordBotKey;
 
         if (botKey !== process.env.DISCORD_BOT_KEY) return;
 
@@ -44,12 +44,12 @@ const lsServer = server({
         };
       }
 
-      if (!query.token) return;
+      if (!queryParams.token) return;
 
       return {
         ...(await auth.api.verifyOneTimeToken({
           body: {
-            token: query.token,
+            token: queryParams.token,
           },
         })),
       };

@@ -3,8 +3,12 @@ packages:
   - packages/*
 
 catalog:
-  '@live-state/sync': ^0.0.4-beta.6
+  '@live-state/sync': ^0.0.4-beta.8
   zod: 4.1.9
+  '@types/react': ^19.2.0
+  '@types/react-dom': ^19.2.0
+  react: ^19.2.0
+  react-dom: ^19.2.0
 
 ignoredBuiltDependencies:
   - libpq
