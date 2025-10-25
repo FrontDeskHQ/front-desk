@@ -69,7 +69,7 @@ export const Route = createFileRoute("/support/{-$slug}/threads/")({
   },
 });
 
-const THREADS_PER_PAGE = 5;
+const THREADS_PER_PAGE = 10;
 
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
