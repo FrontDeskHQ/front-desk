@@ -25,22 +25,27 @@ import {
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { z } from "zod";
+import {
+  createStandardSchemaV1,
+  parseAsInteger,
+  parseAsStringEnum,
+  useQueryStates,
+} from "nuqs";
 import { fetchClient } from "~/lib/live-state";
 
-const threadsSearchSchema = z.object({
-  page: z.number().catch(1),
-  order: z.enum(["createdAt", "updatedAt"]).catch("createdAt"),
-});
+const searchParams = {
+  page: parseAsInteger.withDefault(1),
+  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+};
 
-type ThreadsSearchOrderOptions = z.infer<
-  typeof threadsSearchSchema.shape.order
->;
+type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: (search) => threadsSearchSchema.parse(search),
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
+  }),
 
   loader: async ({ params }) => {
     const { slug } = params;
@@ -74,8 +79,7 @@ const THREADS_PER_PAGE = 10;
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
-  const { page, order } = Route.useSearch();
-  const navigate = Route.useNavigate();
+  const [{ page, order }, setSearchParams] = useQueryStates(searchParams);
 
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
@@ -87,9 +91,7 @@ function RouteComponent() {
     ];
 
   const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    navigate({
-      search: (prev) => ({ ...prev, order: value }),
-    });
+    setSearchParams({ order: value });
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
@@ -110,7 +112,7 @@ function RouteComponent() {
     ? Math.ceil(orderedThreads?.length / THREADS_PER_PAGE)
     : 1;
 
-  const currentPage = page;
+  const currentPage = page ?? 1;
 
   const startIdx = THREADS_PER_PAGE * (currentPage - 1);
   const endIdx = THREADS_PER_PAGE * currentPage;
@@ -239,7 +241,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage - 1, order }}
+                search={{ page: currentPage - 1 }}
                 disabled={currentPage === 1}
                 className={
                   buttonVariants({
@@ -271,7 +273,7 @@ function RouteComponent() {
                 <PaginationItem key={pageNum}>
                   <Link
                     to="."
-                    search={{ page: pageNum, order }}
+                    search={{ page: pageNum }}
                     aria-current={page === pageNum ? "page" : undefined}
                     className={buttonVariants({
                       variant: page === pageNum ? "outline" : "ghost",
@@ -286,7 +288,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage + 1, order }}
+                search={{ page: currentPage + 1 }}
                 disabled={currentPage === numPages}
                 className={
                   buttonVariants({

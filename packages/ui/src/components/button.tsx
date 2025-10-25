@@ -76,12 +76,14 @@ function Button({
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     >
-      {children}
-      {externalLink && (
+      {externalLink ? (
         <>
+          {children}
           <SquareArrowOutUpRight aria-hidden="true" />
           <span className="sr-only">(opens in new window)</span>
         </>
+      ) : (
+        children
       )}
     </Comp>
   );
