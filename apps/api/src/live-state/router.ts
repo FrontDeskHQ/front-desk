@@ -19,8 +19,49 @@ const privateRoute = publicRoute.use(async ({ req, next }) => {
 export const router = createRouter({
   schema,
   routes: {
+    // TODO test this
     organization: publicRoute
-      .collectionRoute(schema.organization)
+      .collectionRoute(schema.organization, {
+        read: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organizationUsers: {
+              userId: ctx.session.userId,
+              enabled: true,
+            },
+          };
+        },
+        insert: () => false,
+        update: {
+          preMutation: ({ ctx }) => {
+            console.log("preMutation", ctx?.session?.userId);
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                role: "owner",
+                enabled: true,
+              },
+            };
+          },
+          postMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                role: "owner",
+                enabled: true,
+              },
+            };
+          },
+        },
+      })
       .withMutations(({ mutation }) => ({
         create: mutation(
           z.object({ name: z.string(), slug: z.string() })
@@ -44,8 +85,42 @@ export const router = createRouter({
           });
         }),
       })),
+    // TODO test this
     organizationUser: privateRoute
-      .collectionRoute(schema.organizationUser)
+      .collectionRoute(schema.organizationUser, {
+        read: () => true,
+        insert: () => false,
+        update: {
+          preMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                  role: "owner",
+                },
+              },
+            };
+          },
+          postMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                  role: "owner",
+                },
+              },
+            };
+          },
+        },
+      })
       .withMutations(({ mutation }) => ({
         inviteUser: mutation(
           z.object({
@@ -90,8 +165,6 @@ export const router = createRouter({
                 organizationId: orgId,
                 active: true,
                 expiresAt: {
-                  // FIXME follow https://github.com/pedroscosta/live-state/issues/75
-                  // @ts-ignore
                   $gt: new Date(),
                 },
               },
@@ -147,12 +220,135 @@ export const router = createRouter({
           };
         }),
       })),
-    thread: privateRoute.collectionRoute(schema.thread),
-    message: privateRoute.collectionRoute(schema.message),
-    user: privateRoute.collectionRoute(schema.user),
-    author: privateRoute.collectionRoute(schema.author),
+    // TODO test this
+    thread: publicRoute.collectionRoute(schema.thread, {
+      read: () => true,
+      insert: ({ ctx }) => {
+        if (ctx?.apiKey) return true;
+        if (!ctx?.session) return false;
+
+        return {
+          organization: {
+            organizationUsers: {
+              userId: ctx.session.userId,
+              enabled: true,
+            },
+          },
+        };
+      },
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.apiKey,
+        postMutation: ({ ctx }) => !!ctx?.apiKey,
+      },
+    }),
+    // TODO test this
+    message: publicRoute.collectionRoute(schema.message, {
+      read: () => true,
+      insert: ({ ctx }) => {
+        if (ctx?.apiKey) return true;
+        if (!ctx?.session) return false;
+
+        return {
+          thread: {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+              },
+            },
+          },
+        };
+      },
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.apiKey,
+        postMutation: ({ ctx }) => !!ctx?.apiKey,
+      },
+    }),
+    // TODO test this
+    user: privateRoute.collectionRoute(schema.user, {
+      read: () => true,
+      insert: () => false,
+      update: {
+        preMutation: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            id: ctx.session.userId,
+          };
+        },
+        postMutation: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            id: ctx.session.userId,
+          };
+        },
+      },
+    }),
+    // TODO test this
+    author: privateRoute.collectionRoute(schema.author, {
+      read: () => true,
+      insert: ({ ctx }) => !!ctx?.apiKey,
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.apiKey,
+        postMutation: ({ ctx }) => !!ctx?.apiKey,
+      },
+    }),
+    // TODO test this
     invite: privateRoute
-      .collectionRoute(schema.invite)
+      .collectionRoute(schema.invite, {
+        read: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            $or: [
+              {
+                organization: {
+                  organizationUsers: {
+                    userId: ctx.session.userId,
+                    enabled: true,
+                  },
+                },
+              },
+              {
+                email: ctx?.session?.email,
+              },
+            ],
+          };
+        },
+        insert: () => false,
+        update: {
+          preMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                },
+              },
+            };
+          },
+          postMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                },
+              },
+            };
+          },
+        },
+      })
       .withMutations(({ mutation }) => ({
         accept: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
@@ -207,7 +403,41 @@ export const router = createRouter({
           }
         ),
       })),
-    integration: privateRoute.collectionRoute(schema.integration),
+    // TODO test this
+    integration: privateRoute.collectionRoute(schema.integration, {
+      read: () => true,
+      insert: () => false,
+      update: {
+        preMutation: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+                role: "owner",
+              },
+            },
+          };
+        },
+        postMutation: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+                role: "owner",
+              },
+            },
+          };
+        },
+      },
+    }),
   },
 });
 
