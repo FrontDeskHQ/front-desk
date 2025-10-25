@@ -13,7 +13,7 @@ import {
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from "@workspace/ui/components/card";
 import {
   PriorityIndicator,
@@ -58,83 +58,30 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/")({
   component: RouteComponent,
 });
 
-const ListItem = ({ threadId }: { threadId: string }) => {
-  // TODO reverse sort messages by createdAt
-  const thread = useLiveQuery(
-    query.thread.one(threadId).include({
-      messages: true,
-      assignedUser: true,
-    }),
-  );
-
-  return (
-    <Link
-      to={"/app/threads/$id"}
-      params={{ id: threadId }}
-      className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
-    >
-      <div className="flex justify-between">
-        <div className="flex items-center gap-2">
-          <Avatar variant="user" size="md" fallback={"P"} />
-          <div>{thread?.name}</div>
-        </div>
-        <div className="flex items-center gap-2">
-          {thread?.assignedUser ? (
-            <Avatar
-              variant="user"
-              size="md"
-              fallback={thread.assignedUser.name}
-            />
-          ) : (
-            <CircleUser className="size-4" />
-          )}
-          <PriorityIndicator priority={thread?.priority ?? 0} />
-          <StatusIndicator status={thread?.status ?? 0} />
-        </div>
-      </div>
-      <div className="flex justify-between">
-        <span className="text-muted-foreground">
-          <span className="font-medium">
-            {/* TODO update when live-state supports deep includes */}
-            {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
-            Author:&nbsp;
-          </span>
-          <span className="truncate">
-            {getFirstTextContent(
-              safeParseJSON(
-                thread?.messages?.[thread?.messages?.length - 1]?.content ?? "",
-              ),
-            )}
-          </span>
-        </span>
-        <div className="text-muted-foreground">
-          {formatRelativeTime(thread?.createdAt as Date)}
-        </div>
-      </div>
-    </Link>
-  );
-};
-
-const orderByOptions = [
-  { label: "Created", value: "createdAt" },
-  { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
-  { label: "Priority", value: "priority" },
-  { label: "Status", value: "status" },
-];
-
 function RouteComponent() {
-  const currentOrg = useAtomValue(activeOrganizationAtom);
+  const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
+
+  const organization = useLiveQuery(
+    query.organization.where({ id: currentOrg?.id }).include({ threads: true }),
+  )?.[0];
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
-      .where({ organizationId: currentOrg?.id })
+      .where({ organizationId: organization?.id })
       .include({ user: true }),
   );
 
   const [filter, setFilter] = useState<FilterValue>({});
 
+  const orderByOptions = [
+    { label: "Created", value: "createdAt" },
+    { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
+    { label: "Priority", value: "priority" },
+    { label: "Status", value: "status" },
+  ];
+
   let threadsQuery = query.thread.where({
-    organizationId: currentOrg?.id,
+    organizationId: organization?.id,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
@@ -188,23 +135,34 @@ function RouteComponent() {
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
 
   // TODO Deep include thread messages and assigned user when live-state supports it
+  // TODO reverse sort messages by createdAt
   const threads = useLiveQuery(
-    threadsQuery.orderBy(
-      orderBy as keyof InferLiveObject<typeof schema.thread>,
-      orderDirection,
-    ),
+    threadsQuery
+      .include({ messages: true, assignedUser: true })
+      .orderBy(
+        orderBy as keyof InferLiveObject<typeof schema.thread>,
+        orderDirection,
+      ),
   );
+
+  if (!organization) {
+    return null;
+  }
 
   return (
     <>
       <CardHeader>
         <CardTitle className="gap-4">Threads</CardTitle>
         <CardAction side="right">
+          {/* TODO: Implement search functionality when live-state supports full text search */}
+          {/* <Search placeholder="Search" /> */}
+
           <Filter
             options={filterOptions}
             value={filter}
             onValueChange={setFilter}
           />
+
           <Popover>
             <PopoverTrigger>
               <Button variant="ghost" size="sm">
@@ -264,7 +222,54 @@ function RouteComponent() {
       </CardHeader>
       <CardContent className="overflow-y-auto gap-0 items-center">
         {threads?.map((thread) => (
-          <ListItem key={thread.id} threadId={thread.id} />
+          <Link
+            key={thread.id}
+            to={"/app/threads/$id"}
+            params={{ id: thread.id }}
+            className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+          >
+            <div className="flex justify-between">
+              <div className="flex items-center gap-2">
+                <Avatar variant="user" size="md" fallback={"P"} />
+                <div>{thread?.name}</div>
+              </div>
+              <div className="flex items-center gap-2">
+                {thread?.assignedUserId ? (
+                  <Avatar
+                    variant="user"
+                    size="md"
+                    fallback={thread.assignedUser?.name}
+                  />
+                ) : (
+                  <CircleUser className="size-4" />
+                )}
+                <PriorityIndicator priority={thread?.priority ?? 0} />
+                <StatusIndicator status={thread?.status ?? 0} />
+              </div>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">
+                <span className="font-medium">
+                  {/* TODO update when live-state supports deep includes */}
+                  {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
+                  Author:&nbsp;
+                </span>
+                <span className="truncate">
+                  {getFirstTextContent(
+                    safeParseJSON(
+                      thread?.messages?.[thread?.messages?.length - 1]
+                        ?.content ?? "",
+                    ),
+                  )}
+                </span>
+              </span>
+              <div className="text-muted-foreground">
+                {thread?.createdAt
+                  ? formatRelativeTime(thread?.createdAt as Date)
+                  : null}
+              </div>
+            </div>
+          </Link>
         ))}
       </CardContent>
       {import.meta.env.MODE === "development" && (

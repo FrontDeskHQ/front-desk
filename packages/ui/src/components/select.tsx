@@ -4,7 +4,7 @@ import { Select as SelectPrimitive } from "@base-ui-components/react/select";
 
 import { cn } from "@workspace/ui/lib/utils";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
-import * as React from "react";
+import type * as React from "react";
 
 function Select({
   ...props
@@ -71,7 +71,7 @@ function SelectContent({
         <SelectPrimitive.Popup
           data-slot="select-content"
           className={cn(
-            "bg-popover text-popover-foreground bg-clip-padding z-50 max-h-[var(--available-height)] origin-[var(--transform-origin)] min-w-[8rem] overflow-x-hidden overflow-y-auto rounded-md border shadow-md transition-[transform,scale,opacity] data-[side=none]:scroll-py-5 p-1 min-w-[var(--anchor-width)]",
+            "bg-popover text-popover-foreground bg-clip-padding z-50 max-h-[var(--available-height)] origin-[var(--transform-origin)] overflow-x-hidden overflow-y-auto rounded-md border shadow-md transition-[transform,scale,opacity] data-[side=none]:scroll-py-5 p-1 min-w-[var(--anchor-width)]",
             className,
           )}
           {...props}
@@ -179,5 +179,6 @@ export {
   SelectScrollUpButton,
   SelectSeparator,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 };
+
