@@ -19,12 +19,24 @@ const privateRoute = publicRoute.use(async ({ req, next }) => {
 export const router = createRouter({
   schema,
   routes: {
+    // TODO test this
     organization: publicRoute
       .collectionRoute(schema.organization, {
-        read: () => true,
+        read: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organizationUsers: {
+              userId: ctx.session.userId,
+              enabled: true,
+            },
+          };
+        },
         insert: () => false,
         update: {
           preMutation: ({ ctx }) => {
+            console.log("preMutation", ctx?.session?.userId);
             if (ctx?.apiKey) return true;
             if (!ctx?.session) return false;
 
@@ -73,6 +85,7 @@ export const router = createRouter({
           });
         }),
       })),
+    // TODO test this
     organizationUser: privateRoute
       .collectionRoute(schema.organizationUser, {
         read: () => true,
@@ -207,6 +220,7 @@ export const router = createRouter({
           };
         }),
       })),
+    // TODO test this
     thread: publicRoute.collectionRoute(schema.thread, {
       read: () => true,
       insert: ({ ctx }) => {
@@ -227,6 +241,7 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.apiKey,
       },
     }),
+    // TODO test this
     message: publicRoute.collectionRoute(schema.message, {
       read: () => true,
       insert: ({ ctx }) => {
@@ -249,6 +264,7 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.apiKey,
       },
     }),
+    // TODO test this
     user: privateRoute.collectionRoute(schema.user, {
       read: () => true,
       insert: () => false,
@@ -271,6 +287,7 @@ export const router = createRouter({
         },
       },
     }),
+    // TODO test this
     author: privateRoute.collectionRoute(schema.author, {
       read: () => true,
       insert: ({ ctx }) => {
@@ -286,6 +303,7 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.apiKey,
       },
     }),
+    // TODO test this
     invite: privateRoute
       .collectionRoute(schema.invite, {
         read: ({ ctx }) => {
@@ -319,7 +337,6 @@ export const router = createRouter({
                 organizationUsers: {
                   userId: ctx.session.userId,
                   enabled: true,
-                  role: "owner",
                 },
               },
             };
@@ -333,7 +350,6 @@ export const router = createRouter({
                 organizationUsers: {
                   userId: ctx.session.userId,
                   enabled: true,
-                  role: "owner",
                 },
               },
             };
@@ -394,6 +410,7 @@ export const router = createRouter({
           }
         ),
       })),
+    // TODO test this
     integration: privateRoute.collectionRoute(schema.integration, {
       read: () => true,
       insert: () => false,
@@ -426,14 +443,6 @@ export const router = createRouter({
             },
           };
         },
-      },
-    }),
-    allowlist: privateRoute.collectionRoute(schema.allowlist, {
-      read: ({ ctx }) => !!ctx?.apiKey,
-      insert: ({ ctx }) => !!ctx?.apiKey,
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.apiKey,
-        postMutation: ({ ctx }) => !!ctx?.apiKey,
       },
     }),
   },
