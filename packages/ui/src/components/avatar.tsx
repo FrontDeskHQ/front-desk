@@ -59,6 +59,7 @@ const avatarVariants = cva("", {
       md: "size-5",
       lg: "size-7",
       xl: "size-10",
+      xxl: "size-16",
     },
     variant: {
       user: "rounded-full",
@@ -71,13 +72,14 @@ const avatarVariants = cva("", {
   },
 });
 
-const avatarFallbackVariants = cva("text-black bg-white", {
+const avatarFallbackVariants = cva("text-black bg-white select-none", {
   variants: {
     size: {
       sm: "scale-50 text-[0.5rem]",
       md: "scale-75 text-[0.625rem]",
       lg: "scale-90 text-xs",
       xl: "scale-100 text-sm",
+      xxl: "scale-150 text-lg",
     },
   },
   defaultVariants: {

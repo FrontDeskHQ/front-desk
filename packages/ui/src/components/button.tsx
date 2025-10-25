@@ -1,6 +1,7 @@
 import { Slot } from "@radix-ui/react-slot";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import { SquareArrowOutUpRight } from "lucide-react";
 import * as React from "react";
 
 const buttonVariants = cva(
@@ -39,19 +40,50 @@ function Button({
   variant,
   size,
   asChild = false,
+  externalLink = false,
+  children,
   ...props
 }: React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
+    externalLink?: boolean;
   }) {
   const Comp = asChild ? Slot : "button";
+
+  if (asChild && externalLink) {
+    // When using asChild with externalLink, clone the child and add the icon
+    return (
+      <Comp
+        data-slot="button"
+        className={cn(buttonVariants({ variant, size, className }))}
+        {...props}
+      >
+        {React.isValidElement(children)
+          ? React.cloneElement(
+              children,
+              {},
+              (children.props as { children?: React.ReactNode }).children,
+              <SquareArrowOutUpRight key="external-icon" />,
+            )
+          : children}
+      </Comp>
+    );
+  }
 
   return (
     <Comp
       data-slot="button"
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
-    />
+    >
+      {children}
+      {externalLink && (
+        <>
+          <SquareArrowOutUpRight aria-hidden="true" />
+          <span className="sr-only">(opens in new window)</span>
+        </>
+      )}
+    </Comp>
   );
 }
 

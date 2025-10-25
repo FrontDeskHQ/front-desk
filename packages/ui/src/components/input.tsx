@@ -1,4 +1,5 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
+import { Keybind } from "@workspace/ui/components/keybind";
 import { cn } from "@workspace/ui/lib/utils";
 import * as React from "react";
 import { useState } from "react";
@@ -76,4 +77,24 @@ function InputWithSeparator({
   );
 }
 
-export { Input, InputWithSeparator };
+const Search = React.forwardRef<
+  HTMLInputElement,
+  React.InputHTMLAttributes<HTMLInputElement>
+>(({ className, placeholder = "Search threads...", ...props }, ref) => {
+  return (
+    <div className="w-full relative">
+      <Input
+        ref={ref}
+        type="search"
+        placeholder={placeholder}
+        className={`h-7 py-0.5 text-sm border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${className || ""}`}
+        {...props}
+      />
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+        <Keybind keybind="mod-K" />
+      </div>
+    </div>
+  );
+});
+
+export { Input, InputWithSeparator, Search };
