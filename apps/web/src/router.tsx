@@ -11,7 +11,7 @@ export function getRouter() {
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
     scrollRestoration: true,
-    // TODO: Discuss the reasons for these optional parameters to be implemented and possible consequences of commenting it out
+    // TODO: (FRO-64) Discuss the reasons for these optional parameters to be implemented and possible consequences of commenting it out
     //? This code was causing issues with array params in query strings (resolving /threadspage=2 instead of /threads?page=2)
     // stringifySearch: (search) =>
     //   qs.stringify(search, { arrayFormat: "brackets" }),
