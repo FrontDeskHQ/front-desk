@@ -19,44 +19,36 @@ import {
   PaginationPrevious,
 } from "@workspace/ui/components/pagination";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@workspace/ui/components/popover";
-import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@workspace/ui/components/tooltip";
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
-import {
-  ArrowDownWideNarrow,
-  ArrowUpNarrowWide,
-  Settings2,
-} from "lucide-react";
-import { useState } from "react";
+import { z } from "zod";
 import { fetchClient } from "~/lib/live-state";
+
+const threadsSearchSchema = z.object({
+  page: z.number().catch(1),
+  order: z.enum(["createdAt", "updatedAt"]).catch("createdAt"),
+});
+
+type ThreadsSearchOrderOptions = z.infer<
+  typeof threadsSearchSchema.shape.order
+>;
 
 export const Route = createFileRoute("/support/{-$slug}/threads/")({
   component: RouteComponent,
+
+  validateSearch: (search) => threadsSearchSchema.parse(search),
 
   loader: async ({ params }) => {
     const { slug } = params;
     // FIXME: Replace where by first when new version of live-state is out
     const organization = (
-      await fetchClient.query.organization
-        .where({ slug: slug })
-        .include({ threads: true })
-        .get()
+      await fetchClient.query.organization.where({ slug: slug }).get()
     )[0];
 
     if (!organization) {
@@ -82,28 +74,36 @@ export const Route = createFileRoute("/support/{-$slug}/threads/")({
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
+  const { page, order } = Route.useSearch();
+  const navigate = Route.useNavigate();
 
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
-  const orderByOptions = [
-    { label: "Created", value: "createdAt" },
-    { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
-  ];
+  const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
+    [
+      { label: "Created", value: "createdAt" },
+      { label: "Last message", value: "updatedAt" },
+    ];
 
-  const [orderBy, setOrderBy] = useState<string>("createdAt");
-  const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
+  const handleSortChange = (value: ThreadsSearchOrderOptions) => {
+    navigate({
+      search: (prev) => ({ ...prev, order: value }),
+    });
+  };
 
-  const sortedThreads = [...(threads ?? [])].sort((a, b) => {
-    const aValue = a[orderBy as keyof typeof a] ?? -Infinity;
-    const bValue = b[orderBy as keyof typeof b] ?? -Infinity;
-    return orderDirection === "asc"
-      ? aValue > bValue
-        ? 1
-        : -1
-      : aValue < bValue
-        ? 1
-        : -1;
+  const filteredAndOrderedThreads = [...(threads ?? [])].sort((a, b) => {
+    const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+    const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+
+    switch (order) {
+      case "createdAt":
+        return bDate - aDate;
+      case "updatedAt":
+        return aDate - bDate;
+      default:
+        return bDate - aDate;
+    }
   });
 
   if (!organization) {
@@ -138,71 +138,32 @@ function RouteComponent() {
           <CardHeader>
             <CardTitle className="gap-4">Threads</CardTitle>
             <CardAction side="right">
-              {/* TODO: Implement search functionality when live-state supports full text search */}
-              {/* <Search placeholder="Search" /> */}
-              <Popover>
-                <PopoverTrigger>
-                  <Button variant="ghost" size="sm">
-                    <Settings2 />
-                    Display
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent
-                  className="p-4 flex flex-col gap-4"
-                  positionerProps={{ align: "end" }}
-                >
-                  <div className="flex w-full items-center gap-2">
-                    <div className="mr-auto">Order by</div>
-                    <Select
-                      value={orderBy}
-                      onValueChange={(value) => setOrderBy(value as string)}
-                      items={orderByOptions}
-                    >
-                      <SelectTrigger className="w-48" data-size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orderByOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <TooltipProvider>
-                      <Tooltip>
-                        <TooltipTrigger>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() =>
-                              setOrderDirection(
-                                orderDirection === "asc" ? "desc" : "asc",
-                              )
-                            }
-                            className="size-8"
-                          >
-                            {orderDirection === "asc" ? (
-                              <ArrowDownWideNarrow />
-                            ) : (
-                              <ArrowUpNarrowWide />
-                            )}
-                          </Button>
-                        </TooltipTrigger>
-                        <TooltipContent>Change order direction</TooltipContent>
-                      </Tooltip>
-                    </TooltipProvider>
-                  </div>
-                </PopoverContent>
-              </Popover>
+              <Select
+                value={order}
+                onValueChange={(value) =>
+                  handleSortChange(value as ThreadsSearchOrderOptions)
+                }
+                items={orderByOptions}
+              >
+                <SelectTrigger className="w-32" data-size="sm">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {orderByOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
-            {sortedThreads?.map((thread) => (
+            {filteredAndOrderedThreads?.map((thread) => (
               <Link
                 key={thread.id}
-                to={"/app/threads/$id"}
-                params={{ id: thread.id }}
+                to={"/support/{-$slug}/threads/$id"}
+                params={{ slug: organization.slug, id: thread.id }}
                 className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
               >
                 <div className="flex justify-between">
@@ -240,14 +201,16 @@ function RouteComponent() {
         <Pagination>
           <PaginationContent>
             <PaginationItem>
-              <PaginationPrevious href="#" />
+              <PaginationPrevious />
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href="#">1</PaginationLink>
+              <PaginationLink isActive>1</PaginationLink>
             </PaginationItem>
             <PaginationItem>
-              <PaginationLink href="#" isActive>
-                2
+              <PaginationLink>
+                <Link to="." search={{ page: 2 }}>
+                  2
+                </Link>
               </PaginationLink>
             </PaginationItem>
             <PaginationItem>
