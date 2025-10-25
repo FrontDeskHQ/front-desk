@@ -15,6 +15,9 @@ const { client, store } = createClient<Router>({
   storage: {
     name: "frontdesk",
   },
+  connection: {
+    autoConnect: false,
+  },
 });
 
 const { query, mutate } = store;

@@ -1,9 +1,8 @@
-import { SubscriptionProvider } from "@live-state/sync/client";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useAtom } from "jotai/react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
-import { client, fetchClient } from "~/lib/live-state";
+import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute("/app/_workspace")({
   component: RouteComponent,
@@ -45,9 +44,5 @@ function RouteComponent() {
     );
   }
 
-  return (
-    <SubscriptionProvider client={client}>
-      <Outlet />
-    </SubscriptionProvider>
-  );
+  return <Outlet />;
 }

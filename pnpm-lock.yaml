@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@live-state/sync':
-      specifier: ^0.0.4-beta.8
-      version: 0.0.4-beta.8
+      specifier: ^0.0.4-beta.9
+      version: 0.0.4-beta.9
     '@types/react':
       specifier: ^19.2.0
       version: 19.2.2
@@ -44,7 +44,7 @@ importers:
     dependencies:
       '@live-state/sync':
         specifier: 'catalog:'
-        version: 0.0.4-beta.8(@types/react@19.2.2)(react@19.2.0)
+        version: 0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)
       '@wll8/express-ws':
         specifier: ^1.0.6
         version: 1.0.6
@@ -108,7 +108,7 @@ importers:
     dependencies:
       '@live-state/sync':
         specifier: 'catalog:'
-        version: 0.0.4-beta.8(@types/react@19.2.2)(react@19.2.0)
+        version: 0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)
       '@workspace/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -257,7 +257,7 @@ importers:
         version: 5.2.6
       '@live-state/sync':
         specifier: 'catalog:'
-        version: 0.0.4-beta.8(@types/react@19.2.2)(react@19.2.0)
+        version: 0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)
       '@tanstack/react-form':
         specifier: ^1.11.1
         version: 1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@22.15.3)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))
@@ -2284,8 +2284,8 @@ packages:
   '@levischuck/tiny-cbor@0.2.11':
     resolution: {integrity: sha512-llBRm4dT4Z89aRsm6u2oEZ8tfwL/2l6BwpZ7JcyieouniDECM5AqNgr/y08zalEIvW3RSK4upYyybDcmjXqAow==}
 
-  '@live-state/sync@0.0.4-beta.8':
-    resolution: {integrity: sha512-WfsBq/LnAj0J2/IQPvTjxj0G5J8q4MTG+v2ksl38gkWJSZq9zHx2ePtPw0ir6qBubYAPvCvxM81HFGFGSTr5Bg==}
+  '@live-state/sync@0.0.4-beta.9':
+    resolution: {integrity: sha512-H+6d4u+YSee5HM+zkQzOWqgkuNoXna9ZSbq+5PNO8MoGVdai/i3mBW0xwKh/hr8AmBnGxn24usqPvVtNv5NrcA==}
     peerDependencies:
       '@types/react': '>=18.0.0'
       react: '>=18.0.0'
@@ -11478,7 +11478,7 @@ snapshots:
 
   '@levischuck/tiny-cbor@0.2.11': {}
 
-  '@live-state/sync@0.0.4-beta.8(@types/react@19.2.2)(react@19.2.0)':
+  '@live-state/sync@0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)':
     dependencies:
       fast-deep-equal: 3.1.3
       idb: 8.0.3
