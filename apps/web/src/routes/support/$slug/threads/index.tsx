@@ -203,6 +203,7 @@ function RouteComponent() {
                 to={"/support/$slug/threads/$id"}
                 params={{ slug: organization.slug, id: thread.id }}
                 className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+                resetScroll={false}
               >
                 <div className="flex justify-between">
                   <div className="flex items-center gap-2">
@@ -253,6 +254,7 @@ function RouteComponent() {
                 }
                 aria-label="Go to previous page"
                 aria-disabled={currentPage === 1}
+                resetScroll={false}
               >
                 <ChevronLeftIcon />
                 <span className="hidden sm:block">Previous</span>
@@ -279,6 +281,7 @@ function RouteComponent() {
                       variant: page === pageNum ? "outline" : "ghost",
                       size: "icon",
                     })}
+                    resetScroll={false}
                   >
                     {pageNum}
                   </Link>
@@ -302,6 +305,7 @@ function RouteComponent() {
                 }
                 aria-label="Go to next page"
                 aria-disabled={currentPage === numPages}
+                resetScroll={false}
               >
                 <span className="hidden sm:block">Next</span>
                 <ChevronRightIcon />

@@ -11,9 +11,13 @@ export function getRouter() {
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
     scrollRestoration: true,
-    stringifySearch: (search) =>
-      qs.stringify(search, { arrayFormat: "brackets" }),
-    parseSearch: qs.parse,
+    stringifySearch: (search) => {
+      const searchStr = qs.stringify(search, { arrayFormat: "brackets" });
+      return searchStr ? `?${searchStr}` : "";
+    },
+    parseSearch: (search) => {
+      return qs.parse(search.slice(1));
+    },
   });
 
   return router;
