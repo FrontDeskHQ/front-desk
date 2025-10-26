@@ -178,26 +178,30 @@ function RouteComponent() {
 
   return (
     <div className="w-full">
-      <Header />
-      <div className="flex flex-col max-w-5xl gap-8 mx-auto py-8">
-        <div className="flex items-center gap-6">
-          <Avatar
-            variant="org"
-            size="xxl"
-            src={organization?.logoUrl}
-            fallback={organization?.name}
-          />
-          <div className="flex justify-between w-full">
-            <h1 className="font-bold text-3xl">{organization?.name}</h1>
-            <Button size="lg" externalLink asChild>
-              <a
-                href={integrationPaths.discord}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Join Discord
-              </a>
-            </Button>
+  <Header />
+  <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <Avatar
+              variant="org"
+              size="xxl"
+              src={organization?.logoUrl}
+              fallback={organization?.name}
+            />
+          </div>
+          <div className="flex items-center justify-between w-full gap-4">
+            <h1 className="font-bold text-2xl sm:text-3xl truncate">{organization?.name}</h1>
+            <div className="flex-shrink-0">
+              <Button size="lg" externalLink asChild>
+                <a
+                  href={integrationPaths.discord}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Join Discord
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
         <Card className="bg-muted/30">
