@@ -22,9 +22,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
+import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "lucide-react";
 import {
   createStandardSchemaV1,
   parseAsInteger,
@@ -36,6 +47,7 @@ import { fetchClient } from "~/lib/live-state";
 const searchParams = {
   page: parseAsInteger.withDefault(1),
   order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
 };
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
@@ -79,7 +91,7 @@ const THREADS_PER_PAGE = 10;
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
-  const [{ page, order }, setSearchParams] = useQueryStates(searchParams);
+  const [{ page, order, dir }, setSearchParams] = useQueryStates(searchParams);
 
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
@@ -95,17 +107,33 @@ function RouteComponent() {
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
-    const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    const getTimestamp = (
+      t: unknown,
+      key: ThreadsSearchOrderOptions,
+    ): number => {
+      // Narrow the unknown to the expected shape for safe property access
+      const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
 
-    switch (order) {
-      case "createdAt":
-        return bDate - aDate;
-      case "updatedAt":
-        return aDate - bDate;
-      default:
-        return bDate - aDate;
+      if (key === "updatedAt") {
+        return obj.updatedAt
+          ? new Date(obj.updatedAt).getTime()
+          : obj.createdAt
+            ? new Date(obj.createdAt).getTime()
+            : 0;
+      }
+
+      return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
+    };
+
+    const aTs = getTimestamp(a, order);
+    const bTs = getTimestamp(b, order);
+
+    // dir: 'asc' => oldest -> newest (a - b). 'desc' => newest -> oldest (b - a)
+    if (dir === "asc") {
+      return aTs - bTs;
     }
+
+    return bTs - aTs;
   });
 
   const numPages = orderedThreads
@@ -194,6 +222,27 @@ function RouteComponent() {
                   ))}
                 </SelectContent>
               </Select>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setSearchParams({ dir: dir === "asc" ? "desc" : "asc" })
+                      }
+                      className="size-8"
+                    >
+                      {dir === "asc" ? (
+                        <ArrowDownWideNarrow />
+                      ) : (
+                        <ArrowUpNarrowWide />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Change order direction</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
