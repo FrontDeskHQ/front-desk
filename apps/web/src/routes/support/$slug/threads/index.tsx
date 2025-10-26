@@ -22,25 +22,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
-import { ChevronLeftIcon, ChevronRightIcon } from "lucide-react";
-import { z } from "zod";
+import {
+  ArrowDownWideNarrow,
+  ArrowUpNarrowWide,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+} from "lucide-react";
+import {
+  createStandardSchemaV1,
+  parseAsInteger,
+  parseAsStringEnum,
+  useQueryStates,
+} from "nuqs";
 import { fetchClient } from "~/lib/live-state";
 
-const threadsSearchSchema = z.object({
-  page: z.number().catch(1),
-  order: z.enum(["createdAt", "updatedAt"]).catch("createdAt"),
-});
+const searchParams = {
+  page: parseAsInteger.withDefault(1),
+  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
+};
 
-type ThreadsSearchOrderOptions = z.infer<
-  typeof threadsSearchSchema.shape.order
->;
+type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: (search) => threadsSearchSchema.parse(search),
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
+  }),
 
   loader: async ({ params }) => {
     const { slug } = params;
@@ -74,8 +91,7 @@ const THREADS_PER_PAGE = 10;
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
-  const { page, order } = Route.useSearch();
-  const navigate = Route.useNavigate();
+  const [{ page, order, dir }, setSearchParams] = useQueryStates(searchParams);
 
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
@@ -87,30 +103,44 @@ function RouteComponent() {
     ];
 
   const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    navigate({
-      search: (prev) => ({ ...prev, order: value }),
-    });
+    setSearchParams({ order: value });
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
-    const aDate = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-    const bDate = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+    const getTimestamp = (
+      t: unknown,
+      key: ThreadsSearchOrderOptions,
+    ): number => {
+      // Narrow the unknown to the expected shape for safe property access
+      const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
 
-    switch (order) {
-      case "createdAt":
-        return bDate - aDate;
-      case "updatedAt":
-        return aDate - bDate;
-      default:
-        return bDate - aDate;
+      if (key === "updatedAt") {
+        return obj.updatedAt
+          ? new Date(obj.updatedAt).getTime()
+          : obj.createdAt
+            ? new Date(obj.createdAt).getTime()
+            : 0;
+      }
+
+      return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
+    };
+
+    const aTs = getTimestamp(a, order);
+    const bTs = getTimestamp(b, order);
+
+    // dir: 'asc' => oldest -> newest (a - b). 'desc' => newest -> oldest (b - a)
+    if (dir === "asc") {
+      return aTs - bTs;
     }
+
+    return bTs - aTs;
   });
 
   const numPages = orderedThreads
     ? Math.ceil(orderedThreads?.length / THREADS_PER_PAGE)
     : 1;
 
-  const currentPage = page;
+  const currentPage = page ?? 1;
 
   const startIdx = THREADS_PER_PAGE * (currentPage - 1);
   const endIdx = THREADS_PER_PAGE * currentPage;
@@ -149,25 +179,31 @@ function RouteComponent() {
   return (
     <div className="w-full">
       <Header />
-      <div className="flex flex-col max-w-5xl gap-8 mx-auto py-8">
-        <div className="flex items-center gap-6">
-          <Avatar
-            variant="org"
-            size="xxl"
-            src={organization?.logoUrl}
-            fallback={organization?.name}
-          />
-          <div className="flex justify-between w-full">
-            <h1 className="font-bold text-3xl">{organization?.name}</h1>
-            <Button size="lg" externalLink asChild>
-              <a
-                href={integrationPaths.discord}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Join Discord
-              </a>
-            </Button>
+      <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
+        <div className="flex items-center gap-4">
+          <div className="flex-shrink-0">
+            <Avatar
+              variant="org"
+              size="xxl"
+              src={organization?.logoUrl}
+              fallback={organization?.name}
+            />
+          </div>
+          <div className="flex items-center justify-between w-full gap-4">
+            <h1 className="font-bold text-2xl sm:text-3xl truncate">
+              {organization?.name}
+            </h1>
+            <div className="flex-shrink-0">
+              <Button size="lg" externalLink asChild>
+                <a
+                  href={integrationPaths.discord}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Join Discord
+                </a>
+              </Button>
+            </div>
           </div>
         </div>
         <Card className="bg-muted/30">
@@ -192,6 +228,27 @@ function RouteComponent() {
                   ))}
                 </SelectContent>
               </Select>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        setSearchParams({ dir: dir === "asc" ? "desc" : "asc" })
+                      }
+                      className="size-8"
+                    >
+                      {dir === "asc" ? (
+                        <ArrowDownWideNarrow />
+                      ) : (
+                        <ArrowUpNarrowWide />
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Change order direction</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
@@ -201,6 +258,7 @@ function RouteComponent() {
                 to={"/support/$slug/threads/$id"}
                 params={{ slug: organization.slug, id: thread.id }}
                 className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+                resetScroll={false}
               >
                 <div className="flex justify-between">
                   <div className="flex items-center gap-2">
@@ -239,7 +297,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage - 1, order }}
+                search={{ page: currentPage - 1 }}
                 disabled={currentPage === 1}
                 className={
                   buttonVariants({
@@ -251,6 +309,7 @@ function RouteComponent() {
                 }
                 aria-label="Go to previous page"
                 aria-disabled={currentPage === 1}
+                resetScroll={false}
               >
                 <ChevronLeftIcon />
                 <span className="hidden sm:block">Previous</span>
@@ -271,12 +330,13 @@ function RouteComponent() {
                 <PaginationItem key={pageNum}>
                   <Link
                     to="."
-                    search={{ page: pageNum, order }}
+                    search={{ page: pageNum }}
                     aria-current={page === pageNum ? "page" : undefined}
                     className={buttonVariants({
                       variant: page === pageNum ? "outline" : "ghost",
                       size: "icon",
                     })}
+                    resetScroll={false}
                   >
                     {pageNum}
                   </Link>
@@ -286,7 +346,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage + 1, order }}
+                search={{ page: currentPage + 1 }}
                 disabled={currentPage === numPages}
                 className={
                   buttonVariants({
@@ -300,6 +360,7 @@ function RouteComponent() {
                 }
                 aria-label="Go to next page"
                 aria-disabled={currentPage === numPages}
+                resetScroll={false}
               >
                 <span className="hidden sm:block">Next</span>
                 <ChevronRightIcon />
