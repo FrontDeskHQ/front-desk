@@ -178,8 +178,8 @@ function RouteComponent() {
 
   return (
     <div className="w-full">
-  <Header />
-  <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
+      <Header />
+      <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0">
             <Avatar
@@ -190,7 +190,9 @@ function RouteComponent() {
             />
           </div>
           <div className="flex items-center justify-between w-full gap-4">
-            <h1 className="font-bold text-2xl sm:text-3xl truncate">{organization?.name}</h1>
+            <h1 className="font-bold text-2xl sm:text-3xl truncate">
+              {organization?.name}
+            </h1>
             <div className="flex-shrink-0">
               <Button size="lg" externalLink asChild>
                 <a
