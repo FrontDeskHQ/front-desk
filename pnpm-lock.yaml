@@ -7,8 +7,8 @@ settings:
 catalogs:
   default:
     '@live-state/sync':
-      specifier: ^0.0.4-beta.9
-      version: 0.0.4-beta.9
+      specifier: ^0.0.4-beta.11
+      version: 0.0.4-beta.11
     '@types/react':
       specifier: ^19.2.0
       version: 19.2.2
@@ -44,7 +44,7 @@ importers:
     dependencies:
       '@live-state/sync':
         specifier: 'catalog:'
-        version: 0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)
+        version: 0.0.4-beta.11(@types/react@19.2.2)(react@19.2.0)
       '@wll8/express-ws':
         specifier: ^1.0.6
         version: 1.0.6
@@ -108,7 +108,7 @@ importers:
     dependencies:
       '@live-state/sync':
         specifier: 'catalog:'
-        version: 0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)
+        version: 0.0.4-beta.11(@types/react@19.2.2)(react@19.2.0)
       '@workspace/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
@@ -257,10 +257,10 @@ importers:
         version: 5.2.6
       '@live-state/sync':
         specifier: 'catalog:'
-        version: 0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)
+        version: 0.0.4-beta.11(@types/react@19.2.2)(react@19.2.0)
       '@tanstack/react-form':
         specifier: ^1.11.1
-        version: 1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@22.15.3)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.2))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))
+        version: 1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@22.15.3)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))
       '@tanstack/react-router':
         specifier: ^1.133.3
         version: 1.133.3(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -505,7 +505,7 @@ importers:
         version: 3.0.4(@react-three/fiber@9.3.0(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(three@0.180.0))(@types/three@0.180.0)(react@19.2.0)(three@0.180.0)
       '@tanstack/react-form':
         specifier: ^1.11.1
-        version: 1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@20.17.32)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))
+        version: 1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@20.17.32)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))
       '@tiptap/extension-heading':
         specifier: ^3.4.1
         version: 3.4.1(@tiptap/core@3.3.1(@tiptap/pm@3.3.1))
@@ -2287,8 +2287,8 @@ packages:
   '@levischuck/tiny-cbor@0.2.11':
     resolution: {integrity: sha512-llBRm4dT4Z89aRsm6u2oEZ8tfwL/2l6BwpZ7JcyieouniDECM5AqNgr/y08zalEIvW3RSK4upYyybDcmjXqAow==}
 
-  '@live-state/sync@0.0.4-beta.9':
-    resolution: {integrity: sha512-H+6d4u+YSee5HM+zkQzOWqgkuNoXna9ZSbq+5PNO8MoGVdai/i3mBW0xwKh/hr8AmBnGxn24usqPvVtNv5NrcA==}
+  '@live-state/sync@0.0.4-beta.11':
+    resolution: {integrity: sha512-sDRE/JuvrE6dR82MiB4fl1SxnurMsJFvR4fRFYr8Ao+q0CYIRa2iogQlrXAbTDruIdKqETzvp2Nb54XtjDQN7Q==}
     peerDependencies:
       '@types/react': '>=18.0.0'
       react: '>=18.0.0'
@@ -11505,7 +11505,7 @@ snapshots:
 
   '@levischuck/tiny-cbor@0.2.11': {}
 
-  '@live-state/sync@0.0.4-beta.9(@types/react@19.2.2)(react@19.2.0)':
+  '@live-state/sync@0.0.4-beta.11(@types/react@19.2.2)(react@19.2.0)':
     dependencies:
       fast-deep-equal: 3.1.3
       idb: 8.0.3
@@ -13825,7 +13825,7 @@ snapshots:
     transitivePeerDependencies:
       - react-dom
 
-  '@tanstack/react-form@1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@20.17.32)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))':
+  '@tanstack/react-form@1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@20.17.32)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))':
     dependencies:
       '@tanstack/form-core': 1.11.1
       '@tanstack/react-store': 0.7.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -13834,11 +13834,11 @@ snapshots:
       react: 19.2.0
     optionalDependencies:
       '@tanstack/react-start': 1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@20.17.32)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1)
-      vinxi: 0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1)
+      vinxi: 0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1)
     transitivePeerDependencies:
       - react-dom
 
-  '@tanstack/react-form@1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@22.15.3)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.2))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))':
+  '@tanstack/react-form@1.11.1(@tanstack/react-start@1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@22.15.3)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))':
     dependencies:
       '@tanstack/form-core': 1.11.1
       '@tanstack/react-store': 0.7.7(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -13847,7 +13847,7 @@ snapshots:
       react: 19.2.0
     optionalDependencies:
       '@tanstack/react-start': 1.133.3(@rsbuild/core@1.3.13)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)(vite@7.1.10(@types/node@22.15.3)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1))(webpack@5.102.1)
-      vinxi: 0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.2))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1)
+      vinxi: 0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1)
     transitivePeerDependencies:
       - react-dom
 
@@ -18354,107 +18354,6 @@ snapshots:
       - uploadthing
     optional: true
 
-  nitropack@2.12.7(@netlify/blobs@9.1.2)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3)):
-    dependencies:
-      '@cloudflare/kv-asset-handler': 0.4.0
-      '@rollup/plugin-alias': 5.1.1(rollup@4.52.4)
-      '@rollup/plugin-commonjs': 28.0.7(rollup@4.52.4)
-      '@rollup/plugin-inject': 5.0.5(rollup@4.52.4)
-      '@rollup/plugin-json': 6.1.0(rollup@4.52.4)
-      '@rollup/plugin-node-resolve': 16.0.3(rollup@4.52.4)
-      '@rollup/plugin-replace': 6.0.2(rollup@4.52.4)
-      '@rollup/plugin-terser': 0.4.4(rollup@4.52.4)
-      '@vercel/nft': 0.30.2(rollup@4.52.4)
-      archiver: 7.0.1
-      c12: 3.3.0(magicast@0.3.5)
-      chokidar: 4.0.3
-      citty: 0.1.6
-      compatx: 0.2.0
-      confbox: 0.2.2
-      consola: 3.4.2
-      cookie-es: 2.0.0
-      croner: 9.1.0
-      crossws: 0.3.5
-      db0: 0.3.4
-      defu: 6.1.4
-      destr: 2.0.5
-      dot-prop: 10.1.0
-      esbuild: 0.25.11
-      escape-string-regexp: 5.0.0
-      etag: 1.8.1
-      exsolve: 1.0.7
-      globby: 15.0.0
-      gzip-size: 7.0.0
-      h3: 1.15.4
-      hookable: 5.5.3
-      httpxy: 0.1.7
-      ioredis: 5.8.1
-      jiti: 2.6.1
-      klona: 2.0.6
-      knitwork: 1.2.0
-      listhen: 1.9.0
-      magic-string: 0.30.19
-      magicast: 0.3.5
-      mime: 4.1.0
-      mlly: 1.8.0
-      node-fetch-native: 1.6.7
-      node-mock-http: 1.0.3
-      ofetch: 1.4.1
-      ohash: 2.0.11
-      pathe: 2.0.3
-      perfect-debounce: 2.0.0
-      pkg-types: 2.3.0
-      pretty-bytes: 7.1.0
-      radix3: 1.1.2
-      rollup: 4.52.4
-      rollup-plugin-visualizer: 6.0.4(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))(rollup@4.52.4)
-      scule: 1.3.0
-      semver: 7.7.3
-      serve-placeholder: 2.0.2
-      serve-static: 2.2.0
-      source-map: 0.7.6
-      std-env: 3.10.0
-      ufo: 1.6.1
-      ultrahtml: 1.6.0
-      uncrypto: 0.1.3
-      unctx: 2.4.1
-      unenv: 2.0.0-rc.21
-      unimport: 5.5.0
-      unplugin-utils: 0.3.1
-      unstorage: 1.17.1(@netlify/blobs@9.1.2)(db0@0.3.4)(ioredis@5.8.1)
-      untyped: 2.0.0
-      unwasm: 0.3.11
-      youch: 4.1.0-beta.11
-      youch-core: 0.3.3
-    transitivePeerDependencies:
-      - '@azure/app-configuration'
-      - '@azure/cosmos'
-      - '@azure/data-tables'
-      - '@azure/identity'
-      - '@azure/keyvault-secrets'
-      - '@azure/storage-blob'
-      - '@capacitor/preferences'
-      - '@deno/kv'
-      - '@electric-sql/pglite'
-      - '@libsql/client'
-      - '@netlify/blobs'
-      - '@planetscale/database'
-      - '@upstash/redis'
-      - '@vercel/blob'
-      - '@vercel/functions'
-      - '@vercel/kv'
-      - aws4fetch
-      - better-sqlite3
-      - drizzle-orm
-      - encoding
-      - idb-keyval
-      - mysql2
-      - rolldown
-      - sqlite3
-      - supports-color
-      - uploadthing
-    optional: true
-
   no-case@2.3.2:
     dependencies:
       lower-case: 1.1.4
@@ -19619,17 +19518,6 @@ snapshots:
       yargs: 17.7.2
     optionalDependencies:
       rolldown: 1.0.0-beta.8-commit.852c603(typescript@5.9.2)
-      rollup: 4.52.4
-    optional: true
-
-  rollup-plugin-visualizer@6.0.4(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))(rollup@4.52.4):
-    dependencies:
-      open: 8.4.2
-      picomatch: 4.0.3
-      source-map: 0.7.6
-      yargs: 17.7.2
-    optionalDependencies:
-      rolldown: 1.0.0-beta.8-commit.852c603(typescript@5.9.3)
       rollup: 4.52.4
     optional: true
 
@@ -20882,7 +20770,7 @@ snapshots:
       d3-time: 3.1.0
       d3-timer: 3.0.1
 
-  vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1):
+  vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@20.17.32)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1):
     dependencies:
       '@babel/core': 7.28.4
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.4)
@@ -20904,7 +20792,7 @@ snapshots:
       hookable: 5.5.3
       http-proxy: 1.18.1
       micromatch: 4.0.8
-      nitropack: 2.12.7(@netlify/blobs@9.1.2)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.3))
+      nitropack: 2.12.7(@netlify/blobs@9.1.2)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.2))
       node-fetch-native: 1.6.7
       path-to-regexp: 6.3.0
       pathe: 1.1.2
@@ -21042,7 +20930,7 @@ snapshots:
       - yaml
     optional: true
 
-  vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(rolldown@1.0.0-beta.8-commit.852c603(typescript@5.9.2))(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1):
+  vinxi@0.5.3(@netlify/blobs@9.1.2)(@types/node@22.15.3)(db0@0.3.4)(ioredis@5.8.1)(jiti@2.6.1)(lightningcss@1.29.3)(terser@5.43.1)(tsx@4.20.6)(yaml@2.7.1):
     dependencies:
       '@babel/core': 7.28.4
       '@babel/plugin-syntax-jsx': 7.27.1(@babel/core@7.28.4)
