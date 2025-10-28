@@ -254,14 +254,14 @@ function RouteComponent() {
           id="hero"
           className="col-span-12 flex flex-col items-center py-32 relative border-b border-x scroll-mt-15"
         >
-          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-15 ease-in duration-[2s]">
+          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-35 ease-in duration-[2s]">
             {/* <DashedPattern className="border-r" /> */}
             <Dither
               waveColor={[0.7, 0.7, 0.7]}
               disableAnimation={false}
               enableMouseInteraction={false}
               colorNum={4}
-              pixelSize={3.5}
+              pixelSize={2.3}
               waveAmplitude={0.3}
               waveFrequency={3}
               waveSpeed={0.05}
