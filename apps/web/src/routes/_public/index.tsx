@@ -338,9 +338,9 @@ function RouteComponent() {
               </div>
             </div>
             <div className="md:col-span-3 col-span-full border-y py-6 px-4">
-              <div className="text-lg font-medium">Hobby</div>
+              <div className="text-lg font-medium">Starter</div>
               <div className="mb-4">
-                <span className="text-2xl font-semibold text-primary">$0</span>
+                <span className="text-2xl font-semibold text-primary">$9</span>
                 <span className="text-sm text-muted-foreground">
                   /seat/month
                 </span>
@@ -350,19 +350,19 @@ function RouteComponent() {
                 <li>Unlimited support tickets</li>
                 <li>Unlimited customers</li>
                 <li>Public support portal</li>
-                <li>1 support channel</li>
+                <li>2 support channels</li>
               </ul>
             </div>
             <div className="md:col-span-7 col-span-full border-l border-y py-6 px-4">
               <div className="text-lg font-medium">Pro</div>
               <div className="mb-4">
-                <span className="text-2xl font-semibold text-primary">$12</span>
+                <span className="text-2xl font-semibold text-primary">$24</span>
                 <span className="text-sm text-muted-foreground">
                   /seat/month
                 </span>
               </div>
               <div className="text-muted-foreground text-sm mb-2 h-5">
-                Everything in Hobby, plus:
+                Everything in Starter, plus:
               </div>
               <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
                 <li>Unlimited team members</li>
@@ -370,6 +370,26 @@ function RouteComponent() {
                 <li>Custom domain for your support portal</li>
                 <li>Priority support</li>
               </ul>
+            </div>
+            <div className="col-span-full py-4 px-4 border-b flex flex-col gap-4">
+              <div className="font-mono uppercase">
+                WANT TO GET FREE ACCESS DURING THE BETA?
+              </div>
+              <div className="">
+                We're sponsoring the Starter plan for teams that are willing to
+                help us with the beta testing.
+                <br /> All you need to do is to provide constant feedback and
+                help us improve FrontDesk.{" "}
+                <a
+                  href="https://discord.gg/5MDHqKHrHr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  Reach out on Discord
+                </a>
+                .
+              </div>
             </div>
             <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
               FREQUENTLY ASKED QUESTIONS
@@ -463,8 +483,8 @@ function RouteComponent() {
                       billing adjustments.
                     </p>
                     <p>
-                      Start with the free Hobby plan to explore FrontDesk, and
-                      upgrade to Pro when you need more team members, multiple
+                      Start with the Starter plan to explore FrontDesk, and
+                      upgrade to Pro when you need more team members, more
                       support channels, or a custom domain. You can also
                       downgrade if your needs change, and all your data remains
                       intact.

@@ -31,7 +31,7 @@ function RouteComponent() {
       <Outlet />
       <HorizontalLine variant="full" />
       <footer className="col-span-full grid grid-cols-12 border-x max-w-6xl">
-        <div className="col-span-full border-b grid grid-cols-6 px-4 py-12">
+        <div className="col-span-full grid grid-cols-6 px-4 py-12">
           <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
             <div className="flex gap-2">
               <Icon className="size-6" />{" "}
@@ -57,6 +57,13 @@ function RouteComponent() {
                 rel="noopener noreferrer"
               >
                 X (Twitter)
+              </a>
+              <a
+                href="https://discord.gg/5MDHqKHrHr"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Discord
               </a>
             </div>
           </div>
