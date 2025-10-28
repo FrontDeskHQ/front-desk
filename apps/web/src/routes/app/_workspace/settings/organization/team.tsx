@@ -157,7 +157,7 @@ function RouteComponent() {
               </div>
             </div>
           ))}
-          {invites?.length && selfOrgUser.role === "owner" && (
+          {!!invites?.length && selfOrgUser.role === "owner" && (
             <div className="flex flex-col gap-px px-2">
               <Separator className="my-6" />
               <h2 className="mb-4 text-primary/85">Pending invitations</h2>
