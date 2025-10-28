@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import { Header } from "@workspace/ui/components/header";
+import { Logo } from "@workspace/ui/components/logo";
+import { Navbar } from "@workspace/ui/components/navbar";
 import {
   Pagination,
   PaginationContent,
@@ -178,7 +179,14 @@ function RouteComponent() {
 
   return (
     <div className="w-full">
-      <Header />
+      <Navbar>
+        <Navbar.Group>
+          <Logo>
+            <Logo.Icon />
+            <Logo.Text />
+          </Logo>
+        </Navbar.Group>
+      </Navbar>
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0">
@@ -193,17 +201,15 @@ function RouteComponent() {
             <h1 className="font-bold text-2xl sm:text-3xl truncate">
               {organization?.name}
             </h1>
-            <div className="flex-shrink-0">
-              <Button size="lg" externalLink asChild>
-                <a
-                  href={integrationPaths.discord}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Join Discord
-                </a>
-              </Button>
-            </div>
+            <Button size="lg" externalLink asChild>
+              <a
+                href={integrationPaths.discord}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Join Discord
+              </a>
+            </Button>
           </div>
         </div>
         <Card className="bg-muted/30">
