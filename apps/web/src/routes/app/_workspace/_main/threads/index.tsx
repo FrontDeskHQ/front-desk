@@ -13,7 +13,7 @@ import {
   CardContent,
   CardFooter,
   CardHeader,
-  CardTitle
+  CardTitle,
 } from "@workspace/ui/components/card";
 import {
   PriorityIndicator,
@@ -47,6 +47,7 @@ import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   CircleUser,
+  PackageOpen,
   Settings2,
 } from "lucide-react";
 import { useState } from "react";
@@ -221,6 +222,19 @@ function RouteComponent() {
         </CardAction>
       </CardHeader>
       <CardContent className="overflow-y-auto gap-0 items-center">
+        {!threads.length && (
+          <div className="text-muted-foreground flex flex-col items-center justify-center gap-4 m-auto">
+            <PackageOpen className="size-24 stroke-[0.75]" />
+            <div className="text-lg">No threads found</div>
+            {!!Object.keys(filter).length ? (
+              <Button variant="outline" size="sm" onClick={() => setFilter({})}>
+                Clear filters
+              </Button>
+            ) : (
+              <div>Look at the bright side, no one had a problem yet.</div>
+            )}
+          </div>
+        )}
         {threads?.map((thread) => (
           <Link
             key={thread.id}
