@@ -37,7 +37,7 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
         .include({
           organization: true,
           author: true,
-          messages: true,
+          messages: { author: true },
         })
         .get()
     )[0];
@@ -55,9 +55,11 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 function RouteComponent() {
   const thread = Route.useLoaderData().thread;
 
+  console.log("thread", JSON.stringify(thread, null, 2));
+
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
-    content: thread?.messages,
+    content: (thread as any)?.messages,
     offset: 264,
   });
 
@@ -138,9 +140,9 @@ function RouteComponent() {
               onScroll={disableAutoScroll}
               onTouchMove={disableAutoScroll}
             >
-              {thread?.messages
-                .sort((a, b) => a.id.localeCompare(b.id))
-                .map((message) => (
+              {(thread as any)?.messages
+                .sort((a: any, b: any) => a.id.localeCompare(b.id))
+                .map((message: any) => (
                   <Card
                     key={message.id}
                     className={cn(
@@ -160,7 +162,7 @@ function RouteComponent() {
                         {/* TODO update when live-state supports deep includes */}
                         <Avatar variant="user" size="md" fallback={"P"} />
                         {/* TODO update when live-state supports deep includes */}
-                        <p>message.author.name</p>
+                        <p>{message.author.name}</p>
                         <p className="text-muted-foreground">
                           {formatRelativeTime(message.createdAt as Date)}
                         </p>
