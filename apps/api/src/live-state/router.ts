@@ -25,7 +25,6 @@ export const router = createRouter({
         insert: () => false,
         update: {
           preMutation: ({ ctx }) => {
-            console.log("preMutation", ctx?.session?.userId);
             if (ctx?.apiKey) return true;
             if (!ctx?.session) return false;
 
