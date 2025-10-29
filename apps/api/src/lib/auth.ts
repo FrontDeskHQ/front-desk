@@ -1,7 +1,10 @@
 import { betterAuth } from "better-auth";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { oneTimeToken } from "better-auth/plugins";
 import { Pool } from "pg";
+import { db } from "..";
 import "../env";
+import { schema } from "../live-state/schema";
 
 const useSocialProvider = !!process.env.ENABLE_GOOGLE_LOGIN;
 
@@ -22,6 +25,29 @@ export const auth = betterAuth({
       : undefined,
   },
   plugins: [oneTimeToken()],
+  hooks: {
+    before: createAuthMiddleware(async ({ body, path }) => {
+      if (!path.startsWith("/sign-in") && !path.startsWith("/sign-up")) return;
+
+      const email = (body as any)?.email?.toLowerCase();
+
+      if (!email) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Email is required",
+        });
+      }
+
+      const allowlist = await db.find(schema.allowlist, {
+        where: { email },
+      });
+
+      if (!Object.keys(allowlist).length) {
+        throw new APIError("BAD_REQUEST", {
+          message: "Email not accepted into the beta",
+        });
+      }
+    }),
+  },
 });
 
 export const getSession = async (req: { headers: Record<string, any> }) => {

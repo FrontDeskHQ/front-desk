@@ -130,6 +130,12 @@ const integrationRelations = createRelations(integration, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
 
+// This is a list of emails that are allowed to access the app - will be removed after the beta.
+const allowlist = object("allowlist", {
+  id: id(),
+  email: string(),
+});
+
 export const schema = createSchema({
   // models
   organization,
@@ -140,6 +146,7 @@ export const schema = createSchema({
   user,
   invite,
   integration,
+  allowlist,
   // relations
   organizationUserRelations,
   organizationRelations,

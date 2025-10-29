@@ -421,6 +421,14 @@ export const router = createRouter({
         },
       },
     }),
+    allowlist: privateRoute.collectionRoute(schema.allowlist, {
+      read: ({ ctx }) => !!ctx?.apiKey,
+      insert: ({ ctx }) => !!ctx?.apiKey,
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.apiKey,
+        postMutation: ({ ctx }) => !!ctx?.apiKey,
+      },
+    }),
   },
 });
 
