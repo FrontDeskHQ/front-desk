@@ -3,10 +3,8 @@ import { createClient as createFetchClient } from "@live-state/sync/client/fetch
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 
-console.info("Live State URL: ", process.env.DISCORD_BOT_KEY);
-
 export const { client, store } = createClient<Router>({
-  url: "ws://localhost:3333/api/ls/ws",
+  url: process.env.LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
   schema,
   credentials: async () => ({
     discordBotKey: process.env.DISCORD_BOT_KEY ?? "",
@@ -29,7 +27,7 @@ client.ws.addEventListener("error", (error) => {
 client.subscribe();
 
 export const fetchClient = createFetchClient<Router>({
-  url: "http://localhost:3333/api/ls",
+  url: process.env.LIVE_STATE_API_URL ?? "http://localhost:3333/api/ls",
   schema,
   credentials: async () => ({
     "x-discord-bot-key": process.env.DISCORD_BOT_KEY ?? "",
