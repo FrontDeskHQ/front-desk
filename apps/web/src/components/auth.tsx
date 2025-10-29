@@ -8,7 +8,7 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
-import { Icon } from "@workspace/ui/components/logo";
+import { Logo } from "@workspace/ui/components/logo";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { useState } from "react";
 import { z } from "zod";
@@ -57,7 +57,9 @@ export const SignInForm = () => {
   return (
     <div className="flex flex-col gap-6 w-xs items-center">
       <div className="size-fit p-4 border rounded-2xl bg-muted">
-        <Icon className="size-12" />
+        <Logo>
+          <Logo.Icon className="size-12" />
+        </Logo>
       </div>
       <h1 className="text-xl font-medium">Log in to FrontDesk</h1>
       {error ? <p className="text-destructive">{error}</p> : null}
@@ -183,7 +185,7 @@ export const SignUpForm = () => {
   return (
     <div className="flex flex-col gap-6 w-xs items-center">
       <div className="size-fit p-4 border rounded-2xl bg-muted">
-        <Icon className="size-12" />
+        <Logo className="size-12" />
       </div>
       <h1 className="text-xl font-medium">Sign Up to FrontDesk</h1>
       {error ? <p className="text-destructive">{error}</p> : null}
