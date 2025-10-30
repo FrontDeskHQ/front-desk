@@ -77,7 +77,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       .where({
         organizationId: organization.id,
       })
-      .include({ messages: true, assignedUser: true })
+      .include({ messages: true, author: true, assignedUser: true })
       .get();
 
     return {
@@ -268,7 +268,11 @@ function RouteComponent() {
               >
                 <div className="flex justify-between">
                   <div className="flex items-center gap-2">
-                    <Avatar variant="user" size="md" fallback={"P"} />
+                    <Avatar
+                      variant="user"
+                      size="md"
+                      fallback={thread?.author?.name}
+                    />
                     <div>{thread?.name}</div>
                   </div>
                 </div>

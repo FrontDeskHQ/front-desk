@@ -55,9 +55,11 @@ function RouteComponent() {
   const { id } = Route.useParams();
 
   const thread = useLiveQuery(
-    query.thread
-      .where({ id })
-      .include({ organization: true, messages: true, assignedUser: true }),
+    query.thread.where({ id }).include({
+      organization: true,
+      messages: { author: true },
+      assignedUser: true,
+    }),
   )?.[0];
 
   const organizationUsers = useLiveQuery(
@@ -68,7 +70,7 @@ function RouteComponent() {
 
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
-    content: thread?.messages,
+    content: (thread as any)?.messages,
     offset: 264,
   });
 
@@ -106,9 +108,9 @@ function RouteComponent() {
             onScroll={disableAutoScroll}
             onTouchMove={disableAutoScroll}
           >
-            {thread?.messages
-              .sort((a, b) => a.id.localeCompare(b.id))
-              .map((message) => (
+            {(thread as any)?.messages
+              .sort((a: any, b: any) => a.id.localeCompare(b.id))
+              .map((message: any) => (
                 <Card
                   key={message.id}
                   className={cn(
@@ -120,14 +122,19 @@ function RouteComponent() {
                   <CardHeader
                     size="sm"
                     className={cn(
-                      !message.origin && "bg-[#2662D9]/15 border-[#2662D9]/20",
+                      message?.author?.userId === user.id &&
+                        "bg-[#2662D9]/15 border-[#2662D9]/20",
                     )}
                   >
                     <CardTitle>
                       {/* TODO update when live-state supports deep includes */}
-                      <Avatar variant="user" size="md" fallback={"P"} />
+                      <Avatar
+                        variant="user"
+                        size="md"
+                        fallback={message.author.name}
+                      />
                       {/* TODO update when live-state supports deep includes */}
-                      <p>message.author.name</p>
+                      <p>{message.author.name}</p>
                       <p className="text-muted-foreground">
                         {formatRelativeTime(message.createdAt as Date)}
                       </p>

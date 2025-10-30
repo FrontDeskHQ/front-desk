@@ -72,20 +72,23 @@ const avatarVariants = cva("", {
   },
 });
 
-const avatarFallbackVariants = cva("text-black bg-white select-none size-full", {
-  variants: {
-    size: {
-      sm: "text-[0.5rem]",
-      md: "text-[0.625rem]",
-      lg: "text-base",
-      xl: "text-base",
-      xxl: "text-lg",
+const avatarFallbackVariants = cva(
+  "text-black bg-white select-none size-full",
+  {
+    variants: {
+      size: {
+        sm: "text-[0.5rem]",
+        md: "text-[0.625rem]",
+        lg: "text-base",
+        xl: "text-base",
+        xxl: "text-2xl",
+      },
+    },
+    defaultVariants: {
+      size: "md",
     },
   },
-  defaultVariants: {
-    size: "md",
-  },
-});
+);
 
 interface AvatarProps extends VariantProps<typeof avatarVariants> {
   className?: string;

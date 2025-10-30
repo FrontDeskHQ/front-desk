@@ -47,7 +47,7 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
     }
 
     return {
-      thread: thread as typeof thread | undefined,
+      thread,
     };
   },
 });
@@ -66,10 +66,6 @@ function RouteComponent() {
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
-  if (!thread) {
-    return null;
-  }
-
   return (
     <div className="flex flex-col size-full gap-4 sm:gap-8 min-h-screen">
       <Navbar>
@@ -78,19 +74,17 @@ function RouteComponent() {
             <Logo.Icon />
             <Logo.Text />
             <Logo.Separator />
-            <Logo>
-              <Avatar
-                src={thread.organization.logoUrl}
-                variant="org"
-                fallback={thread.organization.name}
-                size="lg"
-              />
-              <Logo.Text>{thread.organization.name}</Logo.Text>
-            </Logo>
+            <Avatar
+              src={thread.organization.logoUrl}
+              variant="org"
+              fallback={thread.organization.name}
+              size="lg"
+            />
+            <Logo.Text>{thread.organization.name}</Logo.Text>
           </Logo>
         </Navbar.Group>
         <Navbar.Group>
-          <Button size="lg" externalLink asChild>
+          <Button size="sm" externalLink asChild>
             <a href={integrationPaths.discord} target="_blank" rel="noreferrer">
               Join Discord
             </a>
@@ -147,20 +141,17 @@ function RouteComponent() {
                     key={message.id}
                     className={cn(
                       "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                      !message.origin && "border-[#2662D9]/20",
                     )}
                   >
                     {/* TODO: update the way it's checking if it's an message from the current user */}
-                    <CardHeader
-                      size="sm"
-                      className={cn(
-                        !message.origin &&
-                          "bg-[#2662D9]/15 border-[#2662D9]/20",
-                      )}
-                    >
+                    <CardHeader size="sm">
                       <CardTitle>
                         {/* TODO update when live-state supports deep includes */}
-                        <Avatar variant="user" size="md" fallback={"P"} />
+                        <Avatar
+                          variant="user"
+                          size="md"
+                          fallback={message.author.name}
+                        />
                         {/* TODO update when live-state supports deep includes */}
                         <p>{message.author.name}</p>
                         <p className="text-muted-foreground">
