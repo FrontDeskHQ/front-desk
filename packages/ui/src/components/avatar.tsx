@@ -44,13 +44,18 @@ function BaseAvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-indigo-400 flex size-full items-center justify-center rounded-full text-xs scale-75",
+        "bg-indigo-400 flex size-full items-center justify-center text-xs scale-75",
         className,
       )}
       {...props}
     />
   );
 }
+
+const avatarShapeVariants = {
+  user: "rounded-full",
+  org: "rounded-md",
+} as const;
 
 const avatarVariants = cva("", {
   variants: {
@@ -61,10 +66,7 @@ const avatarVariants = cva("", {
       xl: "size-10",
       xxl: "size-16",
     },
-    variant: {
-      user: "rounded-full",
-      org: "rounded-md",
-    },
+    variant: avatarShapeVariants,
   },
   defaultVariants: {
     size: "md",
@@ -83,9 +85,11 @@ const avatarFallbackVariants = cva(
         xl: "text-base",
         xxl: "text-2xl",
       },
+      variant: avatarShapeVariants,
     },
     defaultVariants: {
       size: "md",
+      variant: "user",
     },
   },
 );
@@ -110,7 +114,7 @@ function Avatar({ className, src, alt, variant, size, fallback }: AvatarProps) {
   return (
     <BaseAvatar className={avatarVariants({ size, variant, className })}>
       <BaseAvatarImage src={src ?? undefined} alt={alt ?? undefined} />
-      <BaseAvatarFallback className={avatarFallbackVariants({ size })}>
+      <BaseAvatarFallback className={avatarFallbackVariants({ size, variant })}>
         {typeof fallback === "string" ? getInitials(fallback) : fallback}
       </BaseAvatarFallback>
     </BaseAvatar>

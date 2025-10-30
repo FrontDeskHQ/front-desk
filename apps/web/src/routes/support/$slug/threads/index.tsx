@@ -77,7 +77,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       .where({
         organizationId: organization.id,
       })
-      .include({ messages: true, author: true, assignedUser: true })
+      .include({ messages: { author: true }, author: true, assignedUser: true })
       .get();
 
     return {
@@ -276,23 +276,27 @@ function RouteComponent() {
                     <div>{thread?.name}</div>
                   </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    <span className="font-medium">
-                      {/* TODO update when live-state supports deep includes */}
-                      {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
-                      Author:&nbsp;
-                    </span>
-                    <span className="truncate">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
+                    {/* TODO update when live-state supports deep includes */}
+                    {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
+                    {
+                      (thread as any)?.messages?.[
+                        (thread as any)?.messages?.length - 1
+                      ]?.author?.name
+                    }
+                    :&nbsp;
+                    <span className="max-w-full">
                       {getFirstTextContent(
                         safeParseJSON(
-                          thread?.messages?.[thread?.messages?.length - 1]
-                            ?.content ?? "",
+                          (thread as any)?.messages?.[
+                            (thread as any)?.messages?.length - 1
+                          ]?.content ?? "",
                         ),
                       )}
                     </span>
                   </span>
-                  <div className="text-muted-foreground">
+                  <div className="text-muted-foreground flex-shrink-0">
                     {thread?.createdAt
                       ? formatRelativeTime(thread?.createdAt as Date)
                       : null}
