@@ -273,7 +273,14 @@ export const router = createRouter({
     }),
     author: privateRoute.collectionRoute(schema.author, {
       read: () => true,
-      insert: ({ ctx }) => !!ctx?.apiKey,
+      insert: ({ ctx }) => {
+        if (ctx?.apiKey) return true;
+        if (!ctx?.session) return false;
+
+        return {
+          userId: ctx.session.userId,
+        };
+      },
       update: {
         preMutation: ({ ctx }) => !!ctx?.apiKey,
         postMutation: ({ ctx }) => !!ctx?.apiKey,
@@ -296,7 +303,7 @@ export const router = createRouter({
                 },
               },
               {
-                email: ctx?.session?.email,
+                email: ctx?.user?.email,
               },
             ],
           };
