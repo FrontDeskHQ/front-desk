@@ -1,4 +1,5 @@
-import { Link, useMatches } from "@tanstack/react-router";
+import { useLiveQuery } from "@live-state/sync/client";
+import { getRouteApi, Link, useMatches } from "@tanstack/react-router";
 import {
   Sidebar,
   SidebarContent,
@@ -11,11 +12,26 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
-import { ArrowLeft, Cable, Settings, UserRoundPen, Users } from "lucide-react";
+import { useAtomValue } from "jotai/react";
+import {
+  ArrowLeft,
+  Banknote,
+  Cable,
+  Settings,
+  UserRoundPen,
+  Users,
+} from "lucide-react";
+import { activeOrganizationAtom } from "~/lib/atoms";
+import { query } from "~/lib/live-state";
 
 const groups: {
   title: string;
-  items: { title: string; url: string; icon: React.ComponentType<any> }[];
+  items: {
+    title: string;
+    url: string;
+    icon: React.ComponentType<any>;
+    role?: "owner" | "user";
+  }[];
 }[] = [
   {
     title: "Personal",
@@ -45,14 +61,31 @@ const groups: {
         url: "/app/settings/organization/integration",
         icon: Cable,
       },
+      {
+        title: "Billing",
+        url: "/app/settings/organization/billing",
+        icon: Banknote,
+        role: "owner",
+      },
     ],
   },
 ];
 
-export function SettingsSidebar({
-  ...props
-}: React.ComponentProps<typeof Sidebar>) {
+export function SettingsSidebar() {
   const matches = useMatches();
+
+  const currentOrg = useAtomValue(activeOrganizationAtom);
+
+  const route = getRouteApi("/app/_workspace");
+  const { user } = route.useRouteContext();
+
+  const selfOrgUser = useLiveQuery(
+    query.organizationUser.first({
+      organizationId: currentOrg?.id,
+      enabled: true,
+      userId: user?.id,
+    }),
+  );
 
   return (
     <Sidebar variant="inset" className="bg-none">
@@ -71,21 +104,25 @@ export function SettingsSidebar({
             <SidebarGroupLabel>{group.title}</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
-                {group.items.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      data-active={matches.some(
-                        (match) => match.pathname === item.url,
-                      )}
-                    >
-                      <Link to={item.url}>
-                        <item.icon />
-                        <span>{item.title}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
+                {group.items
+                  .filter(
+                    (item) => !item.role || item.role === selfOrgUser?.role,
+                  )
+                  .map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        data-active={matches.some(
+                          (match) => match.pathname === item.url,
+                        )}
+                      >
+                        <Link to={item.url}>
+                          <item.icon />
+                          <span>{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
               </SidebarMenu>
             </SidebarGroupContent>
           </SidebarGroup>
