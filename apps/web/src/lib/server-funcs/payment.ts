@@ -77,7 +77,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
           ],
         },
       ],
-      return_url: `${process.env.VITE_PUBLIC_BASE_URL}/app/settings/organization/billing`,
+      return_url: `${process.env.VITE_BASE_URL}/app/settings/organization/billing`,
     });
 
     return session;

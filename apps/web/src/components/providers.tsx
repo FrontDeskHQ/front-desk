@@ -5,7 +5,7 @@ import { PostHogProvider as PostHogProviderComponent } from "posthog-js/react";
 import type * as React from "react";
 
 const posthogOptions: Partial<PostHogConfig> = {
-  api_host: import.meta.env.VITE_PUBLIC_POSTHOG_HOST,
+  api_host: import.meta.env.VITE_POSTHOG_HOST,
   defaults: "2025-05-24",
 };
 
@@ -18,7 +18,7 @@ export const PosthogProvider = ({
 
   return (
     <PostHogProviderComponent
-      apiKey={import.meta.env.VITE_PUBLIC_POSTHOG_KEY}
+      apiKey={import.meta.env.VITE_POSTHOG_KEY}
       options={posthogOptions}
     >
       {children}
