@@ -18,6 +18,18 @@ const organization = object("organization", {
   logoUrl: string().nullable(),
 });
 
+const subscription = object("subscription", {
+  id: id(),
+  customerId: string().nullable(),
+  subscriptionId: string().nullable(),
+  organizationId: reference("organization.id"),
+  plan: string().default("trial"),
+  status: string().nullable(),
+  seats: number().default(1),
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+});
+
 const organizationUser = object("organizationUser", {
   id: id(),
   organizationId: reference("organization.id"),
@@ -95,6 +107,11 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   threads: many(thread, "organizationId"),
   invites: many(invite, "organizationId"),
   integrations: many(integration, "organizationId"),
+  subscriptions: many(subscription, "organizationId"),
+}));
+
+const subscriptionRelations = createRelations(subscription, ({ one }) => ({
+  organization: one(organization, "organizationId"),
 }));
 
 const organizationUserRelations = createRelations(
@@ -139,6 +156,7 @@ const allowlist = object("allowlist", {
 export const schema = createSchema({
   // models
   organization,
+  subscription,
   author,
   organizationUser,
   thread,
@@ -155,4 +173,5 @@ export const schema = createSchema({
   authorRelations,
   inviteRelations,
   integrationRelations,
+  subscriptionRelations,
 });

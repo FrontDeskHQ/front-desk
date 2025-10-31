@@ -1,5 +1,6 @@
 import "./env";
 
+import { Webhooks } from "@dodopayments/express";
 import { expressAdapter, server, SQLStorage } from "@live-state/sync/server";
 import expressWs from "@wll8/express-ws";
 import { toNodeHandler } from "better-auth/node";
@@ -80,6 +81,115 @@ export const db = lsServer.storage;
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
+app.post(
+  "/api/webhook",
+  Webhooks({
+    webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY as string,
+    onPayload: async (payload) => {
+      console.log("Payment webhook received", JSON.stringify(payload, null, 2));
+    },
+    onSubscriptionActive: async (payload) => {
+      const subscription = Object.values(
+        await db.find(schema.subscription, {
+          where: {
+            customerId: payload.data.customer.customer_id,
+          },
+        })
+      )?.[0];
+
+      if (!subscription) return;
+
+      const plan =
+        payload.data.product_id === process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID
+          ? "starter"
+          : payload.data.product_id === process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
+          ? "pro"
+          : null;
+
+      if (!plan) return;
+
+      await db.update(schema.subscription, subscription.id, {
+        plan: plan,
+        status: "active",
+        updatedAt: new Date(),
+        subscriptionId: payload.data.subscription_id,
+        seats:
+          payload.data.addons?.find(
+            (addon) =>
+              addon.addon_id ===
+              (plan === "starter"
+                ? process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID
+                : process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID)
+          )?.quantity ?? 1,
+      });
+    },
+    onSubscriptionExpired: async (payload) => {
+      const subscription = Object.values(
+        await db.find(schema.subscription, {
+          where: {
+            customerId: payload.data.customer.customer_id,
+          },
+        })
+      )?.[0];
+      if (!subscription) return;
+
+      await db.update(schema.subscription, subscription.id, {
+        status: "expired",
+        updatedAt: new Date(),
+      });
+    },
+    onSubscriptionPlanChanged: async (payload) => {
+      const subscription = Object.values(
+        await db.find(schema.subscription, {
+          where: {
+            customerId: payload.data.customer.customer_id,
+          },
+        })
+      )?.[0];
+
+      if (!subscription) return;
+
+      const plan =
+        payload.data.product_id === process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID
+          ? "starter"
+          : payload.data.product_id === process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
+          ? "pro"
+          : null;
+
+      if (!plan) return;
+
+      await db.update(schema.subscription, subscription.id, {
+        status: payload.data.status,
+        plan: plan,
+        seats:
+          payload.data.addons?.find(
+            (addon) =>
+              addon.addon_id ===
+              (plan === "starter"
+                ? process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID
+                : process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID)
+          )?.quantity ?? 1,
+        updatedAt: new Date(),
+        subscriptionId: payload.data.subscription_id,
+      });
+    },
+    onSubscriptionCancelled: async (payload) => {
+      const subscription = Object.values(
+        await db.find(schema.subscription, {
+          where: {
+            customerId: payload.data.customer.customer_id,
+          },
+        })
+      )?.[0];
+      if (!subscription) return;
+
+      await db.update(schema.subscription, subscription.id, {
+        status: "cancelled",
+        updatedAt: new Date(),
+      });
+    },
+  })
+);
 
 expressAdapter(app as any, lsServer, {
   basePath: "/api/ls",

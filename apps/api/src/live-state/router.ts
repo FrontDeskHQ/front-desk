@@ -3,6 +3,7 @@ import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation"
 import { addDays } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { schema } from "./schema";
 
@@ -56,12 +57,28 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const organizationId = ulid().toLowerCase();
 
+          const dodopaymentsCustomer = await dodopayments?.customers.create({
+            email: req.context.user?.email,
+            name: req.context.user?.name,
+          });
+
           await db.insert(schema.organization, {
             id: organizationId,
             name: req.input!.name,
             slug: req.input!.slug,
             createdAt: new Date(),
             logoUrl: null,
+          });
+
+          await db.insert(schema.subscription, {
+            id: ulid().toLowerCase(),
+            organizationId,
+            customerId: dodopaymentsCustomer?.customer_id ?? null,
+            subscriptionId: null,
+            plan: "trial",
+            status: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
           });
 
           await db.insert(schema.organizationUser, {
@@ -424,6 +441,27 @@ export const router = createRouter({
     allowlist: privateRoute.collectionRoute(schema.allowlist, {
       read: ({ ctx }) => !!ctx?.apiKey,
       insert: ({ ctx }) => !!ctx?.apiKey,
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.apiKey,
+        postMutation: ({ ctx }) => !!ctx?.apiKey,
+      },
+    }),
+    subscription: privateRoute.collectionRoute(schema.subscription, {
+      read: ({ ctx }) => {
+        if (ctx?.apiKey) return true;
+        if (!ctx?.session) return false;
+
+        return {
+          organization: {
+            organizationUsers: {
+              userId: ctx.session.userId,
+              enabled: true,
+              role: "owner",
+            },
+          },
+        };
+      },
+      insert: () => false,
       update: {
         preMutation: ({ ctx }) => !!ctx?.apiKey,
         postMutation: ({ ctx }) => !!ctx?.apiKey,

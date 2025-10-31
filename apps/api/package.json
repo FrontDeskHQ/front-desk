@@ -41,12 +41,14 @@
     "node": ">=20.18.0"
   },
   "dependencies": {
+    "@dodopayments/express": "^0.2.1",
     "@live-state/sync": "catalog:",
     "@wll8/express-ws": "^1.0.6",
     "@workspace/emails": "workspace:*",
     "better-auth": "^1.2.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
+    "dodopayments": "^2.4.1",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "pg": "^8.15.6",
