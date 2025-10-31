@@ -16,7 +16,7 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
-import { format } from "date-fns";
+import { addDays, format, formatDistanceToNowStrict, isAfter } from "date-fns";
 import type { DodoPayments } from "dodopayments/client";
 import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
@@ -25,8 +25,8 @@ import { query } from "~/lib/live-state";
 import {
   cancelSubscription,
   createCheckoutSession,
-  createCustomerPortalSession,
   getPastInvoices,
+  updateSubscription,
 } from "~/lib/server-funcs/payment";
 
 export const Route = createFileRoute(
@@ -66,46 +66,62 @@ function RouteComponent() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, []);
+  }, [subscription?.customerId]);
 
   if (!currentOrg) return null;
+
+  const proTrialEndDate = subscription?.createdAt
+    ? addDays(new Date(subscription.createdAt), 14)
+    : null;
+
+  const trialEnded = proTrialEndDate
+    ? isAfter(new Date(), proTrialEndDate)
+    : false;
 
   return (
     <>
       <div className="p-4 flex flex-col gap-4 w-full">
         <h2 className="text-base">Billing</h2>
-        <Card className="bg-[#27272A]/30">
-          <CardContent className="gap-4">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col">
+        {subscription?.plan === "trial" && (
+          <Card className="bg-[#27272A]/30">
+            <CardContent className="flex-row justify-between items-center">
+              <div>
                 <div className="text-muted-foreground">Current plan</div>
-                <div className="text-primary">Starter</div>
+                <div className="text-primary">Trial</div>
               </div>
-              <Button
-                variant="secondary"
-                onClick={async () => {
-                  if (!subscription?.customerId) return;
-                  const session = await createCustomerPortalSession({
-                    data: {
-                      customerId: subscription?.customerId,
-                    },
-                  });
-                  if (!session) return;
-                  window.location.href = session.link;
-                }}
-              >
-                Payment settings
-              </Button>
-            </div>
-            <Separator />
+              <div className="text-muted-foreground">
+                Your Pro free trial{" "}
+                {proTrialEndDate &&
+                  (!trialEnded
+                    ? `ends ${formatDistanceToNowStrict(proTrialEndDate, {
+                        addSuffix: true,
+                      })}`
+                    : "ended")}
+                .
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        <Card className="bg-[#27272A]/30">
+          <CardContent
+            className={cn(
+              "gap-4",
+              subscription?.plan === "pro" && "flex-col-reverse",
+            )}
+          >
             <div className="flex justify-between">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col">
-                  <div className="text-primary">Pro</div>
-                  <div className="text-muted-foreground">$24/seat/month</div>
+                  {subscription?.plan === "starter" && (
+                    <div className="text-muted-foreground">Current plan</div>
+                  )}
+                  <div className="text-primary">Starter</div>
+                  {subscription?.plan !== "starter" && (
+                    <div className="text-muted-foreground">$9/seat/month</div>
+                  )}
                 </div>
-                <div className="w-full max-w-sm">
-                  <div className="grid grid-cols-2 gap-4">
+                {subscription?.plan !== "starter" && (
+                  <div className="w-full max-w-sm">
                     <ul className="lex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
                       <li>Unlimited support tickets</li>
                       <li>Unlimited customers</li>
@@ -113,32 +129,164 @@ function RouteComponent() {
                       <li>2 support channels</li>
                     </ul>
                   </div>
-                </div>
+                )}
               </div>
-              <Button
-                onClick={async () => {
-                  if (!subscription) return;
-                  if (!subscription.customerId) return;
+              {subscription?.plan !== "starter" &&
+                subscription?.subscriptionId && (
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant={
+                          subscription?.plan === "pro" ? "secondary" : "default"
+                        }
+                      >
+                        {subscription?.plan === "pro" ? "Downgrade" : "Upgrade"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>
+                          {subscription?.plan === "pro"
+                            ? "Downgrade to Starter plan?"
+                            : "Upgrade to Starter plan?"}
+                        </AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {subscription?.plan === "pro"
+                            ? "You are about to downgrade your subscription to the Starter plan. The value difference will be pro-rated and applied to your next billing cycle."
+                            : "You are about to upgrade your subscription to the Starter plan. The value difference will be pro-rated and applied to your next billing cycle."}
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={async () => {
+                            if (!subscription) return;
+                            if (!subscription.customerId) return;
 
-                  // TODO Change this to subscription change call
-                  const session = await createCheckoutSession({
-                    data: {
-                      customerId: subscription.customerId,
-                      // TODO change this to pro
-                      plan: "starter",
-                      seats: seats,
-                    },
-                  });
+                            await updateSubscription({
+                              data: {
+                                customerId: subscription.customerId,
+                                plan: "starter",
+                                seats: seats,
+                              },
+                            });
+                          }}
+                        >
+                          Confirm
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                )}
+              {subscription?.plan !== "starter" &&
+                !subscription?.subscriptionId && (
+                  <Button
+                    onClick={async () => {
+                      if (!subscription) return;
+                      if (!subscription.customerId) return;
 
-                  console.log("Session", session);
+                      const session = await createCheckoutSession({
+                        data: {
+                          customerId: subscription.customerId,
+                          plan: "starter",
+                          seats: seats,
+                        },
+                      });
 
-                  if (!session) return;
+                      if (!session) return;
 
-                  window.location.href = session.checkout_url;
-                }}
-              >
-                Upgrade
-              </Button>
+                      window.location.href = session.checkout_url;
+                    }}
+                    variant={
+                      subscription?.plan === "pro" ? "secondary" : "default"
+                    }
+                  >
+                    {subscription?.plan === "pro" ? "Downgrade" : "Upgrade"}
+                  </Button>
+                )}
+            </div>
+            <Separator />
+            <div className="flex justify-between">
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col">
+                  {subscription?.plan === "pro" && (
+                    <div className="text-muted-foreground">Current plan</div>
+                  )}
+                  <div className="text-primary">Pro</div>
+                  {subscription?.plan !== "pro" && (
+                    <div className="text-muted-foreground">$24/seat/month</div>
+                  )}
+                </div>
+                {subscription?.plan !== "pro" && (
+                  <div className="w-full max-w-sm">
+                    <ul className="lex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
+                      <li>Unlimited support tickets</li>
+                      <li>Unlimited customers</li>
+                      <li>Public support portal with custom domain</li>
+                      <li>Unlimited support channels</li>
+                    </ul>
+                  </div>
+                )}
+              </div>
+              {subscription?.plan !== "pro" && subscription?.subscriptionId && (
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button>Upgrade</Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Upgrade to Pro plan?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You are about to upgrade your subscription to the Pro
+                        plan. The value difference will be pro-rated and applied
+                        to your next billing cycle.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={async () => {
+                          if (!subscription) return;
+                          if (!subscription.customerId) return;
+
+                          await updateSubscription({
+                            data: {
+                              customerId: subscription.customerId,
+                              plan: "pro",
+                              seats: seats,
+                            },
+                          });
+                        }}
+                      >
+                        Confirm
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+              {subscription?.plan !== "pro" &&
+                !subscription?.subscriptionId && (
+                  <Button
+                    onClick={async () => {
+                      if (!subscription) return;
+                      if (!subscription.customerId) return;
+
+                      const session = await createCheckoutSession({
+                        data: {
+                          customerId: subscription.customerId,
+                          plan: "pro",
+                          seats: seats,
+                        },
+                      });
+
+                      if (!session) return;
+
+                      window.location.href = session.checkout_url;
+                    }}
+                  >
+                    Upgrade
+                  </Button>
+                )}
             </div>
           </CardContent>
         </Card>
@@ -156,7 +304,7 @@ function RouteComponent() {
                     className="flex items-center gap-4 justify-between"
                   >
                     <div className="flex gap-2">
-                      <Skeleton className="w-24 h-4" />
+                      <Skeleton className="w-12 h-4" />
                       <Skeleton className="w-24 h-4" />
                     </div>
                     <Skeleton className="w-24 h-4" />
@@ -205,63 +353,65 @@ function RouteComponent() {
           </CardContent>
         </Card>
       </div>
-      <div className="p-4 flex flex-col gap-4 w-full">
-        <h2 className="text-base">Danger zone</h2>
-        <Card className="bg-[#27272A]/30">
-          <CardContent className="gap-4">
-            <div className="flex justify-between items-center">
-              <div className="flex flex-col">
-                <div>Cancel subscription</div>
-                <div className="text-muted-foreground">
-                  You would lose access by the end of the current billing
-                  period.
+      {subscription?.status && (
+        <div className="p-4 flex flex-col gap-4 w-full">
+          <h2 className="text-base">Danger zone</h2>
+          <Card className="bg-[#27272A]/30">
+            <CardContent className="gap-4">
+              <div className="flex justify-between items-center">
+                <div className="flex flex-col">
+                  <div>Cancel subscription</div>
+                  <div className="text-muted-foreground">
+                    You would lose access by the end of the current billing
+                    period.
+                  </div>
                 </div>
-              </div>
-              <AlertDialog>
-                <AlertDialogTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="text-red-700 dark:hover:text-red-700"
-                    disabled={subscription?.status !== "active"}
-                  >
-                    {subscription?.status === "active"
-                      ? "Cancel subscription"
-                      : "Already cancelled"}
-                  </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>
-                      Are you absolutely sure?
-                    </AlertDialogTitle>
-                    <AlertDialogDescription>
-                      You would lose access by the end of the current billing
-                      period.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      variant="destructive"
-                      onClick={async () => {
-                        if (!subscription?.customerId) return;
-                        await cancelSubscription({
-                          data: {
-                            customerId: subscription.customerId,
-                          },
-                        });
-                      }}
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-700 dark:hover:text-red-700"
+                      disabled={subscription?.status === "cancelled"}
                     >
-                      Cancel subscription
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                      {subscription?.status !== "cancelled"
+                        ? "Cancel subscription"
+                        : "Already cancelled"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Are you absolutely sure?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        You would lose access by the end of the current billing
+                        period.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        variant="destructive"
+                        onClick={async () => {
+                          if (!subscription?.customerId) return;
+                          await cancelSubscription({
+                            data: {
+                              customerId: subscription.customerId,
+                            },
+                          });
+                        }}
+                      >
+                        Cancel subscription
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </>
   );
 }

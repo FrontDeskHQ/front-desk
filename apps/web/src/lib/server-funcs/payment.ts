@@ -5,6 +5,43 @@ import { authClient } from "../auth-client";
 import { fetchClient } from "../live-state";
 import { dodopayments } from "../payments";
 
+const authorizeOrganizationUser = async (customerId: string) => {
+  const res = await authClient.getSession({
+    fetchOptions: {
+      headers: getRequestHeaders() as HeadersInit,
+    },
+  });
+
+  if (!res.data) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  const { user } = res.data;
+
+  const organizationUser = (
+    await fetchClient.query.organizationUser
+      .where({
+        userId: user.id,
+        enabled: true,
+      })
+      .include({
+        organization: {
+          subscriptions: true,
+        },
+      })
+      .get()
+  ).find(
+    (v) =>
+      (v as any).organization?.subscriptions?.[0]?.customerId === customerId
+  );
+
+  if (!organizationUser || organizationUser.role !== "owner") {
+    throw new Error("FORBIDDEN");
+  }
+
+  return organizationUser;
+};
+
 export const createCheckoutSession = createServerFn({ method: "POST" })
   .inputValidator(
     z.object({
@@ -14,38 +51,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId, plan, seats } }) => {
-    const res = await authClient.getSession({
-      fetchOptions: {
-        headers: getRequestHeaders() as HeadersInit,
-      },
-    });
-
-    if (!res.data) {
-      throw new Error("UNAUTHORIZED");
-    }
-
-    const { user } = res.data;
-
-    const organizationUser = (
-      await fetchClient.query.organizationUser
-        .where({
-          userId: user.id,
-          enabled: true,
-        })
-        .include({
-          organization: {
-            subscriptions: true,
-          },
-        })
-        .get()
-    ).find(
-      (v) =>
-        (v as any).organization?.subscriptions?.[0]?.customerId === customerId
-    );
-
-    if (!organizationUser || organizationUser.role !== "owner") {
-      throw new Error("FORBIDDEN");
-    }
+    const organizationUser = await authorizeOrganizationUser(customerId);
 
     const session = await dodopayments?.checkoutSessions.create({
       customer: { customer_id: customerId },
@@ -80,38 +86,7 @@ export const createCustomerPortalSession = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId } }) => {
-    const res = await authClient.getSession({
-      fetchOptions: {
-        headers: getRequestHeaders() as HeadersInit,
-      },
-    });
-
-    if (!res.data) {
-      throw new Error("UNAUTHORIZED");
-    }
-
-    const { user } = res.data;
-
-    const organizationUser = (
-      await fetchClient.query.organizationUser
-        .where({
-          userId: user.id,
-          enabled: true,
-        })
-        .include({
-          organization: {
-            subscriptions: true,
-          },
-        })
-        .get()
-    ).find(
-      (v) =>
-        (v as any).organization?.subscriptions?.[0]?.customerId === customerId
-    );
-
-    if (!organizationUser || organizationUser.role !== "owner") {
-      throw new Error("FORBIDDEN");
-    }
+    const organizationUser = await authorizeOrganizationUser(customerId);
 
     const session = await dodopayments?.customers.customerPortal.create(
       customerId
@@ -127,38 +102,7 @@ export const getPastInvoices = createServerFn({ method: "GET" })
     })
   )
   .handler(async ({ data: { customerId } }) => {
-    const res = await authClient.getSession({
-      fetchOptions: {
-        headers: getRequestHeaders() as HeadersInit,
-      },
-    });
-
-    if (!res.data) {
-      throw new Error("UNAUTHORIZED");
-    }
-
-    const { user } = res.data;
-
-    const organizationUser = (
-      await fetchClient.query.organizationUser
-        .where({
-          userId: user.id,
-          enabled: true,
-        })
-        .include({
-          organization: {
-            subscriptions: true,
-          },
-        })
-        .get()
-    ).find(
-      (v) =>
-        (v as any).organization?.subscriptions?.[0]?.customerId === customerId
-    );
-
-    if (!organizationUser || organizationUser.role !== "owner") {
-      throw new Error("FORBIDDEN");
-    }
+    const organizationUser = await authorizeOrganizationUser(customerId);
 
     const invoices = await dodopayments?.payments.list({
       customer_id: customerId,
@@ -175,35 +119,7 @@ export const cancelSubscription = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId } }) => {
-    const res = await authClient.getSession({
-      fetchOptions: {
-        headers: getRequestHeaders() as HeadersInit,
-      },
-    });
-
-    if (!res.data) {
-      throw new Error("UNAUTHORIZED");
-    }
-
-    const { user } = res.data;
-
-    const organizationUser = (
-      await fetchClient.query.organizationUser
-        .where({ userId: user.id, enabled: true })
-        .include({
-          organization: {
-            subscriptions: true,
-          },
-        })
-        .get()
-    ).find(
-      (v) =>
-        (v as any).organization?.subscriptions?.[0]?.customerId === customerId
-    );
-
-    if (!organizationUser || organizationUser.role !== "owner") {
-      throw new Error("FORBIDDEN");
-    }
+    const organizationUser = await authorizeOrganizationUser(customerId);
 
     await dodopayments?.subscriptions.update(
       (organizationUser as any).organization?.subscriptions?.[0]
@@ -213,6 +129,50 @@ export const cancelSubscription = createServerFn({ method: "POST" })
         status: "cancelled",
       }
     );
+
+    return {
+      success: true,
+    };
+  });
+
+export const updateSubscription = createServerFn({ method: "POST" })
+  .inputValidator(
+    z.object({
+      customerId: z.string(),
+      plan: z.enum(["starter", "pro"]).optional(),
+      seats: z.number(),
+    })
+  )
+  .handler(async ({ data: { customerId, plan, seats } }) => {
+    const organizationUser = await authorizeOrganizationUser(customerId);
+
+    const subscriptionId = (organizationUser as any).organization
+      ?.subscriptions?.[0]?.subscriptionId;
+
+    const newPlan =
+      plan ?? (organizationUser as any).organization?.subscriptions?.[0]?.plan;
+
+    await dodopayments?.subscriptions
+      .changePlan(subscriptionId, {
+        product_id:
+          newPlan === "starter"
+            ? (process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID as string)
+            : (process.env.DODO_PAYMENTS_PRO_PRODUCT_ID as string),
+        quantity: 1,
+        addons: [
+          {
+            addon_id:
+              newPlan === "starter"
+                ? (process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID as string)
+                : (process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID as string),
+            quantity: seats,
+          },
+        ],
+        proration_billing_mode: "prorated_immediately",
+      })
+      .then((res) => {
+        console.log(res);
+      });
 
     return {
       success: true,
