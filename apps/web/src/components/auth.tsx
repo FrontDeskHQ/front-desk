@@ -185,7 +185,9 @@ export const SignUpForm = () => {
   return (
     <div className="flex flex-col gap-6 w-xs items-center">
       <div className="size-fit p-4 border rounded-2xl bg-muted">
-        <Logo className="size-12" />
+        <Logo>
+          <Logo.Icon className="size-12" />
+        </Logo>
       </div>
       <h1 className="text-xl font-medium">Sign Up to FrontDesk</h1>
       {error ? <p className="text-destructive">{error}</p> : null}

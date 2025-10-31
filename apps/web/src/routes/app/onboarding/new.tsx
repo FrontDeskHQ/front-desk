@@ -84,8 +84,8 @@ function OnboardingForm() {
     <div className="flex flex-col gap-6 w-96 items-center">
       <div className="absolute left-4 top-4 flex items-center gap-2">
         <div className="size-fit p-2 border rounded-md bg-muted">
-          <Logo className="size-4">
-            <Logo.Icon />
+          <Logo>
+            <Logo.Icon className="size-4" />
           </Logo>
         </div>
         <h1 className="text-xl">FrontDesk</h1>

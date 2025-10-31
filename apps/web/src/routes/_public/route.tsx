@@ -36,7 +36,9 @@ function RouteComponent() {
         <div className="col-span-full grid grid-cols-6 px-4 py-12">
           <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
             <div className="flex gap-2">
-              <Logo className="size-6" />{" "}
+              <Logo>
+                <Logo.Icon className="size-6" />
+              </Logo>
               <span className="text-base font-medium">FrontDesk</span>
             </div>
             <div className="text-sm text-muted-foreground">

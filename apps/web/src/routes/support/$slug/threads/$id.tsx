@@ -55,8 +55,6 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 function RouteComponent() {
   const thread = Route.useLoaderData().thread;
 
-  console.log("thread", JSON.stringify(thread, null, 2));
-
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
     content: (thread as any)?.messages,
