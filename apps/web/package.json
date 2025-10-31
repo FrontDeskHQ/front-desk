@@ -39,7 +39,6 @@
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hotkeys-hook": "^5.1.0",
-    "s3-lite-client": "link:jsr:@bradenmacdonald/s3-lite-client",
     "tailwind-merge": "^2.6.0",
     "ulid": "^3.0.0",
     "zod": "catalog:"
