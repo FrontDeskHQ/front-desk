@@ -8,7 +8,7 @@
     "build": "vite build && tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
-    "deploy": "pnpm build && wrangler deploy",
+    "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types"
   },
   "dependencies": {
