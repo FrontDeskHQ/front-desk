@@ -121,6 +121,40 @@ export const router = createRouter({
           },
         },
       })
+      .collectionRoute(schema.organizationUser, {
+        read: () => true,
+        insert: () => false,
+        update: {
+          preMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                  role: "owner",
+                },
+              },
+            };
+          },
+          postMutation: ({ ctx }) => {
+            if (ctx?.apiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                  role: "owner",
+                },
+              },
+            };
+          },
+        },
+      })
       .withMutations(({ mutation }) => ({
         inviteUser: mutation(
           z.object({
