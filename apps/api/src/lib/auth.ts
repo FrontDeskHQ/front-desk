@@ -9,6 +9,7 @@ import { schema } from "../live-state/schema";
 const useSocialProvider = !!process.env.ENABLE_GOOGLE_LOGIN;
 
 export const auth = betterAuth({
+  baseURL: process.env.BASE_URL,
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
   }),
