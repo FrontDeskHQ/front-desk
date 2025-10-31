@@ -7,7 +7,9 @@
     "dev": "vite dev",
     "build": "vite build && tsc --noEmit",
     "typecheck": "tsc --noEmit",
-    "start": "NODE_ENV=production node .output/server/index.mjs"
+    "preview": "vite preview",
+    "deploy": "pnpm build && wrangler deploy",
+    "cf-typegen": "wrangler types"
   },
   "dependencies": {
     "@bradenmacdonald/s3-lite-client": "jsr:^0.9.3",
@@ -44,6 +46,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.13.18",
     "@tailwindcss/postcss": "^4.0.8",
     "@types/js-cookie": "^3.0.6",
     "@types/node": "^22.5.4",
@@ -55,6 +58,7 @@
     "tailwindcss": "^4.1.12",
     "typescript": "^5.7.2",
     "vite": "^7.1.10",
-    "vite-tsconfig-paths": "^5.1.4"
+    "vite-tsconfig-paths": "^5.1.4",
+    "wrangler": "^4.45.3"
   }
 }
