@@ -58,7 +58,10 @@ function RouteComponent() {
   >([]);
 
   useEffect(() => {
-    if (!subscription?.customerId) return;
+    if (!subscription?.customerId) {
+      setIsLoading(false);
+      return;
+    }
     getPastInvoices({ data: { customerId: subscription.customerId } })
       .then((invoices) => {
         setPastInvoices(invoices);

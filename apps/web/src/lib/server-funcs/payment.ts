@@ -51,9 +51,13 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId, plan, seats } }) => {
-    const organizationUser = await authorizeOrganizationUser(customerId);
+    if (!dodopayments) {
+      throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
+    }
 
-    const session = await dodopayments?.checkoutSessions.create({
+    await authorizeOrganizationUser(customerId);
+
+    const session = await dodopayments.checkoutSessions.create({
       customer: { customer_id: customerId },
       product_cart: [
         {
@@ -86,9 +90,13 @@ export const createCustomerPortalSession = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId } }) => {
-    const organizationUser = await authorizeOrganizationUser(customerId);
+    if (!dodopayments) {
+      throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
+    }
 
-    const session = await dodopayments?.customers.customerPortal.create(
+    await authorizeOrganizationUser(customerId);
+
+    const session = await dodopayments.customers.customerPortal.create(
       customerId
     );
 
@@ -102,9 +110,13 @@ export const getPastInvoices = createServerFn({ method: "GET" })
     })
   )
   .handler(async ({ data: { customerId } }) => {
-    const organizationUser = await authorizeOrganizationUser(customerId);
+    if (!dodopayments) {
+      throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
+    }
 
-    const invoices = await dodopayments?.payments.list({
+    await authorizeOrganizationUser(customerId);
+
+    const invoices = await dodopayments.payments.list({
       customer_id: customerId,
       page_size: 10,
     });
@@ -119,9 +131,13 @@ export const cancelSubscription = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId } }) => {
+    if (!dodopayments) {
+      throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
+    }
+
     const organizationUser = await authorizeOrganizationUser(customerId);
 
-    await dodopayments?.subscriptions.update(
+    await dodopayments.subscriptions.update(
       (organizationUser as any).organization?.subscriptions?.[0]
         ?.subscriptionId as string,
       {
@@ -144,6 +160,10 @@ export const updateSubscription = createServerFn({ method: "POST" })
     })
   )
   .handler(async ({ data: { customerId, plan, seats } }) => {
+    if (!dodopayments) {
+      throw new Error("PAYMENT_PROVIDER_NOT_CONFIGURED");
+    }
+
     const organizationUser = await authorizeOrganizationUser(customerId);
 
     const subscriptionId = (organizationUser as any).organization
@@ -152,7 +172,7 @@ export const updateSubscription = createServerFn({ method: "POST" })
     const newPlan =
       plan ?? (organizationUser as any).organization?.subscriptions?.[0]?.plan;
 
-    await dodopayments?.subscriptions
+    await dodopayments.subscriptions
       .changePlan(subscriptionId, {
         product_id:
           newPlan === "starter"

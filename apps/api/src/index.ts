@@ -85,9 +85,6 @@ app.post(
   "/api/webhook",
   Webhooks({
     webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY as string,
-    onPayload: async (payload) => {
-      console.log("Payment webhook received", JSON.stringify(payload, null, 2));
-    },
     onSubscriptionActive: async (payload) => {
       const subscription = Object.values(
         await db.find(schema.subscription, {
