@@ -75,6 +75,8 @@ const lsServer = server({
   },
 });
 
+export const db = lsServer.storage;
+
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
