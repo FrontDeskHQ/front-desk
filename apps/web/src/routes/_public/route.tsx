@@ -1,6 +1,6 @@
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { Icon } from "@workspace/ui/components/logo";
+import { Logo } from "@workspace/ui/components/logo";
 import { HorizontalLine } from "@workspace/ui/components/surface";
 
 import { AuthButtonGroup } from "~/components/auth";
@@ -16,7 +16,9 @@ function RouteComponent() {
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
           <div className="flex gap-4">
             <Link to="/" className="flex items-center gap-2">
-              <Icon className="size-5" />
+              <Logo>
+                <Logo.Icon />
+              </Logo>
               <h1 className="text-lg font-normal">FrontDesk</h1>
             </Link>
             <Button variant="link" asChild>
@@ -34,7 +36,9 @@ function RouteComponent() {
         <div className="col-span-full grid grid-cols-6 px-4 py-12">
           <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
             <div className="flex gap-2">
-              <Icon className="size-6" />{" "}
+              <Logo>
+                <Logo.Icon className="size-6" />
+              </Logo>
               <span className="text-base font-medium">FrontDesk</span>
             </div>
             <div className="text-sm text-muted-foreground">

@@ -8,7 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import { Header } from "@workspace/ui/components/header";
+import { Logo } from "@workspace/ui/components/logo";
+import { Navbar } from "@workspace/ui/components/navbar";
 import {
   Pagination,
   PaginationContent,
@@ -76,7 +77,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       .where({
         organizationId: organization.id,
       })
-      .include({ messages: true, assignedUser: true })
+      .include({ messages: { author: true }, author: true, assignedUser: true })
       .get();
 
     return {
@@ -178,7 +179,14 @@ function RouteComponent() {
 
   return (
     <div className="w-full">
-      <Header />
+      <Navbar>
+        <Navbar.Group>
+          <Logo>
+            <Logo.Icon />
+            <Logo.Text />
+          </Logo>
+        </Navbar.Group>
+      </Navbar>
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
         <div className="flex items-center gap-4">
           <div className="flex-shrink-0">
@@ -193,17 +201,15 @@ function RouteComponent() {
             <h1 className="font-bold text-2xl sm:text-3xl truncate">
               {organization?.name}
             </h1>
-            <div className="flex-shrink-0">
-              <Button size="lg" externalLink asChild>
-                <a
-                  href={integrationPaths.discord}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  Join Discord
-                </a>
-              </Button>
-            </div>
+            <Button size="lg" externalLink asChild>
+              <a
+                href={integrationPaths.discord}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Join Discord
+              </a>
+            </Button>
           </div>
         </div>
         <Card className="bg-muted/30">
@@ -262,27 +268,35 @@ function RouteComponent() {
               >
                 <div className="flex justify-between">
                   <div className="flex items-center gap-2">
-                    <Avatar variant="user" size="md" fallback={"P"} />
+                    <Avatar
+                      variant="user"
+                      size="md"
+                      fallback={thread?.author?.name}
+                    />
                     <div>{thread?.name}</div>
                   </div>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    <span className="font-medium">
-                      {/* TODO update when live-state supports deep includes */}
-                      {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
-                      Author:&nbsp;
-                    </span>
-                    <span className="truncate">
+                <div className="flex justify-between gap-2">
+                  <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
+                    {/* TODO update when live-state supports deep includes */}
+                    {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
+                    {
+                      (thread as any)?.messages?.[
+                        (thread as any)?.messages?.length - 1
+                      ]?.author?.name
+                    }
+                    :&nbsp;
+                    <span className="max-w-full">
                       {getFirstTextContent(
                         safeParseJSON(
-                          thread?.messages?.[thread?.messages?.length - 1]
-                            ?.content ?? "",
+                          (thread as any)?.messages?.[
+                            (thread as any)?.messages?.length - 1
+                          ]?.content ?? "",
                         ),
                       )}
                     </span>
                   </span>
-                  <div className="text-muted-foreground">
+                  <div className="text-muted-foreground flex-shrink-0">
                     {thread?.createdAt
                       ? formatRelativeTime(thread?.createdAt as Date)
                       : null}

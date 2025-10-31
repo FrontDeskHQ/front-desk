@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { GitHub, XformerlyTwitter } from "@workspace/ui/components/icons";
-import { Icon } from "@workspace/ui/components/logo";
+import { Logo } from "@workspace/ui/components/logo";
 import Dither from "~/components/dither";
 import { WaitlistForm } from "~/components/form";
 import { waitlistCount } from "~/lib/sever-funcs";
@@ -19,7 +19,9 @@ function Home() {
     <div className="w-full min-h-screen flex flex-col overflow-hidden">
       <div className="w-full h-12 border-b flex items-center justify-between px-4 ">
         <div className="flex gap-2 items-center">
-          <Icon className="size-6" />
+          <Logo>
+            <Logo.Icon className="size-6" />
+          </Logo>
           <h1 className="text-xl font-normal">FrontDesk</h1>
         </div>
         <div className="flex gap-4 items-center">

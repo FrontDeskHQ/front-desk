@@ -1,6 +1,22 @@
 import { cn } from "../lib/utils.js";
 
-export function Icon({ className, ...props }: React.SVGProps<SVGSVGElement>) {
+interface LogoProps {
+  className?: string;
+  children?: React.ReactNode;
+}
+
+function LogoRoot({ className, children }: LogoProps) {
+  return (
+    <div className={cn("flex items-center gap-3", className)}>{children}</div>
+  );
+}
+
+interface LogoIconProps {
+  className?: string;
+  src?: string | null;
+}
+
+function LogoIcon({ className }: LogoIconProps) {
   return (
     <svg
       width={368}
@@ -8,8 +24,7 @@ export function Icon({ className, ...props }: React.SVGProps<SVGSVGElement>) {
       viewBox="0 0 368 368"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      {...props}
-      className={cn("size-4", className)}
+      className={cn("size-5", className)}
     >
       <title>FrontDesk logo</title>
       <path
@@ -21,3 +36,38 @@ export function Icon({ className, ...props }: React.SVGProps<SVGSVGElement>) {
     </svg>
   );
 }
+
+function LogoSeparator({ className }: { className?: string }) {
+  return (
+    <svg
+      data-testid="geist-icon"
+      height="16"
+      strokeLinejoin="round"
+      viewBox="0 0 16 16"
+      width="16"
+      className={cn("size-5", className)}
+    >
+      <title>Logo Icon</title>
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M4.01526 15.3939L4.3107 14.7046L10.3107 0.704556L10.6061 0.0151978L11.9849 0.606077L11.6894 1.29544L5.68942 15.2954L5.39398 15.9848L4.01526 15.3939Z"
+        fill="rgba(255, 255, 255, 0.14)"
+      ></path>
+    </svg>
+  );
+}
+
+function LogoText({ className, children }: LogoProps) {
+  return (
+    <span className={cn("text-lg font-medium", className)}>
+      {children || "FrontDesk"}
+    </span>
+  );
+}
+
+export const Logo = Object.assign(LogoRoot, {
+  Icon: LogoIcon,
+  Text: LogoText,
+  Separator: LogoSeparator,
+});

@@ -139,7 +139,7 @@ function RouteComponent() {
   // TODO reverse sort messages by createdAt
   const threads = useLiveQuery(
     threadsQuery
-      .include({ messages: true, assignedUser: true })
+      .include({ messages: true, author: true, assignedUser: true })
       .orderBy(
         orderBy as keyof InferLiveObject<typeof schema.thread>,
         orderDirection,
@@ -244,7 +244,11 @@ function RouteComponent() {
           >
             <div className="flex justify-between">
               <div className="flex items-center gap-2">
-                <Avatar variant="user" size="md" fallback={"P"} />
+                <Avatar
+                  variant="user"
+                  size="md"
+                  fallback={thread?.author?.name}
+                />
                 <div>{thread?.name}</div>
               </div>
               <div className="flex items-center gap-2">

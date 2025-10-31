@@ -8,7 +8,7 @@ import {
   FormMessage,
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
-import { Icon } from "@workspace/ui/components/logo";
+import { Logo } from "@workspace/ui/components/logo";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { useState } from "react";
 import { z } from "zod";
@@ -84,7 +84,9 @@ function OnboardingForm() {
     <div className="flex flex-col gap-6 w-96 items-center">
       <div className="absolute left-4 top-4 flex items-center gap-2">
         <div className="size-fit p-2 border rounded-md bg-muted">
-          <Icon className="size-4" />
+          <Logo>
+            <Logo.Icon className="size-4" />
+          </Logo>
         </div>
         <h1 className="text-xl">FrontDesk</h1>
       </div>

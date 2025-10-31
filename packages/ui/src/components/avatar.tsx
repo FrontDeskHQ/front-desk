@@ -44,13 +44,18 @@ function BaseAvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-indigo-400 flex size-full items-center justify-center rounded-full text-xs scale-75",
+        "bg-indigo-400 flex size-full items-center justify-center text-xs scale-75",
         className,
       )}
       {...props}
     />
   );
 }
+
+const avatarShapeVariants = {
+  user: "rounded-full",
+  org: "rounded-md",
+} as const;
 
 const avatarVariants = cva("", {
   variants: {
@@ -61,10 +66,7 @@ const avatarVariants = cva("", {
       xl: "size-10",
       xxl: "size-16",
     },
-    variant: {
-      user: "rounded-full",
-      org: "rounded-md",
-    },
+    variant: avatarShapeVariants,
   },
   defaultVariants: {
     size: "md",
@@ -72,20 +74,25 @@ const avatarVariants = cva("", {
   },
 });
 
-const avatarFallbackVariants = cva("text-black bg-white select-none", {
-  variants: {
-    size: {
-      sm: "scale-50 text-[0.5rem]",
-      md: "scale-75 text-[0.625rem]",
-      lg: "scale-90 text-xs",
-      xl: "scale-100 text-sm",
-      xxl: "scale-150 text-lg",
+const avatarFallbackVariants = cva(
+  "text-black bg-white select-none size-full",
+  {
+    variants: {
+      size: {
+        sm: "text-[0.5rem]",
+        md: "text-[0.625rem]",
+        lg: "text-base",
+        xl: "text-base",
+        xxl: "text-2xl",
+      },
+      variant: avatarShapeVariants,
+    },
+    defaultVariants: {
+      size: "md",
+      variant: "user",
     },
   },
-  defaultVariants: {
-    size: "md",
-  },
-});
+);
 
 interface AvatarProps extends VariantProps<typeof avatarVariants> {
   className?: string;
@@ -107,7 +114,7 @@ function Avatar({ className, src, alt, variant, size, fallback }: AvatarProps) {
   return (
     <BaseAvatar className={avatarVariants({ size, variant, className })}>
       <BaseAvatarImage src={src ?? undefined} alt={alt ?? undefined} />
-      <BaseAvatarFallback className={avatarFallbackVariants({ size })}>
+      <BaseAvatarFallback className={avatarFallbackVariants({ size, variant })}>
         {typeof fallback === "string" ? getInitials(fallback) : fallback}
       </BaseAvatarFallback>
     </BaseAvatar>
