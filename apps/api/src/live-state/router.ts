@@ -463,7 +463,14 @@ export const router = createRouter({
       },
     }),
     allowlist: privateRoute.collectionRoute(schema.allowlist, {
-      read: ({ ctx }) => !!ctx?.apiKey,
+      read: ({ ctx }) => {
+        if (ctx?.apiKey) return true;
+        if (!ctx?.user?.email) return false;
+
+        return {
+          email: ctx.user.email.toLowerCase(),
+        };
+      },
       insert: ({ ctx }) => !!ctx?.apiKey,
       update: {
         preMutation: ({ ctx }) => !!ctx?.apiKey,

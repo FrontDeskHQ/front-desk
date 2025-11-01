@@ -1,7 +1,7 @@
 import { SubscriptionProvider } from "@live-state/sync/client";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { client } from "~/lib/live-state";
+import { client, fetchClient } from "~/lib/live-state";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
 
 export const Route = createFileRoute("/app")({
@@ -11,6 +11,18 @@ export const Route = createFileRoute("/app")({
     if (!user) {
       throw redirect({
         to: "/",
+      });
+    }
+
+    const allowlist = await fetchClient.query.allowlist
+      .first({
+        email: user.user.email,
+      })
+      .get();
+
+    if (!allowlist) {
+      throw redirect({
+        to: "/now-allowed",
       });
     }
 

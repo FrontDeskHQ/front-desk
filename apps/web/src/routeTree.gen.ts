@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as NowAllowedRouteImport } from './routes/now-allowed'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
@@ -44,6 +45,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const NowAllowedRoute = NowAllowedRouteImport.update({
+  id: '/now-allowed',
+  path: '/now-allowed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRouteRoute = AppRouteRouteImport.update({
@@ -179,6 +185,7 @@ const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppWorkspaceMainRouteRouteWithChildren
+  '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/': typeof PublicIndexRoute
@@ -204,6 +211,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
+  '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/': typeof PublicIndexRoute
@@ -229,6 +237,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_public': typeof PublicRouteRouteWithChildren
   '/app': typeof AppRouteRouteWithChildren
+  '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
@@ -258,6 +267,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/app'
+    | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
     | '/'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
+    | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
     | '/'
@@ -307,6 +318,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_public'
     | '/app'
+    | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
     | '/app/_workspace'
@@ -336,6 +348,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
   AppRouteRoute: typeof AppRouteRouteWithChildren
+  NowAllowedRoute: typeof NowAllowedRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
@@ -356,6 +369,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/now-allowed': {
+      id: '/now-allowed'
+      path: '/now-allowed'
+      fullPath: '/now-allowed'
+      preLoaderRoute: typeof NowAllowedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -630,6 +650,7 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
+  NowAllowedRoute: NowAllowedRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
