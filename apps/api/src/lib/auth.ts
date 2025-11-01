@@ -20,6 +20,7 @@ export const auth = betterAuth({
           },
         }
       : {}),
+    useSecureCookies: true,
   },
   emailAndPassword: {
     enabled: !useSocialProvider,
