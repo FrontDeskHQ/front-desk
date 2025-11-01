@@ -11,6 +11,16 @@ export const auth = betterAuth({
     connectionString: process.env.DATABASE_URL,
   }),
   trustedOrigins: [process.env.CORS_ORIGIN ?? "http://localhost:3000"],
+  advanced: {
+    ...(process.env.BASE_COOKIE_DOMAIN
+      ? {
+          crossSubDomainCookies: {
+            enabled: true,
+            domain: process.env.BASE_COOKIE_DOMAIN,
+          },
+        }
+      : {}),
+  },
   emailAndPassword: {
     enabled: !useSocialProvider,
   },
