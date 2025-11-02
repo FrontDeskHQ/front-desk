@@ -7,7 +7,7 @@ export const getAuthUser = createServerFn({
 }).handler(async () => {
   console.log(
     "getRequestHeaders()",
-    JSON.stringify(getRequestHeaders(), null, 2),
+    JSON.stringify(Object.fromEntries(getRequestHeaders()), null, 2),
   );
   const res = await authClient.getSession({
     fetchOptions: {
