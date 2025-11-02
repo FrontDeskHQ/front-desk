@@ -1,5 +1,5 @@
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware, oneTimeToken } from "better-auth/plugins";
+import { oneTimeToken } from "better-auth/plugins";
 import { Pool } from "pg";
 import "../env";
 
@@ -34,11 +34,6 @@ export const auth = betterAuth({
       : undefined,
   },
   plugins: [oneTimeToken()],
-  hooks: {
-    before: createAuthMiddleware(async (ctx) => {
-      console.log("before", ctx.request?.headers);
-    }),
-  },
 });
 
 export const getSession = async (req: { headers: Record<string, any> }) => {
