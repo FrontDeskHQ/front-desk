@@ -37,19 +37,22 @@ export const getAuthUser = createServerFn({
   console.log("res", JSON.stringify(res, null, 2));
 
   // DEBUG: Pure fetch equivalent
-  const authBaseURL =
-    import.meta.env.VITE_AUTH_SERVER_BASE_URL ?? "http://localhost:3333";
-  const sessionUrl = `${authBaseURL}/api/auth/get-session`;
+  const authBaseURL = "https://api.tryfrontdesk.app";
+  // Better-auth uses /api/auth/session as the standard endpoint (not /get-session)
+  const sessionUrl = `${authBaseURL}/api/auth/session`;
   const headers = Object.fromEntries(getRequestHeaders()) as HeadersInit;
 
   console.log("DEBUG: Fetching session from:", sessionUrl);
   console.log("DEBUG: Headers:", JSON.stringify(headers, null, 2));
 
   try {
+    // Use redirect: "manual" to prevent Cloudflare Workers from automatically following redirects
+    // This helps debug redirect loops - Cloudflare Workers follows redirects automatically which can cause loops
     const fetchRes = await fetch(sessionUrl, {
       method: "GET",
       headers,
       credentials: "include",
+      redirect: "manual", // Prevent automatic redirect following
     });
 
     console.log("DEBUG: Fetch status:", fetchRes.status);
@@ -58,6 +61,17 @@ export const getAuthUser = createServerFn({
       "DEBUG: Fetch headers:",
       JSON.stringify(Object.fromEntries(fetchRes.headers.entries()), null, 2),
     );
+
+    // Check if there's a redirect
+    if (fetchRes.status >= 300 && fetchRes.status < 400) {
+      const location = fetchRes.headers.get("location");
+      console.log("DEBUG: Redirect detected!");
+      console.log("DEBUG: Redirect status:", fetchRes.status);
+      console.log("DEBUG: Redirect location:", location);
+      console.warn(
+        "DEBUG: This redirect might be causing the loop. Check if location header points back to the same URL.",
+      );
+    }
 
     const fetchData = await fetchRes.text();
     console.log("DEBUG: Fetch raw response:", fetchData);
