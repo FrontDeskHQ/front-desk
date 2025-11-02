@@ -5,17 +5,11 @@ import { authClient } from "../auth-client";
 export const getAuthUser = createServerFn({
   method: "GET",
 }).handler(async () => {
-  console.log(
-    "getRequestHeaders()",
-    JSON.stringify(Object.fromEntries(getRequestHeaders()), null, 2),
-  );
   const res = await authClient.getSession({
     fetchOptions: {
-      headers: getRequestHeaders() as HeadersInit,
+      headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
     },
   });
-
-  console.log("res", JSON.stringify(res, null, 2));
 
   return res.data;
 });

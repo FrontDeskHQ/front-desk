@@ -8,7 +8,7 @@ import { dodopayments } from "../payments";
 const authorizeOrganizationUser = async (customerId: string) => {
   const res = await authClient.getSession({
     fetchOptions: {
-      headers: getRequestHeaders() as HeadersInit,
+      headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
     },
   });
 

@@ -15,7 +15,7 @@ export const getInvitation = createServerFn({
   .handler(async ({ data }) => {
     const { data: sessionData } = await authClient.getSession({
       fetchOptions: {
-        headers: getRequestHeaders() as HeadersInit,
+        headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
       },
     });
 
