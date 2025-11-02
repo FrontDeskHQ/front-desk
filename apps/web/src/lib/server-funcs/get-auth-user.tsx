@@ -12,6 +12,24 @@ export const getAuthUser = createServerFn({
 
   const res = await authClient.getSession({
     fetchOptions: {
+      onError: (error) => {
+        console.error(
+          "Error fetching auth session:",
+          JSON.stringify(error, null, 2),
+        );
+      },
+      onSuccess: (data) => {
+        console.log(
+          "Success fetching auth session:",
+          JSON.stringify(data, null, 2),
+        );
+      },
+      onResponse(context) {
+        console.log("Response:", JSON.stringify(context, null, 2));
+      },
+      onRequest: () => {
+        console.log("Requesting auth session");
+      },
       headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
     },
   });
