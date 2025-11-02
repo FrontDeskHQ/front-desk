@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev",
+    "dev:wrangler": "wrangler dev",
+    "dev:wrangler:local": "wrangler dev --local",
     "build": "vite build && tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
