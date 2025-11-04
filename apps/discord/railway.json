@@ -6,7 +6,7 @@
     "watchPatterns": ["apps/api/**", "packages/schemas/**", "packages/ui/**"]
   },
   "deploy": {
-    "startCommand": "pnpm start -F discord",
+    "startCommand": "pnpm --filter discord start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
