@@ -33,7 +33,11 @@ export function getRouter() {
         // Get org name (subdomain)
         const suffix = `.${matchedDomain}`;
         const subdomain = hostname.slice(0, hostname.length - suffix.length);
-        if (!subdomain || subdomain in IGNORED_HOSTNAMES) return undefined;
+        if (!subdomain || IGNORED_HOSTNAMES.includes(subdomain))
+          return undefined;
+        
+        // Validate subdomain format (alphanumeric and hyphens only)
+        if (!/^[a-z0-9-]+$/i.test(subdomain)) return undefined;
 
         // Rewrite URL
         url.hostname = matchedDomain;
