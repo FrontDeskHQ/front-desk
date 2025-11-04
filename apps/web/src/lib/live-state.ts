@@ -7,7 +7,8 @@ import { schema } from "api/schema";
 import { authClient } from "./auth-client";
 
 const { client, store } = createClient<Router>({
-  url: process.env.VITE_LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
+  url:
+    import.meta.env.VITE_LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
   schema,
   credentials: async () => ({
     token: (await authClient.oneTimeToken.generate()).data?.token ?? "",
@@ -26,7 +27,8 @@ export { client, mutate, query };
 
 export const fetchClient = createFetchClient<Router>({
   // This needs to be in the same domain as the web app, since we need to share cookies
-  url: process.env.VITE_LIVE_STATE_API_URL ?? "http://localhost:3000/api/ls",
+  url:
+    import.meta.env.VITE_LIVE_STATE_API_URL ?? "http://localhost:3000/api/ls",
   schema,
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))
