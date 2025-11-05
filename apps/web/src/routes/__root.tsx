@@ -87,24 +87,6 @@ export const Route = createRootRoute({
         { rel: "manifest", href: "/site.webmanifest" },
         { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
         { rel: "apple-touch-icon", href: "/favicon.svg" },
-        {
-          rel: "alternate",
-          type: "application/rss+xml",
-          href: `${baseUrl}/rss.xml`,
-        },
-        {
-          rel: "alternate",
-          type: "application/atom+xml",
-          href: `${baseUrl}/atom.xml`,
-        },
-        { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        {
-          rel: "preconnect",
-          href: "https://fonts.gstatic.com",
-          crossOrigin: "anonymous",
-        },
-        { rel: "dns-prefetch", href: "https://fonts.googleapis.com" },
-        { rel: "dns-prefetch", href: "https://fonts.gstatic.com" },
       ],
     };
   },
