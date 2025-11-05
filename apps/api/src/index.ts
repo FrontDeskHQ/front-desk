@@ -16,7 +16,10 @@ const { app } = expressWs(express());
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(",") || "http://localhost:3000", // Allow specified origin or default to localhost:3000
+  origin: process.env.CORS_ORIGIN?.split(",") || [
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/[^.]+\.localhost(:\d+)?$/,
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // Allow cookies to be sent with requests

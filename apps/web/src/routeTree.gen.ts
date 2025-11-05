@@ -16,6 +16,7 @@ import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
+import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
@@ -69,6 +70,11 @@ const PublicIndexRoute = PublicIndexRouteImport.update({
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => AppRouteRoute,
+} as any)
+const SupportSlugIndexRoute = SupportSlugIndexRouteImport.update({
+  id: '/support/$slug/',
+  path: '/support/$slug/',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   id: '/onboarding/',
@@ -195,6 +201,7 @@ export interface FileRoutesByFullPath {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
+  '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
@@ -220,6 +227,7 @@ export interface FileRoutesByTo {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
+  '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
@@ -249,6 +257,7 @@ export interface FileRoutesById {
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
+  '/support/$slug/': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
@@ -277,6 +286,7 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding'
+    | '/support/$slug'
     | '/support/$slug/threads/$id'
     | '/app/'
     | '/app/settings/'
@@ -302,6 +312,7 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding'
+    | '/support/$slug'
     | '/support/$slug/threads/$id'
     | '/app/settings'
     | '/support/$slug/threads'
@@ -330,6 +341,7 @@ export interface FileRouteTypes {
     | '/app/invitation/$id'
     | '/app/onboarding/new'
     | '/app/onboarding/'
+    | '/support/$slug/'
     | '/support/$slug/threads/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
@@ -351,6 +363,7 @@ export interface RootRouteChildren {
   NowAllowedRoute: typeof NowAllowedRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  SupportSlugIndexRoute: typeof SupportSlugIndexRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
   SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
 }
@@ -405,6 +418,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app'
       preLoaderRoute: typeof AppWorkspaceRouteRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/support/$slug/': {
+      id: '/support/$slug/'
+      path: '/support/$slug'
+      fullPath: '/support/$slug'
+      preLoaderRoute: typeof SupportSlugIndexRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/onboarding/': {
       id: '/app/onboarding/'
@@ -653,6 +673,7 @@ const rootRouteChildren: RootRouteChildren = {
   NowAllowedRoute: NowAllowedRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  SupportSlugIndexRoute: SupportSlugIndexRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
   SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
 }

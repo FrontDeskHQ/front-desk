@@ -11,37 +11,50 @@ export function getRouter() {
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
     scrollRestoration: true,
-    // Rewrite incoming URLs so that subdomains for orgs become path segments
-    // e.g. acme-inc.tryfrontdesk.app -> tryfrontdesk.app/support/acme-inc/threads
     rewrite: {
+      // Rewrite incoming URLs so that subdomains for orgs become path segments
+      // e.g. acme-inc.tryfrontdesk.app -> tryfrontdesk.app/support/acme-inc/threads
       input: ({ url }) => {
-        const ALLOWED_DOMAINS = ["tryfrontdesk.app", "localhost"];
-        const IGNORED_HOSTNAMES = ["www", "api", "app"];
-
-        // Check if hostname matches our allowed domains
         const hostname = url.hostname;
-        if (!hostname) return undefined;
-        let matchedDomain: string | undefined;
-        for (const d of ALLOWED_DOMAINS) {
-          if (hostname.endsWith(`.${d}`)) {
-            matchedDomain = d;
-            break;
-          }
-        }
-        if (!matchedDomain) return undefined;
 
-        // Get org name (subdomain)
-        const suffix = `.${matchedDomain}`;
-        const subdomain = hostname.slice(0, hostname.length - suffix.length);
-        if (!subdomain || IGNORED_HOSTNAMES.includes(subdomain))
+        const hasSubdomain = hostname.includes(".");
+        const isFile = url.pathname.includes(".");
+        if (!hasSubdomain || isFile) {
           return undefined;
-        
-        // Validate subdomain format (alphanumeric and hyphens only)
-        if (!/^[a-z0-9-]+$/i.test(subdomain)) return undefined;
+        }
 
-        // Rewrite URL
-        url.hostname = matchedDomain;
-        url.pathname = `/support/${subdomain}/threads`;
+        const baseUrl = new URL(
+          import.meta.env.VITE_AUTH_SERVER_BASE_URL ?? "http://localhost:3000",
+        );
+        const baseHostname = baseUrl.hostname;
+
+        const suffix = `.${baseHostname}`;
+        const subdomain = hostname.slice(0, hostname.length - suffix.length);
+
+        url.hostname = baseHostname;
+        url.pathname = `/support/${subdomain}${url.pathname}`;
+
+        return url;
+      },
+      output: ({ url }) => {
+        // Rewrite outgoing URLs so that path segments for orgs become subdomains
+        // e.g. tryfrontdesk.app/support/acme-inc/threads -> acme-inc.tryfrontdesk.app
+        // e.g. tryfrontdesk.app/support/acme-inc/threads/01k98em74mj13jzafk4efs8pj8 -> acme-inc.tryfrontdesk.app/threads/01k98em74mj13jzafk4efs8pj8
+        const pathMatch = url.pathname.match(/^\/support\/([^/]+)\/(.+)$/);
+        if (!pathMatch) {
+          return undefined;
+        }
+
+        const subdomain = pathMatch[1];
+        const restOfPath = pathMatch[2];
+
+        const baseUrl = new URL(
+          import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
+        );
+        const baseHostname = baseUrl.hostname;
+
+        url.hostname = `${subdomain}.${baseHostname}`;
+        url.pathname = `/${restOfPath}`;
 
         return url;
       },
