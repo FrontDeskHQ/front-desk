@@ -4,6 +4,11 @@ import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
 import { NotFound } from "./components/NotFound";
 import { routeTree } from "./routeTree.gen";
 
+const baseUrl = new URL(
+  import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
+);
+const baseHostname = baseUrl.hostname;
+
 export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
@@ -17,19 +22,9 @@ export function getRouter() {
       input: ({ url }) => {
         const hostname = url.hostname;
 
-        const hasSubdomain = hostname.includes(".");
-        const isFile = url.pathname.includes(".");
-        if (!hasSubdomain || isFile) {
-          return undefined;
-        }
-
-        const baseUrl = new URL(
-          import.meta.env.VITE_AUTH_SERVER_BASE_URL ?? "http://localhost:3000",
-        );
-        const baseHostname = baseUrl.hostname;
-
-        const suffix = `.${baseHostname}`;
-        const subdomain = hostname.slice(0, hostname.length - suffix.length);
+        const suffixRegex = new RegExp(`\\.?${baseHostname}$`);
+        const subdomain = hostname.replace(suffixRegex, "");
+        if (!subdomain) return undefined;
 
         url.hostname = baseHostname;
         url.pathname = `/support/${subdomain}${url.pathname}`;
@@ -41,17 +36,10 @@ export function getRouter() {
         // e.g. tryfrontdesk.app/support/acme-inc/threads -> acme-inc.tryfrontdesk.app
         // e.g. tryfrontdesk.app/support/acme-inc/threads/01k98em74mj13jzafk4efs8pj8 -> acme-inc.tryfrontdesk.app/threads/01k98em74mj13jzafk4efs8pj8
         const pathMatch = url.pathname.match(/^\/support\/([^/]+)\/(.+)$/);
-        if (!pathMatch) {
-          return undefined;
-        }
+        if (!pathMatch) return undefined;
 
         const subdomain = pathMatch[1];
         const restOfPath = pathMatch[2];
-
-        const baseUrl = new URL(
-          import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
-        );
-        const baseHostname = baseUrl.hostname;
 
         url.hostname = `${subdomain}.${baseHostname}`;
         url.pathname = `/${restOfPath}`;
