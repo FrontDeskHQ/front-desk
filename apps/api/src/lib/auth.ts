@@ -21,6 +21,14 @@ export const auth = betterAuth({
         }
       : {}),
     useSecureCookies: true,
+    cookies: {
+      session_token: {
+        attributes: {
+          sameSite: "None",
+          secure: true,
+        },
+      },
+    },
   },
   emailAndPassword: {
     enabled: !useSocialProvider,
