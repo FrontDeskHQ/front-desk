@@ -4,6 +4,11 @@ import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
 import { NotFound } from "./components/NotFound";
 import { routeTree } from "./routeTree.gen";
 
+const baseUrl = new URL(
+  import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
+);
+const baseHostname = baseUrl.hostname;
+
 export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
@@ -11,6 +16,37 @@ export function getRouter() {
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
     scrollRestoration: true,
+    rewrite: {
+      // Rewrite incoming URLs so that subdomains for orgs become path segments
+      // e.g. acme-inc.tryfrontdesk.app -> tryfrontdesk.app/support/acme-inc/threads
+      input: ({ url }) => {
+        const hostname = url.hostname;
+
+        const suffixRegex = new RegExp(`\\.?${baseHostname}$`);
+        const subdomain = hostname.replace(suffixRegex, "");
+        if (!subdomain) return undefined;
+
+        url.hostname = baseHostname;
+        url.pathname = `/support/${subdomain}${url.pathname}`;
+
+        return url;
+      },
+      output: ({ url }) => {
+        // Rewrite outgoing URLs so that path segments for orgs become subdomains
+        // e.g. tryfrontdesk.app/support/acme-inc/threads -> acme-inc.tryfrontdesk.app
+        // e.g. tryfrontdesk.app/support/acme-inc/threads/01k98em74mj13jzafk4efs8pj8 -> acme-inc.tryfrontdesk.app/threads/01k98em74mj13jzafk4efs8pj8
+        const pathMatch = url.pathname.match(/^\/support\/([^/]+)\/(.+)$/);
+        if (!pathMatch) return undefined;
+
+        const subdomain = pathMatch[1];
+        const restOfPath = pathMatch[2];
+
+        url.hostname = `${subdomain}.${baseHostname}`;
+        url.pathname = `/${restOfPath}`;
+
+        return url;
+      },
+    },
     stringifySearch: (search) => {
       const searchStr = qs.stringify(search, { arrayFormat: "brackets" });
       return searchStr ? `?${searchStr}` : "";

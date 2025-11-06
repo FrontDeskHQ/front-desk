@@ -22,17 +22,7 @@ export const router = createRouter({
   routes: {
     organization: publicRoute
       .collectionRoute(schema.organization, {
-        read: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          };
-        },
+        read: () => true,
         insert: () => false,
         update: {
           preMutation: ({ ctx }) => {

@@ -148,10 +148,10 @@ function RouteComponent() {
                         <Avatar
                           variant="user"
                           size="md"
-                          fallback={message.author.name}
+                          fallback={message.author?.name}
                         />
                         {/* TODO update when live-state supports deep includes */}
-                        <p>{message.author.name}</p>
+                        <p>{message.author?.name}</p>
                         <p className="text-muted-foreground">
                           {formatRelativeTime(message.createdAt as Date)}
                         </p>
