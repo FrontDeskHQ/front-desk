@@ -33,4 +33,7 @@ export const fetchClient = createFetchClient<Router>({
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))
     .client(() => ({})),
+  fetchOptions: {
+    credentials: "include",
+  },
 });
