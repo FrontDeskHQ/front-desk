@@ -1,4 +1,4 @@
-import { Link, useRouter } from "@tanstack/react-router";
+import { Link } from "@tanstack/react-router";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,17 +16,17 @@ import {
 import { useAtom } from "jotai/react";
 import { ChevronDown, Command } from "lucide-react";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { authClient } from "~/lib/auth-client";
+import { useLogout } from "~/lib/hooks/auth";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 
 export function OrgSwitcher() {
-  const router = useRouter();
-
   const { organizationUsers } = useOrganizationSwitcher();
 
   const [activeOrganization, setActiveOrganization] = useAtom(
     activeOrganizationAtom,
   );
+
+  const logout = useLogout();
 
   return (
     <SidebarMenu>
@@ -97,20 +97,7 @@ export function OrgSwitcher() {
             <DropdownMenuItem className="gap-2 p-2" asChild>
               <Link to="/app/settings">Settings</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem
-              className="gap-2 p-2"
-              onClick={() =>
-                authClient.signOut({
-                  fetchOptions: {
-                    onSuccess: () => {
-                      router.navigate({
-                        to: "/",
-                      });
-                    },
-                  },
-                })
-              }
-            >
+            <DropdownMenuItem className="gap-2 p-2" onClick={logout}>
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>

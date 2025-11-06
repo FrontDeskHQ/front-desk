@@ -6,7 +6,7 @@ import { client, fetchClient } from "~/lib/live-state";
 import type { GetAuthUserResponse } from "~/lib/server-funcs/get-auth-user";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
 
-type WindowWithCachedSession = Window & {
+export type WindowWithCachedSession = Window & {
   cachedSession?: GetAuthUserResponse;
 };
 

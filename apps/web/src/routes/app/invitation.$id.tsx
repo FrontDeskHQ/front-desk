@@ -7,7 +7,7 @@ import { Spinner } from "@workspace/ui/components/spinner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowLeft } from "lucide-react";
 import { useTransition } from "react";
-import { authClient } from "~/lib/auth-client";
+import { useLogout } from "~/lib/hooks/auth";
 import { fetchClient } from "~/lib/live-state";
 import { getInvitation } from "~/lib/server-funcs/invitations";
 
@@ -29,6 +29,7 @@ function RouteComponent() {
   const { user } = Route.useRouteContext();
   const navigate = useNavigate();
   const [isPending, startTransition] = useTransition();
+  const logout = useLogout();
 
   return (
     <div className="flex flex-col gap-4 w-full max-w-xl items-center justify-center mx-auto p-8">
@@ -124,16 +125,7 @@ function RouteComponent() {
                   </Link>
                 </Button>
                 {error === "INVALID_USER" && (
-                  <Button
-                    variant="link"
-                    onClick={() =>
-                      authClient.signOut({
-                        fetchOptions: {
-                          onSuccess: () => navigate({ to: "/" }),
-                        },
-                      })
-                    }
-                  >
+                  <Button variant="link" onClick={logout}>
                     Logout
                   </Button>
                 )}

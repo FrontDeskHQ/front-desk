@@ -6,7 +6,7 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient } from "~/lib/live-state";
 
-type WindowWithCachedOrgUsers = Window & {
+export type WindowWithCachedOrgUsers = Window & {
   cachedOrgUsers?: {
     organizationUsers: InferLiveObject<
       (typeof schema)["organizationUser"],
