@@ -10,7 +10,9 @@ export const auth = betterAuth({
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
   }),
-  trustedOrigins: [process.env.CORS_ORIGIN ?? "http://localhost:3000"],
+  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [
+    "http://localhost:3000",
+  ],
   advanced: {
     ...(process.env.BASE_COOKIE_DOMAIN
       ? {
