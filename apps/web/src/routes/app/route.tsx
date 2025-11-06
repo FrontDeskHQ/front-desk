@@ -1,14 +1,29 @@
 import { SubscriptionProvider } from "@live-state/sync/client";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { Card } from "@workspace/ui/components/card";
 import { useEffect } from "react";
 import { client, fetchClient } from "~/lib/live-state";
+import type { GetAuthUserResponse } from "~/lib/server-funcs/get-auth-user";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
+
+type WindowWithCachedSession = Window & {
+  cachedSession?: GetAuthUserResponse;
+};
 
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
-    const user = await getAuthUser();
+    let sessionData =
+      typeof window !== "undefined"
+        ? (window as WindowWithCachedSession).cachedSession
+        : undefined;
 
-    if (!user) {
+    if (sessionData) {
+      return sessionData;
+    }
+
+    sessionData = await getAuthUser();
+
+    if (!sessionData) {
       throw redirect({
         to: "/",
       });
@@ -16,7 +31,7 @@ export const Route = createFileRoute("/app")({
 
     const allowlist = await fetchClient.query.allowlist
       .first({
-        email: user.user.email,
+        email: sessionData.user.email,
       })
       .get();
 
@@ -26,9 +41,18 @@ export const Route = createFileRoute("/app")({
       });
     }
 
-    return user;
+    if (typeof window !== "undefined") {
+      (window as WindowWithCachedSession).cachedSession = sessionData;
+    }
+
+    return sessionData;
   },
   component: App,
+  ssr: "data-only",
+  wrapInSuspense: true,
+  pendingComponent: PendingComponent,
+  pendingMinMs: 200,
+  pendingMs: 50,
 });
 
 function App() {
@@ -44,5 +68,13 @@ function App() {
     <SubscriptionProvider client={client}>
       <Outlet />
     </SubscriptionProvider>
+  );
+}
+
+function PendingComponent() {
+  return (
+    <div className="w-screen h-screen flex p-2 pl-[16rem]">
+      <Card className="flex-1 bg-muted/30" />
+    </div>
   );
 }
