@@ -6,21 +6,21 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient } from "~/lib/live-state";
 
+type WindowWithCachedOrgUsers = Window & {
+  cachedOrgUsers?: {
+    organizationUsers: InferLiveObject<
+      (typeof schema)["organizationUser"],
+      { organization: true }
+    >[];
+  };
+};
 export const Route = createFileRoute("/app/_workspace")({
   component: RouteComponent,
   beforeLoad: async ({ context }) => {
-    let orgUsers = (
-      window as
-        | {
-            cachedOrgUsers?: {
-              organizationUsers: InferLiveObject<
-                (typeof schema)["organizationUser"],
-                { organization: true }
-              >[];
-            };
-          }
-        | undefined
-    )?.cachedOrgUsers;
+    let orgUsers =
+      typeof window !== "undefined"
+        ? (window as WindowWithCachedOrgUsers).cachedOrgUsers
+        : undefined;
 
     if (orgUsers) {
       return orgUsers;
@@ -50,16 +50,7 @@ export const Route = createFileRoute("/app/_workspace")({
     }
 
     if (typeof window !== "undefined") {
-      (
-        window as {
-          cachedOrgUsers?: {
-            organizationUsers: InferLiveObject<
-              (typeof schema)["organizationUser"],
-              { organization: true }
-            >[];
-          };
-        }
-      ).cachedOrgUsers = orgUsers;
+      (window as WindowWithCachedOrgUsers).cachedOrgUsers = orgUsers;
     }
 
     return orgUsers;

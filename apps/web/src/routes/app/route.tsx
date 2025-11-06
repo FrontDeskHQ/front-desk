@@ -6,11 +6,16 @@ import { client, fetchClient } from "~/lib/live-state";
 import type { GetAuthUserResponse } from "~/lib/server-funcs/get-auth-user";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
 
+type WindowWithCachedSession = Window & {
+  cachedSession?: GetAuthUserResponse;
+};
+
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
-    let sessionData = (
-      window as { cachedSession?: GetAuthUserResponse } | undefined
-    )?.cachedSession;
+    let sessionData =
+      typeof window !== "undefined"
+        ? (window as WindowWithCachedSession).cachedSession
+        : undefined;
 
     if (sessionData) {
       return sessionData;
@@ -37,8 +42,7 @@ export const Route = createFileRoute("/app")({
     }
 
     if (typeof window !== "undefined") {
-      (window as { cachedSession?: GetAuthUserResponse }).cachedSession =
-        sessionData;
+      (window as WindowWithCachedSession).cachedSession = sessionData;
     }
 
     return sessionData;
@@ -47,8 +51,8 @@ export const Route = createFileRoute("/app")({
   ssr: "data-only",
   wrapInSuspense: true,
   pendingComponent: PendingComponent,
-  pendingMinMs: 50,
-  pendingMs: 1,
+  pendingMinMs: 200,
+  pendingMs: 50,
 });
 
 function App() {
