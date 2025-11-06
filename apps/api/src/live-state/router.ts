@@ -413,7 +413,20 @@ export const router = createRouter({
       })),
     integration: privateRoute.collectionRoute(schema.integration, {
       read: () => true,
-      insert: () => false,
+      insert: ({ ctx }) => {
+        if (ctx?.apiKey) return true;
+        if (!ctx?.session) return false;
+
+        return {
+          organization: {
+            organizationUsers: {
+              userId: ctx.session.userId,
+              enabled: true,
+              role: "owner",
+            },
+          },
+        };
+      },
       update: {
         preMutation: ({ ctx }) => {
           if (ctx?.apiKey) return true;
