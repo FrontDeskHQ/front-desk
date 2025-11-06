@@ -6,15 +6,17 @@ import { client, fetchClient } from "~/lib/live-state";
 import type { GetAuthUserResponse } from "~/lib/server-funcs/get-auth-user";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
 
-let cachedSession: GetAuthUserResponse | null = null;
-
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
-    if (cachedSession) {
-      return cachedSession;
+    let sessionData = (
+      window as { cachedSession?: GetAuthUserResponse } | undefined
+    )?.cachedSession;
+
+    if (sessionData) {
+      return sessionData;
     }
 
-    const sessionData = await getAuthUser();
+    sessionData = await getAuthUser();
 
     if (!sessionData) {
       throw redirect({
@@ -34,7 +36,10 @@ export const Route = createFileRoute("/app")({
       });
     }
 
-    cachedSession = sessionData;
+    if (typeof window !== "undefined") {
+      (window as { cachedSession?: GetAuthUserResponse }).cachedSession =
+        sessionData;
+    }
 
     return sessionData;
   },

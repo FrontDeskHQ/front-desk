@@ -1,48 +1,68 @@
-import { InferLiveObject } from "@live-state/sync";
+import type { InferLiveObject } from "@live-state/sync";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { schema } from "api/schema";
+import type { schema } from "api/schema";
 import { useAtom } from "jotai/react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient } from "~/lib/live-state";
 
-let cachedOrgUsers: {
-  organizationUsers: InferLiveObject<
-    (typeof schema)["organizationUser"],
-    { organization: true }
-  >[];
-} | null = null;
-
 export const Route = createFileRoute("/app/_workspace")({
   component: RouteComponent,
   beforeLoad: async ({ context }) => {
-    if (cachedOrgUsers) {
-      return cachedOrgUsers;
+    let orgUsers = (
+      window as
+        | {
+            cachedOrgUsers?: {
+              organizationUsers: InferLiveObject<
+                (typeof schema)["organizationUser"],
+                { organization: true }
+              >[];
+            };
+          }
+        | undefined
+    )?.cachedOrgUsers;
+
+    if (orgUsers) {
+      return orgUsers;
     }
 
     const user = context.user;
 
-    const orgUsers = await fetchClient.query.organizationUser
-      .where({
-        userId: user.id,
-      })
-      .include({
-        organization: true,
-      })
-      .get()
-      .catch(() => null);
+    orgUsers = {
+      organizationUsers: await fetchClient.query.organizationUser
+        .where({
+          userId: user.id,
+        })
+        .include({
+          organization: true,
+        })
+        .get()
+        .catch(() => []),
+    };
 
-    if (!orgUsers || Object.keys(orgUsers).length === 0) {
+    if (
+      !orgUsers.organizationUsers ||
+      orgUsers.organizationUsers.length === 0
+    ) {
       throw redirect({
         to: "/app/onboarding",
       });
     }
 
-    cachedOrgUsers = {
-      organizationUsers: orgUsers,
-    };
+    if (typeof window !== "undefined") {
+      (
+        window as {
+          cachedOrgUsers?: {
+            organizationUsers: InferLiveObject<
+              (typeof schema)["organizationUser"],
+              { organization: true }
+            >[];
+          };
+        }
+      ).cachedOrgUsers = orgUsers;
+    }
 
-    return cachedOrgUsers;
+    return orgUsers;
   },
 });
 
