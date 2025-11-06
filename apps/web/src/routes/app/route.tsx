@@ -42,7 +42,7 @@ export const Route = createFileRoute("/app")({
   ssr: "data-only",
   wrapInSuspense: true,
   pendingComponent: PendingComponent,
-  pendingMinMs: 100,
+  pendingMinMs: 50,
   pendingMs: 1,
 });
 
