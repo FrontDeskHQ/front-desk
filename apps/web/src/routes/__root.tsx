@@ -22,14 +22,14 @@ const getBaseUrl = createIsomorphicFn()
       const url = getRequestUrl();
       return `${url.protocol}//${url.host}`;
     } catch {
-      return process.env.BASE_URL ?? "https://frontdesk.ai";
+      return process.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
     }
   })
   .client(() => {
     if (typeof window !== "undefined") {
       return `${window.location.protocol}//${window.location.host}`;
     }
-    return "https://frontdesk.ai";
+    return "https://tryfrontdesk.app";
   });
 
 const getCurrentUrl = createIsomorphicFn()
@@ -38,14 +38,14 @@ const getCurrentUrl = createIsomorphicFn()
       const url = getRequestUrl();
       return url.toString();
     } catch {
-      return process.env.BASE_URL ?? "https://frontdesk.ai";
+      return process.env.BASE_URL ?? "https://tryfrontdesk.app";
     }
   })
   .client(() => {
     if (typeof window !== "undefined") {
       return window.location.href;
     }
-    return "https://frontdesk.ai";
+    return "https://tryfrontdesk.app";
   });
 
 export const Route = createRootRoute({
@@ -55,7 +55,6 @@ export const Route = createRootRoute({
     const description =
       "The all in one customer support platform. Making good customer support extremely easy.";
 
-    // Ensure OG image URL is absolute
     const ogImageUrl = ogImage.startsWith("http")
       ? ogImage
       : `${baseUrl}${ogImage.startsWith("/") ? ogImage : `/${ogImage}`}`;
