@@ -22,7 +22,7 @@ const getBaseUrl = createIsomorphicFn()
       const url = getRequestUrl();
       return `${url.protocol}//${url.host}`;
     } catch {
-      return process.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
+      return import.meta.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
     }
   })
   .client(() => {
@@ -38,7 +38,7 @@ const getCurrentUrl = createIsomorphicFn()
       const url = getRequestUrl();
       return url.toString();
     } catch {
-      return process.env.BASE_URL ?? "https://tryfrontdesk.app";
+      return import.meta.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
     }
   })
   .client(() => {
