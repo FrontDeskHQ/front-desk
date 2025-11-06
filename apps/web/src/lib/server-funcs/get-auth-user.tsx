@@ -13,3 +13,5 @@ export const getAuthUser = createServerFn({
 
   return res.data;
 });
+
+export type GetAuthUserResponse = Awaited<ReturnType<typeof getAuthUser>>;

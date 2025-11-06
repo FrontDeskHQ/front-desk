@@ -1,12 +1,25 @@
+import { InferLiveObject } from "@live-state/sync";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { schema } from "api/schema";
 import { useAtom } from "jotai/react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient } from "~/lib/live-state";
 
+let cachedOrgUsers: {
+  organizationUsers: InferLiveObject<
+    (typeof schema)["organizationUser"],
+    { organization: true }
+  >[];
+} | null = null;
+
 export const Route = createFileRoute("/app/_workspace")({
   component: RouteComponent,
   beforeLoad: async ({ context }) => {
+    if (cachedOrgUsers) {
+      return cachedOrgUsers;
+    }
+
     const user = context.user;
 
     const orgUsers = await fetchClient.query.organizationUser
@@ -25,9 +38,11 @@ export const Route = createFileRoute("/app/_workspace")({
       });
     }
 
-    return {
+    cachedOrgUsers = {
       organizationUsers: orgUsers,
     };
+
+    return cachedOrgUsers;
   },
 });
 
@@ -39,9 +54,7 @@ function RouteComponent() {
   );
 
   if (!activeOrganization) {
-    setActiveOrganization(
-      (Object.values(organizationUsers)[0] as any)?.organization,
-    );
+    setActiveOrganization(organizationUsers[0]?.organization);
   }
 
   return <Outlet />;
