@@ -150,7 +150,7 @@ const integrationRelations = createRelations(integration, ({ one }) => ({
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
-  email: string(),
+  email: string().unique().index(),
 });
 
 export const schema = createSchema({

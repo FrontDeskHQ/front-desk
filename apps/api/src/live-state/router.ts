@@ -384,6 +384,17 @@ export const router = createRouter({
               });
             });
 
+            if (req.context?.user?.email) {
+              try {
+                await db.insert(schema.allowlist, {
+                  id: ulid().toLowerCase(),
+                  email: req.context.user.email.toLowerCase(),
+                });
+              } catch {
+                // Silently ignore errors (e.g., duplicate email)
+              }
+            }
+
             return {
               success: true,
             };
