@@ -118,7 +118,6 @@ function RouteComponent() {
                     !message.origin && "border-[#2662D9]/20",
                   )}
                 >
-                  {/* TODO: update the way it's checking if it's an message from the current user */}
                   <CardHeader
                     size="sm"
                     className={cn(
@@ -127,13 +126,11 @@ function RouteComponent() {
                     )}
                   >
                     <CardTitle>
-                      {/* TODO update when live-state supports deep includes */}
                       <Avatar
                         variant="user"
                         size="md"
                         fallback={message.author.name}
                       />
-                      {/* TODO update when live-state supports deep includes */}
                       <p>{message.author.name}</p>
                       <p className="text-muted-foreground">
                         {formatRelativeTime(message.createdAt as Date)}

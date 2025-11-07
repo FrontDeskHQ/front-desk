@@ -71,8 +71,6 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       throw notFound();
     }
 
-    // TODO Deep include thread messages and assigned user when live-state supports it
-    // TODO reverse sort messages by createdAt
     const threads = await fetchClient.query.thread
       .where({
         organizationId: organization.id,
@@ -278,8 +276,6 @@ function RouteComponent() {
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
-                    {/* TODO update when live-state supports deep includes */}
-                    {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
                     {
                       (thread as any)?.messages?.[
                         (thread as any)?.messages?.length - 1
