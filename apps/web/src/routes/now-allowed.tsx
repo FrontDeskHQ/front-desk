@@ -1,13 +1,13 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
-import { authClient } from "~/lib/auth-client";
+import { useLogout } from "~/lib/hooks/auth";
 
 export const Route = createFileRoute("/now-allowed")({
   component: RouteComponent,
 });
 
 function RouteComponent() {
-  const navigate = useNavigate();
+  const logout = useLogout();
   return (
     <div className="flex flex-col items-center justify-center h-screen w-full gap-2">
       Your email is not on the allowlist for the beta.
@@ -19,18 +19,7 @@ function RouteComponent() {
         </Link>
         .
       </span>
-      <Button
-        variant="outline"
-        onClick={() =>
-          authClient.signOut({
-            fetchOptions: {
-              onSuccess: () => {
-                navigate({ to: "/" });
-              },
-            },
-          })
-        }
-      >
+      <Button variant="outline" onClick={logout}>
         Log out
       </Button>
     </div>
