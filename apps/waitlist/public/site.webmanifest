@@ -1,8 +1,0 @@
-{
-  "name": "FrontDesk",
-  "short_name": "FrontDesk",
-  "icons": [],
-  "theme_color": "#ffffff",
-  "background_color": "#ffffff",
-  "display": "standalone"
-}
