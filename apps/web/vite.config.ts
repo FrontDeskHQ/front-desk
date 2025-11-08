@@ -16,6 +16,10 @@ export default defineConfig({
         rewriteWsOrigin: true,
       },
     },
+    cors: {
+      origin: [/^http:\/\/([^.]+\.)?localhost(:\d+)?$/],
+      credentials: true,
+    },
   },
   plugins: [
     tsConfigPaths({

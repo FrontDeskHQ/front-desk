@@ -21,8 +21,7 @@ const corsOptions = {
     const escaped = origin.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     return new RegExp(`^https?://${escaped}(:\\d+)?$`);
   }) || [
-    /^http:\/\/localhost(:\d+)?$/,
-    /^http:\/\/[^.]+\.localhost(:\d+)?$/,
+    /^http:\/\/([^.]+\.)?localhost(:\d+)?$/,
     /^https:\/\/([^.]+\.)?tryfrontdesk\.app$/,
   ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
