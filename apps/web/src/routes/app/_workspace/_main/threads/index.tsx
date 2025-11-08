@@ -135,11 +135,9 @@ function RouteComponent() {
   const [orderBy, setOrderBy] = useState<string>("createdAt");
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
 
-  // TODO Deep include thread messages and assigned user when live-state supports it
-  // TODO reverse sort messages by createdAt
   const threads = useLiveQuery(
     threadsQuery
-      .include({ messages: true, author: true, assignedUser: true })
+      .include({ messages: { author: true }, author: true, assignedUser: true })
       .orderBy(
         orderBy as keyof InferLiveObject<typeof schema.thread>,
         orderDirection,
@@ -268,9 +266,11 @@ function RouteComponent() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">
                 <span className="font-medium">
-                  {/* TODO update when live-state supports deep includes */}
-                  {/* {thread?.messages?.[thread?.messages?.length - 1]?.author?.name} */}
-                  Author:&nbsp;
+                  {
+                    thread?.messages?.[thread?.messages?.length - 1]?.author
+                      ?.name
+                  }
+                  :&nbsp;
                 </span>
                 <span className="truncate">
                   {getFirstTextContent(
