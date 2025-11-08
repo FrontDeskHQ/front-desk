@@ -6,9 +6,9 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
-import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { Providers } from "~/components/providers";
@@ -104,9 +104,7 @@ export const Route = createRootRoute({
 function RootComponent() {
   return (
     <RootDocument>
-      <NuqsAdapter>
-        <Outlet />
-      </NuqsAdapter>
+      <Outlet />
     </RootDocument>
   );
 }
@@ -120,7 +118,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="w-full min-h-screen text-sm">
         <Providers>
           {children}
-          {/* <TanStackRouterDevtools position="bottom-right" /> */}
+          <TanStackRouterDevtools position="bottom-right" />
         </Providers>
         <Scripts />
       </body>

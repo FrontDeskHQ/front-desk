@@ -9,7 +9,6 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -82,11 +81,12 @@ function RouteComponent() {
           </Logo>
         </Navbar.Group>
         <Navbar.Group>
-          <Button size="sm" externalLink asChild>
+          {/* TODO - FRO-80 Add social links when we have them */}
+          {/* <Button size="sm" externalLink asChild>
             <a href={integrationPaths.discord} target="_blank" rel="noreferrer">
               Join Discord
             </a>
-          </Button>
+          </Button> */}
         </Navbar.Group>
       </Navbar>
       <div className="flex flex-col flex-1 px-4 pb-4 sm:pb-8 sm:px-8">

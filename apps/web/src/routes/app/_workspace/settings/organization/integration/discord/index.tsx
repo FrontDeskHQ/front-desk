@@ -176,13 +176,13 @@ function RouteComponent() {
 
   return (
     <>
-      <Button variant="ghost" asChild className="absolute top-2 left-2">
+      <Button variant="ghost" asChild className="absolute top-2 left-1">
         <Link to="/app/settings/organization/integration">
           <ArrowLeft />
           Integrations
         </Link>
       </Button>
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 pt-12">
         <div className="flex items-center gap-2">
           {integrationDetails.icon}
           <div>

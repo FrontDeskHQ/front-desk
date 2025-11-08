@@ -37,27 +37,24 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
-import {
-  createStandardSchemaV1,
-  parseAsInteger,
-  parseAsStringEnum,
-  useQueryStates,
-} from "nuqs";
+import z from "zod";
 import { fetchClient } from "~/lib/live-state";
 
-const searchParams = {
-  page: parseAsInteger.withDefault(1),
-  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
-  dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
-};
-
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
+
+type ThreadsSearch = {
+  page?: number;
+  order?: ThreadsSearchOrderOptions;
+  dir?: "asc" | "desc";
+};
 
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: createStandardSchemaV1(searchParams, {
-    partialOutput: true,
+  validateSearch: z.object({
+    page: z.number().optional(),
+    order: z.enum(["createdAt", "updatedAt"]).optional(),
+    dir: z.enum(["asc", "desc"]).optional(),
   }),
 
   loader: async ({ params }) => {
@@ -90,10 +87,13 @@ const THREADS_PER_PAGE = 10;
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
-  const [{ page, order, dir }, setSearchParams] = useQueryStates(searchParams);
+  const navigate = Route.useNavigate();
+  const searchParams = Route.useSearch();
 
-  // TODO: Update URL to reflect real organization discord link
-  const integrationPaths = { discord: "https://discord.com/invite/acme" };
+  // Apply defaults in the component, not in validateSearch
+  const page = searchParams.page ?? 1;
+  const order = searchParams.order ?? "createdAt";
+  const dir = searchParams.dir ?? "desc";
 
   const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
     [
@@ -102,7 +102,10 @@ function RouteComponent() {
     ];
 
   const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    setSearchParams({ order: value });
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, order: value }),
+    });
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
@@ -199,15 +202,24 @@ function RouteComponent() {
             <h1 className="font-bold text-2xl sm:text-3xl truncate">
               {organization?.name}
             </h1>
-            <Button size="lg" externalLink asChild>
-              <a
-                href={integrationPaths.discord}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Join Discord
-              </a>
-            </Button>
+            {/* TODO - FRO-80 Add social links when we have them */}
+            {/* {organization.integrations.length > 0 && (
+              <Button size="lg" externalLink asChild>
+                <a
+                  href={
+                    organization.integrations.find(
+                      (integration) =>
+                        integration.type === "discord" &&
+                        integration.enabled === true,
+                    )?.configStr || "#"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Join Discord
+                </a>
+              </Button>
+            )} */}
           </div>
         </div>
         <Card className="bg-muted/30">
@@ -239,7 +251,13 @@ function RouteComponent() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        setSearchParams({ dir: dir === "asc" ? "desc" : "asc" })
+                        navigate({
+                          to: ".",
+                          search: (prev) => ({
+                            ...prev,
+                            dir: dir === "asc" ? "desc" : "asc",
+                          }),
+                        })
                       }
                       className="size-8"
                     >
@@ -307,7 +325,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage - 1 }}
+                search={(prev) => ({ ...prev, page: currentPage - 1 })}
                 disabled={currentPage === 1}
                 className={
                   buttonVariants({
@@ -340,7 +358,7 @@ function RouteComponent() {
                 <PaginationItem key={pageNum}>
                   <Link
                     to="."
-                    search={{ page: pageNum }}
+                    search={(prev) => ({ ...prev, page: pageNum })}
                     aria-current={page === pageNum ? "page" : undefined}
                     className={buttonVariants({
                       variant: page === pageNum ? "outline" : "ghost",
@@ -356,7 +374,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage + 1 }}
+                search={(prev) => ({ ...prev, page: currentPage + 1 })}
                 disabled={currentPage === numPages}
                 className={
                   buttonVariants({
