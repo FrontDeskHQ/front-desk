@@ -69,10 +69,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     const { slug } = params;
     // FIXME: Replace where by first when new version of live-state is out
     const organization = (
-      await fetchClient.query.organization
-        .where({ slug: slug })
-        .include({ integrations: true })
-        .get()
+      await fetchClient.query.organization.where({ slug: slug }).get()
     )[0];
 
     if (!organization) {
@@ -105,9 +102,6 @@ function RouteComponent() {
   const page = searchParams.page ?? 1;
   const order = searchParams.order ?? "createdAt";
   const dir = searchParams.dir ?? "desc";
-
-  // TODO: Update URL to reflect real organization discord link
-  const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
   const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
     [
@@ -216,7 +210,8 @@ function RouteComponent() {
             <h1 className="font-bold text-2xl sm:text-3xl truncate">
               {organization?.name}
             </h1>
-            {organization.integrations.length > 0 && (
+            {/* TODO - FRO-80 Add social links when we have them */}
+            {/* {organization.integrations.length > 0 && (
               <Button size="lg" externalLink asChild>
                 <a
                   href={
@@ -232,7 +227,7 @@ function RouteComponent() {
                   Join Discord
                 </a>
               </Button>
-            )}
+            )} */}
           </div>
         </div>
         <Card className="bg-muted/30">
