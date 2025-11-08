@@ -16,9 +16,15 @@ const { app } = expressWs(express());
 
 // CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(",")?.map(
-    (origin) => new RegExp(origin)
-  ) || [/^http:\/\/localhost(:\d+)?$/, /^http:\/\/[^.]+\.localhost(:\d+)?$/],
+  origin: process.env.CORS_ORIGIN?.split(",")?.map((origin) => {
+    // Escape special regex characters and convert to regex pattern
+    const escaped = origin.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return new RegExp(`^https?://${escaped}(:\\d+)?$`);
+  }) || [
+    /^http:\/\/localhost(:\d+)?$/,
+    /^http:\/\/[^.]+\.localhost(:\d+)?$/,
+    /^https:\/\/([^.]+\.)?tryfrontdesk\.app$/,
+  ],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // Allow cookies to be sent with requests
