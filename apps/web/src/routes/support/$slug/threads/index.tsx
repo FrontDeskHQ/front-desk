@@ -37,6 +37,7 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
+import z from "zod";
 import { fetchClient } from "~/lib/live-state";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
@@ -50,20 +51,11 @@ type ThreadsSearch = {
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: (search): ThreadsSearch => {
-    return {
-      page:
-        typeof search.page === "number" && search.page > 0
-          ? search.page
-          : undefined,
-      order:
-        search.order === "createdAt" || search.order === "updatedAt"
-          ? search.order
-          : undefined,
-      dir:
-        search.dir === "asc" || search.dir === "desc" ? search.dir : undefined,
-    };
-  },
+  validateSearch: z.object({
+    page: z.number().optional(),
+    order: z.enum(["createdAt", "updatedAt"]).optional(),
+    dir: z.enum(["asc", "desc"]).optional(),
+  }),
 
   loader: async ({ params }) => {
     const { slug } = params;
