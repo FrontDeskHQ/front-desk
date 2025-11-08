@@ -37,28 +37,33 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
-import {
-  createStandardSchemaV1,
-  parseAsInteger,
-  parseAsStringEnum,
-  useQueryStates,
-} from "nuqs";
 import { fetchClient } from "~/lib/live-state";
 
-const searchParams = {
-  page: parseAsInteger.withDefault(1),
-  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
-  dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
-};
-
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
+
+type ThreadsSearch = {
+  page?: number;
+  order?: ThreadsSearchOrderOptions;
+  dir?: "asc" | "desc";
+};
 
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: createStandardSchemaV1(searchParams, {
-    partialOutput: true,
-  }),
+  validateSearch: (search): ThreadsSearch => {
+    return {
+      page:
+        typeof search.page === "number" && search.page > 0
+          ? search.page
+          : undefined,
+      order:
+        search.order === "createdAt" || search.order === "updatedAt"
+          ? search.order
+          : undefined,
+      dir:
+        search.dir === "asc" || search.dir === "desc" ? search.dir : undefined,
+    };
+  },
 
   loader: async ({ params }) => {
     const { slug } = params;
@@ -93,7 +98,13 @@ const THREADS_PER_PAGE = 10;
 function RouteComponent() {
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
-  const [{ page, order, dir }, setSearchParams] = useQueryStates(searchParams);
+  const navigate = Route.useNavigate();
+  const searchParams = Route.useSearch();
+
+  // Apply defaults in the component, not in validateSearch
+  const page = searchParams.page ?? 1;
+  const order = searchParams.order ?? "createdAt";
+  const dir = searchParams.dir ?? "desc";
 
   // TODO: Update URL to reflect real organization discord link
   const integrationPaths = { discord: "https://discord.com/invite/acme" };
@@ -105,7 +116,10 @@ function RouteComponent() {
     ];
 
   const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    setSearchParams({ order: value });
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, order: value }),
+    });
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
@@ -250,7 +264,13 @@ function RouteComponent() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        setSearchParams({ dir: dir === "asc" ? "desc" : "asc" })
+                        navigate({
+                          to: ".",
+                          search: (prev) => ({
+                            ...prev,
+                            dir: dir === "asc" ? "desc" : "asc",
+                          }),
+                        })
                       }
                       className="size-8"
                     >
@@ -318,7 +338,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage - 1 }}
+                search={(prev) => ({ ...prev, page: currentPage - 1 })}
                 disabled={currentPage === 1}
                 className={
                   buttonVariants({
@@ -351,7 +371,7 @@ function RouteComponent() {
                 <PaginationItem key={pageNum}>
                   <Link
                     to="."
-                    search={{ page: pageNum }}
+                    search={(prev) => ({ ...prev, page: pageNum })}
                     aria-current={page === pageNum ? "page" : undefined}
                     className={buttonVariants({
                       variant: page === pageNum ? "outline" : "ghost",
@@ -367,7 +387,7 @@ function RouteComponent() {
             <PaginationItem>
               <Link
                 to="."
-                search={{ page: currentPage + 1 }}
+                search={(prev) => ({ ...prev, page: currentPage + 1 })}
                 disabled={currentPage === numPages}
                 className={
                   buttonVariants({
