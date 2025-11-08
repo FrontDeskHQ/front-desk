@@ -16,10 +16,9 @@ const { app } = expressWs(express());
 
 // CORS configuration
 const corsOptions = {
-  // origin: process.env.CORS_ORIGIN?.split(",")?.map(
-  //   (origin) => new RegExp(origin)
-  // ) || [/^http:\/\/localhost(:\d+)?$/, /^http:\/\/[^.]+\.localhost(:\d+)?$/],
-  origin: "*",
+  origin: process.env.CORS_ORIGIN?.split(",")?.map(
+    (origin) => new RegExp(origin)
+  ) || [/^http:\/\/localhost(:\d+)?$/, /^http:\/\/[^.]+\.localhost(:\d+)?$/],
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization"],
   credentials: true, // Allow cookies to be sent with requests
