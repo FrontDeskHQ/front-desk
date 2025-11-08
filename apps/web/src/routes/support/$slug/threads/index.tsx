@@ -64,7 +64,10 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     const { slug } = params;
     // FIXME: Replace where by first when new version of live-state is out
     const organization = (
-      await fetchClient.query.organization.where({ slug: slug }).get()
+      await fetchClient.query.organization
+        .where({ slug: slug })
+        .include({ integrations: true })
+        .get()
     )[0];
 
     if (!organization) {
@@ -199,15 +202,23 @@ function RouteComponent() {
             <h1 className="font-bold text-2xl sm:text-3xl truncate">
               {organization?.name}
             </h1>
-            <Button size="lg" externalLink asChild>
-              <a
-                href={integrationPaths.discord}
-                target="_blank"
-                rel="noreferrer"
-              >
-                Join Discord
-              </a>
-            </Button>
+            {organization.integrations.length > 0 && (
+              <Button size="lg" externalLink asChild>
+                <a
+                  href={
+                    organization.integrations.find(
+                      (integration) =>
+                        integration.type === "discord" &&
+                        integration.enabled === true,
+                    )?.configStr || "#"
+                  }
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Join Discord
+                </a>
+              </Button>
+            )}
           </div>
         </div>
         <Card className="bg-muted/30">
