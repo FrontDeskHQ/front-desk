@@ -240,8 +240,32 @@ export const router = createRouter({
         };
       },
       update: {
-        preMutation: ({ ctx }) => !!ctx?.apiKey,
-        postMutation: ({ ctx }) => !!ctx?.apiKey,
+        preMutation: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+              },
+            },
+          };
+        },
+        postMutation: ({ ctx }) => {
+          if (ctx?.apiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+              },
+            },
+          };
+        },
       },
     }),
     message: publicRoute.collectionRoute(schema.message, {
