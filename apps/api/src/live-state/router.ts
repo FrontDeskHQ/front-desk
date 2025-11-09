@@ -312,7 +312,7 @@ export const router = createRouter({
         },
       },
     }),
-    author: privateRoute.collectionRoute(schema.author, {
+    author: publicRoute.collectionRoute(schema.author, {
       read: () => true,
       insert: ({ ctx }) => {
         if (ctx?.apiKey) return true;
