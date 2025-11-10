@@ -8,7 +8,7 @@ import tsConfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   base: "/docs",
   server: {
-    port: 3000,
+    port: 3001,
   },
   plugins: [
     mdx(await import("./source.config")),
