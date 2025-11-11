@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as NowAllowedRouteImport } from './routes/now-allowed'
@@ -38,6 +39,11 @@ import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } 
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/redirect'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
@@ -194,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/': typeof PublicIndexRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
@@ -221,6 +228,7 @@ export interface FileRoutesByTo {
   '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/': typeof PublicIndexRoute
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
@@ -248,6 +256,7 @@ export interface FileRoutesById {
   '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
   '/_public/': typeof PublicIndexRoute
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
@@ -279,6 +288,7 @@ export interface FileRouteTypes {
     | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/'
     | '/app/settings'
     | '/legal/privacy-policy'
@@ -306,6 +316,7 @@ export interface FileRouteTypes {
     | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/'
     | '/legal/privacy-policy'
     | '/legal/terms-of-service'
@@ -332,6 +343,7 @@ export interface FileRouteTypes {
     | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/app/_workspace'
     | '/_public/'
     | '/app/_workspace/_main'
@@ -363,6 +375,7 @@ export interface RootRouteChildren {
   NowAllowedRoute: typeof NowAllowedRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   SupportSlugIndexRoute: typeof SupportSlugIndexRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
   SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
@@ -370,6 +383,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-up': {
       id: '/sign-up'
       path: '/sign-up'
@@ -673,6 +693,7 @@ const rootRouteChildren: RootRouteChildren = {
   NowAllowedRoute: NowAllowedRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
   SupportSlugIndexRoute: SupportSlugIndexRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
   SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
