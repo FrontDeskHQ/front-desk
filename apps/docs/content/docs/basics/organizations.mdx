@@ -1,0 +1,61 @@
+---
+title: Organizations
+---
+
+Think of an organization as a company workspace within FrontDesk, where your team collaborates on support. This are their characteristics:
+
+- **A workspace**: Where your team collaborates on support
+- **A billing entity**: Each organization has its own subscription and billing
+- **A domain**: Organizations can have custom subdomains for their support portal
+- **An isolation boundary**: Data, users, and settings are separate between organizations
+
+A user can be a member of multiple organizations and switch between them easily.
+
+## Creating an organization
+
+Upon signing up, you'll be prompted to create your first organization.
+
+To create additional organizations:
+
+1. Click your organization switcher in the sidebar
+2. Select "Create New Organization"
+3. Enter organization details
+
+## Organization settings
+
+### Basic information
+
+- **Name**: Your organization's display name
+- **Slug**: The slug is the URL-friendly identifier for your organization. It's used to access your support portal and workspace. (e.g., "acme" → `acme.tryfrontdesk.app`)
+- **Logo**: Upload a logo that appears in your support portal and workspace
+
+### Support porta
+
+<Callout type="info" title="Custom domain on Pro plan">
+  <strong>Pro plan</strong> organizations can use custom domains for their support portal:
+
+`https://support.yourdomain.com`
+
+</Callout>
+
+## Managing members
+
+Member management is done in the "Members" section of the organization settings.
+Members can have two different roles:
+
+- **Owner**: Full access to all settings, billing, and members
+- **User**: Can access threads and respond to customers
+
+### Inviting members
+
+1. Go to Organization Settings → Members
+2. Enter their email address
+3. Click "Send invitation"
+
+Invited members receive an email with a link to join your organization.
+
+<Callout type="warning" title="Billing starts when members accept invites">
+  You are billed per seat as soon as an invited member accepts their invitation
+  and joins your organization. You can manage active members and billing at any
+  time from your organization settings.
+</Callout>

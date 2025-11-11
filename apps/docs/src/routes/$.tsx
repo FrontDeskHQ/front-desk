@@ -1,4 +1,5 @@
 import { docs } from "@/.source";
+import { Pricing } from "@/components/pricing";
 import { baseOptions } from "@/lib/layout.shared";
 import { source } from "@/lib/source";
 import { createFileRoute, notFound } from "@tanstack/react-router";
@@ -50,6 +51,7 @@ const clientLoader = createClientLoader(docs.doc, {
           <MDX
             components={{
               ...defaultMdxComponents,
+              Pricing,
             }}
           />
         </DocsBody>
