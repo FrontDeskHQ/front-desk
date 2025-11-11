@@ -1,37 +1,38 @@
 {
   "name": "docs",
+  "version": "0.0.0",
   "private": true,
-  "sideEffects": false,
-  "type": "module",
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "start": "node .output/server/index.mjs",
+    "build": "next build",
+    "build:cloudflare": "opennextjs-cloudflare build",
+    "dev": "next dev -p 3010",
+    "preview": "opennextjs-cloudflare build && opennextjs-cloudflare preview",
+    "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
+    "start": "next start -p 3010",
+    "cf-typegen": "wrangler types --env-interface CloudflareEnv cloudflare-env.d.ts",
     "postinstall": "fumadocs-mdx"
   },
   "dependencies": {
-    "@tanstack/react-router": "^1.134.12",
-    "@tanstack/react-router-devtools": "^1.134.12",
-    "@tanstack/react-start": "^1.134.12",
+    "@opennextjs/cloudflare": "^1.12.0",
     "@workspace/ui": "workspace:*",
-    "fumadocs-core": "16.0.8",
-    "fumadocs-mdx": "13.0.5",
-    "fumadocs-ui": "16.0.8",
+    "fumadocs-core": "16.0.10",
+    "fumadocs-mdx": "13.0.7",
+    "fumadocs-ui": "16.0.10",
+    "lucide-react": "^0.552.0",
     "lucide-static": "^0.552.0",
+    "next": "16.0.1",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "tailwind-merge": "^3.3.1",
-    "vite": "^7.1.12"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
-    "@tailwindcss/vite": "^4.1.16",
+    "@tailwindcss/postcss": "^4.1.16",
     "@types/mdx": "^2.0.13",
     "@types/node": "^24.10.0",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",
-    "@vitejs/plugin-react": "^5.1.0",
+    "postcss": "^8.5.6",
     "tailwindcss": "^4.1.16",
     "typescript": "^5.9.3",
-    "vite-tsconfig-paths": "^5.1.4"
+    "wrangler": "^4.45.3"
   }
 }
