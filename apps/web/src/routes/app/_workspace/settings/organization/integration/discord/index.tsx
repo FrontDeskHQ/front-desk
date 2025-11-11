@@ -56,7 +56,7 @@ function RouteComponent() {
       );
     } catch {
       return {
-        // FIXME: this wont be required once we have a proper JSON type in live-state
+        // TODO: this wont be required once we have a proper JSON type in live-state
         // keep shape compatible with safeParse result
         success: false,
         error: new Error("Invalid JSON in integration.configStr"),
@@ -157,7 +157,7 @@ function RouteComponent() {
   };
 
   if (parsedConfig && !parsedConfig.success) {
-    // FIXME Handle this better
+    // TODO Handle this better
 
     console.error(
       "Invalid Discord integration configuration",

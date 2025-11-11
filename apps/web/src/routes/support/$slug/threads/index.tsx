@@ -59,7 +59,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
 
   loader: async ({ params }) => {
     const { slug } = params;
-    // FIXME: Replace where by first when new version of live-state is out
+    // TODO: Replace where by first when new version of live-state is out
     const organization = (
       await fetchClient.query.organization.where({ slug: slug }).get()
     )[0];

@@ -90,7 +90,7 @@ function RouteComponent() {
                             navigate({ to: "/app" });
                           })
                           .catch((error) => {
-                            // FIXME add toast to show error
+                            // TODO add toast to show error
                             console.error(error);
                           });
                       });

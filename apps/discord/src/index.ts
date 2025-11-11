@@ -120,7 +120,7 @@ client.on("messageCreate", async (message) => {
   )
     return;
 
-  // FIXME do this in a transaction
+  // TODO do this in a transaction
 
   let authorId = store.query.author
     .first({ metaId: message.author.id })
@@ -147,7 +147,7 @@ client.on("messageCreate", async (message) => {
       authorId: authorId,
       assignedUserId: null,
     });
-    await new Promise((resolve) => setTimeout(resolve, 150)); // FIXME remove this once we have a proper transaction
+    await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
   } else {
     const thread = store.query.thread
       .where({
@@ -179,7 +179,7 @@ const handleMessages = async (
   >[]
 ) => {
   for (const message of messages) {
-    // FIXME this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
+    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
     const integration = store.query.integration
       .first({
         organizationId: messages[0]?.thread?.organizationId,
@@ -230,7 +230,7 @@ const handleMessages = async (
 };
 
 setTimeout(async () => {
-  // FIXME Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
+  // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
   await handleMessages(
     await store.query.message
       .where({

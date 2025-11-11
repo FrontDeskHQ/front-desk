@@ -134,7 +134,7 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const orgId = req.input!.organizationId;
 
-          // FIXME follow https://github.com/pedroscosta/live-state/issues/74
+          // TODO follow https://github.com/pedroscosta/live-state/issues/74
           const selfOrgUser = Object.values(
             await db.find(schema.organizationUser, {
               where: {
@@ -175,7 +175,7 @@ export const router = createRouter({
             })
           );
 
-          // FIXME follow https://github.com/pedroscosta/live-state/issues/74
+          // TODO follow https://github.com/pedroscosta/live-state/issues/74
           const filteredEmails = Array.from(
             new Set(req.input!.email.map((e) => e.trim().toLowerCase()))
           ).filter(

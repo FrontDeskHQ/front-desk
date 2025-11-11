@@ -98,7 +98,7 @@ const integration = object("integration", {
   enabled: boolean().default(false),
   createdAt: timestamp(),
   updatedAt: timestamp(),
-  // FIXME make this a JSON object when live-state supports it
+  // TODO make this a JSON object when live-state supports it
   configStr: string().nullable(),
 });
 
