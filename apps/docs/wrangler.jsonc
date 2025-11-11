@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": ".open-next/worker.js",
+  "name": "front-desk-docs",
+  "compatibility_date": "2025-03-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "build": {
+    "command": "pnpm --filter docs build:cloudflare",
+    "watch_dir": ["apps/docs/src/*", "apps/docs/content/*", "packages/ui/src/*"]
+  }
+}

@@ -11,6 +11,10 @@
 /build
 *.tsbuildinfo
 
+# Cloudflare/OpenNext
+.open-next
+cloudflare-env.d.ts
+
 # misc
 .DS_Store
 *.pem
