@@ -1,16 +1,16 @@
-import { getPageImage, source } from '@/lib/source';
+import { getPageImage, source } from "@/lib/source";
+import { getMDXComponents } from "@/mdx-components";
+import { createRelativeLink } from "fumadocs-ui/mdx";
 import {
   DocsBody,
   DocsDescription,
   DocsPage,
   DocsTitle,
-} from 'fumadocs-ui/page';
-import { notFound } from 'next/navigation';
-import { getMDXComponents } from '@/mdx-components';
-import type { Metadata } from 'next';
-import { createRelativeLink } from 'fumadocs-ui/mdx';
+} from "fumadocs-ui/page";
+import type { Metadata } from "next";
+import { notFound } from "next/navigation";
 
-export default async function Page(props: PageProps<'/[[...slug]]'>) {
+export default async function Page(props: PageProps<"/[[...slug]]">) {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) notFound();
@@ -38,14 +38,14 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata(
-  props: PageProps<'/[[...slug]]'>,
+  props: PageProps<"/[[...slug]]">,
 ): Promise<Metadata> {
   const params = await props.params;
   const page = source.getPage(params.slug);
   if (!page) notFound();
 
   return {
-    title: page.data.title,
+    title: `${page.data.title} - FrontDesk Docs`,
     description: page.data.description,
     openGraph: {
       images: getPageImage(page).url,
