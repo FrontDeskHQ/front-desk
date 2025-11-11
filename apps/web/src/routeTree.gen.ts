@@ -19,6 +19,7 @@ import { Route as PublicIndexRouteImport } from './routes/_public/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
 import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
+import { Route as SupportSlugSitemapDotxmlRouteImport } from './routes/support/$slug/sitemap[.]xml'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as PublicLegalTermsOfServiceRouteImport } from './routes/_public/legal/terms-of-service'
@@ -87,6 +88,12 @@ const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   path: '/onboarding/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const SupportSlugSitemapDotxmlRoute =
+  SupportSlugSitemapDotxmlRouteImport.update({
+    id: '/support/$slug/sitemap.xml',
+    path: '/support/$slug/sitemap.xml',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
   id: '/onboarding/new',
   path: '/onboarding/new',
@@ -207,6 +214,7 @@ export interface FileRoutesByFullPath {
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -234,6 +242,7 @@ export interface FileRoutesByTo {
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -265,6 +274,7 @@ export interface FileRoutesById {
   '/_public/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -295,6 +305,7 @@ export interface FileRouteTypes {
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/sitemap.xml'
     | '/app/onboarding'
     | '/support/$slug'
     | '/support/$slug/threads/$id'
@@ -322,6 +333,7 @@ export interface FileRouteTypes {
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/sitemap.xml'
     | '/app/onboarding'
     | '/support/$slug'
     | '/support/$slug/threads/$id'
@@ -352,6 +364,7 @@ export interface FileRouteTypes {
     | '/_public/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/sitemap.xml'
     | '/app/onboarding/'
     | '/support/$slug/'
     | '/support/$slug/threads/$id'
@@ -376,6 +389,7 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
   SupportSlugIndexRoute: typeof SupportSlugIndexRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
   SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
@@ -452,6 +466,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/onboarding'
       preLoaderRoute: typeof AppOnboardingIndexRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/support/$slug/sitemap.xml': {
+      id: '/support/$slug/sitemap.xml'
+      path: '/support/$slug/sitemap.xml'
+      fullPath: '/support/$slug/sitemap.xml'
+      preLoaderRoute: typeof SupportSlugSitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/onboarding/new': {
       id: '/app/onboarding/new'
@@ -694,6 +715,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
   SupportSlugIndexRoute: SupportSlugIndexRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
   SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,

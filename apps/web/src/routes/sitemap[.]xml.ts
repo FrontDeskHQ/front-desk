@@ -1,40 +1,59 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { XMLBuilder } from "fast-xml-parser";
-
-const baseUrl = import.meta.env.BASE_URL || "http://localhost:3000";
-
-const routes = [
-  {
-    loc: baseUrl,
-    changefreq: "weekly",
-    priority: 1.0,
-  },
-  {
-    loc: `${baseUrl}sign-in`,
-    changefreq: "monthly",
-    priority: 0.8,
-  },
-  {
-    loc: `${baseUrl}sign-up`,
-    changefreq: "monthly",
-    priority: 0.8,
-  },
-  {
-    loc: `${baseUrl}legal/privacy-policy`,
-    changefreq: "monthly",
-    priority: 0.5,
-  },
-  {
-    loc: `${baseUrl}legal/terms-of-service`,
-    changefreq: "monthly",
-    priority: 0.5,
-  },
-];
+import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
       GET: async () => {
+        const baseUrl =
+          import.meta.env.VITE_BASE_URL || "http://localhost:3000";
+
+        const routes = [
+          {
+            loc: baseUrl,
+            changefreq: "weekly",
+            priority: 1.0,
+          },
+          {
+            loc: `${baseUrl}/sign-in`,
+            changefreq: "monthly",
+            priority: 0.8,
+          },
+          {
+            loc: `${baseUrl}/sign-up`,
+            changefreq: "monthly",
+            priority: 0.8,
+          },
+          {
+            loc: `${baseUrl}/legal/privacy-policy`,
+            changefreq: "monthly",
+            priority: 0.5,
+          },
+          {
+            loc: `${baseUrl}/legal/terms-of-service`,
+            changefreq: "monthly",
+            priority: 0.5,
+          },
+        ];
+
+        const organizations = await fetchClient.query.organization.get();
+
+        const baseUrlObj = new URL(baseUrl);
+
+        routes.push(
+          ...organizations.map((org) => {
+            const tempUrlObj = new URL(baseUrlObj.toString());
+            tempUrlObj.hostname = `${org.slug}.${baseUrlObj.hostname}`;
+
+            return {
+              loc: tempUrlObj.toString(),
+              changefreq: "daily",
+              priority: 0.9,
+            };
+          })
+        );
+
         const builder = new XMLBuilder({
           ignoreAttributes: false,
           format: true,
