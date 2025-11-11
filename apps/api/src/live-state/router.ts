@@ -53,7 +53,45 @@ export const router = createRouter({
       })
       .withMutations(({ mutation }) => ({
         create: mutation(
-          z.object({ name: z.string(), slug: z.string() })
+          z.object({
+            name: z.string(),
+            slug: z
+              .string()
+              .min(4)
+              .refine(
+                (slug) => {
+                  // TODO: Unify reserved slugs list - extract to shared constant
+                  const reservedSlugs = [
+                    "support",
+                    "help",
+                    "status",
+                    "api",
+                    "admin",
+                    "www",
+                    "app",
+                    "dashboard",
+                    "login",
+                    "signup",
+                    "register",
+                    "account",
+                    "settings",
+                    "billing",
+                    "docs",
+                    "documentation",
+                    "blog",
+                    "about",
+                    "contact",
+                    "privacy",
+                    "terms",
+                    "legal",
+                  ];
+                  return !reservedSlugs.includes(slug.toLowerCase());
+                },
+                {
+                  message: "This slug is reserved and cannot be used",
+                }
+              ),
+          })
         ).handler(async ({ req, db }) => {
           const organizationId = ulid().toLowerCase();
 

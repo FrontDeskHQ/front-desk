@@ -18,17 +18,46 @@ export const Route = createFileRoute("/app/onboarding/new")({
   component: RouteComponent,
 });
 
+// TODO: Unify reserved slugs list - extract to shared constant
+const reservedSlugs = [
+  "support",
+  "help",
+  "status",
+  "api",
+  "admin",
+  "www",
+  "app",
+  "dashboard",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "documentation",
+  "blog",
+  "about",
+  "contact",
+  "privacy",
+  "terms",
+  "legal",
+];
+
 const onboardingFormSchema = z.object({
   organizationName: z
     .string()
     .min(3, "Organization name must be at least 3 characters"),
   organizationSlug: z
     .string()
-    .min(3, "Slug must be at least 3 characters")
+    .min(4, "Slug must be at least 4 characters")
     .regex(
       /^[a-z0-9-]+$/,
       "Slug can only contain lowercase letters, numbers, and hyphens",
-    ),
+    )
+    .refine((slug) => !reservedSlugs.includes(slug.toLowerCase()), {
+      message: "This slug is reserved and cannot be used",
+    }),
   teamMembers: z.string().optional(),
 });
 

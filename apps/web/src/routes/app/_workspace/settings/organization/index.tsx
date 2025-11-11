@@ -21,11 +21,43 @@ export const Route = createFileRoute("/app/_workspace/settings/organization/")({
   component: RouteComponent,
 });
 
+// TODO: Unify reserved slugs list - extract to shared constant
+const reservedSlugs = [
+  "support",
+  "help",
+  "status",
+  "api",
+  "admin",
+  "www",
+  "app",
+  "dashboard",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "documentation",
+  "blog",
+  "about",
+  "contact",
+  "privacy",
+  "terms",
+  "legal",
+];
+
 const orgProfileSchema = z.object({
   orgName: z.string(),
-  orgSlug: z.string().regex(/^[a-z-]+$/, {
-    message: "Must contain only lowercase letters and dashes",
-  }),
+  orgSlug: z
+    .string()
+    .min(4, "Must be at least 4 characters")
+    .regex(/^[a-z-]+$/, {
+      message: "Must contain only lowercase letters and dashes",
+    })
+    .refine((slug) => !reservedSlugs.includes(slug.toLowerCase()), {
+      message: "This slug is reserved and cannot be used",
+    }),
   orgLogo: z.instanceof(File).optional(),
 });
 
