@@ -13,7 +13,7 @@ import {
 const organization = object("organization", {
   id: id(),
   name: string(),
-  slug: string(),
+  slug: string().unique().index(),
   createdAt: timestamp(),
   logoUrl: string().nullable(),
 });
