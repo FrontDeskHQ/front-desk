@@ -264,7 +264,7 @@ function RouteComponent() {
               </div>
             </div>
             <div className="flex justify-between">
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
                 <span className="font-medium">
                   {
                     thread?.messages?.[thread?.messages?.length - 1]?.author
