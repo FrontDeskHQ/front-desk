@@ -159,7 +159,7 @@ export const router = createRouter({
           }
 
           const publicApiKey = await publicKeys.create({
-            ownerId: req.context.session.userId,
+            ownerId: organizationId,
             tags: ["organization"],
             expiresAt:
               req.input.expiresAt ?? addYears(new Date(), 1).toISOString(),

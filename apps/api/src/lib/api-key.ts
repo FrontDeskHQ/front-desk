@@ -59,6 +59,10 @@ export const publicKeys = createKeys({
   autoTrackUsage: true,
 });
 
+if (process.env.NODE_ENV !== "development" && !process.env.API_KEY_SALT) {
+  throw new Error("API_KEY_SALT is not set");
+}
+
 export const privateKeys = createKeys({
   prefix: "fd_sk_",
   storage: new KyselyStore({
