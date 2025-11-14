@@ -1,8 +1,9 @@
 import { router as createRouter, routeFactory } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
-import { addDays } from "date-fns";
+import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { publicKeys } from "../lib/api-key";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { schema } from "./schema";
@@ -126,6 +127,88 @@ export const router = createRouter({
             enabled: true,
             role: "owner",
           });
+        }),
+        createPublicApiKey: mutation(
+          z.object({
+            organizationId: z.string(),
+            expiresAt: z.iso.datetime().optional(),
+            name: z.string().optional(),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.session?.userId) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const organizationId = req.input.organizationId;
+
+          const selfOrgUser = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                organizationId,
+                userId: req.context.session.userId,
+              },
+              include: {
+                user: true,
+                organization: true,
+              },
+            })
+          )[0] as any;
+
+          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const publicApiKey = await publicKeys.create({
+            ownerId: req.context.session.userId,
+            tags: ["organization"],
+            expiresAt:
+              req.input.expiresAt ?? addYears(new Date(), 1).toISOString(),
+            name: req.input.name,
+          });
+
+          return {
+            id: publicApiKey.record.id,
+            key: publicApiKey.key,
+            expiresAt: publicApiKey.record.metadata.expiresAt,
+            name: publicApiKey.record.metadata.name,
+          };
+        }),
+        revokePublicApiKey: mutation(
+          z.object({
+            id: z.string(),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.session?.userId) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const publicApiKey = await publicKeys.findById(req.input.id);
+
+          if (!publicApiKey) {
+            throw new Error("PUBLIC_API_KEY_NOT_FOUND");
+          }
+
+          const selfOrgUser = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                organizationId: publicApiKey.metadata.ownerId,
+                userId: req.context.session.userId,
+              },
+            })
+          )[0] as any;
+
+          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          await publicKeys.revoke(publicApiKey.id).catch((error) => {
+            console.error("Error revoking public API key", error);
+            throw new Error("FAILED_TO_REVOKE_PUBLIC_API_KEY");
+          });
+
+          return {
+            success: true,
+          };
         }),
       })),
     organizationUser: privateRoute
