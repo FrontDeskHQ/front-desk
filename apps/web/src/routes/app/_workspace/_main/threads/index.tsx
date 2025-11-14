@@ -133,7 +133,7 @@ function RouteComponent() {
   };
 
   const [orderBy, setOrderBy] = useState<string>("createdAt");
-  const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("asc");
+  const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("desc");
 
   const threads = useLiveQuery(
     threadsQuery
