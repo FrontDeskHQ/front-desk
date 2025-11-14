@@ -115,7 +115,8 @@ function RouteComponent() {
                   key={message.id}
                   className={cn(
                     "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                    !message.origin && "border-[#2662D9]/20",
+                    message?.author?.userId === user.id &&
+                      "border-[#2662D9]/20",
                   )}
                 >
                   <CardHeader
