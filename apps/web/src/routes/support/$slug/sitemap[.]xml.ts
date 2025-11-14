@@ -34,7 +34,7 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
           urls.push({
             loc: orgUrl,
             changefreq: "daily",
-            priority: 0.9,
+            priority: 0.7,
           });
         }
 
@@ -56,7 +56,7 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
           urls.push({
             loc: threadUrl,
             changefreq: "daily",
-            priority: 0.7,
+            priority: 0.9,
             lastmod: formatISO(lastModDate),
           });
         }
