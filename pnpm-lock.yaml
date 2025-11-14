@@ -252,6 +252,9 @@ importers:
       dodopayments:
         specifier: ^2.4.1
         version: 2.4.1
+      fast-xml-parser:
+        specifier: ^5.3.1
+        version: 5.3.1
       jotai:
         specifier: ^2.13.1
         version: 2.13.1(@babel/core@7.28.5)(@babel/template@7.27.2)(@types/react@19.2.2)(react@19.2.0)
@@ -7108,6 +7111,10 @@ packages:
 
   fast-xml-parser@5.2.5:
     resolution: {integrity: sha512-pfX9uG9Ki0yekDHx2SiuRIyFdyAr1kMIMitPvb0YBo8SUfKvia7w7FIyd/l6av85pFYRhZscS75MwMnbvY+hcQ==}
+    hasBin: true
+
+  fast-xml-parser@5.3.1:
+    resolution: {integrity: sha512-jbNkWiv2Ec1A7wuuxk0br0d0aTMUtQ4IkL+l/i1r9PRf6pLXjDgsBsWwO+UyczmQlnehi4Tbc8/KIvxGQe+I/A==}
     hasBin: true
 
   fastq@1.19.1:
@@ -19085,6 +19092,10 @@ snapshots:
       strnum: 1.1.2
 
   fast-xml-parser@5.2.5:
+    dependencies:
+      strnum: 2.1.1
+
+  fast-xml-parser@5.3.1:
     dependencies:
       strnum: 2.1.1
 

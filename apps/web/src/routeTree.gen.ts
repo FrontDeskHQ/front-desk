@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as NowAllowedRouteImport } from './routes/now-allowed'
@@ -18,6 +19,7 @@ import { Route as PublicIndexRouteImport } from './routes/_public/index'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
 import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
+import { Route as SupportSlugSitemapDotxmlRouteImport } from './routes/support/$slug/sitemap[.]xml'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as PublicLegalTermsOfServiceRouteImport } from './routes/_public/legal/terms-of-service'
@@ -38,6 +40,11 @@ import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } 
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/redirect'
 
+const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
+  id: '/sitemap.xml',
+  path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignUpRoute = SignUpRouteImport.update({
   id: '/sign-up',
   path: '/sign-up',
@@ -81,6 +88,12 @@ const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   path: '/onboarding/',
   getParentRoute: () => AppRouteRoute,
 } as any)
+const SupportSlugSitemapDotxmlRoute =
+  SupportSlugSitemapDotxmlRouteImport.update({
+    id: '/support/$slug/sitemap.xml',
+    path: '/support/$slug/sitemap.xml',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
   id: '/onboarding/new',
   path: '/onboarding/new',
@@ -194,12 +207,14 @@ export interface FileRoutesByFullPath {
   '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/': typeof PublicIndexRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -221,11 +236,13 @@ export interface FileRoutesByTo {
   '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/': typeof PublicIndexRoute
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -248,6 +265,7 @@ export interface FileRoutesById {
   '/now-allowed': typeof NowAllowedRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
+  '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
   '/_public/': typeof PublicIndexRoute
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
@@ -256,6 +274,7 @@ export interface FileRoutesById {
   '/_public/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -279,12 +298,14 @@ export interface FileRouteTypes {
     | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/'
     | '/app/settings'
     | '/legal/privacy-policy'
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/sitemap.xml'
     | '/app/onboarding'
     | '/support/$slug'
     | '/support/$slug/threads/$id'
@@ -306,11 +327,13 @@ export interface FileRouteTypes {
     | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/'
     | '/legal/privacy-policy'
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/sitemap.xml'
     | '/app/onboarding'
     | '/support/$slug'
     | '/support/$slug/threads/$id'
@@ -332,6 +355,7 @@ export interface FileRouteTypes {
     | '/now-allowed'
     | '/sign-in'
     | '/sign-up'
+    | '/sitemap.xml'
     | '/app/_workspace'
     | '/_public/'
     | '/app/_workspace/_main'
@@ -340,6 +364,7 @@ export interface FileRouteTypes {
     | '/_public/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/sitemap.xml'
     | '/app/onboarding/'
     | '/support/$slug/'
     | '/support/$slug/threads/$id'
@@ -363,6 +388,8 @@ export interface RootRouteChildren {
   NowAllowedRoute: typeof NowAllowedRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
   SupportSlugIndexRoute: typeof SupportSlugIndexRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
   SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
@@ -370,6 +397,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/sitemap.xml': {
+      id: '/sitemap.xml'
+      path: '/sitemap.xml'
+      fullPath: '/sitemap.xml'
+      preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sign-up': {
       id: '/sign-up'
       path: '/sign-up'
@@ -432,6 +466,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/onboarding'
       preLoaderRoute: typeof AppOnboardingIndexRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/support/$slug/sitemap.xml': {
+      id: '/support/$slug/sitemap.xml'
+      path: '/support/$slug/sitemap.xml'
+      fullPath: '/support/$slug/sitemap.xml'
+      preLoaderRoute: typeof SupportSlugSitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/onboarding/new': {
       id: '/app/onboarding/new'
@@ -673,6 +714,8 @@ const rootRouteChildren: RootRouteChildren = {
   NowAllowedRoute: NowAllowedRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
+  SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
   SupportSlugIndexRoute: SupportSlugIndexRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
   SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,

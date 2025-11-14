@@ -29,6 +29,7 @@
     "better-auth": "^1.2.7",
     "date-fns": "^4.1.0",
     "dodopayments": "^2.4.1",
+    "fast-xml-parser": "^5.3.1",
     "jotai": "^2.13.1",
     "js-cookie": "^3.0.5",
     "kysely": "^0.28.7",
