@@ -1,16 +1,18 @@
 import "./env";
 
+import "./lib/api-key";
+
 import { Webhooks } from "@dodopayments/express";
-import { expressAdapter, server, SQLStorage } from "@live-state/sync/server";
+import { expressAdapter, server } from "@live-state/sync/server";
 import expressWs from "@wll8/express-ws";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 import process from "node:process";
-import { Pool } from "pg";
 import { auth } from "./lib/auth";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
+import { storage } from "./live-state/storage";
 
 const { app } = expressWs(express());
 
@@ -34,11 +36,7 @@ app.use(cors(corsOptions));
 
 const lsServer = server({
   router,
-  storage: new SQLStorage(
-    new Pool({
-      connectionString: process.env.DATABASE_URL,
-    })
-  ),
+  storage,
   schema,
   contextProvider: async ({ transport, headers, queryParams }) => {
     if (transport === "WEBSOCKET") {
@@ -83,8 +81,6 @@ const lsServer = server({
   },
 });
 
-export const db = lsServer.storage;
-
 app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
@@ -96,7 +92,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
       webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY as string,
       onSubscriptionActive: async (payload) => {
         const subscription = Object.values(
-          await db.find(schema.subscription, {
+          await storage.find(schema.subscription, {
             where: {
               customerId: payload.data.customer.customer_id,
             },
@@ -116,7 +112,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
 
         if (!plan) return;
 
-        await db.update(schema.subscription, subscription.id, {
+        await storage.update(schema.subscription, subscription.id, {
           plan: plan,
           status: "active",
           updatedAt: new Date(),
@@ -133,7 +129,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
       },
       onSubscriptionExpired: async (payload) => {
         const subscription = Object.values(
-          await db.find(schema.subscription, {
+          await storage.find(schema.subscription, {
             where: {
               customerId: payload.data.customer.customer_id,
             },
@@ -141,14 +137,14 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
         )?.[0];
         if (!subscription) return;
 
-        await db.update(schema.subscription, subscription.id, {
+        await storage.update(schema.subscription, subscription.id, {
           status: "expired",
           updatedAt: new Date(),
         });
       },
       onSubscriptionPlanChanged: async (payload) => {
         const subscription = Object.values(
-          await db.find(schema.subscription, {
+          await storage.find(schema.subscription, {
             where: {
               customerId: payload.data.customer.customer_id,
             },
@@ -168,7 +164,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
 
         if (!plan) return;
 
-        await db.update(schema.subscription, subscription.id, {
+        await storage.update(schema.subscription, subscription.id, {
           status: payload.data.status,
           plan: plan,
           seats:
@@ -185,7 +181,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
       },
       onSubscriptionCancelled: async (payload) => {
         const subscription = Object.values(
-          await db.find(schema.subscription, {
+          await storage.find(schema.subscription, {
             where: {
               customerId: payload.data.customer.customer_id,
             },
@@ -193,7 +189,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
         )?.[0];
         if (!subscription) return;
 
-        await db.update(schema.subscription, subscription.id, {
+        await storage.update(schema.subscription, subscription.id, {
           status: "cancelled",
           updatedAt: new Date(),
         });
