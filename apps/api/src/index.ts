@@ -9,6 +9,7 @@ import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
 import process from "node:process";
+import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
@@ -46,7 +47,17 @@ const lsServer = server({
         if (botKey !== process.env.DISCORD_BOT_KEY) return;
 
         return {
-          apiKey: botKey,
+          internalApiKey: botKey,
+        };
+      }
+
+      if (queryParams.publicApiKey) {
+        const result = await publicKeys.verify(queryParams.publicApiKey);
+
+        if (!result.valid) throw new Error("Invalid public API key");
+
+        return {
+          internalApiKey: result.record?.metadata,
         };
       }
 
@@ -67,7 +78,17 @@ const lsServer = server({
       if (botKey !== process.env.DISCORD_BOT_KEY) return;
 
       return {
-        apiKey: botKey,
+        internalApiKey: botKey,
+      };
+    }
+
+    if (headers["x-public-api-key"]) {
+      const result = await publicKeys.verify(headers["x-public-api-key"]);
+
+      if (!result.valid) throw new Error("Invalid public API key");
+
+      return {
+        internalApiKey: result.record?.metadata,
       };
     }
 
