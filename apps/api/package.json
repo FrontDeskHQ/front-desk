@@ -52,6 +52,7 @@
     "dodopayments": "^2.4.1",
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
+    "keypal": "^0.0.212",
     "pg": "^8.15.6",
     "react": "catalog:",
     "resend": "^6.1.2",

@@ -1,8 +1,9 @@
 import { router as createRouter, routeFactory } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
-import { addDays } from "date-fns";
+import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { publicKeys } from "../lib/api-key";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { schema } from "./schema";
@@ -10,7 +11,7 @@ import { schema } from "./schema";
 const publicRoute = routeFactory();
 
 const privateRoute = publicRoute.use(async ({ req, next }) => {
-  if (!req.context.session && !req.context.apiKey) {
+  if (!req.context.session && !req.context.internalApiKey) {
     throw new Error("Unauthorized");
   }
 
@@ -26,7 +27,7 @@ export const router = createRouter({
         insert: () => false,
         update: {
           preMutation: ({ ctx }) => {
-            if (ctx?.apiKey) return true;
+            if (ctx?.internalApiKey) return true;
             if (!ctx?.session) return false;
 
             return {
@@ -38,7 +39,7 @@ export const router = createRouter({
             };
           },
           postMutation: ({ ctx }) => {
-            if (ctx?.apiKey) return true;
+            if (ctx?.internalApiKey) return true;
             if (!ctx?.session) return false;
 
             return {
@@ -127,6 +128,88 @@ export const router = createRouter({
             role: "owner",
           });
         }),
+        createPublicApiKey: mutation(
+          z.object({
+            organizationId: z.string(),
+            expiresAt: z.iso.datetime().optional(),
+            name: z.string().optional(),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.session?.userId) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const organizationId = req.input.organizationId;
+
+          const selfOrgUser = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                organizationId,
+                userId: req.context.session.userId,
+              },
+              include: {
+                user: true,
+                organization: true,
+              },
+            })
+          )[0] as any;
+
+          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const publicApiKey = await publicKeys.create({
+            ownerId: organizationId,
+            tags: ["organization"],
+            expiresAt:
+              req.input.expiresAt ?? addYears(new Date(), 1).toISOString(),
+            name: req.input.name,
+          });
+
+          return {
+            id: publicApiKey.record.id,
+            key: publicApiKey.key,
+            expiresAt: publicApiKey.record.metadata.expiresAt,
+            name: publicApiKey.record.metadata.name,
+          };
+        }),
+        revokePublicApiKey: mutation(
+          z.object({
+            id: z.string(),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.session?.userId) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const publicApiKey = await publicKeys.findById(req.input.id);
+
+          if (!publicApiKey) {
+            throw new Error("PUBLIC_API_KEY_NOT_FOUND");
+          }
+
+          const selfOrgUser = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                organizationId: publicApiKey.metadata.ownerId,
+                userId: req.context.session.userId,
+              },
+            })
+          )[0] as any;
+
+          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          await publicKeys.revoke(publicApiKey.id).catch((error) => {
+            console.error("Error revoking public API key", error);
+            throw new Error("FAILED_TO_REVOKE_PUBLIC_API_KEY");
+          });
+
+          return {
+            success: true,
+          };
+        }),
       })),
     organizationUser: privateRoute
       .collectionRoute(schema.organizationUser, {
@@ -134,7 +217,7 @@ export const router = createRouter({
         insert: () => false,
         update: {
           preMutation: ({ ctx }) => {
-            if (ctx?.apiKey) return true;
+            if (ctx?.internalApiKey) return true;
             if (!ctx?.session) return false;
 
             return {
@@ -148,7 +231,7 @@ export const router = createRouter({
             };
           },
           postMutation: ({ ctx }) => {
-            if (ctx?.apiKey) return true;
+            if (ctx?.internalApiKey) return true;
             if (!ctx?.session) return false;
 
             return {
@@ -265,7 +348,7 @@ export const router = createRouter({
     thread: publicRoute.collectionRoute(schema.thread, {
       read: () => true,
       insert: ({ ctx }) => {
-        if (ctx?.apiKey) return true;
+        if (ctx?.internalApiKey) return true;
         if (!ctx?.session) return false;
 
         return {
@@ -279,7 +362,7 @@ export const router = createRouter({
       },
       update: {
         preMutation: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -292,7 +375,7 @@ export const router = createRouter({
           };
         },
         postMutation: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -309,7 +392,7 @@ export const router = createRouter({
     message: publicRoute.collectionRoute(schema.message, {
       read: () => true,
       insert: ({ ctx }) => {
-        if (ctx?.apiKey) return true;
+        if (ctx?.internalApiKey) return true;
         if (!ctx?.session) return false;
 
         return {
@@ -324,8 +407,8 @@ export const router = createRouter({
         };
       },
       update: {
-        preMutation: ({ ctx }) => !!ctx?.apiKey,
-        postMutation: ({ ctx }) => !!ctx?.apiKey,
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
     user: privateRoute.collectionRoute(schema.user, {
@@ -333,7 +416,7 @@ export const router = createRouter({
       insert: () => false,
       update: {
         preMutation: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -341,7 +424,7 @@ export const router = createRouter({
           };
         },
         postMutation: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -353,7 +436,7 @@ export const router = createRouter({
     author: publicRoute.collectionRoute(schema.author, {
       read: () => true,
       insert: ({ ctx }) => {
-        if (ctx?.apiKey) return true;
+        if (ctx?.internalApiKey) return true;
         if (!ctx?.session) return false;
 
         return true;
@@ -363,14 +446,14 @@ export const router = createRouter({
         // };
       },
       update: {
-        preMutation: ({ ctx }) => !!ctx?.apiKey,
-        postMutation: ({ ctx }) => !!ctx?.apiKey,
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
     invite: privateRoute
       .collectionRoute(schema.invite, {
         read: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -392,7 +475,7 @@ export const router = createRouter({
         insert: () => false,
         update: {
           preMutation: ({ ctx }) => {
-            if (ctx?.apiKey) return true;
+            if (ctx?.internalApiKey) return true;
             if (!ctx?.session) return false;
 
             return {
@@ -405,7 +488,7 @@ export const router = createRouter({
             };
           },
           postMutation: ({ ctx }) => {
-            if (ctx?.apiKey) return true;
+            if (ctx?.internalApiKey) return true;
             if (!ctx?.session) return false;
 
             return {
@@ -487,7 +570,7 @@ export const router = createRouter({
     integration: privateRoute.collectionRoute(schema.integration, {
       read: () => true,
       insert: ({ ctx }) => {
-        if (ctx?.apiKey) return true;
+        if (ctx?.internalApiKey) return true;
         if (!ctx?.session) return false;
 
         return {
@@ -502,7 +585,7 @@ export const router = createRouter({
       },
       update: {
         preMutation: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -516,7 +599,7 @@ export const router = createRouter({
           };
         },
         postMutation: ({ ctx }) => {
-          if (ctx?.apiKey) return true;
+          if (ctx?.internalApiKey) return true;
           if (!ctx?.session) return false;
 
           return {
@@ -533,22 +616,22 @@ export const router = createRouter({
     }),
     allowlist: privateRoute.collectionRoute(schema.allowlist, {
       read: ({ ctx }) => {
-        if (ctx?.apiKey) return true;
+        if (ctx?.internalApiKey) return true;
         if (!ctx?.user?.email) return false;
 
         return {
           email: ctx.user.email.toLowerCase(),
         };
       },
-      insert: ({ ctx }) => !!ctx?.apiKey,
+      insert: ({ ctx }) => !!ctx?.internalApiKey,
       update: {
-        preMutation: ({ ctx }) => !!ctx?.apiKey,
-        postMutation: ({ ctx }) => !!ctx?.apiKey,
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
     subscription: privateRoute.collectionRoute(schema.subscription, {
       read: ({ ctx }) => {
-        if (ctx?.apiKey) return true;
+        if (ctx?.internalApiKey) return true;
         if (!ctx?.session) return false;
 
         return {
@@ -563,8 +646,8 @@ export const router = createRouter({
       },
       insert: () => false,
       update: {
-        preMutation: ({ ctx }) => !!ctx?.apiKey,
-        postMutation: ({ ctx }) => !!ctx?.apiKey,
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
   },
