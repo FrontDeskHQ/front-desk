@@ -1,3 +1,5 @@
+("use client");
+
 import { useLiveQuery } from "@live-state/sync/client";
 import {
   createFileRoute,
@@ -14,20 +16,13 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
-import { safeParseJSON } from "@workspace/ui/lib/tiptap";
-import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { mutate, query } from "~/lib/live-state";
-
-("use client");
-
-import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -36,15 +31,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@workspace/ui/components/dialog";
+import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
+import { safeParseJSON } from "@workspace/ui/lib/tiptap";
+import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { mutate, query } from "~/lib/live-state";
 
-export const Route = createFileRoute("/app/_workspace/_main/threads/archive/$id")(
-  {
-    component: RouteComponent,
-  },
-);
+export const Route = createFileRoute(
+  "/app/_workspace/_main/threads/archive/$id",
+)({
+  component: RouteComponent,
+});
 
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
@@ -78,6 +77,7 @@ function RouteComponent() {
         label: "See thread",
         onClick: () => navigate({ to: "/app/threads/$id", params: { id } }),
       },
+      // TODO: Analyse this when working on the design system
       actionButtonStyle: {
         background: "transparent",
         color: "hsl(var(--primary))",

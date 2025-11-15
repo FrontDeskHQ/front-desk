@@ -1,3 +1,5 @@
+("use client");
+
 import { useLiveQuery } from "@live-state/sync/client";
 import {
   createFileRoute,
@@ -14,6 +16,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -31,6 +34,21 @@ import {
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import {
   PriorityIndicator,
   PriorityText,
   StatusIndicator,
@@ -47,32 +65,11 @@ import {
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { CircleUser } from "lucide-react";
+import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
-
-("use client");
-
-import { Button } from "@workspace/ui/components/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu";
-import { Archive, Copy, MoreHorizontalIcon } from "lucide-react";
-import { useState } from "react";
-
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
   component: RouteComponent,
@@ -172,7 +169,7 @@ function RouteComponent() {
                         variant="destructive"
                         onSelect={() => setShowDeleteDialog(true)}
                       >
-                        <Archive />
+                        <Trash2 />
                         Delete thread
                       </DropdownMenuItem>
                     </DropdownMenuGroup>

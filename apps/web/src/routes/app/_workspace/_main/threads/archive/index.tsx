@@ -31,10 +31,10 @@ import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import type { schema } from "api/schema";
 import { useAtomValue } from "jotai/react";
 import {
+  Archive,
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
   Settings2,
-  Trash2,
 } from "lucide-react";
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -84,7 +84,7 @@ function RouteComponent() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="gap-4">Trash</CardTitle>
+        <CardTitle className="gap-4">Archive</CardTitle>
         <CardAction side="right">
           {/* TODO: Implement search functionality when live-state supports full text search */}
           {/* <Search placeholder="Search" /> */}
@@ -147,14 +147,14 @@ function RouteComponent() {
       </CardHeader>
       {threads.length > 0 && (
         <div className="w-full text-center pt-4 text-muted-foreground text-sm">
-          Threads will be permanently deleted after 30 days.
+          Threads in archive will be permanently deleted after 30 days.
         </div>
       )}
       <CardContent className="overflow-y-auto gap-0 items-center">
         {!threads.length && (
           <div className="text-muted-foreground flex flex-col items-center justify-center gap-4 m-auto">
-            <Trash2 className="size-24 stroke-[0.75]" />
-            <div className="text-lg">Nothing in trash</div>
+            <Archive className="size-24 stroke-[0.75]" />
+            <div className="text-lg">Nothing in archive</div>
           </div>
         )}
         {threads?.map((thread) => (
