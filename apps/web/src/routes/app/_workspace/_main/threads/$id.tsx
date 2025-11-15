@@ -116,10 +116,10 @@ function RouteComponent() {
     });
     setShowDeleteDialog(false);
     toast.success("Thread will be deleted after 30 days", {
-      duration: 8000,
+      duration: 10000,
       action: {
         label: "See list",
-        onClick: () => navigate({ to: "/app/threads" }),
+        onClick: () => navigate({ to: "/app/threads/trash" }),
       },
       actionButtonStyle: {
         background: "transparent",
@@ -194,7 +194,6 @@ function RouteComponent() {
                       <Button
                         type="submit"
                         variant="destructive"
-                        className="w-full"
                         onClick={() => {
                           deleteThread();
                         }}
