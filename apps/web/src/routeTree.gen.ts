@@ -35,8 +35,8 @@ import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './rout
 import { Route as AppWorkspaceSettingsOrganizationBillingRouteImport } from './routes/app/_workspace/settings/organization/billing'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
-import { Route as AppWorkspaceMainThreadsTrashIndexRouteImport } from './routes/app/_workspace/_main/threads/trash/index'
-import { Route as AppWorkspaceMainThreadsTrashIdRouteImport } from './routes/app/_workspace/_main/threads/trash/$id'
+import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
+import { Route as AppWorkspaceMainThreadsArchiveIdRouteImport } from './routes/app/_workspace/_main/threads/archive/$id'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/redirect'
 
@@ -178,16 +178,16 @@ const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
     path: '/organization/integration/',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
-const AppWorkspaceMainThreadsTrashIndexRoute =
-  AppWorkspaceMainThreadsTrashIndexRouteImport.update({
-    id: '/threads/trash/',
-    path: '/threads/trash/',
+const AppWorkspaceMainThreadsArchiveIndexRoute =
+  AppWorkspaceMainThreadsArchiveIndexRouteImport.update({
+    id: '/threads/archive/',
+    path: '/threads/archive/',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
-const AppWorkspaceMainThreadsTrashIdRoute =
-  AppWorkspaceMainThreadsTrashIdRouteImport.update({
-    id: '/threads/trash/$id',
-    path: '/threads/trash/$id',
+const AppWorkspaceMainThreadsArchiveIdRoute =
+  AppWorkspaceMainThreadsArchiveIdRouteImport.update({
+    id: '/threads/archive/$id',
+    path: '/threads/archive/$id',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute =
@@ -226,8 +226,8 @@ export interface FileRoutesByFullPath {
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/threads/trash/$id': typeof AppWorkspaceMainThreadsTrashIdRoute
-  '/app/threads/trash': typeof AppWorkspaceMainThreadsTrashIndexRoute
+  '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
+  '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -253,8 +253,8 @@ export interface FileRoutesByTo {
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/threads/trash/$id': typeof AppWorkspaceMainThreadsTrashIdRoute
-  '/app/threads/trash': typeof AppWorkspaceMainThreadsTrashIndexRoute
+  '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
+  '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -286,8 +286,8 @@ export interface FileRoutesById {
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
   '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
   '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/_workspace/_main/threads/trash/$id': typeof AppWorkspaceMainThreadsTrashIdRoute
-  '/app/_workspace/_main/threads/trash/': typeof AppWorkspaceMainThreadsTrashIndexRoute
+  '/app/_workspace/_main/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
+  '/app/_workspace/_main/threads/archive/': typeof AppWorkspaceMainThreadsArchiveIndexRoute
   '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/_workspace/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/_workspace/settings/organization/integration/discord/': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -317,8 +317,8 @@ export interface FileRouteTypes {
     | '/app/threads'
     | '/app/settings/organization'
     | '/app/settings/user'
-    | '/app/threads/trash/$id'
-    | '/app/threads/trash'
+    | '/app/threads/archive/$id'
+    | '/app/threads/archive'
     | '/app/settings/organization/integration'
     | '/app/settings/organization/integration/discord/redirect'
     | '/app/settings/organization/integration/discord'
@@ -344,8 +344,8 @@ export interface FileRouteTypes {
     | '/app/threads'
     | '/app/settings/organization'
     | '/app/settings/user'
-    | '/app/threads/trash/$id'
-    | '/app/threads/trash'
+    | '/app/threads/archive/$id'
+    | '/app/threads/archive'
     | '/app/settings/organization/integration'
     | '/app/settings/organization/integration/discord/redirect'
     | '/app/settings/organization/integration/discord'
@@ -376,8 +376,8 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/threads/'
     | '/app/_workspace/settings/organization/'
     | '/app/_workspace/settings/user/'
-    | '/app/_workspace/_main/threads/trash/$id'
-    | '/app/_workspace/_main/threads/trash/'
+    | '/app/_workspace/_main/threads/archive/$id'
+    | '/app/_workspace/_main/threads/archive/'
     | '/app/_workspace/settings/organization/integration/'
     | '/app/_workspace/settings/organization/integration/discord/redirect'
     | '/app/_workspace/settings/organization/integration/discord/'
@@ -578,18 +578,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
-    '/app/_workspace/_main/threads/trash/': {
-      id: '/app/_workspace/_main/threads/trash/'
-      path: '/threads/trash'
-      fullPath: '/app/threads/trash'
-      preLoaderRoute: typeof AppWorkspaceMainThreadsTrashIndexRouteImport
+    '/app/_workspace/_main/threads/archive/': {
+      id: '/app/_workspace/_main/threads/archive/'
+      path: '/threads/archive'
+      fullPath: '/app/threads/archive'
+      preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/app/_workspace/_main/threads/trash/$id': {
-      id: '/app/_workspace/_main/threads/trash/$id'
-      path: '/threads/trash/$id'
-      fullPath: '/app/threads/trash/$id'
-      preLoaderRoute: typeof AppWorkspaceMainThreadsTrashIdRouteImport
+    '/app/_workspace/_main/threads/archive/$id': {
+      id: '/app/_workspace/_main/threads/archive/$id'
+      path: '/threads/archive/$id'
+      fullPath: '/app/threads/archive/$id'
+      preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIdRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
     '/app/_workspace/settings/organization/integration/discord/': {
@@ -629,17 +629,17 @@ interface AppWorkspaceMainRouteRouteChildren {
   AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
   AppWorkspaceMainThreadsIdRoute: typeof AppWorkspaceMainThreadsIdRoute
   AppWorkspaceMainThreadsIndexRoute: typeof AppWorkspaceMainThreadsIndexRoute
-  AppWorkspaceMainThreadsTrashIdRoute: typeof AppWorkspaceMainThreadsTrashIdRoute
-  AppWorkspaceMainThreadsTrashIndexRoute: typeof AppWorkspaceMainThreadsTrashIndexRoute
+  AppWorkspaceMainThreadsArchiveIdRoute: typeof AppWorkspaceMainThreadsArchiveIdRoute
+  AppWorkspaceMainThreadsArchiveIndexRoute: typeof AppWorkspaceMainThreadsArchiveIndexRoute
 }
 
 const AppWorkspaceMainRouteRouteChildren: AppWorkspaceMainRouteRouteChildren = {
   AppWorkspaceMainIndexRoute: AppWorkspaceMainIndexRoute,
   AppWorkspaceMainThreadsIdRoute: AppWorkspaceMainThreadsIdRoute,
   AppWorkspaceMainThreadsIndexRoute: AppWorkspaceMainThreadsIndexRoute,
-  AppWorkspaceMainThreadsTrashIdRoute: AppWorkspaceMainThreadsTrashIdRoute,
-  AppWorkspaceMainThreadsTrashIndexRoute:
-    AppWorkspaceMainThreadsTrashIndexRoute,
+  AppWorkspaceMainThreadsArchiveIdRoute: AppWorkspaceMainThreadsArchiveIdRoute,
+  AppWorkspaceMainThreadsArchiveIndexRoute:
+    AppWorkspaceMainThreadsArchiveIndexRoute,
 }
 
 const AppWorkspaceMainRouteRouteWithChildren =

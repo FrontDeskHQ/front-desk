@@ -69,7 +69,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import { Copy, MoreHorizontalIcon, Trash } from "lucide-react";
+import { Archive, Copy, MoreHorizontalIcon } from "lucide-react";
 import { useState } from "react";
 
 import { toast } from "sonner";
@@ -119,7 +119,7 @@ function RouteComponent() {
       duration: 10000,
       action: {
         label: "See list",
-        onClick: () => navigate({ to: "/app/threads/trash" }),
+        onClick: () => navigate({ to: "/app/threads/archive" }),
       },
       actionButtonStyle: {
         background: "transparent",
@@ -172,7 +172,7 @@ function RouteComponent() {
                         variant="destructive"
                         onSelect={() => setShowDeleteDialog(true)}
                       >
-                        <Trash />
+                        <Archive />
                         Delete thread
                       </DropdownMenuItem>
                     </DropdownMenuGroup>

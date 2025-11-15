@@ -40,7 +40,7 @@ import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/app/_workspace/_main/threads/trash/$id")(
+export const Route = createFileRoute("/app/_workspace/_main/threads/archive/$id")(
   {
     component: RouteComponent,
   },
@@ -85,7 +85,7 @@ function RouteComponent() {
         textDecoration: "underline",
       },
     });
-    navigate({ to: "/app/threads/trash" });
+    navigate({ to: "/app/threads/archive" });
   };
 
   return (
@@ -100,7 +100,7 @@ function RouteComponent() {
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>
-                        <Link to="/app/threads/trash">Trash</Link>
+                        <Link to="/app/threads/archive">Archive</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />

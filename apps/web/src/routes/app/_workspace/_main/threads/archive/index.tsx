@@ -40,7 +40,7 @@ import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
-export const Route = createFileRoute("/app/_workspace/_main/threads/trash/")({
+export const Route = createFileRoute("/app/_workspace/_main/threads/archive/")({
   component: RouteComponent,
 });
 
@@ -147,7 +147,7 @@ function RouteComponent() {
       </CardHeader>
       {threads.length > 0 && (
         <div className="w-full text-center pt-4 text-muted-foreground text-sm">
-          Threads in the trash will be permanently deleted after 30 days.
+          Threads will be permanently deleted after 30 days.
         </div>
       )}
       <CardContent className="overflow-y-auto gap-0 items-center">
@@ -160,7 +160,7 @@ function RouteComponent() {
         {threads?.map((thread) => (
           <Link
             key={thread.id}
-            to={"/app/threads/trash/$id"}
+            to={"/app/threads/archive/$id"}
             params={{ id: thread.id }}
             className="w-full max-w-5xl flex p-3 gap-2 hover:bg-muted items-center"
           >

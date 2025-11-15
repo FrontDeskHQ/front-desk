@@ -86,7 +86,7 @@ export function OrgSwitcher() {
               <Link to="/app/settings">Settings</Link>
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 p-2" asChild>
-              <Link to="/app/threads/trash">Trash</Link>
+              <Link to="/app/threads/archive">Archive</Link>
             </DropdownMenuItem>
             <DropdownMenuItem className="gap-2 p-2" onClick={logout}>
               Logout
