@@ -51,9 +51,10 @@ function RouteComponent() {
     query.organization.where({ id: currentOrg?.id }).include({ threads: true }),
   )?.[0];
 
+  //TODO: Add option to sort threads based on expected delete date
   const orderByOptions = [
     { label: "Created", value: "createdAt" },
-    { label: "Last message", value: "updatedAt" }, // TODO fix when live-state supports deep sorting
+    { label: "Last message", value: "updatedAt" }, //TODO fix when live-state supports deep sorting
     { label: "Priority", value: "priority" },
     { label: "Status", value: "status" },
   ];
@@ -161,9 +162,9 @@ function RouteComponent() {
             key={thread.id}
             to={"/app/threads/trash/$id"}
             params={{ id: thread.id }}
-            className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+            className="w-full max-w-5xl flex p-3 gap-2 hover:bg-muted items-center"
           >
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-2 flex-1 min-w-0">
               <div className="flex items-center gap-2">
                 <Avatar
                   variant="user"
@@ -172,9 +173,7 @@ function RouteComponent() {
                 />
                 <div>{thread?.name}</div>
               </div>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
+              <span className="text-muted-foreground min-w-0 text-nowrap font-medium truncate max-w-2xl">
                 <span className="font-medium">
                   {
                     thread?.messages?.[thread?.messages?.length - 1]?.author
@@ -191,9 +190,9 @@ function RouteComponent() {
                   )}
                 </span>
               </span>
-              {/* //TODO: Update countdown  */}
-              <div className="text-destructive">3 days left</div>
             </div>
+            {/* //TODO: Update countdown  */}
+            <div className="text-destructive flex-shrink-0">3 days left</div>
           </Link>
         ))}
       </CardContent>
