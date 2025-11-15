@@ -54,12 +54,20 @@ export const publicKeys = createKeys({
   storage: new KyselyStore({
     db: storage.internalDB as any,
     table: "public_api_keys",
+    schema: {
+      apiKeyColumns: {
+        keyHash: "key_hash",
+      },
+    },
   }),
   cache: true,
   autoTrackUsage: true,
 });
 
-if (process.env.NODE_ENV !== "development" && !process.env.API_KEY_SALT) {
+if (
+  (process.env.NODE_ENV ?? "development") !== "development" &&
+  !process.env.API_KEY_SALT
+) {
   throw new Error("API_KEY_SALT is not set");
 }
 

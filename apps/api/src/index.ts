@@ -57,7 +57,7 @@ const lsServer = server({
         if (!result.valid) throw new Error("Invalid public API key");
 
         return {
-          internalApiKey: result.record?.metadata,
+          publicApiKey: result.record?.metadata,
         };
       }
 
@@ -88,7 +88,7 @@ const lsServer = server({
       if (!result.valid) throw new Error("Invalid public API key");
 
       return {
-        internalApiKey: result.record?.metadata,
+        publicApiKey: result.record?.metadata,
       };
     }
 
