@@ -44,6 +44,7 @@ const thread = object("thread", {
   name: string(),
   authorId: reference("author.id"),
   createdAt: timestamp(),
+  deletedAt: timestamp().nullable(),
   discordChannelId: string().nullable(),
   status: number().default(0),
   priority: number().default(0),
