@@ -126,35 +126,31 @@ function RouteComponent() {
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
-                <Dialog
-                  open={showRestoreDialog}
-                  onOpenChange={setShowRestoreDialog}
-                >
-                  <DialogContent className="sm:max-w-[425px]">
-                    <DialogHeader>
-                      <DialogTitle>Restore Thread</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to restore the thread "
-                        {thread?.name}"?
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button
-                        type="submit"
-                        variant="outline"
-                        onClick={() => {
-                          restoreThread();
-                        }}
-                      >
-                        Restore
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
               </div>
             )}
           </CardTitle>
         </CardHeader>
+        <Dialog open={showRestoreDialog} onOpenChange={setShowRestoreDialog}>
+          <DialogContent className="sm:max-w-[425px]">
+            <DialogHeader>
+              <DialogTitle>Restore Thread</DialogTitle>
+              <DialogDescription>
+                Are you sure you want to restore the thread "{thread?.name}"?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button
+                type="submit"
+                variant="outline"
+                onClick={() => {
+                  restoreThread();
+                }}
+              >
+                Restore
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
         {/* //TODO: Update deletion countdown */}
         <div className="flex gap-4 items-center justify-center w-full text-center bg-destructive/80 text-destructive-foreground p-3 text-sm">
           <p>
