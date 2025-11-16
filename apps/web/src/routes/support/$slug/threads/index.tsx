@@ -71,8 +71,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     const threads = await fetchClient.query.thread
       .where({
         organizationId: organization.id,
-        //TODO: refactor magic number
-        status: { $not: -1 },
+        deletedAt: { $eq: null },
       })
       .include({ messages: { author: true }, author: true, assignedUser: true })
       .get();

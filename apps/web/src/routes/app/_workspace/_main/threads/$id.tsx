@@ -70,6 +70,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
+import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
   component: RouteComponent,
@@ -109,10 +110,10 @@ function RouteComponent() {
 
   const deleteThread = () => {
     mutate.thread.update(id, {
-      status: -1,
+      deletedAt: calculateDeletionDate(),
     });
     setShowDeleteDialog(false);
-    toast.success("Thread will be deleted after 30 days", {
+    toast.success(`Thread will be deleted after ${DAYS_UNTIL_DELETION} days`, {
       duration: 10000,
       action: {
         label: "See list",

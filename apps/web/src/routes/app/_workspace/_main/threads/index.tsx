@@ -11,6 +11,7 @@ import { Button } from "@workspace/ui/components/button";
 import {
   CardAction,
   CardContent,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
@@ -50,6 +51,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useState } from "react";
+import { CreateThread } from "~/components/devtools/create-thread";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -81,8 +83,7 @@ function RouteComponent() {
 
   let threadsQuery = query.thread.where({
     organizationId: organization?.id,
-    //TODO: refactor magic number
-    status: { $not: -1 },
+    deletedAt: { $eq: null },
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
@@ -290,11 +291,11 @@ function RouteComponent() {
           </Link>
         ))}
       </CardContent>
-      {/* {import.meta.env.MODE === "development" && (
+      {import.meta.env.MODE === "development" && (
         <CardFooter>
           <CreateThread />
         </CardFooter>
-      )} */}
+      )}
     </>
   );
 }

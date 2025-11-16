@@ -34,10 +34,12 @@ import {
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import { add } from "date-fns";
 import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { mutate, query } from "~/lib/live-state";
+import { DAYS_UNTIL_DELETION, getDaysUntilDeletion } from "~/utils/thread";
 
 export const Route = createFileRoute(
   "/app/_workspace/_main/threads/archive/$id",
@@ -52,11 +54,21 @@ function RouteComponent() {
   const [showRestoreDialog, setShowRestoreDialog] = useState(false);
 
   const thread = useLiveQuery(
-    query.thread.where({ id }).include({
-      organization: true,
-      messages: { author: true },
-      assignedUser: true,
-    }),
+    query.thread
+      .where({
+        id,
+        deletedAt: {
+          $not: null,
+          $lt: add(new Date(), {
+            days: DAYS_UNTIL_DELETION,
+          }),
+        },
+      })
+      .include({
+        organization: true,
+        messages: { author: true },
+        assignedUser: true,
+      }),
   )?.[0];
 
   const { scrollRef, disableAutoScroll } = useAutoScroll({
@@ -66,9 +78,8 @@ function RouteComponent() {
   });
 
   const restoreThread = () => {
-    // TODO: Restore previous status instead of setting to 0
     mutate.thread.update(id, {
-      status: 0,
+      deletedAt: null,
     });
     setShowRestoreDialog(false);
     toast.success("Thread restored", {
@@ -88,6 +99,8 @@ function RouteComponent() {
     navigate({ to: "/app/threads/archive" });
   };
 
+  if (!thread) return undefined;
+
   return (
     <div className="flex size-full">
       <div className="flex-1 flex flex-col">
@@ -106,7 +119,7 @@ function RouteComponent() {
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild className="text-white">
-                        <Link to="/app/threads/$id" params={{ id: id }}>
+                        <Link to="/app/threads/archive/$id" params={{ id: id }}>
                           {thread.name}
                         </Link>
                       </BreadcrumbLink>
@@ -144,7 +157,10 @@ function RouteComponent() {
         </CardHeader>
         {/* //TODO: Update deletion countdown */}
         <div className="flex gap-4 items-center justify-center w-full text-center bg-destructive/80 text-destructive-foreground p-3 text-sm">
-          <p>This thread will be permanently deleted in 14 days.</p>
+          <p>
+            This thread will be permanently deleted in{" "}
+            {getDaysUntilDeletion(thread.deletedAt)} days.
+          </p>
           <Button
             variant="outline"
             size="sm"

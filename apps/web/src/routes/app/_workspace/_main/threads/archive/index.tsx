@@ -29,6 +29,7 @@ import {
 } from "@workspace/ui/components/tooltip";
 import { getFirstTextContent, safeParseJSON } from "@workspace/ui/lib/tiptap";
 import type { schema } from "api/schema";
+import { add } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import {
   Archive,
@@ -39,6 +40,7 @@ import {
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
+import { DAYS_UNTIL_DELETION, getDaysUntilDeletion } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/archive/")({
   component: RouteComponent,
@@ -61,21 +63,30 @@ function RouteComponent() {
 
   const threadsQuery = query.thread.where({
     organizationId: organization?.id,
-    //TODO: refactor magic number
-    status: { $eq: -1 },
+    deletedAt: {
+      $not: null,
+      $lt: add(new Date(), {
+        days: DAYS_UNTIL_DELETION,
+      }),
+    },
   });
 
   const [orderBy, setOrderBy] = useState<string>("createdAt");
   const [orderDirection, setOrderDirection] = useState<"asc" | "desc">("desc");
 
-  const threads = useLiveQuery(
-    threadsQuery
-      .include({ messages: { author: true }, author: true, assignedUser: true })
-      .orderBy(
-        orderBy as keyof InferLiveObject<typeof schema.thread>,
-        orderDirection,
-      ),
-  );
+  const threads =
+    useLiveQuery(
+      threadsQuery
+        .include({
+          messages: { author: true },
+          author: true,
+          assignedUser: true,
+        })
+        .orderBy(
+          orderBy as keyof InferLiveObject<typeof schema.thread>,
+          orderDirection,
+        ),
+    ) ?? [];
 
   if (!organization) {
     return null;
@@ -147,7 +158,8 @@ function RouteComponent() {
       </CardHeader>
       {threads.length > 0 && (
         <div className="w-full text-center pt-4 text-muted-foreground text-sm">
-          Threads in archive will be permanently deleted after 30 days.
+          Threads in archive will be permanently deleted after{" "}
+          {DAYS_UNTIL_DELETION} days.
         </div>
       )}
       <CardContent className="overflow-y-auto gap-0 items-center">
@@ -191,16 +203,12 @@ function RouteComponent() {
                 </span>
               </span>
             </div>
-            {/* //TODO: Update countdown  */}
-            <div className="text-destructive flex-shrink-0">3 days left</div>
+            <div className="text-destructive flex-shrink-0">
+              {getDaysUntilDeletion(thread.deletedAt)} days left
+            </div>
           </Link>
         ))}
       </CardContent>
-      {/* {import.meta.env.MODE === "development" && (
-        <CardFooter>
-          <CreateThread />
-        </CardFooter>
-      )} */}
     </>
   );
 }

@@ -143,6 +143,7 @@ client.on("messageCreate", async (message) => {
       organizationId: integration.organizationId,
       name: message.channel.name,
       createdAt: new Date(),
+      deletedAt: null,
       discordChannelId: message.channel.id,
       authorId: authorId,
       assignedUserId: null,

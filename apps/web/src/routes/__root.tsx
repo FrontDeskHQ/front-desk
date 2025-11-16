@@ -6,6 +6,7 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
 import { Toaster } from "@workspace/ui/components/sonner";
@@ -118,7 +119,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <body className="w-full min-h-screen text-sm">
         <Providers>
           {children}
-          {/* <TanStackRouterDevtools position="bottom-right" /> */}
+          <TanStackRouterDevtools position="bottom-right" />
           <Toaster />
         </Providers>
         <Scripts />
