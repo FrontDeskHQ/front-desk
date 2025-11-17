@@ -7,15 +7,6 @@ import tsConfigPaths from "vite-tsconfig-paths";
 export default defineConfig({
   server: {
     port: 3000,
-    proxy: {
-      "/api": {
-        target: "http://localhost:3333",
-        changeOrigin: true,
-        // rewrite: (path) => path.replace(/^\/api/, ""),
-        ws: true,
-        rewriteWsOrigin: true,
-      },
-    },
     cors: {
       origin: [/^http:\/\/([^.]+\.)?localhost(:\d+)?$/],
       credentials: true,

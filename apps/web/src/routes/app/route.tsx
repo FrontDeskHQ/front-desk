@@ -23,6 +23,8 @@ export const Route = createFileRoute("/app")({
 
     sessionData = await getAuthUser();
 
+    console.log("sessionData", sessionData);
+
     if (!sessionData) {
       throw redirect({
         to: "/",
