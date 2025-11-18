@@ -5,6 +5,11 @@ const getApiUrl = () => {
   return import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 };
 
+const getRequestTimeout = () => {
+  const timeout = import.meta.env.VITE_API_TIMEOUT;
+  return timeout ? parseInt(timeout, 10) : 30000; // Default 30 seconds
+};
+
 export const Route = createFileRoute("/api/$")({
   server: {
     handlers: {
@@ -112,8 +117,16 @@ const handleProxy = async (
     } catch {}
   }
 
+  const timeout = getRequestTimeout();
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), timeout);
+
+  fetchOptions.signal = abortController.signal;
+
   try {
     const response = await fetch(targetUrl.toString(), fetchOptions);
+
+    clearTimeout(timeoutId);
 
     const responseHeaders = new Headers();
 
@@ -145,16 +158,21 @@ const handleProxy = async (
       headers: responseHeaders,
     });
   } catch (error) {
+    clearTimeout(timeoutId);
     console.error("[API Proxy] Error proxying request:", error);
+
+    const isTimeout =
+      error instanceof Error &&
+      (error.name === "AbortError" || error.message.includes("aborted"));
 
     return new Response(
       JSON.stringify({
-        error: "Failed to proxy request to API",
+        error: isTimeout ? "Request timeout" : "Failed to proxy request to API",
         message: error instanceof Error ? error.message : "Unknown error",
       }),
       {
-        status: 502,
-        statusText: "Bad Gateway",
+        status: isTimeout ? 504 : 502,
+        statusText: isTimeout ? "Gateway Timeout" : "Bad Gateway",
         headers: {
           "Content-Type": "application/json",
           "Access-Control-Allow-Origin": clientOrigin,
