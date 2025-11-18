@@ -345,50 +345,135 @@ export const router = createRouter({
           };
         }),
       })),
-    thread: publicRoute.collectionRoute(schema.thread, {
-      read: () => true,
-      insert: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
+    thread: publicRoute
+      .collectionRoute(schema.thread, {
+        read: () => true,
+        insert: ({ ctx }) => {
+          if (ctx?.internalApiKey) return true;
+          if (!ctx?.session) return false;
 
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
+          return {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+              },
             },
+          };
+        },
+        update: {
+          preMutation: ({ ctx }) => {
+            if (ctx?.internalApiKey) return true;
+            if (!ctx?.session) return false;
+
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                },
+              },
+            };
           },
-        };
-      },
-      update: {
-        preMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
+          postMutation: ({ ctx }) => {
+            if (ctx?.internalApiKey) return true;
+            if (!ctx?.session) return false;
 
-          return {
-            organization: {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                enabled: true,
+            return {
+              organization: {
+                organizationUsers: {
+                  userId: ctx.session.userId,
+                  enabled: true,
+                },
               },
-            },
-          };
+            };
+          },
         },
-        postMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
+      })
+      .withMutations(({ mutation }) => ({
+        create: mutation(
+          z.object({
+            organizationId: z.string().optional(),
+            title: z.string(),
+            message: z.string(),
+            author: z.object({
+              id: z.string(),
+              name: z.string(),
+            }),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.internalApiKey && !req.context?.publicApiKey) {
+            throw new Error("UNAUTHORIZED");
+          }
 
-          return {
-            organization: {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                enabled: true,
-              },
+          const organizationId =
+            req.context?.publicApiKey?.ownerId ?? req.input.organizationId;
+
+          if (!organizationId) {
+            throw new Error("MISSING_ORGANIZATION_ID");
+          }
+
+          const existingAuthor = await db.find(schema.author, {
+            where: {
+              metaId: req.input.author.id,
+              organizationId: organizationId,
             },
-          };
-        },
-      },
-    }),
+          });
+
+          const threadId = ulid().toLowerCase();
+
+          await db.transaction(async ({ trx }) => {
+            let authorId = existingAuthor[0]?.id;
+
+            if (!authorId) {
+              authorId = ulid().toLowerCase();
+
+              await trx.insert(schema.author, {
+                id: authorId,
+                name: req.input.author.name,
+                organizationId: organizationId,
+                metaId: req.input.author.id,
+                userId: null,
+              });
+
+              await trx.insert(schema.thread, {
+                id: threadId,
+                name: req.input.title,
+                authorId: authorId,
+                organizationId: organizationId,
+                createdAt: new Date(),
+                discordChannelId: null,
+                assignedUserId: null,
+              });
+
+              await trx.insert(schema.message, {
+                id: ulid().toLowerCase(),
+                authorId: authorId,
+                content: JSON.stringify([
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: req.input.message }],
+                  },
+                ]),
+                threadId,
+                createdAt: new Date(),
+                origin: null,
+                externalMessageId: null,
+              });
+            }
+          });
+
+          const thread = await db.find(schema.thread, {
+            where: { id: threadId },
+            include: {
+              author: true,
+              messages: true,
+            },
+          });
+
+          return Object.values(thread)[0];
+        }),
+      })),
     message: publicRoute.collectionRoute(schema.message, {
       read: () => true,
       insert: ({ ctx }) => {

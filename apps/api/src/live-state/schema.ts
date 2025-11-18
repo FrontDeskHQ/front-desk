@@ -64,6 +64,8 @@ const message = object("message", {
 const author = object("author", {
   id: id(),
   name: string(),
+  // TODO make this required after migration
+  organizationId: reference("organization.id").nullable(),
   /**
    * This is used to identify the author in the external system.
    * For example, in Discord, this is the user ID.
