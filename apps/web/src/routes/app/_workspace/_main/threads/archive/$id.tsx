@@ -1,5 +1,3 @@
-("use client");
-
 import { useLiveQuery } from "@live-state/sync/client";
 import {
   createFileRoute,
