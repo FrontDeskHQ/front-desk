@@ -83,7 +83,7 @@ function RouteComponent() {
 
   let threadsQuery = query.thread.where({
     organizationId: organization?.id,
-    deletedAt: { $eq: null },
+    deletedAt: null,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
