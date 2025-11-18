@@ -1,5 +1,12 @@
+("use client");
+
 import { useLiveQuery } from "@live-state/sync/client";
-import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  getRouteApi,
+  Link,
+  useNavigate,
+} from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
 import {
@@ -9,6 +16,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -26,6 +34,21 @@ import {
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@workspace/ui/components/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
+import {
   PriorityIndicator,
   PriorityText,
   StatusIndicator,
@@ -42,9 +65,12 @@ import {
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { CircleUser } from "lucide-react";
+import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
+import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
   component: RouteComponent,
@@ -53,6 +79,8 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
   const { id } = Route.useParams();
+  const navigate = useNavigate();
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const thread = useLiveQuery(
     query.thread.where({ id }).include({
@@ -74,6 +102,33 @@ function RouteComponent() {
     offset: 264,
   });
 
+  const copyLinkToClipboard = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied to clipboard");
+  };
+
+  const deleteThread = () => {
+    mutate.thread.update(id, {
+      deletedAt: calculateDeletionDate(),
+    });
+    setShowDeleteDialog(false);
+    toast.success(`Thread will be deleted after ${DAYS_UNTIL_DELETION} days`, {
+      duration: 10000,
+      action: {
+        label: "See list",
+        onClick: () => navigate({ to: "/app/threads/archive" }),
+      },
+      actionButtonStyle: {
+        background: "transparent",
+        color: "hsl(var(--primary))",
+        border: "none",
+        textDecoration: "underline",
+      },
+    });
+    navigate({ to: "/app/threads" });
+  };
+
   return (
     <div className="flex size-full">
       <div className="flex-1 flex flex-col">
@@ -81,23 +136,72 @@ function RouteComponent() {
           <CardTitle>
             {" "}
             {thread && (
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild>
-                      <Link to="/app/threads">Threads</Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbLink asChild className="text-white">
-                      <Link to="/app/threads/$id" params={{ id: id }}>
-                        {thread.name}
-                      </Link>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
+              <div className="flex justify-between items-center w-full">
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to="/app/threads">Threads</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild className="text-white">
+                        <Link to="/app/threads/$id" params={{ id: id }}>
+                          {thread.name}
+                        </Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="ghost" aria-label="Open menu" size="sm">
+                      <MoreHorizontalIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-40" align="end">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem onSelect={() => copyLinkToClipboard()}>
+                        <Copy />
+                        Copy link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 />
+                        Delete thread
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Dialog
+                  open={showDeleteDialog}
+                  onOpenChange={setShowDeleteDialog}
+                >
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Delete Thread</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to delete the thread "
+                        {thread?.name}"?
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        onClick={() => {
+                          deleteThread();
+                        }}
+                      >
+                        Delete
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             )}
           </CardTitle>
         </CardHeader>
@@ -115,7 +219,8 @@ function RouteComponent() {
                   key={message.id}
                   className={cn(
                     "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                    !message.origin && "border-[#2662D9]/20",
+                    message?.author?.userId === user.id &&
+                      "border-[#2662D9]/20",
                   )}
                 >
                   <CardHeader
