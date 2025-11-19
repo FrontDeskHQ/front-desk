@@ -4,21 +4,18 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 // When we run on localhost or client rendering, we use the base URL to share cookies via same-origin requests
 export const getBaseApiUrl = createIsomorphicFn()
   .server(() => {
-    console.log(
-      "[getBaseApiUrl] Server environment",
-      import.meta.env.SERVER_ENV
-    );
-    console.log("[getBaseApiUrl] API URL", import.meta.env.VITE_API_URL);
-    console.log("[getBaseApiUrl] Base URL", import.meta.env.VITE_BASE_URL);
+    console.log("[getBaseApiUrl] Server environment", process.env.SERVER_ENV);
+    console.log("[getBaseApiUrl] API URL", process.env.VITE_API_URL);
+    console.log("[getBaseApiUrl] Base URL", process.env.VITE_BASE_URL);
     console.log(
       "[getBaseApiUrl] Returning URL",
-      import.meta.env.SERVER_ENV === "cloudflare"
-        ? import.meta.env.VITE_API_URL ?? "http://localhost:3333"
-        : import.meta.env.VITE_BASE_URL ?? "http://localhost:3000"
+      process.env.SERVER_ENV === "cloudflare"
+        ? process.env.VITE_API_URL ?? "http://localhost:3333"
+        : process.env.VITE_BASE_URL ?? "http://localhost:3000"
     );
-    return import.meta.env.SERVER_ENV === "cloudflare"
-      ? import.meta.env.VITE_API_URL ?? "http://localhost:3333"
-      : import.meta.env.VITE_BASE_URL ?? "http://localhost:3000";
+    return process.env.SERVER_ENV === "cloudflare"
+      ? process.env.VITE_API_URL ?? "http://localhost:3333"
+      : process.env.VITE_BASE_URL ?? "http://localhost:3000";
   })
   .client(() => {
     return import.meta.env.VITE_BASE_URL ?? "http://localhost:3000";
