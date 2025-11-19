@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { authClient } from "../auth-client";
+import { serverAuthClient } from "../auth-client";
 
 export const getAuthUser = createServerFn({
   method: "GET",
@@ -8,7 +8,7 @@ export const getAuthUser = createServerFn({
   console.log("[getAuthUser] Fetching session");
   console.log("[getAuthUser] Headers", Object.fromEntries(getRequestHeaders()));
   console.log("[getAuthUser] Base URL", import.meta.env.VITE_BASE_URL);
-  const res = await authClient.getSession({
+  const res = await serverAuthClient.getSession({
     fetchOptions: {
       headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
       onRequest: () => {

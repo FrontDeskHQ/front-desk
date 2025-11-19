@@ -1,8 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { z } from "zod";
-import { authClient } from "../auth-client";
 import { fetchClient } from "../live-state";
+import { getAuthUser } from "./get-auth-user";
 
 export const getInvitation = createServerFn({
   method: "GET",
@@ -13,11 +12,7 @@ export const getInvitation = createServerFn({
     }),
   )
   .handler(async ({ data }) => {
-    const { data: sessionData } = await authClient.getSession({
-      fetchOptions: {
-        headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
-      },
-    });
+    const sessionData = await getAuthUser();
 
     if (!sessionData) {
       throw new Error("UNAUTHORIZED");

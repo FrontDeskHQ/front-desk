@@ -1,22 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import z from "zod";
-import { authClient } from "../auth-client";
 import { fetchClient } from "../live-state";
 import { dodopayments } from "../payments";
+import { getAuthUser } from "./get-auth-user";
 
 const authorizeOrganizationUser = async (customerId: string) => {
-  const res = await authClient.getSession({
-    fetchOptions: {
-      headers: Object.fromEntries(getRequestHeaders()) as HeadersInit,
-    },
-  });
+  const sessionData = await getAuthUser();
 
-  if (!res.data) {
+  if (!sessionData) {
     throw new Error("UNAUTHORIZED");
   }
 
-  const { user } = res.data;
+  const { user } = sessionData;
 
   const organizationUser = (
     await fetchClient.query.organizationUser
