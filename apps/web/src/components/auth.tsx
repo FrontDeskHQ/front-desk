@@ -29,6 +29,12 @@ export const SignInForm = () => {
       onSubmit: signInFormSchema,
     },
     onSubmit: async ({ value }) => {
+      console.log("[SignIn] Starting login attempt", {
+        email: value.email,
+        baseURL: import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
+        timestamp: new Date().toISOString(),
+      });
+
       await authClient.signIn.email(
         {
           email: value.email,
@@ -37,12 +43,19 @@ export const SignInForm = () => {
         },
         {
           onRequest: () => {
+            console.log("[SignIn] Login request initiated");
             setLoading(true);
           },
           onSuccess: () => {
+            console.log("[SignIn] Login successful");
             setLoading(false);
           },
           onError: (ctx) => {
+            console.error("[SignIn] Login error", {
+              error: ctx.error,
+              message: ctx.error.message,
+              stack: ctx.error.stack,
+            });
             setLoading(false);
             setError(ctx.error.message);
           },

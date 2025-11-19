@@ -67,6 +67,7 @@ const handleProxy = async (
   const apiPath = pathMatch?.[1] ?? params.$ ?? params._splat ?? "";
 
   if (!apiPath) {
+    console.error("[API Proxy] Missing API path", { url: request.url, params });
     return new Response(JSON.stringify({ error: "API path is required" }), {
       status: 400,
       statusText: "Bad Request",
@@ -80,6 +81,14 @@ const handleProxy = async (
 
   const targetPath = `/api/${apiPath}`;
   const targetUrl = new URL(targetPath, apiUrl);
+
+  console.log("[API Proxy] Proxying request", {
+    apiPath,
+    targetPath,
+    targetUrl: targetUrl.toString(),
+    method: request.method,
+    isAuthRequest: apiPath.startsWith("auth/"),
+  });
 
   url.searchParams.forEach((value, key) => {
     targetUrl.searchParams.set(key, value);
@@ -124,9 +133,22 @@ const handleProxy = async (
   fetchOptions.signal = abortController.signal;
 
   try {
+    console.log("[API Proxy] Fetching from API", {
+      targetUrl: targetUrl.toString(),
+      method: request.method,
+      headers: Object.fromEntries(headers),
+    });
+
     const response = await fetch(targetUrl.toString(), fetchOptions);
 
     clearTimeout(timeoutId);
+
+    console.log("[API Proxy] Received response", {
+      status: response.status,
+      statusText: response.statusText,
+      headers: Object.fromEntries(response.headers),
+      isAuthRequest: apiPath.startsWith("auth/"),
+    });
 
     const responseHeaders = new Headers();
 
@@ -151,6 +173,14 @@ const handleProxy = async (
     );
 
     const responseBody = await response.arrayBuffer();
+
+    if (apiPath.startsWith("auth/")) {
+      console.log("[API Proxy] Auth response body", {
+        status: response.status,
+        bodyLength: responseBody.byteLength,
+        contentType: response.headers.get("content-type"),
+      });
+    }
 
     return new Response(responseBody, {
       status: response.status,

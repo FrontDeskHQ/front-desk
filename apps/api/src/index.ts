@@ -93,7 +93,27 @@ const lsServer = server({
   },
 });
 
-app.all("/api/auth/*", toNodeHandler(auth));
+app.all("/api/auth/*", (req, res, next) => {
+  console.log("[Auth API] Incoming auth request", {
+    method: req.method,
+    path: req.path,
+    url: req.url,
+    headers: req.headers,
+    body: req.method !== "GET" && req.method !== "HEAD" ? req.body : undefined,
+  });
+  
+  const handler = toNodeHandler(auth);
+  handler(req, res, next);
+  
+  res.on("finish", () => {
+    console.log("[Auth API] Auth request completed", {
+      method: req.method,
+      path: req.path,
+      statusCode: res.statusCode,
+      headers: res.getHeaders(),
+    });
+  });
+});
 
 app.use(express.json());
 
