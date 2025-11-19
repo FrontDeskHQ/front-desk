@@ -18,16 +18,21 @@ export const Route = createFileRoute("/app")({
         : undefined;
 
     if (sessionData) {
+      console.log("[App Route] Session data found in cache", sessionData);
       return sessionData;
     }
 
     sessionData = await getAuthUser();
+
+    console.log("[App Route] Session data fetched", sessionData);
 
     if (!sessionData) {
       throw redirect({
         to: "/",
       });
     }
+
+    console.log("[App Route] Session data fetched", sessionData);
 
     const allowlist = await fetchClient.query.allowlist
       .first({
@@ -40,6 +45,8 @@ export const Route = createFileRoute("/app")({
         to: "/now-allowed",
       });
     }
+
+    console.log("[App Route] Allowlist fetched", allowlist);
 
     if (typeof window !== "undefined") {
       (window as WindowWithCachedSession).cachedSession = sessionData;
