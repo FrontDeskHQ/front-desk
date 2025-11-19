@@ -32,7 +32,7 @@ export const Route = createFileRoute("/app")({
       });
     }
 
-    console.log("[App Route] Session data fetched", sessionData);
+    console.log("[App Route] Session check successful");
 
     const allowlist = await fetchClient.query.allowlist
       .first({
