@@ -413,12 +413,14 @@ export const router = createRouter({
             throw new Error("MISSING_ORGANIZATION_ID");
           }
 
-          const existingAuthor = await db.find(schema.author, {
-            where: {
-              metaId: req.input.author.id,
-              organizationId: organizationId,
-            },
-          });
+          const existingAuthor = Object.values(
+            await db.find(schema.author, {
+              where: {
+                metaId: req.input.author.id,
+                organizationId: organizationId,
+              },
+            })
+          );
 
           const threadId = ulid().toLowerCase();
 
