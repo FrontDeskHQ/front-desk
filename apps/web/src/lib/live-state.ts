@@ -5,6 +5,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { authClient } from "./auth-client";
+import { getLiveStateApiUrl } from "./urls";
 
 const { client, store } = createClient<Router>({
   url:
@@ -26,8 +27,7 @@ const { query, mutate } = store;
 export { client, mutate, query };
 
 export const fetchClient = createFetchClient<Router>({
-  // This needs to be in the same domain as the web app, since we need to share cookies
-  url: `${import.meta.env.VITE_BASE_URL ?? "http://localhost:3000"}/api/ls`,
+  url: getLiveStateApiUrl() as string,
   schema,
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))
