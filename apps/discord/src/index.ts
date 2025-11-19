@@ -133,6 +133,7 @@ client.on("messageCreate", async (message) => {
       name: message.author.username,
       userId: null,
       metaId: message.author.id,
+      organizationId: integration.organizationId,
     });
   }
 
