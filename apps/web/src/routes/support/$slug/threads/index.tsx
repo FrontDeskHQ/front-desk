@@ -179,6 +179,8 @@ function RouteComponent() {
     return null;
   }
 
+  const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
+
   return (
     <div className="w-full">
       <Navbar>
@@ -203,24 +205,13 @@ function RouteComponent() {
             <h1 className="font-bold text-2xl sm:text-3xl truncate">
               {organization?.name}
             </h1>
-            {/* TODO - FRO-80 Add social links when we have them */}
-            {/* {organization.integrations.length > 0 && (
+            {discordUrl && (
               <Button size="lg" externalLink asChild>
-                <a
-                  href={
-                    organization.integrations.find(
-                      (integration) =>
-                        integration.type === "discord" &&
-                        integration.enabled === true,
-                    )?.configStr || "#"
-                  }
-                  target="_blank"
-                  rel="noreferrer"
-                >
+                <a href={discordUrl} target="_blank" rel="noreferrer">
                   Join Discord
                 </a>
               </Button>
-            )} */}
+            )}
           </div>
         </div>
         <Card className="bg-muted/30">

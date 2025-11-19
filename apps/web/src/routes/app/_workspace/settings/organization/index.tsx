@@ -59,6 +59,7 @@ const orgProfileSchema = z.object({
       message: "This slug is reserved and cannot be used",
     }),
   orgLogo: z.instanceof(File).optional(),
+  orgSocials: z.string().optional(),
 });
 
 function RouteComponent() {
@@ -70,6 +71,7 @@ function RouteComponent() {
       orgName: org?.name ?? "",
       orgSlug: org?.slug ?? "",
       orgLogo: undefined,
+      orgSocials: JSON.parse(org?.socials ?? "{}")?.discord ?? "",
     } as z.infer<typeof orgProfileSchema>,
     validators: {
       onSubmit: orgProfileSchema,
@@ -92,10 +94,14 @@ function RouteComponent() {
         name: value.orgName,
         slug: value.orgSlug,
         logoUrl,
+        socials: JSON.stringify({ discord: value.orgSocials }),
       });
     },
   });
-  const isDirty = useStore(store, (s) => s.isDirty);
+
+  const nonPersistentIsDirty = useStore(store, (s) => {
+    return Object.values(s.fieldMeta).some((field) => !field.isDefaultValue);
+  });
 
   if (!org) return null;
 
@@ -169,10 +175,27 @@ function RouteComponent() {
               </FormItem>
             )}
           </Field>
+          <Field name="orgSocials">
+            {(field) => (
+              <FormItem field={field} className="flex justify-between">
+                <FormLabel>Discord URL</FormLabel>
+                <FormControl>
+                  <Input
+                    id={field.name}
+                    value={field.state.value}
+                    onChange={(e) => field.setValue(e.target.value)}
+                    autoComplete="off"
+                    className="w-full max-w-3xs"
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          </Field>
         </CardContent>
       </Card>
       <div className="flex justify-end">
-        <Button disabled={!isDirty}>Save</Button>
+        <Button disabled={!nonPersistentIsDirty}>Save</Button>
       </div>
     </form>
   );
