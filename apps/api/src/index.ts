@@ -17,22 +17,13 @@ import { storage } from "./live-state/storage";
 
 const { app } = expressWs(express());
 
-// CORS configuration
 const corsOptions = {
-  origin: process.env.CORS_ORIGIN?.split(",")?.map((origin) => {
-    // Escape special regex characters and convert to regex pattern
-    const escaped = origin.trim().replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    return new RegExp(`^https?://${escaped}(:\\d+)?$`);
-  }) || [
-    /^http:\/\/([^.]+\.)?localhost(:\d+)?$/,
-    /^https:\/\/([^.]+\.)?tryfrontdesk\.app$/,
-  ],
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-  credentials: true, // Allow cookies to be sent with requests
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+  allowedHeaders: ["Content-Type", "Authorization", "x-public-api-key"],
+  credentials: true,
 };
 
-// Apply CORS middleware
 app.use(cors(corsOptions));
 
 const lsServer = server({

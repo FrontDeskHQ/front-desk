@@ -14,23 +14,7 @@ export const auth = betterAuth({
     "http://localhost:3000",
   ],
   advanced: {
-    ...(process.env.BASE_COOKIE_DOMAIN
-      ? {
-          crossSubDomainCookies: {
-            enabled: true,
-            domain: process.env.BASE_COOKIE_DOMAIN,
-          },
-        }
-      : {}),
     useSecureCookies: true,
-    cookies: {
-      session_token: {
-        attributes: {
-          sameSite: "None",
-          secure: true,
-        },
-      },
-    },
   },
   emailAndPassword: {
     enabled: !useSocialProvider,

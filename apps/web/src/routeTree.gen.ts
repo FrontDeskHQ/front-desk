@@ -16,6 +16,7 @@ import { Route as NowAllowedRouteImport } from './routes/now-allowed'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
+import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
 import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
@@ -75,6 +76,11 @@ const PublicIndexRoute = PublicIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => PublicRouteRoute,
+} as any)
+const ApiSplatRoute = ApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
@@ -222,6 +228,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/$': typeof ApiSplatRoute
   '/': typeof PublicIndexRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
@@ -253,6 +260,7 @@ export interface FileRoutesByTo {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/api/$': typeof ApiSplatRoute
   '/': typeof PublicIndexRoute
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
@@ -285,6 +293,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
+  '/api/$': typeof ApiSplatRoute
   '/_public/': typeof PublicIndexRoute
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
   '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
@@ -319,6 +328,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/api/$'
     | '/'
     | '/app/settings'
     | '/legal/privacy-policy'
@@ -350,6 +360,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/api/$'
     | '/'
     | '/legal/privacy-policy'
     | '/legal/terms-of-service'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/sitemap.xml'
     | '/app/_workspace'
+    | '/api/$'
     | '/_public/'
     | '/app/_workspace/_main'
     | '/app/_workspace/settings'
@@ -415,6 +427,7 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ApiSplatRoute: typeof ApiSplatRoute
   SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
   SupportSlugIndexRoute: typeof SupportSlugIndexRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
@@ -471,6 +484,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/'
       preLoaderRoute: typeof PublicIndexRouteImport
       parentRoute: typeof PublicRouteRoute
+    }
+    '/api/$': {
+      id: '/api/$'
+      path: '/api/$'
+      fullPath: '/api/$'
+      preLoaderRoute: typeof ApiSplatRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/app/_workspace': {
       id: '/app/_workspace'
@@ -760,6 +780,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ApiSplatRoute: ApiSplatRoute,
   SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
   SupportSlugIndexRoute: SupportSlugIndexRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,

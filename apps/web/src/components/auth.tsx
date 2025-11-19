@@ -274,6 +274,7 @@ export const SignUpForm = () => {
 
 export const AuthButtonGroup = () => {
   const { data: session } = authClient.useSession();
+  
   return (
     <div className="flex items-center gap-2">
       {session ? (
