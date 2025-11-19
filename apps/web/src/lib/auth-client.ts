@@ -14,7 +14,8 @@ export const authClient = createAuthClient({
 });
 
 // This is used to fetch session data from the server, since calling a worker from itself doesn't work
+// We use VITE_BASE_URL instead of VITE_API_URL to go through the API proxy route during SSR
 export const serverAuthClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL ?? "http://localhost:3333",
+  baseURL: import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
   plugins: [oneTimeTokenClient()],
 });
