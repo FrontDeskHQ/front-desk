@@ -444,6 +444,7 @@ export const router = createRouter({
                 authorId: authorId,
                 organizationId: organizationId,
                 createdAt: new Date(),
+                deletedAt: null,
                 discordChannelId: null,
                 assignedUserId: null,
               });

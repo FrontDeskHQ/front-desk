@@ -270,6 +270,7 @@ function RouteComponent() {
                   userId: user.id,
                   metaId: null,
                   name: user.name,
+                  organizationId: thread?.organizationId,
                 });
               }
 

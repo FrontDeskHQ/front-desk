@@ -185,6 +185,7 @@ export const CreateThread = () => {
           name: randomThread.author,
           userId: null,
           metaId: null,
+          organizationId: currentOrg.id,
         });
 
         // Small delay to ensure author is created first
@@ -241,6 +242,7 @@ export const CreateThread = () => {
         name: value.author,
         userId: null,
         metaId: null,
+        organizationId: currentOrg.id,
       });
 
       // Small delay to ensure author is created first
