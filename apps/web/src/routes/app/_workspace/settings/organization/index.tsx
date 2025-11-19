@@ -59,6 +59,22 @@ const orgProfileSchema = z.object({
       message: "This slug is reserved and cannot be used",
     }),
   orgLogo: z.instanceof(File).optional(),
+  orgSocials: z
+    .string()
+    .optional()
+    .refine(
+      (url) => {
+        if (!url || url.trim() === "") return true;
+        // Match discord.gg, discord.com/invite, or discordapp.com/invite URLs (with or without protocol and www)
+        return /^https:\/\/(discord\.gg|discord\.com\/invite)\/[a-zA-Z0-9]+$/.test(
+          url,
+        );
+      },
+      {
+        message:
+          "Must be a valid Discord invite link (e.g., discord.gg/servername)",
+      },
+    ),
 });
 
 function RouteComponent() {
@@ -70,6 +86,13 @@ function RouteComponent() {
       orgName: org?.name ?? "",
       orgSlug: org?.slug ?? "",
       orgLogo: undefined,
+      orgSocials: (() => {
+        try {
+          return JSON.parse(org?.socials ?? "{}")?.discord ?? "";
+        } catch {
+          return "";
+        }
+      })(),
     } as z.infer<typeof orgProfileSchema>,
     validators: {
       onSubmit: orgProfileSchema,
@@ -92,10 +115,14 @@ function RouteComponent() {
         name: value.orgName,
         slug: value.orgSlug,
         logoUrl,
+        socials: JSON.stringify({ discord: value.orgSocials }),
       });
     },
   });
-  const isDirty = useStore(store, (s) => s.isDirty);
+
+  const nonPersistentIsDirty = useStore(store, (s) => {
+    return Object.values(s.fieldMeta).some((field) => !field.isDefaultValue);
+  });
 
   if (!org) return null;
 
@@ -169,10 +196,29 @@ function RouteComponent() {
               </FormItem>
             )}
           </Field>
+          <Field name="orgSocials">
+            {(field) => (
+              <FormItem field={field} className="flex justify-between">
+                <FormLabel>Discord URL</FormLabel>
+                <div className="flex flex-col w-full max-w-3xs">
+                  <FormControl>
+                    <Input
+                      id={field.name}
+                      value={field.state.value}
+                      onChange={(e) => field.setValue(e.target.value)}
+                      autoComplete="off"
+                      className="w-full max-w-3xs"
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </div>
+              </FormItem>
+            )}
+          </Field>
         </CardContent>
       </Card>
       <div className="flex justify-end">
-        <Button disabled={!isDirty}>Save</Button>
+        <Button disabled={!nonPersistentIsDirty}>Save</Button>
       </div>
     </form>
   );

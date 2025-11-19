@@ -27,8 +27,6 @@ const userProfileSchema = z.object({
 
 function RouteComponent() {
   const { user: userFromContext } = Route.useRouteContext();
-
-  // Query user reactively so it updates after mutations
   const user = useLiveQuery(query.user.first({ id: userFromContext?.id }));
 
   const { Field, handleSubmit, store } = useForm({

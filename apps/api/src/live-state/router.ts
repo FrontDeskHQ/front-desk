@@ -107,6 +107,7 @@ export const router = createRouter({
             slug: req.input!.slug,
             createdAt: new Date(),
             logoUrl: null,
+            socials: null,
           });
 
           await db.insert(schema.subscription, {

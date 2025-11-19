@@ -16,6 +16,7 @@ const organization = object("organization", {
   slug: string().unique().index(),
   createdAt: timestamp(),
   logoUrl: string().nullable(),
+  socials: string().nullable(),
 });
 
 const subscription = object("subscription", {
