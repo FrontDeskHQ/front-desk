@@ -5,16 +5,6 @@ import "../env";
 
 const useSocialProvider = !!process.env.ENABLE_GOOGLE_LOGIN;
 
-console.log("[Auth Config] Initializing auth", {
-  baseURL: process.env.BASE_URL,
-  useSocialProvider,
-  emailAndPasswordEnabled: !useSocialProvider,
-  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [
-    "http://localhost:3000",
-  ],
-  hasDatabaseUrl: !!process.env.DATABASE_URL,
-});
-
 export const auth = betterAuth({
   baseURL: process.env.BASE_URL,
   database: new Pool({
