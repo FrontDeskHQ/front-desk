@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
+import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as NowAllowedRouteImport } from './routes/now-allowed'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
@@ -21,6 +22,7 @@ import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/r
 import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
 import { Route as SupportSlugSitemapDotxmlRouteImport } from './routes/support/$slug/sitemap[.]xml'
+import { Route as SupportSlugRobotsDottxtRouteImport } from './routes/support/$slug/robots[.]txt'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as PublicLegalTermsOfServiceRouteImport } from './routes/_public/legal/terms-of-service'
@@ -56,6 +58,11 @@ const SignUpRoute = SignUpRouteImport.update({
 const SignInRoute = SignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
+  id: '/robots.txt',
+  path: '/robots.txt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NowAllowedRoute = NowAllowedRouteImport.update({
@@ -102,6 +109,11 @@ const SupportSlugSitemapDotxmlRoute =
     path: '/support/$slug/sitemap.xml',
     getParentRoute: () => rootRouteImport,
   } as any)
+const SupportSlugRobotsDottxtRoute = SupportSlugRobotsDottxtRouteImport.update({
+  id: '/support/$slug/robots.txt',
+  path: '/support/$slug/robots.txt',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
   id: '/onboarding/new',
   path: '/onboarding/new',
@@ -225,6 +237,7 @@ const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
 export interface FileRoutesByFullPath {
   '/app': typeof AppWorkspaceMainRouteRouteWithChildren
   '/now-allowed': typeof NowAllowedRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -235,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
@@ -257,6 +271,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
   '/now-allowed': typeof NowAllowedRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -266,6 +281,7 @@ export interface FileRoutesByTo {
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
@@ -289,6 +305,7 @@ export interface FileRoutesById {
   '/_public': typeof PublicRouteRouteWithChildren
   '/app': typeof AppRouteRouteWithChildren
   '/now-allowed': typeof NowAllowedRoute
+  '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
@@ -301,6 +318,7 @@ export interface FileRoutesById {
   '/_public/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
+  '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
@@ -325,6 +343,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/app'
     | '/now-allowed'
+    | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
@@ -335,6 +354,7 @@ export interface FileRouteTypes {
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
     | '/app/onboarding'
     | '/support/$slug'
@@ -357,6 +377,7 @@ export interface FileRouteTypes {
   to:
     | '/app'
     | '/now-allowed'
+    | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
@@ -366,6 +387,7 @@ export interface FileRouteTypes {
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
     | '/app/onboarding'
     | '/support/$slug'
@@ -388,6 +410,7 @@ export interface FileRouteTypes {
     | '/_public'
     | '/app'
     | '/now-allowed'
+    | '/robots.txt'
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
@@ -400,6 +423,7 @@ export interface FileRouteTypes {
     | '/_public/legal/terms-of-service'
     | '/app/invitation/$id'
     | '/app/onboarding/new'
+    | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
     | '/app/onboarding/'
     | '/support/$slug/'
@@ -424,10 +448,12 @@ export interface RootRouteChildren {
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
   AppRouteRoute: typeof AppRouteRouteWithChildren
   NowAllowedRoute: typeof NowAllowedRoute
+  RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   ApiSplatRoute: typeof ApiSplatRoute
+  SupportSlugRobotsDottxtRoute: typeof SupportSlugRobotsDottxtRoute
   SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
   SupportSlugIndexRoute: typeof SupportSlugIndexRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
@@ -455,6 +481,13 @@ declare module '@tanstack/react-router' {
       path: '/sign-in'
       fullPath: '/sign-in'
       preLoaderRoute: typeof SignInRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/robots.txt': {
+      id: '/robots.txt'
+      path: '/robots.txt'
+      fullPath: '/robots.txt'
+      preLoaderRoute: typeof RobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/now-allowed': {
@@ -518,6 +551,13 @@ declare module '@tanstack/react-router' {
       path: '/support/$slug/sitemap.xml'
       fullPath: '/support/$slug/sitemap.xml'
       preLoaderRoute: typeof SupportSlugSitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/support/$slug/robots.txt': {
+      id: '/support/$slug/robots.txt'
+      path: '/support/$slug/robots.txt'
+      fullPath: '/support/$slug/robots.txt'
+      preLoaderRoute: typeof SupportSlugRobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app/onboarding/new': {
@@ -777,10 +817,12 @@ const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
   NowAllowedRoute: NowAllowedRoute,
+  RobotsDottxtRoute: RobotsDottxtRoute,
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   ApiSplatRoute: ApiSplatRoute,
+  SupportSlugRobotsDottxtRoute: SupportSlugRobotsDottxtRoute,
   SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
   SupportSlugIndexRoute: SupportSlugIndexRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,

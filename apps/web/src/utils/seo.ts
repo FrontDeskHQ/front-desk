@@ -8,7 +8,6 @@ export const seo = ({
   siteName = "FrontDesk",
   locale = "en_US",
   author,
-  robots,
 }: {
   title: string;
   description?: string;
@@ -19,7 +18,6 @@ export const seo = ({
   siteName?: string;
   locale?: string;
   author?: string;
-  robots?: string;
 }) => {
   const tags = [
     // Basic meta tags
@@ -27,22 +25,6 @@ export const seo = ({
     { name: "description", content: description },
     { name: "keywords", content: keywords },
     { name: "author", content: author ?? "FrontDesk" },
-    {
-      name: "robots",
-      content:
-        robots ??
-        "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
-    },
-    {
-      name: "googlebot",
-      content:
-        "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
-    },
-    {
-      name: "bingbot",
-      content:
-        "index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
-    },
 
     // Open Graph tags
     { property: "og:type", content: type },
