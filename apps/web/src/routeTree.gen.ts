@@ -21,6 +21,7 @@ import { Route as ApiSplatRouteImport } from './routes/api/$'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
 import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
+import { Route as PublicUpdatesIndexRouteImport } from './routes/_public/updates/index'
 import { Route as SupportSlugSitemapDotxmlRouteImport } from './routes/support/$slug/sitemap[.]xml'
 import { Route as SupportSlugRobotsDottxtRouteImport } from './routes/support/$slug/robots[.]txt'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
@@ -102,6 +103,11 @@ const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   id: '/onboarding/',
   path: '/onboarding/',
   getParentRoute: () => AppRouteRoute,
+} as any)
+const PublicUpdatesIndexRoute = PublicUpdatesIndexRouteImport.update({
+  id: '/updates/',
+  path: '/updates/',
+  getParentRoute: () => PublicRouteRoute,
 } as any)
 const SupportSlugSitemapDotxmlRoute =
   SupportSlugSitemapDotxmlRouteImport.update({
@@ -250,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
+  '/updates': typeof PublicUpdatesIndexRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -283,6 +290,7 @@ export interface FileRoutesByTo {
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
+  '/updates': typeof PublicUpdatesIndexRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -320,6 +328,7 @@ export interface FileRoutesById {
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
+  '/_public/updates/': typeof PublicUpdatesIndexRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
@@ -356,6 +365,7 @@ export interface FileRouteTypes {
     | '/app/onboarding/new'
     | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
+    | '/updates'
     | '/app/onboarding'
     | '/support/$slug'
     | '/support/$slug/threads/$id'
@@ -389,6 +399,7 @@ export interface FileRouteTypes {
     | '/app/onboarding/new'
     | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
+    | '/updates'
     | '/app/onboarding'
     | '/support/$slug'
     | '/support/$slug/threads/$id'
@@ -425,6 +436,7 @@ export interface FileRouteTypes {
     | '/app/onboarding/new'
     | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
+    | '/_public/updates/'
     | '/app/onboarding/'
     | '/support/$slug/'
     | '/support/$slug/threads/$id'
@@ -545,6 +557,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/app/onboarding'
       preLoaderRoute: typeof AppOnboardingIndexRouteImport
       parentRoute: typeof AppRouteRoute
+    }
+    '/_public/updates/': {
+      id: '/_public/updates/'
+      path: '/updates'
+      fullPath: '/updates'
+      preLoaderRoute: typeof PublicUpdatesIndexRouteImport
+      parentRoute: typeof PublicRouteRoute
     }
     '/support/$slug/sitemap.xml': {
       id: '/support/$slug/sitemap.xml'
@@ -714,12 +733,14 @@ interface PublicRouteRouteChildren {
   PublicIndexRoute: typeof PublicIndexRoute
   PublicLegalPrivacyPolicyRoute: typeof PublicLegalPrivacyPolicyRoute
   PublicLegalTermsOfServiceRoute: typeof PublicLegalTermsOfServiceRoute
+  PublicUpdatesIndexRoute: typeof PublicUpdatesIndexRoute
 }
 
 const PublicRouteRouteChildren: PublicRouteRouteChildren = {
   PublicIndexRoute: PublicIndexRoute,
   PublicLegalPrivacyPolicyRoute: PublicLegalPrivacyPolicyRoute,
   PublicLegalTermsOfServiceRoute: PublicLegalTermsOfServiceRoute,
+  PublicUpdatesIndexRoute: PublicUpdatesIndexRoute,
 }
 
 const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(

@@ -3,6 +3,8 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 import tsConfigPaths from "vite-tsconfig-paths";
+import mdx from "fumadocs-mdx/vite";
+import * as MdxConfig from "./source.config";
 
 export default defineConfig({
   server: {
@@ -21,5 +23,6 @@ export default defineConfig({
       : undefined,
     tanstackStart(),
     viteReact(),
+    mdx(MdxConfig),
   ],
 });
