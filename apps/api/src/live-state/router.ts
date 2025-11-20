@@ -438,50 +438,63 @@ export const router = createRouter({
                 metaId: req.input.author.id,
                 userId: null,
               });
-
-              await trx.insert(schema.thread, {
-                id: threadId,
-                name: req.input.title,
-                authorId: authorId,
-                organizationId: organizationId,
-                createdAt: new Date(),
-                deletedAt: null,
-                discordChannelId: null,
-                assignedUserId: null,
-              });
-
-              await trx.insert(schema.message, {
-                id: ulid().toLowerCase(),
-                authorId: authorId,
-                content: JSON.stringify([
-                  {
-                    type: "paragraph",
-                    content: [{ type: "text", text: req.input.message }],
-                  },
-                ]),
-                threadId,
-                createdAt: new Date(),
-                origin: null,
-                externalMessageId: null,
-              });
             }
+
+            await trx.insert(schema.thread, {
+              id: threadId,
+              name: req.input.title,
+              authorId: authorId,
+              organizationId: organizationId,
+              createdAt: new Date(),
+              deletedAt: null,
+              discordChannelId: null,
+              assignedUserId: null,
+            });
+
+            await trx.insert(schema.message, {
+              id: ulid().toLowerCase(),
+              authorId: authorId,
+              content: JSON.stringify([
+                {
+                  type: "paragraph",
+                  content: [{ type: "text", text: req.input.message }],
+                },
+              ]),
+              threadId,
+              createdAt: new Date(),
+              origin: null,
+              externalMessageId: null,
+            });
           });
 
           const thread = await db.find(schema.thread, {
             where: { id: threadId },
             include: {
               author: true,
-              messages: true,
+              messages: {
+                author: true,
+              },
             },
           });
 
-          return Object.values(thread)[0];
+          return thread;
         }),
       })),
     message: publicRoute.collectionRoute(schema.message, {
       read: () => true,
       insert: ({ ctx }) => {
         if (ctx?.internalApiKey) return true;
+
+        if (ctx?.publicApiKey) {
+          return {
+            thread: {
+              organization: {
+                id: ctx.publicApiKey.ownerId,
+              },
+            },
+          };
+        }
+
         if (!ctx?.session) return false;
 
         return {
