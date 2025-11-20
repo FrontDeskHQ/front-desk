@@ -93,10 +93,7 @@ const lsServer = server({
   },
 });
 
-app.all("/api/auth/*", (req, res, next) => {
-  const handler = toNodeHandler(auth);
-  handler(req, res, next);
-});
+app.all("/api/auth/*", toNodeHandler(auth));
 
 app.use(express.json());
 
