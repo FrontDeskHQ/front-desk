@@ -1,3 +1,4 @@
+import { useFlag } from "@reflag/react-sdk";
 import { Link, useMatches } from "@tanstack/react-router";
 import {
   Sidebar,
@@ -25,6 +26,8 @@ const items: { title: string; url: string; icon: React.ComponentType<any> }[] =
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const matches = useMatches();
+
+  const { isEnabled: isWidgetEnabled, config } = useFlag("widget");
 
   return (
     <Sidebar variant="inset" className="bg-none">
@@ -57,24 +60,26 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <NavFavorites favorites={data.favorites} /> */}
         {/* <NavWorkspaces workspaces={data.workspaces} /> */}
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
-        <SidebarFooter>
-          <SidebarMenuButton asChild>
-            <a href="/docs" target="_blank" rel="noopener noreferrer">
-              <Book />
-              Docs
-            </a>
-          </SidebarMenuButton>
-          <SidebarMenuButton asChild>
-            <a
-              href="https://discord.gg/5MDHqKHrHr"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <MessageCircleQuestion />
-              Support
-            </a>
-          </SidebarMenuButton>
-        </SidebarFooter>
+        {!isWidgetEnabled && (
+          <SidebarFooter>
+            <SidebarMenuButton asChild>
+              <a href="/docs" target="_blank" rel="noopener noreferrer">
+                <Book />
+                Docs
+              </a>
+            </SidebarMenuButton>
+            <SidebarMenuButton asChild>
+              <a
+                href="https://discord.gg/5MDHqKHrHr"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageCircleQuestion />
+                Support
+              </a>
+            </SidebarMenuButton>
+          </SidebarFooter>
+        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

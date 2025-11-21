@@ -1,9 +1,9 @@
 import type { InferLiveObject } from "@live-state/sync";
+import { ReflagClientProvider } from "@reflag/react-sdk";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import type { schema } from "api/schema";
-import { useAtom } from "jotai/react";
-import { activeOrganizationAtom } from "~/lib/atoms";
-import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
+import { useEffect } from "react";
+import { reflagClient } from "~/lib/feature-flag";
 import { fetchClient } from "~/lib/live-state";
 
 export type WindowWithCachedOrgUsers = Window & {
@@ -58,15 +58,13 @@ export const Route = createFileRoute("/app/_workspace")({
 });
 
 function RouteComponent() {
-  const { organizationUsers } = useOrganizationSwitcher();
+  useEffect(() => {
+    reflagClient.initialize();
+  }, []);
 
-  const [activeOrganization, setActiveOrganization] = useAtom(
-    activeOrganizationAtom,
+  return (
+    <ReflagClientProvider client={reflagClient}>
+      <Outlet />
+    </ReflagClientProvider>
   );
-
-  if (!activeOrganization) {
-    setActiveOrganization(organizationUsers[0]?.organization);
-  }
-
-  return <Outlet />;
 }
