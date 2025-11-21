@@ -8,8 +8,23 @@ const loader = createServerFn({
   method: "GET",
 }).handler(async () => {
   const pages = source.getPages();
+  
+  // Sort pages by date (newest first)
+  const sortedPages = pages
+    .filter((page) => page.data.date) // Only include pages with dates
+    .sort((a, b) => {
+      const dateA = new Date(a.data.date as string).getTime();
+      const dateB = new Date(b.data.date as string).getTime();
+      return dateB - dateA; // Descending order (newest first)
+    });
+
   return {
-    path: pages.map((page) => page.path),
+    pages: sortedPages.map((page) => ({
+      path: page.path,
+      title: page.data.title,
+      description: page.data.description,
+      date: page.data.date as string,
+    })),
   };
 });
 
@@ -28,17 +43,25 @@ export const Route = createFileRoute("/_public/updates/")({
   component: RouteComponent,
   loader: async () => {
     const data = await loader();
-    await clientLoader.preload(data.path[0]);
+    // Preload all pages
+    await Promise.all(data.pages.map((page) => clientLoader.preload(page.path)));
     return data;
   },
 });
 
 function RouteComponent() {
   const data = Route.useLoaderData();
-  const Content = clientLoader.getComponent(data.path[0]);
+  
   return (
-    <div className="max-w-6xl my-8">
-      <Content />
+    <div className="max-w-6xl my-8 space-y-8">
+      {data.pages.map((page) => {
+        const Content = clientLoader.getComponent(page.path);
+        return (
+          <div key={page.path} className="border-b pb-8 last:border-b-0">
+            <Content />
+          </div>
+        );
+      })}
     </div>
   );
 }
