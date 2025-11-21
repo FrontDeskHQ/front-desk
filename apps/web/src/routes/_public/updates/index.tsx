@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
-import { Prose } from "@workspace/ui/components/prose";
 import browserCollections from "fumadocs-mdx:collections/browser";
 import { source } from "~/lib/source";
 
@@ -8,8 +7,7 @@ const loader = createServerFn({
   method: "GET",
 }).handler(async () => {
   const pages = source.getPages();
-  
-  // Sort pages by date (newest first)
+
   const sortedPages = pages
     .filter((page) => page.data.date) // Only include pages with dates
     .sort((a, b) => {
@@ -31,10 +29,10 @@ const loader = createServerFn({
 const clientLoader = browserCollections.docs.createClientLoader({
   component({ frontmatter, default: MDX }) {
     return (
-      <Prose>
+      <div className="prose">
         <h1>{frontmatter.title}</h1>
         <MDX />
-      </Prose>
+      </div>
     );
   },
 });
@@ -44,20 +42,22 @@ export const Route = createFileRoute("/_public/updates/")({
   loader: async () => {
     const data = await loader();
     // Preload all pages
-    await Promise.all(data.pages.map((page) => clientLoader.preload(page.path)));
+    await Promise.all(
+      data.pages.map((page) => clientLoader.preload(page.path)),
+    );
     return data;
   },
 });
 
 function RouteComponent() {
   const data = Route.useLoaderData();
-  
+
   return (
-    <div className="max-w-6xl my-8 space-y-8">
+    <div className="max-w-6xl space-y-8 flex flex-col">
       {data.pages.map((page) => {
         const Content = clientLoader.getComponent(page.path);
         return (
-          <div key={page.path} className="border-b pb-8 last:border-b-0">
+          <div key={page.path} className="border-b last:border-b-0 m-0 py-8">
             <Content />
           </div>
         );
