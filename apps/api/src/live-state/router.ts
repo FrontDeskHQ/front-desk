@@ -469,15 +469,17 @@ export const router = createRouter({
             });
           });
 
-          const thread = await db.find(schema.thread, {
-            where: { id: threadId },
-            include: {
-              author: true,
-              messages: {
+          const thread = Object.values(
+            await db.find(schema.thread, {
+              where: { id: threadId },
+              include: {
                 author: true,
+                messages: {
+                  author: true,
+                },
               },
-            },
-          });
+            })
+          )[0];
 
           return thread;
         }),
