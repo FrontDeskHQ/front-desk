@@ -29,7 +29,7 @@ const loader = createServerFn({
 const clientLoader = browserCollections.docs.createClientLoader({
   component({ frontmatter, default: MDX }) {
     return (
-      <div className="prose">
+      <div className="customProse">
         <h1>{frontmatter.title}</h1>
         <MDX />
       </div>
