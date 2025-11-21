@@ -50,6 +50,7 @@ function RouteComponent() {
             <div className="flex flex-col gap-2">
               <a href="/#pricing">Pricing</a>
               <a href="/docs">Docs</a>
+              <a href="/updates">Updates</a>
             </div>
           </div>
           <div className="p-4 space-y-4 col-span-3 md:col-start-5 md:col-span-1">
