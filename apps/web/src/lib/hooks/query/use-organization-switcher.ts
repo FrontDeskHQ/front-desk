@@ -11,18 +11,18 @@ export const useOrganizationSwitcher = () => {
     activeOrganizationAtom
   );
 
-  if (!activeOrganization) {
-    setActiveOrganization(organizationUsers[0]?.organization);
-  }
-
   useEffect(() => {
+    if (!activeOrganization) {
+      setActiveOrganization(organizationUsers[0]?.organization);
+    }
+
     reflagClient.setContext({
       company: {
-        id: organizationUsers[0]?.organization?.id,
-        name: organizationUsers[0]?.organization?.name,
+        id: activeOrganization?.id,
+        name: activeOrganization?.name,
       },
     });
-  }, [organizationUsers]);
+  }, [organizationUsers, activeOrganization]);
 
   return { organizationUsers, activeOrganization, setActiveOrganization };
 };
