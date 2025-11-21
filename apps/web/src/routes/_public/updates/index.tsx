@@ -9,10 +9,10 @@ const loader = createServerFn({
   const pages = source.getPages();
 
   const sortedPages = pages
-    .filter((page) => page.data.date) // Only include pages with dates
+    .filter((page) => page.data.publishedAt) // Only include pages with publishedAt dates
     .sort((a, b) => {
-      const dateA = new Date(a.data.date as string).getTime();
-      const dateB = new Date(b.data.date as string).getTime();
+      const dateA = new Date(a.data.publishedAt as string).getTime();
+      const dateB = new Date(b.data.publishedAt as string).getTime();
       return dateB - dateA; // Descending order (newest first)
     });
 
@@ -20,8 +20,10 @@ const loader = createServerFn({
     pages: sortedPages.map((page) => ({
       path: page.path,
       title: page.data.title,
-      description: page.data.description,
-      date: page.data.date as string,
+      publishedAt: page.data.publishedAt as string,
+      summary: page.data.summary as string,
+      tag: page.data.tag as string,
+      image: page.data.image as string,
     })),
   };
 });
@@ -53,15 +55,24 @@ function RouteComponent() {
   const data = Route.useLoaderData();
 
   return (
-    <div className="max-w-6xl space-y-8 flex flex-col">
-      {data.pages.map((page) => {
-        const Content = clientLoader.getComponent(page.path);
-        return (
-          <div key={page.path} className="border-b last:border-b-0 m-0 py-8">
-            <Content />
-          </div>
-        );
-      })}
+    <div className="max-w-6xl flex flex-col">
+      <h1 className="text-4xl font-bold py-8">What's new?</h1>
+      <div className="flex">
+        <div className="w-1/4">timeline</div>
+        <div className="w-3/4">
+          {data.pages.map((page) => {
+            const Content = clientLoader.getComponent(page.path);
+            return (
+              <div
+                key={page.path}
+                className="border-b last:border-b-0 m-0 py-8"
+              >
+                <Content />
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
