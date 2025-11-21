@@ -136,26 +136,28 @@ export const router = createRouter({
             name: z.string().optional(),
           })
         ).handler(async ({ req, db }) => {
-          if (!req.context?.session?.userId) {
-            throw new Error("UNAUTHORIZED");
-          }
-
           const organizationId = req.input.organizationId;
 
-          const selfOrgUser = Object.values(
-            await db.find(schema.organizationUser, {
-              where: {
-                organizationId,
-                userId: req.context.session.userId,
-              },
-              include: {
-                user: true,
-                organization: true,
-              },
-            })
-          )[0] as any;
+          let authorized = !!req.context?.internalApiKey;
 
-          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId,
+                  userId: req.context.session.userId,
+                },
+                include: {
+                  user: true,
+                  organization: true,
+                },
+              })
+            )[0] as any;
+
+            authorized = selfOrgUser && selfOrgUser.role === "owner";
+          }
+
+          if (!authorized) {
             throw new Error("UNAUTHORIZED");
           }
 
