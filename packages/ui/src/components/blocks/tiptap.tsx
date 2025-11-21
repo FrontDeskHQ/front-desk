@@ -106,7 +106,7 @@ export function InputBox({
     >
       <EditorContent
         editor={editor}
-        className="max-h-96 overflow-y-auto placeholder:text-muted-foreground"
+        className="customProse max-h-96 overflow-y-auto placeholder:text-muted-foreground"
       />
       <BubbleMenu
         className="bg-[#1B1B1E] border rounded-sm shadow"
@@ -342,7 +342,7 @@ export function RichText({ content }: { content?: JSONContent[] | string }) {
     }
   }, [content, editor]);
 
-  return <EditorContent editor={editor} />;
+  return <EditorContent editor={editor} className="customProse" />;
 }
 
 export function TruncatedText({
