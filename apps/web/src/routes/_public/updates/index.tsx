@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
+import { Prose } from "@workspace/ui/components/prose";
 import browserCollections from "fumadocs-mdx:collections/browser";
 import { source } from "~/lib/source";
 
@@ -15,10 +16,10 @@ const loader = createServerFn({
 const clientLoader = browserCollections.docs.createClientLoader({
   component({ frontmatter, default: MDX }) {
     return (
-      <div className="prose">
+      <Prose>
         <h1>{frontmatter.title}</h1>
         <MDX />
-      </div>
+      </Prose>
     );
   },
 });
@@ -35,5 +36,9 @@ export const Route = createFileRoute("/_public/updates/")({
 function RouteComponent() {
   const data = Route.useLoaderData();
   const Content = clientLoader.getComponent(data.path[0]);
-  return <Content />;
+  return (
+    <div className="max-w-6xl my-8">
+      <Content />
+    </div>
+  );
 }
