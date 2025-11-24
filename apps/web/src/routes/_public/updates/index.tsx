@@ -67,7 +67,7 @@ function RouteComponent() {
             >
               <div className="relative md:sticky md:top-24 h-fit self-start">
                 <div
-                  className={`absolute -left-[37px] md:-left-[53px] top-2 h-2.5 w-2.5 rounded-full ring-4 ring-background transition-colors duration-200 ${
+                  className={`absolute -left-[37.5px] md:-left-[53.5px] top-2 h-2.5 w-2.5 rounded-full ring-4 ring-background transition-colors duration-200 ${
                     index === 0 ? "bg-[#345BCA]" : "bg-muted-foreground/30"
                   }`}
                 />
