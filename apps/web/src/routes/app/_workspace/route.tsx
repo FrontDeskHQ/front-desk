@@ -4,6 +4,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import type { schema } from "api/schema";
 import { useEffect } from "react";
 import { reflagClient } from "~/lib/feature-flag";
+import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient } from "~/lib/live-state";
 
 export type WindowWithCachedOrgUsers = Window & {
@@ -58,6 +59,9 @@ export const Route = createFileRoute("/app/_workspace")({
 });
 
 function RouteComponent() {
+  // This is needed to set the active organization in the organization switcher
+  useOrganizationSwitcher();
+
   useEffect(() => {
     reflagClient.initialize();
   }, []);

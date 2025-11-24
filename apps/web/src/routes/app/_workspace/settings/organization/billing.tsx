@@ -56,7 +56,7 @@ function RouteComponent() {
   const [pastInvoices, setPastInvoices] = useState<
     DodoPayments.PaymentListResponse[]
   >([]);
-
+  // TODO use tanstack query instead
   useEffect(() => {
     if (!subscription?.customerId) {
       setIsLoading(false);

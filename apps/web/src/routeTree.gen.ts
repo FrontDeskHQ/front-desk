@@ -40,6 +40,7 @@ import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './rout
 import { Route as AppWorkspaceSettingsOrganizationBillingRouteImport } from './routes/app/_workspace/settings/organization/billing'
 import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_workspace/_main/threads/$id'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
+import { Route as AppWorkspaceSettingsOrganizationApiKeysIndexRouteImport } from './routes/app/_workspace/settings/organization/api-keys/index'
 import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
 import { Route as AppWorkspaceMainThreadsArchiveIdRouteImport } from './routes/app/_workspace/_main/threads/archive/$id'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
@@ -209,6 +210,12 @@ const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
     path: '/organization/integration/',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationApiKeysIndexRoute =
+  AppWorkspaceSettingsOrganizationApiKeysIndexRouteImport.update({
+    id: '/organization/api-keys/',
+    path: '/organization/api-keys/',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
 const AppWorkspaceMainThreadsArchiveIndexRoute =
   AppWorkspaceMainThreadsArchiveIndexRouteImport.update({
     id: '/threads/archive/',
@@ -264,6 +271,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
   '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
   '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  '/app/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysIndexRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -296,6 +304,7 @@ export interface FileRoutesByTo {
   '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
   '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
   '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  '/app/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysIndexRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -334,6 +343,7 @@ export interface FileRoutesById {
   '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
   '/app/_workspace/_main/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
   '/app/_workspace/_main/threads/archive/': typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  '/app/_workspace/settings/organization/api-keys/': typeof AppWorkspaceSettingsOrganizationApiKeysIndexRoute
   '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/_workspace/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/_workspace/settings/organization/integration/discord/': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -370,6 +380,7 @@ export interface FileRouteTypes {
     | '/app/settings/user'
     | '/app/threads/archive/$id'
     | '/app/threads/archive'
+    | '/app/settings/organization/api-keys'
     | '/app/settings/organization/integration'
     | '/app/settings/organization/integration/discord/redirect'
     | '/app/settings/organization/integration/discord'
@@ -402,6 +413,7 @@ export interface FileRouteTypes {
     | '/app/settings/user'
     | '/app/threads/archive/$id'
     | '/app/threads/archive'
+    | '/app/settings/organization/api-keys'
     | '/app/settings/organization/integration'
     | '/app/settings/organization/integration/discord/redirect'
     | '/app/settings/organization/integration/discord'
@@ -439,6 +451,7 @@ export interface FileRouteTypes {
     | '/app/_workspace/settings/user/'
     | '/app/_workspace/_main/threads/archive/$id'
     | '/app/_workspace/_main/threads/archive/'
+    | '/app/_workspace/settings/organization/api-keys/'
     | '/app/_workspace/settings/organization/integration/'
     | '/app/_workspace/settings/organization/integration/discord/redirect'
     | '/app/_workspace/settings/organization/integration/discord/'
@@ -679,6 +692,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
+    '/app/_workspace/settings/organization/api-keys/': {
+      id: '/app/_workspace/settings/organization/api-keys/'
+      path: '/organization/api-keys'
+      fullPath: '/app/settings/organization/api-keys'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationApiKeysIndexRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
     '/app/_workspace/_main/threads/archive/': {
       id: '/app/_workspace/_main/threads/archive/'
       path: '/threads/archive'
@@ -754,6 +774,7 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
   AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
+  AppWorkspaceSettingsOrganizationApiKeysIndexRoute: typeof AppWorkspaceSettingsOrganizationApiKeysIndexRoute
   AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -769,6 +790,8 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
     AppWorkspaceSettingsUserIndexRoute: AppWorkspaceSettingsUserIndexRoute,
+    AppWorkspaceSettingsOrganizationApiKeysIndexRoute:
+      AppWorkspaceSettingsOrganizationApiKeysIndexRoute,
     AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
       AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
     AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute:
