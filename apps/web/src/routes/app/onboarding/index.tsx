@@ -9,6 +9,7 @@ import { useAsyncAction } from "@workspace/ui/hooks/use-action";
 import { cn } from "@workspace/ui/lib/utils";
 import { ArrowRightIcon, Check } from "lucide-react";
 import { useState } from "react";
+import { useLogout } from "~/lib/hooks/auth";
 import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute("/app/onboarding/")({
@@ -62,8 +63,10 @@ export const Route = createFileRoute("/app/onboarding/")({
 
 function OnboardingForm() {
   const { invites } = Route.useLoaderData();
+  const { user } = Route.useRouteContext();
   const [acceptedSomeInvite, setAcceptedSomeInvite] = useState(false);
   const [isPending, asyncAction] = useAsyncAction();
+  const logout = useLogout();
 
   return (
     <div className="flex flex-col gap-6 w-md items-center">
@@ -74,6 +77,14 @@ function OnboardingForm() {
           </Logo>
         </div>
         <h1 className="text-xl">FrontDesk</h1>
+      </div>
+      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
+        <span className="text-sm text-muted-foreground">
+          Logged in as: {user.email}
+        </span>
+        <Button variant="outline" size="sm" onClick={logout}>
+          Logout
+        </Button>
       </div>
       <h1 className="text-xl font-medium">Join your teammates</h1>
       <Card className="w-full p-4 bg-muted/50">
