@@ -8,6 +8,10 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
+import {
+  PriorityIndicator,
+  StatusIndicator,
+} from "@workspace/ui/components/indicator";
 import { Logo } from "@workspace/ui/components/logo";
 import { Navbar } from "@workspace/ui/components/navbar";
 import {
@@ -43,17 +47,11 @@ import { seo } from "~/utils/seo";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
-type ThreadsSearch = {
-  page?: number;
-  order?: ThreadsSearchOrderOptions;
-  dir?: "asc" | "desc";
-};
-
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
   validateSearch: z.object({
-    page: z.number().optional(),
+    page: z.coerce.number().optional(),
     order: z.enum(["createdAt", "updatedAt"]).optional(),
     dir: z.enum(["asc", "desc"]).optional(),
   }),
@@ -295,6 +293,12 @@ function RouteComponent() {
                       fallback={thread?.author?.name}
                     />
                     <div>{thread?.name}</div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <PriorityIndicator
+                      priority={(thread as any)?.priority ?? 0}
+                    />
+                    <StatusIndicator status={(thread as any)?.status ?? 0} />
                   </div>
                 </div>
                 <div className="flex justify-between gap-2">
