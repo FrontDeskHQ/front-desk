@@ -42,7 +42,7 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/api-keys/",
+  "/app/_workspace/settings/organization/api-keys",
 )({
   component: RouteComponent,
 });
