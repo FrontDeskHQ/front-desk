@@ -84,7 +84,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
   },
 
   head: ({ loaderData }) => {
-    const orgName = loaderData.organization?.name ?? "Support";
+    const orgName = loaderData?.organization?.name ?? "Support";
     return {
       meta: [
         ...seo({

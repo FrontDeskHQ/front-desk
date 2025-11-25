@@ -50,9 +50,8 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
       thread,
     };
   },
-
   head: ({ loaderData }) => {
-    const thread = loaderData.thread;
+    const thread = loaderData?.thread;
     const orgName = thread?.organization?.name ?? "Support";
     const threadName = thread?.name ?? "Thread";
     return {

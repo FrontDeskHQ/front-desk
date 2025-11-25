@@ -5,6 +5,7 @@ import {
   createFileRoute,
   getRouteApi,
   Link,
+  notFound,
   useNavigate,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
@@ -87,6 +88,11 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
         })
         .get()
     )[0];
+
+    if (!thread) {
+      throw notFound();
+    }
+
     return { thread };
   },
   head: ({ loaderData }) => {
