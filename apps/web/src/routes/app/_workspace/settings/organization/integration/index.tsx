@@ -1,9 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/",
 )({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Integrations - FrontDesk",
+          description: "Manage your integrations",
+        }),
+      ],
+    };
+  },
 });
 
 export const integrationOptions: {

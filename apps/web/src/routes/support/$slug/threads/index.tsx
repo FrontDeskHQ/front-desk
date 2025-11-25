@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
@@ -79,6 +80,18 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     return {
       organization: organization as typeof organization | undefined,
       threads: threads as typeof threads | undefined,
+    };
+  },
+
+  head: ({ loaderData }) => {
+    const orgName = loaderData.organization?.name ?? "Support";
+    return {
+      meta: [
+        ...seo({
+          title: `${orgName} - Support`,
+          description: `Support threads for ${orgName}`,
+        }),
+      ],
     };
   },
 });

@@ -36,13 +36,48 @@ import { add } from "date-fns";
 import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { mutate, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 import { DAYS_UNTIL_DELETION, getDaysUntilDeletion } from "~/utils/thread";
 
 export const Route = createFileRoute(
   "/app/_workspace/_main/threads/archive/$id",
 )({
   component: RouteComponent,
+  loader: async ({ params }) => {
+    const { id } = params;
+    const thread = (
+      await fetchClient.query.thread
+        .where({
+          id,
+          deletedAt: {
+            $not: null,
+            $lt: add(new Date(), {
+              days: DAYS_UNTIL_DELETION,
+            }),
+          },
+        })
+        .include({
+          organization: true,
+          messages: { author: true },
+          assignedUser: true,
+        })
+        .get()
+    )[0];
+    return { thread };
+  },
+  head: ({ loaderData }) => {
+    const thread = loaderData?.thread;
+    const threadName = thread?.name ?? "Thread";
+    return {
+      meta: [
+        ...seo({
+          title: `${threadName} - Archive - FrontDesk`,
+          description: `Archived thread: ${threadName}`,
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {

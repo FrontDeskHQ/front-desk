@@ -72,14 +72,21 @@ export const Route = createRootRoute({
         ...seo({
           title: "FrontDesk",
           description,
-          image: ogImageUrl,
           keywords:
             "FrontDesk, FrontDesk AI, FrontDesk Support, FrontDesk Help Desk, FrontDesk Ticketing, FrontDesk Ticketing System, FrontDesk Ticketing Software, AI Help Desk, Customer Support Software, Ticketing System, Support Ticket Management, AI Customer Service",
           url: currentUrl,
-          type: "website",
           siteName: "FrontDesk",
           locale: "en_US",
           author: "FrontDesk",
+          openGraph: {
+            title: "FrontDesk",
+            description,
+            image: ogImageUrl,
+            url: currentUrl,
+            type: "website",
+            siteName: "FrontDesk",
+            locale: "en_US",
+          },
         }),
       ],
       links: [

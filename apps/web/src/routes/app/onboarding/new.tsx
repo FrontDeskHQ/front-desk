@@ -14,9 +14,20 @@ import { useState } from "react";
 import { z } from "zod";
 import { useLogout } from "~/lib/hooks/auth";
 import { mutate } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/onboarding/new")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Create Organization - FrontDesk",
+          description: "Create a new organization",
+        }),
+      ],
+    };
+  },
 });
 
 // TODO: Unify reserved slugs list - extract to shared constant

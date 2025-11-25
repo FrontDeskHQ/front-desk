@@ -69,11 +69,38 @@ import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
-import { mutate, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
   component: RouteComponent,
+  loader: async ({ params }) => {
+    const { id } = params;
+    const thread = (
+      await fetchClient.query.thread
+        .where({ id })
+        .include({
+          organization: true,
+          author: true,
+          messages: { author: true },
+        })
+        .get()
+    )[0];
+    return { thread };
+  },
+  head: ({ loaderData }) => {
+    const thread = loaderData?.thread;
+    const threadName = thread?.name ?? "Thread";
+    return {
+      meta: [
+        ...seo({
+          title: `${threadName} - Threads - FrontDesk`,
+          description: `Support thread: ${threadName}`,
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {

@@ -54,9 +54,20 @@ import { useState } from "react";
 import { CreateThread } from "~/components/devtools/create-thread";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Threads - FrontDesk",
+          description: "Manage your support threads",
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {

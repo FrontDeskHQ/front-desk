@@ -1,7 +1,18 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/_public/legal/terms-of-service")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Terms of Service - FrontDesk",
+          description: "FrontDesk Terms of Service",
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {
