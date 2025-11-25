@@ -1,4 +1,6 @@
+import { QueryClient } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
+import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import qs from "qs";
 import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
 import { NotFound } from "./components/NotFound";
@@ -10,12 +12,15 @@ const baseUrl = new URL(
 const baseHostname = baseUrl.hostname;
 
 export function getRouter() {
+  const queryClient = new QueryClient();
+
   const router = createTanStackRouter({
     routeTree,
     defaultPreload: "intent",
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
     scrollRestoration: true,
+    context: { queryClient },
     rewrite: {
       // Rewrite incoming URLs so that subdomains for orgs become path segments
       // e.g. acme-inc.tryfrontdesk.app -> tryfrontdesk.app/support/acme-inc/threads
@@ -54,6 +59,11 @@ export function getRouter() {
     parseSearch: (search) => {
       return qs.parse(search.slice(1));
     },
+  });
+
+  setupRouterSsrQueryIntegration({
+    router,
+    queryClient,
   });
 
   return router;

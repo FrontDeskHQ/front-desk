@@ -213,6 +213,44 @@ export const router = createRouter({
             success: true,
           };
         }),
+        listApiKeys: mutation(
+          z.object({
+            organizationId: z.string(),
+          })
+        ).handler(async ({ req, db }) => {
+          const organizationId = req.input.organizationId;
+
+          let authorized = !!req.context?.internalApiKey;
+
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId,
+                  userId: req.context.session.userId,
+                },
+              })
+            )[0] as any;
+
+            authorized = selfOrgUser && selfOrgUser.role === "owner";
+          }
+
+          if (!authorized) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const apiKeys = await publicKeys.list(organizationId);
+
+          return apiKeys
+            .filter((apiKey) => !apiKey.metadata.revokedAt)
+            .map((apiKey) => ({
+              id: apiKey.id,
+              expiresAt: apiKey.metadata.expiresAt,
+              name: apiKey.metadata.name,
+              type: "public",
+              createdAt: apiKey.metadata.createdAt,
+            }));
+        }),
       })),
     organizationUser: privateRoute
       .collectionRoute(schema.organizationUser, {
