@@ -72,6 +72,7 @@ const groups: {
         title: "API keys",
         url: "/app/settings/organization/api-keys",
         icon: Code2,
+        role: "owner",
       },
     ],
   },

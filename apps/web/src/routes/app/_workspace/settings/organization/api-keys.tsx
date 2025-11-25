@@ -38,6 +38,7 @@ import { format } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 
@@ -69,31 +70,47 @@ function RouteComponent() {
   const handleRevoke = async (apiKeyId: string) => {
     if (!currentOrg) return;
 
-    await fetchClient.mutate.organization.revokePublicApiKey({
-      id: apiKeyId,
-    });
+    try {
+      await fetchClient.mutate.organization.revokePublicApiKey({
+        id: apiKeyId,
+      });
 
-    await queryClient.invalidateQueries({
-      queryKey: ["organization", "api-keys", currentOrg.id],
-    });
+      await queryClient.invalidateQueries({
+        queryKey: ["organization", "api-keys", currentOrg.id],
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to revoke API key. Please try again.",
+      );
+    }
   };
 
   const handleCreateApiKey = async () => {
     if (!currentOrg) return;
 
-    const result = await fetchClient.mutate.organization.createPublicApiKey({
-      organizationId: currentOrg.id,
-      name: apiKeyName || undefined,
-    });
+    try {
+      const result = await fetchClient.mutate.organization.createPublicApiKey({
+        organizationId: currentOrg.id,
+        name: apiKeyName || undefined,
+      });
 
-    setCreatedApiKey(result.key);
-    setIsCreateDialogOpen(false);
-    setIsKeyDisplayDialogOpen(true);
-    setApiKeyName("");
+      setCreatedApiKey(result.key);
+      setIsCreateDialogOpen(false);
+      setIsKeyDisplayDialogOpen(true);
+      setApiKeyName("");
 
-    await queryClient.invalidateQueries({
-      queryKey: ["organization", "api-keys", currentOrg.id],
-    });
+      await queryClient.invalidateQueries({
+        queryKey: ["organization", "api-keys", currentOrg.id],
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to create API key. Please try again.",
+      );
+    }
   };
 
   return (
