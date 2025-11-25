@@ -11,6 +11,7 @@ import { ArrowRightIcon, Check } from "lucide-react";
 import { useState } from "react";
 import { useLogout } from "~/lib/hooks/auth";
 import { fetchClient } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/onboarding/")({
   component: RouteComponent,
@@ -57,6 +58,16 @@ export const Route = createFileRoute("/app/onboarding/")({
 
     return {
       invites,
+    };
+  },
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Onboarding - FrontDesk",
+          description: "Join your organization or create a new one",
+        }),
+      ],
     };
   },
 });

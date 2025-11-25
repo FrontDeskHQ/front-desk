@@ -28,11 +28,22 @@ import {
   getPastInvoices,
   updateSubscription,
 } from "~/lib/server-funcs/payment";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/billing",
 )({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Billing - FrontDesk",
+          description: "Manage your subscription and billing",
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {

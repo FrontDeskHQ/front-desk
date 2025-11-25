@@ -10,6 +10,7 @@ import { useTransition } from "react";
 import { useLogout } from "~/lib/hooks/auth";
 import { fetchClient } from "~/lib/live-state";
 import { getInvitation } from "~/lib/server-funcs/invitations";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/invitation/$id")({
   component: RouteComponent,
@@ -20,6 +21,18 @@ export const Route = createFileRoute("/app/invitation/$id")({
         error: error.message as string,
         data: null,
       }));
+  },
+  head: ({ loaderData }) => {
+    const orgName =
+      loaderData?.data?.organization?.name ?? "Organization";
+    return {
+      meta: [
+        ...seo({
+          title: `Invitation to ${orgName} - FrontDesk`,
+          description: `You've been invited to join ${orgName}`,
+        }),
+      ],
+    };
   },
 });
 

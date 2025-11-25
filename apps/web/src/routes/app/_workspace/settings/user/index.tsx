@@ -14,9 +14,20 @@ import { Input } from "@workspace/ui/components/input";
 import { z } from "zod";
 import { mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/_workspace/settings/user/")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "User Settings - FrontDesk",
+          description: "Manage your user profile settings",
+        }),
+      ],
+    };
+  },
 });
 
 const userProfileSchema = z.object({

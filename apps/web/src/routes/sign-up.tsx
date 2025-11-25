@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { SignUpForm } from "~/components/auth";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/sign-up")({
   component: RouteComponent,
@@ -7,6 +8,16 @@ export const Route = createFileRoute("/sign-up")({
     if (import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === "true") {
       throw redirect({ to: "/sign-in" });
     }
+  },
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Sign Up - FrontDesk",
+          description: "Create a new FrontDesk account",
+        }),
+      ],
+    };
   },
 });
 

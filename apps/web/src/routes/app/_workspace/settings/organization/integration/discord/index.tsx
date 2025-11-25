@@ -16,12 +16,23 @@ import { ulid } from "ulid";
 import type { z } from "zod";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/discord/",
 )({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Discord Integration - FrontDesk",
+          description: "Configure Discord integration",
+        }),
+      ],
+    };
+  },
 });
 
 // biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found

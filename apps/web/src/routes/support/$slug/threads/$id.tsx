@@ -21,6 +21,7 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { fetchClient } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/support/$slug/threads/$id")({
   component: RouteComponent,
@@ -47,6 +48,19 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 
     return {
       thread,
+    };
+  },
+  head: ({ loaderData }) => {
+    const thread = loaderData?.thread;
+    const orgName = thread?.organization?.name ?? "Support";
+    const threadName = thread?.name ?? "Thread";
+    return {
+      meta: [
+        ...seo({
+          title: `${threadName} - ${orgName} - Support`,
+          description: `Support thread: ${threadName}`,
+        }),
+      ],
     };
   },
 });
