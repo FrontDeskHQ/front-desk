@@ -1,5 +1,5 @@
 {
-  "pages": ["discord"],
+  "pages": ["widget", "discord"],
   "title": "Integrations",
   "defaultOpen": true
 }
