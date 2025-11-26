@@ -1,7 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
-import { AvatarUpload } from "@workspace/ui/components/avatar";
+import { Avatar, AvatarUpload } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
@@ -91,6 +91,15 @@ const orgProfileSchema = z.object({
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const org = useLiveQuery(query.organization.first({ id: currentOrg?.id }));
+  //TODO: Find a better way to do this since its gonna be used in other places
+  const { user } = Route.useRouteContext();
+  const isUserOwner =
+    useLiveQuery(
+      query.organizationUser.first({
+        organizationId: currentOrg?.id,
+        userId: user.id,
+      }),
+    )?.role === "owner";
 
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
@@ -154,13 +163,22 @@ function RouteComponent() {
               <FormItem field={field} className="flex justify-between">
                 <FormLabel>Logo</FormLabel>
                 <FormControl>
-                  <AvatarUpload
-                    variant="org"
-                    size="xl"
-                    src={org?.logoUrl}
-                    fallback={org?.name || "Unknown Organization"}
-                    onFileChange={(file) => field.setValue(file)}
-                  />
+                  {isUserOwner ? (
+                    <AvatarUpload
+                      variant="org"
+                      size="xl"
+                      src={org?.logoUrl}
+                      fallback={org?.name || "Unknown Organization"}
+                      onFileChange={(file) => field.setValue(file)}
+                    />
+                  ) : (
+                    <Avatar
+                      variant="org"
+                      size="xl"
+                      src={org?.logoUrl}
+                      fallback={org?.name || "Unknown Organization"}
+                    />
+                  )}
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -177,6 +195,7 @@ function RouteComponent() {
                     onChange={(e) => field.setValue(e.target.value)}
                     autoComplete="off"
                     className="w-full max-w-3xs"
+                    disabled={!isUserOwner}
                   />
                 </FormControl>
                 <FormMessage />
@@ -199,6 +218,7 @@ function RouteComponent() {
                         onChange={(e) => field.setValue(e.target.value)}
                         autoComplete="off"
                         className="relative pr-32"
+                        disabled={!isUserOwner}
                       />
                     </label>
                   </FormControl>
@@ -219,6 +239,7 @@ function RouteComponent() {
                       onChange={(e) => field.setValue(e.target.value)}
                       autoComplete="off"
                       className="w-full max-w-3xs"
+                      disabled={!isUserOwner}
                     />
                   </FormControl>
                   <FormMessage />
@@ -228,9 +249,11 @@ function RouteComponent() {
           </Field>
         </CardContent>
       </Card>
-      <div className="flex justify-end">
-        <Button disabled={!nonPersistentIsDirty}>Save</Button>
-      </div>
+      {isUserOwner && (
+        <div className="flex justify-end">
+          <Button disabled={!nonPersistentIsDirty}>Save</Button>
+        </div>
+      )}
     </form>
   );
 }
