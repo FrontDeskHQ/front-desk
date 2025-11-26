@@ -21,15 +21,15 @@ const loader = createServerFn({
     pages: sortedPages.map((page) => ({
       path: page.path,
       title: page.data.title,
-      publishedAt: page.data.publishedAt as string,
-      summary: page.data.summary as string,
-      tag: page.data.tag as string,
-      image: page.data.image as string,
+      publishedAt: (page.data.publishedAt as string) ?? "",
+      summary: (page.data.summary as string) ?? "",
+      tag: (page.data.tag as string) ?? "",
+      image: (page.data.image as string) ?? "",
     })),
   };
 });
 
-const clientLoader = browserCollections.docs.createClientLoader({
+const clientLoader = browserCollections.updates.createClientLoader({
   component({ default: MDX }) {
     return (
       <div className="customProse">
