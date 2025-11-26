@@ -12,10 +12,22 @@ import { Logo } from "@workspace/ui/components/logo";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { useState } from "react";
 import { z } from "zod";
+import { useLogout } from "~/lib/hooks/auth";
 import { mutate } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/onboarding/new")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Create Organization - FrontDesk",
+          description: "Create a new organization",
+        }),
+      ],
+    };
+  },
 });
 
 // TODO: Unify reserved slugs list - extract to shared constant
@@ -63,6 +75,8 @@ const onboardingFormSchema = z.object({
 
 function OnboardingForm() {
   const navigate = useNavigate();
+  const { user } = Route.useRouteContext();
+  const logout = useLogout();
   // Function to convert organization name to slug format
   const generateSlug = (name: string): string => {
     return name
@@ -118,6 +132,14 @@ function OnboardingForm() {
           </Logo>
         </div>
         <h1 className="text-xl">FrontDesk</h1>
+      </div>
+      <div className="absolute right-4 top-4 flex flex-col items-end gap-2">
+        <span className="text-sm text-muted-foreground">
+          Logged in as: {user.email}
+        </span>
+        <Button variant="outline" size="sm" onClick={logout}>
+          Logout
+        </Button>
       </div>
       <h1 className="text-xl font-medium">Create new organization</h1>
       {error ? <p className="text-destructive">{error}</p> : null}

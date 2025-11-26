@@ -13,7 +13,7 @@
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
 **[Discord Community](https://discord.gg/5MDHqKHrHr)**
 <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-**Documentation** (Coming Soon)
+**[Documentation](https://tryfrontdesk.app/docs)**
 
 <a href="https://twitter.com/intent/follow?screen_name=frontdeskhq">
     <img src="https://img.shields.io/twitter/follow/frontdeskhq.svg?label=Follow%20@frontdeskhq" alt="Follow @frontdeskhq" />

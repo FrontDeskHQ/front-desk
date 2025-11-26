@@ -1,8 +1,9 @@
 import type { InferLiveObject } from "@live-state/sync";
+import { ReflagClientProvider } from "@reflag/react-sdk";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import type { schema } from "api/schema";
-import { useAtom } from "jotai/react";
-import { activeOrganizationAtom } from "~/lib/atoms";
+import { useEffect } from "react";
+import { reflagClient } from "~/lib/feature-flag";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient } from "~/lib/live-state";
 
@@ -58,15 +59,16 @@ export const Route = createFileRoute("/app/_workspace")({
 });
 
 function RouteComponent() {
-  const { organizationUsers } = useOrganizationSwitcher();
+  // This is needed to set the active organization in the organization switcher
+  useOrganizationSwitcher();
 
-  const [activeOrganization, setActiveOrganization] = useAtom(
-    activeOrganizationAtom,
+  useEffect(() => {
+    reflagClient.initialize();
+  }, []);
+
+  return (
+    <ReflagClientProvider client={reflagClient}>
+      <Outlet />
+    </ReflagClientProvider>
   );
-
-  if (!activeOrganization) {
-    setActiveOrganization(organizationUsers[0]?.organization);
-  }
-
-  return <Outlet />;
 }

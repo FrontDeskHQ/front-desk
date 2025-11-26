@@ -2,63 +2,103 @@ export const seo = ({
   title,
   description,
   keywords,
-  image,
   url,
-  type = "website",
   siteName = "FrontDesk",
   locale = "en_US",
   author,
+  openGraph,
 }: {
   title: string;
   description?: string;
-  image?: string;
   keywords?: string;
   url?: string;
-  type?: "website" | "article" | "profile" | "book" | "video" | "music";
   siteName?: string;
   locale?: string;
   author?: string;
+  openGraph?: {
+    title?: string;
+    description?: string;
+    image?: string;
+    url?: string;
+    type?: "website" | "article" | "profile" | "book" | "video" | "music";
+    siteName?: string;
+    locale?: string;
+  };
 }) => {
   const tags = [
     // Basic meta tags
     { title },
-    { name: "description", content: description },
-    { name: "keywords", content: keywords },
-    { name: "author", content: author ?? "FrontDesk" },
+    ...(description ? [{ name: "description", content: description }] : []),
+    ...(keywords ? [{ name: "keywords", content: keywords }] : []),
+    ...(author ? [{ name: "author", content: author }] : []),
 
     // Open Graph tags
-    { property: "og:type", content: type },
-    { property: "og:title", content: title },
-    { property: "og:description", content: description },
-    { property: "og:site_name", content: siteName },
-    { property: "og:locale", content: locale },
-    { property: "og:url", content: url ?? "" },
-    ...(image
+    ...(openGraph
       ? [
-          { property: "og:image", content: image },
-          { property: "og:image:secure_url", content: image },
-          { property: "og:image:type", content: "image/png" },
-          { property: "og:image:width", content: "1200" },
-          { property: "og:image:height", content: "630" },
-          { property: "og:image:alt", content: title },
-        ]
-      : []),
+          { property: "og:type", content: openGraph.type ?? "website" },
+          { property: "og:title", content: openGraph.title ?? title },
+          ...(description
+            ? [
+                {
+                  property: "og:description",
+                  content: openGraph.description ?? description,
+                },
+              ]
+            : []),
+          ...(siteName
+            ? [
+                {
+                  property: "og:site_name",
+                  content: openGraph.siteName ?? siteName,
+                },
+              ]
+            : []),
+          ...(locale
+            ? [{ property: "og:locale", content: openGraph.locale ?? locale }]
+            : []),
+          ...(url ? [{ property: "og:url", content: url }] : []),
+          ...(openGraph.image
+            ? [
+                { property: "og:image", content: openGraph.image },
+                { property: "og:image:secure_url", content: openGraph.image },
+                { property: "og:image:type", content: "image/png" },
+                { property: "og:image:width", content: "1200" },
+                { property: "og:image:height", content: "630" },
+                { property: "og:image:alt", content: openGraph.title ?? title },
+              ]
+            : []),
 
-    // Twitter Card tags
-    {
-      name: "twitter:card",
-      content: image ? "summary_large_image" : "summary",
-    },
-    { name: "twitter:title", content: title },
-    { name: "twitter:description", content: description },
-    { name: "twitter:creator", content: "@frontdeskhq" },
-    { name: "twitter:site", content: "@frontdeskhq" },
-    ...(image
-      ? [
-          { name: "twitter:image", content: image },
-          { name: "twitter:image:alt", content: title },
-          { name: "twitter:image:width", content: "1200" },
-          { name: "twitter:image:height", content: "630" },
+          // Twitter Card tags
+          ...(openGraph.image
+            ? [
+                {
+                  name: "twitter:card",
+                  content: openGraph.image ? "summary_large_image" : "summary",
+                },
+              ]
+            : [{ name: "twitter:card", content: "summary" }]),
+          { name: "twitter:title", content: openGraph.title ?? title },
+          ...(description
+            ? [
+                {
+                  name: "twitter:description",
+                  content: openGraph.description ?? description,
+                },
+              ]
+            : []),
+          { name: "twitter:creator", content: "@frontdeskhq" },
+          { name: "twitter:site", content: "@frontdeskhq" },
+          ...(openGraph.image
+            ? [
+                { name: "twitter:image", content: openGraph.image },
+                {
+                  name: "twitter:image:alt",
+                  content: openGraph.title ?? title,
+                },
+                { name: "twitter:image:width", content: "1200" },
+                { name: "twitter:image:height", content: "630" },
+              ]
+            : []),
         ]
       : []),
 
@@ -67,9 +107,11 @@ export const seo = ({
     { name: "format-detection", content: "telephone=no" },
     { name: "apple-mobile-web-app-capable", content: "yes" },
     { name: "apple-mobile-web-app-status-bar-style", content: "default" },
-    { name: "apple-mobile-web-app-title", content: siteName },
+    ...(siteName
+      ? [{ name: "apple-mobile-web-app-title", content: siteName }]
+      : []),
     { name: "mobile-web-app-capable", content: "yes" },
-    { name: "application-name", content: siteName },
+    ...(siteName ? [{ name: "application-name", content: siteName }] : []),
     { name: "msapplication-TileColor", content: "#ffffff" },
     { name: "msapplication-config", content: "/site.webmanifest" },
 

@@ -31,11 +31,22 @@ import { useAtomValue } from "jotai/react";
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/team",
 )({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Team - FrontDesk",
+          description: "Manage your team members",
+        }),
+      ],
+    };
+  },
 });
 
 const roleOptions = [

@@ -16,9 +16,20 @@ import { z } from "zod";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
+import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/_workspace/settings/organization/")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Organization Settings - FrontDesk",
+          description: "Manage your organization settings",
+        }),
+      ],
+    };
+  },
 });
 
 // TODO: Unify reserved slugs list - extract to shared constant

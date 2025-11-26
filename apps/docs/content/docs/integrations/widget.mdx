@@ -1,0 +1,129 @@
+---
+title: Widget
+---
+
+The FrontDesk widget is a React component that you can embed in your application to provide in-app customer support. It displays as a floating button that opens a support interface, allowing your customers to create threads and get help without leaving your application.
+
+## Features
+
+The widget provides:
+
+- **Thread creation**: Customers can create new support threads directly from your app
+- **Thread history**: View and continue existing conversations
+- **Real-time updates**: Messages sync in real-time
+- **Resource links**: Quick access to documentation and other resources
+- **Mobile responsive**: Works seamlessly on all device sizes
+
+## Installation
+
+Install the FrontDesk widget package using your preferred package manager:
+
+```npm
+npm install @front-desk/widget @front-desk/sdk
+```
+
+## Setup
+
+### 1. Get your public API key
+
+Before setting up the widget, you'll need your organization's public API key:
+
+1. Go to **Organization Settings** → **API Keys**
+2. Create a new API key if you don't have one
+3. Copy the API key (it starts with `fd_pk_`)
+
+More information about API keys can be found in the [API keys](/basics/api-keys) documentation.
+
+### 2. Initialize the FrontDesk SDK
+
+Create a FrontDesk client instance with your public API key:
+
+```typescript
+import { FrontDesk } from "@front-desk/sdk";
+
+const frontdeskClient = new FrontDesk({
+  publicKey: "fd_pk_xxxxxx",
+});
+```
+
+### 3. Add the Widget component
+
+Import and add the Widget component to your application:
+
+```typescript
+import { Widget } from "@front-desk/widget";
+
+function App() {
+  return (
+    <div>
+      {/* Your app content */}
+
+      <Widget
+        sdk={frontdeskClient}
+        customer={{
+          id: "user-123", // Unique identifier for the customer, can be a database ID, email, etc.
+          name: "John Doe", // Customer's display name
+        }}
+      />
+    </div>
+  );
+}
+```
+
+## Configuration
+
+### Position
+
+Control where the widget appears on the screen:
+
+```typescript
+<Widget
+  position="bottom-right" // Options: "bottom-left" | "bottom-right" | "top-left" | "top-right"
+/>
+```
+
+### Resources
+
+Add helpful links and resources that appear in the widget interface:
+
+```typescript
+<Widget
+  resourcesGroups={[
+    {
+      title: "Helpful Links",
+      items: [
+        {
+          title: "Documentation",
+          content: <MyCustomContent />, // This will be rendered inside the widget as a custom content
+          icon: <BookIcon />, // Optional: Icon component
+        },
+        {
+          title: "Community",
+          link: "https://discord.gg/your-server", // This will open the link in a new tab
+          icon: <MessageCircleQuestion />, // Optional: Icon component
+        },
+      ],
+    },
+  ]}
+/>
+```
+
+## Customization
+
+### Styling
+
+You can override default colors using CSS variables.
+
+```css
+.frontdesk {
+  --fd-primary: #345bca;
+  --fd-background: #f4f4f5;
+  --fd-foreground: #18181b;
+  --fd-border: #27272a;
+  --fd-muted: #71717a;
+  --fd-muted-foreground: #a1a1aa;
+  --fd-destructive: #ef4444;
+}
+```
+
+When using ShadcnUI, the widget will automatically use the theme colors.

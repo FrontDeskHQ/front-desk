@@ -1,0 +1,73 @@
+---
+title: API keys
+---
+
+API keys allow you to authenticate and interact with the FrontDesk API programmatically. Use them to create threads, manage conversations, and integrate FrontDesk into your applications.
+
+## Creating API keys
+
+Only organization owners can create API keys. To create a new API key:
+
+1. Go to **Organization Settings** → **API Keys**
+2. Click **New API key**
+3. Enter a descriptive name for your API key (e.g., "Production API", "Development", "Mobile App")
+4. Click **Create**
+
+<Callout type="warning" title="Copy your key immediately">
+  After creating an API key, you'll see it displayed **only once**. Make sure to
+  copy it immediately and store it securely. You won't be able to view the key
+  again after closing the dialog.
+</Callout>
+
+API keys are prefixed with `fd_pk_` and are long, randomly generated strings. They expire after one year by default, but you can set a custom expiration date when creating them programmatically.
+
+## Revoking API keys
+
+If an API key is compromised or no longer needed, you should revoke it immediately:
+
+1. Go to **Organization Settings** → **API Keys**
+2. Find the API key you want to revoke
+3. Click the trash icon next to the key
+4. Confirm the revocation
+
+<Callout type="warning" title="Immediate effect">
+  Revoking an API key takes effect immediately. Any applications using that key
+  will stop working right away. Make sure to update your applications with a new
+  key before revoking the old one.
+</Callout>
+
+Revoked API keys cannot be restored. You'll need to create a new API key if you need to restore access.
+
+## Best practices
+
+### Security
+
+- **Never commit API keys to version control**: Store them in environment variables or secure secret management systems
+- **Use different keys for different environments**: Create separate keys for development, staging, and production
+- **Rotate keys regularly**: Create new keys periodically and revoke old ones
+- **Use descriptive names**: Name your keys clearly so you can identify their purpose (e.g., "Production Web App", "Mobile App v2")
+- **Monitor key usage**: Keep track of which applications use which keys
+
+### Organization
+
+- **Limit the number of active keys**: Only keep keys that are actively in use
+- **Document key purposes**: Use the name field to document what each key is used for
+- **Set expiration dates**: For keys with known lifespans, set appropriate expiration dates
+- **Revoke unused keys**: Regularly audit and revoke keys that are no longer needed
+
+### Implementation
+
+- **Store keys securely**: Use environment variables or secure vaults, never hardcode them
+- **Use HTTPS**: Always make API requests over HTTPS to protect your keys in transit
+- **Implement error handling**: Handle authentication errors gracefully in your applications
+- **Test with separate keys**: Use different keys for testing to avoid affecting production
+
+## Using API keys
+
+API keys are used to authenticate requests to the FrontDesk API. Include your API key in the `Authorization` header of your requests:
+
+```
+Authorization: Bearer fd_pk_your_api_key_here
+```
+
+For more information about using the API, check the API documentation or SDK guides.

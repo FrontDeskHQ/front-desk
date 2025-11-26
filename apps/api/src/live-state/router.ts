@@ -136,26 +136,28 @@ export const router = createRouter({
             name: z.string().optional(),
           })
         ).handler(async ({ req, db }) => {
-          if (!req.context?.session?.userId) {
-            throw new Error("UNAUTHORIZED");
-          }
-
           const organizationId = req.input.organizationId;
 
-          const selfOrgUser = Object.values(
-            await db.find(schema.organizationUser, {
-              where: {
-                organizationId,
-                userId: req.context.session.userId,
-              },
-              include: {
-                user: true,
-                organization: true,
-              },
-            })
-          )[0] as any;
+          let authorized = !!req.context?.internalApiKey;
 
-          if (!selfOrgUser || selfOrgUser.role !== "owner") {
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId,
+                  userId: req.context.session.userId,
+                },
+                include: {
+                  user: true,
+                  organization: true,
+                },
+              })
+            )[0] as any;
+
+            authorized = selfOrgUser && selfOrgUser.role === "owner";
+          }
+
+          if (!authorized) {
             throw new Error("UNAUTHORIZED");
           }
 
@@ -210,6 +212,44 @@ export const router = createRouter({
           return {
             success: true,
           };
+        }),
+        listApiKeys: mutation(
+          z.object({
+            organizationId: z.string(),
+          })
+        ).handler(async ({ req, db }) => {
+          const organizationId = req.input.organizationId;
+
+          let authorized = !!req.context?.internalApiKey;
+
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId,
+                  userId: req.context.session.userId,
+                },
+              })
+            )[0] as any;
+
+            authorized = selfOrgUser && selfOrgUser.role === "owner";
+          }
+
+          if (!authorized) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const apiKeys = await publicKeys.list(organizationId);
+
+          return apiKeys
+            .filter((apiKey) => !apiKey.metadata.revokedAt)
+            .map((apiKey) => ({
+              id: apiKey.id,
+              expiresAt: apiKey.metadata.expiresAt,
+              name: apiKey.metadata.name,
+              type: "public",
+              createdAt: apiKey.metadata.createdAt,
+            }));
         }),
       })),
     organizationUser: privateRoute
@@ -467,15 +507,17 @@ export const router = createRouter({
             });
           });
 
-          const thread = await db.find(schema.thread, {
-            where: { id: threadId },
-            include: {
-              author: true,
-              messages: {
+          const thread = Object.values(
+            await db.find(schema.thread, {
+              where: { id: threadId },
+              include: {
                 author: true,
+                messages: {
+                  author: true,
+                },
               },
-            },
-          });
+            })
+          )[0];
 
           return thread;
         }),

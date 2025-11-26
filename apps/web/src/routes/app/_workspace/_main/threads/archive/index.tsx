@@ -40,10 +40,21 @@ import {
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
 import { DAYS_UNTIL_DELETION, getDaysUntilDeletion } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/archive/")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Archive - FrontDesk",
+          description: "View archived threads",
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {
