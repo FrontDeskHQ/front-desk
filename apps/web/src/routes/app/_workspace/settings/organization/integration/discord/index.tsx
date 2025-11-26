@@ -56,6 +56,15 @@ function RouteComponent() {
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
   );
+  //TODO: Find a better way to do this since its gonna be used in other places
+  const { user } = Route.useRouteContext();
+  const isUserOwner =
+    useLiveQuery(
+      query.organizationUser.first({
+        organizationId: activeOrg?.id,
+        userId: user.id,
+      }),
+    )?.role === "owner";
 
   const parsedConfig: ReturnType<
     typeof discordIntegrationSchema.safeParse

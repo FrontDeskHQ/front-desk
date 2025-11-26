@@ -1,4 +1,8 @@
+import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Mail } from "lucide-react";
+import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
+import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
@@ -28,7 +32,7 @@ export const integrationOptions: {
   }[];
 }[] = [
   {
-    label: "Support channels",
+    label: "Active integrations",
     options: [
       {
         label: "Discord",
@@ -59,32 +63,120 @@ To get started, simply add the FrontDesk Discord bot to your server and select w
       },
     ],
   },
+  {
+    label: "Available integrations",
+    options: [
+      {
+        label: "Email",
+        id: "email",
+        description: "Sync emails from your support inbox",
+        icon: (
+          <div className="flex items-center justify-center rounded-md bg-blue-500 size-9 overflow-clip">
+            <Mail className="text-white w-5 h-5" />
+          </div>
+        ),
+        fullDescription: "Connect your support email to sync incoming emails.",
+      },
+      {
+        label: "Slack",
+        id: "slack",
+        description: "Sync channels and threads from your Slack workspace",
+        icon: (
+          <div className="flex items-center justify-center rounded-md bg-[#4A154B] size-9 overflow-clip">
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white">
+              <title>Slack logo</title>
+              <path d="M5.042 15.165a2.528 2.528 0 0 1-2.52 2.523A2.528 2.528 0 0 1 0 15.165a2.527 2.527 0 0 1 2.522-2.52h2.52v2.52zM6.313 15.165a2.527 2.527 0 0 1 2.521-2.52 2.527 2.527 0 0 1 2.521 2.52v6.313A2.528 2.528 0 0 1 8.834 24a2.528 2.528 0 0 1-2.521-2.52v-6.315zM8.834 5.042a2.528 2.528 0 0 1-2.521-2.52A2.528 2.528 0 0 1 8.834 0a2.528 2.528 0 0 1 2.521 2.522v2.52H8.834zM8.834 6.313a2.528 2.528 0 0 1 2.521 2.521 2.528 2.528 0 0 1-2.521 2.521H2.522A2.528 2.528 0 0 1 0 8.834a2.528 2.528 0 0 1 2.522-2.521h6.312zM18.956 8.834a2.528 2.528 0 0 1 2.522-2.521A2.528 2.528 0 0 1 24 8.834a2.528 2.528 0 0 1-2.522 2.521h-2.522V8.834zM17.688 8.834a2.528 2.528 0 0 1-2.522 2.521 2.527 2.527 0 0 1-2.522-2.521V2.522A2.527 2.527 0 0 1 15.165 0a2.528 2.528 0 0 1 2.522 2.522v6.312zM15.165 18.956a2.528 2.528 0 0 1 2.522 2.521A2.528 2.528 0 0 1 15.165 24a2.527 2.527 0 0 1-2.52-2.522v-2.522h2.52zM15.165 17.688a2.527 2.527 0 0 1-2.522-2.522 2.527 2.527 0 0 1 2.522-2.522h6.312A2.527 2.527 0 0 1 24 15.165a2.528 2.528 0 0 1-2.522 2.521h-6.313z" />
+            </svg>
+          </div>
+        ),
+        fullDescription:
+          "Connect your Slack workspace to sync channels and threads.",
+      },
+      {
+        label: "Linear",
+        id: "linear",
+        description: "Sync issues with Linear",
+        icon: (
+          <div className="flex items-center justify-center rounded-md bg-[#5E6AD2] size-9 overflow-clip">
+            <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white">
+              <title>Linear logo</title>
+              <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15h-2v-6h2v6zm0-8h-2V7h2v2z" />
+            </svg>
+          </div>
+        ),
+        fullDescription: "Connect Linear to sync issues.",
+      },
+    ],
+  },
 ];
 
 function RouteComponent() {
+  const { activeOrganization } = useOrganizationSwitcher();
+
+  // TODO: Use this code to show which integrations are already connected
+  // const integrations = useLiveQuery(
+  //   query.integration.where({
+  //     organizationId: activeOrganization?.id,
+  //   }),
+  // );
+
+  // const connectedIntegrations = new Set(
+  //   integrations?.filter((i) => i.enabled).map((i) => i.type),
+  // );
+
+  const { user } = Route.useRouteContext();
+  const isUserOwner =
+    useLiveQuery(
+      query.organizationUser.first({
+        organizationId: activeOrganization?.id,
+        userId: user.id,
+      }),
+    )?.role === "owner";
+
   return (
     <>
-      {integrationOptions.map((option) => (
-        <div className="p-4 flex flex-col gap-4 w-full" key={option.label}>
-          <h2 className="text-base">{option.label}</h2>
+      {integrationOptions.map((group) => (
+        <div className="p-4 flex flex-col gap-4 w-full" key={group.label}>
+          <h2 className="text-base">{group.label}</h2>
           <div className="grid grid-cols-3 gap-4">
-            {option.options.map((option) => (
-              <Link
-                to={
-                  `/app/settings/organization/integration/${option.id}` as string
-                }
-                className="flex flex-col rounded-md border bg-muted/30 h-36 p-4 gap-2 hover:bg-muted/50 transition-colors cursor-pointer"
-                key={option.id}
-              >
-                <div className="flex items-center gap-2">
-                  {option.icon}
-                  {option.label}
+            {group.options.map((option) => {
+              const content = (
+                <>
+                  <div className="flex items-center gap-2 justify-between">
+                    <div className="flex items-center gap-2">
+                      {option.icon}
+                      {option.label}
+                    </div>
+                  </div>
+                  <div className="w-full text-muted-foreground">
+                    {option.description}
+                  </div>
+                </>
+              );
+
+              if (isUserOwner) {
+                return (
+                  <Link
+                    to={
+                      `/app/settings/organization/integration/${option.id}` as string
+                    }
+                    className="flex flex-col rounded-md border bg-muted/30 h-36 p-4 gap-2 hover:bg-muted/50 transition-colors cursor-pointer relative"
+                    key={option.id}
+                  >
+                    {content}
+                  </Link>
+                );
+              }
+
+              return (
+                <div
+                  className="flex flex-col rounded-md border bg-muted/30 h-36 p-4 gap-2 transition-colors relative"
+                  key={option.id}
+                >
+                  {content}
                 </div>
-                <div className="w-full text-muted-foreground">
-                  {option.description}
-                </div>
-              </Link>
-            ))}
+              );
+            })}
           </div>
         </div>
       ))}
