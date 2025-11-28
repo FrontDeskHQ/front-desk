@@ -9,6 +9,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -76,14 +77,15 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 function RouteComponent() {
   const thread = Route.useLoaderData().thread;
 
+  const organization = thread.organization;
+
+  const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
+
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
     content: (thread as any)?.messages,
     offset: 264,
   });
-
-  // TODO: Update URL to reflect real organization discord link
-  const integrationPaths = { discord: "https://discord.com/invite/acme" };
 
   return (
     <div className="flex flex-col size-full gap-4 sm:gap-8 min-h-screen">
@@ -103,12 +105,13 @@ function RouteComponent() {
           </Logo>
         </Navbar.Group>
         <Navbar.Group>
-          {/* TODO - FRO-80 Add social links when we have them */}
-          {/* <Button size="sm" externalLink asChild>
-            <a href={integrationPaths.discord} target="_blank" rel="noreferrer">
-              Join Discord
-            </a>
-          </Button> */}
+          {discordUrl && (
+            <Button size="lg" externalLink asChild>
+              <a href={discordUrl} target="_blank" rel="noreferrer">
+                Join Discord
+              </a>
+            </Button>
+          )}
         </Navbar.Group>
       </Navbar>
       <div className="flex flex-col flex-1 px-4 pb-4 sm:pb-8 sm:px-8">
