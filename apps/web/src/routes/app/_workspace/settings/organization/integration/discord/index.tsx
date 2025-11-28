@@ -194,28 +194,30 @@ function RouteComponent() {
         </Link>
       </Button>
       <div className="flex flex-col gap-4 pt-12">
-        <div className="flex items-center gap-2">
-          {integrationDetails.icon}
-          <div>
-            <h1 className="text-base">{integrationDetails.label}</h1>
-            <h2 className="text-muted-foreground">
-              {integrationDetails.description}
-            </h2>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            {integrationDetails.icon}
+            <div>
+              <h1 className="text-base">{integrationDetails.label}</h1>
+              <h2 className="text-muted-foreground">
+                {integrationDetails.description}
+              </h2>
+            </div>
           </div>
+          {!integration?.enabled && (
+            <div className="flex gap-5 items-center">
+              <div>
+                <h3 className="text-muted-foreground">Built by</h3>
+                <p>FrontDesk</p>
+              </div>
+              <Button onClick={handleEnableDiscord}>Enable</Button>
+            </div>
+          )}
         </div>
         <Card className="bg-muted/30">
           <CardContent>
             {!integration?.enabled ? (
               <>
-                <div className="flex gap-5 items-center">
-                  <div>
-                    <h3 className="text-muted-foreground">Built by</h3>
-                    <p>FrontDesk</p>
-                  </div>
-                  <Button className="ml-auto" onClick={handleEnableDiscord}>
-                    Enable
-                  </Button>
-                </div>
                 <TruncatedText>
                   <RichText content={integrationDetails.fullDescription} />
                 </TruncatedText>
