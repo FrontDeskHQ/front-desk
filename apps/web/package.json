@@ -32,7 +32,7 @@
     "@workspace/schemas": "workspace:*",
     "@workspace/ui": "workspace:*",
     "api": "workspace:*",
-    "better-auth": "^1.2.7",
+    "better-auth": "^1.3.26",
     "date-fns": "^4.1.0",
     "dodopayments": "^2.4.1",
     "fast-xml-parser": "^5.3.1",
@@ -70,7 +70,7 @@
     "postcss": "^8.5.1",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.7.2",
-    "vite": "^7.1.10",
+    "vite": "^7.1.11",
     "vite-tsconfig-paths": "^5.1.4",
     "wrangler": "^4.45.3"
   }
