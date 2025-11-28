@@ -80,7 +80,7 @@ const mdastTextsToTipTap = (
 
 const mdastToTipTap: {
   [key in RootContent["type"]]: (node: RootContentMap[key]) => JSONContent;
-} = {
+} & Record<string, (node: any) => JSONContent> = {
   text: mdastTextsToTipTap,
   emphasis: mdastTextsToTipTap,
   strong: mdastTextsToTipTap,
@@ -182,6 +182,22 @@ const mdastToTipTap: {
   yaml: (): JSONContent => {
     throw new Error("Function not implemented.");
   },
+  // MDX-specific node types - skip or convert to text
+  mdxTextExpression: (): JSONContent => ({
+    type: "paragraph",
+  }),
+  mdxJsxTextElement: (): JSONContent => ({
+    type: "paragraph",
+  }),
+  mdxFlowExpression: (): JSONContent => ({
+    type: "paragraph",
+  }),
+  mdxJsxFlowElement: (): JSONContent => ({
+    type: "paragraph",
+  }),
+  mdxjsEsm: (): JSONContent => ({
+    type: "paragraph",
+  }),
 };
 
 export const parse = (str: string): JSONContent[] => {

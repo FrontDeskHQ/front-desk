@@ -20,5 +20,12 @@
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
     "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "catalog:",
+      "@types/react-dom": "catalog:",
+      "csstype": "^3.1.3"
+    }
   }
 }

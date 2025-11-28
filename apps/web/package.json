@@ -8,7 +8,7 @@
     "dev:wrangler": "wrangler dev",
     "dev:wrangler:local": "wrangler dev --local",
     "build": "vite build && tsc --noEmit",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "fumadocs-mdx && tsc --noEmit",
     "preview": "vite preview",
     "deploy": "wrangler deploy",
     "cf-typegen": "wrangler types"
