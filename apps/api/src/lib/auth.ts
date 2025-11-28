@@ -6,7 +6,7 @@ import "../env";
 const useSocialProvider = !!process.env.ENABLE_GOOGLE_LOGIN;
 
 export const auth = betterAuth({
-  baseURL: process.env.BASE_URL,
+  baseURL: process.env.BASE_URL ?? "http://localhost:3333",
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
   }),
@@ -22,7 +22,7 @@ export const auth = betterAuth({
   socialProviders: {
     google: useSocialProvider
       ? {
-          redirectURI: `${process.env.BASE_FRONTEND_URL}/api/auth/callback/google`,
+          redirectURI: `${process.env.BASE_FRONTEND_URL ?? "http://localhost:3000"}/api/auth/callback/google`,
           clientId: process.env.GOOGLE_CLIENT_ID as string,
           clientSecret: process.env.GOOGLE_CLIENT_SECRET as string,
         }

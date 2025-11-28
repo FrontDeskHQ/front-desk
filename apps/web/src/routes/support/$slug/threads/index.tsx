@@ -42,6 +42,7 @@ import {
   ChevronRightIcon,
 } from "lucide-react";
 import z from "zod";
+import { authClient } from "~/lib/auth-client";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
@@ -101,6 +102,7 @@ function RouteComponent() {
   const threads = Route.useLoaderData().threads;
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
+  const { data: session } = authClient.useSession();
 
   // Apply defaults in the component, not in validateSearch
   const page = searchParams.page ?? 1;
@@ -200,6 +202,46 @@ function RouteComponent() {
             <Logo.Icon />
             <Logo.Text />
           </Logo>
+        </Navbar.Group>
+        <Navbar.Group>
+          {session ? (
+            <div className="flex items-center gap-2">
+              <Avatar
+                variant="user"
+                size="sm"
+                src={session.user.image}
+                fallback={session.user.name}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  authClient.signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        window.location.reload();
+                      },
+                    },
+                  })
+                }
+              >
+                Sign out
+              </Button>
+            </div>
+          ) : import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === "true" ? (
+            <Button
+              type="button"
+              className="mt-6 w-full"
+              onClick={() => {
+                authClient.signIn.social({
+                  provider: "google",
+                  callbackURL: `${window.location.origin}/app`,
+                });
+              }}
+            >
+              Continue with Google
+            </Button>
+          ) : null}
         </Navbar.Group>
       </Navbar>
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
