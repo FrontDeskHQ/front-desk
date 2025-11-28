@@ -36,9 +36,9 @@ export const Route = createFileRoute(
 });
 
 // biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const integrationDetails = integrationOptions
-  .flatMap((option) => option.options)
-  .find((option) => option.id === "discord")!;
+const integrationDetails = integrationOptions.find(
+  (option) => option.id === "discord",
+)!;
 
 // Discord bot permissions number - read messages, send messages, and manage webhooks, ...
 const DISCORD_BOT_PERMISSIONS = "292594747456";
@@ -56,15 +56,6 @@ function RouteComponent() {
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
   );
-  //TODO: Find a better way to do this since its gonna be used in other places
-  const { user } = Route.useRouteContext();
-  const isUserOwner =
-    useLiveQuery(
-      query.organizationUser.first({
-        organizationId: activeOrg?.id,
-        userId: user.id,
-      }),
-    )?.role === "owner";
 
   const parsedConfig: ReturnType<
     typeof discordIntegrationSchema.safeParse
