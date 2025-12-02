@@ -6,9 +6,9 @@ export const updates = defineDocs({
   docs: {
     schema: frontmatterSchema.extend({
       publishedAt: z.iso.date(),
-      summary: z.string(),
-      tag: z.string(),
-      image: z.string(),
+      summary: z.string().optional(),
+      tag: z.string().optional(),
+      image: z.string().optional(),
     }),
   },
 });

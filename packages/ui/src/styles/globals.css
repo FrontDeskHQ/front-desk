@@ -149,7 +149,7 @@
 
 /* Custom prose styles */
 .customProse p {
-  @apply leading-relaxed;
+  @apply leading-relaxed tracking-wide;
 }
 
 .customProse p:not(:first-child) {
@@ -210,4 +210,8 @@
 
 .customProse h4 {
   @apply font-semibold mt-4 mb-2;
+}
+
+.customProse img {
+  @apply rounded-md my-8;
 }
