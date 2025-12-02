@@ -84,16 +84,14 @@ function RouteComponent() {
                       index === 0 ? "bg-[#345BCA]" : "bg-muted-foreground/30"
                     }`}
                   />
-                  <div className="text-sm text-muted-foreground font-medium mb-2">
+                  <div className="text-sm text-muted-foreground font-mono mb-2">
                     {new Date(page.publishedAt).toLocaleDateString("en-US", {
                       month: "long",
                       day: "numeric",
                       year: "numeric",
                     })}
                   </div>
-                  <h2 className="text-xl font-bold leading-tight">
-                    {page.title}
-                  </h2>
+                  <h2 className="text-xl leading-tight">{page.title}</h2>
                 </div>
                 <div className="min-w-0">
                   <Content />

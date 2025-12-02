@@ -189,11 +189,11 @@
 }
 
 .customProse hr {
-  @apply mt-2 mb-2 border-t border-muted-foreground/15;
+  @apply my-4 border-t border-muted-foreground/15;
 }
 
 .customProse h1 {
-  @apply text-xl font-semibold border-b border-muted-foreground/15 mt-12 mb-4;
+  @apply text-3xl font-semibold  mt-12 mb-6;
 }
 
 .customProse h1:first-child {
@@ -201,7 +201,7 @@
 }
 
 .customProse h2 {
-  @apply text-xl font-semibold mt-8 mb-4;
+  @apply text-2xl font-semibold mt-8 mb-5;
 }
 
 .customProse h3 {
@@ -213,5 +213,13 @@
 }
 
 .customProse img {
-  @apply rounded-md my-8;
+  @apply rounded-md;
+}
+
+.customProse p > img {
+  @apply my-8;
+}
+
+.customProse > p:first-child > img {
+  @apply mt-0;
 }
