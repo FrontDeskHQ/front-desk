@@ -333,8 +333,30 @@ function RouteComponent() {
                   }))}
                   value={thread?.status ?? 0}
                   onValueChange={(value) => {
+                    const oldStatus = thread?.status ?? 0;
+                    const newStatus = +value;
+                    const oldStatusLabel =
+                      statusValues[oldStatus]?.label ?? "Unknown";
+                    const newStatusLabel =
+                      statusValues[newStatus]?.label ?? "Unknown";
+
                     mutate.thread.update(id, {
-                      status: +value,
+                      status: newStatus,
+                    });
+
+                    mutate.update.insert({
+                      id: ulid().toLowerCase(),
+                      threadId: id,
+                      type: "status_changed",
+                      createdAt: new Date(),
+                      metadataStr: JSON.stringify({
+                        oldStatus,
+                        newStatus,
+                        oldStatusLabel,
+                        newStatusLabel,
+                        userId: user.id,
+                        userName: user.name,
+                      }),
                     });
                   }}
                 >
@@ -395,8 +417,36 @@ function RouteComponent() {
                   ]}
                   value={thread?.priority}
                   onValueChange={(value) => {
+                    const oldPriority = thread?.priority ?? 0;
+                    const newPriority = +value;
+                    const priorityLabels: Record<number, string> = {
+                      0: "No priority",
+                      1: "Low priority",
+                      2: "Medium priority",
+                      3: "High priority",
+                    };
+                    const oldPriorityLabel =
+                      priorityLabels[oldPriority] ?? "Unknown";
+                    const newPriorityLabel =
+                      priorityLabels[newPriority] ?? "Unknown";
+
                     mutate.thread.update(id, {
-                      priority: +value,
+                      priority: newPriority,
+                    });
+
+                    mutate.update.insert({
+                      id: ulid().toLowerCase(),
+                      threadId: id,
+                      type: "priority_changed",
+                      createdAt: new Date(),
+                      metadataStr: JSON.stringify({
+                        oldPriority,
+                        newPriority,
+                        oldPriorityLabel,
+                        newPriorityLabel,
+                        userId: user.id,
+                        userName: user.name,
+                      }),
                     });
                   }}
                 >
@@ -451,8 +501,33 @@ function RouteComponent() {
                   ]}
                   value={thread?.assignedUser?.id}
                   onValueChange={(value) => {
+                    const oldAssignedUserId = thread?.assignedUser?.id ?? null;
+                    const oldAssignedUserName =
+                      thread?.assignedUser?.name ?? null;
+                    const newAssignedUserId = value;
+                    const newAssignedUser = organizationUsers?.find(
+                      (ou) => ou.userId === value,
+                    );
+                    const newAssignedUserName =
+                      newAssignedUser?.user.name ?? null;
+
                     mutate.thread.update(id, {
                       assignedUserId: value,
+                    });
+
+                    mutate.update.insert({
+                      id: ulid().toLowerCase(),
+                      threadId: id,
+                      type: "assigned_changed",
+                      createdAt: new Date(),
+                      metadataStr: JSON.stringify({
+                        oldAssignedUserId,
+                        newAssignedUserId,
+                        oldAssignedUserName,
+                        newAssignedUserName,
+                        userId: user.id,
+                        userName: user.name,
+                      }),
                     });
                   }}
                 >
