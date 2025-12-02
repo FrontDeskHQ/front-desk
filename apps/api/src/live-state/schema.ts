@@ -106,6 +106,15 @@ const integration = object("integration", {
   configStr: string().nullable(),
 });
 
+const update = object("update", {
+  id: id(),
+  threadId: reference("thread.id"),
+  type: string(),
+  createdAt: timestamp(),
+  // TODO make this a JSON object when live-state supports it
+  metadataStr: string().nullable(),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
@@ -131,6 +140,7 @@ const threadRelations = createRelations(thread, ({ one, many }) => ({
   messages: many(message, "threadId"),
   assignedUser: one(user, "assignedUserId"),
   author: one(author, "authorId"),
+  updates: many(update, "threadId"),
 }));
 
 const messageRelations = createRelations(message, ({ one }) => ({
@@ -151,6 +161,10 @@ const integrationRelations = createRelations(integration, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
 
+const updateRelations = createRelations(update, ({ one }) => ({
+  thread: one(thread, "threadId"),
+}));
+
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
@@ -168,6 +182,7 @@ export const schema = createSchema({
   user,
   invite,
   integration,
+  update,
   allowlist,
   // relations
   organizationUserRelations,
@@ -178,4 +193,5 @@ export const schema = createSchema({
   inviteRelations,
   integrationRelations,
   subscriptionRelations,
+  updateRelations,
 });
