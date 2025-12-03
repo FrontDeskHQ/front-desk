@@ -241,25 +241,25 @@ const formatUpdateMessage = (
   const userName = update.user?.name ?? metadata?.userName ?? "Someone";
 
   if (update.type === "status_changed") {
-    return `${userName} changed status to ${
+    return `**${userName}** changed status to **${
       metadata?.newStatusLabel ?? "unknown"
-    }`;
+    }**`;
   }
 
   if (update.type === "priority_changed") {
-    return `${userName} changed priority to ${
+    return `**${userName}** changed priority to **${
       metadata?.newPriorityLabel ?? "unknown"
-    }`;
+    }**`;
   }
 
   if (update.type === "assigned_changed") {
     if (!metadata?.newAssignedUserName) {
-      return `${userName} unassigned the thread`;
+      return `**${userName}** unassigned the thread`;
     }
-    return `${userName} assigned the thread to ${metadata.newAssignedUserName}`;
+    return `**${userName}** assigned the thread to **${metadata.newAssignedUserName}**`;
   }
 
-  return `${userName} updated the thread`;
+  return `**${userName}** updated the thread`;
 };
 
 const handlingUpdates = new Set<string>();
