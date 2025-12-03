@@ -380,6 +380,7 @@ function RouteComponent() {
                         newStatusLabel,
                         userName: user.name,
                       }),
+                      replicatedStr: JSON.stringify({}),
                     });
                   }}
                 >
@@ -470,6 +471,7 @@ function RouteComponent() {
                         newPriorityLabel,
                         userName: user.name,
                       }),
+                      replicatedStr: JSON.stringify({}),
                     });
                   }}
                 >
@@ -551,6 +553,7 @@ function RouteComponent() {
                         newAssignedUserName,
                         userName: user.name,
                       }),
+                      replicatedStr: JSON.stringify({}),
                     });
                   }}
                 >

@@ -114,6 +114,7 @@ const update = object("update", {
   createdAt: timestamp(),
   // TODO make this a JSON object when live-state supports it
   metadataStr: string().nullable(),
+  replicatedStr: string().nullable(),
 });
 
 const organizationRelations = createRelations(organization, ({ many }) => ({

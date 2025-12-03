@@ -231,6 +231,104 @@ const handleMessages = async (
   }
 };
 
+const formatUpdateMessage = (
+  update: InferLiveObject<
+    (typeof schema)["update"],
+    { thread: true; user: true }
+  >
+): string => {
+  const metadata = update.metadataStr ? JSON.parse(update.metadataStr) : null;
+  const userName = update.user?.name ?? metadata?.userName ?? "Someone";
+
+  if (update.type === "status_changed") {
+    return `${userName} changed status to ${
+      metadata?.newStatusLabel ?? "unknown"
+    }`;
+  }
+
+  if (update.type === "priority_changed") {
+    return `${userName} changed priority to ${
+      metadata?.newPriorityLabel ?? "unknown"
+    }`;
+  }
+
+  if (update.type === "assigned_changed") {
+    if (!metadata?.newAssignedUserName) {
+      return `${userName} unassigned the thread`;
+    }
+    return `${userName} assigned the thread to ${metadata.newAssignedUserName}`;
+  }
+
+  return `${userName} updated the thread`;
+};
+
+const handlingUpdates = new Set<string>();
+
+const handleUpdates = async (
+  updates: InferLiveObject<
+    (typeof schema)["update"],
+    { thread: true; user: true }
+  >[]
+) => {
+  for (const update of updates) {
+    const replicated = update.replicatedStr
+      ? JSON.parse(update.replicatedStr)
+      : {};
+    if (replicated.discord) continue;
+
+    if (handlingUpdates.has(update.id)) continue;
+
+    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
+    const integration = store.query.integration
+      .first({
+        organizationId: update.thread?.organizationId,
+        type: "discord",
+      })
+      .get();
+
+    if (!integration || !integration.configStr) continue;
+
+    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+
+    if (!parsedConfig) continue;
+
+    const guildId = parsedConfig.guildId;
+
+    if (!guildId) continue;
+
+    const channelId = update.thread.discordChannelId;
+
+    if (!channelId) continue;
+
+    const guild = client.guilds.cache.get(guildId);
+
+    if (!guild) continue;
+
+    const channel = guild.channels.cache.get(channelId);
+
+    if (!channel) continue;
+
+    handlingUpdates.add(update.id);
+
+    try {
+      const updateMessage = formatUpdateMessage(update);
+      const botMessage = await (channel as TextChannel).send({
+        content: updateMessage,
+      });
+      await fetchClient.mutate.update.update(update.id, {
+        replicatedStr: JSON.stringify({
+          ...replicated,
+          discord: botMessage.id,
+        }),
+      });
+    } catch (error) {
+      console.error("Error sending update bot message:", error);
+    } finally {
+      handlingUpdates.delete(update.id);
+    }
+  }
+};
+
 setTimeout(async () => {
   // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
   await handleMessages(
@@ -253,6 +351,26 @@ setTimeout(async () => {
     })
     .include({ thread: true, author: true })
     .subscribe(handleMessages);
+
+  // Handle updates for threads linked to Discord
+  const updates = await store.query.update
+    .where({
+      thread: {
+        discordChannelId: { $not: null },
+      },
+    })
+    .include({ thread: true, user: true })
+    .get();
+
+  await handleUpdates(updates);
+  store.query.update
+    .where({
+      thread: {
+        discordChannelId: { $not: null },
+      },
+    })
+    .include({ thread: true, user: true })
+    .subscribe(handleUpdates);
 }, 1000);
 
 client.login(token).catch(console.error);
