@@ -306,7 +306,7 @@ function RouteComponent() {
               }
 
               if (item.itemType === "update") {
-                return <Update update={item} />;
+                return <Update update={item} user={user} />;
               }
 
               return null;

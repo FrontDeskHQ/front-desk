@@ -1,6 +1,5 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
-import { getRouteApi } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import {
   PriorityIndicator,
@@ -13,10 +12,11 @@ import { query } from "~/lib/live-state";
 
 export function Update({
   update,
+  user,
 }: {
   update: InferLiveObject<typeof schema.update, { user: true }>;
+  user?: { id: string; name: string };
 }) {
-  const { user } = getRouteApi("/app").useRouteContext();
   const metadata = update.metadataStr ? JSON.parse(update.metadataStr) : null;
 
   const assignedUser = useLiveQuery(
@@ -25,7 +25,7 @@ export function Update({
 
   const getUpdateText = () => {
     if (update.type === "assigned_changed") {
-      if (metadata?.newAssignedUserId === user.id) {
+      if (user?.id && metadata?.newAssignedUserId === user.id) {
         return `self-assigned the thread`;
       }
 
