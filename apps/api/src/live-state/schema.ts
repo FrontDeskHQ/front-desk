@@ -109,6 +109,7 @@ const integration = object("integration", {
 const update = object("update", {
   id: id(),
   threadId: reference("thread.id"),
+  userId: reference("user.id").nullable(),
   type: string(),
   createdAt: timestamp(),
   // TODO make this a JSON object when live-state supports it
@@ -163,6 +164,7 @@ const integrationRelations = createRelations(integration, ({ one }) => ({
 
 const updateRelations = createRelations(update, ({ one }) => ({
   thread: one(thread, "threadId"),
+  user: one(user, "userId"),
 }));
 
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
