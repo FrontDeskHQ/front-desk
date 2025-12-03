@@ -28,6 +28,7 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
+import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
@@ -47,6 +48,7 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
           author: true,
           messages: { author: true },
           assignedUser: true,
+          updates: { user: true },
         })
         .get()
     )[0];
@@ -81,9 +83,22 @@ function RouteComponent() {
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
 
+  const allItems = thread
+    ? [
+        ...(thread?.messages ?? []).map((msg) => ({
+          ...msg,
+          itemType: "message" as const,
+        })),
+        ...(thread?.updates ?? []).map((update) => ({
+          ...update,
+          itemType: "update" as const,
+        })),
+      ].sort((a, b) => a.id.localeCompare(b.id))
+    : [];
+
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
-    content: (thread as any)?.messages,
+    content: allItems,
     offset: 264,
   });
 
@@ -159,42 +174,50 @@ function RouteComponent() {
                 onScroll={disableAutoScroll}
                 onTouchMove={disableAutoScroll}
               >
-                {(thread as any)?.messages
-                  .sort((a: any, b: any) => a.id.localeCompare(b.id))
-                  .map((message: any) => (
-                    <Card
-                      key={message.id}
-                      className={cn(
-                        "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                      )}
-                    >
-                      {/* TODO: update the way it's checking if it's an message from the current user */}
-                      <CardHeader size="sm">
-                        <CardTitle>
-                          <Avatar
-                            variant="user"
-                            size="md"
-                            fallback={message.author?.name}
-                          />
-                          <p>{message.author?.name}</p>
-                          <p className="text-muted-foreground">
-                            {formatRelativeTime(message.createdAt as Date)}
-                          </p>
-                          {message.origin === "discord" && (
-                            <>
-                              <span className="bg-muted-foreground size-0.75 rounded-full" />
-                              <p className="text-muted-foreground">
-                                Imported from Discord
-                              </p>
-                            </>
-                          )}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RichText content={safeParseJSON(message.content)} />
-                      </CardContent>
-                    </Card>
-                  ))}
+                {allItems.map((item) => {
+                  if (item.itemType === "message") {
+                    return (
+                      <Card
+                        key={item.id}
+                        className={cn(
+                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                        )}
+                      >
+                        {/* TODO: update the way it's checking if it's an message from the current user */}
+                        <CardHeader size="sm">
+                          <CardTitle>
+                            <Avatar
+                              variant="user"
+                              size="md"
+                              fallback={item.author?.name}
+                            />
+                            <p>{item.author?.name}</p>
+                            <p className="text-muted-foreground">
+                              {formatRelativeTime(item.createdAt as Date)}
+                            </p>
+                            {item.origin === "discord" && (
+                              <>
+                                <span className="bg-muted-foreground size-0.75 rounded-full" />
+                                <p className="text-muted-foreground">
+                                  Imported from Discord
+                                </p>
+                              </>
+                            )}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent>
+                          <RichText content={safeParseJSON(item.content)} />
+                        </CardContent>
+                      </Card>
+                    );
+                  }
+
+                  if (item.itemType === "update") {
+                    return <Update key={item.id} update={item} />;
+                  }
+
+                  return null;
+                })}
               </div>
             </div>
           </Card>
