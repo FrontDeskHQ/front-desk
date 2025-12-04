@@ -6,11 +6,18 @@ import { Webhooks } from "@dodopayments/express";
 import { expressAdapter, server } from "@live-state/sync/server";
 import expressWs from "@wll8/express-ws";
 import { toNodeHandler } from "better-auth/node";
+import cookieParser from "cookie-parser";
 import cors from "cors";
 import express from "express";
 import process from "node:process";
 import { publicKeys } from "./lib/api-key";
-import { auth } from "./lib/auth";
+import {
+  auth,
+  bindSessionToOrg,
+  getOrgBoundSession,
+  supportAuth,
+  unbindSessionFromOrg,
+} from "./lib/auth";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
@@ -95,7 +102,18 @@ const lsServer = server({
 
 app.all("/api/auth/*", toNodeHandler(auth));
 
+// Support portal auth - single OAuth callback for all orgs
+app.all("/api/support-auth/*", toNodeHandler(supportAuth));
+
+// Middleware for parsing cookies and JSON bodies
+app.use(cookieParser());
 app.use(express.json());
+
+// Org-scoped session management endpoints
+// These endpoints manage per-org session binding for support portal isolation
+app.post("/api/support-session/bind", bindSessionToOrg);
+app.get("/api/support-session/check", getOrgBoundSession);
+app.post("/api/support-session/unbind", unbindSessionFromOrg);
 
 process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(
