@@ -1,5 +1,10 @@
 import { useFlag } from "@reflag/react-sdk";
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  notFound,
+  useRouter,
+} from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button, buttonVariants } from "@workspace/ui/components/button";
 import {
@@ -104,6 +109,7 @@ function RouteComponent() {
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
   const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
+  const router = useRouter();
 
   // Apply defaults in the component, not in validateSearch
   const page = searchParams.page ?? 1;
@@ -210,7 +216,15 @@ function RouteComponent() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => portalAuthClient.signOut()}
+                onClick={() =>
+                  portalAuthClient.signOut({
+                    fetchOptions: {
+                      onSuccess: () => {
+                        router.invalidate();
+                      },
+                    },
+                  })
+                }
               >
                 Sign out
               </Button>
