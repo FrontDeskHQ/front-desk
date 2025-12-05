@@ -1,4 +1,4 @@
-import { router as createRouter, routeFactory } from "@live-state/sync/server";
+import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
 import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
@@ -6,17 +6,9 @@ import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
+import { privateRoute, publicRoute } from "./factories";
+import updateRoute from "./router/update";
 import { schema } from "./schema";
-
-const publicRoute = routeFactory();
-
-const privateRoute = publicRoute.use(async ({ req, next }) => {
-  if (!req.context.session && !req.context.internalApiKey) {
-    throw new Error("Unauthorized");
-  }
-
-  return next(req);
-});
 
 export const router = createRouter({
   schema,
@@ -794,6 +786,7 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
+    update: updateRoute,
   },
 });
 

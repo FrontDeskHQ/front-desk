@@ -70,6 +70,7 @@ import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
+import { Update } from "~/components/threads/updates";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
@@ -85,6 +86,7 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
           organization: true,
           author: true,
           messages: { author: true },
+          updates: true,
         })
         .get()
     )[0];
@@ -120,6 +122,7 @@ function RouteComponent() {
       organization: true,
       messages: { author: true },
       assignedUser: true,
+      updates: { user: true },
     }),
   )?.[0];
 
@@ -129,9 +132,22 @@ function RouteComponent() {
       .include({ user: true }),
   );
 
+  const allItems = thread
+    ? [
+        ...(thread?.messages ?? []).map((msg) => ({
+          ...msg,
+          itemType: "message" as const,
+        })),
+        ...(thread?.updates ?? []).map((update) => ({
+          ...update,
+          itemType: "update" as const,
+        })),
+      ].sort((a, b) => a.id.localeCompare(b.id))
+    : [];
+
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
-    content: (thread as any)?.messages,
+    content: allItems,
     offset: 264,
   });
 
@@ -245,49 +261,56 @@ function RouteComponent() {
             onScroll={disableAutoScroll}
             onTouchMove={disableAutoScroll}
           >
-            {(thread as any)?.messages
-              .sort((a: any, b: any) => a.id.localeCompare(b.id))
-              .map((message: any) => (
-                <Card
-                  key={message.id}
-                  className={cn(
-                    "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                    message?.author?.userId === user.id &&
-                      "border-[#2662D9]/20",
-                  )}
-                >
-                  <CardHeader
-                    size="sm"
+            {allItems.map((item) => {
+              if (item.itemType === "message") {
+                return (
+                  <Card
+                    key={item.id}
                     className={cn(
-                      message?.author?.userId === user.id &&
-                        "bg-[#2662D9]/15 border-[#2662D9]/20",
+                      "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                      item?.author?.userId === user.id && "border-[#2662D9]/20",
                     )}
                   >
-                    <CardTitle>
-                      <Avatar
-                        variant="user"
-                        size="md"
-                        fallback={message.author.name}
-                      />
-                      <p>{message.author.name}</p>
-                      <p className="text-muted-foreground">
-                        {formatRelativeTime(message.createdAt as Date)}
-                      </p>
-                      {message.origin === "discord" && (
-                        <>
-                          <span className="bg-muted-foreground size-0.75 rounded-full" />
-                          <p className="text-muted-foreground">
-                            Imported from Discord
-                          </p>
-                        </>
+                    <CardHeader
+                      size="sm"
+                      className={cn(
+                        item?.author?.userId === user.id &&
+                          "bg-[#2662D9]/15 border-[#2662D9]/20",
                       )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <RichText content={safeParseJSON(message.content)} />
-                  </CardContent>
-                </Card>
-              ))}
+                    >
+                      <CardTitle>
+                        <Avatar
+                          variant="user"
+                          size="md"
+                          fallback={item.author.name}
+                        />
+                        <p>{item.author.name}</p>
+                        <p className="text-muted-foreground">
+                          {formatRelativeTime(item.createdAt as Date)}
+                        </p>
+                        {item.origin === "discord" && (
+                          <>
+                            <span className="bg-muted-foreground size-0.75 rounded-full" />
+                            <p className="text-muted-foreground">
+                              Imported from Discord
+                            </p>
+                          </>
+                        )}
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <RichText content={safeParseJSON(item.content)} />
+                    </CardContent>
+                  </Card>
+                );
+              }
+
+              if (item.itemType === "update") {
+                return <Update key={item.id} update={item} user={user} />;
+              }
+
+              return null;
+            })}
           </div>
           <InputBox
             className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
@@ -333,8 +356,31 @@ function RouteComponent() {
                   }))}
                   value={thread?.status ?? 0}
                   onValueChange={(value) => {
+                    const oldStatus = thread?.status ?? 0;
+                    const newStatus = +value;
+                    const oldStatusLabel =
+                      statusValues[oldStatus]?.label ?? "Unknown";
+                    const newStatusLabel =
+                      statusValues[newStatus]?.label ?? "Unknown";
+
                     mutate.thread.update(id, {
-                      status: +value,
+                      status: newStatus,
+                    });
+
+                    mutate.update.insert({
+                      id: ulid().toLowerCase(),
+                      threadId: id,
+                      type: "status_changed",
+                      createdAt: new Date(),
+                      userId: user.id,
+                      metadataStr: JSON.stringify({
+                        oldStatus,
+                        newStatus,
+                        oldStatusLabel,
+                        newStatusLabel,
+                        userName: user.name,
+                      }),
+                      replicatedStr: JSON.stringify({}),
                     });
                   }}
                 >
@@ -395,8 +441,37 @@ function RouteComponent() {
                   ]}
                   value={thread?.priority}
                   onValueChange={(value) => {
+                    const oldPriority = thread?.priority ?? 0;
+                    const newPriority = +value;
+                    const priorityLabels: Record<number, string> = {
+                      0: "No priority",
+                      1: "Low priority",
+                      2: "Medium priority",
+                      3: "High priority",
+                    };
+                    const oldPriorityLabel =
+                      priorityLabels[oldPriority] ?? "Unknown";
+                    const newPriorityLabel =
+                      priorityLabels[newPriority] ?? "Unknown";
+
                     mutate.thread.update(id, {
-                      priority: +value,
+                      priority: newPriority,
+                    });
+
+                    mutate.update.insert({
+                      id: ulid().toLowerCase(),
+                      threadId: id,
+                      type: "priority_changed",
+                      createdAt: new Date(),
+                      userId: user.id,
+                      metadataStr: JSON.stringify({
+                        oldPriority,
+                        newPriority,
+                        oldPriorityLabel,
+                        newPriorityLabel,
+                        userName: user.name,
+                      }),
+                      replicatedStr: JSON.stringify({}),
                     });
                   }}
                 >
@@ -451,8 +526,34 @@ function RouteComponent() {
                   ]}
                   value={thread?.assignedUser?.id}
                   onValueChange={(value) => {
+                    const oldAssignedUserId = thread?.assignedUser?.id ?? null;
+                    const oldAssignedUserName =
+                      thread?.assignedUser?.name ?? null;
+                    const newAssignedUserId = value;
+                    const newAssignedUser = organizationUsers?.find(
+                      (ou) => ou.userId === value,
+                    );
+                    const newAssignedUserName =
+                      newAssignedUser?.user.name ?? null;
+
                     mutate.thread.update(id, {
                       assignedUserId: value,
+                    });
+
+                    mutate.update.insert({
+                      id: ulid().toLowerCase(),
+                      threadId: id,
+                      userId: user.id,
+                      type: "assigned_changed",
+                      createdAt: new Date(),
+                      metadataStr: JSON.stringify({
+                        oldAssignedUserId,
+                        newAssignedUserId,
+                        oldAssignedUserName,
+                        newAssignedUserName,
+                        userName: user.name,
+                      }),
+                      replicatedStr: JSON.stringify({}),
                     });
                   }}
                 >
