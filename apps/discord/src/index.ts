@@ -150,6 +150,26 @@ client.on("messageCreate", async (message) => {
       assignedUserId: null,
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
+
+    try {
+      const organization = await fetchClient.query.organization
+        .first({ id: integration.organizationId })
+        .get();
+
+      if (organization?.slug) {
+        const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+        const baseUrlObj = new URL(baseUrl);
+        const baseHostname = baseUrlObj.hostname;
+        const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseHostname}/threads/${threadId}`;
+
+        const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
+        await message.channel.send({
+          content: portalMessage,
+        });
+      }
+    } catch (error) {
+      console.error("Error sending portal link message:", error);
+    }
   } else {
     const thread = store.query.thread
       .where({
