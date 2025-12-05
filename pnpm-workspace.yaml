@@ -4,11 +4,11 @@ packages:
 
 catalog:
   '@live-state/sync': ^0.0.6-canary-6
-  '@types/react': ^19.2.0
-  '@types/react-dom': ^19.2.0
+  '@types/react': ^19.2.1
+  '@types/react-dom': ^19.2.1
   better-auth: ^1.4.0
-  react: ^19.2.1
-  react-dom: ^19.2.1
+  react: 19.2.1
+  react-dom: 19.2.1
   zod: 4.1.9
 
 ignoredBuiltDependencies:
