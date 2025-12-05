@@ -37,10 +37,12 @@ export const portalAuth = betterAuth({
       : undefined,
   },
   account: {
+    // TODO FRO-128 re implement this in a custom way because we can't set a cookie in a subdomain and see it in the parent domain
     skipStateCookieCheck: true,
   },
   hooks: {
     after: createAuthMiddleware(async (ctx) => {
+      // TODO FRO-129 we need to validate this data properly, since it's not coming from the client
       const oauthData = await getOAuthState();
 
       if (!oauthData) return;
