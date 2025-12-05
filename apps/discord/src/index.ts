@@ -237,7 +237,14 @@ const formatUpdateMessage = (
     { thread: true; user: true }
   >
 ): string => {
-  const metadata = update.metadataStr ? JSON.parse(update.metadataStr) : null;
+  let metadata: any = null;
+  if (update.metadataStr) {
+    try {
+      metadata = JSON.parse(update.metadataStr);
+    } catch (error) {
+      console.error("Error parsing update metadata:", error);
+    }
+  }
   const userName = update.user?.name ?? metadata?.userName ?? "Someone";
 
   if (update.type === "status_changed") {
