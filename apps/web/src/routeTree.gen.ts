@@ -18,6 +18,7 @@ import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
 import { Route as ApiSplatRouteImport } from './routes/api/$'
+import { Route as SupportSlugRouteRouteImport } from './routes/support/$slug/route'
 import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
 import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
 import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
@@ -91,14 +92,19 @@ const ApiSplatRoute = ApiSplatRouteImport.update({
   path: '/api/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SupportSlugRouteRoute = SupportSlugRouteRouteImport.update({
+  id: '/support/$slug',
+  path: '/support/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: '/_workspace',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const SupportSlugIndexRoute = SupportSlugIndexRouteImport.update({
-  id: '/support/$slug/',
-  path: '/support/$slug/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   id: '/onboarding/',
@@ -112,14 +118,14 @@ const PublicUpdatesIndexRoute = PublicUpdatesIndexRouteImport.update({
 } as any)
 const SupportSlugSitemapDotxmlRoute =
   SupportSlugSitemapDotxmlRouteImport.update({
-    id: '/support/$slug/sitemap.xml',
-    path: '/support/$slug/sitemap.xml',
-    getParentRoute: () => rootRouteImport,
+    id: '/sitemap.xml',
+    path: '/sitemap.xml',
+    getParentRoute: () => SupportSlugRouteRoute,
   } as any)
 const SupportSlugRobotsDottxtRoute = SupportSlugRobotsDottxtRouteImport.update({
-  id: '/support/$slug/robots.txt',
-  path: '/support/$slug/robots.txt',
-  getParentRoute: () => rootRouteImport,
+  id: '/robots.txt',
+  path: '/robots.txt',
+  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
   id: '/onboarding/new',
@@ -154,9 +160,9 @@ const AppWorkspaceMainRouteRoute = AppWorkspaceMainRouteRouteImport.update({
   getParentRoute: () => AppWorkspaceRouteRoute,
 } as any)
 const SupportSlugThreadsIndexRoute = SupportSlugThreadsIndexRouteImport.update({
-  id: '/support/$slug/threads/',
-  path: '/support/$slug/threads/',
-  getParentRoute: () => rootRouteImport,
+  id: '/threads/',
+  path: '/threads/',
+  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppWorkspaceSettingsIndexRoute =
   AppWorkspaceSettingsIndexRouteImport.update({
@@ -170,9 +176,9 @@ const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
   getParentRoute: () => AppWorkspaceMainRouteRoute,
 } as any)
 const SupportSlugThreadsIdRoute = SupportSlugThreadsIdRouteImport.update({
-  id: '/support/$slug/threads/$id',
-  path: '/support/$slug/threads/$id',
-  getParentRoute: () => rootRouteImport,
+  id: '/threads/$id',
+  path: '/threads/$id',
+  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppWorkspaceSettingsUserIndexRoute =
   AppWorkspaceSettingsUserIndexRouteImport.update({
@@ -254,6 +260,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof SignInRoute
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/support/$slug': typeof SupportSlugRouteRouteWithChildren
   '/api/$': typeof ApiSplatRoute
   '/': typeof PublicIndexRoute
   '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
@@ -265,7 +272,7 @@ export interface FileRoutesByFullPath {
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
   '/updates': typeof PublicUpdatesIndexRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
-  '/support/$slug': typeof SupportSlugIndexRoute
+  '/support/$slug/': typeof SupportSlugIndexRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
@@ -327,6 +334,7 @@ export interface FileRoutesById {
   '/sign-up': typeof SignUpRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
+  '/support/$slug': typeof SupportSlugRouteRouteWithChildren
   '/api/$': typeof ApiSplatRoute
   '/_public/': typeof PublicIndexRoute
   '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
@@ -366,6 +374,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/sign-up'
     | '/sitemap.xml'
+    | '/support/$slug'
     | '/api/$'
     | '/'
     | '/app/settings'
@@ -377,7 +386,7 @@ export interface FileRouteTypes {
     | '/support/$slug/sitemap.xml'
     | '/updates'
     | '/app/onboarding'
-    | '/support/$slug'
+    | '/support/$slug/'
     | '/support/$slug/threads/$id'
     | '/app/'
     | '/app/settings/'
@@ -438,6 +447,7 @@ export interface FileRouteTypes {
     | '/sign-up'
     | '/sitemap.xml'
     | '/app/_workspace'
+    | '/support/$slug'
     | '/api/$'
     | '/_public/'
     | '/app/_workspace/_main'
@@ -477,12 +487,8 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  SupportSlugRouteRoute: typeof SupportSlugRouteRouteWithChildren
   ApiSplatRoute: typeof ApiSplatRoute
-  SupportSlugRobotsDottxtRoute: typeof SupportSlugRobotsDottxtRoute
-  SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
-  SupportSlugIndexRoute: typeof SupportSlugIndexRoute
-  SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
-  SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -550,6 +556,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/support/$slug': {
+      id: '/support/$slug'
+      path: '/support/$slug'
+      fullPath: '/support/$slug'
+      preLoaderRoute: typeof SupportSlugRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/app/_workspace': {
       id: '/app/_workspace'
       path: ''
@@ -559,10 +572,10 @@ declare module '@tanstack/react-router' {
     }
     '/support/$slug/': {
       id: '/support/$slug/'
-      path: '/support/$slug'
-      fullPath: '/support/$slug'
+      path: '/'
+      fullPath: '/support/$slug/'
       preLoaderRoute: typeof SupportSlugIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SupportSlugRouteRoute
     }
     '/app/onboarding/': {
       id: '/app/onboarding/'
@@ -580,17 +593,17 @@ declare module '@tanstack/react-router' {
     }
     '/support/$slug/sitemap.xml': {
       id: '/support/$slug/sitemap.xml'
-      path: '/support/$slug/sitemap.xml'
+      path: '/sitemap.xml'
       fullPath: '/support/$slug/sitemap.xml'
       preLoaderRoute: typeof SupportSlugSitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SupportSlugRouteRoute
     }
     '/support/$slug/robots.txt': {
       id: '/support/$slug/robots.txt'
-      path: '/support/$slug/robots.txt'
+      path: '/robots.txt'
       fullPath: '/support/$slug/robots.txt'
       preLoaderRoute: typeof SupportSlugRobotsDottxtRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SupportSlugRouteRoute
     }
     '/app/onboarding/new': {
       id: '/app/onboarding/new'
@@ -636,10 +649,10 @@ declare module '@tanstack/react-router' {
     }
     '/support/$slug/threads/': {
       id: '/support/$slug/threads/'
-      path: '/support/$slug/threads'
+      path: '/threads'
       fullPath: '/support/$slug/threads'
       preLoaderRoute: typeof SupportSlugThreadsIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SupportSlugRouteRoute
     }
     '/app/_workspace/settings/': {
       id: '/app/_workspace/settings/'
@@ -657,10 +670,10 @@ declare module '@tanstack/react-router' {
     }
     '/support/$slug/threads/$id': {
       id: '/support/$slug/threads/$id'
-      path: '/support/$slug/threads/$id'
+      path: '/threads/$id'
       fullPath: '/support/$slug/threads/$id'
       preLoaderRoute: typeof SupportSlugThreadsIdRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof SupportSlugRouteRoute
     }
     '/app/_workspace/settings/user/': {
       id: '/app/_workspace/settings/user/'
@@ -857,6 +870,25 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
   AppRouteRouteChildren,
 )
 
+interface SupportSlugRouteRouteChildren {
+  SupportSlugRobotsDottxtRoute: typeof SupportSlugRobotsDottxtRoute
+  SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
+  SupportSlugIndexRoute: typeof SupportSlugIndexRoute
+  SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
+  SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
+}
+
+const SupportSlugRouteRouteChildren: SupportSlugRouteRouteChildren = {
+  SupportSlugRobotsDottxtRoute: SupportSlugRobotsDottxtRoute,
+  SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
+  SupportSlugIndexRoute: SupportSlugIndexRoute,
+  SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
+  SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
+}
+
+const SupportSlugRouteRouteWithChildren =
+  SupportSlugRouteRoute._addFileChildren(SupportSlugRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
@@ -865,12 +897,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  SupportSlugRouteRoute: SupportSlugRouteRouteWithChildren,
   ApiSplatRoute: ApiSplatRoute,
-  SupportSlugRobotsDottxtRoute: SupportSlugRobotsDottxtRoute,
-  SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
-  SupportSlugIndexRoute: SupportSlugIndexRoute,
-  SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
-  SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

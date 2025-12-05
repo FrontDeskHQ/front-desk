@@ -3,7 +3,9 @@ import { oneTimeToken } from "better-auth/plugins";
 import { Pool } from "pg";
 import "../env";
 
-const useSocialProvider = !!process.env.ENABLE_GOOGLE_LOGIN;
+const useSocialProvider =
+  process.env.ENABLE_GOOGLE_LOGIN === "true" ||
+  process.env.ENABLE_GOOGLE_LOGIN === "1";
 
 export const auth = betterAuth({
   baseURL: process.env.BASE_URL,

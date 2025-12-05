@@ -9,6 +9,7 @@ catalog:
   '@types/react-dom': ^19.2.0
   react: ^19.2.0
   react-dom: ^19.2.0
+  better-auth: ^1.4.0
 
 ignoredBuiltDependencies:
   - libpq
