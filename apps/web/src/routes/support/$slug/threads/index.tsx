@@ -1,3 +1,4 @@
+import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button, buttonVariants } from "@workspace/ui/components/button";
@@ -43,6 +44,7 @@ import {
 } from "lucide-react";
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
+import { portalAuthClient } from "~/lib/portal-auth-client";
 import { seo } from "~/utils/seo";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
@@ -76,8 +78,8 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       .get();
 
     return {
-      organization: organization as typeof organization | undefined,
-      threads: threads as typeof threads | undefined,
+      organization: organization as typeof organization,
+      threads: threads as typeof threads,
     };
   },
 
@@ -97,10 +99,11 @@ export const Route = createFileRoute("/support/$slug/threads/")({
 const THREADS_PER_PAGE = 10;
 
 function RouteComponent() {
-  const organization = Route.useLoaderData().organization;
-  const threads = Route.useLoaderData().threads;
+  const { organization, threads } = Route.useLoaderData();
+  const { portalSession } = Route.useRouteContext();
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
+  const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
 
   // Apply defaults in the component, not in validateSearch
   const page = searchParams.page ?? 1;
@@ -201,6 +204,33 @@ function RouteComponent() {
             <Logo.Text />
           </Logo>
         </Navbar.Group>
+        {isPortalAuthEnabled && (
+          <Navbar.Group>
+            {portalSession?.user ? (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => portalAuthClient.signOut()}
+              >
+                Sign out
+              </Button>
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  portalAuthClient.signIn.social({
+                    provider: "google",
+                    additionalData: { tenantSlug: organization.slug },
+                    callbackURL: window.location.origin,
+                  })
+                }
+              >
+                Sign in with Google
+              </Button>
+            )}
+          </Navbar.Group>
+        )}
       </Navbar>
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
         <div className="flex items-center gap-4">

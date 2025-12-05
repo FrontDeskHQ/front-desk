@@ -11,6 +11,7 @@ import express from "express";
 import process from "node:process";
 import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
+import { portalAuth } from "./lib/portal-auth";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
@@ -94,6 +95,8 @@ const lsServer = server({
 });
 
 app.all("/api/auth/*", toNodeHandler(auth));
+
+app.all("/api/portal-auth/*", toNodeHandler(portalAuth));
 
 app.use(express.json());
 
