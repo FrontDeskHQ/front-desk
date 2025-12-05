@@ -30,6 +30,7 @@
     "format": "pnpm biome format ./src --fix"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.8",
     "@types/cors": "^2.8.18",
     "@types/express": "^4.17.21",
     "@types/node": "^22.15.3",
@@ -47,6 +48,7 @@
     "@wll8/express-ws": "^1.0.6",
     "@workspace/emails": "workspace:*",
     "better-auth": "^1.2.7",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dodopayments": "^2.4.1",

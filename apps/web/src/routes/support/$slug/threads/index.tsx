@@ -27,6 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { Spinner } from "@workspace/ui/components/spinner";
 import {
   Tooltip,
   TooltipContent,
@@ -41,8 +42,14 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
 } from "lucide-react";
+import React from "react";
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
+import {
+  bindSessionToOrg,
+  supportAuthClient,
+  useOrgBoundSession,
+} from "~/lib/support-auth-client";
 import { seo } from "~/utils/seo";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
@@ -54,6 +61,8 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     page: z.coerce.number().optional(),
     order: z.enum(["createdAt", "updatedAt"]).optional(),
     dir: z.enum(["asc", "desc"]).optional(),
+    // Used to detect OAuth callback and bind session to org
+    auth_callback: z.coerce.boolean().optional(),
   }),
 
   loader: async ({ params }) => {
@@ -97,10 +106,50 @@ export const Route = createFileRoute("/support/$slug/threads/")({
 const THREADS_PER_PAGE = 10;
 
 function RouteComponent() {
+  const { slug } = Route.useParams();
   const organization = Route.useLoaderData().organization;
   const threads = Route.useLoaderData().threads;
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
+
+  // Use org-bound session for per-org authentication isolation
+  const {
+    session,
+    isLoading: isSessionLoading,
+    signOut,
+    refetch: refetchSession,
+  } = useOrgBoundSession(slug);
+
+  // Handle OAuth callback - bind session to org when returning from Google
+  const [isBindingSession, setIsBindingSession] = React.useState(false);
+
+  React.useEffect(() => {
+    const handleAuthCallback = async () => {
+      if (searchParams.auth_callback) {
+        setIsBindingSession(true);
+        try {
+          await bindSessionToOrg(slug);
+          // Remove the auth_callback param from URL
+          navigate({
+            to: ".",
+            search: (prev) => {
+              const { auth_callback: _, ...rest } = prev;
+              return rest;
+            },
+            replace: true,
+          });
+          // Refetch session to update UI
+          refetchSession();
+        } catch (error) {
+          console.error("Failed to bind session:", error);
+        } finally {
+          setIsBindingSession(false);
+        }
+      }
+    };
+
+    handleAuthCallback();
+  }, [searchParams.auth_callback, slug, navigate, refetchSession]);
 
   // Apply defaults in the component, not in validateSearch
   const page = searchParams.page ?? 1;
@@ -192,6 +241,9 @@ function RouteComponent() {
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
 
+  // Show loading state while checking session or binding after OAuth
+  const isAuthLoading = isSessionLoading || isBindingSession;
+
   return (
     <div className="w-full">
       <Navbar>
@@ -200,6 +252,45 @@ function RouteComponent() {
             <Logo.Icon />
             <Logo.Text />
           </Logo>
+        </Navbar.Group>
+        <Navbar.Group>
+          {isAuthLoading ? (
+            <div className="size-5">
+              <Spinner />
+            </div>
+          ) : session ? (
+            <div className="flex items-center gap-2">
+              <Avatar
+                variant="user"
+                size="sm"
+                src={session.user.image}
+                fallback={session.user.name}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  signOut();
+                }}
+              >
+                Sign out
+              </Button>
+            </div>
+          ) : import.meta.env.VITE_ENABLE_GOOGLE_LOGIN === "true" ? (
+            <Button
+              type="button"
+              className="w-full"
+              onClick={() => {
+                // Include auth_callback param to trigger session binding after OAuth
+                supportAuthClient.signIn.social({
+                  provider: "google",
+                  callbackURL: `${import.meta.env.VITE_BASE_URL || "http://localhost:3000"}/support/${slug}/threads?auth_callback=true`,
+                });
+              }}
+            >
+              Continue with Google
+            </Button>
+          ) : null}
         </Navbar.Group>
       </Navbar>
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
