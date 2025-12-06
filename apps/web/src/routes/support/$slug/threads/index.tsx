@@ -50,7 +50,9 @@ import {
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
+import { getTenantBaseApiUrl } from "~/lib/urls";
 import { seo } from "~/utils/seo";
+import { WindowWithCachedPortalAuthUser } from "../route";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
@@ -219,7 +221,13 @@ function RouteComponent() {
                 onClick={() =>
                   portalAuthClient.signOut({
                     fetchOptions: {
+                      baseURL: `${getTenantBaseApiUrl({
+                        slug: organization.slug,
+                      })}/api/portal-auth`,
                       onSuccess: () => {
+                        (
+                          window as WindowWithCachedPortalAuthUser
+                        ).cachedPortalAuthUser = null;
                         router.invalidate();
                       },
                     },

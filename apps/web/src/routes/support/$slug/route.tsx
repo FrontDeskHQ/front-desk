@@ -19,7 +19,7 @@ export const Route = createFileRoute("/support/$slug")({
         ? (window as WindowWithCachedPortalAuthUser).cachedPortalAuthUser
         : undefined;
 
-    if (portalSessionData !== undefined) {
+    if (portalSessionData) {
       return { portalSession: portalSessionData };
     }
 

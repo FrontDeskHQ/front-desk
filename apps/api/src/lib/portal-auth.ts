@@ -1,8 +1,7 @@
 import { betterAuth } from "better-auth";
-import { createAuthMiddleware, getOAuthState } from "better-auth/api";
-import { parseSetCookieHeader } from "better-auth/cookies";
 import { Pool } from "pg";
 import "../env";
+import { subdomainOAuth } from "./plugins/subdomain-oauth";
 
 const useSocialProvider =
   process.env.ENABLE_GOOGLE_LOGIN === "true" ||
@@ -38,42 +37,11 @@ export const portalAuth = betterAuth({
   },
   account: {
     storeStateStrategy: "database",
+    skipStateCookieCheck: true,
   },
-  hooks: {
-    after: createAuthMiddleware(async (ctx) => {
-      // TODO FRO-129 we need to validate this data properly, since it's not coming from the client
-      const oauthData = await getOAuthState();
-
-      if (!oauthData) return;
-
-      const tenantSlug = oauthData.tenantSlug;
-
-      if (!tenantSlug) return;
-
-      const setCookieHeader = ctx.context.responseHeaders?.get("set-cookie");
-
-      if (!setCookieHeader) return;
-
-      const cookieName = ctx.context.authCookies.sessionToken.name;
-      const parsedCookies = parseSetCookieHeader(setCookieHeader);
-      const sessionCookie = parsedCookies.get(cookieName);
-
-      if (!sessionCookie?.value) return;
-
-      if (isProduction) {
-        const ogUrl = new URL(process.env.BASE_FRONTEND_URL as string);
-        const subdomain = `${tenantSlug}.${ogUrl.hostname}`;
-
-        await ctx.setSignedCookie(
-          cookieName,
-          sessionCookie.value,
-          ctx.context.secret,
-          {
-            ...ctx.context.authCookies.sessionToken.options,
-            domain: subdomain,
-          }
-        );
-      }
+  plugins: [
+    subdomainOAuth({
+      baseUrl: process.env.BASE_FRONTEND_URL as string,
     }),
-  },
+  ],
 });
