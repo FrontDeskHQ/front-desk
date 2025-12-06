@@ -7,6 +7,92 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
+  --background-primary: oklch(95% 0 none);
+
+  --step-multiplier: 1;
+  --foreground-multiplier: 1;
+  --background-multiplier: 1;
+
+  /* Don't edit below this line manually - use the chromaflow */
+
+  --background-secondary: oklch(
+    from var(--background-primary)
+      calc(
+        l +
+          calc(
+            calc(var(--step-multiplier) * var(--background-multiplier)) * 0.04
+          )
+      )
+      c h
+  );
+  --background-tertiary: oklch(
+    from var(--background-secondary)
+      calc(
+        l +
+          calc(
+            calc(
+                calc(var(--step-multiplier) * var(--background-multiplier)) *
+                  0.04
+              ) * 0.75
+          )
+      )
+      c h
+  );
+  --background-quaternary: oklch(
+    from var(--background-tertiary)
+      calc(
+        l -
+          calc(
+            calc(
+                calc(
+                    calc(var(--step-multiplier) * var(--background-multiplier)) *
+                      0.04
+                  ) * 0.75
+              ) * 0.8
+          )
+      )
+      c h
+  );
+  --foreground-primary: oklch(
+    from oklch(from var(--background-primary) calc(1 - l) c h)
+      calc(
+        l +
+          calc(
+            calc(var(--foreground-multiplier) * var(--step-multiplier)) * 0.13
+          )
+      )
+      c h
+  );
+  --foreground-secondary: oklch(
+    from var(--foreground-primary)
+      calc(
+        l -
+          calc(
+            calc(
+                calc(var(--foreground-multiplier) * var(--step-multiplier)) *
+                  0.13
+              ) * 2.3
+          )
+      )
+      c h
+  );
+  --foreground-tertiary: oklch(
+    from var(--foreground-secondary)
+      calc(
+        l -
+          calc(
+            calc(
+                calc(
+                    calc(var(--foreground-multiplier) * var(--step-multiplier)) *
+                      0.13
+                  ) * 2.3
+              ) * 0.7
+          )
+      )
+      c h
+  );
+
+  /* TODO remove these variables and use the new ones */
   --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
@@ -42,6 +128,14 @@
 }
 
 .dark {
+  --background-primary: oklch(14.5% 0 none);
+
+  --step-multiplier: 1;
+  --foreground-multiplier: 1;
+  --background-multiplier: 1;
+
+  /* TODO remove these variables and use the new ones */
+
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -78,6 +172,22 @@
 @theme inline {
   --font-family: "Inter Variable", sans-serif;
   --font-mono: "Intel One Mono Variable", monospace;
+
+  --color-background-primary: var(--background-primary);
+  --color-background-secondary: var(--background-secondary);
+  --color-background-tertiary: var(--background-tertiary);
+  --color-background-quaternary: var(--background-quaternary);
+  --color-foreground-primary: var(--foreground-primary);
+  --color-foreground-secondary: var(--foreground-secondary);
+  --color-foreground-tertiary: var(--foreground-tertiary);
+  --color-border-primary: oklch(from var(--foreground-primary) l c h / 8%);
+  --color-border-secondary: oklch(from var(--foreground-secondary) l c h / 12%);
+  --color-border-tertiary: oklch(from var(--foreground-tertiary) l c h / 16%);
+  --color-border-quaternary: oklch(
+    from var(--foreground-quaternary) l c h / 20%
+  );
+
+  /* TODO remove these variables and use the new ones */
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -118,7 +228,7 @@
 
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border-primary outline-ring/50;
     ::-webkit-scrollbar {
       width: 11px;
     }
@@ -131,7 +241,7 @@
     }
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background-primary text-foreground;
   }
 }
 

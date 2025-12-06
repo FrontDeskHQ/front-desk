@@ -7,7 +7,7 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="card"
       className={cn(
-        "text-card-foreground flex flex-col rounded-md border overflow-clip",
+        "text-foreground-primary bg-background-secondary flex flex-col rounded-md border overflow-clip",
         className,
       )}
       {...props}
@@ -20,7 +20,7 @@ const headerVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-muted/25",
+        default: "bg-background-tertiary",
         transparent: "bg-inherit",
       },
       size: {

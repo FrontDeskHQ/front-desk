@@ -9,7 +9,7 @@ function NavbarRoot({ className, children }: NavbarProps) {
   return (
     <header
       className={cn(
-        "flex w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 px-8",
+        "flex w-full border-b bg-background-primary/95 backdrop-blur supports-[backdrop-filter]:bg-background-primary/60 px-8",
         className,
       )}
     >

@@ -72,7 +72,7 @@ function RouteComponent() {
             </p>
           </div>
         ) : (
-          <div className="relative border-l border-border ml-3 md:ml-4 space-y-20 pb-20">
+          <div className="relative border-l ml-3 md:ml-4 space-y-20 pb-20">
             {data.pages.map((page, index) => {
               const Content = clientLoader.getComponent(page.path);
               return (

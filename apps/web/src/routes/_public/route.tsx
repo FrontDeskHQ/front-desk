@@ -12,7 +12,7 @@ export const Route = createFileRoute("/_public")({
 function RouteComponent() {
   return (
     <div className="w-full min-h-screen flex flex-col items-center relative">
-      <header className="h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background/80">
+      <header className="h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background-primary/80">
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
           <div className="flex gap-4">
             <Link to="/" className="flex items-center gap-2">

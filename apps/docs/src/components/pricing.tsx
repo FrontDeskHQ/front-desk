@@ -58,7 +58,7 @@ export function Pricing({ plans = defaultPlans }: PricingProps) {
           className={`relative rounded-lg border p-6 ${
             plan.highlight
               ? "border-primary bg-muted/50"
-              : "border-border bg-background"
+              : "bg-background-primary"
           }`}
         >
           <div className="mb-4">

@@ -228,7 +228,7 @@ function ApplyToWaitlistForm() {
             <FormControl>
               <Input
                 placeholder="Enter your email..."
-                className="w-full dark:bg-background/75"
+                className="w-full dark:bg-background-primary/75"
                 id={field.name}
                 value={field.state.value}
                 onChange={(e) => field.setValue(e.target.value)}
