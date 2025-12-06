@@ -18,6 +18,9 @@
       "types": "./src/live-state/schema.ts",
       "import": "./dist/live-state/schema.js",
       "require": "./dist/live-state/schema.js"
+    },
+    "./plugins/subdomain-oauth": {
+      "types": "./src/lib/plugins/subdomain-oauth.ts"
     }
   },
   "scripts": {

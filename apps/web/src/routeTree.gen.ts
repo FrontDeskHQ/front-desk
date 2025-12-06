@@ -35,6 +35,7 @@ import { Route as SupportSlugThreadsIndexRouteImport } from './routes/support/$s
 import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
 import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
 import { Route as SupportSlugThreadsIdRouteImport } from './routes/support/$slug/threads/$id'
+import { Route as SupportSlugApiSplatRouteImport } from './routes/support/$slug/api/$'
 import { Route as AppWorkspaceSettingsUserIndexRouteImport } from './routes/app/_workspace/settings/user/index'
 import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
@@ -180,6 +181,11 @@ const SupportSlugThreadsIdRoute = SupportSlugThreadsIdRouteImport.update({
   path: '/threads/$id',
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
+const SupportSlugApiSplatRoute = SupportSlugApiSplatRouteImport.update({
+  id: '/api/$',
+  path: '/api/$',
+  getParentRoute: () => SupportSlugRouteRoute,
+} as any)
 const AppWorkspaceSettingsUserIndexRoute =
   AppWorkspaceSettingsUserIndexRouteImport.update({
     id: '/user/',
@@ -273,6 +279,7 @@ export interface FileRoutesByFullPath {
   '/updates': typeof PublicUpdatesIndexRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
+  '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
@@ -308,6 +315,7 @@ export interface FileRoutesByTo {
   '/updates': typeof PublicUpdatesIndexRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug': typeof SupportSlugIndexRoute
+  '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
@@ -348,6 +356,7 @@ export interface FileRoutesById {
   '/_public/updates/': typeof PublicUpdatesIndexRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
+  '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
@@ -387,6 +396,7 @@ export interface FileRouteTypes {
     | '/updates'
     | '/app/onboarding'
     | '/support/$slug/'
+    | '/support/$slug/api/$'
     | '/support/$slug/threads/$id'
     | '/app/'
     | '/app/settings/'
@@ -422,6 +432,7 @@ export interface FileRouteTypes {
     | '/updates'
     | '/app/onboarding'
     | '/support/$slug'
+    | '/support/$slug/api/$'
     | '/support/$slug/threads/$id'
     | '/app/settings'
     | '/support/$slug/threads'
@@ -461,6 +472,7 @@ export interface FileRouteTypes {
     | '/_public/updates/'
     | '/app/onboarding/'
     | '/support/$slug/'
+    | '/support/$slug/api/$'
     | '/support/$slug/threads/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
@@ -675,6 +687,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupportSlugThreadsIdRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
+    '/support/$slug/api/$': {
+      id: '/support/$slug/api/$'
+      path: '/api/$'
+      fullPath: '/support/$slug/api/$'
+      preLoaderRoute: typeof SupportSlugApiSplatRouteImport
+      parentRoute: typeof SupportSlugRouteRoute
+    }
     '/app/_workspace/settings/user/': {
       id: '/app/_workspace/settings/user/'
       path: '/user'
@@ -874,6 +893,7 @@ interface SupportSlugRouteRouteChildren {
   SupportSlugRobotsDottxtRoute: typeof SupportSlugRobotsDottxtRoute
   SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
   SupportSlugIndexRoute: typeof SupportSlugIndexRoute
+  SupportSlugApiSplatRoute: typeof SupportSlugApiSplatRoute
   SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
   SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
 }
@@ -882,6 +902,7 @@ const SupportSlugRouteRouteChildren: SupportSlugRouteRouteChildren = {
   SupportSlugRobotsDottxtRoute: SupportSlugRobotsDottxtRoute,
   SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
   SupportSlugIndexRoute: SupportSlugIndexRoute,
+  SupportSlugApiSplatRoute: SupportSlugApiSplatRoute,
   SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
   SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
 }
