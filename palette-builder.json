@@ -1,0 +1,780 @@
+{
+  "nodes": [
+    {
+      "id": "node_1764789629795_q5tzrpu52",
+      "type": "inputColor",
+      "position": {
+        "x": -1196.3556733442665,
+        "y": -36.96254272932775
+      },
+      "data": {
+        "name": "background-primary",
+        "color": "oklch(14.5% 0 none)"
+      },
+      "measured": {
+        "width": 274,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_magw6bj6t",
+      "type": "inputNumber",
+      "position": {
+        "x": -660.9660315361843,
+        "y": 608.7842840244733
+      },
+      "data": {
+        "name": "",
+        "value": 0.04
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_p42fth5pp",
+      "type": "lighten",
+      "position": {
+        "x": -19.058787761185073,
+        "y": 247.7228766621177
+      },
+      "data": {
+        "isDarken": false
+      },
+      "measured": {
+        "width": 217,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_ynrjgpm6g",
+      "type": "lighten",
+      "position": {
+        "x": 537.1393602697566,
+        "y": 245.89840305674878
+      },
+      "data": {
+        "isDarken": false
+      },
+      "measured": {
+        "width": 217,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_c576a4gk2",
+      "type": "lighten",
+      "position": {
+        "x": 1108.8582906709146,
+        "y": 244.83205410219475
+      },
+      "data": {
+        "isDarken": true
+      },
+      "measured": {
+        "width": 217,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_fkwq23isx",
+      "type": "output",
+      "position": {
+        "x": 279.27069993856634,
+        "y": 124.7879086799649
+      },
+      "data": {
+        "name": "background-secondary",
+        "inputNodeId": "node_1764789629795_p42fth5pp"
+      },
+      "measured": {
+        "width": 150,
+        "height": 110
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_ftgwv7tua",
+      "type": "output",
+      "position": {
+        "x": 873.2237381755134,
+        "y": 118.27017655647433
+      },
+      "data": {
+        "name": "background-tertiary",
+        "inputNodeId": "node_1764789629795_ynrjgpm6g"
+      },
+      "measured": {
+        "width": 150,
+        "height": 110
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764789629795_pz4ktxtdk",
+      "type": "output",
+      "position": {
+        "x": 1396.464657593317,
+        "y": 132.54448870790105
+      },
+      "data": {
+        "name": "background-quaternary",
+        "inputNodeId": "node_1764789629795_c576a4gk2"
+      },
+      "measured": {
+        "width": 150,
+        "height": 110
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764807315811_zdag1yq8p",
+      "type": "multiply",
+      "position": {
+        "x": 235.82416915755357,
+        "y": 417.8056349627484
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764807328810_eujhcrrq1",
+      "type": "inputNumber",
+      "position": {
+        "x": -188.4545513275457,
+        "y": 614.0692487607351
+      },
+      "data": {
+        "name": "",
+        "value": 0.75
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764807366290_jhsf8tiv0",
+      "type": "multiply",
+      "position": {
+        "x": 817.9846820385826,
+        "y": 417.42705121262304
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1764807372265_c8qfz3lvf",
+      "type": "inputNumber",
+      "position": {
+        "x": 496.12880655523315,
+        "y": 609.6421496666335
+      },
+      "data": {
+        "name": "",
+        "value": 0.8
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765049635233_kubnozfrl",
+      "type": "inputNumber",
+      "position": {
+        "x": -1195.511854462678,
+        "y": -257.2887529434038
+      },
+      "data": {
+        "name": "step-multiplier",
+        "value": 1
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765050651469_urxenhhq7",
+      "type": "multiply",
+      "position": {
+        "x": -304.97500383187526,
+        "y": 415.3141358595512
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765050916144_vi6vrges2",
+      "type": "invert",
+      "position": {
+        "x": -396.44988645253545,
+        "y": -511.91108061033003
+      },
+      "data": {},
+      "measured": {
+        "width": 217,
+        "height": 144
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765050954982_ehukviisw",
+      "type": "lighten",
+      "position": {
+        "x": 83.9394888415984,
+        "y": -515.5863180836157
+      },
+      "data": {
+        "isDarken": false
+      },
+      "measured": {
+        "width": 217,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765050977402_uep5fclvx",
+      "type": "multiply",
+      "position": {
+        "x": -195.11230074470635,
+        "y": -302.2054774973986
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765050980023_p2ihn1s7i",
+      "type": "inputNumber",
+      "position": {
+        "x": -568.8628810097339,
+        "y": -100.36012832727707
+      },
+      "data": {
+        "name": "",
+        "value": 0.13
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051092395_w7623makc",
+      "type": "output",
+      "position": {
+        "x": 431.73710709727163,
+        "y": -651.1787296256746
+      },
+      "data": {
+        "name": "foreground-primary",
+        "inputNodeId": ""
+      },
+      "measured": {
+        "width": 150,
+        "height": 110
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051122476_jnfefu7tc",
+      "type": "lighten",
+      "position": {
+        "x": 596.0009718618476,
+        "y": -516.7810220910214
+      },
+      "data": {
+        "isDarken": true
+      },
+      "measured": {
+        "width": 217,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051144798_liw4h329s",
+      "type": "multiply",
+      "position": {
+        "x": 277.23771946037755,
+        "y": -295.92465994218276
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051164494_2k6gji483",
+      "type": "inputNumber",
+      "position": {
+        "x": -69.20985858331903,
+        "y": -92.34696811598616
+      },
+      "data": {
+        "name": "",
+        "value": 2.3
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051198010_3naa7vdzr",
+      "type": "lighten",
+      "position": {
+        "x": 1086.8968525271398,
+        "y": -515.8468192433857
+      },
+      "data": {
+        "isDarken": true
+      },
+      "measured": {
+        "width": 217,
+        "height": 180
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051228119_r68u35kim",
+      "type": "multiply",
+      "position": {
+        "x": 758.551121959895,
+        "y": -295.0331535624846
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051254780_vxtldh72j",
+      "type": "inputNumber",
+      "position": {
+        "x": 391.3732529705126,
+        "y": -98.8684795609802
+      },
+      "data": {
+        "name": "",
+        "value": 0.7
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051400401_66yoq14x4",
+      "type": "inputNumber",
+      "position": {
+        "x": -1184.6168028206116,
+        "y": -470.80839072907764
+      },
+      "data": {
+        "name": "foreground-multiplier",
+        "value": 1
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051415409_fefkr96v7",
+      "type": "multiply",
+      "position": {
+        "x": -660.2787512260201,
+        "y": -354.6315283169427
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051461742_vk5625h8t",
+      "type": "inputNumber",
+      "position": {
+        "x": -1190.5658030358852,
+        "y": 195.23311586774705
+      },
+      "data": {
+        "name": "background-mulitplier",
+        "value": 1
+      },
+      "measured": {
+        "width": 234,
+        "height": 158
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051488450_tjecoaqez",
+      "type": "multiply",
+      "position": {
+        "x": -623.7485740305306,
+        "y": 414.58722340306184
+      },
+      "data": {
+        "isDivide": false
+      },
+      "measured": {
+        "width": 200,
+        "height": 176
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051682582_gs4bb9wa5",
+      "type": "output",
+      "position": {
+        "x": 908.7843536872045,
+        "y": -652.1702292981091
+      },
+      "data": {
+        "name": "foreground-secondary",
+        "inputNodeId": ""
+      },
+      "measured": {
+        "width": 150,
+        "height": 110
+      },
+      "selected": false,
+      "dragging": false
+    },
+    {
+      "id": "node_1765051695653_anmvyh7ga",
+      "type": "output",
+      "position": {
+        "x": 1404.9328695006805,
+        "y": -650.7362740500932
+      },
+      "data": {
+        "name": "foreground-tertiary",
+        "inputNodeId": ""
+      },
+      "measured": {
+        "width": 150,
+        "height": 110
+      },
+      "selected": false,
+      "dragging": false
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge-node_1764789629795_q5tzrpu52-node_1764789629795_p42fth5pp-color",
+      "source": "node_1764789629795_q5tzrpu52",
+      "target": "node_1764789629795_p42fth5pp",
+      "sourceHandle": null,
+      "targetHandle": "input-0",
+      "selected": false
+    },
+    {
+      "id": "edge-node_1764789629795_p42fth5pp-node_1764789629795_ynrjgpm6g-color",
+      "source": "node_1764789629795_p42fth5pp",
+      "target": "node_1764789629795_ynrjgpm6g",
+      "sourceHandle": null,
+      "targetHandle": "input-0",
+      "selected": false
+    },
+    {
+      "id": "edge-node_1764789629795_ynrjgpm6g-node_1764789629795_c576a4gk2-color",
+      "source": "node_1764789629795_ynrjgpm6g",
+      "target": "node_1764789629795_c576a4gk2",
+      "sourceHandle": null,
+      "targetHandle": "input-0",
+      "selected": false
+    },
+    {
+      "id": "edge-node_1764789629795_p42fth5pp-node_1764789629795_fkwq23isx",
+      "source": "node_1764789629795_p42fth5pp",
+      "target": "node_1764789629795_fkwq23isx",
+      "sourceHandle": null,
+      "targetHandle": null,
+      "selected": false
+    },
+    {
+      "id": "edge-node_1764789629795_ynrjgpm6g-node_1764789629795_ftgwv7tua",
+      "source": "node_1764789629795_ynrjgpm6g",
+      "target": "node_1764789629795_ftgwv7tua",
+      "sourceHandle": null,
+      "targetHandle": null,
+      "selected": false
+    },
+    {
+      "id": "edge-node_1764789629795_c576a4gk2-node_1764789629795_pz4ktxtdk",
+      "source": "node_1764789629795_c576a4gk2",
+      "target": "node_1764789629795_pz4ktxtdk",
+      "sourceHandle": null,
+      "targetHandle": null,
+      "selected": false
+    },
+    {
+      "source": "node_1764807328810_eujhcrrq1",
+      "target": "node_1764807315811_zdag1yq8p",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1764807328810_eujhcrrq1-node_1764807315811_zdag1yq8pinput-1",
+      "selected": false
+    },
+    {
+      "source": "node_1764807315811_zdag1yq8p",
+      "target": "node_1764789629795_ynrjgpm6g",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1764807315811_zdag1yq8p-node_1764789629795_ynrjgpm6ginput-1",
+      "selected": false
+    },
+    {
+      "source": "node_1764807372265_c8qfz3lvf",
+      "target": "node_1764807366290_jhsf8tiv0",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1764807372265_c8qfz3lvf-node_1764807366290_jhsf8tiv0input-1",
+      "selected": false
+    },
+    {
+      "source": "node_1764807315811_zdag1yq8p",
+      "target": "node_1764807366290_jhsf8tiv0",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1764807315811_zdag1yq8p-node_1764807366290_jhsf8tiv0input-0",
+      "selected": false
+    },
+    {
+      "source": "node_1764807366290_jhsf8tiv0",
+      "target": "node_1764789629795_c576a4gk2",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1764807366290_jhsf8tiv0-node_1764789629795_c576a4gk2input-1",
+      "selected": false
+    },
+    {
+      "source": "node_1764789629795_magw6bj6t",
+      "target": "node_1765050651469_urxenhhq7",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1764789629795_magw6bj6t-node_1765050651469_urxenhhq7input-1",
+      "selected": false
+    },
+    {
+      "source": "node_1765050651469_urxenhhq7",
+      "target": "node_1764789629795_p42fth5pp",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765050651469_urxenhhq7-node_1764789629795_p42fth5ppinput-1",
+      "selected": false
+    },
+    {
+      "source": "node_1765050651469_urxenhhq7",
+      "target": "node_1764807315811_zdag1yq8p",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765050651469_urxenhhq7-node_1764807315811_zdag1yq8pinput-0",
+      "selected": false
+    },
+    {
+      "source": "node_1764789629795_q5tzrpu52",
+      "target": "node_1765050916144_vi6vrges2",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1764789629795_q5tzrpu52-node_1765050916144_vi6vrges2input-0"
+    },
+    {
+      "source": "node_1765050916144_vi6vrges2",
+      "target": "node_1765050954982_ehukviisw",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765050916144_vi6vrges2-node_1765050954982_ehukviiswinput-0"
+    },
+    {
+      "source": "node_1765050980023_p2ihn1s7i",
+      "target": "node_1765050977402_uep5fclvx",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765050980023_p2ihn1s7i-node_1765050977402_uep5fclvxinput-1"
+    },
+    {
+      "source": "node_1765050977402_uep5fclvx",
+      "target": "node_1765050954982_ehukviisw",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765050977402_uep5fclvx-node_1765050954982_ehukviiswinput-1"
+    },
+    {
+      "source": "node_1765050954982_ehukviisw",
+      "target": "node_1765051092395_w7623makc",
+      "id": "xy-edge__node_1765050954982_ehukviisw-node_1765051092395_w7623makc"
+    },
+    {
+      "source": "node_1765050954982_ehukviisw",
+      "target": "node_1765051122476_jnfefu7tc",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765050954982_ehukviisw-node_1765051122476_jnfefu7tcinput-0"
+    },
+    {
+      "source": "node_1765050977402_uep5fclvx",
+      "target": "node_1765051144798_liw4h329s",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765050977402_uep5fclvx-node_1765051144798_liw4h329sinput-0"
+    },
+    {
+      "source": "node_1765051144798_liw4h329s",
+      "target": "node_1765051122476_jnfefu7tc",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765051144798_liw4h329s-node_1765051122476_jnfefu7tcinput-1",
+      "selected": false
+    },
+    {
+      "source": "node_1765051164494_2k6gji483",
+      "target": "node_1765051144798_liw4h329s",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765051164494_2k6gji483-node_1765051144798_liw4h329sinput-1"
+    },
+    {
+      "source": "node_1765051122476_jnfefu7tc",
+      "target": "node_1765051198010_3naa7vdzr",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765051122476_jnfefu7tc-node_1765051198010_3naa7vdzrinput-0"
+    },
+    {
+      "source": "node_1765051144798_liw4h329s",
+      "target": "node_1765051228119_r68u35kim",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765051144798_liw4h329s-node_1765051228119_r68u35kiminput-0"
+    },
+    {
+      "source": "node_1765051228119_r68u35kim",
+      "target": "node_1765051198010_3naa7vdzr",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765051228119_r68u35kim-node_1765051198010_3naa7vdzrinput-1"
+    },
+    {
+      "source": "node_1765051254780_vxtldh72j",
+      "target": "node_1765051228119_r68u35kim",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765051254780_vxtldh72j-node_1765051228119_r68u35kiminput-1"
+    },
+    {
+      "source": "node_1765051415409_fefkr96v7",
+      "target": "node_1765050977402_uep5fclvx",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765051415409_fefkr96v7-node_1765050977402_uep5fclvxinput-0"
+    },
+    {
+      "source": "node_1765051400401_66yoq14x4",
+      "target": "node_1765051415409_fefkr96v7",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765051400401_66yoq14x4-node_1765051415409_fefkr96v7input-0"
+    },
+    {
+      "source": "node_1765049635233_kubnozfrl",
+      "target": "node_1765051415409_fefkr96v7",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765049635233_kubnozfrl-node_1765051415409_fefkr96v7input-1"
+    },
+    {
+      "source": "node_1765049635233_kubnozfrl",
+      "target": "node_1765051488450_tjecoaqez",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765049635233_kubnozfrl-node_1765051488450_tjecoaqezinput-0",
+      "selected": false
+    },
+    {
+      "source": "node_1765051461742_vk5625h8t",
+      "target": "node_1765051488450_tjecoaqez",
+      "targetHandle": "input-1",
+      "id": "xy-edge__node_1765051461742_vk5625h8t-node_1765051488450_tjecoaqezinput-1",
+      "selected": false
+    },
+    {
+      "source": "node_1765051488450_tjecoaqez",
+      "target": "node_1765050651469_urxenhhq7",
+      "targetHandle": "input-0",
+      "id": "xy-edge__node_1765051488450_tjecoaqez-node_1765050651469_urxenhhq7input-0",
+      "selected": false
+    },
+    {
+      "source": "node_1765051122476_jnfefu7tc",
+      "target": "node_1765051682582_gs4bb9wa5",
+      "id": "xy-edge__node_1765051122476_jnfefu7tc-node_1765051682582_gs4bb9wa5"
+    },
+    {
+      "source": "node_1765051198010_3naa7vdzr",
+      "target": "node_1765051695653_anmvyh7ga",
+      "id": "xy-edge__node_1765051198010_3naa7vdzr-node_1765051695653_anmvyh7ga"
+    }
+  ],
+  "version": "1.0.0",
+  "exportedAt": "2025-12-06T20:08:51.712Z"
+}
