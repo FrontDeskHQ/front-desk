@@ -12,4 +12,21 @@ export const getBaseApiUrl = createIsomorphicFn()
     return import.meta.env.VITE_BASE_URL ?? "http://localhost:3000";
   });
 
+export const getTenantBaseApiUrl = createIsomorphicFn()
+  .server(({ slug }: { slug: string }) => {
+    const baseApiUrl =
+      process.env.SERVER_ENV === "cloudflare"
+        ? process.env.VITE_API_URL ?? "http://localhost:3333"
+        : process.env.VITE_BASE_URL ?? "http://localhost:3000";
+
+    return `${baseApiUrl}/support/${slug}`;
+  })
+  .client(({ slug }: { slug: string }) => {
+    const baseApiUrl = import.meta.env.VITE_BASE_URL ?? "http://localhost:3000";
+    const parsedBaseUrl = new URL(baseApiUrl);
+    parsedBaseUrl.hostname = `${slug}.${parsedBaseUrl.hostname}`;
+
+    return parsedBaseUrl.toString().replace(/\/$/, "");
+  });
+
 export const getLiveStateApiUrl = () => `${getBaseApiUrl()}/api/ls`;
