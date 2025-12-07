@@ -159,8 +159,8 @@ client.on("messageCreate", async (message) => {
       if (organization?.slug) {
         const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
         const baseUrlObj = new URL(baseUrl);
-        const baseHostname = baseUrlObj.hostname;
-        const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseHostname}/threads/${threadId}`;
+        const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+        const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
 
         const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
         await message.channel.send({
