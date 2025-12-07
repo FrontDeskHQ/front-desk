@@ -1,5 +1,9 @@
 import type { BetterAuthPlugin } from "better-auth";
-import { createAuthEndpoint, createAuthMiddleware } from "better-auth/api";
+import {
+  createAuthEndpoint,
+  createAuthMiddleware,
+  getOAuthState,
+} from "better-auth/api";
 import { z } from "zod";
 
 export interface SubdomainOAuthOptions {
@@ -204,7 +208,6 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
             return context.path?.startsWith("/callback/") ?? false;
           },
           handler: createAuthMiddleware(async (ctx) => {
-            const { getOAuthState } = await import("better-auth/api");
             const oauthData = await getOAuthState();
 
             if (!oauthData) return;
