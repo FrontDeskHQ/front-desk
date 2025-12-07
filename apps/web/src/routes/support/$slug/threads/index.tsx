@@ -1,4 +1,3 @@
-import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   Link,
@@ -110,7 +109,11 @@ function RouteComponent() {
   const { portalSession } = Route.useRouteContext();
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
-  const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
+  // TODO: Restore this code after thread creation in portal is implemented
+  // const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
+  const isPortalAuthEnabled = true;
+  console.log("Portal Auth Enabled:", isPortalAuthEnabled);
+
   const router = useRouter();
 
   // Apply defaults in the component, not in validateSearch
@@ -134,7 +137,7 @@ function RouteComponent() {
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
     const getTimestamp = (
       t: unknown,
-      key: ThreadsSearchOrderOptions,
+      key: ThreadsSearchOrderOptions
     ): number => {
       // Narrow the unknown to the expected shape for safe property access
       const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
@@ -143,8 +146,8 @@ function RouteComponent() {
         return obj.updatedAt
           ? new Date(obj.updatedAt).getTime()
           : obj.createdAt
-            ? new Date(obj.createdAt).getTime()
-            : 0;
+          ? new Date(obj.createdAt).getTime()
+          : 0;
       }
 
       return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
@@ -202,7 +205,6 @@ function RouteComponent() {
   }
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
-
   return (
     <div className="w-full">
       <Navbar>
@@ -366,8 +368,8 @@ function RouteComponent() {
                         safeParseJSON(
                           (thread as any)?.messages?.[
                             (thread as any)?.messages?.length - 1
-                          ]?.content ?? "",
-                        ),
+                          ]?.content ?? ""
+                        )
                       )}
                     </span>
                   </span>

@@ -1,7 +1,12 @@
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  getRouteApi,
+  Link,
+  notFound,
+} from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 
-import { RichText } from "@workspace/ui/components/blocks/tiptap";
+import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -28,8 +33,9 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
+import { ulid } from "ulid";
 import { Update } from "~/components/threads/updates";
-import { fetchClient } from "~/lib/live-state";
+import { fetchClient, mutate } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/support/$slug/threads/$id")({
@@ -78,6 +84,7 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 
 function RouteComponent() {
   const thread = Route.useLoaderData().thread;
+  const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
 
   const organization = thread.organization;
 
@@ -180,7 +187,7 @@ function RouteComponent() {
                       <Card
                         key={item.id}
                         className={cn(
-                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border"
                         )}
                       >
                         {/* TODO: update the way it's checking if it's an message from the current user */}
@@ -219,6 +226,40 @@ function RouteComponent() {
                   return null;
                 })}
               </div>
+              <InputBox
+                className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+                onSubmit={(value) => {
+                  const user = portalSession?.user;
+                  console.log("Submitting message as user:", user);
+
+                  if (!user) return;
+
+                  let authorId = thread.author.id;
+                  console.log("Current thread author ID:", authorId);
+
+                  if (!authorId) {
+                    authorId = ulid().toLowerCase();
+
+                    mutate.author.insert({
+                      id: authorId,
+                      userId: user.id,
+                      metaId: null,
+                      name: user.name,
+                      organizationId: thread?.organizationId,
+                    });
+                  }
+
+                  mutate.message.insert({
+                    id: ulid().toLowerCase(),
+                    authorId: authorId,
+                    content: JSON.stringify(value),
+                    threadId: thread.id,
+                    createdAt: new Date(),
+                    origin: null,
+                    externalMessageId: null,
+                  });
+                }}
+              />
             </div>
           </Card>
           <div className="grow shrink-0 md:block hidden max-w-64 flex flex-col gap-4 p-4">
