@@ -74,16 +74,22 @@ function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
 
   const organization = useLiveQuery(
-    query.organization.where({ id: currentOrg?.id }).include({ threads: true }),
+    query.organization
+      .where({ id: currentOrg?.id })
+      .include({ threads: true, integrations: true })
   )?.[0];
+
+  const hasIntegrations = organization?.integrations.length! > 0;
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: organization?.id })
-      .include({ user: true }),
+      .include({ user: true })
   );
 
   const [filter, setFilter] = useState<FilterValue>({});
+
+  const hasFilters = !!Object.keys(filter).length;
 
   const orderByOptions = [
     { label: "Created", value: "createdAt" },
@@ -100,8 +106,8 @@ function RouteComponent() {
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
     threadsQuery = threadsQuery.where(
       Object.fromEntries(
-        Object.entries(filter).map(([key, values]) => [key, { $in: values }]),
-      ),
+        Object.entries(filter).map(([key, values]) => [key, { $in: values }])
+      )
     );
   }
 
@@ -152,8 +158,8 @@ function RouteComponent() {
       .include({ messages: { author: true }, author: true, assignedUser: true })
       .orderBy(
         orderBy as keyof InferLiveObject<typeof schema.thread>,
-        orderDirection,
-      ),
+        orderDirection
+      )
   );
 
   if (!organization) {
@@ -211,7 +217,7 @@ function RouteComponent() {
                         size="sm"
                         onClick={() =>
                           setOrderDirection(
-                            orderDirection === "asc" ? "desc" : "asc",
+                            orderDirection === "asc" ? "desc" : "asc"
                           )
                         }
                         className="size-8"
@@ -233,15 +239,24 @@ function RouteComponent() {
       </CardHeader>
       <CardContent className="overflow-y-auto gap-0 items-center">
         {!threads.length && (
-          <div className="text-muted-foreground flex flex-col items-center justify-center gap-4 m-auto">
+          <div className="text-foreground-secondary flex flex-col items-center justify-center gap-4 m-auto">
             <PackageOpen className="size-24 stroke-[0.75]" />
-            <div className="text-lg">No threads found</div>
-            {!!Object.keys(filter).length ? (
+            <p className="text-lg">No threads found</p>
+            {hasFilters ? (
               <Button variant="outline" size="sm" onClick={() => setFilter({})}>
                 Clear filters
               </Button>
+            ) : hasIntegrations ? (
+              <p>Look at the bright side, no one had a problem yet.</p>
             ) : (
-              <div>Look at the bright side, no one had a problem yet.</div>
+              <>
+                <p>Looks like you don't have any integrations set up</p>
+                <Button asChild>
+                  <Link to="/app/settings/organization/integration">
+                    Set up new channels
+                  </Link>
+                </Button>
+              </>
             )}
           </div>
         )}
@@ -288,8 +303,8 @@ function RouteComponent() {
                   {getFirstTextContent(
                     safeParseJSON(
                       thread?.messages?.[thread?.messages?.length - 1]
-                        ?.content ?? "",
-                    ),
+                        ?.content ?? ""
+                    )
                   )}
                 </span>
               </span>
