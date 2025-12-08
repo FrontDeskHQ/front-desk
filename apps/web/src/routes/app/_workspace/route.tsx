@@ -18,6 +18,7 @@ import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { reflagClient } from "~/lib/feature-flag";
+import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient, query } from "~/lib/live-state";
 import { createCheckoutSession } from "~/lib/server-funcs/payment";
@@ -78,12 +79,7 @@ function RouteComponent() {
   useOrganizationSwitcher();
 
   const currentOrg = useAtomValue(activeOrganizationAtom);
-
-  const subscription = useLiveQuery(
-    query.subscription.first({
-      organizationId: currentOrg?.id,
-    }),
-  );
+  const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
 
   const seats =
     useLiveQuery(
@@ -101,14 +97,16 @@ function RouteComponent() {
     ? isAfter(new Date(), proTrialEndDate)
     : false;
 
+  // Don't show trial expired dialog for beta-feedback plans
   const showTrialExpiredDialog =
-    subscription?.plan === "trial" &&
+    plan === "trial" &&
+    !isBetaFeedback &&
     trialEnded &&
     subscription?.status !== "active";
 
   const [isSubscribing, setIsSubscribing] = useState(false);
 
-  const handleSubscribe = async (plan: "starter" | "pro") => {
+  const handleSubscribe = async (planType: "starter" | "pro") => {
     if (!subscription?.customerId) return;
     setIsSubscribing(true);
 
@@ -116,7 +114,7 @@ function RouteComponent() {
       const session = await createCheckoutSession({
         data: {
           customerId: subscription.customerId,
-          plan: plan,
+          plan: planType,
           seats: seats,
         },
       });
