@@ -132,14 +132,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           status: "active",
           updatedAt: new Date(),
           subscriptionId: payload.data.subscription_id,
-          seats:
-            payload.data.addons?.find(
-              (addon) =>
-                addon.addon_id ===
-                (plan === "starter"
-                  ? process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID
-                  : process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID)
-            )?.quantity ?? 1,
+          seats: payload.data.quantity ?? 1,
         });
       },
       onSubscriptionExpired: async (payload) => {
@@ -182,14 +175,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
         await storage.update(schema.subscription, subscription.id, {
           status: payload.data.status,
           plan: plan,
-          seats:
-            payload.data.addons?.find(
-              (addon) =>
-                addon.addon_id ===
-                (plan === "starter"
-                  ? process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID
-                  : process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID)
-            )?.quantity ?? 1,
+          seats: payload.data.quantity ?? 1,
           updatedAt: new Date(),
           subscriptionId: payload.data.subscription_id,
         });
