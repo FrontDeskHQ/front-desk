@@ -137,16 +137,16 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
             throw ctx.redirect(`${defaultErrorURL}?error=invalid_token_data`);
           }
 
-          const currentHost = ctx.headers?.get("host") || "";
-          const currentSubdomain = extractSubdomain(currentHost, baseUrl);
+          // const currentHost = ctx.headers?.get("host") || "";
+          // const currentSubdomain = extractSubdomain(currentHost, baseUrl);
 
-          if (currentSubdomain && currentSubdomain !== data.subdomain) {
-            ctx.context.logger.error("Subdomain mismatch", {
-              expected: data.subdomain,
-              actual: currentSubdomain,
-            });
-            throw ctx.redirect(`${defaultErrorURL}?error=subdomain_mismatch`);
-          }
+          // if (currentSubdomain && currentSubdomain !== data.subdomain) {
+          //   ctx.context.logger.error("Subdomain mismatch", {
+          //     expected: data.subdomain,
+          //     actual: currentSubdomain,
+          //   });
+          //   throw ctx.redirect(`${defaultErrorURL}?error=subdomain_mismatch`);
+          // }
 
           const sessionData = await ctx.context.internalAdapter.findSession(
             data.sessionToken
@@ -157,7 +157,10 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
             throw ctx.redirect(`${defaultErrorURL}?error=session_not_found`);
           }
 
-          const cookieDomain = `${data.subdomain}.${currentHost.split(":")[0]}`;
+          const parsedBaseUrl = new URL(baseUrl);
+          const baseDomain = parsedBaseUrl.hostname;
+
+          const cookieDomain = `${data.subdomain}.${baseDomain}`;
 
           await ctx.setSignedCookie(
             ctx.context.authCookies.sessionToken.name,
