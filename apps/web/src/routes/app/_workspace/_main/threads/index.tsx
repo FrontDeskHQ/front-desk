@@ -79,7 +79,7 @@ function RouteComponent() {
       .include({ threads: true, integrations: true })
   )?.[0];
 
-  const hasIntegrations = organization?.integrations.length! > 0;
+  const hasIntegrations = (organization?.integrations?.length ?? 0) > 0;
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
