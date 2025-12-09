@@ -17,7 +17,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Button } from "@workspace/ui/components/button";
+import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -56,13 +56,7 @@ import {
   StatusText,
   statusValues,
 } from "@workspace/ui/components/indicator";
-import { SidebarMenuButton } from "@workspace/ui/components/sidebar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@workspace/ui/components/tooltip";
+import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
@@ -348,269 +342,251 @@ function RouteComponent() {
           <div className="flex flex-col gap-2">
             <div className="text-muted-foreground text-xs">Properties</div>
             <div className="flex flex-col gap-1.5">
-              <Tooltip>
-                <Combobox
-                  items={Object.entries(statusValues).map(([key, value]) => ({
-                    value: key,
-                    label: value.label,
-                  }))}
-                  value={thread?.status ?? 0}
-                  onValueChange={(value) => {
-                    const oldStatus = thread?.status ?? 0;
-                    const newStatus = +value;
-                    const oldStatusLabel =
-                      statusValues[oldStatus]?.label ?? "Unknown";
-                    const newStatusLabel =
-                      statusValues[newStatus]?.label ?? "Unknown";
+              <Combobox
+                items={Object.entries(statusValues).map(([key, value]) => ({
+                  value: key,
+                  label: value.label,
+                }))}
+                value={thread?.status ?? 0}
+                onValueChange={(value) => {
+                  const oldStatus = thread?.status ?? 0;
+                  const newStatus = +value;
+                  const oldStatusLabel =
+                    statusValues[oldStatus]?.label ?? "Unknown";
+                  const newStatusLabel =
+                    statusValues[newStatus]?.label ?? "Unknown";
 
-                    mutate.thread.update(id, {
-                      status: newStatus,
-                    });
+                  mutate.thread.update(id, {
+                    status: newStatus,
+                  });
 
-                    mutate.update.insert({
-                      id: ulid().toLowerCase(),
-                      threadId: id,
-                      type: "status_changed",
-                      createdAt: new Date(),
-                      userId: user.id,
-                      metadataStr: JSON.stringify({
-                        oldStatus,
-                        newStatus,
-                        oldStatusLabel,
-                        newStatusLabel,
-                        userName: user.name,
-                      }),
-                      replicatedStr: JSON.stringify({}),
-                    });
-                  }}
-                >
-                  <ComboboxTrigger
-                    variant="unstyled"
-                    render={
-                      <TooltipTrigger
-                        render={
-                          <SidebarMenuButton
-                            size="sm"
-                            className="text-sm px-1.5 max-w-40 py-1"
-                          >
-                            <StatusIndicator status={thread?.status ?? 0} />
-                            <StatusText status={thread?.status ?? 0} />
-                          </SidebarMenuButton>
-                        }
-                      />
-                    }
-                  />
+                  mutate.update.insert({
+                    id: ulid().toLowerCase(),
+                    threadId: id,
+                    type: "status_changed",
+                    createdAt: new Date(),
+                    userId: user.id,
+                    metadataStr: JSON.stringify({
+                      oldStatus,
+                      newStatus,
+                      oldStatusLabel,
+                      newStatusLabel,
+                      userName: user.name,
+                    }),
+                    replicatedStr: JSON.stringify({}),
+                  });
+                }}
+              >
+                <ComboboxTrigger
+                  variant="unstyled"
+                  render={
+                    <ActionButton
+                      variant="ghost"
+                      size="sm"
+                      className="text-sm px-1.5 max-w-40 py-1 w-full justify-start"
+                      tooltip="Change status"
+                      keybind="s"
+                    >
+                      <div className="flex items-center justify-center size-4">
+                        <StatusIndicator status={thread?.status ?? 0} />
+                      </div>
+                      <StatusText status={thread?.status ?? 0} />
+                    </ActionButton>
+                  }
+                />
+                <ComboboxContent className="w-48">
+                  <ComboboxInput placeholder="Search..." />
+                  <ComboboxEmpty />
+                  <ComboboxList>
+                    {(item: BaseItem) => (
+                      <ComboboxItem key={item.value} value={item.value}>
+                        <StatusIndicator status={+item.value} />
+                        {item.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+              <Combobox
+                items={[
+                  {
+                    value: 0,
+                    label: "No priority",
+                  },
+                  {
+                    value: 1,
+                    label: "Low priority",
+                  },
+                  {
+                    value: 2,
+                    label: "Medium priority",
+                  },
+                  {
+                    value: 3,
+                    label: "High priority",
+                  },
+                ]}
+                value={thread?.priority}
+                onValueChange={(value) => {
+                  const oldPriority = thread?.priority ?? 0;
+                  const newPriority = +value;
+                  const priorityLabels: Record<number, string> = {
+                    0: "No priority",
+                    1: "Low priority",
+                    2: "Medium priority",
+                    3: "High priority",
+                  };
+                  const oldPriorityLabel =
+                    priorityLabels[oldPriority] ?? "Unknown";
+                  const newPriorityLabel =
+                    priorityLabels[newPriority] ?? "Unknown";
 
-                  <ComboboxContent className="w-48">
-                    <ComboboxInput placeholder="Search..." />
-                    <ComboboxEmpty />
-                    <ComboboxList>
-                      {(item: BaseItem) => (
-                        <ComboboxItem key={item.value} value={item.value}>
-                          <StatusIndicator status={+item.value} />
-                          {item.label}
-                        </ComboboxItem>
+                  mutate.thread.update(id, {
+                    priority: newPriority,
+                  });
+
+                  mutate.update.insert({
+                    id: ulid().toLowerCase(),
+                    threadId: id,
+                    type: "priority_changed",
+                    createdAt: new Date(),
+                    userId: user.id,
+                    metadataStr: JSON.stringify({
+                      oldPriority,
+                      newPriority,
+                      oldPriorityLabel,
+                      newPriorityLabel,
+                      userName: user.name,
+                    }),
+                    replicatedStr: JSON.stringify({}),
+                  });
+                }}
+              >
+                <ComboboxTrigger
+                  variant="unstyled"
+                  render={
+                    <ActionButton
+                      variant="ghost"
+                      size="sm"
+                      className="text-sm px-1.5 max-w-40 py-1 w-full justify-start"
+                      tooltip="Change priority"
+                      keybind="p"
+                    >
+                      <div className="flex items-center justify-center size-4">
+                        <PriorityIndicator priority={thread?.priority ?? 0} />
+                      </div>
+                      <PriorityText priority={thread?.priority ?? 0} />
+                    </ActionButton>
+                  }
+                />
+
+                <ComboboxContent className="w-48">
+                  <ComboboxInput placeholder="Search..." />
+                  <ComboboxEmpty />
+                  <ComboboxList>
+                    {(item: BaseItem) => (
+                      <ComboboxItem key={item.value} value={item.value}>
+                        <PriorityIndicator priority={+item.value} />
+                        {item.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
+              <Combobox
+                items={[
+                  {
+                    value: null,
+                    label: "Unassigned",
+                  },
+                  ...(organizationUsers?.map((user) => ({
+                    value: user.userId,
+                    label: user.user.name,
+                  })) ?? []),
+                ]}
+                value={thread?.assignedUser?.id}
+                onValueChange={(value) => {
+                  const oldAssignedUserId = thread?.assignedUser?.id ?? null;
+                  const oldAssignedUserName =
+                    thread?.assignedUser?.name ?? null;
+                  const newAssignedUserId = value;
+                  const newAssignedUser = organizationUsers?.find(
+                    (ou) => ou.userId === value,
+                  );
+                  const newAssignedUserName =
+                    newAssignedUser?.user.name ?? null;
+
+                  mutate.thread.update(id, {
+                    assignedUserId: value,
+                  });
+
+                  mutate.update.insert({
+                    id: ulid().toLowerCase(),
+                    threadId: id,
+                    userId: user.id,
+                    type: "assigned_changed",
+                    createdAt: new Date(),
+                    metadataStr: JSON.stringify({
+                      oldAssignedUserId,
+                      newAssignedUserId,
+                      oldAssignedUserName,
+                      newAssignedUserName,
+                      userName: user.name,
+                    }),
+                    replicatedStr: JSON.stringify({}),
+                  });
+                }}
+              >
+                <ComboboxTrigger
+                  variant="unstyled"
+                  render={
+                    <ActionButton
+                      variant="ghost"
+                      size="sm"
+                      className={cn(
+                        "text-sm px-1.5 max-w-40 py-1 w-full justify-start text-muted-foreground",
+                        thread?.assignedUser?.name && "text-primary",
                       )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                <TooltipContent>
-                  Change priority
-                  {/* TODO add keyboard shortcut */}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <Combobox
-                  items={[
-                    {
-                      value: 0,
-                      label: "No priority",
-                    },
-                    {
-                      value: 1,
-                      label: "Low priority",
-                    },
-                    {
-                      value: 2,
-                      label: "Medium priority",
-                    },
-                    {
-                      value: 3,
-                      label: "High priority",
-                    },
-                  ]}
-                  value={thread?.priority}
-                  onValueChange={(value) => {
-                    const oldPriority = thread?.priority ?? 0;
-                    const newPriority = +value;
-                    const priorityLabels: Record<number, string> = {
-                      0: "No priority",
-                      1: "Low priority",
-                      2: "Medium priority",
-                      3: "High priority",
-                    };
-                    const oldPriorityLabel =
-                      priorityLabels[oldPriority] ?? "Unknown";
-                    const newPriorityLabel =
-                      priorityLabels[newPriority] ?? "Unknown";
+                      tooltip="Assign to"
+                      keybind="a"
+                    >
+                      <div className="flex items-center justify-center size-4">
+                        {thread?.assignedUser ? (
+                          <Avatar
+                            variant="user"
+                            size="md"
+                            fallback={thread?.assignedUser.name}
+                          />
+                        ) : (
+                          <CircleUser className="size-4" />
+                        )}
+                      </div>
+                      {thread?.assignedUser?.name ?? "Unassigned"}
+                    </ActionButton>
+                  }
+                />
 
-                    mutate.thread.update(id, {
-                      priority: newPriority,
-                    });
-
-                    mutate.update.insert({
-                      id: ulid().toLowerCase(),
-                      threadId: id,
-                      type: "priority_changed",
-                      createdAt: new Date(),
-                      userId: user.id,
-                      metadataStr: JSON.stringify({
-                        oldPriority,
-                        newPriority,
-                        oldPriorityLabel,
-                        newPriorityLabel,
-                        userName: user.name,
-                      }),
-                      replicatedStr: JSON.stringify({}),
-                    });
-                  }}
-                >
-                  <ComboboxTrigger
-                    variant="unstyled"
-                    render={
-                      <TooltipTrigger
-                        render={
-                          <SidebarMenuButton
-                            size="sm"
-                            className="text-sm px-1.5 max-w-40 py-1"
-                          >
-                            <PriorityIndicator
-                              priority={thread?.priority ?? 0}
-                            />
-                            <PriorityText priority={thread?.priority ?? 0} />
-                          </SidebarMenuButton>
-                        }
-                      />
-                    }
-                  />
-
-                  <ComboboxContent className="w-48">
-                    <ComboboxInput placeholder="Search..." />
-                    <ComboboxEmpty />
-                    <ComboboxList>
-                      {(item: BaseItem) => (
-                        <ComboboxItem key={item.value} value={item.value}>
-                          <PriorityIndicator priority={+item.value} />
-                          {item.label}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                <TooltipContent>
-                  Change priority
-                  {/* TODO add keyboard shortcut */}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <Combobox
-                  items={[
-                    {
-                      value: null,
-                      label: "Unassigned",
-                    },
-                    ...(organizationUsers?.map((user) => ({
-                      value: user.userId,
-                      label: user.user.name,
-                    })) ?? []),
-                  ]}
-                  value={thread?.assignedUser?.id}
-                  onValueChange={(value) => {
-                    const oldAssignedUserId = thread?.assignedUser?.id ?? null;
-                    const oldAssignedUserName =
-                      thread?.assignedUser?.name ?? null;
-                    const newAssignedUserId = value;
-                    const newAssignedUser = organizationUsers?.find(
-                      (ou) => ou.userId === value,
-                    );
-                    const newAssignedUserName =
-                      newAssignedUser?.user.name ?? null;
-
-                    mutate.thread.update(id, {
-                      assignedUserId: value,
-                    });
-
-                    mutate.update.insert({
-                      id: ulid().toLowerCase(),
-                      threadId: id,
-                      userId: user.id,
-                      type: "assigned_changed",
-                      createdAt: new Date(),
-                      metadataStr: JSON.stringify({
-                        oldAssignedUserId,
-                        newAssignedUserId,
-                        oldAssignedUserName,
-                        newAssignedUserName,
-                        userName: user.name,
-                      }),
-                      replicatedStr: JSON.stringify({}),
-                    });
-                  }}
-                >
-                  <ComboboxTrigger
-                    variant="unstyled"
-                    render={
-                      <TooltipTrigger
-                        render={
-                          <SidebarMenuButton
-                            size="sm"
-                            className={cn(
-                              "text-sm px-1.5 max-w-40 py-1 text-muted-foreground",
-                              thread?.assignedUser?.name && "text-primary",
-                            )}
-                          >
-                            {thread?.assignedUser ? (
-                              <Avatar
-                                variant="user"
-                                size="md"
-                                fallback={thread?.assignedUser.name}
-                              />
-                            ) : (
-                              <CircleUser className="mx-0.5" />
-                            )}
-                            {thread?.assignedUser?.name ?? "Unassigned"}
-                          </SidebarMenuButton>
-                        }
-                      />
-                    }
-                  />
-
-                  <ComboboxContent className="w-48">
-                    <ComboboxInput placeholder="Search..." />
-                    <ComboboxEmpty />
-                    <ComboboxList>
-                      {(item: BaseItem) => (
-                        <ComboboxItem key={item.value} value={item.value}>
-                          {item.value ? (
-                            <Avatar
-                              variant="user"
-                              size="md"
-                              fallback={item.label}
-                            />
-                          ) : (
-                            <CircleUser className="mx-0.5" />
-                          )}
-                          {item.label}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                <TooltipContent>
-                  Assign to
-                  {/* TODO add keyboard shortcut */}
-                </TooltipContent>
-              </Tooltip>
+                <ComboboxContent className="w-48">
+                  <ComboboxInput placeholder="Search..." />
+                  <ComboboxEmpty />
+                  <ComboboxList>
+                    {(item: BaseItem) => (
+                      <ComboboxItem key={item.value} value={item.value}>
+                        {item.value ? (
+                          <Avatar
+                            variant="user"
+                            size="md"
+                            fallback={item.label}
+                          />
+                        ) : (
+                          <CircleUser className="mx-0.5" />
+                        )}
+                        {item.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
             </div>
           </div>
         </TooltipProvider>

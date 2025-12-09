@@ -227,24 +227,30 @@ function RouteComponent() {
                 Thread properties
               </div>
               <div className="flex flex-col gap-1.5">
-                <div className="flex px-1.5 gap-2 items-center ml-0.5">
-                  <StatusIndicator status={thread?.status ?? 0} />
+                <div className="flex px-1.5 gap-2 items-center">
+                  <div className="flex items-center justify-center size-4">
+                    <StatusIndicator status={thread?.status ?? 0} />
+                  </div>
                   <StatusText status={thread?.status ?? 0} />
                 </div>
                 <div className="flex px-1.5 gap-2 items-center">
-                  <PriorityIndicator priority={thread?.priority ?? 0} />
+                  <div className="flex items-center justify-center size-4">
+                    <PriorityIndicator priority={thread?.priority ?? 0} />
+                  </div>
                   <PriorityText priority={thread?.priority ?? 0} />
                 </div>
                 <div className="flex px-1.5 gap-2 items-center">
-                  {thread?.assignedUserId ? (
-                    <Avatar
-                      variant="user"
-                      size="sm"
-                      fallback={thread.assignedUser?.name}
-                    />
-                  ) : (
-                    <CircleUser className="ml-0.5 size-4" />
-                  )}
+                  <div className="flex items-center justify-center size-4">
+                    {thread?.assignedUserId ? (
+                      <Avatar
+                        variant="user"
+                        size="sm"
+                        fallback={thread.assignedUser?.name}
+                      />
+                    ) : (
+                      <CircleUser className="size-4" />
+                    )}
+                  </div>
                   <p>{thread?.assignedUser?.name ?? "Unassigned"}</p>
                 </div>
               </div>
