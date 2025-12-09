@@ -3,6 +3,7 @@ import {
   getRouteApi,
   Link,
   notFound,
+  useRouter,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 
@@ -35,7 +36,7 @@ import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
 import { ulid } from "ulid";
 import { Update } from "~/components/threads/updates";
-import { fetchClient, mutate } from "~/lib/live-state";
+import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/support/$slug/threads/$id")({
@@ -83,7 +84,10 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 });
 
 function RouteComponent() {
+  const route = useRouter();
+
   const thread = Route.useLoaderData().thread;
+
   const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
 
   const organization = thread.organization;
@@ -228,19 +232,23 @@ function RouteComponent() {
               </div>
               <InputBox
                 className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-                onSubmit={(value) => {
+                onSubmit={async (value) => {
                   const user = portalSession?.user;
                   console.log("Submitting message as user:", user);
 
                   if (!user) return;
 
-                  let authorId = thread.author.id;
+                  const author = await fetchClient.query.author
+                    .first({ userId: user.id })
+                    .get();
+
+                  let authorId = author?.id;
                   console.log("Current thread author ID:", authorId);
 
                   if (!authorId) {
                     authorId = ulid().toLowerCase();
 
-                    mutate.author.insert({
+                    await fetchClient.mutate.author.insert({
                       id: authorId,
                       userId: user.id,
                       metaId: null,
@@ -249,7 +257,7 @@ function RouteComponent() {
                     });
                   }
 
-                  mutate.message.insert({
+                  await fetchClient.mutate.message.insert({
                     id: ulid().toLowerCase(),
                     authorId: authorId,
                     content: JSON.stringify(value),
@@ -258,6 +266,9 @@ function RouteComponent() {
                     origin: null,
                     externalMessageId: null,
                   });
+
+                  // TODO: Find out how to only invalidate this route
+                  route.invalidate();
                 }}
               />
             </div>

@@ -1,3 +1,4 @@
+import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   Link,
@@ -109,9 +110,8 @@ function RouteComponent() {
   const { portalSession } = Route.useRouteContext();
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
-  // TODO: Restore this code after thread creation in portal is implemented
-  // const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
-  const isPortalAuthEnabled = true;
+
+  const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
   console.log("Portal Auth Enabled:", isPortalAuthEnabled);
 
   const router = useRouter();
