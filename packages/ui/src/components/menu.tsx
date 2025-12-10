@@ -34,7 +34,7 @@ function MenuContent({
       <MenuPrimitive.Positioner
         sideOffset={4}
         align="start"
-        trackAnchor={false}
+        disableAnchorTracking
         {...positionerProps}
       >
         <MenuPrimitive.Popup
