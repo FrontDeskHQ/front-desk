@@ -16,15 +16,6 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog";
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -65,13 +56,13 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   ExternalLink,
-  MessageSquarePlus,
 } from "lucide-react";
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 import { getTenantBaseApiUrl } from "~/lib/urls";
 import { seo } from "~/utils/seo";
+import { CreateThreadDialog } from "../../../../components/threads/CreateThreadDialog";
 import type { WindowWithCachedPortalAuthUser } from "../route";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
@@ -225,7 +216,7 @@ function RouteComponent() {
   }
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
-  
+
   return (
     <div className="w-full">
       <Navbar>
@@ -292,47 +283,10 @@ function RouteComponent() {
               {organization?.name}
             </h1>
             <ButtonGroup>
-              {portalSession?.user ? (
-                <Button asChild>
-                  <Link
-                    to="/support/$slug/threads/new"
-                    params={{ slug: organization?.slug }}
-                  >
-                    <MessageSquarePlus />
-                    Create Thread
-                  </Link>
-                </Button>
-              ) : (
-                <Dialog>
-                  <DialogTrigger asChild>
-                    <Button>
-                      <MessageSquarePlus />
-                      Create Thread
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Sign in required</DialogTitle>
-                      <DialogDescription>
-                        You need to sign in to create a new support thread.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                      <Button
-                        onClick={() =>
-                          portalAuthClient.signIn.social({
-                            provider: "google",
-                            additionalData: { tenantSlug: organization.slug },
-                            callbackURL: window.location.origin,
-                          })
-                        }
-                      >
-                        Sign in with Google
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-              )}
+              <CreateThreadDialog
+                organization={organization}
+                portalSession={portalSession}
+              />
               {discordUrl && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
