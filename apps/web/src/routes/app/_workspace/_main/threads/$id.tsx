@@ -64,6 +64,7 @@ import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
+import { LabelsSection } from "~/components/threads/properties-sidebar";
 import { Update } from "~/components/threads/updates";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -350,7 +351,7 @@ function RouteComponent() {
                 value={thread?.status ?? 0}
                 onValueChange={(value) => {
                   const oldStatus = thread?.status ?? 0;
-                  const newStatus = +value;
+                  const newStatus = value ? +value : 0;
                   const oldStatusLabel =
                     statusValues[oldStatus]?.label ?? "Unknown";
                   const newStatusLabel =
@@ -429,7 +430,7 @@ function RouteComponent() {
                 value={thread?.priority}
                 onValueChange={(value) => {
                   const oldPriority = thread?.priority ?? 0;
-                  const newPriority = +value;
+                  const newPriority = value ? +value : 0;
                   const priorityLabels: Record<number, string> = {
                     0: "No priority",
                     1: "Low priority",
@@ -588,6 +589,7 @@ function RouteComponent() {
                 </ComboboxContent>
               </Combobox>
             </div>
+            <LabelsSection threadId={id} />
           </div>
         </TooltipProvider>
       </div>
