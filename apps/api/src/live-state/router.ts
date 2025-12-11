@@ -529,14 +529,14 @@ export const router = createRouter({
           };
         }
 
-        if (!ctx?.session && !ctx?.portalSession.session) return false;
+        if (!ctx?.session && !ctx?.portalSession?.session) return false;
 
         return {
           thread: {
             organization: {
               organizationUsers: {
                 userId:
-                  ctx.session?.userId ?? ctx.portalSession.session.userId,
+                  ctx.session?.userId ?? ctx.portalSession?.session?.userId,
                 enabled: true,
               },
             },
@@ -575,7 +575,7 @@ export const router = createRouter({
       insert: ({ ctx }) => {
         if (ctx?.internalApiKey) return true;
 
-        if (!ctx?.session && !ctx?.portalSession.session) return false;
+        if (!ctx?.session && !ctx?.portalSession?.session) return false;
 
         return true;
         // TODO FRO-68: Figure a good way to handle this

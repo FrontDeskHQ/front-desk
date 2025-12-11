@@ -234,8 +234,6 @@ function RouteComponent() {
                 className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
                 onSubmit={async (value) => {
                   const user = portalSession?.user;
-                  console.log("Submitting message as user:", user);
-
                   if (!user) return;
 
                   const author = await fetchClient.query.author
@@ -243,8 +241,7 @@ function RouteComponent() {
                     .get();
 
                   let authorId = author?.id;
-                  console.log("Current thread author ID:", authorId);
-
+                  
                   if (!authorId) {
                     authorId = ulid().toLowerCase();
 

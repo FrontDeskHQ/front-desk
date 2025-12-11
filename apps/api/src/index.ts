@@ -87,12 +87,16 @@ const lsServer = server({
     const headersParse = new Headers(headers);
 
     const [session, portalSession] = await Promise.all([
-      auth.api.getSession({
-        headers: headersParse,
-      }),
-      portalAuth.api.getSession({
-        headers: headersParse,
-      }),
+      auth.api
+        .getSession({
+          headers: headersParse,
+        })
+        .catch(() => null),
+      portalAuth.api
+        .getSession({
+          headers: headersParse,
+        })
+        .catch(() => null),
     ]);
 
     return {
