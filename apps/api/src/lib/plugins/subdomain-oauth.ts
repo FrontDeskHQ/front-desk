@@ -38,30 +38,6 @@ const generateExchangeToken = (length = 64): string => {
 };
 
 /**
- * Extract subdomain from a hostname given a base domain
- */
-const extractSubdomain = (hostname: string, baseUrl: string): string | null => {
-  const baseDomain = new URL(baseUrl).hostname;
-  const cleanHostname = hostname.split(":")[0];
-  const cleanBaseDomain = baseDomain.split(":")[0];
-
-  if (!cleanHostname.endsWith(cleanBaseDomain)) {
-    return null;
-  }
-
-  if (cleanHostname === cleanBaseDomain) {
-    return null;
-  }
-
-  const subdomain = cleanHostname.slice(
-    0,
-    cleanHostname.length - cleanBaseDomain.length - 1
-  );
-
-  return subdomain || null;
-};
-
-/**
  * Plugin that handles social OAuth login across subdomains.
  *
  * Flow:

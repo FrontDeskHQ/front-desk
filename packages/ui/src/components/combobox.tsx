@@ -3,6 +3,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { cva, VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronsUpDown, XIcon } from "lucide-react";
 import { useRef } from "react";
+import { KeybindIsolation } from "./keybind";
 
 export const Combobox = ComboboxPrimitive.Root;
 
@@ -62,7 +63,7 @@ export const ComboboxInput = ({
   ...props
 }: React.ComponentProps<typeof ComboboxPrimitive.Input>) => {
   return (
-    <div className="h-[var(--input-container-height)] text-center w-full">
+    <KeybindIsolation className="h-[var(--input-container-height)] text-center w-full">
       <ComboboxPrimitive.Input
         className={cn(
           "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input flex h-9 w-full min-w-0 rounded-md bg-transparent px-2 text-base transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
@@ -70,7 +71,7 @@ export const ComboboxInput = ({
         )}
         {...props}
       />
-    </div>
+    </KeybindIsolation>
   );
 };
 
