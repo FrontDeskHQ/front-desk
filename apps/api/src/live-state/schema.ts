@@ -124,6 +124,7 @@ const label = object("label", {
   createdAt: timestamp(),
   updatedAt: timestamp(),
   organizationId: reference("organization.id"),
+  enabled: boolean().default(true),
 });
 
 const threadLabel = object("threadLabel", {

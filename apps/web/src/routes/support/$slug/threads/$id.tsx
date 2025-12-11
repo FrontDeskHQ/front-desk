@@ -289,7 +289,7 @@ function RouteComponent() {
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2 flex-wrap">
                   {thread?.labels
-                    ?.filter((tl: any) => tl.enabled)
+                    ?.filter((tl: any) => tl.enabled && !!tl.label.enabled)
                     .map((threadLabel: any) => (
                       <LabelBadge
                         name={threadLabel.label.name}

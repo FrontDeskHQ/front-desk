@@ -71,44 +71,27 @@ function RouteComponent() {
   const [labelName, setLabelName] = useState("");
   const [selectedColorIndex, setSelectedColorIndex] = useState<number>(0);
 
-  const labels = useLiveQuery(
+  const allLabels = useLiveQuery(
     query.label.where({
       organizationId: currentOrg?.id,
     }),
   );
 
-  // Check which labels are in use
-  const allThreadLabels = useLiveQuery(query.threadLabel.where({}));
-  const labelsInUse = useMemo(() => {
-    if (!allThreadLabels) return new Set<string>();
-    return new Set(
-      allThreadLabels.filter((tl) => tl.enabled).map((tl) => tl.labelId),
-    );
-  }, [allThreadLabels]);
+  const labels = useMemo(() => {
+    if (!allLabels) return [];
+    return allLabels.filter((label) => label.enabled !== false);
+  }, [allLabels]);
 
   const handleDelete = (labelId: string, labelName: string) => {
     if (!currentOrg) return;
 
     try {
-      // Check if label is used in any threads
-      if (labelsInUse.has(labelId)) {
-        toast.error(
-          "Cannot delete label. It is currently being used in one or more threads.",
-        );
-        return;
-      }
-
-      // Try to delete the label
-      // Note: Delete method may not be available in the API
-      const labelMutate = mutate.label as unknown as Record<string, unknown> & {
-        delete?: (id: string) => void;
-      };
-      if (labelMutate.delete) {
-        labelMutate.delete(labelId);
-        toast.success(`Label "${labelName}" deleted successfully`);
-      } else {
-        toast.error("Delete functionality is not available");
-      }
+      // Set enabled to false instead of deleting
+      mutate.label.update(labelId, {
+        enabled: false,
+        updatedAt: new Date(),
+      });
+      toast.success(`Label "${labelName}" deleted successfully`);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -131,6 +114,7 @@ function RouteComponent() {
         createdAt: new Date(),
         updatedAt: new Date(),
         organizationId: currentOrg.id,
+        enabled: true,
       });
 
       setIsCreateDialogOpen(false);
@@ -418,11 +402,10 @@ function RouteComponent() {
                                 Are you absolutely sure?
                               </AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action cannot be undone. This will
-                                permanently delete the label{" "}
-                                <strong>{label.name ?? "Unnamed"}</strong>. Any
-                                threads using this label will no longer have it
-                                assigned.
+                                This will disable the label{" "}
+                                <strong>{label.name ?? "Unnamed"}</strong>. It
+                                will no longer appear in label selection, but
+                                existing thread assignments will remain.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>

@@ -34,6 +34,7 @@ export function LabelsSection({ threadId }: { threadId: string }) {
   const allLabels = useLiveQuery(
     query.label.where({
       organizationId: currentOrg?.id,
+      enabled: true,
     }),
   );
 
@@ -41,6 +42,9 @@ export function LabelsSection({ threadId }: { threadId: string }) {
     query.threadLabel
       .where({
         threadId: threadId,
+        label: {
+          enabled: true,
+        },
       })
       .include({
         label: true,
