@@ -19,6 +19,7 @@ import {
   Cable,
   Code2,
   Settings,
+  Tag,
   UserRoundPen,
   Users,
 } from "lucide-react";
@@ -56,6 +57,11 @@ const groups: {
         title: "Members",
         url: "/app/settings/organization/team",
         icon: Users,
+      },
+      {
+        title: "Labels",
+        url: "/app/settings/organization/labels",
+        icon: Tag,
       },
       {
         title: "Integrations",
