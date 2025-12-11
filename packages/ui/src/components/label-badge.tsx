@@ -21,7 +21,9 @@ const LabelBadge = React.forwardRef<HTMLDivElement, LabelBadgeProps>(
           className="size-2 rounded-full shrink-0"
           style={{ backgroundColor: color }}
         />
-        <div className="truncate grow shrink text-muted-foreground">{name}</div>
+        <div className="truncate grow shrink text-foreground-secondary">
+          {name}
+        </div>
       </div>
     );
   },

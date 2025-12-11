@@ -252,7 +252,7 @@ function RouteComponent() {
                       name={labelName || "Preview"}
                       color={LABEL_COLOR_VARS[selectedColorIndex]}
                     />
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-xs text-foreground-secondary">
                       Selected color
                     </span>
                   </div> */}
@@ -321,7 +321,7 @@ function RouteComponent() {
                     name={labelName || "Preview"}
                     color={LABEL_COLOR_VARS[selectedColorIndex]}
                   />
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-xs text-foreground-secondary">
                     Selected color
                   </span>
                 </div> */}
@@ -338,7 +338,7 @@ function RouteComponent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      <Card className="bg-[#27272A]/30">
+      <Card className="bg-background-tertiary">
         <CardContent className="gap-4">
           {labels.length > 0 ? (
             <Table>
@@ -363,7 +363,7 @@ function RouteComponent() {
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="text-foreground-secondary">
                       {label.createdAt
                         ? format(new Date(label.createdAt), "dd MMM. yyyy")
                         : "-"}
@@ -431,7 +431,7 @@ function RouteComponent() {
               </TableBody>
             </Table>
           ) : (
-            <div className="text-muted-foreground">No labels found</div>
+            <div className="text-foreground-secondary">No labels found</div>
           )}
         </CardContent>
       </Card>
