@@ -1,5 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { Button } from "@workspace/ui/components/button";
+import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
   type BaseItem,
   Combobox,
@@ -13,7 +13,6 @@ import {
   prepareCreatableItems,
 } from "@workspace/ui/components/combobox";
 import { LabelBadge } from "@workspace/ui/components/label-badge";
-import { SidebarMenuButton } from "@workspace/ui/components/sidebar";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
 import { PlusIcon, TagIcon } from "lucide-react";
@@ -90,10 +89,11 @@ export function LabelsSection({ threadId }: { threadId: string }) {
               mutate.label.insert({
                 id: newLabelId,
                 name: newItem,
-                color: "oklch(0.5 0 0)",
+                color: "var(--label-color-red)",
                 createdAt: new Date(),
                 updatedAt: new Date(),
                 organizationId: currentOrg?.id,
+                enabled: true,
               });
 
               // TODO remove this once we have a proper transaction system
@@ -170,13 +170,16 @@ export function LabelsSection({ threadId }: { threadId: string }) {
           <ComboboxTrigger
             variant="unstyled"
             render={
-              <SidebarMenuButton
+              <ActionButton
                 size="sm"
+                variant="ghost"
                 className={cn(
                   "text-sm px-0 w-full py-1 max-w-40",
                   activeLabels?.length &&
-                    "hover:bg-transparent active:bg-transparent h-auto max-w-none",
+                    "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent",
                 )}
+                tooltip="Add labels"
+                keybind="l"
               >
                 {threadLabels?.filter((tl) => tl.enabled).length > 0 ? (
                   <div className="flex items-center gap-2 flex-wrap">
@@ -206,7 +209,7 @@ export function LabelsSection({ threadId }: { threadId: string }) {
                     </span>
                   </>
                 )}
-              </SidebarMenuButton>
+              </ActionButton>
             }
           />
 
