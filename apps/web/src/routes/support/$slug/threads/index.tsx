@@ -62,7 +62,7 @@ import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 import { getTenantBaseApiUrl } from "~/lib/urls";
 import { seo } from "~/utils/seo";
-import { CreateThreadDialog } from "../../../../components/threads/CreateThreadDialog";
+import { CreateThreadDialog } from "../../../../components/threads/create-thread-dialog";
 import type { WindowWithCachedPortalAuthUser } from "../route";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";

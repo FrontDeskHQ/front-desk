@@ -1,6 +1,9 @@
 import { useRouter } from "@tanstack/react-router";
-import { Avatar } from "@workspace/ui/components/avatar";
-import { InputBox } from "@workspace/ui/components/blocks/tiptap";
+import {
+  Editor,
+  EditorInput,
+  type JSONContent,
+} from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -19,9 +22,7 @@ import { ulid } from "ulid";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 
-type ThreadContent = Parameters<
-  NonNullable<React.ComponentProps<typeof InputBox>["onValueChange"]>
->[0];
+type ThreadContent = JSONContent[];
 
 //TODO: Use backend types
 interface CreateThreadDialogProps {
@@ -207,19 +208,7 @@ export function CreateThreadDialog({
         showCloseButton={false}
       >
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 px-2 py-1 rounded-md bg-muted text-sm font-medium">
-              <Avatar
-                variant="org"
-                size="sm"
-                src={organization?.logoUrl}
-                fallback={organization?.name}
-              />
-              <span className="text-muted-foreground">{organization.name}</span>
-            </div>
-            <span className="text-muted-foreground">›</span>
-            <span className="text-sm font-medium">New thread</span>
-          </div>
+          <span className="text-sm font-medium">New thread</span>
           <Button
             variant="ghost"
             size="icon"
@@ -240,7 +229,7 @@ export function CreateThreadDialog({
           <div className="flex flex-col gap-2">
             <Label htmlFor="thread-title">Thread Title</Label>
             <Input
-              placeholder="Briefly describe your question or issue..."
+              placeholder="Enter title of your thread..."
               value={threadTitle}
               onChange={(e) => setThreadTitle(e.target.value)}
               disabled={isSubmitting}
@@ -249,12 +238,13 @@ export function CreateThreadDialog({
           </div>
           <div className="flex flex-col gap-2">
             <Label htmlFor="thread-content">Description</Label>
-            <InputBox
-              className="min-h-48 w-full shadow-lg bg-[#1B1B1E]"
-              value={threadContent}
-              onValueChange={setThreadContent}
-              clearOnSubmit={false}
-            />
+            <Editor value={threadContent} onValueChange={setThreadContent}>
+              <EditorInput
+                className="min-h-48 w-full shadow-lg bg-[#1B1B1E]"
+                placeholder="Describe your question or issue..."
+                clearOnSubmit={false}
+              />
+            </Editor>
           </div>
         </div>
 

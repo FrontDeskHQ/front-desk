@@ -7,7 +7,12 @@ import {
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 
-import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
+import {
+  Editor,
+  EditorInput,
+  EditorSubmit,
+  RichText,
+} from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -230,8 +235,7 @@ function RouteComponent() {
                   return null;
                 })}
               </div>
-              <InputBox
-                className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+              <Editor
                 onSubmit={async (value) => {
                   const user = portalSession?.user;
                   console.log("Submitting message as user:", user);
@@ -270,7 +274,14 @@ function RouteComponent() {
                   // TODO: Find out how to only invalidate this route
                   route.invalidate();
                 }}
-              />
+              >
+                <EditorInput
+                  className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+                  placeholder="Write a reply..."
+                >
+                  <EditorSubmit />
+                </EditorInput>
+              </Editor>
             </div>
           </Card>
           <div className="grow shrink-0 md:block hidden max-w-64 flex flex-col gap-4 p-4">
