@@ -26,8 +26,9 @@ const { query, mutate } = store;
 
 export { client, mutate, query };
 
+// Check this setup when it's deployed
 export const fetchClient = createFetchClient<Router>({
-  url: getLiveStateApiUrl() as string,
+  url: "/api/ls",
   schema,
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))

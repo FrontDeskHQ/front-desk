@@ -110,6 +110,7 @@ function RouteComponent() {
   const { portalSession } = Route.useRouteContext();
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
+
   const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
   const router = useRouter();
 
@@ -134,7 +135,7 @@ function RouteComponent() {
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
     const getTimestamp = (
       t: unknown,
-      key: ThreadsSearchOrderOptions,
+      key: ThreadsSearchOrderOptions
     ): number => {
       // Narrow the unknown to the expected shape for safe property access
       const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
@@ -143,8 +144,8 @@ function RouteComponent() {
         return obj.updatedAt
           ? new Date(obj.updatedAt).getTime()
           : obj.createdAt
-            ? new Date(obj.createdAt).getTime()
-            : 0;
+          ? new Date(obj.createdAt).getTime()
+          : 0;
       }
 
       return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
@@ -202,7 +203,6 @@ function RouteComponent() {
   }
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
-
   return (
     <div className="w-full">
       <Navbar>
@@ -366,8 +366,8 @@ function RouteComponent() {
                         safeParseJSON(
                           (thread as any)?.messages?.[
                             (thread as any)?.messages?.length - 1
-                          ]?.content ?? "",
-                        ),
+                          ]?.content ?? ""
+                        )
                       )}
                     </span>
                   </span>
