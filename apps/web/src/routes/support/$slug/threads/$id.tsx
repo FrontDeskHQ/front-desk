@@ -22,6 +22,7 @@ import {
   StatusIndicator,
   StatusText,
 } from "@workspace/ui/components/indicator";
+import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { Logo } from "@workspace/ui/components/logo";
 import { Navbar } from "@workspace/ui/components/navbar";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
@@ -49,6 +50,9 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
           messages: { author: true },
           assignedUser: true,
           updates: { user: true },
+          labels: {
+            label: true,
+          },
         })
         .get()
     )[0];
@@ -221,7 +225,7 @@ function RouteComponent() {
               </div>
             </div>
           </Card>
-          <div className="grow shrink-0 md:block hidden max-w-64 flex flex-col gap-4 p-4">
+          <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
             <div className="flex flex-col gap-2">
               <div className="text-muted-foreground text-xs">
                 Thread properties
@@ -252,6 +256,23 @@ function RouteComponent() {
                     )}
                   </div>
                   <p>{thread?.assignedUser?.name ?? "Unassigned"}</p>
+                </div>
+              </div>
+            </div>
+            <div className="flex flex-col gap-2">
+              <div className="text-muted-foreground text-xs">
+                Thread properties
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {thread?.labels
+                    ?.filter((tl: any) => tl.enabled)
+                    .map((threadLabel: any) => (
+                      <LabelBadge
+                        name={threadLabel.label.name}
+                        color={threadLabel.label.color}
+                      />
+                    ))}
                 </div>
               </div>
             </div>
