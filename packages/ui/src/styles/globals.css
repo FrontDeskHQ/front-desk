@@ -145,14 +145,14 @@
   --background-multiplier: 1;
 
   /* Label colors */
-  --label-color-red: oklch(0.68 0.28 21.3);
-  --label-color-orange: oklch(0.68 0.21 75);
-  --label-color-yellow: oklch(0.68 0.21 100);
-  --label-color-green: oklch(0.68 0.21 145);
-  --label-color-teal: oklch(0.68 0.21 185);
-  --label-color-blue: oklch(0.68 0.21 240);
-  --label-color-purple: oklch(0.68 0.21 310);
-  --label-color-pink: oklch(0.68 0.21 350);
+  --label-color-red: oklch(0.653 0.18 21.3);
+  --label-color-orange: oklch(0.653 0.18 75);
+  --label-color-yellow: oklch(0.653 0.18 100);
+  --label-color-green: oklch(0.653 0.21 145);
+  --label-color-teal: oklch(0.653 0.18 185);
+  --label-color-blue: oklch(0.653 0.18 240);
+  --label-color-purple: oklch(0.653 0.18 310);
+  --label-color-pink: oklch(0.653 0.18 350);
 
   /* TODO remove these variables and use the new ones */
 
