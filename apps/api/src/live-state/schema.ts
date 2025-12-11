@@ -117,12 +117,29 @@ const update = object("update", {
   replicatedStr: string().nullable(),
 });
 
+const label = object("label", {
+  id: id(),
+  name: string(),
+  color: string(),
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+  organizationId: reference("organization.id"),
+});
+
+const threadLabel = object("threadLabel", {
+  id: id(),
+  threadId: reference("thread.id"),
+  labelId: reference("label.id"),
+  enabled: boolean().default(true),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
   invites: many(invite, "organizationId"),
   integrations: many(integration, "organizationId"),
   subscriptions: many(subscription, "organizationId"),
+  labels: many(label, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -143,6 +160,7 @@ const threadRelations = createRelations(thread, ({ one, many }) => ({
   assignedUser: one(user, "assignedUserId"),
   author: one(author, "authorId"),
   updates: many(update, "threadId"),
+  labels: many(threadLabel, "threadId"),
 }));
 
 const messageRelations = createRelations(message, ({ one }) => ({
@@ -168,6 +186,15 @@ const updateRelations = createRelations(update, ({ one }) => ({
   user: one(user, "userId"),
 }));
 
+const labelRelations = createRelations(label, ({ one, many }) => ({
+  organization: one(organization, "organizationId"),
+  threads: many(threadLabel, "labelId"),
+}));
+
+const threadLabelRelations = createRelations(threadLabel, ({ one }) => ({
+  thread: one(thread, "threadId"),
+  label: one(label, "labelId"),
+}));
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
@@ -187,6 +214,8 @@ export const schema = createSchema({
   integration,
   update,
   allowlist,
+  label,
+  threadLabel,
   // relations
   organizationUserRelations,
   organizationRelations,
@@ -197,4 +226,6 @@ export const schema = createSchema({
   integrationRelations,
   subscriptionRelations,
   updateRelations,
+  labelRelations,
+  threadLabelRelations,
 });
