@@ -169,7 +169,7 @@ export function LabelsSection({ threadId }: { threadId: string }) {
               <SidebarMenuButton
                 size="sm"
                 className={cn(
-                  "text-sm px-1.5 w-full py-1 max-w-40",
+                  "text-sm px-0 w-full py-1 max-w-40",
                   activeLabels?.length &&
                     "hover:bg-transparent active:bg-transparent h-auto max-w-none",
                 )}
@@ -183,8 +183,15 @@ export function LabelsSection({ threadId }: { threadId: string }) {
                         color={label.label.color}
                       />
                     ))}
-                    <Button variant="ghost" size="icon-sm" className="size-6">
-                      <PlusIcon className="size-4 text-foreground-secondary" />
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      className="size-6"
+                      asChild
+                    >
+                      <div>
+                        <PlusIcon className="size-4 text-foreground-secondary" />
+                      </div>
                     </Button>
                   </div>
                 ) : (
