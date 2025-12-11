@@ -1,3 +1,5 @@
+"use client";
+
 import isHotkey from "is-hotkey";
 import { useEffect, useRef } from "react";
 
