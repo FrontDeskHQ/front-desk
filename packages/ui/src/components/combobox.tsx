@@ -48,11 +48,22 @@ export const ComboboxTrigger = ({
 
 export const ComboboxContent = ({
   className,
+  align = "start",
+  sideOffset = 4,
+  side,
   ...props
-}: React.ComponentProps<typeof ComboboxPrimitive.Popup>) => {
+}: React.ComponentProps<typeof ComboboxPrimitive.Popup> &
+  Pick<
+    React.ComponentProps<typeof ComboboxPrimitive.Positioner>,
+    "align" | "sideOffset" | "side"
+  >) => {
   return (
     <ComboboxPrimitive.Portal>
-      <ComboboxPrimitive.Positioner align="start" sideOffset={4}>
+      <ComboboxPrimitive.Positioner
+        align={align}
+        sideOffset={sideOffset}
+        side={side}
+      >
         <ComboboxPrimitive.Popup
           className={cn(
             "bg-popover text-popover-foreground flex flex-col h-full w-full overflow-hidden rounded-md origin-[var(--transform-origin)] max-w-[min(--spacing(100),var(--available-width))] max-h-[min(24rem,var(--available-height))] transition-[transform,scale,opacity] data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 duration-100 border",
