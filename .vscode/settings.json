@@ -12,5 +12,6 @@
     }
   },
   "typescript.tsdk": "node_modules/typescript/lib",
-  "typescript.tsserver.log": "verbose"
+  "typescript.tsserver.log": "verbose",
+  "tailwindCSS.experimental.configFile": "packages/ui/src/styles/globals.css"
 }

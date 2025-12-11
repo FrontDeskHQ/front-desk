@@ -7,6 +7,7 @@ import { publicKeys } from "../lib/api-key";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { privateRoute, publicRoute } from "./factories";
+import labelsRoute from "./router/labels";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
@@ -789,6 +790,7 @@ export const router = createRouter({
       },
     }),
     update: updateRoute,
+    ...labelsRoute,
   },
 });
 
