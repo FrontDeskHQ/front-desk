@@ -12,6 +12,7 @@ import {
   ComboboxTrigger,
   prepareCreatableItems,
 } from "@workspace/ui/components/combobox";
+import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { SidebarMenuButton } from "@workspace/ui/components/sidebar";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
@@ -176,18 +177,11 @@ export function LabelsSection({ threadId }: { threadId: string }) {
                 {threadLabels?.filter((tl) => tl.enabled).length > 0 ? (
                   <div className="flex items-center gap-2 flex-wrap">
                     {activeLabels?.map((label) => (
-                      <div
+                      <LabelBadge
                         key={label.label.id}
-                        className="flex items-center gap-2 text-xs px-2 py-0.5 border rounded-full max-w-32"
-                      >
-                        <div
-                          className="size-2 rounded-full shrink-0"
-                          style={{ backgroundColor: label.label.color }}
-                        />
-                        <div className="truncate grow shrink">
-                          {label.label.name}
-                        </div>
-                      </div>
+                        name={label.label.name}
+                        color={label.label.color}
+                      />
                     ))}
                     <Button variant="ghost" size="icon-sm" className="size-6">
                       <PlusIcon className="size-4 text-foreground-secondary" />
