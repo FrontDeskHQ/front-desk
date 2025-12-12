@@ -123,7 +123,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="w-full min-h-screen text-sm">
+      <body className="w-100vw min-h-screen text-sm">
         <Providers>
           {children}
           <TanStackRouterDevtools position="bottom-right" />

@@ -1,10 +1,4 @@
-import { useFlag } from "@reflag/react-sdk";
-import {
-  createFileRoute,
-  Link,
-  notFound,
-  useRouter,
-} from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button, buttonVariants } from "@workspace/ui/components/button";
 import {
@@ -18,8 +12,6 @@ import {
   PriorityIndicator,
   StatusIndicator,
 } from "@workspace/ui/components/indicator";
-import { Logo } from "@workspace/ui/components/logo";
-import { Navbar } from "@workspace/ui/components/navbar";
 import {
   Pagination,
   PaginationContent,
@@ -49,10 +41,7 @@ import {
 } from "lucide-react";
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
-import { portalAuthClient } from "~/lib/portal-auth-client";
-import { getTenantBaseApiUrl } from "~/lib/urls";
 import { seo } from "~/utils/seo";
-import { WindowWithCachedPortalAuthUser } from "../route";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
@@ -65,17 +54,8 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     dir: z.enum(["asc", "desc"]).optional(),
   }),
 
-  loader: async ({ params }) => {
-    const { slug } = params;
-    // TODO: Replace where by first when new version of live-state is out
-    const organization = (
-      await fetchClient.query.organization.where({ slug: slug }).get()
-    )[0];
-
-    if (!organization) {
-      throw notFound();
-    }
-
+  loader: async ({ context }) => {
+    const { organization } = context;
     const threads = await fetchClient.query.thread
       .where({
         organizationId: organization.id,
@@ -85,13 +65,13 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       .get();
 
     return {
-      organization: organization as typeof organization,
       threads: threads as typeof threads,
+      organizationName: organization.name,
     };
   },
 
   head: ({ loaderData }) => {
-    const orgName = loaderData?.organization?.name ?? "Support";
+    const orgName = loaderData?.organizationName ?? "Support";
     return {
       meta: [
         ...seo({
@@ -106,13 +86,11 @@ export const Route = createFileRoute("/support/$slug/threads/")({
 const THREADS_PER_PAGE = 10;
 
 function RouteComponent() {
-  const { organization, threads } = Route.useLoaderData();
-  const { portalSession } = Route.useRouteContext();
+  const { threads } = Route.useLoaderData();
+  const { organization } = Route.useRouteContext();
+
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
-
-  const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
-  const router = useRouter();
 
   // Apply defaults in the component, not in validateSearch
   const page = searchParams.page ?? 1;
@@ -135,7 +113,7 @@ function RouteComponent() {
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
     const getTimestamp = (
       t: unknown,
-      key: ThreadsSearchOrderOptions
+      key: ThreadsSearchOrderOptions,
     ): number => {
       // Narrow the unknown to the expected shape for safe property access
       const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
@@ -144,8 +122,8 @@ function RouteComponent() {
         return obj.updatedAt
           ? new Date(obj.updatedAt).getTime()
           : obj.createdAt
-          ? new Date(obj.createdAt).getTime()
-          : 0;
+            ? new Date(obj.createdAt).getTime()
+            : 0;
       }
 
       return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
@@ -205,78 +183,7 @@ function RouteComponent() {
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
   return (
     <div className="w-full">
-      <Navbar>
-        <Navbar.Group>
-          <Logo>
-            <Logo.Icon />
-            <Logo.Text />
-          </Logo>
-        </Navbar.Group>
-        {isPortalAuthEnabled && (
-          <Navbar.Group>
-            {portalSession?.user ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  portalAuthClient.signOut({
-                    fetchOptions: {
-                      baseURL: `${getTenantBaseApiUrl({
-                        slug: organization.slug,
-                      })}/api/portal-auth`,
-                      onSuccess: () => {
-                        (
-                          window as WindowWithCachedPortalAuthUser
-                        ).cachedPortalAuthUser = null;
-                        router.invalidate();
-                      },
-                    },
-                  })
-                }
-              >
-                Sign out
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  portalAuthClient.signIn.social({
-                    provider: "google",
-                    additionalData: { tenantSlug: organization.slug },
-                    callbackURL: window.location.origin,
-                  })
-                }
-              >
-                Sign in with Google
-              </Button>
-            )}
-          </Navbar.Group>
-        )}
-      </Navbar>
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0">
-            <Avatar
-              variant="org"
-              size="xxl"
-              src={organization?.logoUrl}
-              fallback={organization?.name}
-            />
-          </div>
-          <div className="flex items-center justify-between w-full gap-4">
-            <h1 className="font-bold text-2xl sm:text-3xl truncate">
-              {organization?.name}
-            </h1>
-            {discordUrl && (
-              <Button size="lg" externalLink asChild>
-                <a href={discordUrl} target="_blank" rel="noreferrer">
-                  Join Discord
-                </a>
-              </Button>
-            )}
-          </div>
-        </div>
         <Card className="bg-muted/30">
           <CardHeader>
             <CardTitle className="gap-4">Threads</CardTitle>
@@ -366,8 +273,8 @@ function RouteComponent() {
                         safeParseJSON(
                           (thread as any)?.messages?.[
                             (thread as any)?.messages?.length - 1
-                          ]?.content ?? ""
-                        )
+                          ]?.content ?? "",
+                        ),
                       )}
                     </span>
                   </span>
