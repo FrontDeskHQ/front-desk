@@ -20,7 +20,7 @@
     "fumadocs-ui": "16.0.10",
     "lucide-react": "^0.552.0",
     "lucide-static": "^0.552.0",
-    "next": "16.0.7",
+    "next": "16.0.9",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
