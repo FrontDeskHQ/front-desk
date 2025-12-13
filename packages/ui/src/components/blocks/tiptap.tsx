@@ -170,7 +170,7 @@ export function EditorInput({
     // biome-ignore lint/a11y/noStaticElementInteractions: we are using the div to focus the editor
     <div
       className={cn(
-        "border-input border focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative",
+        "border-input border focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative transition-[color,box-shadow]",
         className
       )}
       onClick={() => editor?.chain().focus().run()}
