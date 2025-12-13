@@ -5,6 +5,7 @@ import {
   Link,
   notFound,
   Outlet,
+  useMatches,
   useRouter,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
@@ -83,6 +84,7 @@ export const Route = createFileRoute("/support/$slug")({
     const { portalSession, organization } = Route.useRouteContext();
     const { slug } = Route.useParams();
     const router = useRouter();
+    const matches = useMatches();
 
     useEffect(() => {
       (async () => {
@@ -99,7 +101,7 @@ export const Route = createFileRoute("/support/$slug")({
     return (
       <ReflagClientProvider client={reflagClient}>
         <main className="w-full">
-          <Navbar>
+          <Navbar className="relative">
             <Navbar.Group>
               <Link
                 to="/support/$slug"
@@ -114,6 +116,24 @@ export const Route = createFileRoute("/support/$slug")({
                 />
                 <Logo.Text>{organization.name}</Logo.Text>
               </Link>
+              <Navbar.LinkGroup className="ml-6">
+                <Navbar.LinkItem
+                  active={matches.some(
+                    (match) =>
+                      match.pathname === `/support/${slug}/threads` ||
+                      match.pathname === `/support/${slug}/threads/`,
+                  )}
+                  size="sm"
+                  asChild
+                >
+                  <Link
+                    to="/support/$slug/threads"
+                    params={{ slug: organization.slug }}
+                  >
+                    Threads
+                  </Link>
+                </Navbar.LinkItem>
+              </Navbar.LinkGroup>
             </Navbar.Group>
             <Navbar.Group>
               {portalSession?.user ? (
