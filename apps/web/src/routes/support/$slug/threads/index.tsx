@@ -19,6 +19,11 @@ import {
   PaginationItem,
 } from "@workspace/ui/components/pagination";
 import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -38,6 +43,7 @@ import {
   ArrowUpNarrowWide,
   ChevronLeftIcon,
   ChevronRightIcon,
+  Settings2,
 } from "lucide-react";
 import z from "zod";
 import { fetchClient } from "~/lib/live-state";
@@ -181,6 +187,7 @@ function RouteComponent() {
   }
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
+
   return (
     <div className="w-full">
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
@@ -188,51 +195,67 @@ function RouteComponent() {
           <CardHeader>
             <CardTitle className="gap-4">Threads</CardTitle>
             <CardAction side="right">
-              <Select
-                value={order}
-                onValueChange={(value) =>
-                  handleSortChange(value as ThreadsSearchOrderOptions)
-                }
-                items={orderByOptions}
-              >
-                <SelectTrigger className="w-32" data-size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {orderByOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate({
-                          to: ".",
-                          search: (prev) => ({
-                            ...prev,
-                            dir: dir === "asc" ? "desc" : "asc",
-                          }),
-                        })
+              <Popover>
+                <PopoverTrigger>
+                  <Button variant="outline" size="sm">
+                    <Settings2 />
+                    View
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="p-4 flex flex-col gap-4"
+                  positionerProps={{ align: "end" }}
+                >
+                  <div className="flex w-full items-center gap-2">
+                    <div className="mr-auto">Order by</div>
+                    <Select
+                      value={order}
+                      onValueChange={(value) =>
+                        handleSortChange(value as ThreadsSearchOrderOptions)
                       }
-                      className="size-8"
+                      items={orderByOptions}
                     >
-                      {dir === "asc" ? (
-                        <ArrowDownWideNarrow />
-                      ) : (
-                        <ArrowUpNarrowWide />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Change order direction</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                      <SelectTrigger className="w-48" data-size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orderByOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              navigate({
+                                to: ".",
+                                search: (prev) => ({
+                                  ...prev,
+                                  dir: dir === "asc" ? "desc" : "asc",
+                                }),
+                              })
+                            }
+                            className="size-8"
+                          >
+                            {dir === "asc" ? (
+                              <ArrowDownWideNarrow />
+                            ) : (
+                              <ArrowUpNarrowWide />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Change order direction</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
