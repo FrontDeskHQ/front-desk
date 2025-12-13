@@ -28,6 +28,7 @@ import {
   getPortalAuthUser,
 } from "~/lib/server-funcs/get-portal-auth-user";
 import { getTenantBaseApiUrl } from "~/lib/urls";
+import { safeParseJSON } from "~/utils/json";
 
 export type WindowWithCachedPortalAuthUser = Window & {
   cachedPortalAuthUser?: GetSupportAuthUserResponse;
@@ -86,6 +87,8 @@ export const Route = createFileRoute("/support/$slug")({
     const router = useRouter();
     const matches = useMatches();
 
+    const discordUrl = safeParseJSON(organization.socials)?.discord;
+
     useEffect(() => {
       (async () => {
         await reflagClient.initialize();
@@ -136,6 +139,17 @@ export const Route = createFileRoute("/support/$slug")({
               </Navbar.LinkGroup>
             </Navbar.Group>
             <Navbar.Group>
+              {discordUrl && (
+                <Button variant="link" size="sm" asChild>
+                  <a
+                    href={discordUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Discord
+                  </a>
+                </Button>
+              )}
               {portalSession?.user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
@@ -176,7 +190,7 @@ export const Route = createFileRoute("/support/$slug")({
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="sm"
                   onClick={() =>
                     portalAuthClient.signIn.social({
@@ -186,7 +200,7 @@ export const Route = createFileRoute("/support/$slug")({
                     })
                   }
                 >
-                  Sign in with Google
+                  Sign in
                 </Button>
               )}
             </Navbar.Group>

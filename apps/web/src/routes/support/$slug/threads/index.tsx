@@ -186,8 +186,6 @@ function RouteComponent() {
     return null;
   }
 
-  const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
-
   return (
     <div className="w-full">
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
