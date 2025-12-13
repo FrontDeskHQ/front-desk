@@ -123,7 +123,6 @@ function RouteComponent() {
   const searchParams = Route.useSearch();
 
   const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
-  console.log("Portal Auth Enabled:", isPortalAuthEnabled);
 
   const router = useRouter();
 

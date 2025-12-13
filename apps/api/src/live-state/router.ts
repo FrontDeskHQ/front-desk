@@ -383,12 +383,13 @@ export const router = createRouter({
         read: () => true,
         insert: ({ ctx }) => {
           if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
+          if (!ctx?.session && !ctx?.portalSession.session) return false;
 
           return {
             organization: {
               organizationUsers: {
-                userId: ctx.session.userId,
+                userId:
+                  ctx.session?.userId ?? ctx.portalSession?.session.userId,
                 enabled: true,
               },
             },
@@ -535,8 +536,7 @@ export const router = createRouter({
           thread: {
             organization: {
               organizationUsers: {
-                userId:
-                  ctx.session?.userId ?? ctx.portalSession.session.userId,
+                userId: ctx.session?.userId ?? ctx.portalSession.session.userId,
                 enabled: true,
               },
             },
