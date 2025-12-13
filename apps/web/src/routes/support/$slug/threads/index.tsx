@@ -45,20 +45,32 @@ import {
   ChevronRightIcon,
   Settings2,
 } from "lucide-react";
-import z from "zod";
+import {
+  createStandardSchemaV1,
+  parseAsInteger,
+  parseAsStringEnum,
+  useQueryState,
+} from "nuqs";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
+const DEFAULT_THREADS_PER_PAGE = 10;
+const PER_PAGE_OPTIONS = [5, 10, 20, 50];
+
+const searchParams = {
+  page: parseAsInteger.withDefault(1),
+  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
+  perPage: parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
+};
+
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: z.object({
-    page: z.coerce.number().optional(),
-    order: z.enum(["createdAt", "updatedAt"]).optional(),
-    dir: z.enum(["asc", "desc"]).optional(),
-    perPage: z.coerce.number().optional(),
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
   }),
 
   loader: async ({ context }) => {
@@ -90,21 +102,23 @@ export const Route = createFileRoute("/support/$slug/threads/")({
   },
 });
 
-const DEFAULT_THREADS_PER_PAGE = 10;
-const PER_PAGE_OPTIONS = [5, 10, 20, 50];
-
 function RouteComponent() {
   const { threads } = Route.useLoaderData();
   const { organization } = Route.useRouteContext();
 
-  const navigate = Route.useNavigate();
-  const searchParams = Route.useSearch();
-
-  // Apply defaults in the component, not in validateSearch
-  const page = searchParams.page ?? 1;
-  const order = searchParams.order ?? "createdAt";
-  const dir = searchParams.dir ?? "desc";
-  const perPage = searchParams.perPage ?? DEFAULT_THREADS_PER_PAGE;
+  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const [order, setOrder] = useQueryState(
+    "order",
+    parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  );
+  const [dir, setDir] = useQueryState(
+    "dir",
+    parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
+  );
+  const [perPage, setPerPage] = useQueryState(
+    "perPage",
+    parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
+  );
 
   const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
     [
@@ -113,17 +127,12 @@ function RouteComponent() {
     ];
 
   const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, order: value }),
-    });
+    setOrder(value);
   };
 
   const handlePerPageChange = (value: unknown) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, perPage: Number(value), page: 1 }),
-    });
+    setPerPage(Number(value));
+    setPage(1);
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
@@ -241,13 +250,7 @@ function RouteComponent() {
                             variant="outline"
                             size="sm"
                             onClick={() =>
-                              navigate({
-                                to: ".",
-                                search: (prev) => ({
-                                  ...prev,
-                                  dir: dir === "asc" ? "desc" : "asc",
-                                }),
-                              })
+                              setDir(dir === "asc" ? "desc" : "asc")
                             }
                             className="size-8"
                           >
@@ -343,9 +346,9 @@ function RouteComponent() {
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <Link
-                  to="."
-                  search={(prev) => ({ ...prev, page: currentPage - 1 })}
+                <button
+                  type="button"
+                  onClick={() => setPage(currentPage - 1)}
                   disabled={currentPage === 1}
                   className={
                     buttonVariants({
@@ -357,11 +360,10 @@ function RouteComponent() {
                   }
                   aria-label="Go to previous page"
                   aria-disabled={currentPage === 1}
-                  resetScroll={false}
                 >
                   <ChevronLeftIcon />
                   <span className="hidden sm:block">Previous</span>
-                </Link>
+                </button>
               </PaginationItem>
               {pageNumbers.map((pageNum, idx) => {
                 if (pageNum === "ellipsis") {
@@ -376,25 +378,24 @@ function RouteComponent() {
 
                 return (
                   <PaginationItem key={pageNum}>
-                    <Link
-                      to="."
-                      search={(prev) => ({ ...prev, page: pageNum })}
+                    <button
+                      type="button"
+                      onClick={() => setPage(pageNum)}
                       aria-current={page === pageNum ? "page" : undefined}
                       className={buttonVariants({
                         variant: page === pageNum ? "outline" : "ghost",
                         size: "icon",
                       })}
-                      resetScroll={false}
                     >
                       {pageNum}
-                    </Link>
+                    </button>
                   </PaginationItem>
                 );
               })}
               <PaginationItem>
-                <Link
-                  to="."
-                  search={(prev) => ({ ...prev, page: currentPage + 1 })}
+                <button
+                  type="button"
+                  onClick={() => setPage(currentPage + 1)}
                   disabled={currentPage === numPages}
                   className={
                     buttonVariants({
@@ -408,11 +409,10 @@ function RouteComponent() {
                   }
                   aria-label="Go to next page"
                   aria-disabled={currentPage === numPages}
-                  resetScroll={false}
                 >
                   <span className="hidden sm:block">Next</span>
                   <ChevronRightIcon />
-                </Link>
+                </button>
               </PaginationItem>
             </PaginationContent>
           </Pagination>
