@@ -22,7 +22,13 @@ export type { JSONContent };
     Strikethrough,
   } from "lucide-react";
   import type React from "react";
-  import { createContext, useContext, useLayoutEffect, useRef, useState } from "react";
+  import {
+    createContext,
+    useContext,
+    useLayoutEffect,
+    useRef,
+    useState,
+  } from "react";
   import { Button } from "../button";
   import {
     DropdownMenu,
@@ -51,7 +57,9 @@ const EditorContext = createContext<EditorContextValue | undefined>(undefined);
 const useEditorContext = () => {
   const context = useContext(EditorContext);
   if (!context) {
-    throw new Error("Editor components must be used within an Editor component");
+    throw new Error(
+      "Editor components must be used within an Editor component"
+    );
   }
   return context;
 };
@@ -78,7 +86,9 @@ export function Editor({
   const disableSend = !_value.length || !_value[0]?.content;
 
   return (
-    <EditorContext.Provider value={{ value: _value, setValue, disableSend, onSubmit }}>
+    <EditorContext.Provider
+      value={{ value: _value, setValue, disableSend, onSubmit }}
+    >
       <div>{children}</div>
     </EditorContext.Provider>
   );
@@ -160,7 +170,7 @@ export function EditorInput({
     // biome-ignore lint/a11y/noStaticElementInteractions: we are using the div to focus the editor
     <div
       className={cn(
-        "border-input border focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative",
+        "border-input border focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative",
         className
       )}
       onClick={() => editor?.chain().focus().run()}
@@ -171,11 +181,7 @@ export function EditorInput({
         editor={editor}
         className="customProse max-h-96 overflow-y-auto placeholder:text-muted-foreground"
       />
-      {children && (
-        <div className="flex justify-end">
-          {children}
-        </div>
-      )}
+      {children && <div className="flex justify-end">{children}</div>}
       <BubbleMenu
         className="bg-[#1B1B1E] border rounded-sm shadow"
         editor={editor}
