@@ -58,6 +58,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     page: z.coerce.number().optional(),
     order: z.enum(["createdAt", "updatedAt"]).optional(),
     dir: z.enum(["asc", "desc"]).optional(),
+    perPage: z.coerce.number().optional(),
   }),
 
   loader: async ({ context }) => {
@@ -89,7 +90,8 @@ export const Route = createFileRoute("/support/$slug/threads/")({
   },
 });
 
-const THREADS_PER_PAGE = 10;
+const DEFAULT_THREADS_PER_PAGE = 10;
+const PER_PAGE_OPTIONS = [5, 10, 20, 50];
 
 function RouteComponent() {
   const { threads } = Route.useLoaderData();
@@ -102,6 +104,7 @@ function RouteComponent() {
   const page = searchParams.page ?? 1;
   const order = searchParams.order ?? "createdAt";
   const dir = searchParams.dir ?? "desc";
+  const perPage = searchParams.perPage ?? DEFAULT_THREADS_PER_PAGE;
 
   const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
     [
@@ -113,6 +116,13 @@ function RouteComponent() {
     navigate({
       to: ".",
       search: (prev) => ({ ...prev, order: value }),
+    });
+  };
+
+  const handlePerPageChange = (value: unknown) => {
+    navigate({
+      to: ".",
+      search: (prev) => ({ ...prev, perPage: Number(value), page: 1 }),
     });
   };
 
@@ -147,13 +157,13 @@ function RouteComponent() {
   });
 
   const numPages = orderedThreads
-    ? Math.ceil(orderedThreads?.length / THREADS_PER_PAGE)
+    ? Math.ceil(orderedThreads?.length / perPage)
     : 1;
 
   const currentPage = page ?? 1;
 
-  const startIdx = THREADS_PER_PAGE * (currentPage - 1);
-  const endIdx = THREADS_PER_PAGE * currentPage;
+  const startIdx = perPage * (currentPage - 1);
+  const endIdx = perPage * currentPage;
 
   const threadsInPage = orderedThreads?.slice(startIdx, endIdx);
 
@@ -187,9 +197,9 @@ function RouteComponent() {
   }
 
   return (
-    <div className="w-full">
-      <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
-        <Card className="bg-muted/30">
+    <div className="w-full py-8 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-8 mx-auto max-w-5xl">
+        <Card className="bg-muted/30 w-full">
           <CardHeader>
             <CardTitle className="gap-4">Threads</CardTitle>
             <CardAction side="right">
@@ -309,82 +319,104 @@ function RouteComponent() {
             ))}
           </CardContent>
         </Card>
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <Link
-                to="."
-                search={(prev) => ({ ...prev, page: currentPage - 1 })}
-                disabled={currentPage === 1}
-                className={
-                  buttonVariants({
-                    variant: "ghost",
-                    size: "default",
-                  }) +
-                  " gap-1 px-2.5 sm:pl-2.5" +
-                  (currentPage === 1 ? " pointer-events-none opacity-50" : "")
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Threads per page
+            </span>
+            <Select
+              value={perPage.toString()}
+              onValueChange={handlePerPageChange}
+            >
+              <SelectTrigger className="w-20" data-size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PER_PAGE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <Link
+                  to="."
+                  search={(prev) => ({ ...prev, page: currentPage - 1 })}
+                  disabled={currentPage === 1}
+                  className={
+                    buttonVariants({
+                      variant: "ghost",
+                      size: "default",
+                    }) +
+                    " gap-1 px-2.5 sm:pl-2.5" +
+                    (currentPage === 1 ? " pointer-events-none opacity-50" : "")
+                  }
+                  aria-label="Go to previous page"
+                  aria-disabled={currentPage === 1}
+                  resetScroll={false}
+                >
+                  <ChevronLeftIcon />
+                  <span className="hidden sm:block">Previous</span>
+                </Link>
+              </PaginationItem>
+              {pageNumbers.map((pageNum, idx) => {
+                if (pageNum === "ellipsis") {
+                  return (
+                    <PaginationItem
+                      key={`ellipsis-before-${pageNumbers[idx + 1]}`}
+                    >
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
                 }
-                aria-label="Go to previous page"
-                aria-disabled={currentPage === 1}
-                resetScroll={false}
-              >
-                <ChevronLeftIcon />
-                <span className="hidden sm:block">Previous</span>
-              </Link>
-            </PaginationItem>
-            {pageNumbers.map((pageNum, idx) => {
-              if (pageNum === "ellipsis") {
+
                 return (
-                  <PaginationItem
-                    key={`ellipsis-before-${pageNumbers[idx + 1]}`}
-                  >
-                    <PaginationEllipsis />
+                  <PaginationItem key={pageNum}>
+                    <Link
+                      to="."
+                      search={(prev) => ({ ...prev, page: pageNum })}
+                      aria-current={page === pageNum ? "page" : undefined}
+                      className={buttonVariants({
+                        variant: page === pageNum ? "outline" : "ghost",
+                        size: "icon",
+                      })}
+                      resetScroll={false}
+                    >
+                      {pageNum}
+                    </Link>
                   </PaginationItem>
                 );
-              }
-
-              return (
-                <PaginationItem key={pageNum}>
-                  <Link
-                    to="."
-                    search={(prev) => ({ ...prev, page: pageNum })}
-                    aria-current={page === pageNum ? "page" : undefined}
-                    className={buttonVariants({
-                      variant: page === pageNum ? "outline" : "ghost",
-                      size: "icon",
-                    })}
-                    resetScroll={false}
-                  >
-                    {pageNum}
-                  </Link>
-                </PaginationItem>
-              );
-            })}
-            <PaginationItem>
-              <Link
-                to="."
-                search={(prev) => ({ ...prev, page: currentPage + 1 })}
-                disabled={currentPage === numPages}
-                className={
-                  buttonVariants({
-                    variant: "ghost",
-                    size: "default",
-                  }) +
-                  " gap-1 px-2.5 sm:pr-2.5" +
-                  (currentPage === numPages
-                    ? " pointer-events-none opacity-50"
-                    : "")
-                }
-                aria-label="Go to next page"
-                aria-disabled={currentPage === numPages}
-                resetScroll={false}
-              >
-                <span className="hidden sm:block">Next</span>
-                <ChevronRightIcon />
-              </Link>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+              })}
+              <PaginationItem>
+                <Link
+                  to="."
+                  search={(prev) => ({ ...prev, page: currentPage + 1 })}
+                  disabled={currentPage === numPages}
+                  className={
+                    buttonVariants({
+                      variant: "ghost",
+                      size: "default",
+                    }) +
+                    " gap-1 px-2.5 sm:pr-2.5" +
+                    (currentPage === numPages
+                      ? " pointer-events-none opacity-50"
+                      : "")
+                  }
+                  aria-label="Go to next page"
+                  aria-disabled={currentPage === numPages}
+                  resetScroll={false}
+                >
+                  <span className="hidden sm:block">Next</span>
+                  <ChevronRightIcon />
+                </Link>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       </div>
     </div>
   );
