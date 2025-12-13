@@ -172,6 +172,19 @@ export const Route = createFileRoute("/support/$slug")({
             </Navbar.Group>
           </Navbar>
           <Outlet />
+          <footer className="w-full py-6 flex justify-center items-center">
+            <a
+              href="https://tryfrontdesk.app"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              aria-label="Visit FrontDesk website"
+            >
+              <span className="mr-1">Powered by</span>
+              <Logo.Icon className="size-4" />
+              FrontDesk
+            </a>
+          </footer>
         </main>
       </ReflagClientProvider>
     );
