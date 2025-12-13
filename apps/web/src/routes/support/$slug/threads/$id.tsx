@@ -15,7 +15,6 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -28,8 +27,6 @@ import {
   StatusIndicator,
   StatusText,
 } from "@workspace/ui/components/indicator";
-import { Logo } from "@workspace/ui/components/logo";
-import { Navbar } from "@workspace/ui/components/navbar";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
@@ -42,16 +39,16 @@ import { seo } from "~/utils/seo";
 export const Route = createFileRoute("/support/$slug/threads/$id")({
   component: RouteComponent,
 
-  loader: async ({ params }) => {
+  loader: async ({ params, context }) => {
     const { id } = params;
 
     const thread = (
       await fetchClient.query.thread
         .where({
           id,
+          organizationId: context.organization.id,
         })
         .include({
-          organization: true,
           author: true,
           messages: { author: true },
           assignedUser: true,
@@ -66,12 +63,16 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 
     return {
       thread,
+      headData: {
+        organizationName: context.organization.name,
+        threadName: thread.name,
+      },
     };
   },
   head: ({ loaderData }) => {
     const thread = loaderData?.thread;
-    const orgName = thread?.organization?.name ?? "Support";
-    const threadName = thread?.name ?? "Thread";
+    const orgName = loaderData?.headData?.organizationName ?? "Support";
+    const threadName = loaderData?.headData?.threadName ?? "Thread";
     return {
       meta: [
         ...seo({
@@ -85,12 +86,10 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 
 function RouteComponent() {
   const route = useRouter();
-
-  const thread = Route.useLoaderData().thread;
+  const { organization } = Route.useRouteContext();
+  const { thread } = Route.useLoaderData();
 
   const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
-
-  const organization = thread.organization;
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
 
@@ -115,32 +114,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col size-full gap-4 sm:gap-8 min-h-screen">
-      <Navbar>
-        <Navbar.Group>
-          <Logo>
-            <Logo.Icon />
-            <Logo.Text />
-            <Logo.Separator />
-            <Avatar
-              src={thread.organization.logoUrl}
-              variant="org"
-              fallback={thread.organization.name}
-              size="lg"
-            />
-            <Logo.Text>{thread.organization.name}</Logo.Text>
-          </Logo>
-        </Navbar.Group>
-        <Navbar.Group>
-          {discordUrl && (
-            <Button size="lg" externalLink asChild>
-              <a href={discordUrl} target="_blank" rel="noreferrer">
-                Join Discord
-              </a>
-            </Button>
-          )}
-        </Navbar.Group>
-      </Navbar>
-      <div className="flex flex-col flex-1 px-4 pb-4 sm:pb-8 sm:px-8">
+      <div className="flex flex-col flex-1 px-4 py-4 sm:py-8 sm:px-8">
         <div className="flex flex-1 justify-center">
           <div className="grow shrink max-w-0 2xl:max-w-64" />
           <Card className="w-full grow shrink flex flex-col max-w-5xl min-h-5xl">
@@ -153,7 +127,7 @@ function RouteComponent() {
                         <BreadcrumbLink asChild>
                           <Link
                             to="/support/$slug/threads"
-                            params={{ slug: thread.organization.slug }}
+                            params={{ slug: organization.slug }}
                           >
                             Threads
                           </Link>
@@ -165,7 +139,7 @@ function RouteComponent() {
                           <Link
                             to="/support/$slug/threads/$id"
                             params={{
-                              slug: thread.organization.slug,
+                              slug: organization.slug,
                               id: thread.id,
                             }}
                           >
@@ -191,7 +165,7 @@ function RouteComponent() {
                       <Card
                         key={item.id}
                         className={cn(
-                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border"
+                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         )}
                       >
                         {/* TODO: update the way it's checking if it's an message from the current user */}
@@ -241,7 +215,7 @@ function RouteComponent() {
                     .get();
 
                   let authorId = author?.id;
-                  
+
                   if (!authorId) {
                     authorId = ulid().toLowerCase();
 
@@ -293,7 +267,7 @@ function RouteComponent() {
                     {thread?.assignedUserId ? (
                       <Avatar
                         variant="user"
-                        size="sm"
+                        size="md"
                         fallback={thread.assignedUser?.name}
                       />
                     ) : (
