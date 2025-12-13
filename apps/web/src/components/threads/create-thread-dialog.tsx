@@ -141,7 +141,7 @@ export function CreateThreadDialog({
         origin: null,
         externalMessageId: null,
       });
-      
+
       // Close dialog and navigate to the new thread
       setOpen(false);
       resetForm();
