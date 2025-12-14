@@ -287,7 +287,7 @@ function RouteComponent() {
               <div className="flex items-center gap-2">
                 <div className="flex items-center gap-1.5 mr-1">
                   {thread?.labels
-                    ?.filter((tl) => tl.enabled && !!tl.label.enabled)
+                    ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
                     .map((threadLabel) => (
                       <LabelBadge
                         key={threadLabel.label.id}

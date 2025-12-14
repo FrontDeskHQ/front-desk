@@ -302,13 +302,13 @@ function RouteComponent() {
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1.5 mr-1">
-                      {(thread as any)?.labels
-                        ?.filter((tl: any) => tl.enabled && !!tl.label.enabled)
-                        .map((threadLabel: any) => (
+                      {thread?.labels
+                        ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
+                        .map((threadLabel) => (
                           <LabelBadge
                             key={threadLabel.label.id}
-                            name={threadLabel.label.name}
-                            color={threadLabel.label.color}
+                            name={threadLabel.label?.name}
+                            color={threadLabel.label?.color}
                           />
                         ))}
                     </div>
