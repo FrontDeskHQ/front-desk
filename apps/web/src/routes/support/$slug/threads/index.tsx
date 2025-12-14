@@ -121,9 +121,7 @@ function RouteComponent() {
   const { portalSession } = Route.useRouteContext();
   const navigate = Route.useNavigate();
   const searchParams = Route.useSearch();
-
   const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
-
   const router = useRouter();
 
   // Apply defaults in the component, not in validateSearch

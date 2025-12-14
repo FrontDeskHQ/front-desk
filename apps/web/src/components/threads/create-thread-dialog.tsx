@@ -18,7 +18,6 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { MessageSquarePlus, X } from "lucide-react";
 import { useState } from "react";
-import { ulid } from "ulid";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 
@@ -56,6 +55,7 @@ export function CreateThreadDialog({
   const resetForm = () => {
     setThreadTitle("");
     setThreadContent([]);
+    setIsSubmitting(false);
     setError(null);
   };
 
@@ -97,49 +97,12 @@ export function CreateThreadDialog({
     setError(null);
 
     try {
-      // Get or create author
-      const author = await fetchClient.query.author
-        .first({ userId: user.id })
-        .get();
-
-      let authorId = author?.id;
-
-      if (!authorId) {
-        authorId = ulid().toLowerCase();
-        await fetchClient.mutate.author.insert({
-          id: authorId,
-          userId: user.id,
-          metaId: null,
-          name: user.name,
-          organizationId: organization.id,
-        });
-      }
-
-      // Create thread
-      const threadId = ulid().toLowerCase();
-      await fetchClient.mutate.thread.insert({
-        id: threadId,
-        name: threadTitle.trim(),
+      const thread = await fetchClient.mutate.thread.createFromPortal({
         organizationId: organization.id,
-        authorId: authorId,
-        status: 0, // Open status
-        priority: 0, // Normal priority
-        assignedUserId: null,
-        createdAt: new Date(),
-        deletedAt: null,
-        discordChannelId: null,
-      });
-
-      // Create first message
-      const messageId = ulid().toLowerCase();
-      await fetchClient.mutate.message.insert({
-        id: messageId,
-        authorId: authorId,
-        content: JSON.stringify(threadContent),
-        threadId: threadId,
-        createdAt: new Date(),
-        origin: null,
-        externalMessageId: null,
+        title: threadTitle.trim(),
+        content: threadContent,
+        userId: user.id,
+        userName: user.name,
       });
 
       // Close dialog and navigate to the new thread
@@ -147,7 +110,7 @@ export function CreateThreadDialog({
       resetForm();
       router.navigate({
         to: "/support/$slug/threads/$id",
-        params: { slug: organization.slug, id: threadId },
+        params: { slug: organization.slug, id: thread.id },
       });
     } catch (err) {
       console.error("Failed to create thread:", err);
@@ -229,6 +192,7 @@ export function CreateThreadDialog({
           <div className="flex flex-col gap-2">
             <Label htmlFor="thread-title">Thread Title</Label>
             <Input
+              id="thread-title"
               placeholder="Enter title of your thread..."
               value={threadTitle}
               onChange={(e) => setThreadTitle(e.target.value)}
@@ -240,6 +204,7 @@ export function CreateThreadDialog({
             <Label htmlFor="thread-content">Description</Label>
             <Editor value={threadContent} onValueChange={setThreadContent}>
               <EditorInput
+                id="thread-content"
                 className="min-h-48 w-full shadow-lg bg-[#1B1B1E]"
                 placeholder="Describe your question or issue..."
                 clearOnSubmit={false}

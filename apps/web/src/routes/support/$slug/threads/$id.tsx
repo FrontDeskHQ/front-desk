@@ -39,7 +39,6 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
-import { ulid } from "ulid";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -241,32 +240,12 @@ function RouteComponent() {
 
                   if (!user) return;
 
-                  const author = await fetchClient.query.author
-                    .first({ userId: user.id })
-                    .get();
-
-                  let authorId = author?.id;
-
-                  if (!authorId) {
-                    authorId = ulid().toLowerCase();
-
-                    await fetchClient.mutate.author.insert({
-                      id: authorId,
-                      userId: user.id,
-                      metaId: null,
-                      name: user.name,
-                      organizationId: thread?.organizationId,
-                    });
-                  }
-
-                  await fetchClient.mutate.message.insert({
-                    id: ulid().toLowerCase(),
-                    authorId: authorId,
-                    content: JSON.stringify(value),
+                  await fetchClient.mutate.message.createFromPortal({
                     threadId: thread.id,
-                    createdAt: new Date(),
-                    origin: null,
-                    externalMessageId: null,
+                    content: value,
+                    userId: user.id,
+                    userName: user.name,
+                    organizationId: thread.organizationId,
                   });
 
                   // TODO: Find out how to only invalidate this route

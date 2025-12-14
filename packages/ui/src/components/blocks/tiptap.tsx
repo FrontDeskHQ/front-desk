@@ -50,6 +50,7 @@ type EditorContextValue = {
   setValue: (value: JSONContent[]) => void;
   disableSend: boolean;
   onSubmit?: (value: JSONContent[]) => void;
+  handleSubmit?: () => void;
 };
 
 const EditorContext = createContext<EditorContextValue | undefined>(undefined);
@@ -83,7 +84,7 @@ export function Editor({
     onChange: onValueChange,
   });
 
-  const disableSend = !_value.length || !_value[0]?.content;
+  const disableSend = !_value.length || !_value[0]?.content?.length;
 
   return (
     <EditorContext.Provider
@@ -103,7 +104,7 @@ export function EditorSubmit({
 }) {
   const context = useEditorContext();
   const isDisabled = disabled ?? context.disableSend;
-  const onClick = handleSubmit ?? (() => context.onSubmit?.(context.value));
+  const onClick = handleSubmit ?? context.handleSubmit ?? (() => {});
 
   return (
     <Button
@@ -131,6 +132,13 @@ export function EditorInput({
 }) {
   const context = useEditorContext();
 
+  const handleSubmit = (content: JSONContent[]) => {
+    context.onSubmit?.(content);
+    if (clearOnSubmit) {
+      editor?.commands.setContent([]);
+    }
+  };
+
   // TODO paste markdown
   const editor = useEditor({
     extensions: [
@@ -157,31 +165,35 @@ export function EditorInput({
     },
   });
 
-  const handleSubmit = (content: JSONContent[]) => {
-    context.onSubmit?.(content);
-    if (clearOnSubmit) {
-      editor?.commands.setContent([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Provide handleSubmit that uses current editor content
+  const wrappedHandleSubmit = () => {
+    const content = editor?.getJSON().content;
+    if (content?.length && content[0]?.content?.length) {
+      handleSubmit(content);
     }
   };
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: we are using the div to focus the editor
-    <div
-      className={cn(
-        "border-input border focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative transition-[color,box-shadow]",
-        className
-      )}
-      onClick={() => editor?.chain().focus().run()}
-      onKeyUp={() => editor?.chain().focus().run()}
-      {...props}
+    <EditorContext.Provider
+      value={{ ...context, handleSubmit: wrappedHandleSubmit }}
     >
-      <EditorContent
-        editor={editor}
-        className="customProse max-h-96 overflow-y-auto placeholder:text-muted-foreground"
-      />
-      {children && <div className="flex justify-end">{children}</div>}
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: we are using the div to focus the editor */}
+      <div
+        className={cn(
+          "border-input border focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative transition-[color,box-shadow]",
+          className
+        )}
+        onClick={() => editor?.chain().focus().run()}
+        onKeyUp={() => editor?.chain().focus().run()}
+        {...props}
+      >
+        <EditorContent
+          editor={editor}
+          className="customProse max-h-96 overflow-y-auto placeholder:text-muted-foreground"
+        />
+        {children && <div className="flex justify-end">{children}</div>}
       <BubbleMenu
         className="bg-[#1B1B1E] border rounded-sm shadow"
         editor={editor}
@@ -384,7 +396,8 @@ export function EditorInput({
           </div>
         </TooltipProvider>
       </BubbleMenu>
-    </div>
+      </div>
+    </EditorContext.Provider>
   );
 }
 

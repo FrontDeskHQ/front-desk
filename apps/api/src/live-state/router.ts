@@ -383,7 +383,7 @@ export const router = createRouter({
         read: () => true,
         insert: ({ ctx }) => {
           if (ctx?.internalApiKey) return true;
-          if (!ctx?.session && !ctx?.portalSession.session) return false;
+          if (!ctx?.session && !ctx?.portalSession?.session) return false;
 
           return {
             organization: {
@@ -514,40 +514,194 @@ export const router = createRouter({
 
           return thread;
         }),
-      })),
-    message: publicRoute.collectionRoute(schema.message, {
-      read: () => true,
-      insert: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
+        createFromPortal: mutation(
+          z.object({
+            organizationId: z.string(),
+            title: z.string().min(3),
+            content: z.any(), // JSONContent from TipTap
+            userId: z.string(),
+            userName: z.string(),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.portalSession?.session) {
+            throw new Error("UNAUTHORIZED");
+          }
 
-        if (ctx?.publicApiKey) {
+          // Verify the user matches the portal session
+          if (req.context.portalSession?.session.userId !== req.input.userId) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const threadId = ulid().toLowerCase();
+
+          await db.transaction(async ({ trx }) => {
+            // Get or create author
+            const existingAuthor = Object.values(
+              await trx.find(schema.author, {
+                where: {
+                  userId: req.input.userId,
+                  organizationId: req.input.organizationId,
+                },
+              })
+            );
+
+            let authorId = existingAuthor[0]?.id;
+
+            if (!authorId) {
+              authorId = ulid().toLowerCase();
+              await trx.insert(schema.author, {
+                id: authorId,
+                userId: req.input.userId,
+                metaId: null,
+                name: req.input.userName,
+                organizationId: req.input.organizationId,
+              });
+            }
+
+            // Create thread
+            await trx.insert(schema.thread, {
+              id: threadId,
+              name: req.input.title,
+              organizationId: req.input.organizationId,
+              authorId: authorId,
+              status: 0, // Open status
+              priority: 0, // Normal priority
+              assignedUserId: null,
+              createdAt: new Date(),
+              deletedAt: null,
+              discordChannelId: null,
+            });
+
+            // Create first message
+            await trx.insert(schema.message, {
+              id: ulid().toLowerCase(),
+              authorId: authorId,
+              content: JSON.stringify(req.input.content),
+              threadId: threadId,
+              createdAt: new Date(),
+              origin: null,
+              externalMessageId: null,
+            });
+          });
+
+          const thread = Object.values(
+            await db.find(schema.thread, {
+              where: { id: threadId },
+              include: {
+                author: true,
+                messages: {
+                  author: true,
+                },
+              },
+            })
+          )[0];
+
+          return thread;
+        }),
+      })),
+    message: publicRoute
+      .collectionRoute(schema.message, {
+        read: () => true,
+        insert: ({ ctx }) => {
+          if (ctx?.internalApiKey) return true;
+
+          if (ctx?.publicApiKey) {
+            return {
+              thread: {
+                organization: {
+                  id: ctx.publicApiKey.ownerId,
+                },
+              },
+            };
+          }
+
+          if (!ctx?.session && !ctx?.portalSession?.session) return false;
+
           return {
             thread: {
               organization: {
-                id: ctx.publicApiKey.ownerId,
+                organizationUsers: {
+                  userId: ctx.session?.userId ?? ctx.portalSession?.session.userId,
+                  enabled: true,
+                },
               },
             },
           };
-        }
+        },
+        update: {
+          preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+          postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        },
+      })
+      .withMutations(({ mutation }) => ({
+        createFromPortal: mutation(
+          z.object({
+            threadId: z.string(),
+            content: z.any(), // JSONContent from TipTap
+            userId: z.string(),
+            userName: z.string(),
+            organizationId: z.string(),
+          })
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.portalSession?.session) {
+            throw new Error("UNAUTHORIZED");
+          }
 
-        if (!ctx?.session && !ctx?.portalSession.session) return false;
+          // Verify the user matches the portal session
+          if (req.context.portalSession?.session.userId !== req.input.userId) {
+            throw new Error("UNAUTHORIZED");
+          }
 
-        return {
-          thread: {
-            organization: {
-              organizationUsers: {
-                userId: ctx.session?.userId ?? ctx.portalSession.session.userId,
-                enabled: true,
+          const messageId = ulid().toLowerCase();
+
+          await db.transaction(async ({ trx }) => {
+            // Get or create author
+            const existingAuthor = Object.values(
+              await trx.find(schema.author, {
+                where: {
+                  userId: req.input.userId,
+                  organizationId: req.input.organizationId,
+                },
+              })
+            );
+
+            let authorId = existingAuthor[0]?.id;
+
+            if (!authorId) {
+              authorId = ulid().toLowerCase();
+              await trx.insert(schema.author, {
+                id: authorId,
+                userId: req.input.userId,
+                metaId: null,
+                name: req.input.userName,
+                organizationId: req.input.organizationId,
+              });
+            }
+
+            // Create message
+            await trx.insert(schema.message, {
+              id: messageId,
+              authorId: authorId,
+              content: JSON.stringify(req.input.content),
+              threadId: req.input.threadId,
+              createdAt: new Date(),
+              origin: null,
+              externalMessageId: null,
+            });
+          });
+
+          const message = Object.values(
+            await db.find(schema.message, {
+              where: { id: messageId },
+              include: {
+                author: true,
               },
-            },
-          },
-        };
-      },
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+            })
+          )[0];
+
+          return message;
+        }),
+      })),
     user: privateRoute.collectionRoute(schema.user, {
       read: () => true,
       insert: () => false,
@@ -575,7 +729,7 @@ export const router = createRouter({
       insert: ({ ctx }) => {
         if (ctx?.internalApiKey) return true;
 
-        if (!ctx?.session && !ctx?.portalSession.session) return false;
+        if (!ctx?.session && !ctx?.portalSession?.session) return false;
 
         return true;
         // TODO FRO-68: Figure a good way to handle this
