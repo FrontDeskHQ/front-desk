@@ -1,12 +1,6 @@
-import { useFlag } from "@reflag/react-sdk";
-import {
-  createFileRoute,
-  Link,
-  notFound,
-  useRouter,
-} from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { Button, buttonVariants } from "@workspace/ui/components/button";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardAction,
@@ -18,14 +12,20 @@ import {
   PriorityIndicator,
   StatusIndicator,
 } from "@workspace/ui/components/indicator";
-import { Logo } from "@workspace/ui/components/logo";
-import { Navbar } from "@workspace/ui/components/navbar";
 import {
   Pagination,
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@workspace/ui/components/pagination";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@workspace/ui/components/popover";
 import {
   Select,
   SelectContent,
@@ -44,38 +44,38 @@ import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
-  ChevronLeftIcon,
-  ChevronRightIcon,
+  Settings2,
 } from "lucide-react";
-import z from "zod";
+import {
+  createStandardSchemaV1,
+  parseAsInteger,
+  parseAsStringEnum,
+  useQueryState,
+} from "nuqs";
 import { fetchClient } from "~/lib/live-state";
-import { portalAuthClient } from "~/lib/portal-auth-client";
-import { getTenantBaseApiUrl } from "~/lib/urls";
 import { seo } from "~/utils/seo";
-import { WindowWithCachedPortalAuthUser } from "../route";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
+
+const DEFAULT_THREADS_PER_PAGE = 10;
+const PER_PAGE_OPTIONS = [5, 10, 20, 50];
+
+const searchParams = {
+  page: parseAsInteger.withDefault(1),
+  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
+  perPage: parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
+};
 
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: z.object({
-    page: z.coerce.number().optional(),
-    order: z.enum(["createdAt", "updatedAt"]).optional(),
-    dir: z.enum(["asc", "desc"]).optional(),
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
   }),
 
-  loader: async ({ params }) => {
-    const { slug } = params;
-    // TODO: Replace where by first when new version of live-state is out
-    const organization = (
-      await fetchClient.query.organization.where({ slug: slug }).get()
-    )[0];
-
-    if (!organization) {
-      throw notFound();
-    }
-
+  loader: async ({ context }) => {
+    const { organization } = context;
     const threads = await fetchClient.query.thread
       .where({
         organizationId: organization.id,
@@ -85,13 +85,13 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       .get();
 
     return {
-      organization: organization as typeof organization,
       threads: threads as typeof threads,
+      organizationName: organization.name,
     };
   },
 
   head: ({ loaderData }) => {
-    const orgName = loaderData?.organization?.name ?? "Support";
+    const orgName = loaderData?.organizationName ?? "Support";
     return {
       meta: [
         ...seo({
@@ -103,21 +103,27 @@ export const Route = createFileRoute("/support/$slug/threads/")({
   },
 });
 
-const THREADS_PER_PAGE = 10;
-
 function RouteComponent() {
-  const { organization, threads } = Route.useLoaderData();
-  const { portalSession } = Route.useRouteContext();
-  const navigate = Route.useNavigate();
-  const searchParams = Route.useSearch();
+  const { threads } = Route.useLoaderData();
+  const { organization } = Route.useRouteContext();
 
-  const { isEnabled: isPortalAuthEnabled } = useFlag("portal-auth");
-  const router = useRouter();
-
-  // Apply defaults in the component, not in validateSearch
-  const page = searchParams.page ?? 1;
-  const order = searchParams.order ?? "createdAt";
-  const dir = searchParams.dir ?? "desc";
+  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
+  const [order, setOrder] = useQueryState(
+    "order",
+    parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  );
+  const [dir, setDir] = useQueryState(
+    "dir",
+    parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
+  );
+  const [_perPage, setPerPage] = useQueryState(
+    "perPage",
+    parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
+  );
+  const perPage = Math.min(
+    Math.max(_perPage ?? DEFAULT_THREADS_PER_PAGE, 1),
+    50,
+  );
 
   const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
     [
@@ -126,16 +132,18 @@ function RouteComponent() {
     ];
 
   const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    navigate({
-      to: ".",
-      search: (prev) => ({ ...prev, order: value }),
-    });
+    setOrder(value);
+  };
+
+  const handlePerPageChange = (value: unknown) => {
+    setPerPage(Number(value));
+    setPage(1);
   };
 
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
     const getTimestamp = (
       t: unknown,
-      key: ThreadsSearchOrderOptions
+      key: ThreadsSearchOrderOptions,
     ): number => {
       // Narrow the unknown to the expected shape for safe property access
       const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
@@ -144,8 +152,8 @@ function RouteComponent() {
         return obj.updatedAt
           ? new Date(obj.updatedAt).getTime()
           : obj.createdAt
-          ? new Date(obj.createdAt).getTime()
-          : 0;
+            ? new Date(obj.createdAt).getTime()
+            : 0;
       }
 
       return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
@@ -163,13 +171,13 @@ function RouteComponent() {
   });
 
   const numPages = orderedThreads
-    ? Math.ceil(orderedThreads?.length / THREADS_PER_PAGE)
+    ? Math.max(1, Math.ceil(orderedThreads?.length / perPage))
     : 1;
 
   const currentPage = page ?? 1;
 
-  const startIdx = THREADS_PER_PAGE * (currentPage - 1);
-  const endIdx = THREADS_PER_PAGE * currentPage;
+  const startIdx = perPage * (currentPage - 1);
+  const endIdx = perPage * currentPage;
 
   const threadsInPage = orderedThreads?.slice(startIdx, endIdx);
 
@@ -202,130 +210,68 @@ function RouteComponent() {
     return null;
   }
 
-  const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
   return (
-    <div className="w-full">
-      <Navbar>
-        <Navbar.Group>
-          <Logo>
-            <Logo.Icon />
-            <Logo.Text />
-          </Logo>
-        </Navbar.Group>
-        {isPortalAuthEnabled && (
-          <Navbar.Group>
-            {portalSession?.user ? (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  portalAuthClient.signOut({
-                    fetchOptions: {
-                      baseURL: `${getTenantBaseApiUrl({
-                        slug: organization.slug,
-                      })}/api/portal-auth`,
-                      onSuccess: () => {
-                        (
-                          window as WindowWithCachedPortalAuthUser
-                        ).cachedPortalAuthUser = null;
-                        router.invalidate();
-                      },
-                    },
-                  })
-                }
-              >
-                Sign out
-              </Button>
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  portalAuthClient.signIn.social({
-                    provider: "google",
-                    additionalData: { tenantSlug: organization.slug },
-                    callbackURL: window.location.origin,
-                  })
-                }
-              >
-                Sign in with Google
-              </Button>
-            )}
-          </Navbar.Group>
-        )}
-      </Navbar>
-      <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0">
-            <Avatar
-              variant="org"
-              size="xxl"
-              src={organization?.logoUrl}
-              fallback={organization?.name}
-            />
-          </div>
-          <div className="flex items-center justify-between w-full gap-4">
-            <h1 className="font-bold text-2xl sm:text-3xl truncate">
-              {organization?.name}
-            </h1>
-            {discordUrl && (
-              <Button size="lg" externalLink asChild>
-                <a href={discordUrl} target="_blank" rel="noreferrer">
-                  Join Discord
-                </a>
-              </Button>
-            )}
-          </div>
-        </div>
-        <Card className="bg-muted/30">
+    <div className="w-full py-8 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col gap-8 mx-auto max-w-5xl">
+        <Card className="bg-muted/30 w-full">
           <CardHeader>
             <CardTitle className="gap-4">Threads</CardTitle>
             <CardAction side="right">
-              <Select
-                value={order}
-                onValueChange={(value) =>
-                  handleSortChange(value as ThreadsSearchOrderOptions)
-                }
-                items={orderByOptions}
-              >
-                <SelectTrigger className="w-32" data-size="sm">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {orderByOptions.map((option) => (
-                    <SelectItem key={option.value} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate({
-                          to: ".",
-                          search: (prev) => ({
-                            ...prev,
-                            dir: dir === "asc" ? "desc" : "asc",
-                          }),
-                        })
+              <Popover>
+                <PopoverTrigger>
+                  <Button variant="outline" size="sm">
+                    <Settings2 />
+                    View
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  className="p-4 flex flex-col gap-4"
+                  positionerProps={{ align: "end" }}
+                >
+                  <div className="flex w-full items-center gap-2">
+                    <div className="mr-auto">Order by</div>
+                    <Select
+                      value={order}
+                      onValueChange={(value) =>
+                        handleSortChange(value as ThreadsSearchOrderOptions)
                       }
-                      className="size-8"
+                      items={orderByOptions}
                     >
-                      {dir === "asc" ? (
-                        <ArrowDownWideNarrow />
-                      ) : (
-                        <ArrowUpNarrowWide />
-                      )}
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>Change order direction</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+                      <SelectTrigger className="w-48" data-size="sm">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {orderByOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() =>
+                              setDir(dir === "asc" ? "desc" : "asc")
+                            }
+                            className="size-8"
+                          >
+                            {dir === "asc" ? (
+                              <ArrowDownWideNarrow />
+                            ) : (
+                              <ArrowUpNarrowWide />
+                            )}
+                          </Button>
+                        </TooltipTrigger>
+                        <TooltipContent>Change order direction</TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  </div>
+                </PopoverContent>
+              </Popover>
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
@@ -366,8 +312,8 @@ function RouteComponent() {
                         safeParseJSON(
                           (thread as any)?.messages?.[
                             (thread as any)?.messages?.length - 1
-                          ]?.content ?? ""
-                        )
+                          ]?.content ?? "",
+                        ),
                       )}
                     </span>
                   </span>
@@ -381,82 +327,83 @@ function RouteComponent() {
             ))}
           </CardContent>
         </Card>
-        <Pagination>
-          <PaginationContent>
-            <PaginationItem>
-              <Link
-                to="."
-                search={(prev) => ({ ...prev, page: currentPage - 1 })}
-                disabled={currentPage === 1}
-                className={
-                  buttonVariants({
-                    variant: "ghost",
-                    size: "default",
-                  }) +
-                  " gap-1 px-2.5 sm:pl-2.5" +
-                  (currentPage === 1 ? " pointer-events-none opacity-50" : "")
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm text-muted-foreground">
+              Threads per page
+            </span>
+            <Select
+              value={perPage.toString()}
+              onValueChange={handlePerPageChange}
+            >
+              <SelectTrigger className="w-20" data-size="sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {PER_PAGE_OPTIONS.map((option) => (
+                  <SelectItem key={option} value={option.toString()}>
+                    {option}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Pagination>
+            <PaginationContent>
+              <PaginationItem>
+                <PaginationPrevious
+                  onClick={() => {
+                    if (currentPage > 1) {
+                      setPage(currentPage - 1);
+                    }
+                  }}
+                  aria-disabled={currentPage === 1}
+                  className={
+                    currentPage === 1 ? " pointer-events-none opacity-50" : ""
+                  }
+                />
+              </PaginationItem>
+              {pageNumbers.map((pageNum, idx) => {
+                if (pageNum === "ellipsis") {
+                  return (
+                    <PaginationItem
+                      key={`ellipsis-before-${pageNumbers[idx + 1]}`}
+                    >
+                      <PaginationEllipsis />
+                    </PaginationItem>
+                  );
                 }
-                aria-label="Go to previous page"
-                aria-disabled={currentPage === 1}
-                resetScroll={false}
-              >
-                <ChevronLeftIcon />
-                <span className="hidden sm:block">Previous</span>
-              </Link>
-            </PaginationItem>
-            {pageNumbers.map((pageNum, idx) => {
-              if (pageNum === "ellipsis") {
+
                 return (
-                  <PaginationItem
-                    key={`ellipsis-before-${pageNumbers[idx + 1]}`}
-                  >
-                    <PaginationEllipsis />
+                  <PaginationItem key={pageNum}>
+                    <PaginationLink
+                      onClick={() => setPage(pageNum)}
+                      isActive={page === pageNum}
+                      aria-current={page === pageNum ? "page" : undefined}
+                    >
+                      {pageNum}
+                    </PaginationLink>
                   </PaginationItem>
                 );
-              }
-
-              return (
-                <PaginationItem key={pageNum}>
-                  <Link
-                    to="."
-                    search={(prev) => ({ ...prev, page: pageNum })}
-                    aria-current={page === pageNum ? "page" : undefined}
-                    className={buttonVariants({
-                      variant: page === pageNum ? "outline" : "ghost",
-                      size: "icon",
-                    })}
-                    resetScroll={false}
-                  >
-                    {pageNum}
-                  </Link>
-                </PaginationItem>
-              );
-            })}
-            <PaginationItem>
-              <Link
-                to="."
-                search={(prev) => ({ ...prev, page: currentPage + 1 })}
-                disabled={currentPage === numPages}
-                className={
-                  buttonVariants({
-                    variant: "ghost",
-                    size: "default",
-                  }) +
-                  " gap-1 px-2.5 sm:pr-2.5" +
-                  (currentPage === numPages
-                    ? " pointer-events-none opacity-50"
-                    : "")
-                }
-                aria-label="Go to next page"
-                aria-disabled={currentPage === numPages}
-                resetScroll={false}
-              >
-                <span className="hidden sm:block">Next</span>
-                <ChevronRightIcon />
-              </Link>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+              })}
+              <PaginationItem>
+                <PaginationNext
+                  onClick={() => {
+                    if (currentPage < numPages) {
+                      setPage(currentPage + 1);
+                    }
+                  }}
+                  aria-disabled={currentPage === numPages}
+                  className={
+                    currentPage === numPages
+                      ? " pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       </div>
     </div>
   );
