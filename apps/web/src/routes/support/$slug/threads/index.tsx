@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { Button, buttonVariants } from "@workspace/ui/components/button";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardAction,
@@ -17,6 +17,9 @@ import {
   PaginationContent,
   PaginationEllipsis,
   PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
 } from "@workspace/ui/components/pagination";
 import {
   Popover,
@@ -41,8 +44,6 @@ import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import {
   ArrowDownWideNarrow,
   ArrowUpNarrowWide,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   Settings2,
 } from "lucide-react";
 import {
@@ -170,7 +171,7 @@ function RouteComponent() {
   });
 
   const numPages = orderedThreads
-    ? Math.ceil(orderedThreads?.length / perPage)
+    ? Math.max(1, Math.ceil(orderedThreads?.length / perPage))
     : 1;
 
   const currentPage = page ?? 1;
@@ -350,24 +351,17 @@ function RouteComponent() {
           <Pagination>
             <PaginationContent>
               <PaginationItem>
-                <button
-                  type="button"
-                  onClick={() => setPage(currentPage - 1)}
-                  disabled={currentPage === 1}
-                  className={
-                    buttonVariants({
-                      variant: "ghost",
-                      size: "default",
-                    }) +
-                    " gap-1 px-2.5 sm:pl-2.5" +
-                    (currentPage === 1 ? " pointer-events-none opacity-50" : "")
-                  }
-                  aria-label="Go to previous page"
+                <PaginationPrevious
+                  onClick={() => {
+                    if (currentPage > 1) {
+                      setPage(currentPage - 1);
+                    }
+                  }}
                   aria-disabled={currentPage === 1}
-                >
-                  <ChevronLeftIcon />
-                  <span className="hidden sm:block">Previous</span>
-                </button>
+                  className={
+                    currentPage === 1 ? " pointer-events-none opacity-50" : ""
+                  }
+                />
               </PaginationItem>
               {pageNumbers.map((pageNum, idx) => {
                 if (pageNum === "ellipsis") {
@@ -382,41 +376,30 @@ function RouteComponent() {
 
                 return (
                   <PaginationItem key={pageNum}>
-                    <button
-                      type="button"
+                    <PaginationLink
                       onClick={() => setPage(pageNum)}
+                      isActive={page === pageNum}
                       aria-current={page === pageNum ? "page" : undefined}
-                      className={buttonVariants({
-                        variant: page === pageNum ? "outline" : "ghost",
-                        size: "icon",
-                      })}
                     >
                       {pageNum}
-                    </button>
+                    </PaginationLink>
                   </PaginationItem>
                 );
               })}
               <PaginationItem>
-                <button
-                  type="button"
-                  onClick={() => setPage(currentPage + 1)}
-                  disabled={currentPage === numPages}
-                  className={
-                    buttonVariants({
-                      variant: "ghost",
-                      size: "default",
-                    }) +
-                    " gap-1 px-2.5 sm:pr-2.5" +
-                    (currentPage === numPages
-                      ? " pointer-events-none opacity-50"
-                      : "")
-                  }
-                  aria-label="Go to next page"
+                <PaginationNext
+                  onClick={() => {
+                    if (currentPage < numPages) {
+                      setPage(currentPage + 1);
+                    }
+                  }}
                   aria-disabled={currentPage === numPages}
-                >
-                  <span className="hidden sm:block">Next</span>
-                  <ChevronRightIcon />
-                </button>
+                  className={
+                    currentPage === numPages
+                      ? " pointer-events-none opacity-50"
+                      : ""
+                  }
+                />
               </PaginationItem>
             </PaginationContent>
           </Pagination>
