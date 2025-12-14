@@ -60,16 +60,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
             plan === "starter"
               ? (process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID as string)
               : (process.env.DODO_PAYMENTS_PRO_PRODUCT_ID as string),
-          quantity: 1,
-          addons: [
-            {
-              addon_id:
-                plan === "starter"
-                  ? (process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID as string)
-                  : (process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID as string),
-              quantity: seats,
-            },
-          ],
+          quantity: seats,
         },
       ],
       return_url: `${process.env.VITE_BASE_URL}/app/settings/organization/billing`,
@@ -173,16 +164,7 @@ export const updateSubscription = createServerFn({ method: "POST" })
           newPlan === "starter"
             ? (process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID as string)
             : (process.env.DODO_PAYMENTS_PRO_PRODUCT_ID as string),
-        quantity: 1,
-        addons: [
-          {
-            addon_id:
-              newPlan === "starter"
-                ? (process.env.DODO_PAYMENTS_STARTER_SEATS_ADDON_ID as string)
-                : (process.env.DODO_PAYMENTS_PRO_SEATS_ADDON_ID as string),
-            quantity: seats,
-          },
-        ],
+        quantity: seats,
         proration_billing_mode: "prorated_immediately",
       })
       .then((res) => {

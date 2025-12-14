@@ -21,6 +21,7 @@ import type { DodoPayments } from "dodopayments/client";
 import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
 import { query } from "~/lib/live-state";
 import {
   cancelSubscription,
@@ -48,12 +49,7 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-
-  const subscription = useLiveQuery(
-    query.subscription.first({
-      organizationId: currentOrg?.id,
-    }),
-  );
+  const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
 
   const seats =
     useLiveQuery(
@@ -96,7 +92,7 @@ function RouteComponent() {
     <>
       <div className="p-4 flex flex-col gap-4 w-full">
         <h2 className="text-base">Billing</h2>
-        {subscription?.plan === "trial" && (
+        {plan === "trial" && !isBetaFeedback && (
           <Card className="bg-[#27272A]/30">
             <CardContent className="flex-row justify-between items-center">
               <div>
@@ -118,23 +114,22 @@ function RouteComponent() {
         )}
         <Card className="bg-[#27272A]/30">
           <CardContent
-            className={cn(
-              "gap-4",
-              subscription?.plan === "pro" && "flex-col-reverse",
-            )}
+            className={cn("gap-4", plan === "pro" && "flex-col-reverse")}
           >
             <div className="flex justify-between">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col">
-                  {subscription?.plan === "starter" && (
+                  {(plan === "starter" || isBetaFeedback) && (
                     <div className="text-muted-foreground">Current plan</div>
                   )}
-                  <div className="text-primary">Starter</div>
-                  {subscription?.plan !== "starter" && (
+                  <div className="text-primary">
+                    {isBetaFeedback ? "Beta Feedback (Free)" : "Starter"}
+                  </div>
+                  {plan !== "starter" && !isBetaFeedback && (
                     <div className="text-muted-foreground">$9/seat/month</div>
                   )}
                 </div>
-                {subscription?.plan !== "starter" && (
+                {plan !== "starter" && !isBetaFeedback && (
                   <div className="w-full max-w-sm">
                     <ul className="lex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
                       <li>Unlimited support tickets</li>
@@ -145,27 +140,26 @@ function RouteComponent() {
                   </div>
                 )}
               </div>
-              {subscription?.plan !== "starter" &&
+              {plan !== "starter" &&
+                !isBetaFeedback &&
                 subscription?.subscriptionId && (
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        variant={
-                          subscription?.plan === "pro" ? "secondary" : "default"
-                        }
+                        variant={plan === "pro" ? "secondary" : "default"}
                       >
-                        {subscription?.plan === "pro" ? "Downgrade" : "Upgrade"}
+                        {plan === "pro" ? "Downgrade" : "Upgrade"}
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
                         <AlertDialogTitle>
-                          {subscription?.plan === "pro"
+                          {plan === "pro"
                             ? "Downgrade to Starter plan?"
                             : "Upgrade to Starter plan?"}
                         </AlertDialogTitle>
                         <AlertDialogDescription>
-                          {subscription?.plan === "pro"
+                          {plan === "pro"
                             ? "You are about to downgrade your subscription to the Starter plan. The value difference will be pro-rated and applied to your next billing cycle."
                             : "You are about to upgrade your subscription to the Starter plan. The value difference will be pro-rated and applied to your next billing cycle."}
                         </AlertDialogDescription>
@@ -192,7 +186,8 @@ function RouteComponent() {
                     </AlertDialogContent>
                   </AlertDialog>
                 )}
-              {subscription?.plan !== "starter" &&
+              {plan !== "starter" &&
+                !isBetaFeedback &&
                 !subscription?.subscriptionId && (
                   <Button
                     onClick={async () => {
@@ -211,11 +206,9 @@ function RouteComponent() {
 
                       window.location.href = session.checkout_url;
                     }}
-                    variant={
-                      subscription?.plan === "pro" ? "secondary" : "default"
-                    }
+                    variant={plan === "pro" ? "secondary" : "default"}
                   >
-                    {subscription?.plan === "pro" ? "Downgrade" : "Upgrade"}
+                    {plan === "pro" ? "Downgrade" : "Upgrade"}
                   </Button>
                 )}
             </div>
@@ -223,15 +216,15 @@ function RouteComponent() {
             <div className="flex justify-between">
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col">
-                  {subscription?.plan === "pro" && (
+                  {plan === "pro" && (
                     <div className="text-muted-foreground">Current plan</div>
                   )}
                   <div className="text-primary">Pro</div>
-                  {subscription?.plan !== "pro" && (
+                  {plan !== "pro" && (
                     <div className="text-muted-foreground">$24/seat/month</div>
                   )}
                 </div>
-                {subscription?.plan !== "pro" && (
+                {plan !== "pro" && (
                   <div className="w-full max-w-sm">
                     <ul className="lex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
                       <li>Unlimited support tickets</li>
@@ -242,7 +235,7 @@ function RouteComponent() {
                   </div>
                 )}
               </div>
-              {subscription?.plan !== "pro" && subscription?.subscriptionId && (
+              {plan !== "pro" && subscription?.subscriptionId && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
                     <Button>Upgrade</Button>
@@ -278,29 +271,28 @@ function RouteComponent() {
                   </AlertDialogContent>
                 </AlertDialog>
               )}
-              {subscription?.plan !== "pro" &&
-                !subscription?.subscriptionId && (
-                  <Button
-                    onClick={async () => {
-                      if (!subscription) return;
-                      if (!subscription.customerId) return;
+              {plan !== "pro" && !subscription?.subscriptionId && (
+                <Button
+                  onClick={async () => {
+                    if (!subscription) return;
+                    if (!subscription.customerId) return;
 
-                      const session = await createCheckoutSession({
-                        data: {
-                          customerId: subscription.customerId,
-                          plan: "pro",
-                          seats: seats,
-                        },
-                      });
+                    const session = await createCheckoutSession({
+                      data: {
+                        customerId: subscription.customerId,
+                        plan: "pro",
+                        seats: seats,
+                      },
+                    });
 
-                      if (!session) return;
+                    if (!session) return;
 
-                      window.location.href = session.checkout_url;
-                    }}
-                  >
-                    Upgrade
-                  </Button>
-                )}
+                    window.location.href = session.checkout_url;
+                  }}
+                >
+                  Upgrade
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
