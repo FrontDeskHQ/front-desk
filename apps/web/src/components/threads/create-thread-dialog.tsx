@@ -67,7 +67,7 @@ export function CreateThreadDialog({
       setError("Thread title must be at least 3 characters");
       return false;
     }
-    if (!threadContent.length || !threadContent[0]?.content) {
+    if (!threadContent.length || !threadContent[0]?.content?.length) {
       setError("Thread description is required");
       return false;
     }
