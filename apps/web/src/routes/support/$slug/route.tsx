@@ -190,7 +190,7 @@ export const Route = createFileRoute("/support/$slug")({
                 </DropdownMenu>
               ) : (
                 <Button
-                  variant="secondary"
+                  variant="default"
                   size="sm"
                   onClick={() =>
                     portalAuthClient.signIn.social({
