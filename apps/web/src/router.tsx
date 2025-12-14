@@ -42,9 +42,10 @@ export function getRouter() {
         // e.g. tryfrontdesk.app/support/acme-inc/threads/01k98em74mj13jzafk4efs8pj8 -> acme-inc.tryfrontdesk.app/threads/01k98em74mj13jzafk4efs8pj8
         const pathParts = url.pathname.split("/");
         const isSupportPath = pathParts[1] === "support";
-        if (!isSupportPath) return undefined;
+        if (!isSupportPath) return;
 
         const subdomain = pathParts[2];
+        if (!subdomain) return;
         const restOfPath = pathParts.slice(3).join("/");
 
         url.hostname = `${subdomain}.${baseHostname}`;

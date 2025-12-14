@@ -115,9 +115,13 @@ function RouteComponent() {
     "dir",
     parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
   );
-  const [perPage, setPerPage] = useQueryState(
+  const [_perPage, setPerPage] = useQueryState(
     "perPage",
     parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
+  );
+  const perPage = Math.min(
+    Math.max(_perPage ?? DEFAULT_THREADS_PER_PAGE, 1),
+    50,
   );
 
   const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
