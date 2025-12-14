@@ -1,3 +1,4 @@
+import type { InferLiveObject } from "@live-state/sync";
 import { useRouter } from "@tanstack/react-router";
 import {
   Editor,
@@ -16,27 +17,18 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
+import type { schema } from "api/schema";
 import { MessageSquarePlus, X } from "lucide-react";
 import { useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
+import type { GetSupportAuthUserResponse } from "~/lib/server-funcs/get-portal-auth-user";
 
 type ThreadContent = JSONContent[];
 
-//TODO: Use backend types
 interface CreateThreadDialogProps {
-  organization: {
-    id: string;
-    slug: string;
-    name: string;
-    logoUrl?: string | null;
-  };
-  portalSession: {
-    user?: {
-      id: string;
-      name: string;
-    } | null;
-  } | null;
+  organization: InferLiveObject<(typeof schema)["organization"]>;
+  portalSession: GetSupportAuthUserResponse;
   trigger?: React.ReactNode;
 }
 
