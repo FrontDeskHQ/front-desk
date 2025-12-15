@@ -358,9 +358,7 @@ function RouteComponent() {
                           className="size-[10px] rounded-full shrink-0"
                           style={{ backgroundColor: label.color }}
                         />
-                        <div className="truncate grow shrink">
-                          {label.name ?? "Unnamed"}
-                        </div>
+                        <div className="truncate grow shrink">{label.name}</div>
                       </div>
                     </TableCell>
                     <TableCell className="text-foreground-secondary">
@@ -403,9 +401,9 @@ function RouteComponent() {
                               </AlertDialogTitle>
                               <AlertDialogDescription>
                                 This will disable the label{" "}
-                                <strong>{label.name ?? "Unnamed"}</strong>. It
-                                will no longer appear in label selection, but
-                                existing thread assignments will remain.
+                                <strong>{label.name}</strong>. It will no longer
+                                appear in label selection, but existing thread
+                                assignments will remain.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
@@ -413,10 +411,7 @@ function RouteComponent() {
                               <AlertDialogAction
                                 variant="destructive"
                                 onClick={() =>
-                                  handleDelete(
-                                    label.id,
-                                    label.name ?? "Unnamed",
-                                  )
+                                  handleDelete(label.id, label.name)
                                 }
                               >
                                 Delete
