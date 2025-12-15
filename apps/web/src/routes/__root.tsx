@@ -10,6 +10,7 @@ import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
 import { Toaster } from "@workspace/ui/components/sonner";
+import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { Providers } from "~/components/providers";
@@ -123,11 +124,13 @@ function RootDocument({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
       </head>
-      <body className="w-full min-h-screen text-sm">
+      <body className="w-100vw min-h-screen text-sm">
         <Providers>
-          {children}
-          <TanStackRouterDevtools position="bottom-right" />
-          <Toaster />
+          <NuqsAdapter>
+            {children}
+            <TanStackRouterDevtools position="bottom-right" />
+            <Toaster />
+          </NuqsAdapter>
         </Providers>
         <Scripts />
       </body>

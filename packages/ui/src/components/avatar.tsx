@@ -44,7 +44,7 @@ function BaseAvatarFallback({
     <AvatarPrimitive.Fallback
       data-slot="avatar-fallback"
       className={cn(
-        "bg-indigo-400 flex size-full items-center justify-center text-xs scale-75",
+        "bg-indigo-400 flex size-full items-center justify-center text-xs",
         className,
       )}
       {...props}
@@ -55,11 +55,11 @@ function BaseAvatarFallback({
 const avatarVariants = cva("", {
   variants: {
     size: {
-      sm: "size-4",
-      md: "size-5",
+      sm: "size-3",
+      md: "size-4",
       lg: "size-7",
-      xl: "size-10",
-      xxl: "size-16",
+      xl: "size-8",
+      xxl: "size-10",
     },
     variant: {
       user: "rounded-full",
@@ -90,7 +90,7 @@ const avatarFallbackVariants = cva(
     variants: {
       size: {
         sm: "text-[0.5rem]",
-        md: "text-[0.625rem]",
+        md: "text-[0.6rem]",
         lg: "text-base",
         xl: "text-base",
         xxl: "text-2xl",
@@ -198,6 +198,5 @@ export {
   AvatarUpload,
   BaseAvatar,
   BaseAvatarFallback,
-  BaseAvatarImage
+  BaseAvatarImage,
 };
-

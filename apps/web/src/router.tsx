@@ -40,11 +40,13 @@ export function getRouter() {
         // Rewrite outgoing URLs so that path segments for orgs become subdomains
         // e.g. tryfrontdesk.app/support/acme-inc/threads -> acme-inc.tryfrontdesk.app
         // e.g. tryfrontdesk.app/support/acme-inc/threads/01k98em74mj13jzafk4efs8pj8 -> acme-inc.tryfrontdesk.app/threads/01k98em74mj13jzafk4efs8pj8
-        const pathMatch = url.pathname.match(/^\/support\/([^/]+)\/(.+)$/);
-        if (!pathMatch) return undefined;
+        const pathParts = url.pathname.split("/");
+        const isSupportPath = pathParts[1] === "support";
+        if (!isSupportPath) return;
 
-        const subdomain = pathMatch[1];
-        const restOfPath = pathMatch[2];
+        const subdomain = pathParts[2];
+        if (!subdomain) return;
+        const restOfPath = pathParts.slice(3).join("/");
 
         url.hostname = `${subdomain}.${baseHostname}`;
         url.pathname = `/${restOfPath}`;

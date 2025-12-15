@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { forwardRef, useMemo } from "react";
 
 const isMacPlatform = () =>
   typeof navigator !== "undefined" && /Mac|iPad/.test(navigator.platform);
@@ -17,7 +17,7 @@ export const Keybind = ({ keybind }: { keybind: string }) => {
       option: isMac ? "⌥" : "alt",
       ctrl: "ctrl",
     }),
-    [isMac]
+    [isMac],
   );
 
   return (
@@ -33,3 +33,39 @@ export const Keybind = ({ keybind }: { keybind: string }) => {
     </div>
   );
 };
+
+type KeybindIsolationProps = {
+  children: React.ReactNode;
+  className?: string;
+} & React.HTMLAttributes<HTMLDivElement>;
+
+/**
+ * Component that isolates keybinds by stopping keydown event propagation.
+ * Useful for wrapping inputs and other elements where you want to prevent
+ * global keybinds from triggering.
+ *
+ * @example
+ * ```tsx
+ * <KeybindIsolation>
+ *   <input type="text" />
+ * </KeybindIsolation>
+ * ```
+ */
+export const KeybindIsolation = forwardRef<
+  HTMLDivElement,
+  KeybindIsolationProps
+>(({ children, className, onKeyDown, ...props }, ref) => {
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    event.stopPropagation();
+    onKeyDown?.(event);
+  };
+
+  return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: this div is intentionally used to capture and stop keydown event propagation
+    <div ref={ref} className={className} onKeyDown={handleKeyDown} {...props}>
+      {children}
+    </div>
+  );
+});
+
+KeybindIsolation.displayName = "KeybindIsolation";

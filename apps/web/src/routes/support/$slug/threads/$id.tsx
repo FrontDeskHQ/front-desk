@@ -20,7 +20,6 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -33,12 +32,11 @@ import {
   StatusIndicator,
   StatusText,
 } from "@workspace/ui/components/indicator";
-import { Logo } from "@workspace/ui/components/logo";
-import { Navbar } from "@workspace/ui/components/navbar";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
+import { ulid } from "ulid";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -46,16 +44,16 @@ import { seo } from "~/utils/seo";
 export const Route = createFileRoute("/support/$slug/threads/$id")({
   component: RouteComponent,
 
-  loader: async ({ params }) => {
+  loader: async ({ params, context }) => {
     const { id } = params;
 
     const thread = (
       await fetchClient.query.thread
         .where({
           id,
+          organizationId: context.organization.id,
         })
         .include({
-          organization: true,
           author: true,
           messages: { author: true },
           assignedUser: true,
@@ -70,12 +68,16 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 
     return {
       thread,
+      headData: {
+        organizationName: context.organization.name,
+        threadName: thread.name,
+      },
     };
   },
   head: ({ loaderData }) => {
     const thread = loaderData?.thread;
-    const orgName = thread?.organization?.name ?? "Support";
-    const threadName = thread?.name ?? "Thread";
+    const orgName = loaderData?.headData?.organizationName ?? "Support";
+    const threadName = loaderData?.headData?.threadName ?? "Thread";
     return {
       meta: [
         ...seo({
@@ -89,12 +91,10 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
 
 function RouteComponent() {
   const route = useRouter();
-
-  const thread = Route.useLoaderData().thread;
+  const { organization } = Route.useRouteContext();
+  const { thread } = Route.useLoaderData();
 
   const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
-
-  const organization = thread.organization;
 
   const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
 
@@ -119,32 +119,7 @@ function RouteComponent() {
 
   return (
     <div className="flex flex-col size-full gap-4 sm:gap-8 min-h-screen">
-      <Navbar>
-        <Navbar.Group>
-          <Logo>
-            <Logo.Icon />
-            <Logo.Text />
-            <Logo.Separator />
-            <Avatar
-              src={thread.organization.logoUrl}
-              variant="org"
-              fallback={thread.organization.name}
-              size="lg"
-            />
-            <Logo.Text>{thread.organization.name}</Logo.Text>
-          </Logo>
-        </Navbar.Group>
-        <Navbar.Group>
-          {discordUrl && (
-            <Button size="lg" externalLink asChild>
-              <a href={discordUrl} target="_blank" rel="noreferrer">
-                Join Discord
-              </a>
-            </Button>
-          )}
-        </Navbar.Group>
-      </Navbar>
-      <div className="flex flex-col flex-1 px-4 pb-4 sm:pb-8 sm:px-8">
+      <div className="flex flex-col flex-1 px-4 py-4 sm:py-8 sm:px-8">
         <div className="flex flex-1 justify-center">
           <div className="grow shrink max-w-0 2xl:max-w-64" />
           <Card className="w-full grow shrink flex flex-col max-w-5xl min-h-5xl">
@@ -157,7 +132,7 @@ function RouteComponent() {
                         <BreadcrumbLink asChild>
                           <Link
                             to="/support/$slug/threads"
-                            params={{ slug: thread.organization.slug }}
+                            params={{ slug: organization.slug }}
                           >
                             Threads
                           </Link>
@@ -169,7 +144,7 @@ function RouteComponent() {
                           <Link
                             to="/support/$slug/threads/$id"
                             params={{
-                              slug: thread.organization.slug,
+                              slug: organization.slug,
                               id: thread.id,
                             }}
                           >
@@ -267,24 +242,30 @@ function RouteComponent() {
                 Thread properties
               </div>
               <div className="flex flex-col gap-1.5">
-                <div className="flex px-1.5 gap-2 items-center ml-0.5">
-                  <StatusIndicator status={thread?.status ?? 0} />
+                <div className="flex px-1.5 gap-2 items-center">
+                  <div className="flex items-center justify-center size-4">
+                    <StatusIndicator status={thread?.status ?? 0} />
+                  </div>
                   <StatusText status={thread?.status ?? 0} />
                 </div>
                 <div className="flex px-1.5 gap-2 items-center">
-                  <PriorityIndicator priority={thread?.priority ?? 0} />
+                  <div className="flex items-center justify-center size-4">
+                    <PriorityIndicator priority={thread?.priority ?? 0} />
+                  </div>
                   <PriorityText priority={thread?.priority ?? 0} />
                 </div>
                 <div className="flex px-1.5 gap-2 items-center">
-                  {thread?.assignedUserId ? (
-                    <Avatar
-                      variant="user"
-                      size="sm"
-                      fallback={thread.assignedUser?.name}
-                    />
-                  ) : (
-                    <CircleUser className="ml-0.5 size-4" />
-                  )}
+                  <div className="flex items-center justify-center size-4">
+                    {thread?.assignedUserId ? (
+                      <Avatar
+                        variant="user"
+                        size="md"
+                        fallback={thread.assignedUser?.name}
+                      />
+                    ) : (
+                      <CircleUser className="size-4" />
+                    )}
+                  </div>
                   <p>{thread?.assignedUser?.name ?? "Unassigned"}</p>
                 </div>
               </div>

@@ -1,10 +1,38 @@
 import type { BetterAuthPlugin } from "better-auth";
 import {
+  APIError,
   createAuthEndpoint,
   createAuthMiddleware,
   getOAuthState,
 } from "better-auth/api";
 import { z } from "zod";
+import { schema } from "../../live-state/schema";
+import { storage } from "../../live-state/storage";
+
+/**
+ * Schema for OAuth state data
+ * Validates _subdomainOrigin and _originalCallbackURL properties
+ * Allows additional fields from Better Auth's OAuth state
+ */
+const oauthStateSchema = z
+  .object({
+    _subdomainOrigin: z.string(),
+    _originalCallbackURL: z.string().optional(),
+  })
+  .passthrough();
+
+/**
+ * Strict schema for verification token data
+ * Only allows sessionToken, userId, subdomain, and callbackURL properties
+ */
+const verificationTokenDataSchema = z
+  .object({
+    sessionToken: z.string(),
+    userId: z.string(),
+    subdomain: z.string(),
+    callbackURL: z.string(),
+  })
+  .strict();
 
 export interface SubdomainOAuthOptions {
   /**
@@ -35,30 +63,6 @@ const generateExchangeToken = (length = 64): string => {
   const array = new Uint8Array(length);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => chars[byte % chars.length]).join("");
-};
-
-/**
- * Extract subdomain from a hostname given a base domain
- */
-const extractSubdomain = (hostname: string, baseUrl: string): string | null => {
-  const baseDomain = new URL(baseUrl).hostname;
-  const cleanHostname = hostname.split(":")[0];
-  const cleanBaseDomain = baseDomain.split(":")[0];
-
-  if (!cleanHostname.endsWith(cleanBaseDomain)) {
-    return null;
-  }
-
-  if (cleanHostname === cleanBaseDomain) {
-    return null;
-  }
-
-  const subdomain = cleanHostname.slice(
-    0,
-    cleanHostname.length - cleanBaseDomain.length - 1
-  );
-
-  return subdomain || null;
 };
 
 /**
@@ -96,7 +100,7 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
           }),
         },
         async (ctx) => {
-          const { token, callbackURL = "/" } = ctx.query;
+          const { token } = ctx.query;
 
           const defaultErrorURL =
             ctx.context.options.onAPIError?.errorURL ||
@@ -123,30 +127,27 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
             throw ctx.redirect(`${defaultErrorURL}?error=token_expired`);
           }
 
-          let data: {
-            sessionToken: string;
-            userId: string;
-            subdomain: string;
-            callbackURL: string;
-          };
+          let parsedValue: unknown;
 
           try {
-            data = JSON.parse(verification.value);
+            parsedValue = JSON.parse(verification.value);
           } catch {
             ctx.context.logger.error("Failed to parse exchange token data");
             throw ctx.redirect(`${defaultErrorURL}?error=invalid_token_data`);
           }
 
-          const currentHost = ctx.headers?.get("host") || "";
-          const currentSubdomain = extractSubdomain(currentHost, baseUrl);
+          const validationResult =
+            verificationTokenDataSchema.safeParse(parsedValue);
 
-          if (currentSubdomain && currentSubdomain !== data.subdomain) {
-            ctx.context.logger.error("Subdomain mismatch", {
-              expected: data.subdomain,
-              actual: currentSubdomain,
-            });
-            throw ctx.redirect(`${defaultErrorURL}?error=subdomain_mismatch`);
+          if (!validationResult.success) {
+            ctx.context.logger.error(
+              "Invalid verification token data schema",
+              validationResult.error
+            );
+            throw ctx.redirect(`${defaultErrorURL}?error=invalid_token_data`);
           }
+
+          const data = validationResult.data;
 
           const sessionData = await ctx.context.internalAdapter.findSession(
             data.sessionToken
@@ -157,7 +158,10 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
             throw ctx.redirect(`${defaultErrorURL}?error=session_not_found`);
           }
 
-          const cookieDomain = `${data.subdomain}.${currentHost.split(":")[0]}`;
+          const parsedBaseUrl = new URL(baseUrl);
+          const baseDomain = parsedBaseUrl.hostname;
+
+          const cookieDomain = `${data.subdomain}.${baseDomain}`;
 
           await ctx.setSignedCookie(
             ctx.context.authCookies.sessionToken.name,
@@ -169,7 +173,7 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
             }
           );
 
-          throw ctx.redirect(data.callbackURL || callbackURL);
+          throw ctx.redirect(data.callbackURL);
         }
       ),
     },
@@ -189,6 +193,21 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
 
             if (!tenantSlug) {
               return;
+            }
+
+            const organization = Object.values(
+              await storage.find(schema.organization, {
+                where: {
+                  slug: tenantSlug,
+                },
+              })
+            )?.[0];
+
+            if (!organization) {
+              ctx.context.logger.error("Organization not found");
+              throw new APIError("BAD_REQUEST", {
+                message: "Organization not found",
+              });
             }
 
             const originalCallbackURL = ctx.body.callbackURL;
@@ -212,13 +231,24 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
 
             if (!oauthData) return;
 
-            const subdomain = oauthData._subdomainOrigin as string | undefined;
-            const originalCallbackURL =
-              (oauthData._originalCallbackURL as string | undefined) || "/";
+            const validationResult = oauthStateSchema.safeParse(oauthData);
+
+            if (!validationResult.success) {
+              ctx.context.logger.error(
+                "Invalid OAuth state data",
+                validationResult.error
+              );
+              return;
+            }
+
+            const { _subdomainOrigin: subdomain, _originalCallbackURL } =
+              validationResult.data;
 
             if (!subdomain) {
               return;
             }
+
+            const originalCallbackURL = _originalCallbackURL || "/";
 
             const setCookieHeader =
               ctx.context.responseHeaders?.get("set-cookie");
@@ -242,14 +272,27 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
 
             const expiresAt = new Date(Date.now() + tokenExpiresIn * 1000);
 
+            const verificationData = {
+              sessionToken: newSession.session.token,
+              userId: newSession.user.id,
+              subdomain,
+              callbackURL: originalCallbackURL,
+            };
+
+            const verificationValidationResult =
+              verificationTokenDataSchema.safeParse(verificationData);
+
+            if (!verificationValidationResult.success) {
+              ctx.context.logger.error(
+                "Invalid verification data before storage",
+                verificationValidationResult.error
+              );
+              return;
+            }
+
             await ctx.context.internalAdapter.createVerificationValue({
               identifier: `subdomain-exchange:${exchangeToken}`,
-              value: JSON.stringify({
-                sessionToken: newSession.session.token,
-                userId: newSession.user.id,
-                subdomain,
-                callbackURL: originalCallbackURL,
-              }),
+              value: JSON.stringify(verificationValidationResult.data),
               expiresAt,
             });
 

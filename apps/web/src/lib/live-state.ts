@@ -25,6 +25,7 @@ const { query, mutate } = store;
 
 export { client, mutate, query };
 
+// Check this setup when it's deployed
 export const fetchClient = createFetchClient<Router>({
   url: "/api/ls",
   schema,

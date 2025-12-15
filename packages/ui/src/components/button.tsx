@@ -1,8 +1,10 @@
 import { Slot } from "@radix-ui/react-slot";
+import { useKeybind } from "@workspace/ui/hooks/use-keybind";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import { SquareArrowOutUpRight } from "lucide-react";
 import * as React from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
@@ -35,58 +37,124 @@ const buttonVariants = cva(
   },
 );
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  externalLink = false,
-  children,
-  ...props
-}: React.ComponentProps<"button"> &
+type ButtonProps = React.ComponentProps<"button"> &
   VariantProps<typeof buttonVariants> & {
     asChild?: boolean;
     externalLink?: boolean;
-  }) {
-  const Comp = asChild ? Slot : "button";
+  };
 
-  if (asChild && externalLink) {
-    // When using asChild with externalLink, clone the child and add the icon
+const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
+  (
+    {
+      className,
+      variant,
+      size,
+      asChild = false,
+      externalLink = false,
+      children,
+      ...props
+    },
+    ref,
+  ) => {
+    const Comp = asChild ? Slot : "button";
+
+    if (asChild && externalLink) {
+      // When using asChild with externalLink, clone the child and add the icon
+      return (
+        <Comp
+          data-slot="button"
+          className={cn(buttonVariants({ variant, size, className }))}
+          ref={ref}
+          {...props}
+        >
+          {React.isValidElement(children)
+            ? React.cloneElement(
+                children,
+                {},
+                (children.props as { children?: React.ReactNode }).children,
+                <SquareArrowOutUpRight key="external-icon" />,
+              )
+            : children}
+        </Comp>
+      );
+    }
+
     return (
       <Comp
         data-slot="button"
         className={cn(buttonVariants({ variant, size, className }))}
+        ref={ref}
         {...props}
       >
-        {React.isValidElement(children)
-          ? React.cloneElement(
-              children,
-              {},
-              (children.props as { children?: React.ReactNode }).children,
-              <SquareArrowOutUpRight key="external-icon" />,
-            )
-          : children}
+        {externalLink ? (
+          <>
+            {children}
+            <SquareArrowOutUpRight aria-hidden="true" />
+            <span className="sr-only">(opens in new window)</span>
+          </>
+        ) : (
+          children
+        )}
       </Comp>
     );
-  }
+  },
+);
 
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    >
-      {externalLink ? (
-        <>
-          {children}
-          <SquareArrowOutUpRight aria-hidden="true" />
-          <span className="sr-only">(opens in new window)</span>
-        </>
-      ) : (
-        children
-      )}
-    </Comp>
-  );
-}
+Button.displayName = "Button";
 
-export { Button, buttonVariants };
+type ActionButtonProps = ButtonProps & {
+  tooltip?: string;
+  keybind?: string;
+};
+
+const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
+  (
+    { tooltip, keybind, children, disabled, onClick, ...props },
+    forwardedRef,
+  ) => {
+    const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+    const handleKeybind = React.useCallback(() => {
+      if (buttonRef.current && !disabled) {
+        buttonRef.current.click();
+      }
+    }, [disabled]);
+
+    useKeybind(keybind ?? "", handleKeybind, [disabled], {
+      enabled: Boolean(keybind) && !disabled,
+    });
+
+    const setRefs = React.useCallback(
+      (node: HTMLButtonElement | null) => {
+        buttonRef.current = node;
+        if (typeof forwardedRef === "function") {
+          forwardedRef(node);
+        } else if (forwardedRef) {
+          forwardedRef.current = node;
+        }
+      },
+      [forwardedRef],
+    );
+
+    const button = (
+      <Button ref={setRefs} disabled={disabled} onClick={onClick} {...props}>
+        {children}
+      </Button>
+    );
+
+    if (tooltip) {
+      return (
+        <Tooltip>
+          <TooltipTrigger render={button} />
+          <TooltipContent keybind={keybind}>{tooltip}</TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return button;
+  },
+);
+
+ActionButton.displayName = "ActionButton";
+
+export { ActionButton, Button, buttonVariants };
