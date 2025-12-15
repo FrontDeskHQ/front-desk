@@ -577,163 +577,27 @@ function RouteComponent() {
                   }
                 />
 
-                    mutate.thread.update(id, {
-                      priority: newPriority,
-                    });
-
-                    mutate.update.insert({
-                      id: ulid().toLowerCase(),
-                      threadId: id,
-                      type: "priority_changed",
-                      createdAt: new Date(),
-                      userId: user.id,
-                      metadataStr: JSON.stringify({
-                        oldPriority,
-                        newPriority,
-                        oldPriorityLabel,
-                        newPriorityLabel,
-                        userName: user.name,
-                      }),
-                      replicatedStr: JSON.stringify({}),
-                    });
-                  }}
-                >
-                  <ComboboxTrigger
-                    variant="unstyled"
-                    render={
-                      <TooltipTrigger
-                        render={
-                          <SidebarMenuButton
-                            size="sm"
-                            className="text-sm px-1.5 max-w-40 py-1"
-                          >
-                            <PriorityIndicator
-                              priority={thread?.priority ?? 0}
-                            />
-                            <PriorityText priority={thread?.priority ?? 0} />
-                          </SidebarMenuButton>
-                        }
-                      />
-                    }
-                  />
-
-                  <ComboboxContent className="w-48">
-                    <ComboboxInput placeholder="Search..." />
-                    <ComboboxEmpty />
-                    <ComboboxList>
-                      {(item: BaseItem) => (
-                        <ComboboxItem key={item.value} value={item.value}>
-                          <PriorityIndicator priority={+item.value} />
-                          {item.label}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                <TooltipContent>
-                  Change priority
-                  {/* TODO add keyboard shortcut */}
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <Combobox
-                  items={[
-                    {
-                      value: null,
-                      label: "Unassigned",
-                    },
-                    ...(organizationUsers?.map((user) => ({
-                      value: user.userId,
-                      label: user.user.name,
-                    })) ?? []),
-                  ]}
-                  value={thread?.assignedUser?.id}
-                  onValueChange={(value) => {
-                    const oldAssignedUserId = thread?.assignedUser?.id ?? null;
-                    const oldAssignedUserName =
-                      thread?.assignedUser?.name ?? null;
-                    const newAssignedUserId = value;
-                    const newAssignedUser = organizationUsers?.find(
-                      (ou) => ou.userId === value
-                    );
-                    const newAssignedUserName =
-                      newAssignedUser?.user.name ?? null;
-
-                    mutate.thread.update(id, {
-                      assignedUserId: value,
-                    });
-
-                    mutate.update.insert({
-                      id: ulid().toLowerCase(),
-                      threadId: id,
-                      userId: user.id,
-                      type: "assigned_changed",
-                      createdAt: new Date(),
-                      metadataStr: JSON.stringify({
-                        oldAssignedUserId,
-                        newAssignedUserId,
-                        oldAssignedUserName,
-                        newAssignedUserName,
-                        userName: user.name,
-                      }),
-                      replicatedStr: JSON.stringify({}),
-                    });
-                  }}
-                >
-                  <ComboboxTrigger
-                    variant="unstyled"
-                    render={
-                      <TooltipTrigger
-                        render={
-                          <SidebarMenuButton
-                            size="sm"
-                            className={cn(
-                              "text-sm px-1.5 max-w-40 py-1 text-muted-foreground",
-                              thread?.assignedUser?.name && "text-primary"
-                            )}
-                          >
-                            {thread?.assignedUser ? (
-                              <Avatar
-                                variant="user"
-                                size="md"
-                                fallback={thread?.assignedUser.name}
-                              />
-                            ) : (
-                              <CircleUser className="mx-0.5" />
-                            )}
-                            {thread?.assignedUser?.name ?? "Unassigned"}
-                          </SidebarMenuButton>
-                        }
-                      />
-                    }
-                  />
-
-                  <ComboboxContent className="w-48">
-                    <ComboboxInput placeholder="Search..." />
-                    <ComboboxEmpty />
-                    <ComboboxList>
-                      {(item: BaseItem) => (
-                        <ComboboxItem key={item.value} value={item.value}>
-                          {item.value ? (
-                            <Avatar
-                              variant="user"
-                              size="md"
-                              fallback={item.label}
-                            />
-                          ) : (
-                            <CircleUser className="mx-0.5" />
-                          )}
-                          {item.label}
-                        </ComboboxItem>
-                      )}
-                    </ComboboxList>
-                  </ComboboxContent>
-                </Combobox>
-                <TooltipContent>
-                  Assign to
-                  {/* TODO add keyboard shortcut */}
-                </TooltipContent>
-              </Tooltip>
+                <ComboboxContent className="w-48">
+                  <ComboboxInput placeholder="Search..." />
+                  <ComboboxEmpty />
+                  <ComboboxList>
+                    {(item: BaseItem) => (
+                      <ComboboxItem key={item.value} value={item.value}>
+                        {item.value ? (
+                          <Avatar
+                            variant="user"
+                            size="md"
+                            fallback={item.label}
+                          />
+                        ) : (
+                          <CircleUser className="mx-0.5" />
+                        )}
+                        {item.label}
+                      </ComboboxItem>
+                    )}
+                  </ComboboxList>
+                </ComboboxContent>
+              </Combobox>
             </div>
           </div>
         </TooltipProvider>

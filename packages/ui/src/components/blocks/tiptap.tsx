@@ -194,18 +194,11 @@ export function EditorInput({
           className="customProse max-h-96 overflow-y-auto placeholder:text-muted-foreground"
         />
         {children && <div className="flex justify-end">{children}</div>}
+      </div>
       <BubbleMenu
         className="bg-[#1B1B1E] border rounded-sm shadow"
         editor={editor}
       >
-        <EditorContent
-          editor={editor}
-          className="customProse max-h-96 overflow-y-auto placeholder:text-muted-foreground"
-        />
-        <BubbleMenu
-          className="bg-[#1B1B1E] border rounded-sm shadow"
-          editor={editor}
-        >
           <TooltipProvider timeout={500}>
             <div ref={containerRef} className="flex items-center">
               <DropdownMenu>
@@ -223,15 +216,6 @@ export function EditorInput({
                   className="bg-[#1B1B1E] border rounded-sm shadow"
                   side="top"
                 >
-                  <ALargeSmall className="size-5.5" />
-                  <ChevronDown className="size-3" />
-                </Toggle>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent
-                portalProps={{ container: containerRef.current }}
-                className="bg-[#1B1B1E] border rounded-sm shadow"
-                side="top"
-              >
                 <DropdownMenuRadioGroup
                   value={
                     editor.isActive("paragraph")
@@ -253,27 +237,13 @@ export function EditorInput({
                         .focus()
                         .setHeading({
                           level: parseInt(
-                            value.replace("heading-", "")
+                            value.replace("heading-", ""),
                           ) as Level,
                         })
                         .run();
                     }
-                    onValueChange={(value) => {
-                      if (value === "paragraph") {
-                        editor.chain().focus().setParagraph().run();
-                      } else {
-                        editor
-                          .chain()
-                          .focus()
-                          .setHeading({
-                            level: parseInt(
-                              value.replace("heading-", ""),
-                            ) as Level,
-                          })
-                          .run();
-                      }
-                    }}
-                  >
+                  }}
+                >
                     <DropdownMenuRadioItem value={"paragraph"}>
                       Regular
                     </DropdownMenuRadioItem>
@@ -427,7 +397,6 @@ export function EditorInput({
           </div>
         </TooltipProvider>
       </BubbleMenu>
-      </div>
     </EditorContext.Provider>
   );
 }
