@@ -92,6 +92,16 @@
       c h
   );
 
+  /* Label colors */
+  --label-color-red: oklch(0.55 0.18 0);
+  --label-color-orange: oklch(0.55 0.18 75);
+  --label-color-yellow: oklch(0.55 0.18 100);
+  --label-color-green: oklch(0.55 0.18 145);
+  --label-color-teal: oklch(0.55 0.18 185);
+  --label-color-blue: oklch(0.55 0.18 240);
+  --label-color-purple: oklch(0.55 0.18 310);
+  --label-color-pink: oklch(0.55 0.18 350);
+
   /* TODO remove these variables and use the new ones */
   --radius: 0.625rem;
   --background: oklch(1 0 0);
@@ -133,6 +143,16 @@
   --step-multiplier: 1;
   --foreground-multiplier: 1;
   --background-multiplier: 1;
+
+  /* Label colors */
+  --label-color-red: oklch(0.653 0.18 21.3);
+  --label-color-orange: oklch(0.653 0.18 75);
+  --label-color-yellow: oklch(0.653 0.18 100);
+  --label-color-green: oklch(0.653 0.21 145);
+  --label-color-teal: oklch(0.653 0.18 185);
+  --label-color-blue: oklch(0.653 0.18 240);
+  --label-color-purple: oklch(0.653 0.18 310);
+  --label-color-pink: oklch(0.653 0.18 350);
 
   /* TODO remove these variables and use the new ones */
 

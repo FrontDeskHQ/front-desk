@@ -21,6 +21,7 @@ import {
   StatusIndicator,
   statusValues,
 } from "@workspace/ui/components/indicator";
+import { LabelBadge } from "@workspace/ui/components/label-badge";
 import {
   Popover,
   PopoverContent,
@@ -76,7 +77,7 @@ function RouteComponent() {
   const organization = useLiveQuery(
     query.organization
       .where({ id: currentOrg?.id })
-      .include({ threads: true, integrations: true })
+      .include({ threads: true, integrations: true }),
   )?.[0];
 
   const hasIntegrations = (organization?.integrations?.length ?? 0) > 0;
@@ -84,7 +85,7 @@ function RouteComponent() {
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: organization?.id })
-      .include({ user: true })
+      .include({ user: true }),
   );
 
   const [filter, setFilter] = useState<FilterValue>({});
@@ -106,8 +107,8 @@ function RouteComponent() {
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
     threadsQuery = threadsQuery.where(
       Object.fromEntries(
-        Object.entries(filter).map(([key, values]) => [key, { $in: values }])
-      )
+        Object.entries(filter).map(([key, values]) => [key, { $in: values }]),
+      ),
     );
   }
 
@@ -155,11 +156,18 @@ function RouteComponent() {
 
   const threads = useLiveQuery(
     threadsQuery
-      .include({ messages: { author: true }, author: true, assignedUser: true })
+      .include({
+        messages: { author: true },
+        author: true,
+        assignedUser: true,
+        labels: {
+          label: true,
+        },
+      })
       .orderBy(
         orderBy as keyof InferLiveObject<typeof schema.thread>,
-        orderDirection
-      )
+        orderDirection,
+      ),
   );
 
   if (!organization) {
@@ -217,7 +225,7 @@ function RouteComponent() {
                         size="sm"
                         onClick={() =>
                           setOrderDirection(
-                            orderDirection === "asc" ? "desc" : "asc"
+                            orderDirection === "asc" ? "desc" : "asc",
                           )
                         }
                         className="size-8"
@@ -277,6 +285,17 @@ function RouteComponent() {
                 <div>{thread?.name}</div>
               </div>
               <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 mr-1">
+                  {thread?.labels
+                    ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
+                    .map((threadLabel) => (
+                      <LabelBadge
+                        key={threadLabel.label.id}
+                        name={threadLabel.label.name}
+                        color={threadLabel.label.color}
+                      />
+                    ))}
+                </div>
                 {thread?.assignedUserId ? (
                   <Avatar
                     variant="user"
@@ -303,8 +322,8 @@ function RouteComponent() {
                   {getFirstTextContent(
                     safeParseJSON(
                       thread?.messages?.[thread?.messages?.length - 1]
-                        ?.content ?? ""
-                    )
+                        ?.content ?? "",
+                    ),
                   )}
                 </span>
               </span>

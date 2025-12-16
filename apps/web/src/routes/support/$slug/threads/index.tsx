@@ -12,6 +12,7 @@ import {
   PriorityIndicator,
   StatusIndicator,
 } from "@workspace/ui/components/indicator";
+import { LabelBadge } from "@workspace/ui/components/label-badge";
 import {
   Pagination,
   PaginationContent,
@@ -81,7 +82,14 @@ export const Route = createFileRoute("/support/$slug/threads/")({
         organizationId: organization.id,
         deletedAt: { $eq: null },
       })
-      .include({ messages: { author: true }, author: true, assignedUser: true })
+      .include({
+        messages: { author: true },
+        author: true,
+        assignedUser: true,
+        labels: {
+          label: true,
+        },
+      })
       .get();
 
     return {
@@ -293,6 +301,17 @@ function RouteComponent() {
                     <div>{thread?.name}</div>
                   </div>
                   <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 mr-1">
+                      {thread?.labels
+                        ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
+                        .map((threadLabel) => (
+                          <LabelBadge
+                            key={threadLabel.label.id}
+                            name={threadLabel.label?.name}
+                            color={threadLabel.label?.color}
+                          />
+                        ))}
+                    </div>
                     <PriorityIndicator
                       priority={(thread as any)?.priority ?? 0}
                     />

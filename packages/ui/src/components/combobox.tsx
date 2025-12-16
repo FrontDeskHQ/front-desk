@@ -1,11 +1,18 @@
-import { Combobox as ComboboxPrimitive } from "@base-ui-components/react/combobox";
+import {
+  Combobox as ComboboxPrimitive,
+  ComboboxRootProps,
+} from "@base-ui-components/react/combobox";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, VariantProps } from "class-variance-authority";
-import { CheckIcon, ChevronsUpDown, XIcon } from "lucide-react";
+import { cva, type VariantProps } from "class-variance-authority";
+import { CheckIcon, ChevronsUpDown, PlusIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 import { KeybindIsolation } from "./keybind";
 
-export const Combobox = ComboboxPrimitive.Root;
+export function Combobox<T, Multiple extends boolean | undefined = false>({
+  ...props
+}: ComboboxRootProps<T, Multiple>) {
+  return <ComboboxPrimitive.Root autoHighlight {...props} />;
+}
 
 const triggerVariants = cva("", {
   variants: {
@@ -41,11 +48,22 @@ export const ComboboxTrigger = ({
 
 export const ComboboxContent = ({
   className,
+  align = "start",
+  sideOffset = 4,
+  side,
   ...props
-}: React.ComponentProps<typeof ComboboxPrimitive.Popup>) => {
+}: React.ComponentProps<typeof ComboboxPrimitive.Popup> &
+  Pick<
+    React.ComponentProps<typeof ComboboxPrimitive.Positioner>,
+    "align" | "sideOffset" | "side"
+  >) => {
   return (
     <ComboboxPrimitive.Portal>
-      <ComboboxPrimitive.Positioner align="start" sideOffset={4}>
+      <ComboboxPrimitive.Positioner
+        align={align}
+        sideOffset={sideOffset}
+        side={side}
+      >
         <ComboboxPrimitive.Popup
           className={cn(
             "bg-popover text-popover-foreground flex flex-col h-full w-full overflow-hidden rounded-md origin-[var(--transform-origin)] max-w-[min(--spacing(100),var(--available-width))] max-h-[min(24rem,var(--available-height))] transition-[transform,scale,opacity] data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 duration-100 border",
@@ -115,9 +133,65 @@ export const ComboboxItem = ({
   );
 };
 
+export const ComboboxCreatableItem = ({
+  className,
+  children,
+  creatable,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Item> & {
+  creatable?: string;
+}) => {
+  return (
+    <ComboboxPrimitive.Item
+      className={cn(
+        "flex cursor-default select-none items-center rounded-md px-3 py-1.5 text-sm outline-none transition-colors data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground disabled:pointer-events-none disabled:opacity-50 [&_svg:not([class*='text-'])]:text-muted-foreground [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4 gap-2",
+        className,
+      )}
+      {...props}
+    >
+      <PlusIcon className="size-4" />
+      {children}
+    </ComboboxPrimitive.Item>
+  );
+};
+
 export type BaseItem<T = string> = {
   value: T;
   label: string;
+  creatable?: string;
+};
+
+export const prepareCreatableItems = <T extends BaseItem>(
+  items: T[],
+  query: string,
+  creatable?: boolean,
+): T[] => {
+  if (!creatable) {
+    return items;
+  }
+
+  const trimmed = query.trim();
+  if (trimmed === "") {
+    return items;
+  }
+
+  const normalized = trimmed.toLocaleLowerCase();
+  const exactExists = items.some(
+    (item) => item.label.trim().toLocaleLowerCase() === normalized,
+  );
+
+  if (exactExists) {
+    return items;
+  }
+
+  return [
+    ...items,
+    {
+      value: `create:${normalized}` as T["value"],
+      label: `Create "${trimmed}"`,
+      creatable: trimmed,
+    } as T,
+  ];
 };
 
 export const ComboboxTextInput = ({
