@@ -34,9 +34,6 @@ export const Route = createFileRoute("/api/$")({
       HEAD: async ({ request, params }) => {
         return handleProxy(request, params);
       },
-      ALL: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
     },
   },
 });

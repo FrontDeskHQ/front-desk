@@ -141,7 +141,7 @@ function RouteComponent() {
   });
 
   const nonPersistentIsDirty = useStore(store, (s) => {
-    return Object.values(s.fieldMeta).some((field) => !field.isDefaultValue);
+    return Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue);
   });
 
   if (!org) return null;
