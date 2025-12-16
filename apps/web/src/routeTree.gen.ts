@@ -46,7 +46,9 @@ import { Route as AppWorkspaceMainThreadsIdRouteImport } from './routes/app/_wor
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
 import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
 import { Route as AppWorkspaceMainThreadsArchiveIdRouteImport } from './routes/app/_workspace/_main/threads/archive/$id'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/slack/index'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/slack/redirect'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/redirect'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -246,10 +248,22 @@ const AppWorkspaceMainThreadsArchiveIdRoute =
     path: '/threads/archive/$id',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute =
+  AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport.update({
+    id: '/organization/integration/slack/',
+    path: '/organization/integration/slack/',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport.update({
     id: '/organization/integration/discord/',
     path: '/organization/integration/discord/',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
+const AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute =
+  AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport.update({
+    id: '/organization/integration/slack/redirect',
+    path: '/organization/integration/slack/redirect',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
@@ -295,7 +309,9 @@ export interface FileRoutesByFullPath {
   '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  '/app/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  '/app/settings/organization/integration/slack': typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
@@ -330,7 +346,9 @@ export interface FileRoutesByTo {
   '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
   '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  '/app/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  '/app/settings/organization/integration/slack': typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -372,7 +390,9 @@ export interface FileRoutesById {
   '/app/_workspace/_main/threads/archive/': typeof AppWorkspaceMainThreadsArchiveIndexRoute
   '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/_workspace/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  '/app/_workspace/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
   '/app/_workspace/settings/organization/integration/discord/': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  '/app/_workspace/settings/organization/integration/slack/': typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -412,7 +432,9 @@ export interface FileRouteTypes {
     | '/app/threads/archive'
     | '/app/settings/organization/integration'
     | '/app/settings/organization/integration/discord/redirect'
+    | '/app/settings/organization/integration/slack/redirect'
     | '/app/settings/organization/integration/discord'
+    | '/app/settings/organization/integration/slack'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
@@ -447,7 +469,9 @@ export interface FileRouteTypes {
     | '/app/threads/archive'
     | '/app/settings/organization/integration'
     | '/app/settings/organization/integration/discord/redirect'
+    | '/app/settings/organization/integration/slack/redirect'
     | '/app/settings/organization/integration/discord'
+    | '/app/settings/organization/integration/slack'
   id:
     | '__root__'
     | '/_public'
@@ -488,7 +512,9 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/threads/archive/'
     | '/app/_workspace/settings/organization/integration/'
     | '/app/_workspace/settings/organization/integration/discord/redirect'
+    | '/app/_workspace/settings/organization/integration/slack/redirect'
     | '/app/_workspace/settings/organization/integration/discord/'
+    | '/app/_workspace/settings/organization/integration/slack/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -764,11 +790,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIdRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/settings/organization/integration/slack/': {
+      id: '/app/_workspace/settings/organization/integration/slack/'
+      path: '/organization/integration/slack'
+      fullPath: '/app/settings/organization/integration/slack'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
     '/app/_workspace/settings/organization/integration/discord/': {
       id: '/app/_workspace/settings/organization/integration/discord/'
       path: '/organization/integration/discord'
       fullPath: '/app/settings/organization/integration/discord'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
+    '/app/_workspace/settings/organization/integration/slack/redirect': {
+      id: '/app/_workspace/settings/organization/integration/slack/redirect'
+      path: '/organization/integration/slack/redirect'
+      fullPath: '/app/settings/organization/integration/slack/redirect'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
     '/app/_workspace/settings/organization/integration/discord/redirect': {
@@ -830,7 +870,9 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
   AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
   AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 
 const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
@@ -849,8 +891,12 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
       AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
     AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute:
       AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute,
+    AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute:
+      AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute,
     AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute:
       AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute,
+    AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute,
   }
 
 const AppWorkspaceSettingsRouteRouteWithChildren =
