@@ -174,7 +174,7 @@ export function LabelsSection({ threadId }: { threadId: string }) {
                 size="sm"
                 variant="ghost"
                 className={cn(
-                  "text-sm px-0 w-full py-1 max-w-40",
+                  "justify-start text-sm px-2 w-full py-1 max-w-40 has-[>svg]:px-2",
                   activeLabels?.length &&
                     "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent",
                 )}
