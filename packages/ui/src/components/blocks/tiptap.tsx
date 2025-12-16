@@ -98,9 +98,11 @@ export function Editor({
 export function EditorSubmit({
   disabled,
   handleSubmit,
+  children,
 }: {
   disabled?: boolean;
   handleSubmit?: () => void;
+  children?: React.ReactNode;
 }) {
   const context = useEditorContext();
   const isDisabled = disabled ?? context.disableSend;
@@ -113,8 +115,12 @@ export function EditorSubmit({
       onClick={onClick}
       disabled={isDisabled}
     >
-      <ArrowUp />
-      Reply
+      {children ?? (
+        <>
+          <ArrowUp />
+          Reply
+        </>
+      )}
     </Button>
   );
 }

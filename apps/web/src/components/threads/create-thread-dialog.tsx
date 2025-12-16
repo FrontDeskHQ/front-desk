@@ -89,10 +89,10 @@ export function CreateThreadDialog({
     setError(null);
 
     try {
-      const thread = await fetchClient.mutate.thread.createFromPortal({
+      const thread = await fetchClient.mutate.thread.create({
         organizationId: organization.id,
         title: threadTitle.trim(),
-        content: threadContent,
+        message: threadContent,
         userId: user.id,
         userName: user.name,
       });
@@ -136,7 +136,7 @@ export function CreateThreadDialog({
                 portalAuthClient.signIn.social({
                   provider: "google",
                   additionalData: { tenantSlug: organization.slug },
-                  callbackURL: window.location.origin,
+                  callbackURL: window.location.href,
                 })
               }
             >

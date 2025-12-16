@@ -36,7 +36,6 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
-import { ulid } from "ulid";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -215,7 +214,7 @@ function RouteComponent() {
 
                   if (!user) return;
 
-                  await fetchClient.mutate.message.createFromPortal({
+                  await fetchClient.mutate.message.create({
                     threadId: thread.id,
                     content: value,
                     userId: user.id,

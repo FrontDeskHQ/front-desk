@@ -428,18 +428,28 @@ export const router = createRouter({
         create: mutation(
           z.object({
             organizationId: z.string().optional(),
-            title: z.string(),
-            message: z.string(),
-            author: z.object({
-              id: z.string(),
-              name: z.string(),
-            }),
+            title: z.string().min(3),
+            message: z.union([z.string(), z.any()]), // Accept string or TipTap JSONContent
+            author: z
+              .object({
+                id: z.string(),
+                name: z.string(),
+              })
+              .optional(), // Optional - can be inferred from session
+            userId: z.string().optional(), // For portal sessions
+            userName: z.string().optional(), // For portal sessions
           })
         ).handler(async ({ req, db }) => {
-          if (!req.context?.internalApiKey && !req.context?.publicApiKey) {
+          // Support internal API key, public API key, or portal session
+          if (
+            !req.context?.internalApiKey &&
+            !req.context?.publicApiKey &&
+            !req.context?.portalSession?.session
+          ) {
             throw new Error("UNAUTHORIZED");
           }
 
+          // Determine organization ID
           const organizationId =
             req.context?.publicApiKey?.ownerId ?? req.input.organizationId;
 
@@ -447,125 +457,97 @@ export const router = createRouter({
             throw new Error("MISSING_ORGANIZATION_ID");
           }
 
-          const existingAuthor = Object.values(
-            await db.find(schema.author, {
-              where: {
-                metaId: req.input.author.id,
-                organizationId: organizationId,
-              },
-            })
-          );
-
-          const threadId = ulid().toLowerCase();
-
-          await db.transaction(async ({ trx }) => {
-            let authorId = existingAuthor[0]?.id;
-
-            if (!authorId) {
-              authorId = ulid().toLowerCase();
-
-              await trx.insert(schema.author, {
-                id: authorId,
-                name: req.input.author.name,
-                organizationId: organizationId,
-                metaId: req.input.author.id,
-                userId: null,
-              });
+          // For portal sessions, verify the user matches
+          if (req.context?.portalSession?.session) {
+            const sessionUserId = req.context.portalSession.session.userId;
+            if (req.input.userId && req.input.userId !== sessionUserId) {
+              throw new Error("UNAUTHORIZED");
             }
-
-            await trx.insert(schema.thread, {
-              id: threadId,
-              name: req.input.title,
-              authorId: authorId,
-              organizationId: organizationId,
-              createdAt: new Date(),
-              deletedAt: null,
-              discordChannelId: null,
-              assignedUserId: null,
-            });
-
-            await trx.insert(schema.message, {
-              id: ulid().toLowerCase(),
-              authorId: authorId,
-              content: JSON.stringify([
-                {
-                  type: "paragraph",
-                  content: [{ type: "text", text: req.input.message }],
-                },
-              ]),
-              threadId,
-              createdAt: new Date(),
-              origin: null,
-              externalMessageId: null,
-            });
-          });
-
-          const thread = Object.values(
-            await db.find(schema.thread, {
-              where: { id: threadId },
-              include: {
-                author: true,
-                messages: {
-                  author: true,
-                },
-              },
-            })
-          )[0];
-
-          return thread;
-        }),
-        createFromPortal: mutation(
-          z.object({
-            organizationId: z.string(),
-            title: z.string().min(3),
-            content: z.any(), // JSONContent from TipTap
-            userId: z.string(),
-            userName: z.string(),
-          })
-        ).handler(async ({ req, db }) => {
-          if (!req.context?.portalSession?.session) {
-            throw new Error("UNAUTHORIZED");
           }
 
-          // Verify the user matches the portal session
-          if (req.context.portalSession?.session.userId !== req.input.userId) {
-            throw new Error("UNAUTHORIZED");
-          }
+          // Convert string message to TipTap format if needed
+          const content =
+            typeof req.input.message === "string"
+              ? JSON.stringify([
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: req.input.message }],
+                  },
+                ])
+              : JSON.stringify(req.input.message);
 
           const threadId = ulid().toLowerCase();
 
           await db.transaction(async ({ trx }) => {
-            // Get or create author
-            const existingAuthor = Object.values(
-              await trx.find(schema.author, {
-                where: {
-                  userId: req.input.userId,
-                  organizationId: req.input.organizationId,
-                },
-              })
-            );
+            let authorId: string;
 
-            let authorId = existingAuthor[0]?.id;
+            // Determine author based on context
+            if (req.input.userId || req.context?.portalSession?.session) {
+              // Portal session flow - use userId
+              const userId =
+                req.input.userId ??
+                req.context?.portalSession?.session.userId;
+              const userName =
+                req.input.userName ??
+                req.context?.portalSession?.session.userName ??
+                "Unknown User";
 
-            if (!authorId) {
-              authorId = ulid().toLowerCase();
-              await trx.insert(schema.author, {
-                id: authorId,
-                userId: req.input.userId,
-                metaId: null,
-                name: req.input.userName,
-                organizationId: req.input.organizationId,
-              });
+              const existingAuthor = Object.values(
+                await trx.find(schema.author, {
+                  where: {
+                    userId: userId,
+                    organizationId: organizationId,
+                  },
+                })
+              );
+
+              authorId = existingAuthor[0]?.id;
+
+              if (!authorId) {
+                authorId = ulid().toLowerCase();
+                await trx.insert(schema.author, {
+                  id: authorId,
+                  userId: userId,
+                  metaId: null,
+                  name: userName,
+                  organizationId: organizationId,
+                });
+              }
+            } else if (req.input.author) {
+              // API key flow - use metaId
+              const existingAuthor = Object.values(
+                await trx.find(schema.author, {
+                  where: {
+                    metaId: req.input.author.id,
+                    organizationId: organizationId,
+                  },
+                })
+              );
+
+              authorId = existingAuthor[0]?.id;
+
+              if (!authorId) {
+                authorId = ulid().toLowerCase();
+                await trx.insert(schema.author, {
+                  id: authorId,
+                  name: req.input.author.name,
+                  organizationId: organizationId,
+                  metaId: req.input.author.id,
+                  userId: null,
+                });
+              }
+            } else {
+              throw new Error("MISSING_AUTHOR_INFO");
             }
 
             // Create thread
             await trx.insert(schema.thread, {
               id: threadId,
               name: req.input.title,
-              organizationId: req.input.organizationId,
+              organizationId: organizationId,
               authorId: authorId,
-              status: 0, // Open status
-              priority: 0, // Normal priority
+              status: 0,
+              priority: 0,
               assignedUserId: null,
               createdAt: new Date(),
               deletedAt: null,
@@ -576,7 +558,7 @@ export const router = createRouter({
             await trx.insert(schema.message, {
               id: ulid().toLowerCase(),
               authorId: authorId,
-              content: JSON.stringify(req.input.content),
+              content: content,
               threadId: threadId,
               createdAt: new Date(),
               origin: null,
@@ -621,7 +603,8 @@ export const router = createRouter({
             thread: {
               organization: {
                 organizationUsers: {
-                  userId: ctx.session?.userId ?? ctx.portalSession?.session.userId,
+                  userId:
+                    ctx.session?.userId ?? ctx.portalSession?.session.userId,
                   enabled: true,
                 },
               },
@@ -634,32 +617,64 @@ export const router = createRouter({
         },
       })
       .withMutations(({ mutation }) => ({
-        createFromPortal: mutation(
+        create: mutation(
           z.object({
             threadId: z.string(),
-            content: z.any(), // JSONContent from TipTap
-            userId: z.string(),
-            userName: z.string(),
+            content: z.union([z.string(), z.any()]), // Accept string or TipTap JSONContent
+            userId: z.string().optional(),
+            userName: z.string().optional(),
             organizationId: z.string(),
           })
         ).handler(async ({ req, db }) => {
-          if (!req.context?.portalSession?.session) {
+          // Support portal session or internal API key
+          if (
+            !req.context?.portalSession?.session &&
+            !req.context?.internalApiKey
+          ) {
             throw new Error("UNAUTHORIZED");
           }
 
-          // Verify the user matches the portal session
-          if (req.context.portalSession?.session.userId !== req.input.userId) {
-            throw new Error("UNAUTHORIZED");
+          // For portal sessions, verify the user matches
+          if (req.context?.portalSession?.session) {
+            const sessionUserId = req.context.portalSession.session.userId;
+            if (req.input.userId && req.input.userId !== sessionUserId) {
+              throw new Error("UNAUTHORIZED");
+            }
           }
+
+          // Verify thread exists and belongs to the expected organization
+          const thread = await db.findOne(schema.thread, req.input.threadId);
+          if (!thread || thread.organizationId !== req.input.organizationId) {
+            throw new Error("THREAD_NOT_FOUND");
+          }
+
+          // Convert string content to TipTap format if needed
+          const content =
+            typeof req.input.content === "string"
+              ? JSON.stringify([
+                  {
+                    type: "paragraph",
+                    content: [{ type: "text", text: req.input.content }],
+                  },
+                ])
+              : JSON.stringify(req.input.content);
 
           const messageId = ulid().toLowerCase();
 
           await db.transaction(async ({ trx }) => {
             // Get or create author
+            const userId =
+              req.input.userId ??
+              req.context?.portalSession?.session.userId;
+            const userName =
+              req.input.userName ??
+              req.context?.portalSession?.session.userName ??
+              "Unknown User";
+
             const existingAuthor = Object.values(
               await trx.find(schema.author, {
                 where: {
-                  userId: req.input.userId,
+                  userId: userId,
                   organizationId: req.input.organizationId,
                 },
               })
@@ -671,9 +686,9 @@ export const router = createRouter({
               authorId = ulid().toLowerCase();
               await trx.insert(schema.author, {
                 id: authorId,
-                userId: req.input.userId,
+                userId: userId,
                 metaId: null,
-                name: req.input.userName,
+                name: userName,
                 organizationId: req.input.organizationId,
               });
             }
@@ -682,7 +697,7 @@ export const router = createRouter({
             await trx.insert(schema.message, {
               id: messageId,
               authorId: authorId,
-              content: JSON.stringify(req.input.content),
+              content: content,
               threadId: req.input.threadId,
               createdAt: new Date(),
               origin: null,
