@@ -18,7 +18,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import type { schema } from "api/schema";
-import { MessageSquarePlus, X } from "lucide-react";
+import { PlusIcon, X } from "lucide-react";
 import { useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
@@ -117,9 +117,9 @@ export function CreateThreadDialog({
       <Dialog open={open} onOpenChange={handleOpenChange}>
         <DialogTrigger asChild>
           {trigger ?? (
-            <Button>
-              <MessageSquarePlus />
-              Create Thread
+            <Button size="sm">
+              <PlusIcon />
+              Create thread
             </Button>
           )}
         </DialogTrigger>
@@ -152,9 +152,9 @@ export function CreateThreadDialog({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         {trigger ?? (
-          <Button>
-            <MessageSquarePlus />
-            Create Thread
+          <Button size="sm">
+            <PlusIcon />
+            Create thread
           </Button>
         )}
       </DialogTrigger>

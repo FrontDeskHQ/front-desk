@@ -10,16 +10,21 @@ import {
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
+import { ButtonGroup } from "@workspace/ui/components/button-group";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Logo } from "@workspace/ui/components/logo";
 import { Navbar } from "@workspace/ui/components/navbar";
 import type { schema } from "api/schema";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { useEffect } from "react";
+import { CreateThreadDialog } from "~/components/threads/create-thread-dialog";
 import { reflagClient } from "~/lib/feature-flag";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
@@ -139,18 +144,55 @@ export const Route = createFileRoute("/support/$slug")({
               </Navbar.LinkGroup>
             </Navbar.Group>
             <Navbar.Group>
-              {discordUrl && (
-                <Button variant="link" size="sm" asChild>
-                  <a
-                    href={discordUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
+              <ButtonGroup>
+                {portalSession?.user ? (
+                  <CreateThreadDialog
+                    organization={organization}
+                    portalSession={portalSession}
+                  />
+                ) : (
+                  <Button
+                    variant="default"
+                    size="sm"
+                    onClick={() =>
+                      portalAuthClient.signIn.social({
+                        provider: "google",
+                        additionalData: { tenantSlug: organization.slug },
+                        callbackURL: window.location.origin,
+                      })
+                    }
                   >
-                    Discord
-                  </a>
-                </Button>
-              )}
-              {portalSession?.user ? (
+                    Sign in
+                  </Button>
+                )}
+                {!!discordUrl && (
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button size="icon-sm" aria-label="More Options">
+                        <ChevronDown />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-52">
+                      <DropdownMenuGroup>
+                        <DropdownMenuLabel className="text-xs text-foreground-secondary">
+                          Join us
+                        </DropdownMenuLabel>
+                        <DropdownMenuItem asChild>
+                          <a
+                            href={discordUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                          >
+                            Discord
+                            <ArrowUpRight className="size-4 ml-auto" />
+                          </a>
+                        </DropdownMenuItem>
+                      </DropdownMenuGroup>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                )}
+              </ButtonGroup>
+              {portalSession?.user && (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -188,20 +230,6 @@ export const Route = createFileRoute("/support/$slug")({
                     </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
-              ) : (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={() =>
-                    portalAuthClient.signIn.social({
-                      provider: "google",
-                      additionalData: { tenantSlug: organization.slug },
-                      callbackURL: window.location.origin,
-                    })
-                  }
-                >
-                  Sign in
-                </Button>
               )}
             </Navbar.Group>
           </Navbar>

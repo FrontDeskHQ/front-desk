@@ -55,7 +55,6 @@ import {
 } from "nuqs";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
-import { CreateThreadDialog } from "../../../../components/threads/create-thread-dialog";
 
 type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
@@ -153,7 +152,7 @@ function RouteComponent() {
   const orderedThreads = [...(threads ?? [])].sort((a, b) => {
     const getTimestamp = (
       t: unknown,
-      key: ThreadsSearchOrderOptions
+      key: ThreadsSearchOrderOptions,
     ): number => {
       // Narrow the unknown to the expected shape for safe property access
       const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
@@ -162,8 +161,8 @@ function RouteComponent() {
         return obj.updatedAt
           ? new Date(obj.updatedAt).getTime()
           : obj.createdAt
-          ? new Date(obj.createdAt).getTime()
-          : 0;
+            ? new Date(obj.createdAt).getTime()
+            : 0;
       }
 
       return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
@@ -223,22 +222,6 @@ function RouteComponent() {
   return (
     <div className="w-full">
       <div className="flex flex-col gap-8 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
-        <div className="flex items-center gap-4">
-          <div className="flex-shrink-0">
-            <Avatar
-              variant="org"
-              size="xxl"
-              src={organization?.logoUrl}
-              fallback={organization?.name}
-            />
-          </div>
-          <div className="flex items-center justify-between w-full gap-4">
-            <h1 className="font-bold text-2xl sm:text-3xl truncate">
-              {organization?.name}
-            </h1>
-            <CreateThreadDialog organization={organization} portalSession={portalSession} />
-          </div>
-        </div>
         <Card className="bg-muted/30">
           <CardHeader>
             <CardTitle className="gap-4">Threads</CardTitle>
@@ -330,27 +313,23 @@ function RouteComponent() {
                           />
                         ))}
                     </div>
-                    <PriorityIndicator
-                      priority={thread?.priority ?? 0}
-                    />
+                    <PriorityIndicator priority={thread?.priority ?? 0} />
                     <StatusIndicator status={thread?.status ?? 0} />
                   </div>
                 </div>
                 <div className="flex justify-between gap-2">
                   <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
                     {
-                      thread?.messages?.[
-                        thread.messages.length - 1
-                      ]?.author?.name
+                      thread?.messages?.[thread.messages.length - 1]?.author
+                        ?.name
                     }
                     :&nbsp;
                     <span className="max-w-full">
                       {getFirstTextContent(
                         safeParseJSON(
-                          thread?.messages?.[
-                            thread.messages.length - 1
-                          ]?.content ?? ""
-                        )
+                          thread?.messages?.[thread.messages.length - 1]
+                            ?.content ?? "",
+                        ),
                       )}
                     </span>
                   </span>
