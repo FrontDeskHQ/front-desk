@@ -2,11 +2,11 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm build -F discord...",
+    "buildCommand": "bun run build -F discord...",
     "watchPatterns": ["apps/api/**", "packages/schemas/**", "packages/ui/**"]
   },
   "deploy": {
-    "startCommand": "pnpm --filter discord start",
+    "startCommand": "cd apps/discord && bun run start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
