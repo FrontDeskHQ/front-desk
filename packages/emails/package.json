@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
-    "@react-email/preview-server": "^4.3.0",
+    "@react-email/preview-server": "^5.0.8",
     "@types/node": "^24.7.0",
     "@types/react": "catalog:",
     "react-email": "4.3.0"
