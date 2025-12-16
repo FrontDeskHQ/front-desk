@@ -9,7 +9,12 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
+import {
+  Editor,
+  EditorInput,
+  EditorSubmit,
+  RichText,
+} from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -118,13 +123,13 @@ function RouteComponent() {
       messages: { author: true },
       assignedUser: true,
       updates: { user: true },
-    }),
+    })
   )?.[0];
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
-      .include({ user: true }),
+      .include({ user: true })
   );
 
   const allItems = thread
@@ -263,14 +268,14 @@ function RouteComponent() {
                     key={item.id}
                     className={cn(
                       "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                      item?.author?.userId === user.id && "border-[#2662D9]/20",
+                      item?.author?.userId === user.id && "border-[#2662D9]/20"
                     )}
                   >
                     <CardHeader
                       size="sm"
                       className={cn(
                         item?.author?.userId === user.id &&
-                          "bg-[#2662D9]/15 border-[#2662D9]/20",
+                          "bg-[#2662D9]/15 border-[#2662D9]/20"
                       )}
                     >
                       <CardTitle>
@@ -307,8 +312,7 @@ function RouteComponent() {
               return null;
             })}
           </div>
-          <InputBox
-            className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+          <Editor
             onSubmit={(value) => {
               const author = query.author.first({ userId: user.id }).get();
               let authorId = author?.id;
@@ -335,7 +339,14 @@ function RouteComponent() {
                 externalMessageId: null,
               });
             }}
-          />
+          >
+            <EditorInput
+              className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+              placeholder="Write a reply..."
+            >
+              <EditorSubmit />
+            </EditorInput>
+          </Editor>
         </div>
       </div>
       <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">

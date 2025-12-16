@@ -5,7 +5,6 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { authClient } from "./auth-client";
-import { getLiveStateApiUrl } from "./urls";
 
 const { client, store } = createClient<Router>({
   url:

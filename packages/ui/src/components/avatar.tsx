@@ -52,11 +52,6 @@ function BaseAvatarFallback({
   );
 }
 
-const avatarShapeVariants = {
-  user: "rounded-full",
-  org: "rounded-md",
-} as const;
-
 const avatarVariants = cva("", {
   variants: {
     size: {
@@ -66,8 +61,23 @@ const avatarVariants = cva("", {
       xl: "size-8",
       xxl: "size-10",
     },
-    variant: avatarShapeVariants,
+    variant: {
+      user: "rounded-full",
+      org: "",
+    },
   },
+  compoundVariants: [
+    {
+      variant: "org",
+      size: "sm",
+      className: "rounded-sm",
+    },
+    {
+      variant: "org",
+      size: ["md", "lg", "xl", "xxl"],
+      className: "rounded-md",
+    },
+  ],
   defaultVariants: {
     size: "md",
     variant: "user",
@@ -85,8 +95,23 @@ const avatarFallbackVariants = cva(
         xl: "text-base",
         xxl: "text-2xl",
       },
-      variant: avatarShapeVariants,
+      variant: {
+        user: "rounded-full",
+        org: "",
+      },
     },
+    compoundVariants: [
+      {
+        variant: "org",
+        size: "sm",
+        className: "rounded-sm",
+      },
+      {
+        variant: "org",
+        size: ["md", "lg", "xl", "xxl"],
+        className: "rounded-md",
+      },
+    ],
     defaultVariants: {
       size: "md",
       variant: "user",

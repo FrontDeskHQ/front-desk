@@ -7,7 +7,12 @@ import {
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 
-import { InputBox, RichText } from "@workspace/ui/components/blocks/tiptap";
+import {
+  Editor,
+  EditorInput,
+  EditorSubmit,
+  RichText,
+} from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -32,7 +37,6 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
-import { ulid } from "ulid";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -169,7 +173,7 @@ function RouteComponent() {
                       <Card
                         key={item.id}
                         className={cn(
-                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border"
                         )}
                       >
                         {/* TODO: update the way it's checking if it's an message from the current user */}
@@ -208,44 +212,31 @@ function RouteComponent() {
                   return null;
                 })}
               </div>
-              <InputBox
-                className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+              <Editor
                 onSubmit={async (value) => {
                   const user = portalSession?.user;
+
                   if (!user) return;
 
-                  const author = await fetchClient.query.author
-                    .first({ userId: user.id })
-                    .get();
-
-                  let authorId = author?.id;
-
-                  if (!authorId) {
-                    authorId = ulid().toLowerCase();
-
-                    await fetchClient.mutate.author.insert({
-                      id: authorId,
-                      userId: user.id,
-                      metaId: null,
-                      name: user.name,
-                      organizationId: thread?.organizationId,
-                    });
-                  }
-
-                  await fetchClient.mutate.message.insert({
-                    id: ulid().toLowerCase(),
-                    authorId: authorId,
-                    content: JSON.stringify(value),
+                  await fetchClient.mutate.message.create({
                     threadId: thread.id,
-                    createdAt: new Date(),
-                    origin: null,
-                    externalMessageId: null,
+                    content: value,
+                    userId: user.id,
+                    userName: user.name,
+                    organizationId: thread.organizationId,
                   });
 
                   // TODO: Find out how to only invalidate this route
                   route.invalidate();
                 }}
-              />
+              >
+                <EditorInput
+                  className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+                  placeholder="Write a reply..."
+                >
+                  <EditorSubmit />
+                </EditorInput>
+              </Editor>
             </div>
           </Card>
           <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
