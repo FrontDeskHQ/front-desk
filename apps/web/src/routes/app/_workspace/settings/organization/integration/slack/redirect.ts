@@ -96,6 +96,7 @@ export const Route = createFileRoute(
               configStr: JSON.stringify({
                 ...config,
                 teamId,
+                accessToken: tokenData.access_token,
               }),
             });
           }
