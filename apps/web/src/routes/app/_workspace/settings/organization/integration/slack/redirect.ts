@@ -77,14 +77,29 @@ export const Route = createFileRoute(
             );
 
             const tokenData = await tokenResponse.json();
+            const tokenResponseSchema = z.object({
+              ok: z.boolean(),
+              access_token: z.string(),
+              team: z.object({ id: z.string() }),
+              error: z.string().optional(),
+            });
+            const parsedToken = tokenResponseSchema.safeParse(tokenData);
 
-            if (!tokenData.ok) {
+            if (!parsedToken.success) {
               throw new Error(
-                `SLACK_TOKEN_EXCHANGE_FAILED: ${tokenData.error}`
+                `SLACK_TOKEN_RESPONSE_INVALID: ${tokenData.error ?? parsedToken.error.message}`
               );
             }
 
-            const teamId = tokenData.team?.id;
+            const { ok, access_token: accessToken, team } = parsedToken.data;
+
+            if (!ok || !accessToken) {
+              throw new Error(
+                `SLACK_TOKEN_EXCHANGE_FAILED: ${tokenData.error ?? "Missing access token"}`
+              );
+            }
+
+            const teamId = team.id;
 
             if (!teamId) {
               throw new Error("SLACK_TEAM_ID_NOT_FOUND");
@@ -96,7 +111,7 @@ export const Route = createFileRoute(
               configStr: JSON.stringify({
                 ...config,
                 teamId,
-                accessToken: tokenData.access_token,
+                accessToken,
               }),
             });
           }
