@@ -1,0 +1,37 @@
+{
+  "name": "github",
+  "version": "0.0.0",
+  "packageManager": "pnpm@10.10.0",
+  "type": "module",
+  "author": "front-desk",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.js",
+  "scripts": {
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --fix .",
+    "build": "tsdown",
+    "start": "node dist/index.js",
+    "dev": "tsdown --watch --on-success \"node dist/index.js\"",
+    "typecheck": "tsc --noEmit",
+    "format": "pnpm biome format ./src --fix"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "tsdown": "^0.10.2",
+    "tsx": "^4.19.3"
+  },
+  "engines": {
+    "node": ">=20.18.0"
+  },
+  "dependencies": {
+    "@live-state/sync": "catalog:",
+    "@octokit/webhooks": "^13.3.0",
+    "api": "workspace:*",
+    "dotenv": "^16.5.0",
+    "@workspace/schemas": "workspace:*",
+    "ulid": "^3.0.0",
+    "zod": "catalog:"
+  }
+}
