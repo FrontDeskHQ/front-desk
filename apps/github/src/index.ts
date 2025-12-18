@@ -3,7 +3,8 @@ import { App, createNodeMiddleware } from "octokit";
 import "./env";
 import fs from "node:fs";
 
-const githubAppEnvVars = [
+// Get and validate required environment variables
+const requiredEnvVars = [
   "GITHUB_APP_ID",
   "PRIVATE_KEY_PATH",
   "GITHUB_WEBHOOK_SECRET",
@@ -11,7 +12,7 @@ const githubAppEnvVars = [
   "GITHUB_CLIENT_SECRET",
 ];
 
-for (const varName of githubAppEnvVars) {
+for (const varName of requiredEnvVars) {
   if (!process.env[varName]) {
     console.error(`${varName} not set`);
     process.exit(1);
@@ -46,9 +47,22 @@ app.webhooks.onAny(async ({ payload }) => {
   console.log("Received event:", payload);
 });
 
-// Error handling
+// Handle webhook errors
 app.webhooks.onError((error) => {
   console.error(error);
+});
+
+// Handle OAuth token creation
+app.oauth.on("token.created", async ({ token, octokit }) => {
+  console.log("OAuth token created successfully", token);
+
+  // TODO: Add any necessary post-authentication logic here
+  // Code from docs: https://github.com/octokit/octokit.js?tab=readme-ov-file#oauth
+  // await octokit.rest.activity.setRepoSubscription({
+  //   owner: "octocat",
+  //   repo: "hello-world",
+  //   subscribed: true,
+  // });
 });
 
 // App can receive webhook events at `/api/github/webhooks`
