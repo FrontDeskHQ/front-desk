@@ -53,6 +53,7 @@ const thread = object("thread", {
   assignedUserId: reference("user.id").nullable(),
   externalId: string().nullable(),
   externalOrigin: string().nullable(),
+  externalMetadataStr: string().nullable(),
 });
 
 const message = object("message", {
