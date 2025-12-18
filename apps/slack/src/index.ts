@@ -26,10 +26,6 @@ const app = new App({
         isEnterpriseInstall: !!enterpriseId,
       });
 
-      // Extract bot token from installation
-      // The installation object structure depends on OAuth response
-      // For OAuth v2, the bot token is typically in installation.bot.token
-      // or installation.access_token for workspace tokens
       const installationData = installation as {
         bot?: { token?: string; id?: string; user_id?: string };
         access_token?: string;
@@ -82,7 +78,6 @@ const safeParseJSON = (raw: string) => {
   ];
 };
 
-// Helper function to get a WebClient for a specific teamId
 const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
   try {
     const installation = await installationStore.fetchInstallation({
@@ -91,8 +86,6 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
       isEnterpriseInstall: false,
     });
 
-    // Extract bot token from installation
-    // Installation structure from OAuth v2 response
     const installationData = installation as {
       bot?: { token?: string; id?: string; user_id?: string };
       access_token?: string;
@@ -135,8 +128,6 @@ app.message(
       "bot_profile" in message
     )
       return;
-
-    console.log("message", JSON.stringify(message, null, 2));
 
     const isFirstMessage = !("thread_ts" in message);
 
