@@ -10,6 +10,7 @@
     "@workspace/ui": "workspace:*",
     "api": "workspace:*",
     "@slack/bolt": "^4.6.0",
+    "@slack/oauth": "^3.0.4",
     "dotenv": "^16.6.1",
     "ulid": "^3.0.0",
     "zod": "catalog:"

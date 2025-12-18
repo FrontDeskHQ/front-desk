@@ -1,18 +1,69 @@
 import "./env";
 
 import type { InferLiveObject } from "@live-state/sync";
-import type { AllMiddlewareArgs, SlackEventMiddlewareArgs } from "@slack/bolt";
+import type {
+  AllMiddlewareArgs,
+  AuthorizeResult,
+  SlackEventMiddlewareArgs,
+} from "@slack/bolt";
 import { App } from "@slack/bolt";
+import { WebClient } from "@slack/web-api";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
 import { ulid } from "ulid";
+import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
 import { safeParseIntegrationSettings } from "./lib/utils";
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
-  token: process.env.SLACK_BOT_TOKEN,
+  authorize: async ({ teamId, enterpriseId }): Promise<AuthorizeResult> => {
+    try {
+      const installation = await installationStore.fetchInstallation({
+        teamId: teamId ?? undefined,
+        enterpriseId: enterpriseId ?? undefined,
+        isEnterpriseInstall: !!enterpriseId,
+      });
+
+      // Extract bot token from installation
+      // The installation object structure depends on OAuth response
+      // For OAuth v2, the bot token is typically in installation.bot.token
+      // or installation.access_token for workspace tokens
+      const installationData = installation as {
+        bot?: { token?: string; id?: string; user_id?: string };
+        access_token?: string;
+        team?: { id?: string };
+        enterprise?: { id?: string };
+        user?: { token?: string };
+      };
+
+      const botToken =
+        installationData.bot?.token ?? installationData.access_token ?? null;
+
+      if (!botToken) {
+        throw new Error(
+          `Bot token not found in installation for teamId: ${teamId}`
+        );
+      }
+
+      return {
+        botToken,
+        botId: installationData.bot?.id ?? undefined,
+        botUserId: installationData.bot?.user_id ?? undefined,
+        teamId: installationData.team?.id ?? teamId ?? undefined,
+        enterpriseId:
+          installationData.enterprise?.id ?? enterpriseId ?? undefined,
+        userToken: installationData.user?.token ?? undefined,
+      };
+    } catch (error) {
+      console.error(
+        `[Slack] Authorization failed for teamId: ${teamId}`,
+        error
+      );
+      throw error;
+    }
+  },
 });
 
 const safeParseJSON = (raw: string) => {
@@ -31,6 +82,41 @@ const safeParseJSON = (raw: string) => {
   ];
 };
 
+// Helper function to get a WebClient for a specific teamId
+const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
+  try {
+    const installation = await installationStore.fetchInstallation({
+      teamId,
+      enterpriseId: undefined,
+      isEnterpriseInstall: false,
+    });
+
+    // Extract bot token from installation
+    // Installation structure from OAuth v2 response
+    const installationData = installation as {
+      bot?: { token?: string; id?: string; user_id?: string };
+      access_token?: string;
+      team?: { id?: string };
+      enterprise?: { id?: string };
+    };
+
+    const botToken =
+      installationData.bot?.token ?? installationData.access_token ?? null;
+
+    if (!botToken) {
+      console.error(
+        `Bot token not found in installation for teamId: ${teamId}`
+      );
+      return null;
+    }
+
+    return new WebClient(botToken);
+  } catch (error) {
+    console.error(`Failed to get client for teamId: ${teamId}`, error);
+    return null;
+  }
+};
+
 app.message(
   async ({
     message,
@@ -43,7 +129,14 @@ app.message(
 
     if (!("user" in message) || !message.user) return;
 
-    if (message.subtype === "bot_message") return;
+    if (
+      message.subtype === "bot_message" ||
+      "bot_id" in message ||
+      "bot_profile" in message
+    )
+      return;
+
+    console.log("message", JSON.stringify(message, null, 2));
 
     const isFirstMessage = !("thread_ts" in message);
 
@@ -217,7 +310,10 @@ const handleMessages = async (
     if (!channelId) continue;
 
     try {
-      const result = await app.client.chat.postMessage({
+      const client = await getClientForTeam(teamId);
+      if (!client) continue;
+
+      const result = await client.chat.postMessage({
         channel: channelId,
         text: stringify(safeParseJSON(message.content), {
           heading: true,
@@ -331,8 +427,14 @@ const handleUpdates = async (
     handlingUpdates.add(update.id);
 
     try {
+      const client = await getClientForTeam(teamId);
+      if (!client) {
+        handlingUpdates.delete(update.id);
+        continue;
+      }
+
       const updateMessage = formatUpdateMessage(update);
-      const result = await app.client.chat.postMessage({
+      const result = await client.chat.postMessage({
         channel: channelId,
         text: updateMessage,
         thread_ts: threadTs,
