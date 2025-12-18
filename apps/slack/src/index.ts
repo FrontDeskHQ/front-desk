@@ -18,15 +18,11 @@ const app = new App({
 const safeParseJSON = (raw: string) => {
   try {
     const parsed = JSON.parse(raw);
-    // Accept common shapes produced by our editor:
     if (Array.isArray(parsed)) return parsed;
     if (parsed && typeof parsed === "object" && "content" in parsed) {
-      // e.g. a full doc { type: 'doc', content: [...] }
-      // Normalize to content[] to match our usage.
       return (parsed as { content?: unknown }).content ?? [];
     }
   } catch {}
-  // Fallback: wrap plain text in a single paragraph node.
   return [
     {
       type: "paragraph",
@@ -45,33 +41,23 @@ app.message(
     // Slack SDK is VERY BAD
     if (ack && typeof ack === "function") await (ack as () => Promise<void>)();
 
-    console.log(JSON.stringify(message, null, 2));
-
-    // Type guard: only process messages with user property
     if (!("user" in message) || !message.user) return;
 
-    // Skip bot messages
     if (message.subtype === "bot_message") return;
 
     const isFirstMessage = !("thread_ts" in message);
 
     let threadId: string | null = null;
 
-    // Get conversation info to check channel name
     const conversation = await client.conversations.info({
       channel: message.channel,
     });
 
     if (!conversation.ok || !conversation.channel) return;
 
-    console.log("conversation", JSON.stringify(conversation, null, 2));
-
     const channelName = conversation.channel.name;
     if (!channelName) return;
 
-    console.log("channelName", channelName);
-
-    // Find integration for this team
     const teamId = conversation.channel.context_team_id;
     const integration = store.query.integration
       .where({ type: "slack" })
@@ -81,49 +67,24 @@ app.message(
         return parsed?.teamId === teamId;
       });
 
-    console.log(
-      "all integrations",
-      JSON.stringify(
-        store.query.integration.where({ type: "slack" }).get(),
-        null,
-        2
-      )
-    );
-
     if (!integration) return;
-
-    console.log("integration", JSON.stringify(integration, null, 2));
 
     const integrationSettings = safeParseIntegrationSettings(
       integration.configStr
     );
 
-    console.log(
-      "integrationSettings",
-      JSON.stringify(integrationSettings, null, 2)
-    );
-
-    // Check if this channel is in the selected channels
     if (!(integrationSettings?.selectedChannels ?? []).includes(channelName)) {
       return;
     }
 
-    console.log("channelName is in the selected channels");
-
-    // Get user info
     const userInfo = await client.users.info({
       user: message.user,
     });
-
-    console.log("userInfo", JSON.stringify(userInfo, null, 2));
 
     if (!userInfo.ok || !userInfo.user) return;
 
     const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
 
-    console.log("userName", userName);
-
-    // Find or create author
     let authorId = store.query.author
       .first({ metaId: "slack:" + message.user })
       .get()?.id;
@@ -139,13 +100,8 @@ app.message(
       });
     }
 
-    console.log("isFirstMessage", isFirstMessage);
-
     if (isFirstMessage) {
-      // Create new thread
       threadId = ulid().toLowerCase();
-
-      // Get thread name from message text or use channel name
       const messageText = "text" in message ? message.text : undefined;
       const threadName =
         (messageText && messageText.length > 0
@@ -190,7 +146,6 @@ app.message(
         console.error("Error sending portal link message:", error);
       }
     } else {
-      // Find existing thread
       const thread = store.query.thread
         .where({
           externalId: message.thread_ts,
@@ -198,20 +153,12 @@ app.message(
         })
         .get()?.[0];
 
-      console.log("thread", JSON.stringify(thread, null, 2));
-
       if (!thread) return;
-
-      console.log("thread found", JSON.stringify(thread, null, 2));
 
       threadId = thread.id;
     }
 
-    console.log("threadId", threadId);
-
     if (!threadId) return;
-
-    // Create message
     const messageText = "text" in message ? message.text : "";
     const messageContent = messageText || "";
     store.mutate.message.insert({
@@ -223,8 +170,6 @@ app.message(
       origin: "slack",
       externalMessageId: message.ts,
     });
-
-    console.log("message inserted", JSON.stringify(message, null, 2));
   }
 );
 
@@ -243,9 +188,6 @@ const handleMessages = async (
       })
       .get();
 
-    console.log("integration", JSON.stringify(integration, null, 2));
-    console.log("messages", JSON.stringify(messages, null, 2));
-
     if (!integration || !integration.configStr) continue;
 
     const parsedConfig = safeParseIntegrationSettings(integration.configStr);
@@ -255,7 +197,6 @@ const handleMessages = async (
     const teamId = parsedConfig.teamId;
 
     if (!teamId) continue;
-    console.log("parsedConfig", JSON.stringify(parsedConfig, null, 2));
 
     const threadTs = message.thread.externalId;
 
@@ -447,7 +388,6 @@ const handleUpdates = async (
       .include({ thread: true, author: true })
       .subscribe(handleMessages);
 
-    // Handle updates for threads linked to Slack
     const updates = await store.query.update
       .where({
         thread: {
