@@ -22,23 +22,13 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { ActionButton, Button } from "@workspace/ui/components/button";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import {
-  type BaseItem,
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-} from "@workspace/ui/components/combobox";
 import {
   Dialog,
   DialogContent,
@@ -54,22 +44,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import {
-  PriorityIndicator,
-  PriorityText,
-  StatusIndicator,
-  StatusText,
-  statusValues,
-} from "@workspace/ui/components/indicator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
+import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
-import { LabelsSection } from "~/components/threads/properties-sidebar";
+import { IssuesSection } from "~/components/threads/issues";
+import { LabelsSection } from "~/components/threads/labels";
+import { PropertiesSection } from "~/components/threads/properties";
 import { Update } from "~/components/threads/updates";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -123,13 +108,13 @@ function RouteComponent() {
       messages: { author: true },
       assignedUser: true,
       updates: { user: true },
-    })
+    }),
   )?.[0];
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
-      .include({ user: true })
+      .include({ user: true }),
   );
 
   const allItems = thread
@@ -268,14 +253,14 @@ function RouteComponent() {
                     key={item.id}
                     className={cn(
                       "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                      item?.author?.userId === user.id && "border-[#2662D9]/20"
+                      item?.author?.userId === user.id && "border-[#2662D9]/20",
                     )}
                   >
                     <CardHeader
                       size="sm"
                       className={cn(
                         item?.author?.userId === user.id &&
-                          "bg-[#2662D9]/15 border-[#2662D9]/20"
+                          "bg-[#2662D9]/15 border-[#2662D9]/20",
                       )}
                     >
                       <CardTitle>
@@ -352,255 +337,15 @@ function RouteComponent() {
       <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
         <TooltipProvider>
           <div className="flex flex-col gap-2">
-            <div className="text-muted-foreground text-xs">Properties</div>
-            <div className="flex flex-col gap-1.5">
-              <Combobox
-                items={Object.entries(statusValues).map(([key, value]) => ({
-                  value: key,
-                  label: value.label,
-                }))}
-                value={thread?.status ?? 0}
-                onValueChange={(value) => {
-                  const oldStatus = thread?.status ?? 0;
-                  const newStatus = value ? +value : 0;
-                  const oldStatusLabel =
-                    statusValues[oldStatus]?.label ?? "Unknown";
-                  const newStatusLabel =
-                    statusValues[newStatus]?.label ?? "Unknown";
-
-                  mutate.thread.update(id, {
-                    status: newStatus,
-                  });
-
-                  mutate.update.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: id,
-                    type: "status_changed",
-                    createdAt: new Date(),
-                    userId: user.id,
-                    metadataStr: JSON.stringify({
-                      oldStatus,
-                      newStatus,
-                      oldStatusLabel,
-                      newStatusLabel,
-                      userName: user.name,
-                    }),
-                    replicatedStr: JSON.stringify({}),
-                  });
-                }}
-              >
-                <ComboboxTrigger
-                  variant="unstyled"
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className="text-sm px-1.5 max-w-40 py-1 w-full justify-start"
-                      tooltip="Change status"
-                      keybind="s"
-                    >
-                      <div className="flex items-center justify-center size-4">
-                        <StatusIndicator status={thread?.status ?? 0} />
-                      </div>
-                      <StatusText status={thread?.status ?? 0} />
-                    </ActionButton>
-                  }
-                />
-                <ComboboxContent className="w-48">
-                  <ComboboxInput placeholder="Search..." />
-                  <ComboboxEmpty />
-                  <ComboboxList>
-                    {(item: BaseItem) => (
-                      <ComboboxItem key={item.value} value={item.value}>
-                        <StatusIndicator status={+item.value} />
-                        {item.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <Combobox
-                items={[
-                  {
-                    value: 0,
-                    label: "No priority",
-                  },
-                  {
-                    value: 1,
-                    label: "Low priority",
-                  },
-                  {
-                    value: 2,
-                    label: "Medium priority",
-                  },
-                  {
-                    value: 3,
-                    label: "High priority",
-                  },
-                ]}
-                value={thread?.priority}
-                onValueChange={(value) => {
-                  const oldPriority = thread?.priority ?? 0;
-                  const newPriority = value ? +value : 0;
-                  const priorityLabels: Record<number, string> = {
-                    0: "No priority",
-                    1: "Low priority",
-                    2: "Medium priority",
-                    3: "High priority",
-                  };
-                  const oldPriorityLabel =
-                    priorityLabels[oldPriority] ?? "Unknown";
-                  const newPriorityLabel =
-                    priorityLabels[newPriority] ?? "Unknown";
-
-                  mutate.thread.update(id, {
-                    priority: newPriority,
-                  });
-
-                  mutate.update.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: id,
-                    type: "priority_changed",
-                    createdAt: new Date(),
-                    userId: user.id,
-                    metadataStr: JSON.stringify({
-                      oldPriority,
-                      newPriority,
-                      oldPriorityLabel,
-                      newPriorityLabel,
-                      userName: user.name,
-                    }),
-                    replicatedStr: JSON.stringify({}),
-                  });
-                }}
-              >
-                <ComboboxTrigger
-                  variant="unstyled"
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className="text-sm px-1.5 max-w-40 py-1 w-full justify-start"
-                      tooltip="Change priority"
-                      keybind="p"
-                    >
-                      <div className="flex items-center justify-center size-4">
-                        <PriorityIndicator priority={thread?.priority ?? 0} />
-                      </div>
-                      <PriorityText priority={thread?.priority ?? 0} />
-                    </ActionButton>
-                  }
-                />
-
-                <ComboboxContent className="w-48">
-                  <ComboboxInput placeholder="Search..." />
-                  <ComboboxEmpty />
-                  <ComboboxList>
-                    {(item: BaseItem) => (
-                      <ComboboxItem key={item.value} value={item.value}>
-                        <PriorityIndicator priority={+item.value} />
-                        {item.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <Combobox
-                items={[
-                  {
-                    value: null,
-                    label: "Unassigned",
-                  },
-                  ...(organizationUsers?.map((user) => ({
-                    value: user.userId,
-                    label: user.user.name,
-                  })) ?? []),
-                ]}
-                value={thread?.assignedUser?.id}
-                onValueChange={(value) => {
-                  const oldAssignedUserId = thread?.assignedUser?.id ?? null;
-                  const oldAssignedUserName =
-                    thread?.assignedUser?.name ?? null;
-                  const newAssignedUserId = value;
-                  const newAssignedUser = organizationUsers?.find(
-                    (ou) => ou.userId === value,
-                  );
-                  const newAssignedUserName =
-                    newAssignedUser?.user.name ?? null;
-
-                  mutate.thread.update(id, {
-                    assignedUserId: value,
-                  });
-
-                  mutate.update.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: id,
-                    userId: user.id,
-                    type: "assigned_changed",
-                    createdAt: new Date(),
-                    metadataStr: JSON.stringify({
-                      oldAssignedUserId,
-                      newAssignedUserId,
-                      oldAssignedUserName,
-                      newAssignedUserName,
-                      userName: user.name,
-                    }),
-                    replicatedStr: JSON.stringify({}),
-                  });
-                }}
-              >
-                <ComboboxTrigger
-                  variant="unstyled"
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "text-sm px-1.5 max-w-40 py-1 w-full justify-start text-muted-foreground",
-                        thread?.assignedUser?.name && "text-primary",
-                      )}
-                      tooltip="Assign to"
-                      keybind="a"
-                    >
-                      <div className="flex items-center justify-center size-4">
-                        {thread?.assignedUser ? (
-                          <Avatar
-                            variant="user"
-                            size="md"
-                            fallback={thread?.assignedUser.name}
-                          />
-                        ) : (
-                          <CircleUser className="size-4" />
-                        )}
-                      </div>
-                      {thread?.assignedUser?.name ?? "Unassigned"}
-                    </ActionButton>
-                  }
-                />
-
-                <ComboboxContent className="w-48">
-                  <ComboboxInput placeholder="Search..." />
-                  <ComboboxEmpty />
-                  <ComboboxList>
-                    {(item: BaseItem) => (
-                      <ComboboxItem key={item.value} value={item.value}>
-                        {item.value ? (
-                          <Avatar
-                            variant="user"
-                            size="md"
-                            fallback={item.label}
-                          />
-                        ) : (
-                          <CircleUser className="mx-0.5" />
-                        )}
-                        {item.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            </div>
+            <PropertiesSection
+              thread={thread}
+              id={id}
+              user={user}
+              organizationUsers={organizationUsers}
+              mutate={mutate}
+            />
             <LabelsSection threadId={id} />
+            <IssuesSection threadId={id} />
           </div>
         </TooltipProvider>
       </div>
