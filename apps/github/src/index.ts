@@ -42,6 +42,67 @@ const app = new App({
   },
 });
 
+// API Functions to interact with GitHub
+
+/**
+ * Get an authenticated Octokit instance for a specific installation
+ */
+async function getOctokit(installationId: number) {
+  return await app.getInstallationOctokit(installationId);
+}
+
+/**
+ * Fetch open issues from a repository
+ */
+async function fetchIssues(
+  installationId: number,
+  owner: string,
+  repo: string,
+  state: "open" | "closed" | "all" = "open"
+) {
+  try {
+    const octokit = await getOctokit(installationId);
+    const { data } = await octokit.request("GET /repos/{owner}/{repo}/issues", {
+      owner,
+      repo,
+      state,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+    return data;
+  } catch (error) {
+    console.error(`Error fetching issues:`, error);
+    throw error;
+  }
+}
+
+/**
+ * Fetch pull requests from a repository
+ */
+async function fetchPullRequests(
+  installationId: number,
+  owner: string,
+  repo: string,
+  state: "open" | "closed" | "all" = "open"
+) {
+  try {
+    const octokit = await getOctokit(installationId);
+    const { data } = await octokit.request("GET /repos/{owner}/{repo}/pulls", {
+      owner,
+      repo,
+      state,
+      headers: {
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+    });
+    return data;
+  } catch (error) {
+    console.error(`Error fetching pull requests:`, error);
+    throw error;
+  }
+}
+
 // Log all received webhook events
 app.webhooks.onAny(async ({ payload }) => {
   console.log("Received event:", payload);
@@ -55,15 +116,70 @@ app.webhooks.onError((error) => {
 // Handle OAuth token creation
 app.oauth.on("token.created", async ({ token, octokit }) => {
   console.log("OAuth token created successfully", token);
-
-  // TODO: Add any necessary post-authentication logic here
-  // Code from docs: https://github.com/octokit/octokit.js?tab=readme-ov-file#oauth
-  // await octokit.rest.activity.setRepoSubscription({
-  //   owner: "octocat",
-  //   repo: "hello-world",
-  //   subscribed: true,
-  // });
 });
 
-// App can receive webhook events at `/api/github/webhooks`
-createServer(createNodeMiddleware(app)).listen(process.env.PORT || 3334);
+const INSTALLATION_ID = 100205660;
+
+// Create server with custom routes
+const server = createServer(async (req, res) => {
+  const url = new URL(req.url || "", `http://${req.headers.host}`);
+
+  // API endpoint to fetch issues
+  if (url.pathname === "/api/issues" && req.method === "GET") {
+    const owner = url.searchParams.get("owner");
+    const repo = url.searchParams.get("repo");
+    const state = (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
+
+    if (!owner || !repo) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing owner or repo query parameters" }));
+      return;
+    }
+
+    try {
+      const issues = await fetchIssues(INSTALLATION_ID, owner, repo, state);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ issues, count: issues.length }));
+    } catch (error) {
+      console.error("Error fetching issues:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Failed to fetch issues" }));
+    }
+    return;
+  }
+
+  // API endpoint to fetch pull requests
+  if (url.pathname === "/api/pull-requests" && req.method === "GET") {
+    const owner = url.searchParams.get("owner");
+    const repo = url.searchParams.get("repo");
+    const state = (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
+
+    if (!owner || !repo) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Missing owner or repo query parameters" }));
+      return;
+    }
+
+    try {
+      const pullRequests = await fetchPullRequests(INSTALLATION_ID, owner, repo, state);
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ pullRequests, count: pullRequests.length }));
+    } catch (error) {
+      console.error("Error fetching pull requests:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Failed to fetch pull requests" }));
+    }
+    return;
+  }
+
+  // GitHub webhook handler
+  const middleware = createNodeMiddleware(app);
+  middleware(req, res);
+});
+
+server.listen(process.env.PORT || 3334, () => {
+  console.log(`Server listening on port ${process.env.PORT || 3334}`);
+  console.log(`API endpoints:`);
+  console.log(`  GET /api/issues?owner=<owner>&repo=<repo>&state=<open|closed|all>`);
+  console.log(`  GET /api/pull-requests?owner=<owner>&repo=<repo>&state=<open|closed|all>`);
+});
