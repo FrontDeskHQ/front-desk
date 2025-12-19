@@ -49,6 +49,7 @@ function RouteComponent() {
             <div className="text-base font-medium">Resources</div>
             <div className="flex flex-col gap-2">
               <a href="/#pricing">Pricing</a>
+              <a href="https://support.tryfrontdesk.app">Support</a>
               <a href="/docs">Docs</a>
               <a href="/updates">Updates</a>
             </div>

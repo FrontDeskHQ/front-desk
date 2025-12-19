@@ -109,7 +109,12 @@ export const ComboboxList = ({
   className,
   ...props
 }: React.ComponentProps<typeof ComboboxPrimitive.List>) => {
-  return <ComboboxPrimitive.List className={cn("", className)} {...props} />;
+  return (
+    <ComboboxPrimitive.List
+      className={cn("overflow-y-auto", className)}
+      {...props}
+    />
+  );
 };
 
 export const ComboboxItem = ({
