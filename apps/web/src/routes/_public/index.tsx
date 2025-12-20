@@ -29,6 +29,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
+import { ProductDemo } from "~/components/landing-page/product-demo";
 import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
 
 export const Route = createFileRoute("/_public/")({
@@ -252,7 +253,7 @@ function RouteComponent() {
       <div className="w-full max-w-6xl grid grid-cols-12 mx-auto">
         <section
           id="hero"
-          className="col-span-12 flex flex-col items-center py-32 relative border-b border-x scroll-mt-15"
+          className="col-span-12 flex flex-col items-center py-32 relative border-x scroll-mt-15"
         >
           <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-35 ease-in duration-[2s]">
             {/* <DashedPattern className="border-r" /> */}
@@ -285,7 +286,7 @@ function RouteComponent() {
           </AnimatedGroup>
         </section>
         <HorizontalLine variant="outer" />
-        <DashedPattern className="col-span-full h-3 text-muted-foreground/50 border-x border-b" />
+        <ProductDemo />
         <HorizontalLine variant="outer" />
         <section
           id="features"
