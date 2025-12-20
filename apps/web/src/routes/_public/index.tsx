@@ -274,12 +274,12 @@ function RouteComponent() {
             className="w-full max-w-2xl text-center flex flex-col gap-10 px-6"
           >
             <h1 className="text-5xl font-bold text-center">
-              Support your customers wherever they are
+              Make community support actually good
             </h1>
             <span className="text-xl">
-              FrontDesk is the customer support tool built for speed and
-              simplicity. Transform support tickets into a public, indexable,
-              searchable knowledge base — getting pSEO for free
+              FrontDesk gives you everything you need to deliver really good
+              community support at scale. Built for products that value their
+              communities and are truly customer-obsessed.
             </span>
             <ApplyToWaitlistForm />
           </AnimatedGroup>
