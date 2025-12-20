@@ -170,7 +170,7 @@ app.message(
     const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
 
     let authorId = store.query.author
-      .first({ metaId: "slack:" + message.user })
+      .first({ metaId: `slack:${message.user}` })
       .get()?.id;
 
     if (!authorId) {
@@ -179,7 +179,7 @@ app.message(
         id: authorId,
         name: userName,
         userId: null,
-        metaId: message.user,
+        metaId: `slack:${message.user}`,
         organizationId: integration.organizationId,
       });
     }
@@ -231,11 +231,11 @@ app.message(
       }
     } else {
       const thread = store.query.thread
-        .where({
+        .first({
           externalId: message.thread_ts,
           externalOrigin: "slack",
         })
-        .get()?.[0];
+        .get();
 
       if (!thread) return;
 
@@ -267,7 +267,7 @@ const handleMessages = async (
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
     const integration = store.query.integration
       .first({
-        organizationId: messages[0]?.thread?.organizationId,
+        organizationId: message.thread?.organizationId,
         type: "slack",
       })
       .get();

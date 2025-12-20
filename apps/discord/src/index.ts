@@ -123,7 +123,7 @@ client.on("messageCreate", async (message) => {
   // TODO do this in a transaction
 
   let authorId = store.query.author
-    .first({ metaId: message.author.id })
+    .first({ metaId: `discord:${message.author.id}` })
     .get()?.id;
 
   if (!authorId) {
@@ -132,7 +132,7 @@ client.on("messageCreate", async (message) => {
       id: authorId,
       name: message.author.username,
       userId: null,
-      metaId: message.author.id,
+      metaId: `discord:${message.author.id}`,
       organizationId: integration.organizationId,
     });
   }
@@ -175,10 +175,10 @@ client.on("messageCreate", async (message) => {
     }
   } else {
     const thread = store.query.thread
-      .where({
+      .first({
         discordChannelId: message.channel.id,
       })
-      .get()?.[0];
+      .get();
 
     if (!thread) return;
     threadId = thread.id;
@@ -207,7 +207,7 @@ const handleMessages = async (
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
     const integration = store.query.integration
       .first({
-        organizationId: messages[0]?.thread?.organizationId,
+        organizationId: message.thread?.organizationId,
         type: "discord",
       })
       .get();
