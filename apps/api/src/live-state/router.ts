@@ -552,6 +552,9 @@ export const router = createRouter({
               createdAt: new Date(),
               deletedAt: null,
               discordChannelId: null,
+              externalId: null,
+              externalOrigin: null,
+              externalMetadataStr: null,
             });
 
             // Create first message

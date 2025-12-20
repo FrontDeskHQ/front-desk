@@ -150,6 +150,7 @@ client.on("messageCreate", async (message) => {
       assignedUserId: null,
       externalId: message.channel.id,
       externalOrigin: "discord",
+      externalMetadataStr: null,
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
