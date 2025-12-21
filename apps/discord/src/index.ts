@@ -94,7 +94,7 @@ client.on("messageCreate", async (message) => {
 
   const isFirstMessage =
     Math.abs(
-      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0)
+      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
     ) < THREAD_CREATION_THRESHOLD_MS;
 
   let threadId: string | null = null;
@@ -110,12 +110,12 @@ client.on("messageCreate", async (message) => {
   if (!integration) return;
 
   const integrationSettings = safeParseIntegrationSettings(
-    integration.configStr
+    integration.configStr,
   );
 
   if (
     !(integrationSettings?.selectedChannels ?? [])?.includes(
-      message.channel.parent?.name ?? ""
+      message.channel.parent?.name ?? "",
     )
   )
     return;
@@ -148,9 +148,7 @@ client.on("messageCreate", async (message) => {
       discordChannelId: message.channel.id,
       authorId: authorId,
       assignedUserId: null,
-      externalId: message.channel.id,
-      externalOrigin: "discord",
-      externalMetadataStr: null,
+      issueId: null,
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
@@ -200,8 +198,8 @@ client.on("messageCreate", async (message) => {
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: { user: true } }
-  >[]
+    { thread: true; author: true }
+  >[],
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
@@ -258,7 +256,7 @@ const formatUpdateMessage = (
   update: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >
+  >,
 ): string => {
   let metadata: any = null;
   if (update.metadataStr) {
@@ -298,7 +296,7 @@ const handleUpdates = async (
   updates: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >[]
+  >[],
 ) => {
   for (const update of updates) {
     const replicated = update.replicatedStr
@@ -369,8 +367,8 @@ setTimeout(async () => {
           discordChannelId: { $not: null },
         },
       })
-      .include({ thread: true, author: { user: true } })
-      .get()
+      .include({ thread: true, author: true })
+      .get(),
   );
   store.query.message
     .where({

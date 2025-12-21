@@ -83,9 +83,9 @@ export const router = createRouter({
                 },
                 {
                   message: "This slug is reserved and cannot be used",
-                }
+                },
               ),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = ulid().toLowerCase();
 
@@ -127,7 +127,7 @@ export const router = createRouter({
             organizationId: z.string(),
             expiresAt: z.iso.datetime().optional(),
             name: z.string().optional(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
@@ -144,7 +144,7 @@ export const router = createRouter({
                   user: true,
                   organization: true,
                 },
-              })
+              }),
             )[0] as any;
 
             authorized = selfOrgUser && selfOrgUser.role === "owner";
@@ -172,7 +172,7 @@ export const router = createRouter({
         revokePublicApiKey: mutation(
           z.object({
             id: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           if (!req.context?.session?.userId) {
             throw new Error("UNAUTHORIZED");
@@ -190,7 +190,7 @@ export const router = createRouter({
                 organizationId: publicApiKey.metadata.ownerId,
                 userId: req.context.session.userId,
               },
-            })
+            }),
           )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
@@ -209,7 +209,7 @@ export const router = createRouter({
         listApiKeys: mutation(
           z.object({
             organizationId: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
@@ -222,7 +222,7 @@ export const router = createRouter({
                   organizationId,
                   userId: req.context.session.userId,
                 },
-              })
+              }),
             )[0] as any;
 
             authorized = selfOrgUser && selfOrgUser.role === "owner";
@@ -285,7 +285,7 @@ export const router = createRouter({
           z.object({
             organizationId: z.string(),
             email: z.email().array(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const orgId = req.input!.organizationId;
 
@@ -300,7 +300,7 @@ export const router = createRouter({
                 user: true,
                 organization: true,
               },
-            })
+            }),
           )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
@@ -315,7 +315,7 @@ export const router = createRouter({
               include: {
                 user: true,
               },
-            })
+            }),
           );
 
           const existingInvites = Object.values(
@@ -327,20 +327,20 @@ export const router = createRouter({
                   $gt: new Date(),
                 },
               },
-            })
+            }),
           );
 
           // TODO follow https://github.com/pedroscosta/live-state/issues/74
           const filteredEmails = Array.from(
-            new Set(req.input!.email.map((e) => e.trim().toLowerCase()))
+            new Set(req.input!.email.map((e) => e.trim().toLowerCase())),
           ).filter(
             (email) =>
               !existingMembers.some(
-                (member) => (member as any).user?.email.toLowerCase() === email
+                (member) => (member as any).user?.email.toLowerCase() === email,
               ) &&
               !existingInvites.some(
-                (invite) => (invite as any).email.toLowerCase() === email
-              )
+                (invite) => (invite as any).email.toLowerCase() === email,
+              ),
           );
 
           await Promise.allSettled(
@@ -371,7 +371,7 @@ export const router = createRouter({
                 .catch((error) => {
                   console.error("Error sending email", error);
                 });
-            })
+            }),
           );
 
           return {
@@ -439,7 +439,7 @@ export const router = createRouter({
               .optional(), // Optional - can be inferred from session
             userId: z.string().optional(), // For portal sessions
             userName: z.string().optional(), // For portal sessions
-          })
+          }),
         ).handler(async ({ req, db }) => {
           // Support internal API key, public API key, or portal session
           if (
@@ -498,7 +498,7 @@ export const router = createRouter({
                     userId: userId,
                     organizationId: organizationId,
                   },
-                })
+                }),
               );
 
               authorId = existingAuthor[0]?.id;
@@ -521,7 +521,7 @@ export const router = createRouter({
                     metaId: req.input.author.id,
                     organizationId: organizationId,
                   },
-                })
+                }),
               );
 
               authorId = existingAuthor[0]?.id;
@@ -552,9 +552,7 @@ export const router = createRouter({
               createdAt: new Date(),
               deletedAt: null,
               discordChannelId: null,
-              externalId: null,
-              externalOrigin: null,
-              externalMetadataStr: null,
+              issueId: null,
             });
 
             // Create first message
@@ -578,10 +576,100 @@ export const router = createRouter({
                   author: true,
                 },
               },
-            })
+            }),
           )[0];
 
           return thread;
+        }),
+        fetchGithubIssues: mutation(
+          z.object({
+            organizationId: z.string(),
+            owner: z.string(),
+            repo: z.string(),
+            state: z.enum(["open", "closed", "all"]).optional().default("open"),
+          }),
+        ).handler(async ({ req, db }) => {
+          const organizationId = req.input.organizationId;
+
+          // Verify user has access to the organization
+          let authorized = !!req.context?.internalApiKey;
+
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId,
+                  userId: req.context.session.userId,
+                  enabled: true,
+                },
+              }),
+            )[0];
+
+            authorized = !!selfOrgUser;
+          }
+
+          if (!authorized) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          // Call the GitHub server
+          const githubServerUrl =
+            process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
+          const url = new URL("/api/issues", githubServerUrl);
+          url.searchParams.set("owner", req.input.owner);
+          url.searchParams.set("repo", req.input.repo);
+          url.searchParams.set("state", req.input.state);
+
+          const response = await fetch(url.toString());
+
+          if (!response.ok) {
+            throw new Error(
+              `Failed to fetch GitHub issues: ${response.statusText}`,
+            );
+          }
+
+          const data = await response.json();
+          return data;
+        }),
+        linkGitHubIssue: mutation(
+          z.object({
+            threadId: z.string(),
+            issueId: z.number(),
+          }),
+        ).handler(async ({ req, db }) => {
+          // Verify user has access to the thread
+          const thread = await db.findOne(schema.thread, req.input.threadId);
+
+          if (!thread) {
+            throw new Error("THREAD_NOT_FOUND");
+          }
+
+          let authorized = !!req.context?.internalApiKey;
+
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId: thread.organizationId,
+                  userId: req.context.session.userId,
+                  enabled: true,
+                },
+              }),
+            )[0];
+
+            authorized = !!selfOrgUser;
+          }
+
+          if (!authorized) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          // Update the thread with the GitHub issue ID only
+          await db.update(schema.thread, req.input.threadId, {
+            issueId: req.input.issueId,
+          });
+
+          return { success: true };
         }),
       })),
     message: publicRoute
@@ -627,7 +715,7 @@ export const router = createRouter({
             userId: z.string().optional(),
             userName: z.string().optional(),
             organizationId: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           // Support portal session or internal API key
           if (
@@ -679,7 +767,7 @@ export const router = createRouter({
                   userId: userId,
                   organizationId: req.input.organizationId,
                 },
-              })
+              }),
             );
 
             let authorId = existingAuthor[0]?.id;
@@ -713,7 +801,7 @@ export const router = createRouter({
               include: {
                 author: true,
               },
-            })
+            }),
           )[0];
 
           return message;
@@ -852,7 +940,7 @@ export const router = createRouter({
             return {
               success: true,
             };
-          }
+          },
         ),
         decline: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
@@ -873,7 +961,7 @@ export const router = createRouter({
             return {
               success: true,
             };
-          }
+          },
         ),
       })),
     integration: privateRoute.collectionRoute(schema.integration, {
