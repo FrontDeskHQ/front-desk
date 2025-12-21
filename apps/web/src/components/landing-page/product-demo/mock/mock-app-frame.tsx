@@ -5,12 +5,14 @@ type MockAppFrameProps = {
   children: React.ReactNode;
   activeSidebarItem?: "threads";
   ariaLabel?: string;
+  showSidebar?: boolean;
 };
 
 export const MockAppFrame = ({
   children,
   activeSidebarItem = "threads",
   ariaLabel = "FrontDesk app preview (non-interactive)",
+  showSidebar = true,
 }: MockAppFrameProps) => {
   return (
     <div
@@ -18,7 +20,7 @@ export const MockAppFrame = ({
       role="img"
       aria-label={ariaLabel}
     >
-      <MockSidebar activeItem={activeSidebarItem} />
+      {showSidebar && <MockSidebar activeItem={activeSidebarItem} />}
       {children}
     </div>
   );
