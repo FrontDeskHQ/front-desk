@@ -14,9 +14,13 @@ import type { DemoThread } from "../types";
 
 type MockThreadsPageProps = {
   threads: DemoThread[];
+  hoveredThreadId?: string;
 };
 
-export const MockThreadsPage = ({ threads }: MockThreadsPageProps) => {
+export const MockThreadsPage = ({
+  threads,
+  hoveredThreadId,
+}: MockThreadsPageProps) => {
   return (
     <Card className="flex-1 relative m-2 ml-0 h-auto">
       <CardHeader>
@@ -42,7 +46,11 @@ export const MockThreadsPage = ({ threads }: MockThreadsPageProps) => {
           aria-label="Threads (demo)"
         >
           {threads.map((thread) => (
-            <MockThreadRow key={thread.id} thread={thread} />
+            <MockThreadRow
+              key={thread.id}
+              thread={thread}
+              isSimulatedHover={thread.id === hoveredThreadId}
+            />
           ))}
         </motion.ul>
       </CardContent>

@@ -8,16 +8,25 @@ import type { DemoThread } from "../types";
 
 type MockPortalThreadRowProps = {
   thread: DemoThread;
+  isSimulatedHover?: boolean;
 };
 
-export const MockPortalThreadRow = ({ thread }: MockPortalThreadRowProps) => {
+export const MockPortalThreadRow = ({
+  thread,
+  isSimulatedHover,
+}: MockPortalThreadRowProps) => {
   // Simulate the portal's message content structure
   const lastMessageContent = thread.lastMessage.content;
 
   return (
     <motion.div
       variants={blurSlideItemVariants}
-      className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+      className={[
+        "w-full max-w-5xl flex flex-col p-3 gap-2 rounded-md",
+        "transition-all duration-300",
+        "hover:bg-muted/50 hover:shadow-sm hover:-translate-y-px",
+        isSimulatedHover ? "bg-muted/50 shadow-sm -translate-y-px" : "bg-transparent",
+      ].join(" ")}
     >
       <div className="flex justify-between">
         <div className="flex items-center gap-2">

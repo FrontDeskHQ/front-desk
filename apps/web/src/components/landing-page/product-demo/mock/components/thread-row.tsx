@@ -9,13 +9,19 @@ import type { DemoThread } from "../types";
 
 type MockThreadRowProps = {
   thread: DemoThread;
+  isSimulatedHover?: boolean;
 };
 
-export const MockThreadRow = ({ thread }: MockThreadRowProps) => {
+export const MockThreadRow = ({ thread, isSimulatedHover }: MockThreadRowProps) => {
   return (
     <motion.li
       variants={blurSlideItemVariants}
-      className="w-full max-w-5xl flex flex-col p-3 gap-2"
+      className={[
+        "w-full max-w-5xl flex flex-col p-3 gap-2 rounded-md",
+        "transition-all duration-300",
+        "hover:bg-muted/50 hover:shadow-sm hover:-translate-y-px",
+        isSimulatedHover ? "bg-muted/50 shadow-sm -translate-y-px" : "bg-transparent",
+      ].join(" ")}
     >
       <div className="flex justify-between gap-4">
         <div className="flex items-center gap-2 min-w-0">

@@ -13,9 +13,9 @@ export const demoThreads: DemoThread[] = [
       { name: "Bug", color: "#F87171" },
     ],
     lastMessage: {
-      authorName: "Pedro Costa",
+      authorName: "Alex Chen",
       content:
-        "Thanks — I can reproduce this. Working on a fix now; I’ll follow up in ~30 minutes with an update.",
+        "I'm unable to access the billing portal. It redirects to a blank page.",
     },
     createdAt: new Date(Date.now() - 1000 * 60 * 8),
   },
@@ -23,7 +23,7 @@ export const demoThreads: DemoThread[] = [
     id: "th_2",
     title: "Discord integration: threads not syncing",
     authorName: "Maya Patel",
-    assignedUserName: "Sam",
+    assignedUserName: "Daniel Moura",
     priority: 3,
     status: 0,
     labels: [
@@ -105,5 +105,3 @@ export const demoThreads: DemoThread[] = [
     createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7),
   },
 ];
-
-
