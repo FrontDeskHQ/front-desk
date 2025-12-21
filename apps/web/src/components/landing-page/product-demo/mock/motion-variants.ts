@@ -4,7 +4,7 @@ export const blurSlideContainerVariants: Variants = {
   visible: {
     transition: {
       staggerChildren: 0.05,
-      delayChildren: 0.3,
+      delayChildren: 0.2,
     },
   },
 };
@@ -26,5 +26,3 @@ export const blurSlideItemVariants: Variants = {
     },
   },
 };
-
-

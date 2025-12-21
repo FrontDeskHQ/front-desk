@@ -38,12 +38,13 @@ export const MockThreadsPage = ({
       </CardHeader>
 
       <CardContent className="gap-0 items-center">
-        <motion.ul
+        <motion.div
           initial="hidden"
           animate="visible"
           variants={blurSlideContainerVariants}
           className="w-full flex flex-col items-center"
           aria-label="Threads (demo)"
+          key="threads-page"
         >
           {threads.map((thread) => (
             <MockThreadRow
@@ -52,7 +53,7 @@ export const MockThreadsPage = ({
               isSimulatedHover={thread.id === hoveredThreadId}
             />
           ))}
-        </motion.ul>
+        </motion.div>
       </CardContent>
     </Card>
   );

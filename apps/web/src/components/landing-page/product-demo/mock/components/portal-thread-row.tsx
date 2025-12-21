@@ -1,5 +1,8 @@
 import { Avatar } from "@workspace/ui/components/avatar";
-import { PriorityIndicator, StatusIndicator } from "@workspace/ui/components/indicator";
+import {
+  PriorityIndicator,
+  StatusIndicator,
+} from "@workspace/ui/components/indicator";
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { motion } from "motion/react";
@@ -21,20 +24,11 @@ export const MockPortalThreadRow = ({
   return (
     <motion.div
       variants={blurSlideItemVariants}
-      className={[
-        "w-full max-w-5xl flex flex-col p-3 gap-2 rounded-md",
-        "transition-all duration-300",
-        "hover:bg-muted/50 hover:shadow-sm hover:-translate-y-px",
-        isSimulatedHover ? "bg-muted/50 shadow-sm -translate-y-px" : "bg-transparent",
-      ].join(" ")}
+      className={`w-full max-w-5xl flex flex-col p-3 gap-2 rounded-md transition-colors duration-300 ${isSimulatedHover ? "bg-muted/50" : "bg-transparent"}`}
     >
       <div className="flex justify-between">
         <div className="flex items-center gap-2">
-          <Avatar
-            variant="user"
-            size="md"
-            fallback={thread.authorName}
-          />
+          <Avatar variant="user" size="md" fallback={thread.authorName} />
           <div>{thread.title}</div>
         </div>
         <div className="flex items-center gap-2">
@@ -57,9 +51,7 @@ export const MockPortalThreadRow = ({
         <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
           {thread.lastMessage.authorName}
           :&nbsp;
-          <span className="max-w-full">
-            {lastMessageContent}
-          </span>
+          <span className="max-w-full">{lastMessageContent}</span>
         </span>
         <div className="text-muted-foreground flex-shrink-0">
           {formatRelativeTime(thread.createdAt)}
@@ -68,4 +60,3 @@ export const MockPortalThreadRow = ({
     </motion.div>
   );
 };
-

@@ -20,9 +20,7 @@ export const MockThreadsSlide = ({
   const isListView = elapsedMs < listDurationMs;
 
   const hoverStartMs = listDurationMs * 0.62;
-  const hoverEndMs = listDurationMs * 0.92;
-  const isSimulatedHover =
-    isListView && elapsedMs >= hoverStartMs && elapsedMs <= hoverEndMs;
+  const isSimulatedHover = isListView && elapsedMs >= hoverStartMs;
 
   return (
     <div className="size-full flex flex-col">
