@@ -10,7 +10,9 @@ import {
 import { Logo } from "@workspace/ui/components/logo";
 import { Navbar } from "@workspace/ui/components/navbar";
 import { Settings2 } from "lucide-react";
+import { motion } from "motion/react";
 import { MockPortalThreadRow } from "../components/portal-thread-row";
+import { blurSlideContainerVariants } from "../motion-variants";
 import type { DemoThread } from "../types";
 
 type MockPortalPageProps = {
@@ -55,9 +57,17 @@ export const MockPortalPage = ({ threads }: MockPortalPageProps) => {
               </CardAction>
             </CardHeader>
             <CardContent className="overflow-y-auto gap-0 items-center">
-              {threads.map((thread) => (
-                <MockPortalThreadRow key={thread.id} thread={thread} />
-              ))}
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={blurSlideContainerVariants}
+                className="w-full flex flex-col"
+                aria-label="Public portal threads (demo)"
+              >
+                {threads.map((thread) => (
+                  <MockPortalThreadRow key={thread.id} thread={thread} />
+                ))}
+              </motion.div>
             </CardContent>
           </Card>
         </div>

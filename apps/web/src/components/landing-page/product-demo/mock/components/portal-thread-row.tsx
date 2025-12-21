@@ -2,6 +2,8 @@ import { Avatar } from "@workspace/ui/components/avatar";
 import { PriorityIndicator, StatusIndicator } from "@workspace/ui/components/indicator";
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
+import { motion } from "motion/react";
+import { blurSlideItemVariants } from "../motion-variants";
 import type { DemoThread } from "../types";
 
 type MockPortalThreadRowProps = {
@@ -13,7 +15,10 @@ export const MockPortalThreadRow = ({ thread }: MockPortalThreadRowProps) => {
   const lastMessageContent = thread.lastMessage.content;
 
   return (
-    <div className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted">
+    <motion.div
+      variants={blurSlideItemVariants}
+      className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+    >
       <div className="flex justify-between">
         <div className="flex items-center gap-2">
           <Avatar
@@ -51,7 +56,7 @@ export const MockPortalThreadRow = ({ thread }: MockPortalThreadRowProps) => {
           {formatRelativeTime(thread.createdAt)}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 

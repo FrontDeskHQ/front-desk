@@ -7,7 +7,9 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card";
 import { FilterIcon, Settings2 } from "lucide-react";
+import { motion } from "motion/react";
 import { MockThreadRow } from "../components/thread-row";
+import { blurSlideContainerVariants } from "../motion-variants";
 import type { DemoThread } from "../types";
 
 type MockThreadsPageProps = {
@@ -32,14 +34,17 @@ export const MockThreadsPage = ({ threads }: MockThreadsPageProps) => {
       </CardHeader>
 
       <CardContent className="gap-0 items-center">
-        <ul
+        <motion.ul
+          initial="hidden"
+          animate="visible"
+          variants={blurSlideContainerVariants}
           className="w-full flex flex-col items-center"
           aria-label="Threads (demo)"
         >
           {threads.map((thread) => (
             <MockThreadRow key={thread.id} thread={thread} />
           ))}
-        </ul>
+        </motion.ul>
       </CardContent>
     </Card>
   );

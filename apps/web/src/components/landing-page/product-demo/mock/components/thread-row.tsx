@@ -3,6 +3,8 @@ import { PriorityIndicator, StatusIndicator } from "@workspace/ui/components/ind
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
+import { motion } from "motion/react";
+import { blurSlideItemVariants } from "../motion-variants";
 import type { DemoThread } from "../types";
 
 type MockThreadRowProps = {
@@ -11,7 +13,10 @@ type MockThreadRowProps = {
 
 export const MockThreadRow = ({ thread }: MockThreadRowProps) => {
   return (
-    <li className="w-full max-w-5xl flex flex-col p-3 gap-2">
+    <motion.li
+      variants={blurSlideItemVariants}
+      className="w-full max-w-5xl flex flex-col p-3 gap-2"
+    >
       <div className="flex justify-between gap-4">
         <div className="flex items-center gap-2 min-w-0">
           <Avatar variant="user" size="md" fallback={thread.authorName} />
@@ -52,7 +57,7 @@ export const MockThreadRow = ({ thread }: MockThreadRowProps) => {
           {formatRelativeTime(thread.createdAt)}
         </div>
       </div>
-    </li>
+    </motion.li>
   );
 };
 
