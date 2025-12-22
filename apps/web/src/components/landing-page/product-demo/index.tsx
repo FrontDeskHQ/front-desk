@@ -14,7 +14,7 @@ import { MockPortalSlide } from "./mock/pages/portal-slide";
 import { MockThreadsSlide } from "./mock/pages/threads-slide";
 
 const SLIDE_DURATION_MS = 10_000;
-const DEV_CONTROLS_VISIBLE = true; // Set to true to show dev controls
+const DEV_CONTROLS_VISIBLE = false; // Set to true to show dev controls
 const TIME_STEP_MS = 1_000; // 1 second for advance/rewind
 
 type Slide = {
@@ -217,7 +217,7 @@ export const ProductDemo = () => {
             type="button"
             onClick={() => handleSlideClick(index)}
             className={`
-              border-y flex px-4 py-6 gap-2 justify-center items-center relative
+              border-t flex px-4 py-6 gap-2 justify-center items-center relative
               transition-colors duration-200
               ${index === 0 ? "border-r" : ""}
               ${isActive ? "bg-background-secondary/50" : "bg-transparent hover:bg-background-secondary/30"}
@@ -247,7 +247,7 @@ export const ProductDemo = () => {
           </button>
         );
       })}
-      <div className="col-span-full -mx-6 w-[calc(100%+var(--spacing)*12)]">
+      <div className="col-span-full w-full mx-0 xl:-mx-6 xl:w-[calc(100%+var(--spacing)*12)]">
         <div className="relative w-full aspect-video border bg-background-primary overflow-hidden isolate p-2">
           <MockAppFrame showSidebar={activeSlide === 0}>
             {slides[activeSlide].content({

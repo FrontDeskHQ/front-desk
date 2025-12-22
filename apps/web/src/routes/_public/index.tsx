@@ -12,13 +12,14 @@ import {
   FormItem,
   FormMessage,
 } from "@workspace/ui/components/form";
-import { Discord, GitHub, Slack } from "@workspace/ui/components/icons";
+import { Discord, GitHub, Linear, Slack } from "@workspace/ui/components/icons";
 import { Input } from "@workspace/ui/components/input";
 import { AnimatedGroup } from "@workspace/ui/components/motion";
 import { Spinner } from "@workspace/ui/components/spinner";
 import Dither, {
   DashedPattern,
   HorizontalLine,
+  VerticalLine,
 } from "@workspace/ui/components/surface";
 import {
   Tooltip,
@@ -27,7 +28,16 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
-import { ArrowUpRight, Blocks, Inbox, Search, Users, Zap } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpRight,
+  Inbox,
+  MessagesSquare,
+  Search,
+  Sparkles,
+  Users,
+  Zap,
+} from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
 import { ProductDemo } from "~/components/landing-page/product-demo";
@@ -53,11 +63,11 @@ const getCommitLevel = (count: number): number => {
 
 const getCommitColor = (level: number): string => {
   const colors = [
-    "bg-muted-foreground/5", // 0 commits
-    "bg-muted-foreground/20", // 1-3 commits
-    "bg-muted-foreground/50", // 4-6 commits
-    "bg-muted-foreground/70", // 7-9 commits
-    "bg-muted-foreground/90", // 10+ commits
+    "bg-foreground-secondary/5", // 0 commits
+    "bg-foreground-secondary/20", // 1-3 commits
+    "bg-foreground-secondary/50", // 4-6 commits
+    "bg-foreground-secondary/70", // 7-9 commits
+    "bg-foreground-secondary/90", // 10+ commits
   ];
   return colors[level];
 };
@@ -108,7 +118,9 @@ function CommitHeatmap({ className }: { className?: string }) {
   if (isLoading) {
     return (
       <div className="w-full h-full flex items-center justify-center py-12">
-        <div className="text-muted-foreground">Loading commit activity...</div>
+        <div className="text-foreground-secondary">
+          Loading commit activity...
+        </div>
       </div>
     );
   }
@@ -116,7 +128,7 @@ function CommitHeatmap({ className }: { className?: string }) {
   if (error) {
     return (
       <div className="w-full h-full flex items-center justify-center py-12">
-        <div className="text-muted-foreground">
+        <div className="text-foreground-secondary">
           Failed to load commit activity
         </div>
       </div>
@@ -132,7 +144,7 @@ function CommitHeatmap({ className }: { className?: string }) {
   return (
     <TooltipProvider>
       <div className="w-full flex flex-col gap-4">
-        <div className="text-sm text-muted-foreground">
+        <div className="text-sm text-foreground-secondary">
           <span className="font-semibold text-foreground">{totalCommits}</span>{" "}
           commits in the last year
         </div>
@@ -173,7 +185,7 @@ function CommitHeatmap({ className }: { className?: string }) {
                           {commitCount}{" "}
                           {commitCount === 1 ? "commit" : "commits"}
                         </div>
-                        <div className="text-xs text-muted-foreground">
+                        <div className="text-xs text-foreground-secondary">
                           {formattedDate}
                         </div>
                       </div>
@@ -256,7 +268,7 @@ function RouteComponent() {
           id="hero"
           className="col-span-12 flex flex-col items-center py-32 relative border-x scroll-mt-15"
         >
-          <div className="absolute inset-0 text-muted-foreground/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-35 ease-in duration-[2s]">
+          <div className="absolute inset-0 text-foreground-secondary/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-35 ease-in duration-[2s]">
             {/* <DashedPattern className="border-r" /> */}
             <Dither
               waveColor={[0.7, 0.7, 0.7]}
@@ -293,14 +305,14 @@ function RouteComponent() {
           id="features"
           className="col-span-full border-x scroll-mt-15 border-b"
         >
-          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+          <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             01 - Main features
           </div>
-          <div className="grid grid-cols-12">
+          <div className="grid grid-cols-12 border-b">
             <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-7 md:row-span-2 md:border-r border-b">
-              <Users className="size-10 text-muted-foreground stroke-[1.2] mb-2" />
+              <Users className="size-10 text-foreground-secondary stroke-[1.2] mb-2" />
               <h3 className="text-xl font-semibold">Community-first support</h3>
-              <p className="text-muted-foreground leading-relaxed max-w-lg">
+              <p className="text-foreground-secondary leading-relaxed max-w-lg">
                 Turn support into a shared knowledge space. Every question
                 becomes a public thread, every answer helps the next customer.
                 Your community doesn't just ask for help — it scales your
@@ -309,11 +321,11 @@ function RouteComponent() {
             </div>
 
             <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5 md:row-span-2 border-b">
-              <Search className="size-8 text-muted-foreground mb-2" />
+              <Search className="size-8 text-foreground-secondary mb-2" />
               <h3 className="text-xl font-semibold">
                 Public, searchable answers
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-foreground-secondary leading-relaxed">
                 Support that works before users even ask. Threads are public,
                 indexable, and searchable — real answers from real
                 conversations.
@@ -321,11 +333,11 @@ function RouteComponent() {
             </div>
 
             <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0 md:border-r">
-              <Inbox className="size-8 text-muted-foreground mb-2" />
+              <Inbox className="size-8 text-foreground-secondary mb-2" />
               <h3 className="text-xl font-semibold">
                 Unified inbox for agents
               </h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-foreground-secondary leading-relaxed">
                 Discord, Slack, in-app and every other support channel flow into
                 a single inbox. No more context switching between apps to
                 respond to customers.
@@ -333,38 +345,72 @@ function RouteComponent() {
             </div>
 
             <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0 md:border-r">
-              <Zap className="size-8 text-muted-foreground mb-2" />
+              <Zap className="size-8 text-foreground-secondary mb-2" />
               <h3 className="text-xl font-semibold">Built for speed</h3>
-              <p className="text-muted-foreground leading-relaxed">
+              <p className="text-foreground-secondary leading-relaxed">
                 Realtime sync, instant search, no page loads. Don't keep
                 customers waiting because of a slow support tool.
               </p>
             </div>
 
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0">
-              <Blocks className="size-8 text-muted-foreground mb-2" />
-              <h3 className="text-xl font-semibold">Integrations</h3>
-              <div className="text-muted-foreground grid grid-cols-3 flex-1">
-                <div className="flex items-center justify-center">
-                  <Discord className="size-6" />
-                </div>
-                <div className="flex items-center justify-center">
-                  <Slack className="size-6" />
-                </div>
-                <div className="flex items-center justify-center">
-                  <GitHub className="size-6" />
-                </div>
-              </div>
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
+              <Sparkles className="size-8 text-foreground-secondary mb-2" />
+              <h3 className="text-xl font-semibold">AI native</h3>
+              <p className="text-foreground-secondary leading-relaxed">
+                Built from the ground up with AI at its core. Smart suggestions,
+                intelligent routing, and automated responses that actually help.
+              </p>
             </div>
           </div>
           <HorizontalLine variant="outer" />
+          <div className="grid grid-cols-3">
+            <div className="relative h-12">
+              <VerticalLine className="hidden md:block absolute right-0 inset-y-0" />
+            </div>
+            <div className="relative h-12">
+              <VerticalLine className="hidden md:block absolute right-0 inset-y-0" />
+            </div>
+            <div className="relative h-12" />
+          </div>
+          <HorizontalLine variant="contained" />
+          <div className="grid col-span-full grid-cols-8 md:grid-cols-12">
+            <div className="col-span-full md:col-span-4 flex flex-col gap-3 px-6 py-4 md:border-r border-b md:border-b-0">
+              <h3 className="text-xl font-semibold">Connect everything</h3>
+              <p className="text-foreground-secondary leading-relaxed">
+                Bring all your channels together. Connect Discord, Slack,
+                GitHub, Linear, and more.
+              </p>
+            </div>
+            <div className="border-r flex items-center justify-center min-h-16">
+              <Discord className="size-8 text-foreground-secondary" />
+            </div>
+            <div className="border-r flex items-center justify-center min-h-16">
+              <Slack className="size-8 text-foreground-secondary" />
+            </div>
+            <div className="border-r flex items-center justify-center min-h-16">
+              <MessagesSquare className="size-8 text-foreground-secondary" />
+            </div>
+            <div className="border-r flex items-center justify-center min-h-16">
+              <GitHub className="size-8 text-foreground-secondary" />
+            </div>
+            <div className="border-r flex items-center justify-center min-h-16">
+              <Linear className="size-8 text-foreground-secondary" />
+            </div>
+            <a
+              href="/docs/integrations"
+              className="col-span-3 flex items-center gap-2 justify-center text-foreground-secondary md:text-lg md:font-light"
+            >
+              All integrations
+              <ArrowRight className="size-4.5 stroke-2" />
+            </a>
+          </div>
         </section>
         <HorizontalLine variant="outer" />
         <section
           id="pricing"
           className="col-span-full grid grid-cols-subgrid border-x border-b scroll-mt-15"
         >
-          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+          <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             02 - Pricing
           </div>
           <DashedPattern className="h-full border-r text-foreground-tertiary/65" />
@@ -381,7 +427,7 @@ function RouteComponent() {
               <div className="text-lg font-medium">Starter</div>
               <div className="mb-4">
                 <span className="text-2xl font-semibold text-primary">$9</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-foreground-secondary">
                   /seat/month
                 </span>
               </div>
@@ -397,11 +443,11 @@ function RouteComponent() {
               <div className="text-lg font-medium">Pro</div>
               <div className="mb-4">
                 <span className="text-2xl font-semibold text-primary">$24</span>
-                <span className="text-sm text-muted-foreground">
+                <span className="text-sm text-foreground-secondary">
                   /seat/month
                 </span>
               </div>
-              <div className="text-muted-foreground text-sm mb-2 h-5">
+              <div className="text-foreground-secondary text-sm mb-2 h-5">
                 Everything in Starter, plus:
               </div>
               <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
@@ -431,7 +477,7 @@ function RouteComponent() {
                 .
               </div>
             </div>
-            <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+            <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
               FREQUENTLY ASKED QUESTIONS
             </div>
             <div className="col-span-full">
@@ -562,14 +608,14 @@ function RouteComponent() {
           className="col-span-full grid grid-cols-subgrid border-x border-b scroll-mt-15"
           id="engineering"
         >
-          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+          <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             03 - Engineering
           </div>
           <div className="col-span-full text-center pt-12 pb-6 px-4">
             <div className="text-2xl font-medium">Proudly open source</div>
             <a
               href="https://github.com/frontdeskhq/front-desk"
-              className="text-lg text-muted-foreground hover:underline"
+              className="text-lg text-foreground-secondary hover:underline"
               target="_blank"
               rel="noopener noreferrer"
             >
