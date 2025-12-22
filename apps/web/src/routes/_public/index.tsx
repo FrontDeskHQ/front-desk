@@ -12,6 +12,7 @@ import {
   FormItem,
   FormMessage,
 } from "@workspace/ui/components/form";
+import { Discord, GitHub, Slack } from "@workspace/ui/components/icons";
 import { Input } from "@workspace/ui/components/input";
 import { AnimatedGroup } from "@workspace/ui/components/motion";
 import { Spinner } from "@workspace/ui/components/spinner";
@@ -26,7 +27,7 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
-import { ArrowUpRight, Inbox, Search, Users, Zap } from "lucide-react";
+import { ArrowUpRight, Blocks, Inbox, Search, Users, Zap } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
 import { ProductDemo } from "~/components/landing-page/product-demo";
@@ -319,7 +320,7 @@ function RouteComponent() {
               </p>
             </div>
 
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
               <Inbox className="size-8 text-muted-foreground mb-2" />
               <h3 className="text-xl font-semibold">
                 Unified inbox for agents
@@ -340,11 +341,23 @@ function RouteComponent() {
               </p>
             </div>
 
-            <div className="bg-background col-span-full md:col-span-3">
-              <DashedPattern className="size-full text-foreground-tertiary/65" />
-              {/* <CommunityActivityPulse /> */}
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
+              <Blocks className="size-8 text-muted-foreground mb-2" />
+              <h3 className="text-xl font-semibold">Integrations</h3>
+              <div className="text-muted-foreground grid grid-cols-3 flex-1">
+                <div className="flex items-center justify-center">
+                  <Discord className="size-6" />
+                </div>
+                <div className="flex items-center justify-center">
+                  <Slack className="size-6" />
+                </div>
+                <div className="flex items-center justify-center">
+                  <GitHub className="size-6" />
+                </div>
+              </div>
             </div>
           </div>
+          <HorizontalLine variant="outer" />
         </section>
         <HorizontalLine variant="outer" />
         <section
