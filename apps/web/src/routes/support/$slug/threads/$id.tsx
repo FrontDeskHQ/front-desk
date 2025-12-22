@@ -121,11 +121,11 @@ function RouteComponent() {
   });
 
   return (
-    <div className="flex flex-col size-full gap-4 sm:gap-8 min-h-screen">
+    <div className="flex flex-col w-full gap-4 sm:gap-8">
       <div className="flex flex-col flex-1 px-4 py-4 sm:py-8 sm:px-8">
         <div className="flex flex-1 justify-center">
           <div className="grow shrink max-w-0 2xl:max-w-64" />
-          <Card className="w-full grow shrink flex flex-col max-w-5xl min-h-5xl">
+          <Card className="w-full grow shrink flex flex-col max-w-5xl">
             <CardHeader>
               <CardTitle>
                 {thread && (
@@ -173,7 +173,7 @@ function RouteComponent() {
                       <Card
                         key={item.id}
                         className={cn(
-                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border"
+                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         )}
                       >
                         {/* TODO: update the way it's checking if it's an message from the current user */}
