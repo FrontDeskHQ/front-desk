@@ -98,8 +98,7 @@ function RouteComponent() {
   const { thread } = Route.useLoaderData();
 
   const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
-
-  const discordUrl = JSON.parse(organization.socials ?? "{}")?.discord;
+  const user = portalSession?.user;
 
   const allItems = thread
     ? [
@@ -212,31 +211,35 @@ function RouteComponent() {
                   return null;
                 })}
               </div>
-              <Editor
-                onSubmit={async (value) => {
-                  const user = portalSession?.user;
+              {user ? (
+                <Editor
+                  onSubmit={async (value) => {
+                    if (!user) return;
 
-                  if (!user) return;
+                    await fetchClient.mutate.message.create({
+                      threadId: thread.id,
+                      content: value,
+                      userId: user.id,
+                      userName: user.name,
+                      organizationId: thread.organizationId,
+                    });
 
-                  await fetchClient.mutate.message.create({
-                    threadId: thread.id,
-                    content: value,
-                    userId: user.id,
-                    userName: user.name,
-                    organizationId: thread.organizationId,
-                  });
-
-                  // TODO: Find out how to only invalidate this route
-                  route.invalidate();
-                }}
-              >
-                <EditorInput
-                  className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-                  placeholder="Write a reply..."
+                    // TODO: Find out how to only invalidate this route
+                    route.invalidate();
+                  }}
                 >
-                  <EditorSubmit />
-                </EditorInput>
-              </Editor>
+                  <EditorInput
+                    className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+                    placeholder="Write a reply..."
+                  >
+                    <EditorSubmit />
+                  </EditorInput>
+                </Editor>
+              ) : (
+                <div className="flex flex-col gap-2 justify-center items-center text-foreground-secondary pt-8 pb-4 border-t">
+                  You must be signed in to reply to this thread.
+                </div>
+              )}
             </div>
           </Card>
           <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
