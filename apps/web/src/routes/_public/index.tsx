@@ -296,8 +296,8 @@ function RouteComponent() {
           <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             01 - Main features
           </div>
-          <div className="grid grid-cols-12 gap-px bg-border">
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-7 md:row-span-2">
+          <div className="grid grid-cols-12">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-7 md:row-span-2 md:border-r border-b">
               <Users className="size-10 text-muted-foreground stroke-[1.2] mb-2" />
               <h3 className="text-xl font-semibold">Community-first support</h3>
               <p className="text-muted-foreground leading-relaxed max-w-lg">
@@ -308,7 +308,7 @@ function RouteComponent() {
               </p>
             </div>
 
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5 md:row-span-2">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5 md:row-span-2 border-b">
               <Search className="size-8 text-muted-foreground mb-2" />
               <h3 className="text-xl font-semibold">
                 Public, searchable answers
@@ -320,7 +320,7 @@ function RouteComponent() {
               </p>
             </div>
 
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0 md:border-r">
               <Inbox className="size-8 text-muted-foreground mb-2" />
               <h3 className="text-xl font-semibold">
                 Unified inbox for agents
@@ -332,7 +332,7 @@ function RouteComponent() {
               </p>
             </div>
 
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0 md:border-r">
               <Zap className="size-8 text-muted-foreground mb-2" />
               <h3 className="text-xl font-semibold">Built for speed</h3>
               <p className="text-muted-foreground leading-relaxed">
@@ -341,7 +341,7 @@ function RouteComponent() {
               </p>
             </div>
 
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0">
               <Blocks className="size-8 text-muted-foreground mb-2" />
               <h3 className="text-xl font-semibold">Integrations</h3>
               <div className="text-muted-foreground grid grid-cols-3 flex-1">
