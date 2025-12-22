@@ -26,7 +26,7 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
-import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
+import { ArrowUpRight, Inbox, Search, Users, Zap } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
 import { ProductDemo } from "~/components/landing-page/product-demo";
@@ -290,33 +290,59 @@ function RouteComponent() {
         <HorizontalLine variant="outer" />
         <section
           id="features"
-          className="grid grid-cols-3 col-span-full border-x scroll-mt-15"
+          className="col-span-full border-x scroll-mt-15 border-b"
         >
-          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4">
+          <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             01 - Main features
           </div>
-          <div className="border-y min-h-48 flex flex-col px-4 py-6 gap-2 col-span-full md:col-span-1">
-            <Inbox className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
-            <div className="text-lg font-medium">Unified inbox</div>
-            <div className="text-muted-foreground">
-              All your support channels in one place. No more switching between
-              apps.
+          <div className="grid grid-cols-12 gap-px bg-border">
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-7 md:row-span-2">
+              <Users className="size-10 text-muted-foreground stroke-[1.2] mb-2" />
+              <h3 className="text-xl font-semibold">Community-first support</h3>
+              <p className="text-muted-foreground leading-relaxed max-w-lg">
+                Turn support into a shared knowledge space. Every question
+                becomes a public thread, every answer helps the next customer.
+                Your community doesn't just ask for help — it scales your
+                support for you.
+              </p>
             </div>
-          </div>
-          <div className="border-y border-x min-h-48 flex flex-col px-4 py-6 gap-2 col-span-full md:col-span-1">
-            <Zap className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
-            <div className="text-lg font-medium">Built for speed</div>
-            <div className="text-muted-foreground">
-              Realtime sync, no page loads, instant searches. FrontDesk doesn't
-              make you wait.
+
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5 md:row-span-2">
+              <Search className="size-8 text-muted-foreground mb-2" />
+              <h3 className="text-xl font-semibold">
+                Public, searchable answers
+              </h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Support that works before users even ask. Threads are public,
+                indexable, and searchable — real answers from real
+                conversations.
+              </p>
             </div>
-          </div>
-          <div className="border-y min-h-48 flex flex-col px-4 py-6 gap-2 col-span-full md:col-span-1">
-            <BookOpenText className="size-8 text-muted-foreground stroke-[1.2] mb-4" />
-            <div className="text-lg font-medium">Public support</div>
-            <div className="text-muted-foreground">
-              Your support threads are public, indexable, and searchable.
-              Customers can find answers without waiting for a response.
+
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5">
+              <Inbox className="size-8 text-muted-foreground mb-2" />
+              <h3 className="text-xl font-semibold">
+                Unified inbox for agents
+              </h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Discord, Slack, in-app and every other support channel flow into
+                a single inbox. No more context switching between apps to
+                respond to customers.
+              </p>
+            </div>
+
+            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
+              <Zap className="size-8 text-muted-foreground mb-2" />
+              <h3 className="text-xl font-semibold">Built for speed</h3>
+              <p className="text-muted-foreground leading-relaxed">
+                Realtime sync, instant search, no page loads. Don't keep
+                customers waiting because of a slow support tool.
+              </p>
+            </div>
+
+            <div className="bg-background col-span-full md:col-span-3">
+              <DashedPattern className="size-full text-foreground-tertiary/65" />
+              {/* <CommunityActivityPulse /> */}
             </div>
           </div>
         </section>
@@ -328,7 +354,7 @@ function RouteComponent() {
           <div className="text-muted-foreground col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
             02 - Pricing
           </div>
-          <DashedPattern className="h-full border-r text-muted-foreground" />
+          <DashedPattern className="h-full border-r text-foreground-tertiary/65" />
           <div className="col-span-10 grid grid-cols-subgrid">
             <div className="text-center col-span-full h-fit flex flex-col items-center justify-center py-10 px-8">
               <div className="text-3xl font-bold mb-4">
@@ -516,7 +542,7 @@ function RouteComponent() {
               </Accordion>
             </div>
           </div>
-          <DashedPattern className="h-full border-l text-muted-foreground" />
+          <DashedPattern className="h-full border-l text-foreground-tertiary/65" />
         </section>
         <HorizontalLine variant="outer" />
         <section
@@ -547,7 +573,7 @@ function RouteComponent() {
           className="col-span-full grid grid-cols-subgrid border-x border-b relative scroll-mt-15"
           id="cta"
         >
-          <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white text-muted-foreground" />
+          <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white text-foreground-tertiary/65" />
           {/* <DashedPattern className="absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_40%_50%_at_center,transparent_60%,black_100%)]" /> */}
           <div className="col-span-full text-center px-8 md:px-4 py-40">
             <div className="text-3xl font-medium mb-12">
