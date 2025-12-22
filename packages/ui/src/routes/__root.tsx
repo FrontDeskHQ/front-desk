@@ -2,6 +2,7 @@ import { SidebarProvider } from "@/components/sidebar";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { ThemeProvider } from "next-themes";
 import { RootSidebar } from "./-components/sidebar";
 
 export const Route = createRootRoute({
@@ -10,23 +11,25 @@ export const Route = createRootRoute({
 
 function RootComponent() {
   return (
-    <SidebarProvider>
-      <RootSidebar />
-      <main className="flex-1">
-        <Outlet />
-      </main>
+    <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+      <SidebarProvider>
+        <RootSidebar />
+        <main className="flex-1">
+          <Outlet />
+        </main>
 
-      <TanStackDevtools
-        config={{
-          position: "bottom-right",
-        }}
-        plugins={[
-          {
-            name: "Tanstack Router",
-            render: <TanStackRouterDevtoolsPanel />,
-          },
-        ]}
-      />
-    </SidebarProvider>
+        <TanStackDevtools
+          config={{
+            position: "bottom-right",
+          }}
+          plugins={[
+            {
+              name: "Tanstack Router",
+              render: <TanStackRouterDevtoolsPanel />,
+            },
+          ]}
+        />
+      </SidebarProvider>
+    </ThemeProvider>
   );
 }
