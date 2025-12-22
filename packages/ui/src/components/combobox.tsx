@@ -1,6 +1,6 @@
 import {
   Combobox as ComboboxPrimitive,
-  ComboboxRootProps,
+  type ComboboxRootProps,
 } from "@base-ui-components/react/combobox";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
