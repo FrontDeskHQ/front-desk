@@ -11,7 +11,6 @@ import {
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
 import { ThemeSwitcher } from "@workspace/ui/components/theme-switcher";
-import { Home } from "lucide-react";
 
 export const RootSidebar = () => {
   const matches = useMatches();
@@ -24,12 +23,21 @@ export const RootSidebar = () => {
             <SidebarMenu>
               <SidebarMenuItem>
                 <SidebarMenuButton
-                  data-active={matches.some((match) => match.pathname === "/")}
+                  data-active={matches.at(-1)?.pathname === "/"}
                   asChild
                 >
                   <Link to="/">
-                    <Home />
                     <span>Home</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  data-active={matches.at(-1)?.pathname === "/buttons"}
+                  asChild
+                >
+                  <Link to="/buttons">
+                    <span>Buttons</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

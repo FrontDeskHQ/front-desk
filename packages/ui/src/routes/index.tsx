@@ -5,5 +5,5 @@ export const Route = createFileRoute("/")({
 });
 
 function App() {
-  return <div className="text-center">Hello World</div>;
+  return <div className="text-center">Welcome to the FrontDesk UI studio</div>;
 }

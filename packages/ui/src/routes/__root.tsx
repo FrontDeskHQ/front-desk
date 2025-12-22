@@ -14,7 +14,7 @@ function RootComponent() {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
       <SidebarProvider>
         <RootSidebar />
-        <main className="flex-1">
+        <main className="flex-1 p-4 flex flex-col">
           <Outlet />
         </main>
 
