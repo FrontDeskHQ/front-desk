@@ -81,6 +81,7 @@
     "@tanstack/devtools-vite": "^0.3.11",
     "@testing-library/dom": "^10.4.0",
     "@testing-library/react": "^16.2.0",
+    "@types/is-hotkey": "^0.1.10",
     "@types/mdast": "^4.0.4",
     "@types/node": "^22.10.2",
     "@types/react": "catalog:",
