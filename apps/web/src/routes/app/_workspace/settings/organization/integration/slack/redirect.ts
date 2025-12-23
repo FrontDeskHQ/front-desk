@@ -105,6 +105,10 @@ export const Route = createFileRoute(
               throw new Error("SLACK_TEAM_ID_NOT_FOUND");
             }
 
+            // Store the full installation object as-is
+            // The installation object contains all the OAuth response data
+            const installation = tokenData;
+
             await fetchClient.mutate.integration.update(integration.id, {
               enabled: true,
               updatedAt: new Date(),
@@ -112,6 +116,7 @@ export const Route = createFileRoute(
                 ...config,
                 teamId,
                 accessToken,
+                installation,
               }),
             });
           }

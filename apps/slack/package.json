@@ -1,0 +1,25 @@
+{
+  "name": "slack",
+  "version": "0.0.0",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "tsdown",
+    "start": "node dist/index.js",
+    "dev": "bun run --watch src/index.ts"
+  },
+  "dependencies": {
+    "@live-state/sync": "catalog:",
+    "@slack/bolt": "^4.6.0",
+    "@slack/oauth": "^3.0.4",
+    "@workspace/ui": "workspace:*",
+    "api": "workspace:*",
+    "dotenv": "^16.6.1",
+    "ulid": "^3.0.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "bun-types": "latest",
+    "tsdown": "^0.10.2"
+  },
+  "module": "src/index.js"
+}

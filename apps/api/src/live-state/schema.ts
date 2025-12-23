@@ -46,10 +46,14 @@ const thread = object("thread", {
   authorId: reference("author.id"),
   createdAt: timestamp(),
   deletedAt: timestamp().nullable(),
+  /** @deprecated use externalId and externalOrigin instead */
   discordChannelId: string().nullable(),
   status: number().default(0),
   priority: number().default(0),
   assignedUserId: reference("user.id").nullable(),
+  externalId: string().nullable(),
+  externalOrigin: string().nullable(),
+  externalMetadataStr: string().nullable(),
 });
 
 const message = object("message", {

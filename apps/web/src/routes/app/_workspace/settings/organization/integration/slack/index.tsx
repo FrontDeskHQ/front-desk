@@ -42,9 +42,11 @@ const integrationDetails = integrationOptions.find(
 
 // Slack bot scopes - chat:write, channels:read, channels:history, groups:read, im:read, users:read
 const SLACK_BOT_SCOPES = [
-  "chat:write",
-  "channels:read",
   "channels:history",
+  "channels:read",
+  "chat:write",
+  "chat:write.customize",
+  "groups:history",
   "groups:read",
   "im:read",
   "users:read",
