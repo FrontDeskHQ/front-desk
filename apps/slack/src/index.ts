@@ -122,11 +122,8 @@ app.message(
 
     if (!("user" in message) || !message.user) return;
 
-    if (
-      message.subtype === "bot_message" ||
-      "bot_id" in message ||
-      "bot_profile" in message
-    )
+    // Filter out bot messages and system messages (any message with a subtype)
+    if (message.subtype || "bot_id" in message || "bot_profile" in message)
       return;
 
     const isFirstMessage = !("thread_ts" in message);
