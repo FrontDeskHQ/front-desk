@@ -21,7 +21,7 @@ function RouteComponent() {
               </Logo>
               <h1 className="text-lg font-normal">FrontDesk</h1>
             </Link>
-            <Button variant="link" render={<Link to="/" hash="pricing">Pricing</Link>} />
+            <Button variant="link" render={<Link to="/" hash="pricing" />}>Pricing</Button>
           </div>
           <AuthButtonGroup />
         </div>

@@ -278,20 +278,23 @@ export const AuthButtonGroup = () => {
   return (
     <div className="flex items-center gap-2">
       {session ? (
-        <Button variant="primary" render={<Link to="/app">Go to app</Link>} />
+        <Button variant="primary" render={<Link to="/app" />}>
+          Go to app
+        </Button>
       ) : (
         <>
           <Button
             variant={
               import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? "primary" : "ghost"
             }
-            render={<Link to="/sign-in">Log in</Link>}
-          />
+            render={<Link to="/sign-in" />}
+          >
+            Log in
+          </Button>
           {!import.meta.env.VITE_ENABLE_GOOGLE_LOGIN && (
-            <Button
-              variant="primary"
-              render={<Link to="/sign-up">Sign Up</Link>}
-            />
+            <Button variant="primary" render={<Link to="/sign-up" />}>
+              Sign Up
+            </Button>
           )}
         </>
       )}
