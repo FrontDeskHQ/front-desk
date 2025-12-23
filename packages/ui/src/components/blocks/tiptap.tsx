@@ -112,7 +112,7 @@ export function EditorSubmit({
   return (
     <Button
       size="sm"
-      variant={isDisabled ? "secondary" : "default"}
+      variant={isDisabled ? "secondary" : "primary"}
       onClick={onClick}
       disabled={isDisabled}
     >

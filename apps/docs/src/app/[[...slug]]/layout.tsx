@@ -13,10 +13,8 @@ export default function Layout({ children }: LayoutProps<"/[[...slug]]">) {
           <Button
             variant="outline"
             className="bg-fd-secondary/50 text-fd-muted-foreground transition-colors hover:bg-fd-accent hover:text-fd-accent-foreground cursor-pointer"
-            asChild
-          >
-            <a href="/">Go to app</a>
-          </Button>
+            render={<a href="/">Go to app</a>}
+          />
         ),
       }}
     >

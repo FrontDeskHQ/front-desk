@@ -334,7 +334,7 @@ function RouteComponent() {
               <p>Use variants for different types of actions:</p>
               <ul className="text-sm  space-y-1.5 list-disc list-inside">
                 <li>
-                  default: for primary actions -{" "}
+                  primary: for primary actions -{" "}
                   <strong>ONLY ONE PRIMARY ACTION PER SCREEN/DIALOG</strong>
                 </li>
                 <li>

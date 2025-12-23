@@ -193,12 +193,16 @@ function RouteComponent() {
 
   return (
     <>
-      <Button variant="ghost" asChild className="absolute top-2 left-1">
-        <Link to="/app/settings/organization/integration">
-          <ArrowLeft />
-          Integrations
-        </Link>
-      </Button>
+      <Button
+        variant="ghost"
+        render={
+          <Link to="/app/settings/organization/integration">
+            <ArrowLeft />
+            Integrations
+          </Link>
+        }
+        className="absolute top-2 left-1"
+      />
       <div className="flex flex-col gap-4 pt-12">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">

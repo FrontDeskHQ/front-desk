@@ -274,27 +274,24 @@ export const SignUpForm = () => {
 
 export const AuthButtonGroup = () => {
   const { data: session } = authClient.useSession();
-  
+
   return (
     <div className="flex items-center gap-2">
       {session ? (
-        <Button variant="default" asChild>
-          <Link to="/app">Go to app</Link>
-        </Button>
+        <Button variant="primary" render={<Link to="/app">Go to app</Link>} />
       ) : (
         <>
           <Button
             variant={
-              import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? "default" : "ghost"
+              import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? "primary" : "ghost"
             }
-            asChild
-          >
-            <Link to="/sign-in">Log in</Link>
-          </Button>
+            render={<Link to="/sign-in">Log in</Link>}
+          />
           {!import.meta.env.VITE_ENABLE_GOOGLE_LOGIN && (
-            <Button variant="default" asChild>
-              <Link to="/sign-up">Sign Up</Link>
-            </Button>
+            <Button
+              variant="primary"
+              render={<Link to="/sign-up">Sign Up</Link>}
+            />
           )}
         </>
       )}

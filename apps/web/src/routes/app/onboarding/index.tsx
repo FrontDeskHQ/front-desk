@@ -138,9 +138,11 @@ function OnboardingForm() {
             </div>
           ))}
           <Separator />
-          <Button variant="outline" className="w-full" asChild>
-            <Link to="/app/onboarding/new">Create new organization</Link>
-          </Button>
+          <Button
+            variant="outline"
+            className="w-full"
+            render={<Link to="/app/onboarding/new">Create new organization</Link>}
+          />
         </CardContent>
       </Card>
       <div
@@ -149,12 +151,14 @@ function OnboardingForm() {
           acceptedSomeInvite && "opacity-100 pointer-events-auto",
         )}
       >
-        <Button asChild>
-          <Link to="/app">
-            Continue to app
-            <ArrowRightIcon className="size-4" />
-          </Link>
-        </Button>
+        <Button
+          render={
+            <Link to="/app">
+              Continue to app
+              <ArrowRightIcon className="size-4" />
+            </Link>
+          }
+        />
       </div>
     </div>
   );

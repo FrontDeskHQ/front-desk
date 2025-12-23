@@ -146,7 +146,7 @@ function RouteComponent() {
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button
-                        variant={plan === "pro" ? "secondary" : "default"}
+                        variant={plan === "pro" ? "secondary" : "primary"}
                       >
                         {plan === "pro" ? "Downgrade" : "Upgrade"}
                       </Button>
@@ -206,7 +206,7 @@ function RouteComponent() {
 
                       window.location.href = session.checkout_url;
                     }}
-                    variant={plan === "pro" ? "secondary" : "default"}
+                    variant={plan === "pro" ? "secondary" : "primary"}
                   >
                     {plan === "pro" ? "Downgrade" : "Upgrade"}
                   </Button>
