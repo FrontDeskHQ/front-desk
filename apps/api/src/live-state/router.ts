@@ -486,8 +486,7 @@ export const router = createRouter({
             if (req.input.userId || req.context?.portalSession?.session) {
               // Portal session flow - use userId
               const userId =
-                req.input.userId ??
-                req.context?.portalSession?.session.userId;
+                req.input.userId ?? req.context?.portalSession?.session.userId;
               const userName =
                 req.input.userName ??
                 req.context?.portalSession?.session.userName ??
@@ -665,8 +664,7 @@ export const router = createRouter({
           await db.transaction(async ({ trx }) => {
             // Get or create author
             const userId =
-              req.input.userId ??
-              req.context?.portalSession?.session.userId;
+              req.input.userId ?? req.context?.portalSession?.session.userId;
             const userName =
               req.input.userName ??
               req.context?.portalSession?.session.userName ??
@@ -718,7 +716,7 @@ export const router = createRouter({
           return message;
         }),
       })),
-    user: privateRoute.collectionRoute(schema.user, {
+    user: publicRoute.collectionRoute(schema.user, {
       read: () => true,
       insert: () => false,
       update: {
