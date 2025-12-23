@@ -85,6 +85,33 @@ function RouteComponent() {
               Link
             </Button>
           </div>
+          <div className="col-span-full border-t border-dashed h-px" />
+          <div className="flex items-center justify-center text-foreground-secondary text-sm">
+            xl
+          </div>
+          <div className="flex items-center justify-center">
+            <Button size="xl">Default</Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="outline" size="xl">
+              Outline
+            </Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="secondary" size="xl">
+              Secondary
+            </Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="ghost" size="xl">
+              Ghost
+            </Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="link" size="xl">
+              Link
+            </Button>
+          </div>
         </div>
       </div>
       <div className="flex flex-col gap-4">
