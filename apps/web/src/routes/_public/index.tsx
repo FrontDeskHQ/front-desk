@@ -238,7 +238,7 @@ function ApplyToWaitlistForm() {
           </FormItem>
         )}
       </Field>
-      <Button variant="default" type="submit" disabled={loading}>
+      <Button variant="primary" type="submit" disabled={loading}>
         {loading ? <Spinner /> : null}
         {success ? "Thank you!" : "Request access"}
       </Button>

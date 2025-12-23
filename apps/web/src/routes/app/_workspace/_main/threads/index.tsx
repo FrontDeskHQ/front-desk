@@ -259,11 +259,13 @@ function RouteComponent() {
             ) : (
               <>
                 <p>Looks like you don't have any integrations set up</p>
-                <Button asChild>
-                  <Link to="/app/settings/organization/integration">
-                    Set up new channels
-                  </Link>
-                </Button>
+                <Button
+                  render={
+                    <Link to="/app/settings/organization/integration">
+                      Set up new channels
+                    </Link>
+                  }
+                />
               </>
             )}
           </div>

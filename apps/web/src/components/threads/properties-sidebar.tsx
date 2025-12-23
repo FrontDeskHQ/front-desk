@@ -194,12 +194,12 @@ export function LabelsSection({ threadId }: { threadId: string }) {
                       variant="ghost"
                       size="icon-sm"
                       className="size-6"
-                      asChild
-                    >
-                      <div>
-                        <PlusIcon className="size-4 text-foreground-secondary" />
-                      </div>
-                    </Button>
+                      render={
+                        <div>
+                          <PlusIcon className="size-4 text-foreground-secondary" />
+                        </div>
+                      }
+                    />
                   </div>
                 ) : (
                   <>

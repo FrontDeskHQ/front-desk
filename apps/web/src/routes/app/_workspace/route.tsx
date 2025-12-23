@@ -201,7 +201,7 @@ function RouteComponent() {
                   <Button
                     onClick={() => handleSubscribe("pro")}
                     disabled={isSubscribing}
-                    variant="default"
+                    variant="primary"
                   >
                     Subscribe
                   </Button>

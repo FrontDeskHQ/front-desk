@@ -132,15 +132,15 @@ export const Route = createFileRoute("/support/$slug")({
                       match.pathname === `/support/${slug}/threads/`,
                   )}
                   size="sm"
-                  asChild
-                >
-                  <Link
-                    to="/support/$slug/threads"
-                    params={{ slug: organization.slug }}
-                  >
-                    Threads
-                  </Link>
-                </Navbar.LinkItem>
+                  render={
+                    <Link
+                      to="/support/$slug/threads"
+                      params={{ slug: organization.slug }}
+                    >
+                      Threads
+                    </Link>
+                  }
+                />
               </Navbar.LinkGroup>
             </Navbar.Group>
             <Navbar.Group>
@@ -152,7 +152,7 @@ export const Route = createFileRoute("/support/$slug")({
                   />
                 ) : (
                   <Button
-                    variant="default"
+                    variant="primary"
                     size="sm"
                     onClick={() =>
                       portalAuthClient.signIn.social({

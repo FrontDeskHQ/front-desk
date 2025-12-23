@@ -1,4 +1,4 @@
-import { Slot } from "@radix-ui/react-slot";
+import { Button as BaseButton } from "@base-ui-components/react";
 import { useKeybind } from "@workspace/ui/hooks/use-keybind";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
@@ -7,40 +7,42 @@ import * as React from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
     variants: {
       variant: {
-        default:
+        primary:
           "bg-[#345BCA] text-primary shadow-xs hover:bg-[#345BCA]/90 border border-[#A1A1AA]/20",
         destructive:
           "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
         outline:
-          "border bg-background-primary shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-quaternary dark:hover:bg-input/50",
+          "border bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-quaternary dark:hover:bg-input/50",
         secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 aria-invalid:border",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-7 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-        "icon-sm": "size-7",
+        sm: "h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs",
+        md: "h-7 px-3.5 has-[>svg:first-child]:pl-3 has-[>svg:last-child]:pr-3 text-sm",
+        lg: "h-9 px-4.5 has-[>svg:first-child]:pl-4 has-[>svg:last-child]:pr-4 font-medium",
+        xl: "h-10 rounded-md px-6 text-lg",
+        icon: "size-7",
+        "icon-sm": "size-6",
+        "icon-lg": "size-9",
+        "icon-xl": "size-10",
       },
     },
     defaultVariants: {
-      variant: "default",
-      size: "default",
+      variant: "primary",
+      size: "md",
     },
   },
 );
 
-type ButtonProps = React.ComponentProps<"button"> &
+type ButtonProps = React.ComponentProps<typeof BaseButton> &
   VariantProps<typeof buttonVariants> & {
-    asChild?: boolean;
     externalLink?: boolean;
   };
 
@@ -50,53 +52,42 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       className,
       variant,
       size,
-      asChild = false,
       externalLink = false,
       children,
+      render,
       ...props
     },
     ref,
   ) => {
-    const Comp = asChild ? Slot : "button";
+    const processChildren = (children: React.ReactNode): React.ReactNode => {
+      return React.Children.map(children, (child) => {
+        if (typeof child === "string" || typeof child === "number") {
+          return <span>{child}</span>;
+        }
+        return child;
+      });
+    };
 
-    if (asChild && externalLink) {
-      // When using asChild with externalLink, clone the child and add the icon
-      return (
-        <Comp
-          data-slot="button"
-          className={cn(buttonVariants({ variant, size, className }))}
-          ref={ref}
-          {...props}
-        >
-          {React.isValidElement(children)
-            ? React.cloneElement(
-                children,
-                {},
-                (children.props as { children?: React.ReactNode }).children,
-                <SquareArrowOutUpRight key="external-icon" />,
-              )
-            : children}
-        </Comp>
-      );
-    }
+    const processedChildren = processChildren(children);
 
     return (
-      <Comp
+      <BaseButton
         data-slot="button"
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        render={render}
         {...props}
       >
         {externalLink ? (
           <>
-            {children}
+            {processedChildren}
             <SquareArrowOutUpRight aria-hidden="true" />
             <span className="sr-only">(opens in new window)</span>
           </>
         ) : (
-          children
+          processedChildren
         )}
-      </Comp>
+      </BaseButton>
     );
   },
 );

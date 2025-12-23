@@ -85,6 +85,33 @@ function RouteComponent() {
               Link
             </Button>
           </div>
+          <div className="col-span-full border-t border-dashed h-px" />
+          <div className="flex items-center justify-center text-foreground-secondary text-sm">
+            xl
+          </div>
+          <div className="flex items-center justify-center">
+            <Button size="xl">Default</Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="outline" size="xl">
+              Outline
+            </Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="secondary" size="xl">
+              Secondary
+            </Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="ghost" size="xl">
+              Ghost
+            </Button>
+          </div>
+          <div className="flex items-center justify-center">
+            <Button variant="link" size="xl">
+              Link
+            </Button>
+          </div>
         </div>
       </div>
       <div className="flex flex-col gap-4">
@@ -307,7 +334,7 @@ function RouteComponent() {
               <p>Use variants for different types of actions:</p>
               <ul className="text-sm  space-y-1.5 list-disc list-inside">
                 <li>
-                  default: for primary actions -{" "}
+                  primary: for primary actions -{" "}
                   <strong>ONLY ONE PRIMARY ACTION PER SCREEN/DIALOG</strong>
                 </li>
                 <li>
