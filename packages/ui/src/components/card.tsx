@@ -1,6 +1,6 @@
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, VariantProps } from "class-variance-authority";
-import * as React from "react";
+import { cva, type VariantProps } from "class-variance-authority";
+import type * as React from "react";
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (

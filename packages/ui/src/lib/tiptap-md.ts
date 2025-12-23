@@ -88,8 +88,8 @@ const tipTapToMdast: Record<
         const result = ignoreOrTiptapToMdast(child, ignore);
         return result ? [result] : [];
       }) ?? []) as PhrasingContent[],
-    } satisfies Paragraph),
-  text: (node, ignore) =>
+    }) satisfies Paragraph,
+  text: (node) =>
     convertTextMarks(node.marks, {
       type: "text",
       value: node.text!,
@@ -101,26 +101,26 @@ const tipTapToMdast: Record<
       children: (node.content?.map((child) =>
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as PhrasingContent[],
-    } satisfies Heading),
+    }) satisfies Heading,
   blockquote: (node, ignore) =>
     ({
       type: "blockquote",
       children: (node.content?.map((child) =>
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as BlockContent[],
-    } satisfies Blockquote),
-  codeBlock: (node, ignore) =>
+    }) satisfies Blockquote,
+  codeBlock: (node) =>
     ({
       type: "code",
       value: node.content?.[0]?.text ?? "",
-    } satisfies Code),
+    }) satisfies Code,
   listItem: (node, ignore) =>
     ({
       type: "listItem",
       children: (node.content?.map((child) =>
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as BlockContent[],
-    } satisfies ListItem),
+    }) satisfies ListItem,
   bulletList: (node, ignore) =>
     ({
       type: "list",
@@ -128,7 +128,7 @@ const tipTapToMdast: Record<
       children: (node.content?.map((child) =>
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as ListItem[],
-    } satisfies List),
+    }) satisfies List,
   orderedList: (node, ignore) =>
     ({
       type: "list",
@@ -137,12 +137,12 @@ const tipTapToMdast: Record<
       children: (node.content?.map((child) =>
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as ListItem[],
-    } satisfies List),
+    }) satisfies List,
 
   horizontalRule: () =>
     ({
       type: "thematicBreak",
-    } satisfies ThematicBreak),
+    }) satisfies ThematicBreak,
 };
 
 const ignoreOrTiptapToMdast = (
@@ -163,8 +163,8 @@ export const stringify = (
   const content: JSONContent[] = Array.isArray(doc)
     ? doc
     : typeof doc === "string"
-    ? [{ type: "paragraph", content: [{ type: "text", text: doc }] }]
-    : [doc];
+      ? [{ type: "paragraph", content: [{ type: "text", text: doc }] }]
+      : [doc];
 
   const mdast = content.flatMap((node) => {
     const mdastNode = ignoreOrTiptapToMdast(node, ignore);
