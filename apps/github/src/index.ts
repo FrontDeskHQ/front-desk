@@ -1,7 +1,7 @@
+import fs from "node:fs";
 import { createServer } from "node:http";
 import { App, createNodeMiddleware } from "octokit";
 import "./env";
-import fs from "node:fs";
 
 // Get and validate required environment variables
 const requiredEnvVars = [
@@ -58,7 +58,7 @@ async function fetchIssues(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open"
+  state: "open" | "closed" | "all" = "open",
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -84,7 +84,7 @@ async function fetchPullRequests(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open"
+  state: "open" | "closed" | "all" = "open",
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -128,11 +128,14 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/api/issues" && req.method === "GET") {
     const owner = url.searchParams.get("owner");
     const repo = url.searchParams.get("repo");
-    const state = (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
+    const state =
+      (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
 
     if (!owner || !repo) {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing owner or repo query parameters" }));
+      res.end(
+        JSON.stringify({ error: "Missing owner or repo query parameters" }),
+      );
       return;
     }
 
@@ -152,16 +155,24 @@ const server = createServer(async (req, res) => {
   if (url.pathname === "/api/pull-requests" && req.method === "GET") {
     const owner = url.searchParams.get("owner");
     const repo = url.searchParams.get("repo");
-    const state = (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
+    const state =
+      (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
 
     if (!owner || !repo) {
       res.writeHead(400, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ error: "Missing owner or repo query parameters" }));
+      res.end(
+        JSON.stringify({ error: "Missing owner or repo query parameters" }),
+      );
       return;
     }
 
     try {
-      const pullRequests = await fetchPullRequests(INSTALLATION_ID, owner, repo, state);
+      const pullRequests = await fetchPullRequests(
+        INSTALLATION_ID,
+        owner,
+        repo,
+        state,
+      );
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ pullRequests, count: pullRequests.length }));
     } catch (error) {
@@ -180,6 +191,10 @@ const server = createServer(async (req, res) => {
 server.listen(process.env.PORT || 3334, () => {
   console.log(`Server listening on port ${process.env.PORT || 3334}`);
   console.log(`API endpoints:`);
-  console.log(`  GET /api/issues?owner=<owner>&repo=<repo>&state=<open|closed|all>`);
-  console.log(`  GET /api/pull-requests?owner=<owner>&repo=<repo>&state=<open|closed|all>`);
+  console.log(
+    `  GET /api/issues?owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+  );
+  console.log(
+    `  GET /api/pull-requests?owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+  );
 });
