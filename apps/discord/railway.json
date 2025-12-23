@@ -3,7 +3,12 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "pnpm build -F discord...",
-    "watchPatterns": ["apps/api/**", "packages/schemas/**", "packages/ui/**"]
+    "watchPatterns": [
+      "apps/api/**",
+      "packages/schemas/**",
+      "packages/ui/**",
+      "apps/discord/**"
+    ]
   },
   "deploy": {
     "startCommand": "pnpm --filter discord start",

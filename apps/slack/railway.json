@@ -3,7 +3,12 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "pnpm build -F slack...",
-    "watchPatterns": ["apps/api/**", "packages/schemas/**", "packages/ui/**"]
+    "watchPatterns": [
+      "apps/api/**",
+      "packages/schemas/**",
+      "packages/ui/**",
+      "apps/slack/**"
+    ]
   },
   "deploy": {
     "startCommand": "pnpm --filter slack start",
@@ -11,4 +16,3 @@
     "restartPolicyMaxRetries": 10
   }
 }
-
