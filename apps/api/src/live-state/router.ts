@@ -634,7 +634,7 @@ export const router = createRouter({
         linkGitHubIssue: mutation(
           z.object({
             threadId: z.string(),
-            issueId: z.number(),
+            issueId: z.string(),
           }),
         ).handler(async ({ req, db }) => {
           // Verify user has access to the thread

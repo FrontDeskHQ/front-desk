@@ -117,6 +117,18 @@ export const ComboboxList = ({
   );
 };
 
+export const ComboboxFooter = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Popup>) => {
+  return (
+    <ComboboxPrimitive.Popup
+      className={cn("border-t p-1", className)}
+      {...props}
+    />
+  );
+};
+
 export const ComboboxItem = ({
   className,
   children,
