@@ -13,6 +13,7 @@
     "@slack/oauth": "^3.0.4",
     "@slack/web-api": "^7.13.0",
     "@workspace/ui": "workspace:*",
+    "@workspace/schemas": "workspace:*",
     "api": "workspace:*",
     "dotenv": "^16.6.1",
     "ulid": "^3.0.0",

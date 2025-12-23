@@ -224,6 +224,9 @@ importers:
       '@slack/web-api':
         specifier: ^7.13.0
         version: 7.13.0
+      '@workspace/schemas':
+        specifier: workspace:*
+        version: link:../../packages/schemas
       '@workspace/ui':
         specifier: workspace:*
         version: link:../../packages/ui
