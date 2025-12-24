@@ -7,13 +7,15 @@ import {
   ComboboxContent,
   ComboboxCreatableItem,
   ComboboxEmpty,
+  ComboboxFooter,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
+import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
-import { Github } from "lucide-react";
+import { Github, Plus } from "lucide-react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
 
@@ -26,35 +28,49 @@ export function IssuesSection({ threadId }: { threadId: string }) {
     }),
   )[0];
 
+  // Get GitHub integration
+  const githubIntegration = useLiveQuery(
+    query.integration.first({
+      organizationId: currentOrg?.id,
+      type: "github",
+    }),
+  );
+
   // const [search, setSearch] = useState("");
 
+  // TODO: Replace hardcoded values
+  // TODO: Use octokit types and remove any types
   const { data: allIssues } = useQuery({
     queryKey: ["github-issues", currentOrg?.id],
     queryFn: () => {
       if (!currentOrg) return [];
 
+      // Check if GitHub integration is enabled and configured
+      if (!githubIntegration?.enabled || !githubIntegration?.configStr) {
+        return [];
+      }
+
       return fetchClient.mutate.thread.fetchGithubIssues({
         organizationId: currentOrg.id,
-        owner: "danielmoural",
-        repo: "portfolio",
         state: "open",
       });
     },
-    enabled: !!currentOrg,
+    enabled: !!currentOrg && !!githubIntegration?.enabled,
   });
 
   // const itemsForView = prepareCreatableItems(allIssues.issues, search, true);
 
   const activeIssue = allIssues?.issues?.filter(
     (issue: any) => issue.id.toString() === thread.issueId,
-  );
+  )[0];
+
+  console.log("activeIssue", activeIssue);
 
   return (
     <div className="flex flex-col gap-2">
       <div className="text-foreground-secondary text-xs">Issues</div>
       <div className="flex flex-col gap-1.5">
         <Combobox
-          multiple
           items={allIssues?.issues}
           value={
             allIssues?.issues
@@ -159,18 +175,21 @@ export function IssuesSection({ threadId }: { threadId: string }) {
               <ActionButton
                 size="sm"
                 variant="ghost"
-                // className={cn(
-                //   "justify-start text-sm px-2 w-full py-1 max-w-40 has-[>svg]:px-2",
-                //   activeLabels?.length &&
-                //     "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent",
-                // )}
+                className={cn(
+                  "justify-start text-sm px-2 w-full py-1 max-w-40 has-[>svg]:px-2",
+                  activeIssue &&
+                    "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent",
+                )}
                 tooltip="Link issue"
                 keybind="i"
               >
                 {activeIssue ? (
-                  <span className="text-foreground-secondary">
-                    {activeIssue.body}
-                  </span>
+                  <>
+                    <Github className="size-4" />
+                    <span>
+                      #{activeIssue.number} {activeIssue.body}
+                    </span>
+                  </>
                 ) : (
                   <>
                     <Github className="size-4 text-foreground-secondary" />
@@ -184,7 +203,7 @@ export function IssuesSection({ threadId }: { threadId: string }) {
           />
 
           <ComboboxContent className="w-48" side="left">
-            <ComboboxInput placeholder="Search or create..." />
+            <ComboboxInput placeholder="Search..." />
             <ComboboxEmpty />
             <ComboboxList>
               {(item: any) =>
@@ -194,12 +213,23 @@ export function IssuesSection({ threadId }: { threadId: string }) {
                   </ComboboxCreatableItem>
                 ) : (
                   <ComboboxItem key={item.id} value={item.id}>
-                    <div className="size-2 rounded-full shrink-0" />
-                    <div className="truncate grow shrink">{item.body}</div>
+                    #{item.number} {item.body}
                   </ComboboxItem>
                 )
               }
             </ComboboxList>
+            <ComboboxFooter>
+              <ActionButton
+                variant="ghost"
+                size="sm"
+                className="hover:bg-transparent" //TODO: Actually remove hover style
+                tooltip="Create issue"
+                keybind="c" //TODO: Verify if needed since search bar is present
+              >
+                <Plus className="size-4" />
+                Create issue
+              </ActionButton>
+            </ComboboxFooter>
           </ComboboxContent>
         </Combobox>
       </div>
