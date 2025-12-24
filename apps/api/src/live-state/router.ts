@@ -584,8 +584,6 @@ export const router = createRouter({
         fetchGithubIssues: mutation(
           z.object({
             organizationId: z.string(),
-            owner: z.string(),
-            repo: z.string(),
             state: z.enum(["open", "closed", "all"]).optional().default("open"),
           }),
         ).handler(async ({ req, db }) => {
@@ -612,12 +610,34 @@ export const router = createRouter({
             throw new Error("UNAUTHORIZED");
           }
 
+          // Get GitHub integration config
+          const integration = Object.values(
+            await db.find(schema.integration, {
+              where: {
+                organizationId,
+                type: "github",
+                enabled: true,
+              },
+            }),
+          )[0];
+
+          if (!integration || !integration.configStr) {
+            throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+          }
+
+          const config = JSON.parse(integration.configStr);
+          const { repositoryOwner, repositoryName } = config;
+
+          if (!repositoryOwner || !repositoryName) {
+            throw new Error("GITHUB_REPOSITORY_NOT_SELECTED");
+          }
+
           // Call the GitHub server
           const githubServerUrl =
             process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
           const url = new URL("/api/issues", githubServerUrl);
-          url.searchParams.set("owner", req.input.owner);
-          url.searchParams.set("repo", req.input.repo);
+          url.searchParams.set("owner", repositoryOwner);
+          url.searchParams.set("repo", repositoryName);
           url.searchParams.set("state", req.input.state);
 
           const response = await fetch(url.toString());
