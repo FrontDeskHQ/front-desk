@@ -68,10 +68,10 @@ function RouteComponent() {
   })();
 
   const handleEnableGitHub = async () => {
-    const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID;
+    const GITHUB_APP_SLUG = import.meta.env.VITE_GITHUB_APP_SLUG;
 
-    if (!GITHUB_CLIENT_ID) {
-      console.error("[GitHub] Client ID is not configured");
+    if (!GITHUB_APP_SLUG) {
+      console.error("[GitHub] App slug is not configured");
       return;
     }
 
@@ -106,23 +106,12 @@ function RouteComponent() {
       });
     }
 
-    // Use the GitHub server URL (ngrok URL in dev) for the redirect URI
-    // This must match exactly what's configured in GitHub OAuth app settings
-    const githubServerUrl =
-      import.meta.env.VITE_GITHUB_SERVER_URL || "http://localhost:3334";
-    const redirectUri = `${githubServerUrl}/api/github/oauth/callback`;
+    // Redirect to GitHub App installation page
+    // The state parameter will be passed back in the callback
+    const state = `${activeOrg?.id}_${csrfToken}`;
+    const githubAppInstallUrl = `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new?state=${encodeURIComponent(state)}`;
 
-    const queryParams = new URLSearchParams({
-      client_id: GITHUB_CLIENT_ID,
-      scope: "repo",
-      redirect_uri: redirectUri,
-      state: `${activeOrg?.id}_${csrfToken}`,
-    });
-
-    // GitHub OAuth authorization URL
-    const githubOAuthUrl = `https://github.com/login/oauth/authorize?${queryParams.toString()}`;
-
-    window.location.href = githubOAuthUrl;
+    window.location.href = githubAppInstallUrl;
   };
 
   if (parsedConfig && !parsedConfig.success) {
@@ -178,15 +167,19 @@ function RouteComponent() {
               </TruncatedText>
             ) : (
               <>
-                <div className="flex gap-8 items-center justify-between">
-                  <div className="flex flex-col">
-                    <div>Linked Repository</div>
-                    <div className="text-muted-foreground">
-                      {parsedConfig?.data?.repositoryOwner &&
-                      parsedConfig?.data?.repositoryName
-                        ? `${parsedConfig.data.repositoryOwner}/${parsedConfig.data.repositoryName}`
-                        : "No repository selected"}
-                    </div>
+                <div className="flex flex-col gap-2">
+                  <div>Connected Repositories</div>
+                  <div className="text-muted-foreground">
+                    {parsedConfig?.data?.repos &&
+                    parsedConfig.data.repos.length > 0 ? (
+                      <ul className="list-disc list-inside space-y-1">
+                        {parsedConfig.data.repos.map((repo) => (
+                          <li key={repo.fullName}>{repo.fullName}</li>
+                        ))}
+                      </ul>
+                    ) : (
+                      "No repositories connected"
+                    )}
                   </div>
                 </div>
 
