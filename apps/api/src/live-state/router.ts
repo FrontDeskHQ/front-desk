@@ -626,70 +626,78 @@ export const router = createRouter({
           }
 
           const config = JSON.parse(integration.configStr);
-          const { repositoryOwner, repositoryName } = config;
+          const { repos, installationId } = config;
 
-          if (!repositoryOwner || !repositoryName) {
-            throw new Error("GITHUB_REPOSITORY_NOT_SELECTED");
+          if (!repos || repos.length === 0) {
+            throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
           }
 
-          // Call the GitHub server
+          if (!installationId) {
+            throw new Error("GITHUB_INSTALLATION_NOT_CONFIGURED");
+          }
+
+          // Fetch issues from all connected repositories
           const githubServerUrl =
             process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
-          const url = new URL("/api/issues", githubServerUrl);
-          url.searchParams.set("owner", repositoryOwner);
-          url.searchParams.set("repo", repositoryName);
-          url.searchParams.set("state", req.input.state);
 
-          const response = await fetch(url.toString());
+          const allIssues: Array<{
+            id: number;
+            number: number;
+            title: string;
+            body: string;
+            state: string;
+            html_url: string;
+            repository: { owner: string; name: string; fullName: string };
+          }> = [];
 
-          if (!response.ok) {
-            throw new Error(
-              `Failed to fetch GitHub issues: ${response.statusText}`,
-            );
-          }
+          for (const repo of repos) {
+            const url = new URL("/api/issues", githubServerUrl);
+            url.searchParams.set("installation_id", installationId.toString());
+            url.searchParams.set("owner", repo.owner);
+            url.searchParams.set("repo", repo.name);
+            url.searchParams.set("state", req.input.state);
 
-          const data = await response.json();
-          return data;
-        }),
-        linkGitHubIssue: mutation(
-          z.object({
-            threadId: z.string(),
-            issueId: z.string(),
-          }),
-        ).handler(async ({ req, db }) => {
-          // Verify user has access to the thread
-          const thread = await db.findOne(schema.thread, req.input.threadId);
+            try {
+              const response = await fetch(url.toString());
 
-          if (!thread) {
-            throw new Error("THREAD_NOT_FOUND");
-          }
+              if (!response.ok) {
+                console.error(
+                  `Failed to fetch issues for ${repo.fullName}: ${response.statusText}`,
+                );
+                continue;
+              }
 
-          let authorized = !!req.context?.internalApiKey;
+              const data = (await response.json()) as {
+                issues: Array<{
+                  id: number;
+                  number: number;
+                  title: string;
+                  body: string;
+                  state: string;
+                  html_url: string;
+                }>;
+              };
 
-          if (!authorized && req.context?.session?.userId) {
-            const selfOrgUser = Object.values(
-              await db.find(schema.organizationUser, {
-                where: {
-                  organizationId: thread.organizationId,
-                  userId: req.context.session.userId,
-                  enabled: true,
+              // Add repository info to each issue
+              const issuesWithRepo = data.issues.map((issue) => ({
+                ...issue,
+                repository: {
+                  owner: repo.owner,
+                  name: repo.name,
+                  fullName: repo.fullName,
                 },
-              }),
-            )[0];
+              }));
 
-            authorized = !!selfOrgUser;
+              allIssues.push(...issuesWithRepo);
+            } catch (error) {
+              console.error(
+                `Error fetching issues for ${repo.fullName}:`,
+                error,
+              );
+            }
           }
 
-          if (!authorized) {
-            throw new Error("UNAUTHORIZED");
-          }
-
-          // Update the thread with the GitHub issue ID only
-          await db.update(schema.thread, req.input.threadId, {
-            issueId: req.input.issueId,
-          });
-
-          return { success: true };
+          return { issues: allIssues, count: allIssues.length };
         }),
       })),
     message: publicRoute
