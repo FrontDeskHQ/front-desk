@@ -2,6 +2,7 @@ import fs from "node:fs";
 import { createServer } from "node:http";
 import { App, createNodeMiddleware } from "octokit";
 import "./env";
+import { fetchClient } from "./lib/live-state";
 
 // Get and validate required environment variables
 const requiredEnvVars = [
@@ -185,6 +186,8 @@ const server = createServer(async (req, res) => {
 
   // GitHub OAuth callback endpoint - handles the OAuth callback from GitHub
   if (url.pathname === "/api/github/oauth/callback" && req.method === "GET") {
+    console.log("GitHub OAuth callback endpoint hit");
+
     try {
       const { code, state } = Object.fromEntries(url.searchParams);
 
@@ -197,6 +200,9 @@ const server = createServer(async (req, res) => {
       }
 
       const [orgId, csrfToken] = state.split("_");
+
+      console.log("orgId:", orgId);
+      console.log("csrfToken:", csrfToken);
 
       if (!orgId || !csrfToken) {
         res.writeHead(302, {
@@ -264,100 +270,39 @@ const server = createServer(async (req, res) => {
         name: string;
       }>;
 
-      // Call the main API server to update the integration using Live State
-      const apiUrl =
-        process.env.LIVE_STATE_API_URL || "http://localhost:3333/api/ls";
-      const githubBotKey = process.env.GITHUB_BOT_KEY;
+      const integration = await fetchClient.query.integration
+        .first({
+          organizationId: orgId,
+          type: "github",
+        })
+        .get();
 
-      if (!githubBotKey) {
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=bot_key_not_configured`,
-        });
-        res.end();
-        return;
+      console.log("integration:", integration);
+
+      if (!integration) {
+        throw new Error("INTEGRATION_NOT_FOUND");
       }
 
-      // First, get the current integration to verify CSRF and get current config
-      // Using Live State query endpoint
-      const getIntegrationResponse = await fetch(
-        `${apiUrl}/query/integration?where[organizationId]=${orgId}&where[type]=github`,
-        {
-          headers: {
-            "x-github-bot-key": githubBotKey,
-          },
-        },
+      if (!integration.configStr) {
+        throw new Error("INTEGRATION_CONFIG_NOT_FOUND");
+      }
+
+      const { csrfToken: csrfTokenFromConfig, ...config } = JSON.parse(
+        integration.configStr,
       );
 
-      if (!getIntegrationResponse.ok) {
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=integration_not_found`,
-        });
-        res.end();
-        return;
+      if (csrfTokenFromConfig !== csrfToken) {
+        throw new Error("CSRF_TOKEN_MISMATCH");
       }
 
-      const integrationsData = (await getIntegrationResponse.json()) as {
-        data?: Array<{ id: string; configStr: string | null }>;
-      };
-
-      const integration = integrationsData.data?.[0];
-
-      if (!integration || !integration.configStr) {
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=config_not_found`,
-        });
-        res.end();
-        return;
-      }
-
-      const config = JSON.parse(integration.configStr) as {
-        csrfToken?: string;
-        [key: string]: unknown;
-      };
-
-      if (config.csrfToken !== csrfToken) {
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=csrf_mismatch`,
-        });
-        res.end();
-        return;
-      }
-
-      // Update integration with repositories using Live State mutation endpoint
-      // The mutation endpoint format is: POST /api/ls/mutate/{collection}/{mutationName}
-      const updateResponse = await fetch(
-        `${apiUrl}/mutate/integration/update`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-github-bot-key": githubBotKey,
-          },
-          body: JSON.stringify({
-            id: integration.id,
-            configStr: JSON.stringify({
-              ...config,
-              accessToken: access_token, // Temporary, will be cleared after repo selection
-              pendingRepos: repos.map((repo) => ({
-                fullName: repo.full_name,
-                owner: repo.owner.login,
-                name: repo.name,
-              })),
-            }),
-            updatedAt: new Date().toISOString(),
-          }),
-        },
-      );
-
-      if (!updateResponse.ok) {
-        const errorText = await updateResponse.text();
-        console.error("[GitHub] Failed to update integration:", errorText);
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=update_failed`,
-        });
-        res.end();
-        return;
-      }
+      await fetchClient.mutate.integration.update(integration.id, {
+        enabled: true,
+        updatedAt: new Date(),
+        configStr: JSON.stringify({
+          ...config,
+          accessToken: access_token,
+        }),
+      });
 
       // Redirect to frontend repository selection page
       res.writeHead(302, {
