@@ -12,7 +12,7 @@ import {
 } from "@workspace/ui/components/combobox";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
-import { Github } from "lucide-react";
+import { Github, X } from "lucide-react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -76,6 +76,31 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
     (issue) => issue.id.toString() === thread?.issueId,
   );
 
+  const handleUnlinkIssue = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!thread || !linkedIssue) return;
+
+    mutate.thread.update(threadId, {
+      issueId: null,
+    });
+
+    mutate.update.insert({
+      id: ulid().toLowerCase(),
+      threadId: threadId,
+      type: "issue_changed",
+      createdAt: new Date(),
+      userId: user.id,
+      metadataStr: JSON.stringify({
+        oldIssueId: thread.issueId,
+        newIssueId: null,
+        oldIssueLabel: `${linkedIssue.repository.fullName}#${linkedIssue.number}`,
+        newIssueLabel: null,
+        userName: user.name,
+      }),
+      replicatedStr: JSON.stringify({}),
+    });
+  };
+
   return (
     <div className="flex flex-col gap-2">
       <div className="text-foreground-secondary text-xs">Issues</div>
@@ -128,21 +153,29 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
                 size="sm"
                 variant="ghost"
                 className={cn(
-                  "justify-start text-sm px-2 w-full py-1 max-w-40 has-[>svg]:px-2",
-                  linkedIssue &&
-                    "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent",
+                  "justify-start text-sm w-full p-0 max-w-40 has-[>svg]:px-2 hover:bg-transparent active:bg-transparent dark:hover:bg-transparent dark:active:bg-transparent",
+                  linkedIssue && "h-auto max-w-none",
                 )}
                 tooltip="Link issue"
                 keybind="i"
               >
                 {linkedIssue ? (
-                  <>
-                    <Github className="size-4" />
-                    <span className="truncate">
-                      {linkedIssue.repository.fullName}#{linkedIssue.number}{" "}
-                      {linkedIssue.title}
-                    </span>
-                  </>
+                  <div className="flex w-full h-full">
+                    <div className="flex items-center gap-2 flex-1 min-w-0 rounded-md px-2 py-1 hover:bg-accent/50 transition-colors">
+                      <Github className="size-4 shrink-0" />
+                      <span className="truncate">
+                        #{linkedIssue.number} {linkedIssue.title}
+                      </span>
+                    </div>
+                    <ActionButton
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={handleUnlinkIssue}
+                      tooltip="Unlink issue"
+                    >
+                      <X className="size-4" />
+                    </ActionButton>
+                  </div>
                 ) : (
                   <>
                     <Github className="size-4 text-foreground-secondary" />
@@ -155,7 +188,8 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
             }
           />
 
-          <ComboboxContent className="w-80" side="left">
+          <ComboboxContent className="w-60" side="left">
+            {/* //TODO: Improve search functionality by searching the issue number */}
             <ComboboxInput placeholder="Search..." />
             <ComboboxEmpty>No issues found</ComboboxEmpty>
             <ComboboxList>
