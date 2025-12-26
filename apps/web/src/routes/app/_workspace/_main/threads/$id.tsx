@@ -345,7 +345,7 @@ function RouteComponent() {
               mutate={mutate}
             />
             <LabelsSection threadId={id} />
-            <IssuesSection threadId={id} />
+            <IssuesSection threadId={id} user={user} />
           </div>
         </TooltipProvider>
       </div>
