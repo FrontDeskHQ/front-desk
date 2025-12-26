@@ -173,11 +173,9 @@ function RouteComponent() {
         <Card className="bg-muted/30">
           <CardContent>
             {!integration?.enabled ? (
-              <>
-                <TruncatedText>
-                  <RichText content={integrationDetails.fullDescription} />
-                </TruncatedText>
-              </>
+              <TruncatedText>
+                <RichText content={integrationDetails.fullDescription} />
+              </TruncatedText>
             ) : (
               <>
                 <div className="flex gap-8 items-center justify-between">
