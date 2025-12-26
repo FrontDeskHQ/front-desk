@@ -2,10 +2,8 @@ import { z } from "zod";
 
 export const githubIntegrationSchema = z.object({
   csrfToken: z.string().optional(),
-  repositoryOwner: z.string().optional(),
-  repositoryName: z.string().optional(),
-  accessToken: z.string().optional(), // Temporary, used during OAuth flow
-  pendingRepos: z
+  installationId: z.number().optional(), // GitHub App installation ID
+  repos: z
     .array(
       z.object({
         fullName: z.string(),
@@ -13,7 +11,7 @@ export const githubIntegrationSchema = z.object({
         name: z.string(),
       }),
     )
-    .optional(), // Temporary, used during repo selection
+    .optional(), // Repositories selected during GitHub App installation
   webhookSecret: z.string().optional(),
   selectedEvents: z
     .array(z.enum(["issues", "pull_request"]))

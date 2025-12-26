@@ -9,8 +9,6 @@ const requiredEnvVars = [
   "GITHUB_APP_ID",
   "PRIVATE_KEY_PATH",
   "GITHUB_WEBHOOK_SECRET",
-  "GITHUB_CLIENT_ID",
-  "GITHUB_CLIENT_SECRET",
 ];
 
 for (const varName of requiredEnvVars) {
@@ -30,17 +28,11 @@ try {
   process.exit(1);
 }
 const secret = process.env.GITHUB_WEBHOOK_SECRET as string;
-const clientId = process.env.GITHUB_CLIENT_ID as string;
-const clientSecret = process.env.GITHUB_CLIENT_SECRET as string;
 
 const app = new App({
   appId,
   privateKey,
   webhooks: { secret },
-  oauth: {
-    clientId,
-    clientSecret,
-  },
 });
 
 // API Functions to interact with GitHub
@@ -114,34 +106,37 @@ app.webhooks.onError((error) => {
   console.error(error);
 });
 
-// Handle OAuth token creation
-app.oauth.on("token.created", async ({ token }) => {
-  console.log("OAuth token created successfully", token);
-});
-
-const INSTALLATION_ID = 100205660;
-
 // Create server with custom routes
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || "", `http://${req.headers.host}`);
 
   // API endpoint to fetch issues
   if (url.pathname === "/api/issues" && req.method === "GET") {
+    const installationIdParam = url.searchParams.get("installation_id");
     const owner = url.searchParams.get("owner");
     const repo = url.searchParams.get("repo");
     const state =
       (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
 
-    if (!owner || !repo) {
+    if (!installationIdParam || !owner || !repo) {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(
-        JSON.stringify({ error: "Missing owner or repo query parameters" }),
+        JSON.stringify({
+          error: "Missing installation_id, owner, or repo query parameters",
+        }),
       );
       return;
     }
 
+    const installationId = Number.parseInt(installationIdParam, 10);
+    if (Number.isNaN(installationId)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid installation_id" }));
+      return;
+    }
+
     try {
-      const issues = await fetchIssues(INSTALLATION_ID, owner, repo, state);
+      const issues = await fetchIssues(installationId, owner, repo, state);
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ issues, count: issues.length }));
     } catch (error) {
@@ -154,22 +149,32 @@ const server = createServer(async (req, res) => {
 
   // API endpoint to fetch pull requests
   if (url.pathname === "/api/pull-requests" && req.method === "GET") {
+    const installationIdParam = url.searchParams.get("installation_id");
     const owner = url.searchParams.get("owner");
     const repo = url.searchParams.get("repo");
     const state =
       (url.searchParams.get("state") as "open" | "closed" | "all") || "open";
 
-    if (!owner || !repo) {
+    if (!installationIdParam || !owner || !repo) {
       res.writeHead(400, { "Content-Type": "application/json" });
       res.end(
-        JSON.stringify({ error: "Missing owner or repo query parameters" }),
+        JSON.stringify({
+          error: "Missing installation_id, owner, or repo query parameters",
+        }),
       );
+      return;
+    }
+
+    const installationId = Number.parseInt(installationIdParam, 10);
+    if (Number.isNaN(installationId)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid installation_id" }));
       return;
     }
 
     try {
       const pullRequests = await fetchPullRequests(
-        INSTALLATION_ID,
+        installationId,
         owner,
         repo,
         state,
@@ -184,14 +189,20 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  // GitHub OAuth callback endpoint - handles the OAuth callback from GitHub
-  if (url.pathname === "/api/github/oauth/callback" && req.method === "GET") {
-    console.log("GitHub OAuth callback endpoint hit");
+  // GitHub App installation callback endpoint - handles the callback after app installation
+  if (url.pathname === "/api/github/setup" && req.method === "GET") {
+    console.log("GitHub App installation callback endpoint hit");
 
     try {
-      const { code, state } = Object.fromEntries(url.searchParams);
+      const installationIdParam = url.searchParams.get("installation_id");
+      const setupAction = url.searchParams.get("setup_action");
+      const state = url.searchParams.get("state");
 
-      if (!code || !state) {
+      console.log("installation_id:", installationIdParam);
+      console.log("setup_action:", setupAction);
+      console.log("state:", state);
+
+      if (!installationIdParam || !state) {
         res.writeHead(302, {
           Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=missing_params`,
         });
@@ -199,10 +210,17 @@ const server = createServer(async (req, res) => {
         return;
       }
 
-      const [orgId, csrfToken] = state.split("_");
+      const installationId = Number.parseInt(installationIdParam, 10);
 
-      console.log("orgId:", orgId);
-      console.log("csrfToken:", csrfToken);
+      if (Number.isNaN(installationId)) {
+        res.writeHead(302, {
+          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=invalid_installation_id`,
+        });
+        res.end();
+        return;
+      }
+
+      const [orgId, csrfToken] = state.split("_");
 
       if (!orgId || !csrfToken) {
         res.writeHead(302, {
@@ -211,64 +229,6 @@ const server = createServer(async (req, res) => {
         res.end();
         return;
       }
-
-      // Exchange code for access token
-      const tokenResponse = await fetch(
-        "https://github.com/login/oauth/access_token",
-        {
-          method: "POST",
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            client_id: clientId,
-            client_secret: clientSecret,
-            code,
-          }),
-        },
-      );
-
-      const tokenData = (await tokenResponse.json()) as {
-        error?: string;
-        error_description?: string;
-        access_token?: string;
-      };
-
-      if (tokenData.error || !tokenData.access_token) {
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=token_exchange_failed`,
-        });
-        res.end();
-        return;
-      }
-
-      const { access_token } = tokenData;
-
-      // Fetch user's repositories
-      const reposResponse = await fetch(
-        "https://api.github.com/user/repos?per_page=100&sort=updated",
-        {
-          headers: {
-            Authorization: `token ${access_token}`,
-            Accept: "application/vnd.github.v3+json",
-          },
-        },
-      );
-
-      if (!reposResponse.ok) {
-        res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=failed_to_fetch_repos`,
-        });
-        res.end();
-        return;
-      }
-
-      const repos = (await reposResponse.json()) as Array<{
-        full_name: string;
-        owner: { login: string };
-        name: string;
-      }>;
 
       const integration = await fetchClient.query.integration
         .first({
@@ -295,23 +255,46 @@ const server = createServer(async (req, res) => {
         throw new Error("CSRF_TOKEN_MISMATCH");
       }
 
+      // Get authenticated Octokit for this installation
+      const octokit = await getOctokit(installationId);
+
+      // Fetch repositories accessible to this installation
+      const { data: reposData } = await octokit.request(
+        "GET /installation/repositories",
+        {
+          per_page: 100,
+          headers: {
+            "X-GitHub-Api-Version": "2022-11-28",
+          },
+        },
+      );
+
+      const repos = reposData.repositories.map((repo) => ({
+        fullName: repo.full_name,
+        owner: repo.owner.login,
+        name: repo.name,
+      }));
+
+      console.log("Available repositories:", repos.length);
+
       await fetchClient.mutate.integration.update(integration.id, {
         enabled: true,
         updatedAt: new Date(),
         configStr: JSON.stringify({
           ...config,
-          accessToken: access_token,
+          installationId,
+          repos,
         }),
       });
 
       // Redirect to frontend repository selection page
       res.writeHead(302, {
-        Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github/select-repo`,
+        Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github`,
       });
       res.end();
       return;
     } catch (error) {
-      console.error("[GitHub] Error handling OAuth callback:", error);
+      console.error("[GitHub] Error handling installation callback:", error);
       res.writeHead(302, {
         Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=callback_error`,
       });
@@ -329,9 +312,10 @@ server.listen(process.env.PORT || 3334, () => {
   console.log(`Server listening on port ${process.env.PORT || 3334}`);
   console.log(`API endpoints:`);
   console.log(
-    `  GET /api/issues?owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
   );
   console.log(
-    `  GET /api/pull-requests?owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
   );
+  console.log(`  GET /api/github/setup (GitHub App installation callback)`);
 });
