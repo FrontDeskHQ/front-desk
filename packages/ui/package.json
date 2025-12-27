@@ -86,7 +86,7 @@
     "@types/node": "^22.10.2",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "^5.0.4",
+    "@vitejs/plugin-react": "^5.1.2",
     "jsdom": "^27.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.7",
