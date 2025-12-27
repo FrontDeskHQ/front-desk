@@ -3,7 +3,12 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "pnpm build -F github...",
-    "watchPatterns": ["apps/api/**", "packages/schemas/**", "packages/ui/**"]
+    "watchPatterns": [
+      "apps/api/**",
+      "packages/schemas/**",
+      "packages/ui/**",
+      "apps/github/**"
+    ]
   },
   "deploy": {
     "startCommand": "pnpm --filter github start",

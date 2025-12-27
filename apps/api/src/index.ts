@@ -43,16 +43,6 @@ const lsServer = server({
         };
       }
 
-      if (queryParams.githubBotKey) {
-        const botKey = queryParams.githubBotKey;
-
-        if (botKey !== process.env.GITHUB_BOT_KEY) return;
-
-        return {
-          internalApiKey: botKey,
-        };
-      }
-
       if (queryParams.publicApiKey) {
         const result = await publicKeys.verify(queryParams.publicApiKey);
 
@@ -133,7 +123,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
 
         if (!subscription) return;
@@ -143,9 +133,9 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID
             ? "starter"
             : payload.data.product_id ===
-                process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
-              ? "pro"
-              : null;
+              process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
+            ? "pro"
+            : null;
 
         if (!plan) return;
 
@@ -163,7 +153,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
         if (!subscription) return;
 
@@ -178,7 +168,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
 
         if (!subscription) return;
@@ -188,9 +178,9 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID
             ? "starter"
             : payload.data.product_id ===
-                process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
-              ? "pro"
-              : null;
+              process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
+            ? "pro"
+            : null;
 
         if (!plan) return;
 
@@ -208,7 +198,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
         if (!subscription) return;
 
@@ -217,7 +207,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           updatedAt: new Date(),
         });
       },
-    }),
+    })
   );
 
 expressAdapter(app as any, lsServer, {
