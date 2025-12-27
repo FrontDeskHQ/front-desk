@@ -251,7 +251,9 @@ function RouteComponent() {
       </Card>
       {isUserOwner && (
         <div className="flex justify-end">
-          <Button disabled={!nonPersistentIsDirty}>Save</Button>
+          <Button disabled={!nonPersistentIsDirty} type="submit">
+            Save
+          </Button>
         </div>
       )}
     </form>
