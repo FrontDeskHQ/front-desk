@@ -200,7 +200,7 @@ client.on("messageCreate", async (message) => {
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: true }
+    { thread: true; author: { user: true } }
   >[]
 ) => {
   for (const message of messages) {
@@ -243,7 +243,7 @@ const handleMessages = async (
         }),
         threadId: channel.id,
         username: message.author.name,
-        // avatarURL: message.author.displayAvatarURL(),
+        avatarURL: message.author?.user?.image ?? undefined,
       });
       store.mutate.message.update(message.id, {
         externalMessageId: webhookMessage.id,
@@ -369,7 +369,7 @@ setTimeout(async () => {
           discordChannelId: { $not: null },
         },
       })
-      .include({ thread: true, author: true })
+      .include({ thread: true, author: { user: true } })
       .get()
   );
   store.query.message
@@ -379,7 +379,7 @@ setTimeout(async () => {
         discordChannelId: { $not: null },
       },
     })
-    .include({ thread: true, author: true })
+    .include({ thread: true, author: { user: true } })
     .subscribe(handleMessages);
 
   // Handle updates for threads linked to Discord
