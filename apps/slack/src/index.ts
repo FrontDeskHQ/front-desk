@@ -257,7 +257,7 @@ app.message(
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: true }
+    { thread: true; author: { user: true } }
   >[]
 ) => {
   for (const message of messages) {
@@ -309,6 +309,7 @@ const handleMessages = async (
         }),
         thread_ts: threadTs,
         username: message.author.name,
+        icon_url: message.author?.user?.image ?? undefined,
       });
 
       if (result.ok && result.ts) {
@@ -463,7 +464,7 @@ const handleUpdates = async (
             externalMetadataStr: { $not: null },
           },
         })
-        .include({ thread: true, author: true })
+        .include({ thread: true, author: { user: true } })
         .get()
     );
     store.query.message
@@ -475,7 +476,7 @@ const handleUpdates = async (
           externalMetadataStr: { $not: null },
         },
       })
-      .include({ thread: true, author: true })
+      .include({ thread: true, author: { user: true } })
       .subscribe(handleMessages);
 
     const updates = await store.query.update
