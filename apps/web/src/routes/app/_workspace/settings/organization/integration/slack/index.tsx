@@ -14,7 +14,9 @@ import { ArrowLeft } from "lucide-react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
+import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
@@ -65,6 +67,8 @@ function RouteComponent() {
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "slack" }),
   );
+
+  const { integrations } = usePlanLimits("slack");
 
   const parsedConfig: ReturnType<
     typeof slackIntegrationSchema.safeParse
@@ -117,6 +121,10 @@ function RouteComponent() {
   );
 
   const handleEnableSlack = async () => {
+    if (integrations.hasReachedLimit) {
+      return;
+    }
+
     const SLACK_CLIENT_ID = import.meta.env.VITE_SLACK_CLIENT_ID;
 
     if (!SLACK_CLIENT_ID) {
@@ -204,6 +212,7 @@ function RouteComponent() {
         className="absolute top-2 left-1"
       />
       <div className="flex flex-col gap-4 pt-12">
+        {integrations.hasReachedLimit && <LimitCallout className="mb-4" />}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {integrationDetails.icon}
@@ -220,7 +229,12 @@ function RouteComponent() {
                 <h3 className="text-muted-foreground">Built by</h3>
                 <p>FrontDesk</p>
               </div>
-              <Button onClick={handleEnableSlack}>Enable</Button>
+              <Button
+                onClick={handleEnableSlack}
+                disabled={integrations.hasReachedLimit}
+              >
+                Enable
+              </Button>
             </div>
           )}
         </div>

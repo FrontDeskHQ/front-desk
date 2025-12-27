@@ -1,6 +1,8 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
+import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
@@ -90,15 +92,16 @@ To get started, simply add the FrontDesk Slack app to your workspace and select 
 
 function RouteComponent() {
   const { activeOrganization } = useOrganizationSwitcher();
+  const { integrations: integrationLimits } = usePlanLimits();
 
-  const integrations = useLiveQuery(
+  const allIntegrations = useLiveQuery(
     query.integration.where({
       organizationId: activeOrganization?.id,
     }),
   );
 
   const activeIntegrations = integrationOptions.filter((option) =>
-    integrations?.some((i) => i.type === option.id && i.enabled),
+    allIntegrations?.some((i) => i.type === option.id && i.enabled),
   );
 
   const availableIntegrations = integrationOptions.filter(
@@ -139,15 +142,25 @@ function RouteComponent() {
             );
 
             if (isUserOwner) {
+              const isDisabled =
+                integrationLimits.hasReachedLimit &&
+                !activeIntegrations.includes(option);
               return (
                 <Link
                   to={
                     `/app/settings/organization/integration/${option.id}` as string
                   }
-                  className="flex flex-col rounded-md border bg-muted/30 h-36 p-4 gap-2 hover:bg-muted/50 transition-colors cursor-pointer relative"
+                  className={isDisabled ? "pointer-events-none opacity-50" : ""}
+                  onClick={(e) => {
+                    if (isDisabled) {
+                      e.preventDefault();
+                    }
+                  }}
                   key={option.id}
                 >
-                  {content}
+                  <div className="flex flex-col rounded-md border bg-muted/30 h-36 p-4 gap-2 hover:bg-muted/50 transition-colors cursor-pointer relative">
+                    {content}
+                  </div>
                 </Link>
               );
             }
@@ -168,6 +181,7 @@ function RouteComponent() {
 
   return (
     <>
+      {integrationLimits.hasReachedLimit && <LimitCallout className="mb-4" />}
       {renderIntegrationGroup("Active integrations", activeIntegrations)}
       {renderIntegrationGroup("Available integrations", availableIntegrations)}
     </>
