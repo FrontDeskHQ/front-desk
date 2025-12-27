@@ -23,4 +23,4 @@ function Callout({
   );
 }
 
-export { Callout, type VariantProps as CalloutVariantProps };
+export { Callout };

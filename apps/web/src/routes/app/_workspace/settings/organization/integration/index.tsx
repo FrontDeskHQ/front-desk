@@ -1,5 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { cn } from "@workspace/ui/lib/utils";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
@@ -150,7 +151,10 @@ function RouteComponent() {
                   to={
                     `/app/settings/organization/integration/${option.id}` as string
                   }
-                  className={isDisabled ? "pointer-events-none opacity-50" : ""}
+                  className={cn(isDisabled && "pointer-events-none opacity-50")}
+                  disabled={isDisabled}
+                  aria-disabled={isDisabled}
+                  tabIndex={isDisabled ? -1 : undefined}
                   onClick={(e) => {
                     if (isDisabled) {
                       e.preventDefault();
