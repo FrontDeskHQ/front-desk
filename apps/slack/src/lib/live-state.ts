@@ -24,7 +24,30 @@ client.ws.addEventListener("error", (error) => {
   console.error("Live State error: ", error, error.error);
 });
 
-client.subscribe();
+client.load(
+  store.query.organization
+    .include({
+      threads: {
+        messages: {
+          author: {
+            user: true,
+          },
+        },
+        updates: true,
+        labels: {
+          label: true,
+        },
+        author: {
+          user: true,
+        },
+      },
+      integrations: true,
+      authors: {
+        user: true,
+      },
+    })
+    .buildQueryRequest()
+);
 
 export const fetchClient = createFetchClient<Router>({
   url: process.env.LIVE_STATE_API_URL ?? "http://localhost:3333/api/ls",

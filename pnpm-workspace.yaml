@@ -3,7 +3,7 @@ packages:
   - packages/*
 
 catalog:
-  '@live-state/sync': ^0.0.6-canary-6
+  '@live-state/sync': 0.0.6-canary-12
   '@types/react': ^19.2.3
   '@types/react-dom': ^19.2.3
   better-auth: ^1.4.0
