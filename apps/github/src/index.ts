@@ -1,32 +1,12 @@
-import fs from "node:fs";
 import { createServer } from "node:http";
 import { App, createNodeMiddleware } from "octokit";
 import "./env";
 import { fetchClient } from "./lib/live-state";
 
-// Get and validate required environment variables
-const requiredEnvVars = [
-  "GITHUB_APP_ID",
-  "PRIVATE_KEY_PATH",
-  "GITHUB_WEBHOOK_SECRET",
-];
-
-for (const varName of requiredEnvVars) {
-  if (!process.env[varName]) {
-    console.error(`${varName} not set`);
-    process.exit(1);
-  }
-}
+// TODO refactor this whole file to use a framework like express or elysia
 
 const appId = process.env.GITHUB_APP_ID as string;
-const privateKeyPath = process.env.PRIVATE_KEY_PATH as string;
-let privateKey: string;
-try {
-  privateKey = fs.readFileSync(privateKeyPath, "utf8");
-} catch (error) {
-  console.error(`Failed to read private key from ${privateKeyPath}:`, error);
-  process.exit(1);
-}
+const privateKey = process.env.GITHUB_PRIVATE_KEY as string;
 const secret = process.env.GITHUB_WEBHOOK_SECRET as string;
 
 const app = new App({
@@ -51,7 +31,7 @@ async function fetchIssues(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open",
+  state: "open" | "closed" | "all" = "open"
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -77,7 +57,7 @@ async function fetchPullRequests(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open",
+  state: "open" | "closed" | "all" = "open"
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -123,7 +103,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           error: "Missing installation_id, owner, or repo query parameters",
-        }),
+        })
       );
       return;
     }
@@ -160,7 +140,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           error: "Missing installation_id, owner, or repo query parameters",
-        }),
+        })
       );
       return;
     }
@@ -177,7 +157,7 @@ const server = createServer(async (req, res) => {
         installationId,
         owner,
         repo,
-        state,
+        state
       );
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ pullRequests, count: pullRequests.length }));
@@ -204,7 +184,9 @@ const server = createServer(async (req, res) => {
 
       if (!installationIdParam || !state) {
         res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=missing_params`,
+          Location: `${
+            process.env.VITE_BASE_URL || "http://localhost:3000"
+          }/app/settings/organization/integration/github?error=missing_params`,
         });
         res.end();
         return;
@@ -214,7 +196,9 @@ const server = createServer(async (req, res) => {
 
       if (Number.isNaN(installationId)) {
         res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=invalid_installation_id`,
+          Location: `${
+            process.env.VITE_BASE_URL || "http://localhost:3000"
+          }/app/settings/organization/integration/github?error=invalid_installation_id`,
         });
         res.end();
         return;
@@ -224,7 +208,9 @@ const server = createServer(async (req, res) => {
 
       if (!orgId || !csrfToken) {
         res.writeHead(302, {
-          Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=invalid_state`,
+          Location: `${
+            process.env.VITE_BASE_URL || "http://localhost:3000"
+          }/app/settings/organization/integration/github?error=invalid_state`,
         });
         res.end();
         return;
@@ -248,7 +234,7 @@ const server = createServer(async (req, res) => {
       }
 
       const { csrfToken: csrfTokenFromConfig, ...config } = JSON.parse(
-        integration.configStr,
+        integration.configStr
       );
 
       if (csrfTokenFromConfig !== csrfToken) {
@@ -266,7 +252,7 @@ const server = createServer(async (req, res) => {
           headers: {
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        },
+        }
       );
 
       const repos = reposData.repositories.map((repo) => ({
@@ -289,14 +275,18 @@ const server = createServer(async (req, res) => {
 
       // Redirect to frontend repository selection page
       res.writeHead(302, {
-        Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github`,
+        Location: `${
+          process.env.VITE_BASE_URL || "http://localhost:3000"
+        }/app/settings/organization/integration/github`,
       });
       res.end();
       return;
     } catch (error) {
       console.error("[GitHub] Error handling installation callback:", error);
       res.writeHead(302, {
-        Location: `${process.env.VITE_BASE_URL || "http://localhost:3000"}/app/settings/organization/integration/github?error=callback_error`,
+        Location: `${
+          process.env.VITE_BASE_URL || "http://localhost:3000"
+        }/app/settings/organization/integration/github?error=callback_error`,
       });
       res.end();
       return;
@@ -312,10 +302,10 @@ server.listen(process.env.PORT || 3334, () => {
   console.log(`Server listening on port ${process.env.PORT || 3334}`);
   console.log(`API endpoints:`);
   console.log(
-    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`
   );
   console.log(
-    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`
   );
   console.log(`  GET /api/github/setup (GitHub App installation callback)`);
 });
