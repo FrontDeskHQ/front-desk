@@ -2,6 +2,7 @@
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   getRouteApi,
@@ -103,6 +104,8 @@ function RouteComponent() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
 
   const thread = useLiveQuery(
     query.thread.where({ id }).include({
@@ -346,11 +349,13 @@ function RouteComponent() {
               user={user as InferLiveObject<typeof schema.user>}
             />
             <LabelsSection threadId={id} />
-            <IssuesSection
-              threadId={id}
-              user={user}
-              externalIssueId={thread?.externalIssueId ?? null}
-            />
+            {isGithubIntegrationEnabled && (
+              <IssuesSection
+                threadId={id}
+                user={user}
+                externalIssueId={thread?.externalIssueId ?? null}
+              />
+            )}
           </div>
         </TooltipProvider>
       </div>

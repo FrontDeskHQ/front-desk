@@ -1,4 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { cn } from "@workspace/ui/lib/utils";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
@@ -114,6 +115,8 @@ To get started, connect your GitHub account and select the repository you want t
 function RouteComponent() {
   const { activeOrganization } = useOrganizationSwitcher();
   const { integrations: integrationLimits } = usePlanLimits();
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
 
   const allIntegrations = useLiveQuery(
     query.integration.where({
@@ -121,11 +124,15 @@ function RouteComponent() {
     }),
   );
 
-  const activeIntegrations = integrationOptions.filter((option) =>
+  const filteredIntegrationOptions = integrationOptions.filter(
+    (option) => option.id !== "github" || isGithubIntegrationEnabled,
+  );
+
+  const activeIntegrations = filteredIntegrationOptions.filter((option) =>
     allIntegrations?.some((i) => i.type === option.id && i.enabled),
   );
 
-  const availableIntegrations = integrationOptions.filter(
+  const availableIntegrations = filteredIntegrationOptions.filter(
     (option) => !activeIntegrations.includes(option),
   );
 

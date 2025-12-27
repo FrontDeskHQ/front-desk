@@ -1,5 +1,6 @@
+import { useFlag } from "@reflag/react-sdk";
 import { useLiveQuery } from "@live-state/sync/client";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { githubIntegrationSchema } from "@workspace/schemas/integration/github";
 import {
   RichText,
@@ -46,6 +47,12 @@ const generateStateToken = (): string => {
 };
 
 function RouteComponent() {
+  const { isEnabled: isGithubIntegrationEnabled } = useFlag("github-integration");
+
+  if (!isGithubIntegrationEnabled) {
+    throw notFound();
+  }
+
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "github" }),
