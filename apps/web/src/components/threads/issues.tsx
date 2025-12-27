@@ -2,13 +2,13 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
-    Combobox,
-    ComboboxContent,
-    ComboboxEmpty,
-    ComboboxInput,
-    ComboboxItem,
-    ComboboxList,
-    ComboboxTrigger,
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
@@ -33,18 +33,17 @@ type GitHubIssue = {
 
 interface IssuesSectionProps {
   threadId: string;
+  externalIssueId: string | null;
   user: { id: string; name: string };
 }
 
-export function IssuesSection({ threadId, user }: IssuesSectionProps) {
+export function IssuesSection({
+  threadId,
+  externalIssueId,
+  user,
+}: IssuesSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const thread = useLiveQuery(
-    query.thread.where({
-      id: threadId,
-    }),
-  )[0];
 
-  // Get GitHub integration
   const githubIntegration = useLiveQuery(
     query.integration.first({
       organizationId: currentOrg?.id,
@@ -53,7 +52,12 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
   );
 
   const { data: allIssues } = useQuery({
-    queryKey: ["github-issues", currentOrg?.id],
+    queryKey: [
+      "github-issues",
+      currentOrg?.id,
+      githubIntegration?.enabled,
+      githubIntegration?.configStr,
+    ],
     queryFn: () => {
       if (!currentOrg) return { issues: [], count: 0 };
 
@@ -73,12 +77,12 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
   const issues = (allIssues?.issues ?? []) as GitHubIssue[];
 
   const linkedIssue = issues.find(
-    (issue) => issue.id.toString() === thread?.externalIssueId,
+    (issue) => issue.id.toString() === externalIssueId,
   );
 
   const handleUnlinkIssue = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!thread || !linkedIssue) return;
+    if (!externalIssueId || !linkedIssue) return;
 
     mutate.thread.update(threadId, {
       externalIssueId: null,
@@ -91,7 +95,7 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
       createdAt: new Date(),
       userId: user.id,
       metadataStr: JSON.stringify({
-        oldIssueId: thread.externalIssueId,
+        oldIssueId: externalIssueId,
         newIssueId: null,
         oldIssueLabel: `${linkedIssue.repository.fullName}#${linkedIssue.number}`,
         newIssueLabel: null,
@@ -109,9 +113,9 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
           items={issues}
           value={linkedIssue?.id.toString() ?? ""}
           onValueChange={(value) => {
-            if (!thread) return;
+            if (!externalIssueId) return;
 
-            const oldIssueId = thread.externalIssueId ?? null;
+            const oldIssueId = externalIssueId ?? null;
             const oldIssue = issues.find(
               (issue) => issue.id.toString() === oldIssueId,
             );
@@ -194,7 +198,8 @@ export function IssuesSection({ threadId, user }: IssuesSectionProps) {
             <ComboboxEmpty>No issues found</ComboboxEmpty>
             <ComboboxList>
               {(item: GitHubIssue) => {
-                const isLinked = item.id.toString() === thread?.externalIssueId;
+                const isLinked =
+                  item.id.toString() === externalIssueId?.toString();
                 return (
                   <ComboboxItem
                     key={item.id}

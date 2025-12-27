@@ -1,3 +1,4 @@
+import type { InferLiveObject } from "@live-state/sync";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
@@ -10,8 +11,6 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
-import { CircleUser } from "lucide-react";
-import { cn } from "@workspace/ui/lib/utils";
 import {
   PriorityIndicator,
   PriorityText,
@@ -19,14 +18,23 @@ import {
   StatusText,
   statusValues,
 } from "@workspace/ui/components/indicator";
+import { cn } from "@workspace/ui/lib/utils";
+import type { schema } from "api/schema";
+import { CircleUser } from "lucide-react";
 import { ulid } from "ulid";
+import { mutate } from "~/lib/live-state";
 
 interface PropertiesSectionProps {
-  thread: any; // TODO: Add proper type
+  thread: InferLiveObject<
+    typeof schema.thread,
+    { assignedUser: { user: true } }
+  >;
   id: string;
-  user: any; // TODO: Add proper type
-  organizationUsers: any[]; // TODO: Add proper type
-  mutate: any; // TODO: Add proper type
+  user: InferLiveObject<typeof schema.user>;
+  organizationUsers: InferLiveObject<
+    typeof schema.organizationUser,
+    { user: true }
+  >[];
 }
 
 export function PropertiesSection({
@@ -34,7 +42,6 @@ export function PropertiesSection({
   id,
   user,
   organizationUsers,
-  mutate,
 }: PropertiesSectionProps) {
   return (
     <>
@@ -49,10 +56,8 @@ export function PropertiesSection({
           onValueChange={(value) => {
             const oldStatus = thread?.status ?? 0;
             const newStatus = value ? +value : 0;
-            const oldStatusLabel =
-              statusValues[oldStatus]?.label ?? "Unknown";
-            const newStatusLabel =
-              statusValues[newStatus]?.label ?? "Unknown";
+            const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
+            const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
             mutate.thread.update(id, {
               status: newStatus,
@@ -134,10 +139,8 @@ export function PropertiesSection({
               2: "Medium priority",
               3: "High priority",
             };
-            const oldPriorityLabel =
-              priorityLabels[oldPriority] ?? "Unknown";
-            const newPriorityLabel =
-              priorityLabels[newPriority] ?? "Unknown";
+            const oldPriorityLabel = priorityLabels[oldPriority] ?? "Unknown";
+            const newPriorityLabel = priorityLabels[newPriority] ?? "Unknown";
 
             mutate.thread.update(id, {
               priority: newPriority,
@@ -205,14 +208,12 @@ export function PropertiesSection({
           value={thread?.assignedUser?.id}
           onValueChange={(value) => {
             const oldAssignedUserId = thread?.assignedUser?.id ?? null;
-            const oldAssignedUserName =
-              thread?.assignedUser?.name ?? null;
+            const oldAssignedUserName = thread?.assignedUser?.name ?? null;
             const newAssignedUserId = value;
             const newAssignedUser = organizationUsers?.find(
               (ou) => ou.userId === value,
             );
-            const newAssignedUserName =
-              newAssignedUser?.user.name ?? null;
+            const newAssignedUserName = newAssignedUser?.user.name ?? null;
 
             mutate.thread.update(id, {
               assignedUserId: value,
@@ -271,11 +272,7 @@ export function PropertiesSection({
               {(item: BaseItem) => (
                 <ComboboxItem key={item.value} value={item.value}>
                   {item.value ? (
-                    <Avatar
-                      variant="user"
-                      size="md"
-                      fallback={item.label}
-                    />
+                    <Avatar variant="user" size="md" fallback={item.label} />
                   ) : (
                     <CircleUser className="mx-0.5" />
                   )}

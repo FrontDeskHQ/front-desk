@@ -1,5 +1,6 @@
 ("use client");
 
+import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
 import {
   createFileRoute,
@@ -48,6 +49,7 @@ import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import type { schema } from "api/schema";
 import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -340,12 +342,15 @@ function RouteComponent() {
             <PropertiesSection
               thread={thread}
               id={id}
-              user={user}
               organizationUsers={organizationUsers}
-              mutate={mutate}
+              user={user as InferLiveObject<typeof schema.user>}
             />
             <LabelsSection threadId={id} />
-            <IssuesSection threadId={id} user={user} />
+            <IssuesSection
+              threadId={id}
+              user={user}
+              externalIssueId={thread?.externalIssueId ?? null}
+            />
           </div>
         </TooltipProvider>
       </div>
