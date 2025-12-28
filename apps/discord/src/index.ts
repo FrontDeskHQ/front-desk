@@ -188,15 +188,20 @@ client.on("messageCreate", async (message) => {
         .get();
 
       if (organization?.slug) {
-        const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-        const baseUrlObj = new URL(baseUrl);
-        const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-        const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+        const showPortalMessage =
+          integrationSettings?.showPortalMessage !== false;
 
-        const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
-        await message.channel.send({
-          content: portalMessage,
-        });
+        if (showPortalMessage) {
+          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+          const baseUrlObj = new URL(baseUrl);
+          const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+          const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+
+          const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
+          await message.channel.send({
+            content: portalMessage,
+          });
+        }
       }
     } catch (error) {
       console.error("Error sending portal link message:", error);
