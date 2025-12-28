@@ -199,6 +199,18 @@ export const prepareCreatableItems = <T extends BaseItem>(
   ];
 };
 
+export const ComboboxFooter = ({
+  className,
+  ...props
+}: React.ComponentProps<"div">) => {
+  return (
+    <div
+      className={cn("border-t px-1 py-1 hover:bg-accent", className)}
+      {...props}
+    />
+  );
+};
+
 export const ComboboxTextInput = ({
   className,
   ...props

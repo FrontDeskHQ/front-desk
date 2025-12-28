@@ -5,6 +5,7 @@ import {
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
+  ComboboxFooter,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
@@ -12,7 +13,7 @@ import {
 } from "@workspace/ui/components/combobox";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
-import { Github, X } from "lucide-react";
+import { Github, Plus, X } from "lucide-react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -199,18 +200,17 @@ export function IssuesSection({
                 }}
               </ComboboxList>
               {/* //TODO: Implement create issue */}
-              {/* <ComboboxFooter>
+              <ComboboxFooter>
                 <ActionButton
                   variant="ghost"
                   size="sm"
-                  className="hover:bg-transparent"
                   tooltip="Create issue"
                   keybind="c"
                 >
                   <Plus className="size-4" />
                   Create issue
                 </ActionButton>
-              </ComboboxFooter> */}
+              </ComboboxFooter>
             </ComboboxContent>
           </Combobox>
           {linkedIssue && (
