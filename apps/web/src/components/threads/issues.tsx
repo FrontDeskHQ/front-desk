@@ -313,7 +313,7 @@ export function IssuesSection({
                   size="sm"
                   tooltip="Create issue"
                   keybind="c"
-                  className={"w-full justify-start p-4 hover:bg-accent"}
+                  className={"w-full justify-start p-4 text-sm hover:bg-accent"}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleOpenCreateDialog();
@@ -379,7 +379,7 @@ export function IssuesSection({
               />
             </div>
             <div className="flex flex-col gap-2">
-              <Label htmlFor="body">Description (optional)</Label>
+              <Label htmlFor="body">Description</Label>
               <Textarea
                 id="body"
                 value={issueBody}
