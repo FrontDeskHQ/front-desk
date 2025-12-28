@@ -7,7 +7,7 @@ import {
 } from "@workspace/ui/components/indicator";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { CircleUserIcon } from "lucide-react";
+import { CircleUserIcon, Github } from "lucide-react";
 import { query } from "~/lib/live-state";
 
 export function Update({
@@ -50,6 +50,38 @@ export function Update({
     if (update.type === "priority_changed") {
       return `changed priority to ${metadata?.newPriorityLabel}`;
     }
+
+    if (update.type === "issue_changed") {
+      if (!metadata?.oldIssueLabel && metadata?.newIssueLabel) {
+        return (
+          <>
+            linked issue{" "}
+            <span className="text-foreground">{metadata.newIssueLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldIssueLabel && !metadata?.newIssueLabel) {
+        return (
+          <>
+            unlinked issue{" "}
+            <span className="text-foreground">{metadata.oldIssueLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldIssueLabel && metadata?.newIssueLabel) {
+        return (
+          <>
+            changed issue from{" "}
+            <span className="text-foreground">{metadata.oldIssueLabel}</span> to{" "}
+            <span className="text-foreground">{metadata.newIssueLabel}</span>
+          </>
+        );
+      }
+
+      return `changed issue`;
+    }
   };
 
   return (
@@ -67,6 +99,9 @@ export function Update({
           ) : (
             <CircleUserIcon className="size-4" />
           ))}
+        {update.type === "issue_changed" && (
+          <Github className="size-4" />
+        )}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">
