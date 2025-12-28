@@ -82,7 +82,7 @@ function RouteComponent() {
 
   const updateIntegration = useCallback(
     (
-      config: z.infer<typeof discordIntegrationSchema>,
+      config: z.input<typeof discordIntegrationSchema>,
       enabled: boolean = true,
     ) => {
       if (integration) {
@@ -259,8 +259,6 @@ function RouteComponent() {
                     }}
                   />
                 </div>
-
-                <Separator />
                 <div className="flex gap-8 items-center justify-between">
                   <div className="flex flex-col">
                     <div>Send portal link on new threads</div>
