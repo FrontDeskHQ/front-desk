@@ -29,12 +29,14 @@ export const PosthogProvider = ({
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <PosthogProvider>
+      {/* TODO allow light theme */}
       <NextThemesProvider
         attribute="class"
-        defaultTheme="system"
-        enableSystem
+        defaultTheme="dark"
+        // enableSystem
         disableTransitionOnChange
         enableColorScheme
+        forcedTheme="dark"
       >
         <SidebarProvider>{children}</SidebarProvider>
       </NextThemesProvider>
