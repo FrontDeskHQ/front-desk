@@ -48,6 +48,7 @@ const thread = object("thread", {
   deletedAt: timestamp().nullable(),
   /** @deprecated use externalId and externalOrigin instead */
   discordChannelId: string().nullable(),
+  externalIssueId: string().nullable(),
   status: number().default(0),
   priority: number().default(0),
   assignedUserId: reference("user.id").nullable(),

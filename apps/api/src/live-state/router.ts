@@ -552,6 +552,7 @@ export const router = createRouter({
               createdAt: new Date(),
               deletedAt: null,
               discordChannelId: null,
+              externalIssueId: null,
               externalId: null,
               externalOrigin: null,
               externalMetadataStr: null,
@@ -582,6 +583,136 @@ export const router = createRouter({
           )[0];
 
           return thread;
+        }),
+        fetchGithubIssues: mutation(
+          z.object({
+            organizationId: z.string(),
+            state: z.enum(["open", "closed", "all"]).optional().default("open"),
+          })
+        ).handler(async ({ req, db }) => {
+          const organizationId = req.input.organizationId;
+
+          if (!organizationId) {
+            throw new Error("MISSING_ORGANIZATION_ID");
+          }
+
+          // Verify user has access to the organization
+          let authorized = !!req.context?.internalApiKey;
+
+          if (!authorized && req.context?.session?.userId) {
+            const selfOrgUser = Object.values(
+              await db.find(schema.organizationUser, {
+                where: {
+                  organizationId,
+                  userId: req.context.session.userId,
+                  enabled: true,
+                },
+              })
+            )[0];
+
+            authorized = !!selfOrgUser;
+          }
+
+          if (!authorized) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          // Get GitHub integration config
+          const integration = Object.values(
+            await db.find(schema.integration, {
+              where: {
+                organizationId,
+                type: "github",
+                enabled: true,
+              },
+            })
+          )[0];
+
+          if (!integration || !integration.configStr) {
+            throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+          }
+
+          const config = JSON.parse(integration.configStr);
+          const { repos, installationId } = config;
+
+          if (!repos || repos.length === 0) {
+            throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
+          }
+
+          if (!installationId) {
+            throw new Error("GITHUB_INSTALLATION_NOT_CONFIGURED");
+          }
+
+          // Fetch issues from all connected repositories
+          const githubServerUrl =
+            process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
+
+          const allIssues: Array<{
+            id: number;
+            number: number;
+            title: string;
+            body: string;
+            state: string;
+            html_url: string;
+            repository: { owner: string; name: string; fullName: string };
+          }> = [];
+
+          const results = await Promise.allSettled(
+            repos.map(
+              async (repo: {
+                owner: string;
+                name: string;
+                fullName: string;
+              }) => {
+                const url = new URL("/api/issues", githubServerUrl);
+                url.searchParams.set(
+                  "installation_id",
+                  installationId.toString()
+                );
+                url.searchParams.set("owner", repo.owner);
+                url.searchParams.set("repo", repo.name);
+                url.searchParams.set("state", req.input.state);
+
+                const response = await fetch(url.toString());
+
+                if (!response.ok) {
+                  throw new Error(
+                    `Failed to fetch issues for ${repo.fullName}: ${response.statusText}`
+                  );
+                }
+
+                const data = (await response.json()) as {
+                  issues: Array<{
+                    id: number;
+                    number: number;
+                    title: string;
+                    body: string;
+                    state: string;
+                    html_url: string;
+                  }>;
+                };
+
+                return data.issues.map((issue) => ({
+                  ...issue,
+                  repository: {
+                    owner: repo.owner,
+                    name: repo.name,
+                    fullName: repo.fullName,
+                  },
+                }));
+              }
+            )
+          );
+
+          for (const result of results) {
+            if (result.status === "fulfilled") {
+              allIssues.push(...result.value);
+            } else {
+              console.error(`Error fetching issues:`, result.reason);
+            }
+          }
+
+          return { issues: allIssues, count: allIssues.length };
         }),
       })),
     message: publicRoute

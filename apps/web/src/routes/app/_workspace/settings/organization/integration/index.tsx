@@ -1,4 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { cn } from "@workspace/ui/lib/utils";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
@@ -77,6 +78,26 @@ By using the Slack integration in FrontDesk, you enable your users to reach out 
 To get started, simply add the FrontDesk Slack app to your workspace and select which channels you want to use for customer support. When users create a support thread in those channels, it will automatically sync with FrontDesk in real time. Messages sent on Slack will instantly appear in FrontDesk, and replies from your support team in FrontDesk will post back to the corresponding Slack thread. Every synced thread includes full FrontDesk functionality—such as status updates, priority settings, assignee management, and more—so your team can handle Slack conversations with the same efficiency and visibility as any other support channel.
 `,
   },
+  {
+    label: "GitHub",
+    id: "github",
+    description: "Link GitHub issues to your support threads",
+    icon: (
+      <div className="flex items-center justify-center rounded-md bg-[#24292f] size-9 overflow-clip">
+        <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white">
+          <title>GitHub logo</title>
+          <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
+        </svg>
+      </div>
+    ),
+    fullDescription: `
+#### Overview
+By using the GitHub integration in FrontDesk, you can link GitHub issues to your support threads. This allows you to track issues directly from your support conversations.
+
+#### How it works
+To get started, connect your GitHub account and select the repository you want to link. Once configured, you'll be able to link GitHub issues to your threads directly from the thread view.
+`,
+  },
   // Uncomment and complete these when their integrations are ready
   // {
   //   label: "Email",
@@ -94,6 +115,8 @@ To get started, simply add the FrontDesk Slack app to your workspace and select 
 function RouteComponent() {
   const { activeOrganization } = useOrganizationSwitcher();
   const { integrations: integrationLimits } = usePlanLimits();
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
 
   const allIntegrations = useLiveQuery(
     query.integration.where({
@@ -101,11 +124,15 @@ function RouteComponent() {
     }),
   );
 
-  const activeIntegrations = integrationOptions.filter((option) =>
+  const filteredIntegrationOptions = integrationOptions.filter(
+    (option) => option.id !== "github" || isGithubIntegrationEnabled,
+  );
+
+  const activeIntegrations = filteredIntegrationOptions.filter((option) =>
     allIntegrations?.some((i) => i.type === option.id && i.enabled),
   );
 
-  const availableIntegrations = integrationOptions.filter(
+  const availableIntegrations = filteredIntegrationOptions.filter(
     (option) => !activeIntegrations.includes(option),
   );
 

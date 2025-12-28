@@ -148,9 +148,10 @@ client.on("messageCreate", async (message) => {
       discordChannelId: message.channel.id,
       authorId: authorId,
       assignedUserId: null,
+      externalIssueId: null,
       externalId: message.channel.id,
       externalOrigin: "discord",
-      externalMetadataStr: null,
+      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
