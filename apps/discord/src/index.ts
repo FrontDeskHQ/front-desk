@@ -4,6 +4,7 @@ import type { InferLiveObject } from "@live-state/sync";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
+import type { Message } from "discord.js";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { ulid } from "ulid";
 import { fetchClient, store } from "./lib/live-state";
@@ -28,6 +29,32 @@ const safeParseJSON = (raw: string) => {
       content: [{ type: "text", text: String(raw) }],
     },
   ];
+};
+
+const parseContentAsMarkdown = (message: Message): string => {
+  let content = message.content;
+
+  // Replace user mentions: <@userId> or <@!userId> with @Username
+  for (const [userId, user] of message.mentions.users) {
+    const mentionPattern = new RegExp(`<@!?${userId}>`, "g");
+    content = content.replace(mentionPattern, `@${user.displayName}`);
+  }
+
+  // Replace role mentions: <@&roleId> with @RoleName
+  for (const [roleId, role] of message.mentions.roles) {
+    const mentionPattern = new RegExp(`<@&${roleId}>`, "g");
+    content = content.replace(mentionPattern, `@${role.name}`);
+  }
+
+  // Replace channel mentions: <#channelId> with #ChannelName
+  for (const [channelId, channel] of message.mentions.channels) {
+    const mentionPattern = new RegExp(`<#${channelId}>`, "g");
+    if ("name" in channel) {
+      content = content.replace(mentionPattern, `#${channel.name}`);
+    }
+  }
+
+  return content;
 };
 
 const client = new Client({
@@ -130,7 +157,7 @@ client.on("messageCreate", async (message) => {
     authorId = ulid().toLowerCase();
     await fetchClient.mutate.author.insert({
       id: authorId,
-      name: message.author.username,
+      name: message.author.displayName,
       userId: null,
       metaId: `discord:${message.author.id}`,
       organizationId: integration.organizationId,
@@ -187,11 +214,13 @@ client.on("messageCreate", async (message) => {
 
   if (!threadId) return;
 
+  const contentWithMentions = parseContentAsMarkdown(message);
+
   store.mutate.message.insert({
     id: ulid().toLowerCase(),
     threadId,
     authorId: authorId,
-    content: JSON.stringify(parse(message.content)),
+    content: JSON.stringify(parse(contentWithMentions)),
     createdAt: message.createdAt,
     origin: "discord",
     externalMessageId: message.id,
