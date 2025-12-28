@@ -99,7 +99,7 @@ export const ComboboxEmpty = ({
 }: React.ComponentProps<typeof ComboboxPrimitive.Empty>) => {
   return (
     <ComboboxPrimitive.Empty
-      className="p-4 text-[0.925rem] leading-4 text-gray-600 empty:m-0 empty:p-0"
+      className="px-3 py-2 text-foreground-secondary empty:m-0 empty:p-0"
       {...props}
     />
   );
