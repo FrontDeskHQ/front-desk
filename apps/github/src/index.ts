@@ -37,7 +37,7 @@ async function fetchIssues(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open"
+  state: "open" | "closed" | "all" = "open",
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -57,13 +57,44 @@ async function fetchIssues(
 }
 
 /**
+ * Create an issue in a repository
+ */
+async function createIssue(
+  installationId: number,
+  owner: string,
+  repo: string,
+  title: string,
+  body: string,
+) {
+  try {
+    const octokit = await getOctokit(installationId);
+    const { data } = await octokit.request(
+      "POST /repos/{owner}/{repo}/issues",
+      {
+        owner,
+        repo,
+        title,
+        body,
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      },
+    );
+    return data;
+  } catch (error) {
+    console.error(`Error creating issue:`, error);
+    throw error;
+  }
+}
+
+/**
  * Fetch pull requests from a repository
  */
 async function fetchPullRequests(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open"
+  state: "open" | "closed" | "all" = "open",
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -109,7 +140,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           error: "Missing installation_id, owner, or repo query parameters",
-        })
+        }),
       );
       return;
     }
@@ -133,6 +164,73 @@ const server = createServer(async (req, res) => {
     return;
   }
 
+  // API endpoint to create an issue
+  if (url.pathname === "/api/issues" && req.method === "POST") {
+    let body = "";
+    for await (const chunk of req) {
+      body += chunk;
+    }
+
+    let parsedBody: {
+      installation_id?: string;
+      owner?: string;
+      repo?: string;
+      title?: string;
+      body?: string;
+    };
+
+    try {
+      parsedBody = JSON.parse(body);
+    } catch {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid JSON body" }));
+      return;
+    }
+
+    const {
+      installation_id: installationIdParam,
+      owner,
+      repo,
+      title,
+      body: issueBody,
+    } = parsedBody;
+
+    if (!installationIdParam || !owner || !repo || !title) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(
+        JSON.stringify({
+          error:
+            "Missing installation_id, owner, repo, or title in request body",
+        }),
+      );
+      return;
+    }
+
+    const installationId = Number.parseInt(installationIdParam, 10);
+    if (Number.isNaN(installationId)) {
+      res.writeHead(400, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid installation_id" }));
+      return;
+    }
+
+    try {
+      const issue = await createIssue(
+        installationId,
+        owner,
+        repo,
+        title,
+        issueBody ?? "",
+      );
+      res.writeHead(201, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ issue }));
+    } catch (error) {
+      console.error("Error creating issue:", error);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Failed to create issue" }));
+    }
+    return;
+  }
+
   // API endpoint to fetch pull requests
   if (url.pathname === "/api/pull-requests" && req.method === "GET") {
     const installationIdParam = url.searchParams.get("installation_id");
@@ -146,7 +244,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           error: "Missing installation_id, owner, or repo query parameters",
-        })
+        }),
       );
       return;
     }
@@ -163,7 +261,7 @@ const server = createServer(async (req, res) => {
         installationId,
         owner,
         repo,
-        state
+        state,
       );
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ pullRequests, count: pullRequests.length }));
@@ -240,7 +338,7 @@ const server = createServer(async (req, res) => {
       }
 
       const { csrfToken: csrfTokenFromConfig, ...config } = JSON.parse(
-        integration.configStr
+        integration.configStr,
       );
 
       if (csrfTokenFromConfig !== csrfToken) {
@@ -258,7 +356,7 @@ const server = createServer(async (req, res) => {
           headers: {
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        }
+        },
       );
 
       const repos = reposData.repositories.map((repo) => ({
@@ -308,10 +406,13 @@ server.listen(process.env.PORT || 3334, () => {
   console.log(`Server listening on port ${process.env.PORT || 3334}`);
   console.log(`API endpoints:`);
   console.log(
-    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`
+    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
   );
   console.log(
-    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`
+    `  POST /api/issues { installation_id, owner, repo, title, body? }`,
+  );
+  console.log(
+    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
   );
   console.log(`  GET /api/github/setup (GitHub App installation callback)`);
 });
