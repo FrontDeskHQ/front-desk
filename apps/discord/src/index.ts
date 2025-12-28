@@ -149,6 +149,9 @@ client.on("messageCreate", async (message) => {
       authorId: authorId,
       assignedUserId: null,
       externalIssueId: null,
+      externalId: message.channel.id,
+      externalOrigin: "discord",
+      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
@@ -198,7 +201,7 @@ client.on("messageCreate", async (message) => {
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: true }
+    { thread: true; author: { user: true } }
   >[]
 ) => {
   for (const message of messages) {
@@ -367,7 +370,7 @@ setTimeout(async () => {
           discordChannelId: { $not: null },
         },
       })
-      .include({ thread: true, author: true })
+      .include({ thread: true, author: { user: true } })
       .get()
   );
   store.query.message

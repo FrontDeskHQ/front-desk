@@ -1,5 +1,5 @@
-import { useFlag } from "@reflag/react-sdk";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import { githubIntegrationSchema } from "@workspace/schemas/integration/github";
 import {
@@ -47,7 +47,8 @@ const generateStateToken = (): string => {
 };
 
 function RouteComponent() {
-  const { isEnabled: isGithubIntegrationEnabled } = useFlag("github-integration");
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
 
   if (!isGithubIntegrationEnabled) {
     throw notFound();
@@ -139,11 +140,13 @@ function RouteComponent() {
 
   return (
     <>
-      <Button variant="ghost" asChild className="absolute top-2 left-1">
-        <Link to="/app/settings/organization/integration">
-          <ArrowLeft />
-          Integrations
-        </Link>
+      <Button
+        variant="ghost"
+        render={<Link to="/app/settings/organization/integration" />}
+        className="absolute top-2 left-1"
+      >
+        <ArrowLeft />
+        Integrations
       </Button>
       <div className="flex flex-col gap-4 pt-12">
         <div className="flex items-center justify-between gap-2">
