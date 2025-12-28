@@ -145,26 +145,10 @@ export const Route = createFileRoute("/support/$slug")({
             </Navbar.Group>
             <Navbar.Group>
               <ButtonGroup>
-                {portalSession?.user ? (
-                  <CreateThreadDialog
-                    organization={organization}
-                    portalSession={portalSession}
-                  />
-                ) : (
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={() =>
-                      portalAuthClient.signIn.social({
-                        provider: "google",
-                        additionalData: { tenantSlug: organization.slug },
-                        callbackURL: window.location.origin,
-                      })
-                    }
-                  >
-                    Sign in
-                  </Button>
-                )}
+                <CreateThreadDialog
+                  organization={organization}
+                  portalSession={portalSession}
+                />
                 {!!discordUrl && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

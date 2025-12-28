@@ -18,8 +18,8 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import type { schema } from "api/schema";
-import { PlusIcon, X } from "lucide-react";
-import { useState } from "react";
+import { Lock, PlusIcon, X } from "lucide-react";
+import { useEffect, useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 import type { GetSupportAuthUserResponse } from "~/lib/server-funcs/get-portal-auth-user";
@@ -28,8 +28,8 @@ type ThreadContent = JSONContent[];
 
 interface CreateThreadDialogProps {
   organization: InferLiveObject<(typeof schema)["organization"]>;
-  portalSession: GetSupportAuthUserResponse;
-  trigger?: React.ReactElement;
+  portalSession: GetSupportAuthUserResponse | null | undefined;
+  trigger?: React.ReactNode;
 }
 
 export function CreateThreadDialog({
@@ -57,6 +57,24 @@ export function CreateThreadDialog({
     }
     setOpen(newOpen);
   };
+
+  // Auto-open dialog after sign-in if the URL parameter is present
+  useEffect(() => {
+    if (portalSession?.user) {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.get("openCreateThread") === "true") {
+        // Remove the query parameter from URL
+        searchParams.delete("openCreateThread");
+        const newSearch = searchParams.toString();
+        const newUrl =
+          window.location.pathname + (newSearch ? `?${newSearch}` : "");
+        window.history.replaceState({}, "", newUrl);
+
+        // Open the dialog
+        setOpen(true);
+      }
+    }
+  }, [portalSession?.user]);
 
   const validateForm = () => {
     if (!threadTitle.trim()) {
@@ -115,32 +133,37 @@ export function CreateThreadDialog({
   if (!portalSession?.user) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger
-          render={
-            trigger ?? (
-              <Button size="sm">
-                <PlusIcon />
-                Create thread
-              </Button>
-            )
-          }
-        />
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sign in required</DialogTitle>
-            <DialogDescription>
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" variant="primary">
+              <PlusIcon />
+              Create thread
+            </Button>
+          )}
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader className="text-center space-y-3">
+            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
+              <Lock className="size-6 text-primary" />
+            </div>
+            <DialogTitle className="text-xl">Sign in to continue</DialogTitle>
+            <DialogDescription className="text-base">
               You need to sign in to create a new support thread.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="sm:justify-center">
             <Button
-              onClick={() =>
+              size="lg"
+              className="w-full sm:w-auto"
+              onClick={() => {
+                const url = new URL(window.location.href);
+                url.searchParams.set("openCreateThread", "true");
                 portalAuthClient.signIn.social({
                   provider: "google",
                   additionalData: { tenantSlug: organization.slug },
-                  callbackURL: window.location.href,
-                })
-              }
+                  callbackURL: url.toString(),
+                });
+              }}
             >
               Sign in with Google
             </Button>
@@ -152,16 +175,14 @@ export function CreateThreadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger
-        render={
-          trigger ?? (
-            <Button size="sm">
-              <PlusIcon />
-              Create thread
-            </Button>
-          )
-        }
-      />
+      <DialogTrigger asChild>
+        {trigger ?? (
+          <Button size="sm" variant="primary">
+            <PlusIcon />
+            Create thread
+          </Button>
+        )}
+      </DialogTrigger>
       <DialogContent
         className="sm:max-w-2xl p-0 gap-0 overflow-hidden"
         showCloseButton={false}
