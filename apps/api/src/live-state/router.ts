@@ -822,6 +822,12 @@ export const router = createRouter({
             };
           };
 
+          // Verify thread exists and belongs to the organization
+          const thread = await db.findOne(schema.thread, req.input.threadId);
+          if (!thread || thread.organizationId !== organizationId) {
+            throw new Error("THREAD_NOT_FOUND");
+          }
+
           // Link the issue to the thread
           await db.update(schema.thread, req.input.threadId, {
             externalIssueId: data.issue.id.toString(),
