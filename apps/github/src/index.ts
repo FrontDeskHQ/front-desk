@@ -8,11 +8,17 @@ import { fetchClient } from "./lib/live-state";
 const appId = process.env.GITHUB_APP_ID as string;
 const privateKey = process.env.GITHUB_PRIVATE_KEY as string;
 const secret = process.env.GITHUB_WEBHOOK_SECRET as string;
+const oauthClientId = process.env.GITHUB_CLIENT_ID as string;
+const oauthClientSecret = process.env.GITHUB_CLIENT_SECRET as string;
 
 const app = new App({
   appId,
   privateKey,
   webhooks: { secret },
+  oauth: {
+    clientId: oauthClientId,
+    clientSecret: oauthClientSecret,
+  },
 });
 
 // API Functions to interact with GitHub
