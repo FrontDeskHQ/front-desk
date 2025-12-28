@@ -31,7 +31,7 @@ const safeParseJSON = (raw: string) => {
   ];
 };
 
-const parseDiscordMentions = (message: Message): string => {
+const parseContentAsMarkdown = (message: Message): string => {
   let content = message.content;
 
   // Replace user mentions: <@userId> or <@!userId> with @Username
@@ -214,7 +214,7 @@ client.on("messageCreate", async (message) => {
 
   if (!threadId) return;
 
-  const contentWithMentions = parseDiscordMentions(message);
+  const contentWithMentions = parseContentAsMarkdown(message);
 
   store.mutate.message.insert({
     id: ulid().toLowerCase(),
