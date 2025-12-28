@@ -1,6 +1,5 @@
 import { FrontDesk } from "@front-desk/sdk";
 import { Widget } from "@front-desk/widget";
-import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { Card } from "@workspace/ui/components/card";
 import { BookMarked, MessageCircleQuestion } from "lucide-react";
@@ -16,7 +15,6 @@ const frontdeskClient = new FrontDesk({
 
 function RouteComponent() {
   const { user } = Route.useRouteContext();
-  const { isEnabled: isWidgetEnabled } = useFlag("widget");
 
   return (
     <div className="w-screen h-screen flex overflow-hidden">
@@ -25,35 +23,33 @@ function RouteComponent() {
         <Outlet />
       </Card>
 
-      {isWidgetEnabled && (
-        <Widget
-          customer={{
-            id: user?.id,
-            name: user?.name,
-          }}
-          sdk={frontdeskClient}
-          position="bottom-left"
-          resourcesGroups={[
-            {
-              title: "Other links",
-              items: [
-                {
-                  title: "Documentation",
-                  link: "https://tryfrontdesk.app/docs",
-                  content: "Documentation",
-                  icon: <BookMarked />,
-                },
-                {
-                  title: "Discord",
-                  link: "https://discord.gg/5MDHqKHrHr",
-                  content: "Discord",
-                  icon: <MessageCircleQuestion />,
-                },
-              ],
-            },
-          ]}
-        />
-      )}
+      <Widget
+        customer={{
+          id: user?.id,
+          name: user?.name,
+        }}
+        sdk={frontdeskClient}
+        position="bottom-left"
+        resourcesGroups={[
+          {
+            title: "Other links",
+            items: [
+              {
+                title: "Documentation",
+                link: "https://tryfrontdesk.app/docs",
+                content: "Documentation",
+                icon: <BookMarked />,
+              },
+              {
+                title: "Discord",
+                link: "https://discord.gg/5MDHqKHrHr",
+                content: "Discord",
+                icon: <MessageCircleQuestion />,
+              },
+            ],
+          },
+        ]}
+      />
     </div>
   );
 }
