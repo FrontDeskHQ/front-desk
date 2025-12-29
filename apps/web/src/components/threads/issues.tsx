@@ -144,7 +144,8 @@ export function IssuesSection({
     setIsCreating(true);
     try {
       const portalUrl = `https://${currentOrg.slug}.tryfrontdesk.app/threads/${threadId}`;
-      const body = `\n--\n\nIssue created using FrontDesk. <a href="${portalUrl}" target="_blank">Click to view thread</a>.`;
+      const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${portalUrl}).`;
+      const body = issueBody.trim() ? `${issueBody.trim()}${footer}` : footer;
 
       const result = await fetchClient.mutate.thread.createGithubIssue({
         organizationId: currentOrg.id,
