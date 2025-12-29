@@ -365,8 +365,6 @@ const server = createServer(async (req, res) => {
         name: repo.name,
       }));
 
-      console.log("Available repositories:", repos.length);
-
       await fetchClient.mutate.integration.update(integration.id, {
         enabled: true,
         updatedAt: new Date(),
