@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
+import { KeybindIsolation } from "@workspace/ui/components/keybind";
 import { Label } from "@workspace/ui/components/label";
 import {
   Select,
@@ -371,22 +372,26 @@ export function IssuesSection({
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="title">Title</Label>
-              <Input
-                id="title"
-                value={issueTitle}
-                onChange={(e) => setIssueTitle(e.target.value)}
-                placeholder="Issue title"
-              />
+              <KeybindIsolation>
+                <Input
+                  id="title"
+                  value={issueTitle}
+                  onChange={(e) => setIssueTitle(e.target.value)}
+                  placeholder="Issue title"
+                />
+              </KeybindIsolation>
             </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="body">Description</Label>
-              <Textarea
-                id="body"
-                value={issueBody}
-                onChange={(e) => setIssueBody(e.target.value)}
-                placeholder="Describe the issue..."
-                rows={4}
-              />
+              <KeybindIsolation>
+                <Textarea
+                  id="body"
+                  value={issueBody}
+                  onChange={(e) => setIssueBody(e.target.value)}
+                  placeholder="Describe the issue..."
+                  rows={4}
+                />
+              </KeybindIsolation>
             </div>
           </div>
           <DialogFooter>
