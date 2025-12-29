@@ -833,6 +833,19 @@ export const router = createRouter({
             externalIssueId: data.issue.id.toString(),
           });
 
+          await db.insert(schema.update, {
+            id: ulid().toLowerCase(),
+            threadId: req.input.threadId,
+            userId: req.context?.session?.userId ?? null,
+            type: "github_issue_created",
+            createdAt: new Date(),
+            metadataStr: JSON.stringify({
+              issueId: data.issue.id,
+              issueNumber: data.issue.number,
+            }),
+            replicatedStr: null,
+          });
+
           return {
             issue: {
               ...data.issue,
