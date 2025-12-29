@@ -787,6 +787,12 @@ export const router = createRouter({
             throw new Error("GITHUB_REPOSITORY_NOT_CONNECTED");
           }
 
+          // Verify thread exists and belongs to the organization
+          const thread = await db.findOne(schema.thread, req.input.threadId);
+          if (!thread || thread.organizationId !== organizationId) {
+            throw new Error("THREAD_NOT_FOUND");
+          }
+
           // Create issue via GitHub server
           const githubServerUrl =
             process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
@@ -821,12 +827,6 @@ export const router = createRouter({
               html_url: string;
             };
           };
-
-          // Verify thread exists and belongs to the organization
-          const thread = await db.findOne(schema.thread, req.input.threadId);
-          if (!thread || thread.organizationId !== organizationId) {
-            throw new Error("THREAD_NOT_FOUND");
-          }
 
           // Link the issue to the thread
           await db.update(schema.thread, req.input.threadId, {

@@ -155,6 +155,14 @@ export function IssuesSection({
         repo: repo.name,
       });
 
+      if (
+        !result?.issue?.id ||
+        !result?.issue?.number ||
+        !result?.issue?.html_url
+      ) {
+        throw new Error("Invalid response from GitHub API");
+      }
+
       // Add update record for issue creation
       mutate.update.insert({
         id: ulid().toLowerCase(),
