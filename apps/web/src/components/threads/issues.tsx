@@ -144,16 +144,13 @@ export function IssuesSection({
     setIsCreating(true);
     try {
       const portalUrl = `https://${currentOrg.slug}.tryfrontdesk.app/threads/${threadId}`;
-      const trimmedBody = issueBody.trim();
-      const bodyWithLink = trimmedBody
-        ? `${trimmedBody}\n\n[View on FrontDesk](${portalUrl})`
-        : `[View this thread on FrontDesk](${portalUrl})`;
+      const body = `\n--\n\nIssue created using FrontDesk. <a href="${portalUrl}" target="_blank">Click to view thread</a>.`;
 
       const result = await fetchClient.mutate.thread.createGithubIssue({
         organizationId: currentOrg.id,
         threadId,
         title: issueTitle.trim(),
-        body: bodyWithLink,
+        body: body,
         owner: repo.owner,
         repo: repo.name,
       });
@@ -179,9 +176,16 @@ export function IssuesSection({
       queryClient.invalidateQueries({ queryKey: ["github-issues"] });
 
       toast.success("Issue created successfully", {
+        duration: 10000,
         action: {
           label: "View on GitHub",
           onClick: () => window.open(result.issue.html_url, "_blank"),
+        },
+        actionButtonStyle: {
+          background: "transparent",
+          color: "hsl(var(--primary))",
+          border: "none",
+          textDecoration: "underline",
         },
       });
 
