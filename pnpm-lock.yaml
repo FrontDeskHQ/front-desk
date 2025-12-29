@@ -221,6 +221,9 @@ importers:
       '@workspace/schemas':
         specifier: workspace:*
         version: link:../../packages/schemas
+      '@workspace/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       api:
         specifier: workspace:*
         version: link:../api

@@ -201,6 +201,7 @@ app.message(
         externalId: message.ts,
         externalOrigin: "slack",
         externalMetadataStr: JSON.stringify({ channelId: message.channel }),
+        externalIssueId: null,
       });
 
       await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction

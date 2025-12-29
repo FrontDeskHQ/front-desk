@@ -99,13 +99,11 @@ export function Update({
           ) : (
             <CircleUserIcon className="size-4" />
           ))}
-        {update.type === "issue_changed" && (
-          <Github className="size-4" />
-        )}
+        {update.type === "issue_changed" && <Github className="size-4" />}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">
-          {update.user?.name ?? "Someone"}
+          {update.user?.name ?? metadata?.userName ?? "Someone"}
         </span>{" "}
         {getUpdateText()}
       </span>
