@@ -143,11 +143,17 @@ export function IssuesSection({
 
     setIsCreating(true);
     try {
+      const portalUrl = `https://${currentOrg.slug}.tryfrontdesk.app/threads/${threadId}`;
+      const trimmedBody = issueBody.trim();
+      const bodyWithLink = trimmedBody
+        ? `${trimmedBody}\n\n[View on FrontDesk](${portalUrl})`
+        : `[View this thread on FrontDesk](${portalUrl})`;
+
       const result = await fetchClient.mutate.thread.createGithubIssue({
         organizationId: currentOrg.id,
         threadId,
         title: issueTitle.trim(),
-        body: issueBody.trim() || undefined,
+        body: bodyWithLink,
         owner: repo.owner,
         repo: repo.name,
       });
