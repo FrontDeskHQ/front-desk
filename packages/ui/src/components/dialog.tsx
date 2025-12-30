@@ -50,7 +50,8 @@ function DialogContent({
   children,
   showCloseButton = true,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Popup> & {
+}: Omit<React.ComponentProps<typeof DialogPrimitive.Popup>, "children"> & {
+  children?: React.ReactNode;
   showCloseButton?: boolean;
 }) {
   return (

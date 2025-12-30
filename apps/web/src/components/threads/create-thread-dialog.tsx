@@ -115,7 +115,7 @@ export function CreateThreadDialog({
   if (!portalSession?.user) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger asChild>
+        <DialogTrigger>
           {trigger ?? (
             <Button size="sm">
               <PlusIcon />
@@ -150,7 +150,7 @@ export function CreateThreadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
+      <DialogTrigger>
         {trigger ?? (
           <Button size="sm">
             <PlusIcon />

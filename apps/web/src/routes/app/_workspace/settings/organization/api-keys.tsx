@@ -118,7 +118,7 @@ function RouteComponent() {
       <div className="flex items-center justify-between">
         <h2 className="text-base">API keys</h2>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
+          <DialogTrigger>
             <Button>
               <Plus />
               New API key
@@ -174,16 +174,7 @@ function RouteComponent() {
           setIsKeyDisplayDialogOpen(open);
         }}
       >
-        <DialogContent
-          className="sm:max-w-lg"
-          showCloseButton={false}
-          onInteractOutside={(e) => {
-            e.preventDefault();
-          }}
-          onEscapeKeyDown={(e) => {
-            e.preventDefault();
-          }}
-        >
+        <DialogContent className="sm:max-w-lg" showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>API key created</DialogTitle>
             <DialogDescription>
