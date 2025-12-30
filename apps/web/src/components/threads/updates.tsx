@@ -40,15 +40,32 @@ export function Update({
         return `unassigned the thread`;
       }
 
-      return `assigned the thread to ${metadata?.newAssignedUserName}`;
+      return (
+        <>
+          assigned the thread to{" "}
+          <span className="text-foreground">
+            {metadata?.newAssignedUserName}
+          </span>
+        </>
+      );
     }
 
     if (update.type === "status_changed") {
-      return `changed status to ${metadata?.newStatusLabel}`;
+      return (
+        <>
+          changed status to{" "}
+          <span className="text-foreground">{metadata?.newStatusLabel}</span>
+        </>
+      );
     }
 
     if (update.type === "priority_changed") {
-      return `changed priority to ${metadata?.newPriorityLabel}`;
+      return (
+        <>
+          changed priority to{" "}
+          <span className="text-foreground">{metadata?.newPriorityLabel}</span>
+        </>
+      );
     }
 
     if (update.type === "issue_changed") {
@@ -99,13 +116,11 @@ export function Update({
           ) : (
             <CircleUserIcon className="size-4" />
           ))}
-        {update.type === "issue_changed" && (
-          <Github className="size-4" />
-        )}
+        {update.type === "issue_changed" && <Github className="size-4" />}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">
-          {update.user?.name ?? "Someone"}
+          {update.user?.name ?? metadata?.userName ?? "Someone"}
         </span>{" "}
         {getUpdateText()}
       </span>
