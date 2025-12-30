@@ -730,7 +730,6 @@ export const router = createRouter({
             throw new Error("MISSING_ORGANIZATION_ID");
           }
 
-          // Verify user has access to the organization
           let authorized = !!req.context?.internalApiKey;
 
           if (!authorized && req.context?.session?.userId) {

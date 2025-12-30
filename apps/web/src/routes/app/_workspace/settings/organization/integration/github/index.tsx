@@ -53,8 +53,6 @@ function RouteComponent() {
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "github" }),
   );
-
-  // Wait for feature flag to load and organization to be set
   if (isFlagLoading || !activeOrg) {
     return null;
   }

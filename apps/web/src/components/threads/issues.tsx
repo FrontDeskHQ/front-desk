@@ -64,6 +64,7 @@ interface IssuesSectionProps {
   externalIssueId: string | null;
   user: { id: string; name: string };
   threadName?: string;
+  threadPortalUrl: string;
 }
 
 export function IssuesSection({
@@ -71,6 +72,7 @@ export function IssuesSection({
   externalIssueId,
   user,
   threadName,
+  threadPortalUrl,
 }: IssuesSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const queryClient = useQueryClient();
@@ -116,7 +118,6 @@ export function IssuesSection({
     (issue) => issue.id.toString() === externalIssueId,
   );
 
-  // Parse repos from integration config
   const repos: Repository[] = githubIntegration?.configStr
     ? (() => {
         try {
@@ -143,8 +144,7 @@ export function IssuesSection({
 
     setIsCreating(true);
     try {
-      const portalUrl = `https://${currentOrg.slug}.tryfrontdesk.app/threads/${threadId}`;
-      const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${portalUrl}).`;
+      const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${threadPortalUrl}).`;
       const body = issueBody.trim() ? `${issueBody.trim()}${footer}` : footer;
 
       const result = await fetchClient.mutate.thread.createGithubIssue({
@@ -163,6 +163,11 @@ export function IssuesSection({
       ) {
         throw new Error("Invalid response from GitHub API");
       }
+
+      // Link the thread to the newly created issue
+      mutate.thread.update(threadId, {
+        externalIssueId: result.issue.id.toString(),
+      });
 
       // Add update record for issue creation
       mutate.update.insert({

@@ -54,7 +54,7 @@ function DialogContent({
   showCloseButton?: boolean;
 }) {
   return (
-    <DialogPortal>
+    <DialogPortal data-slot="dialog-portal">
       <DialogOverlay />
       <DialogPrimitive.Viewport className="fixed inset-0 flex items-center justify-center">
         <DialogPrimitive.Popup
