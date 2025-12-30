@@ -89,63 +89,67 @@ const STATUS_RESOLVED = 2;
 const STATUS_CLOSED = 3;
 
 app.webhooks.on("issues.closed", async ({ payload }) => {
-  const issueId = payload.issue.id.toString();
-  const issueNumber = payload.issue.number;
-  const repoFullName = payload.repository.full_name;
-
-  console.log(
-    `[GitHub] Issue closed: ${repoFullName}#${issueNumber} (ID: ${issueId})`
-  );
-
-  const linkedThreads = store.query.thread
-    .where({ externalIssueId: issueId })
-    .get();
-
-  if (linkedThreads.length === 0) {
-    console.log(`[GitHub] No threads linked to issue ${issueId}`);
-    return;
-  }
-
-  for (const thread of linkedThreads) {
-    if (thread.status === STATUS_CLOSED) {
-      console.log(
-        `[GitHub] Thread ${thread.id} is already closed, skipping status update`
-      );
-      continue;
-    }
-
-    const oldStatus = thread.status ?? STATUS_OPEN;
-    const newStatus = STATUS_RESOLVED;
+  try {
+    const issueId = payload.issue.id.toString();
+    const issueNumber = payload.issue.number;
+    const repoFullName = payload.repository.full_name;
 
     console.log(
-      `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
+      `[GitHub] Issue closed: ${repoFullName}#${issueNumber} (ID: ${issueId})`
     );
 
-    // Update thread status to Resolved
-    store.mutate.thread.update(thread.id, {
-      status: newStatus,
-    });
+    const linkedThreads = store.query.thread
+      .where({ externalIssueId: issueId })
+      .get();
 
-    // Create an update record to track this change
-    store.mutate.update.insert({
-      id: ulid().toLowerCase(),
-      threadId: thread.id,
-      type: "status_changed",
-      createdAt: new Date(),
-      userId: null, // No user - this is a system action from GitHub
-      metadataStr: JSON.stringify({
-        oldStatus,
-        newStatus,
-        oldStatusLabel: statusValues[oldStatus]?.label,
-        newStatusLabel: statusValues[newStatus]?.label,
-        source: "github",
-        issueNumber,
-        repoFullName,
-        userName: "GitHub Integration",
-      }),
-      // Mark as replicated from GitHub so it doesn't sync back
-      replicatedStr: JSON.stringify({ github: true }),
-    });
+    if (linkedThreads.length === 0) {
+      console.log(`[GitHub] No threads linked to issue ${issueId}`);
+      return;
+    }
+
+    for (const thread of linkedThreads) {
+      if (thread.status === STATUS_CLOSED) {
+        console.log(
+          `[GitHub] Thread ${thread.id} is already closed, skipping status update`
+        );
+        continue;
+      }
+
+      const oldStatus = thread.status ?? STATUS_OPEN;
+      const newStatus = STATUS_RESOLVED;
+
+      console.log(
+        `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
+      );
+
+      // Update thread status to Resolved
+      store.mutate.thread.update(thread.id, {
+        status: newStatus,
+      });
+
+      // Create an update record to track this change
+      store.mutate.update.insert({
+        id: ulid().toLowerCase(),
+        threadId: thread.id,
+        type: "status_changed",
+        createdAt: new Date(),
+        userId: null, // No user - this is a system action from GitHub
+        metadataStr: JSON.stringify({
+          oldStatus,
+          newStatus,
+          oldStatusLabel: statusValues[oldStatus]?.label,
+          newStatusLabel: statusValues[newStatus]?.label,
+          source: "github",
+          issueNumber,
+          repoFullName,
+          userName: "GitHub Integration",
+        }),
+        // Mark as replicated from GitHub so it doesn't sync back
+        replicatedStr: JSON.stringify({ github: true }),
+      });
+    }
+  } catch (error) {
+    console.error("[GitHub] Error handling issues.closed webhook:", error);
   }
 });
 
