@@ -126,13 +126,12 @@ client.on("messageCreate", async (message) => {
 
   let threadId: string | null = null;
 
-  const integration = store.query.integration
-    .where({ type: "discord" })
-    .get()
-    .find((i) => {
-      const parsed = safeParseIntegrationSettings(i.configStr);
-      return parsed?.guildId === message.guild?.id;
-    });
+  const integration = (
+    await fetchClient.query.integration.where({ type: "discord" }).get()
+  ).find((i) => {
+    const parsed = safeParseIntegrationSettings(i.configStr);
+    return parsed?.guildId === message.guild?.id;
+  });
 
   if (!integration) return;
 
@@ -201,6 +200,8 @@ client.on("messageCreate", async (message) => {
           await message.channel.send({
             content: portalMessage,
           });
+        } else {
+          console.log("Skipping sending portal link message");
         }
       }
     } catch (error) {
@@ -240,7 +241,7 @@ const handleMessages = async (
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
+    const integration = await fetchClient.query.integration
       .first({
         organizationId: message.thread?.organizationId,
         type: "discord",
@@ -344,7 +345,7 @@ const handleUpdates = async (
     if (handlingUpdates.has(update.id)) continue;
 
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
+    const integration = await fetchClient.query.integration
       .first({
         organizationId: update.thread?.organizationId,
         type: "discord",
