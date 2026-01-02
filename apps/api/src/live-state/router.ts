@@ -758,8 +758,11 @@ export const router = createRouter({
                 type: "github",
                 enabled: true,
               },
+              include: {
+                organization: true,
+              },
             }),
-          )[0];
+          )[0] as any; // TODO: Remove type assertion when live-state supports includes properly
 
           if (!integration || !integration.configStr) {
             throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
@@ -792,6 +795,12 @@ export const router = createRouter({
             throw new Error("THREAD_NOT_FOUND");
           }
 
+          // Append FrontDesk footer to issue body
+          const orgSlug = integration.organization.slug;
+          const threadPortalUrl = `https://${orgSlug}.tryfrontdesk.app/threads/${thread.id}`;
+          const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${threadPortalUrl}).`;
+          const body = (req.input.body ?? "") + footer;
+
           // Create issue via GitHub server
           const githubServerUrl =
             process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
@@ -806,7 +815,7 @@ export const router = createRouter({
               owner: req.input.owner,
               repo: req.input.repo,
               title: req.input.title,
-              body: req.input.body ?? "",
+              body: body,
             }),
           });
 

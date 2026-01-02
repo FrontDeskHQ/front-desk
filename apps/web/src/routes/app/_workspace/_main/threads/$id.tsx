@@ -83,9 +83,7 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
       throw notFound();
     }
 
-    const threadPortalUrl = `https://${thread.organization.slug}.tryfrontdesk.app/threads/${thread.id}`;
-
-    return { thread, threadPortalUrl };
+    return { thread };
   },
   head: ({ loaderData }) => {
     const thread = loaderData?.thread;
@@ -103,8 +101,6 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
 
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
-  const route = getRouteApi("/app/_workspace/_main/threads/$id");
-  const { threadPortalUrl } = route.useLoaderData();
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -359,7 +355,6 @@ function RouteComponent() {
                 user={user}
                 externalIssueId={thread?.externalIssueId ?? null}
                 threadName={thread?.name}
-                threadPortalUrl={threadPortalUrl}
               />
             )}
           </div>

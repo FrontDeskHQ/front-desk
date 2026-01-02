@@ -64,7 +64,6 @@ interface IssuesSectionProps {
   externalIssueId: string | null;
   user: { id: string; name: string };
   threadName?: string;
-  threadPortalUrl: string;
 }
 
 export function IssuesSection({
@@ -72,7 +71,6 @@ export function IssuesSection({
   externalIssueId,
   user,
   threadName,
-  threadPortalUrl,
 }: IssuesSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const queryClient = useQueryClient();
@@ -144,14 +142,11 @@ export function IssuesSection({
 
     setIsCreating(true);
     try {
-      const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${threadPortalUrl}).`;
-      const body = issueBody.trim() ? `${issueBody.trim()}${footer}` : footer;
-
       const result = await fetchClient.mutate.thread.createGithubIssue({
         organizationId: currentOrg.id,
         threadId,
         title: issueTitle.trim(),
-        body: body,
+        body: issueBody,
         owner: repo.owner,
         repo: repo.name,
       });
