@@ -354,6 +354,7 @@ function RouteComponent() {
                 threadId={id}
                 user={user}
                 externalIssueId={thread?.externalIssueId ?? null}
+                threadName={thread?.name}
               />
             )}
           </div>

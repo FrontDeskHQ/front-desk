@@ -47,17 +47,19 @@ const generateStateToken = (): string => {
 };
 
 function RouteComponent() {
-  const { isEnabled: isGithubIntegrationEnabled } =
+  const { isEnabled: isGithubIntegrationEnabled, isLoading: isFlagLoading } =
     useFlag("github-integration");
-
-  if (!isGithubIntegrationEnabled) {
-    throw notFound();
-  }
-
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "github" }),
   );
+  if (isFlagLoading || !activeOrg) {
+    return null;
+  }
+
+  if (!isGithubIntegrationEnabled) {
+    throw notFound();
+  }
 
   const parsedConfig: ReturnType<
     typeof githubIntegrationSchema.safeParse
