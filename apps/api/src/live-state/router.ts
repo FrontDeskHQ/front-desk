@@ -836,11 +836,6 @@ export const router = createRouter({
             };
           };
 
-          // Link the issue to the thread
-          await db.update(schema.thread, req.input.threadId, {
-            externalIssueId: data.issue.id.toString(),
-          });
-
           await db.insert(schema.update, {
             id: ulid().toLowerCase(),
             threadId: req.input.threadId,
