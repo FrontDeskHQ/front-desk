@@ -2,14 +2,19 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
+  BaseItem,
+  BaseItemGroup,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxFooter,
+  ComboboxGroup,
+  ComboboxGroupContent,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
+  ComboboxSeparator,
   ComboboxTrigger,
+  prepareFooter,
 } from "@workspace/ui/components/combobox";
 import {
   Dialog,
@@ -30,7 +35,6 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
-import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
 import { Github, Loader2, Plus, X } from "lucide-react";
 import { useState } from "react";
@@ -79,6 +83,7 @@ export function IssuesSection({
   const [issueTitle, setIssueTitle] = useState("");
   const [issueBody, setIssueBody] = useState("");
   const [selectedRepo, setSelectedRepo] = useState<string>("");
+  const [search, setSearch] = useState("");
 
   const githubIntegration = useLiveQuery(
     query.integration.first({
@@ -111,6 +116,20 @@ export function IssuesSection({
   });
 
   const issues = (allIssues?.issues ?? []) as GitHubIssue[];
+
+  const comboboxItems = prepareFooter(
+    issues.map((issue) => ({
+      value: issue.id?.toString() ?? "",
+      label: `${issue.repository.fullName}#${issue.number} ${issue.title}`,
+      issue,
+    })),
+    [
+      {
+        value: `footer:create_issue`,
+        label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
+      },
+    ],
+  );
 
   const linkedIssue = issues.find(
     (issue) => issue.id.toString() === externalIssueId,
@@ -240,7 +259,7 @@ export function IssuesSection({
       <div className="flex flex-col gap-1.5">
         <div className="flex gap-1 items-center group w-full max-w-52">
           <Combobox
-            items={issues}
+            items={comboboxItems}
             value={linkedIssue?.id.toString() ?? ""}
             onValueChange={(value) => {
               const oldIssueId = externalIssueId ?? null;
@@ -306,43 +325,39 @@ export function IssuesSection({
             />
             <ComboboxContent className="w-60" side="left">
               {/* //TODO: Improve search functionality by searching the issue number */}
-              <ComboboxInput placeholder="Search..." />
+              <ComboboxInput
+                placeholder="Search..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
               <ComboboxEmpty>No issues found</ComboboxEmpty>
               <ComboboxList>
-                {(item: GitHubIssue) => {
-                  const isLinked =
-                    item.id.toString() === externalIssueId?.toString();
-                  return (
-                    <ComboboxItem
-                      key={item.id}
-                      value={item.id.toString()}
-                      className={cn(
-                        "flex items-center gap-2",
-                        isLinked && "bg-accent",
-                      )}
-                    >
-                      <span>#{item.number}</span>
-                      <span className="truncate">{item.title}</span>
-                    </ComboboxItem>
-                  );
-                }}
+                {(group: BaseItemGroup) =>
+                  !group.footer ? (
+                    <ComboboxGroup key={group.value} items={group.items}>
+                      <ComboboxGroupContent>
+                        {(item: BaseItem & { issue: GitHubIssue }) => (
+                          <ComboboxItem key={item.value} value={item.value}>
+                            <span>#{item.issue.number}</span>
+                            <span className="truncate">{item.issue.title}</span>
+                          </ComboboxItem>
+                        )}
+                      </ComboboxGroupContent>
+                    </ComboboxGroup>
+                  ) : (
+                    <ComboboxGroup key={group.value} items={group.items}>
+                      <ComboboxSeparator />
+                      <ComboboxItem
+                        value="footer:create_issue"
+                        onClick={handleOpenCreateDialog}
+                      >
+                        <Plus className="size-4" />
+                        Create issue
+                      </ComboboxItem>
+                    </ComboboxGroup>
+                  )
+                }
               </ComboboxList>
-              <ComboboxFooter>
-                <ActionButton
-                  variant="ghost"
-                  size="sm"
-                  tooltip="Create issue"
-                  keybind="c"
-                  className={"w-full justify-start p-4 text-sm hover:bg-accent"}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleOpenCreateDialog();
-                  }}
-                >
-                  <Plus className="size-4" />
-                  Create issue
-                </ActionButton>
-              </ComboboxFooter>
             </ComboboxContent>
           </Combobox>
           {linkedIssue && (
@@ -363,7 +378,6 @@ export function IssuesSection({
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Github className="size-4" />
               Create GitHub Issue
             </DialogTitle>
             <DialogDescription>
