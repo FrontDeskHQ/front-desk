@@ -4,6 +4,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@workspace/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import * as React from "react";
+import { Button } from "./button";
 
 function Dialog({
   ...props
@@ -24,9 +25,25 @@ function DialogPortal({
 }
 
 function DialogClose({
+  children,
+  render,
+  className,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Close>) {
-  return <DialogPrimitive.Close data-slot="dialog-close" {...props} />;
+  return (
+    <DialogPrimitive.Close
+      render={render ?? <Button variant="ghost" size="icon" />}
+      data-slot="dialog-close"
+      className={cn(
+        "text-foreground-secondary hover:text-foreground-primary",
+        className,
+      )}
+      {...props}
+    >
+      {children || <XIcon className="size-4" />}
+      <span className="sr-only">Close</span>
+    </DialogPrimitive.Close>
+  );
 }
 
 function DialogOverlay({
@@ -61,20 +78,14 @@ function DialogContent({
         <DialogPrimitive.Popup
           data-slot="dialog-content"
           className={cn(
-            "bg-background-secondary data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 grid max-w-[calc(100%-2rem)] gap-4 rounded-lg p-6 text-xs/relaxed border duration-100 sm:max-w-sm fixed top-1/2 left-1/2 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+            "bg-background-secondary data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 grid max-w-[calc(100%-2rem)] gap-4 rounded-lg p-4 text-xs/relaxed border duration-100 sm:max-w-sm fixed top-1/2 left-1/2 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
             className,
           )}
           {...props}
         >
           {children}
           {showCloseButton && (
-            <DialogPrimitive.Close
-              data-slot="dialog-close"
-              className="ring-offset-background focus:ring-ring data-[state=open]:bg-accent data-[state=open]:text-muted-foreground absolute top-4 right-4 rounded-xs opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-hidden disabled:pointer-events-none [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4"
-            >
-              <XIcon />
-              <span className="sr-only">Close</span>
-            </DialogPrimitive.Close>
+            <DialogClose className="absolute top-4 right-4" />
           )}
         </DialogPrimitive.Popup>
       </DialogPrimitive.Viewport>

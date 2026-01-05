@@ -1,5 +1,11 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
   BaseItem,
@@ -18,11 +24,10 @@ import {
 } from "@workspace/ui/components/combobox";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { KeybindIsolation } from "@workspace/ui/components/keybind";
@@ -375,34 +380,39 @@ export function IssuesSection({
       </div>
 
       <Dialog open={showCreateDialog} onOpenChange={setShowCreateDialog}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              Create GitHub Issue
-            </DialogTitle>
-            <DialogDescription>
-              Create a new issue on GitHub and link it to this thread.
-            </DialogDescription>
+        <DialogContent className="sm:max-w-[500px]" showCloseButton={false}>
+          <DialogHeader className="justify-between flex-row items-center">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>New Issue</BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem className="text-foreground-primary">
+                  <Select
+                    value={selectedRepo}
+                    onValueChange={(value) => setSelectedRepo(value as string)}
+                  >
+                    <SelectTrigger
+                      id="repo"
+                      size="xs"
+                      hideIcon
+                      className="px-1"
+                    >
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {repos.map((repo) => (
+                        <SelectItem key={repo.fullName} value={repo.fullName}>
+                          {repo.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <DialogClose />
           </DialogHeader>
           <div className="flex flex-col gap-4 py-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="repo">Repository</Label>
-              <Select
-                value={selectedRepo}
-                onValueChange={(value) => setSelectedRepo(value as string)}
-              >
-                <SelectTrigger id="repo">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {repos.map((repo) => (
-                    <SelectItem key={repo.fullName} value={repo.fullName}>
-                      {repo.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="title">Title</Label>
               <KeybindIsolation>
