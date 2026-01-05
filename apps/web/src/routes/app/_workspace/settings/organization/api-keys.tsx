@@ -118,11 +118,9 @@ function RouteComponent() {
       <div className="flex items-center justify-between">
         <h2 className="text-base">API keys</h2>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger>
-            <Button>
-              <Plus />
-              New API key
-            </Button>
+          <DialogTrigger render={<Button />}>
+            <Plus />
+            New API key
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

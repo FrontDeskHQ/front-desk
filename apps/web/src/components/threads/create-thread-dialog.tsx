@@ -29,7 +29,7 @@ type ThreadContent = JSONContent[];
 interface CreateThreadDialogProps {
   organization: InferLiveObject<(typeof schema)["organization"]>;
   portalSession: GetSupportAuthUserResponse;
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
 }
 
 export function CreateThreadDialog({
@@ -115,14 +115,16 @@ export function CreateThreadDialog({
   if (!portalSession?.user) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger>
-          {trigger ?? (
-            <Button size="sm">
-              <PlusIcon />
-              Create thread
-            </Button>
-          )}
-        </DialogTrigger>
+        <DialogTrigger
+          render={
+            trigger ?? (
+              <Button size="sm">
+                <PlusIcon />
+                Create thread
+              </Button>
+            )
+          }
+        />
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Sign in required</DialogTitle>
@@ -150,14 +152,16 @@ export function CreateThreadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger>
-        {trigger ?? (
-          <Button size="sm">
-            <PlusIcon />
-            Create thread
-          </Button>
-        )}
-      </DialogTrigger>
+      <DialogTrigger
+        render={
+          trigger ?? (
+            <Button size="sm">
+              <PlusIcon />
+              Create thread
+            </Button>
+          )
+        }
+      />
       <DialogContent
         className="sm:max-w-2xl p-0 gap-0 overflow-hidden"
         showCloseButton={false}
