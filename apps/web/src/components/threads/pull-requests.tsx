@@ -2,8 +2,8 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
-  BaseItem,
-  BaseItemGroup,
+  type BaseItem,
+  type BaseItemGroup,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
