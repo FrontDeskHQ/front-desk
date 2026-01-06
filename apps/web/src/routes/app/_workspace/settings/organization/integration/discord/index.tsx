@@ -9,6 +9,7 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { InputWithSeparator } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
+import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
 import { useCallback } from "react";
@@ -81,7 +82,7 @@ function RouteComponent() {
 
   const updateIntegration = useCallback(
     (
-      config: z.infer<typeof discordIntegrationSchema>,
+      config: z.input<typeof discordIntegrationSchema>,
       enabled: boolean = true,
     ) => {
       if (integration) {
@@ -255,6 +256,21 @@ function RouteComponent() {
                     value={parsedConfig?.data?.selectedChannels ?? []}
                     onValueChange={(value) => {
                       updateIntegration({ selectedChannels: value });
+                    }}
+                  />
+                </div>
+                <div className="flex gap-8 items-center justify-between">
+                  <div className="flex flex-col">
+                    <div>Send portal link on new threads</div>
+                    <div className="text-muted-foreground">
+                      Send a message in Discord with a link to the same thread
+                      in the portal
+                    </div>
+                  </div>
+                  <Switch
+                    checked={parsedConfig?.data?.showPortalMessage !== false}
+                    onCheckedChange={(checked) => {
+                      updateIntegration({ showPortalMessage: checked });
                     }}
                   />
                 </div>

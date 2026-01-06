@@ -136,13 +136,8 @@ function RouteComponent() {
 
   return (
     <ReflagClientProvider client={reflagClient}>
-      <Dialog open={showTrialExpiredDialog}>
-        <DialogContent
-          showCloseButton={false}
-          onInteractOutside={(e) => e.preventDefault()}
-          onEscapeKeyDown={(e) => e.preventDefault()}
-          className="max-w-3xl"
-        >
+      <Dialog open={showTrialExpiredDialog} disablePointerDismissal>
+        <DialogContent showCloseButton={false} className="max-w-3xl">
           <DialogHeader className="text-left">
             <DialogTitle className="mb-2">
               Unlock full access to FrontDesk

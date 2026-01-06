@@ -202,6 +202,8 @@ export const CreateThread = () => {
           externalId: null,
           externalOrigin: null,
           externalMetadataStr: null,
+          externalIssueId: null,
+          externalPrId: null,
           assignedUserId: null,
           status: 0,
           priority: 0,
@@ -262,6 +264,8 @@ export const CreateThread = () => {
         externalId: null,
         externalOrigin: null,
         externalMetadataStr: null,
+        externalIssueId: null,
+        externalPrId: null,
         assignedUserId: null,
         status: 0,
         priority: 0,
@@ -274,10 +278,8 @@ export const CreateThread = () => {
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        <Button variant="outline" size="sm">
-          New Thread
-        </Button>
+      <DialogTrigger render={<Button variant="outline" size="sm" />}>
+        New Thread
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>

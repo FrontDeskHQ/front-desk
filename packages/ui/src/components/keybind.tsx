@@ -4,7 +4,7 @@ const isMacPlatform = () =>
   typeof navigator !== "undefined" && /Mac|iPad/.test(navigator.platform);
 
 export const Keybind = ({ keybind }: { keybind: string }) => {
-  const keys = keybind.split("-");
+  const keys = keybind.split(/[-+]/);
 
   const isMac = isMacPlatform();
 

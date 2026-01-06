@@ -84,7 +84,7 @@ export const ComboboxInput = ({
     <KeybindIsolation className="h-[var(--input-container-height)] text-center w-full">
       <ComboboxPrimitive.Input
         className={cn(
-          "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground border-input flex h-9 w-full min-w-0 rounded-md bg-transparent px-2 text-base transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+          "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground flex h-9 w-full min-w-0 bg-transparent px-2 text-base transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm border-b",
           className,
         )}
         {...props}
@@ -99,7 +99,7 @@ export const ComboboxEmpty = ({
 }: React.ComponentProps<typeof ComboboxPrimitive.Empty>) => {
   return (
     <ComboboxPrimitive.Empty
-      className="p-4 text-[0.925rem] leading-4 text-gray-600 empty:m-0 empty:p-0"
+      className="px-3 py-2 text-foreground-secondary empty:m-0 empty:p-0"
       {...props}
     />
   );
@@ -115,6 +115,45 @@ export const ComboboxList = ({
       {...props}
     />
   );
+};
+
+export const ComboboxGroup = (
+  props: React.ComponentProps<typeof ComboboxPrimitive.Group>,
+) => {
+  return <ComboboxPrimitive.Group {...props} />;
+};
+
+export const ComboboxGroupLabel = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.GroupLabel>) => {
+  return (
+    <ComboboxPrimitive.GroupLabel
+      className={cn(
+        "sticky top-0 z-[1] text-foreground-secondary text-xs px-2 pb-0.5 pt-1.5",
+        className,
+      )}
+      {...props}
+    />
+  );
+};
+
+export const ComboboxSeparator = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Separator>) => {
+  return (
+    <ComboboxPrimitive.Separator
+      className={cn("h-px bg-border", className)}
+      {...props}
+    />
+  );
+};
+
+export const ComboboxGroupContent = (
+  props: React.ComponentProps<typeof ComboboxPrimitive.Collection>,
+) => {
+  return <ComboboxPrimitive.Collection {...props} />;
 };
 
 export const ComboboxItem = ({
@@ -166,6 +205,12 @@ export type BaseItem<T = string> = {
   creatable?: string;
 };
 
+export type BaseItemGroup<T = string, U extends BaseItem = BaseItem> = {
+  value: T;
+  items: U[];
+  footer?: boolean;
+};
+
 export const prepareCreatableItems = <T extends BaseItem>(
   items: T[],
   query: string,
@@ -197,6 +242,41 @@ export const prepareCreatableItems = <T extends BaseItem>(
       creatable: trimmed,
     } as T,
   ];
+};
+
+export const prepareFooter = (
+  itemsOrGroups: BaseItem[] | BaseItemGroup[],
+  footerItems: BaseItem[],
+): BaseItemGroup[] => {
+  if (itemsOrGroups[0] && "items" in itemsOrGroups[0]) {
+    return [
+      ...(itemsOrGroups as BaseItemGroup[]),
+      {
+        value: "footer",
+        footer: true,
+        items: footerItems,
+      },
+    ];
+  }
+
+  return [
+    {
+      value: "",
+      items: itemsOrGroups as BaseItem[],
+    },
+    {
+      value: "footer",
+      footer: true,
+      items: footerItems,
+    },
+  ];
+};
+
+export const ComboboxFooter = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Group>) => {
+  return <ComboboxGroup className={cn("border-t", className)} {...props} />;
 };
 
 export const ComboboxTextInput = ({

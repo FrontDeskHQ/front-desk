@@ -4,6 +4,7 @@ import type { InferLiveObject } from "@live-state/sync";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
+import type { Message } from "discord.js";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { ulid } from "ulid";
 import { fetchClient, store } from "./lib/live-state";
@@ -28,6 +29,32 @@ const safeParseJSON = (raw: string) => {
       content: [{ type: "text", text: String(raw) }],
     },
   ];
+};
+
+const parseContentAsMarkdown = (message: Message): string => {
+  let content = message.content;
+
+  // Replace user mentions: <@userId> or <@!userId> with @Username
+  for (const [userId, user] of message.mentions.users) {
+    const mentionPattern = new RegExp(`<@!?${userId}>`, "g");
+    content = content.replace(mentionPattern, `@${user.displayName}`);
+  }
+
+  // Replace role mentions: <@&roleId> with @RoleName
+  for (const [roleId, role] of message.mentions.roles) {
+    const mentionPattern = new RegExp(`<@&${roleId}>`, "g");
+    content = content.replace(mentionPattern, `@${role.name}`);
+  }
+
+  // Replace channel mentions: <#channelId> with #ChannelName
+  for (const [channelId, channel] of message.mentions.channels) {
+    const mentionPattern = new RegExp(`<#${channelId}>`, "g");
+    if ("name" in channel) {
+      content = content.replace(mentionPattern, `#${channel.name}`);
+    }
+  }
+
+  return content;
 };
 
 const client = new Client({
@@ -99,13 +126,12 @@ client.on("messageCreate", async (message) => {
 
   let threadId: string | null = null;
 
-  const integration = store.query.integration
-    .where({ type: "discord" })
-    .get()
-    .find((i) => {
-      const parsed = safeParseIntegrationSettings(i.configStr);
-      return parsed?.guildId === message.guild?.id;
-    });
+  const integration = (
+    await fetchClient.query.integration.where({ type: "discord" }).get()
+  ).find((i) => {
+    const parsed = safeParseIntegrationSettings(i.configStr);
+    return parsed?.guildId === message.guild?.id;
+  });
 
   if (!integration) return;
 
@@ -130,7 +156,7 @@ client.on("messageCreate", async (message) => {
     authorId = ulid().toLowerCase();
     await fetchClient.mutate.author.insert({
       id: authorId,
-      name: message.author.username,
+      name: message.author.displayName,
       userId: null,
       metaId: `discord:${message.author.id}`,
       organizationId: integration.organizationId,
@@ -148,9 +174,11 @@ client.on("messageCreate", async (message) => {
       discordChannelId: message.channel.id,
       authorId: authorId,
       assignedUserId: null,
+      externalIssueId: null,
+      externalPrId: null,
       externalId: message.channel.id,
       externalOrigin: "discord",
-      externalMetadataStr: null,
+      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
@@ -160,15 +188,22 @@ client.on("messageCreate", async (message) => {
         .get();
 
       if (organization?.slug) {
-        const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-        const baseUrlObj = new URL(baseUrl);
-        const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-        const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+        const showPortalMessage =
+          integrationSettings?.showPortalMessage !== false;
 
-        const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
-        await message.channel.send({
-          content: portalMessage,
-        });
+        if (showPortalMessage) {
+          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+          const baseUrlObj = new URL(baseUrl);
+          const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+          const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+
+          const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
+          await message.channel.send({
+            content: portalMessage,
+          });
+        } else {
+          console.log("Skipping sending portal link message");
+        }
       }
     } catch (error) {
       console.error("Error sending portal link message:", error);
@@ -186,11 +221,13 @@ client.on("messageCreate", async (message) => {
 
   if (!threadId) return;
 
+  const contentWithMentions = parseContentAsMarkdown(message);
+
   store.mutate.message.insert({
     id: ulid().toLowerCase(),
     threadId,
     authorId: authorId,
-    content: JSON.stringify(parse(message.content)),
+    content: JSON.stringify(parse(contentWithMentions)),
     createdAt: message.createdAt,
     origin: "discord",
     externalMessageId: message.id,
@@ -205,7 +242,7 @@ const handleMessages = async (
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
+    const integration = await fetchClient.query.integration
       .first({
         organizationId: message.thread?.organizationId,
         type: "discord",
@@ -309,7 +346,7 @@ const handleUpdates = async (
     if (handlingUpdates.has(update.id)) continue;
 
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
+    const integration = await fetchClient.query.integration
       .first({
         organizationId: update.thread?.organizationId,
         type: "discord",

@@ -7,7 +7,7 @@ import {
 } from "@workspace/ui/components/indicator";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { CircleUserIcon } from "lucide-react";
+import { CircleUserIcon, Github } from "lucide-react";
 import { query } from "~/lib/live-state";
 
 export function Update({
@@ -40,15 +40,96 @@ export function Update({
         return `unassigned the thread`;
       }
 
-      return `assigned the thread to ${metadata?.newAssignedUserName}`;
+      return (
+        <>
+          assigned the thread to{" "}
+          <span className="text-foreground">
+            {metadata?.newAssignedUserName}
+          </span>
+        </>
+      );
     }
 
     if (update.type === "status_changed") {
-      return `changed status to ${metadata?.newStatusLabel}`;
+      return (
+        <>
+          changed status to{" "}
+          <span className="text-foreground">{metadata?.newStatusLabel}</span>
+        </>
+      );
     }
 
     if (update.type === "priority_changed") {
-      return `changed priority to ${metadata?.newPriorityLabel}`;
+      return (
+        <>
+          changed priority to{" "}
+          <span className="text-foreground">{metadata?.newPriorityLabel}</span>
+        </>
+      );
+    }
+
+    if (update.type === "issue_changed") {
+      if (!metadata?.oldIssueLabel && metadata?.newIssueLabel) {
+        return (
+          <>
+            linked issue{" "}
+            <span className="text-foreground">{metadata.newIssueLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldIssueLabel && !metadata?.newIssueLabel) {
+        return (
+          <>
+            unlinked issue{" "}
+            <span className="text-foreground">{metadata.oldIssueLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldIssueLabel && metadata?.newIssueLabel) {
+        return (
+          <>
+            changed issue from{" "}
+            <span className="text-foreground">{metadata.oldIssueLabel}</span> to{" "}
+            <span className="text-foreground">{metadata.newIssueLabel}</span>
+          </>
+        );
+      }
+
+      return `changed issue`;
+    }
+
+    if (update.type === "pr_changed") {
+      if (!metadata?.oldPrLabel && metadata?.newPrLabel) {
+        return (
+          <>
+            linked PR{" "}
+            <span className="text-foreground">{metadata.newPrLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldPrLabel && !metadata?.newPrLabel) {
+        return (
+          <>
+            unlinked PR{" "}
+            <span className="text-foreground">{metadata.oldPrLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldPrLabel && metadata?.newPrLabel) {
+        return (
+          <>
+            changed PR from{" "}
+            <span className="text-foreground">{metadata.oldPrLabel}</span> to{" "}
+            <span className="text-foreground">{metadata.newPrLabel}</span>
+          </>
+        );
+      }
+
+      return `changed PR`;
     }
   };
 
@@ -67,10 +148,12 @@ export function Update({
           ) : (
             <CircleUserIcon className="size-4" />
           ))}
+        {update.type === "issue_changed" && <Github className="size-4" />}
+        {update.type === "pr_changed" && <Github className="size-4" />}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">
-          {update.user?.name ?? "Someone"}
+          {update.user?.name ?? metadata?.userName ?? "Someone"}
         </span>{" "}
         {getUpdateText()}
       </span>
