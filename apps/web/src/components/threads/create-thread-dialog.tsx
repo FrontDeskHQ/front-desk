@@ -1,5 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useRouter } from "@tanstack/react-router";
+import { Avatar } from "@workspace/ui/components/avatar";
 import {
   Editor,
   EditorInput,
@@ -10,7 +11,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -18,7 +18,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import type { schema } from "api/schema";
-import { Lock, PlusIcon, X } from "lucide-react";
+import { PlusIcon, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
@@ -142,32 +142,35 @@ export function CreateThreadDialog({
           )}
         </DialogTrigger>
         <DialogContent className="sm:max-w-md">
-          <DialogHeader className="text-center space-y-3">
-            <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10">
-              <Lock className="size-6 text-primary" />
-            </div>
-            <DialogTitle className="text-xl">Sign in to continue</DialogTitle>
+          <DialogHeader className="text-center space-y-3 items-center">
+            <Avatar
+              fallback={organization.name}
+              src={organization.logoUrl}
+              variant="org"
+              size="xxl"
+            />
+            <DialogTitle className="text-xl font-medium">
+              Log in to {organization.name}
+            </DialogTitle>
             <DialogDescription className="text-base">
               You need to sign in to create a new support thread.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter className="sm:justify-center">
-            <Button
-              size="lg"
-              className="w-full sm:w-auto"
-              onClick={() => {
-                const url = new URL(window.location.href);
-                url.searchParams.set("openCreateThread", "true");
-                portalAuthClient.signIn.social({
-                  provider: "google",
-                  additionalData: { tenantSlug: organization.slug },
-                  callbackURL: url.toString(),
-                });
-              }}
-            >
-              Sign in with Google
-            </Button>
-          </DialogFooter>
+          <Button
+            size="lg"
+            className="w-full max-w-xs mx-auto"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("openCreateThread", "true");
+              portalAuthClient.signIn.social({
+                provider: "google",
+                additionalData: { tenantSlug: organization.slug },
+                callbackURL: url.toString(),
+              });
+            }}
+          >
+            Continue with Google
+          </Button>
         </DialogContent>
       </Dialog>
     );
