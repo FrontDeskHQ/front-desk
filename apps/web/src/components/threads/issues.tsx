@@ -97,7 +97,7 @@ export function IssuesSection({
     }),
   );
 
-  const { data: allIssues } = useQuery({
+  const { data: allIssues, refetch: refetchIssues } = useQuery({
     queryKey: [
       "github-issues",
       currentOrg?.id,
@@ -266,6 +266,11 @@ export function IssuesSection({
           <Combobox
             items={comboboxItems}
             value={linkedIssue?.id.toString() ?? ""}
+            onOpenChange={(open) => {
+              if (open) {
+                refetchIssues();
+              }
+            }}
             onValueChange={(value) => {
               const oldIssueId = externalIssueId ?? null;
               const oldIssue = issues.find(
