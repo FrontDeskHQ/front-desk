@@ -99,6 +99,38 @@ export const HorizontalLine = ({
   );
 };
 
+export const VerticalLine = ({
+  style = "dashed",
+  className,
+}: {
+  style?: "dashed" | "solid";
+  className?: string;
+}) => {
+  const strokeDasharray = style === "dashed" ? "5 5" : "none";
+
+  return (
+    <div className={cn("text-border", className)}>
+      <svg
+        className="w-px h-full"
+        preserveAspectRatio="none"
+        xmlns="http://www.w3.org/2000/svg"
+        aria-hidden="true"
+      >
+        <line
+          x1="0.5"
+          y1="0"
+          x2="0.5"
+          y2="100%"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray={strokeDasharray}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+    </div>
+  );
+};
+
 export const DashedPattern = ({
   spacing = 8,
   strokeWidth = 1,
