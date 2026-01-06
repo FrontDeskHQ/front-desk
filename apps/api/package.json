@@ -46,6 +46,7 @@
   },
   "dependencies": {
     "@dodopayments/express": "^0.2.1",
+    "@keyv/redis": "^5.1.5",
     "@live-state/sync": "catalog:",
     "@wll8/express-ws": "^1.0.6",
     "@workspace/emails": "workspace:*",
@@ -56,6 +57,7 @@
     "dotenv": "^16.5.0",
     "express": "^4.21.2",
     "keypal": "^0.0.212",
+    "keyv": "^5.5.5",
     "pg": "^8.15.6",
     "react": "catalog:",
     "resend": "^6.1.2",
