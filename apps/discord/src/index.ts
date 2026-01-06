@@ -175,6 +175,7 @@ client.on("messageCreate", async (message) => {
       authorId: authorId,
       assignedUserId: null,
       externalIssueId: null,
+      externalPrId: null,
       externalId: message.channel.id,
       externalOrigin: "discord",
       externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),

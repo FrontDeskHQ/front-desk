@@ -58,6 +58,7 @@ import { ulid } from "ulid";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
+import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { Update } from "~/components/threads/updates";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -350,12 +351,19 @@ function RouteComponent() {
             />
             <LabelsSection threadId={id} />
             {isGithubIntegrationEnabled && (
-              <IssuesSection
-                threadId={id}
-                user={user}
-                externalIssueId={thread?.externalIssueId ?? null}
-                threadName={thread?.name}
-              />
+              <>
+                <IssuesSection
+                  threadId={id}
+                  user={user}
+                  externalIssueId={thread?.externalIssueId ?? null}
+                  threadName={thread?.name}
+                />
+                <PullRequestsSection
+                  threadId={id}
+                  user={user}
+                  externalPrId={thread?.externalPrId ?? null}
+                />
+              </>
             )}
           </div>
         </TooltipProvider>

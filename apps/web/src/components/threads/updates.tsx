@@ -99,6 +99,38 @@ export function Update({
 
       return `changed issue`;
     }
+
+    if (update.type === "pr_changed") {
+      if (!metadata?.oldPrLabel && metadata?.newPrLabel) {
+        return (
+          <>
+            linked PR{" "}
+            <span className="text-foreground">{metadata.newPrLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldPrLabel && !metadata?.newPrLabel) {
+        return (
+          <>
+            unlinked PR{" "}
+            <span className="text-foreground">{metadata.oldPrLabel}</span>
+          </>
+        );
+      }
+
+      if (metadata?.oldPrLabel && metadata?.newPrLabel) {
+        return (
+          <>
+            changed PR from{" "}
+            <span className="text-foreground">{metadata.oldPrLabel}</span> to{" "}
+            <span className="text-foreground">{metadata.newPrLabel}</span>
+          </>
+        );
+      }
+
+      return `changed PR`;
+    }
   };
 
   return (
@@ -117,6 +149,7 @@ export function Update({
             <CircleUserIcon className="size-4" />
           ))}
         {update.type === "issue_changed" && <Github className="size-4" />}
+        {update.type === "pr_changed" && <Github className="size-4" />}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">
