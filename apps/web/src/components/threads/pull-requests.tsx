@@ -56,7 +56,7 @@ export function PullRequestsSection({
     }),
   );
 
-  const { data: allPullRequests } = useQuery({
+  const { data: allPullRequests, refetch: refetchPullRequests } = useQuery({
     queryKey: [
       "github-pull-requests",
       currentOrg?.id,
@@ -124,6 +124,11 @@ export function PullRequestsSection({
           <Combobox
             items={comboboxItems}
             value={linkedPr?.id.toString() ?? ""}
+            onOpenChange={(open) => {
+              if (open) {
+                refetchPullRequests();
+              }
+            }}
             onValueChange={(value) => {
               const oldPrId = externalPrId ?? null;
               const oldPr = pullRequests.find(
