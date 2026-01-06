@@ -26,6 +26,11 @@ function RouteComponent() {
                 Pricing
               </Link>
             </Button>
+            <Button variant="link" asChild>
+              <a href="https://support.tryfrontdesk.app" target="_blank">
+                Community
+              </a>
+            </Button>
           </div>
           <AuthButtonGroup />
         </div>

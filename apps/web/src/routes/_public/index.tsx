@@ -362,7 +362,6 @@ function RouteComponent() {
               </p>
             </div>
           </div>
-          <HorizontalLine variant="outer" />
           <div className="grid grid-cols-3">
             <div className="relative h-12">
               <VerticalLine className="hidden md:block absolute right-0 inset-y-0" />
