@@ -610,11 +610,7 @@ export default publicRoute
       const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${threadPortalUrl}).`;
       const body = (req.input.body ?? "") + footer;
 
-      // Create issue via GitHub server
-      const githubServerUrl =
-        process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
-
-      const response = await fetch(`${githubServerUrl}/api/issues`, {
+      const response = await fetch(`${GITHUB_SERVER_URL}/api/issues`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -662,6 +658,14 @@ export default publicRoute
       await issuesCache.invalidate({
         organizationId,
         state: "open",
+        repos,
+        installationId,
+      });
+
+      // Also invalidate "all" state cache
+      await issuesCache.invalidate({
+        organizationId,
+        state: "all",
         repos,
         installationId,
       });
