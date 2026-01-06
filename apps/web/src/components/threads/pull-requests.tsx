@@ -166,7 +166,7 @@ export function PullRequestsSection({
                   variant="ghost"
                   className="justify-start text-sm w-full p-0 grow shrink has-[>svg]:px-2 h-7"
                   tooltip="Link pull request"
-                  keybind="p"
+                  keybind="shift+p"
                 >
                   {linkedPr ? (
                     <>
