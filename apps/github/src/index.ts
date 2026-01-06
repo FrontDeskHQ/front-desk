@@ -39,7 +39,7 @@ async function fetchIssues(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open",
+  state: "open" | "closed" | "all" = "open"
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -66,7 +66,7 @@ async function createIssue(
   owner: string,
   repo: string,
   title: string,
-  body: string,
+  body: string
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -80,7 +80,7 @@ async function createIssue(
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
         },
-      },
+      }
     );
     return data;
   } catch (error) {
@@ -96,7 +96,7 @@ async function fetchPullRequests(
   installationId: number,
   owner: string,
   repo: string,
-  state: "open" | "closed" | "all" = "open",
+  state: "open" | "closed" | "all" = "open"
 ) {
   try {
     const octokit = await getOctokit(installationId);
@@ -184,6 +184,75 @@ app.webhooks.on("issues.closed", async ({ payload }) => {
   }
 });
 
+app.webhooks.on("pull_request.closed", async ({ payload }) => {
+  try {
+    const prId = payload.pull_request.id.toString();
+    const prNumber = payload.pull_request.number;
+    const repoFullName = payload.repository.full_name;
+    const merged = payload.pull_request.merged;
+
+    console.log(
+      `[GitHub] Pull request ${
+        merged ? "merged" : "closed"
+      }: ${repoFullName}#${prNumber} (ID: ${prId})`
+    );
+
+    const linkedThreads = store.query.thread
+      .where({ externalPrId: prId })
+      .get();
+
+    if (linkedThreads.length === 0) {
+      console.log(`[GitHub] No threads linked to PR ${prId}`);
+      return;
+    }
+
+    for (const thread of linkedThreads) {
+      if (thread.status === STATUS_CLOSED) {
+        console.log(
+          `[GitHub] Thread ${thread.id} is already closed, skipping status update`
+        );
+        continue;
+      }
+
+      const oldStatus = thread.status ?? STATUS_OPEN;
+      const newStatus = STATUS_RESOLVED;
+
+      console.log(
+        `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
+      );
+
+      store.mutate.thread.update(thread.id, {
+        status: newStatus,
+      });
+
+      store.mutate.update.insert({
+        id: ulid().toLowerCase(),
+        threadId: thread.id,
+        type: "status_changed",
+        createdAt: new Date(),
+        userId: null,
+        metadataStr: JSON.stringify({
+          oldStatus,
+          newStatus,
+          oldStatusLabel: statusValues[oldStatus]?.label,
+          newStatusLabel: statusValues[newStatus]?.label,
+          source: "github",
+          prNumber,
+          repoFullName,
+          merged,
+          userName: "GitHub Integration",
+        }),
+        replicatedStr: JSON.stringify({ github: true }),
+      });
+    }
+  } catch (error) {
+    console.error(
+      "[GitHub] Error handling pull_request.closed webhook:",
+      error
+    );
+  }
+});
+
 // Log all received webhook events
 app.webhooks.onAny(async ({ payload }) => {
   console.log("Received event:", payload);
@@ -211,7 +280,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           error: "Missing installation_id, owner, or repo query parameters",
-        }),
+        })
       );
       return;
     }
@@ -272,7 +341,7 @@ const server = createServer(async (req, res) => {
         JSON.stringify({
           error:
             "Missing installation_id, owner, repo, or title in request body",
-        }),
+        })
       );
       return;
     }
@@ -290,7 +359,7 @@ const server = createServer(async (req, res) => {
         owner,
         repo,
         title,
-        issueBody ?? "",
+        issueBody ?? ""
       );
       res.writeHead(201, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ issue }));
@@ -315,7 +384,7 @@ const server = createServer(async (req, res) => {
       res.end(
         JSON.stringify({
           error: "Missing installation_id, owner, or repo query parameters",
-        }),
+        })
       );
       return;
     }
@@ -332,7 +401,7 @@ const server = createServer(async (req, res) => {
         installationId,
         owner,
         repo,
-        state,
+        state
       );
       res.writeHead(200, { "Content-Type": "application/json" });
       res.end(JSON.stringify({ pullRequests, count: pullRequests.length }));
@@ -409,7 +478,7 @@ const server = createServer(async (req, res) => {
       }
 
       const { csrfToken: csrfTokenFromConfig, ...config } = JSON.parse(
-        integration.configStr,
+        integration.configStr
       );
 
       if (csrfTokenFromConfig !== csrfToken) {
@@ -427,7 +496,7 @@ const server = createServer(async (req, res) => {
           headers: {
             "X-GitHub-Api-Version": "2022-11-28",
           },
-        },
+        }
       );
 
       const repos = reposData.repositories.map((repo) => ({
@@ -475,13 +544,13 @@ server.listen(process.env.PORT || 3334, () => {
   console.log(`Server listening on port ${process.env.PORT || 3334}`);
   console.log(`API endpoints:`);
   console.log(
-    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+    `  GET /api/issues?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`
   );
   console.log(
-    `  POST /api/issues { installation_id, owner, repo, title, body? }`,
+    `  POST /api/issues { installation_id, owner, repo, title, body? }`
   );
   console.log(
-    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`,
+    `  GET /api/pull-requests?installation_id=<id>&owner=<owner>&repo=<repo>&state=<open|closed|all>`
   );
   console.log(`  GET /api/github/setup (GitHub App installation callback)`);
 });

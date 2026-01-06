@@ -49,6 +49,7 @@ const thread = object("thread", {
   /** @deprecated use externalId and externalOrigin instead */
   discordChannelId: string().nullable(),
   externalIssueId: string().nullable(),
+  externalPrId: string().nullable(),
   status: number().default(0),
   priority: number().default(0),
   assignedUserId: reference("user.id").nullable(),
