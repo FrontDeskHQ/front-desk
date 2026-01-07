@@ -33,7 +33,9 @@ client.load(
             user: true,
           },
         },
-        updates: true,
+        updates: {
+          user: true,
+        },
         labels: {
           label: true,
         },

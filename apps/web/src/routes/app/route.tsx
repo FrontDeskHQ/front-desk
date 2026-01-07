@@ -77,9 +77,14 @@ function App() {
             messages: {
               author: true,
             },
-            updates: true,
-            labels: true,
+            updates: {
+              user: true,
+            },
+            labels: {
+              label: true,
+            },
             author: true,
+            assignedUser: true,
           },
           invites: true,
           integrations: true,
