@@ -124,7 +124,14 @@ function RouteComponent() {
         return;
       }
 
-      window.location.href = session.checkout_url;
+      const checkoutUrl = session.checkout_url;
+
+      if (!checkoutUrl) {
+        setIsSubscribing(false);
+        return;
+      }
+
+      window.location.href = checkoutUrl;
     } catch {
       setIsSubscribing(false);
     }

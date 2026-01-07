@@ -2,7 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm build -F github...",
+    "buildCommand": "bun run build -F github...",
     "watchPatterns": [
       "apps/api/**",
       "packages/schemas/**",
@@ -11,7 +11,7 @@
     ]
   },
   "deploy": {
-    "startCommand": "pnpm --filter github start",
+    "startCommand": "cd apps/github && bun run start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }

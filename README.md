@@ -41,7 +41,7 @@ FrontDesk is an open-source customer support platform designed to help you assis
 ### Prerequisites
 
 - **Node.js** 18 or higher
-- **pnpm** (package manager)
+- **bun** (package manager)
 - **Docker** (for local development with database)
 
 ### Installation
@@ -54,7 +54,7 @@ FrontDesk is an open-source customer support platform designed to help you assis
 
 2. **Install dependencies:**
    ```bash
-   pnpm install
+   bun install
    ```
 
 3. **Set up environment variables:**
@@ -65,7 +65,7 @@ FrontDesk is an open-source customer support platform designed to help you assis
 
 4. **Start the development servers:**
    ```bash
-   pnpm dev
+   bun dev
    ```
 
    This will start:
@@ -75,7 +75,7 @@ FrontDesk is an open-source customer support platform designed to help you assis
 
 ## Project Structure
 
-This project uses a **monorepo** structure powered by [Turborepo](https://turbo.build/) and pnpm workspaces.
+This project uses a **monorepo** structure powered by [Turborepo](https://turbo.build/) and bun workspaces.
 
 ```
 front-desk/
@@ -98,7 +98,7 @@ front-desk/
 - **Database:** PostgreSQL
 - **Styling:** TailwindCSS, shadcn/ui
 - **Build Tool:** Vite, Turborepo
-- **Package Manager:** pnpm
+- **Package Manager:** bun
 
 ## Contributing
 
