@@ -3,7 +3,7 @@ import { z } from "zod";
 import { fetchPullRequests } from "../lib/github";
 
 const getPullRequestsQuerySchema = z.object({
-  installation_id: z.string().min(1, "Missing installation_id"),
+  installation_id: z.coerce.number().positive("Invalid installation_id"),
   owner: z.string().min(1, "Missing owner"),
   repo: z.string().min(1, "Missing repo"),
   state: z.enum(["open", "closed", "all"]).default("open"),

@@ -3,14 +3,14 @@ import { z } from "zod";
 import { createIssue, fetchIssues } from "../lib/github";
 
 const getIssuesQuerySchema = z.object({
-  installation_id: z.string().min(1, "Missing installation_id"),
+  installation_id: z.coerce.number().positive("Invalid installation_id"),
   owner: z.string().min(1, "Missing owner"),
   repo: z.string().min(1, "Missing repo"),
   state: z.enum(["open", "closed", "all"]).default("open"),
 });
 
 const createIssueBodySchema = z.object({
-  installation_id: z.string().min(1, "Missing installation_id"),
+  installation_id: z.coerce.number().positive("Invalid installation_id"),
   owner: z.string().min(1, "Missing owner"),
   repo: z.string().min(1, "Missing repo"),
   title: z.string().min(1, "Missing title"),

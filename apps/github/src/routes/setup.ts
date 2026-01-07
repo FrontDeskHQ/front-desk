@@ -5,7 +5,7 @@ import { fetchClient } from "../lib/live-state";
 import { getBaseUrl } from "../utils";
 
 const setupQuerySchema = z.object({
-  installation_id: z.string().min(1, "Missing installation_id"),
+  installation_id: z.coerce.number().positive("Invalid installation_id"),
   setup_action: z.string().optional(),
   state: z.string().min(1, "Missing state"),
 });

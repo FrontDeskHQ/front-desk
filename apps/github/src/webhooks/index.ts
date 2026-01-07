@@ -134,8 +134,15 @@ export const setupWebhooks = () => {
     }
   });
 
-  app.webhooks.onAny(async ({ payload }) => {
-    console.log("Received event:", payload);
+  app.webhooks.onAny(async ({ name, payload }) => {
+    const action = "action" in payload ? payload.action : undefined;
+    const repo =
+      "repository" in payload ? payload.repository?.full_name : undefined;
+    console.log(
+      `[GitHub] Received webhook: ${name}${action ? ` (${action})` : ""}${
+        repo ? ` from ${repo}` : ""
+      }`
+    );
   });
 
   app.webhooks.onError((error) => {
