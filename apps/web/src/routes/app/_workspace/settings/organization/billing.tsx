@@ -204,7 +204,11 @@ function RouteComponent() {
 
                       if (!session) return;
 
-                      window.location.href = session.checkout_url;
+                      const checkoutUrl = session.checkout_url;
+
+                      if (!checkoutUrl) return;
+
+                      window.location.href = checkoutUrl;
                     }}
                     variant={plan === "pro" ? "secondary" : "primary"}
                   >
@@ -287,7 +291,11 @@ function RouteComponent() {
 
                     if (!session) return;
 
-                    window.location.href = session.checkout_url;
+                    const checkoutUrl = session.checkout_url;
+
+                    if (!checkoutUrl) return;
+
+                    window.location.href = checkoutUrl;
                   }}
                 >
                   Upgrade

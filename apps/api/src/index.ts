@@ -16,7 +16,7 @@ import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
 
-const { app } = expressWs(express());
+const { app } = expressWs(express() as any);
 
 const corsOptions = {
   origin: "*",
@@ -207,7 +207,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           updatedAt: new Date(),
         });
       },
-    })
+    }) as any
   );
 
 expressAdapter(app as any, lsServer, {
