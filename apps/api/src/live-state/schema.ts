@@ -147,6 +147,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   integrations: many(integration, "organizationId"),
   subscriptions: many(subscription, "organizationId"),
   labels: many(label, "organizationId"),
+  authors: many(author, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({

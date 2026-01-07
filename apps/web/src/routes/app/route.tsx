@@ -1,8 +1,8 @@
-import { SubscriptionProvider } from "@live-state/sync/client";
+import { useLoadData } from "@live-state/sync/client";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Card } from "@workspace/ui/components/card";
 import { useEffect } from "react";
-import { client, fetchClient } from "~/lib/live-state";
+import { client, fetchClient, query } from "~/lib/live-state";
 import type { GetAuthUserResponse } from "~/lib/server-funcs/get-auth-user";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
 
@@ -56,6 +56,7 @@ export const Route = createFileRoute("/app")({
 });
 
 function App() {
+  const { user } = Route.useRouteContext();
   useEffect(() => {
     client.ws.connect();
 
@@ -64,11 +65,40 @@ function App() {
     };
   }, []);
 
-  return (
-    <SubscriptionProvider client={client}>
-      <Outlet />
-    </SubscriptionProvider>
+  useLoadData(
+    client,
+    query.organizationUser
+      .where({
+        userId: user.id,
+      })
+      .include({
+        organization: {
+          threads: {
+            messages: {
+              author: true,
+            },
+            updates: {
+              user: true,
+            },
+            labels: {
+              label: true,
+            },
+            author: true,
+            assignedUser: true,
+          },
+          invites: true,
+          integrations: true,
+          subscriptions: true,
+          labels: true,
+          organizationUsers: {
+            user: true,
+          },
+          authors: true,
+        },
+      }),
   );
+
+  return <Outlet />;
 }
 
 function PendingComponent() {
