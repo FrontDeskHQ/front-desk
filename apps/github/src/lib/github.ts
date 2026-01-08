@@ -33,7 +33,8 @@ export const fetchIssues = async (
         "X-GitHub-Api-Version": "2022-11-28",
       },
     });
-    return data;
+
+    return data.filter((issue) => !issue.pull_request);
   } catch (error) {
     console.error(`Error fetching issues:`, error);
     throw error;

@@ -163,7 +163,7 @@ const issuesCache = createReadThroughCache<
   namespace: "github-issues",
   fetch: fetchIssuesFromGitHub,
   ttl: 300000, // 5 minutes
-  swr: 60000, // 1 minute stale-while-revalidate
+  swr: 30000, // 30 seconds stale-while-revalidate
   keyGenerator: (input) =>
     `${input.organizationId}:${input.state}:${JSON.stringify(
       input.repos.map((r) => r.fullName).sort()
@@ -177,7 +177,7 @@ const pullRequestsCache = createReadThroughCache<
   namespace: "github-pull-requests",
   fetch: fetchPRsFromGitHub,
   ttl: 300000, // 5 minutes
-  swr: 60000, // 1 minute stale-while-revalidate
+  swr: 30000, // 30 seconds stale-while-revalidate
   keyGenerator: (input) =>
     `${input.organizationId}:${input.state}:${JSON.stringify(
       input.repos.map((r) => r.fullName).sort()
