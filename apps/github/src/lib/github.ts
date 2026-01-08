@@ -29,6 +29,7 @@ export const fetchIssues = async (
       owner,
       repo,
       state,
+      per_page: 100,
       headers: {
         "X-GitHub-Api-Version": "2022-11-28",
       },
@@ -81,6 +82,7 @@ export const fetchPullRequests = async (
       owner,
       repo,
       state,
+      per_page: 100,
       headers: {
         "X-GitHub-Api-Version": "2022-11-28",
       },
