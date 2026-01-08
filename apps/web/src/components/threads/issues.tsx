@@ -255,7 +255,7 @@ export function IssuesSection({
 
       // After 3 seconds, invalidate query and remove optimistic value
       setTimeout(() => {
-        refetchIssues().then(() => {
+        refetchIssues().finally(() => {
           setOptimisticIssue(null);
         });
       }, 3000);
