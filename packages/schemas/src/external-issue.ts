@@ -63,19 +63,10 @@ export const parseExternalId = (
     return null;
   }
 
-  const provider = match[1];
-  const owner = match[2];
-  const repo = match[3];
-  const idStr = match[4];
-
-  if (
-    typeof provider !== "string" ||
-    typeof owner !== "string" ||
-    typeof repo !== "string" ||
-    typeof idStr !== "string"
-  ) {
-    return null;
-  }
+  const provider = match[1] as string;
+  const owner = match[2] as string;
+  const repo = match[3] as string;
+  const idStr = match[4] as string;
 
   const id = parseInt(idStr, 10);
 
