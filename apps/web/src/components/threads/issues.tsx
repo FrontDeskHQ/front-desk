@@ -347,7 +347,7 @@ export function IssuesSection({
                 </ActionButton>
               }
             />
-            <ComboboxContent className="w-60" side="left">
+            <ComboboxContent className="w-60 max-h-120" side="left">
               {/* //TODO: Improve search functionality by searching the issue number */}
               <ComboboxInput
                 placeholder="Search..."
@@ -355,10 +355,14 @@ export function IssuesSection({
                 onChange={(e) => setSearch(e.target.value)}
               />
               <ComboboxEmpty>No issues found</ComboboxEmpty>
-              <ComboboxList>
+              <ComboboxList className="overflow-hidden flex flex-col">
                 {(group: BaseItemGroup) =>
                   !group.footer ? (
-                    <ComboboxGroup key={group.value} items={group.items}>
+                    <ComboboxGroup
+                      key={group.value}
+                      items={group.items}
+                      className="overflow-auto grow shrink"
+                    >
                       <ComboboxGroupContent>
                         {(item: BaseItem & { issue: ExternalIssue }) => (
                           <ComboboxItem key={item.value} value={item.value}>
