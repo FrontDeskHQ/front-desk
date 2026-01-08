@@ -50,6 +50,7 @@
     "@live-state/sync": "catalog:",
     "@wll8/express-ws": "^1.0.6",
     "@workspace/emails": "workspace:*",
+    "@workspace/schemas": "workspace:*",
     "better-auth": "catalog:",
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",

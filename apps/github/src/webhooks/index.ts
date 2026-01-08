@@ -1,3 +1,4 @@
+import { formatGitHubId } from "@workspace/schemas/external-issue";
 import { statusValues } from "@workspace/ui/components/indicator";
 import { ulid } from "ulid";
 import { app } from "../lib/github";
@@ -7,7 +8,11 @@ import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
 export const setupWebhooks = () => {
   app.webhooks.on("issues.closed", async ({ payload }) => {
     try {
-      const issueId = payload.issue.id.toString();
+      const issueId = formatGitHubId(
+        payload.issue.id,
+        payload.repository.owner.login,
+        payload.repository.name
+      );
       const issueNumber = payload.issue.number;
       const repoFullName = payload.repository.full_name;
 
@@ -66,7 +71,11 @@ export const setupWebhooks = () => {
 
   app.webhooks.on("pull_request.closed", async ({ payload }) => {
     try {
-      const prId = payload.pull_request.id.toString();
+      const prId = formatGitHubId(
+        payload.pull_request.id,
+        payload.repository.owner.login,
+        payload.repository.name
+      );
       const prNumber = payload.pull_request.number;
       const repoFullName = payload.repository.full_name;
       const merged = payload.pull_request.merged;

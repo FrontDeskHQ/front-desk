@@ -7,7 +7,8 @@
     "typecheck": "tsc --noEmit"
   },
   "exports": {
-    "./integration/*": "./src/integration/*.ts"
+    "./integration/*": "./src/integration/*.ts",
+    "./external-issue": "./src/external-issue.ts"
   },
   "dependencies": {
     "zod": "catalog:"

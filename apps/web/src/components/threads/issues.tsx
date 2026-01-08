@@ -1,5 +1,9 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import type {
+  ExternalIssue,
+  ExternalRepository,
+} from "@workspace/schemas/external-issue";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,8 +12,8 @@ import {
 } from "@workspace/ui/components/breadcrumb";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
-  BaseItem,
-  BaseItemGroup,
+  type BaseItem,
+  type BaseItemGroup,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -48,26 +52,6 @@ import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 
-type GitHubIssue = {
-  id: number;
-  number: number;
-  title: string;
-  body: string;
-  state: string;
-  html_url: string;
-  repository: {
-    owner: string;
-    name: string;
-    fullName: string;
-  };
-};
-
-type Repository = {
-  owner: string;
-  name: string;
-  fullName: string;
-};
-
 interface IssuesSectionProps {
   threadId: string;
   externalIssueId: string | null;
@@ -82,13 +66,12 @@ export function IssuesSection({
   threadName,
 }: IssuesSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [issueTitle, setIssueTitle] = useState("");
   const [issueBody, setIssueBody] = useState("");
   const [selectedRepo, setSelectedRepo] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [optimisticIssue, setOptimisticIssue] = useState<GitHubIssue | null>(
+  const [optimisticIssue, setOptimisticIssue] = useState<ExternalIssue | null>(
     null,
   );
 
@@ -122,11 +105,11 @@ export function IssuesSection({
     enabled: !!currentOrg && !!githubIntegration?.enabled,
   });
 
-  const issues = (allIssues?.issues ?? []) as GitHubIssue[];
+  const issues = (allIssues?.issues ?? []) as ExternalIssue[];
 
   const comboboxItems = prepareFooter(
     issues.map((issue) => ({
-      value: issue.id?.toString() ?? "",
+      value: issue.id ?? "",
       label: `${issue.repository.fullName}#${issue.number} ${issue.title}`,
       issue,
     })),
@@ -140,9 +123,9 @@ export function IssuesSection({
 
   const linkedIssue = optimisticIssue
     ? optimisticIssue
-    : issues.find((issue) => issue.id.toString() === externalIssueId);
+    : issues.find((issue) => issue.id === externalIssueId);
 
-  const repos: Repository[] = githubIntegration?.configStr
+  const repos: ExternalRepository[] = githubIntegration?.configStr
     ? (() => {
         try {
           const config = JSON.parse(githubIntegration.configStr);
@@ -183,11 +166,7 @@ export function IssuesSection({
         repo,
       });
 
-      if (
-        !result?.issue?.id ||
-        !result?.issue?.number ||
-        !result?.issue?.html_url
-      ) {
+      if (!result?.issue?.id || !result?.issue?.number || !result?.issue?.url) {
         throw new Error("Invalid response from GitHub API");
       }
 
@@ -198,13 +177,13 @@ export function IssuesSection({
       if (!repo || !result?.issue) return;
 
       // Create optimistic issue object
-      const optimisticIssueData: GitHubIssue = {
+      const optimisticIssueData: ExternalIssue = {
         id: result.issue.id,
         number: result.issue.number,
         title: result.issue.title || variables.title,
         body: result.issue.body || variables.body,
         state: result.issue.state || "open",
-        html_url: result.issue.html_url,
+        url: result.issue.url,
         repository: {
           owner: repo.owner,
           name: repo.name,
@@ -217,7 +196,7 @@ export function IssuesSection({
 
       // Link the thread to the newly created issue
       mutate.thread.update(threadId, {
-        externalIssueId: result.issue.id.toString(),
+        externalIssueId: result.issue.id,
       });
 
       // Add update record for issue creation
@@ -229,7 +208,7 @@ export function IssuesSection({
         userId: user.id,
         metadataStr: JSON.stringify({
           oldIssueId: null,
-          newIssueId: result.issue.id.toString(),
+          newIssueId: result.issue.id,
           oldIssueLabel: null,
           newIssueLabel: `${repo.fullName}#${result.issue.number}`,
           userName: user.name,
@@ -241,7 +220,8 @@ export function IssuesSection({
         duration: 10000,
         action: {
           label: "View on GitHub",
-          onClick: () => window.open(result.issue.html_url, "_blank"),
+          onClick: () =>
+            window.open(result.issue.url, "_blank", "noopener,noreferrer"),
         },
         actionButtonStyle: {
           background: "transparent",
@@ -314,7 +294,7 @@ export function IssuesSection({
         <div className="flex gap-1 items-center group w-full max-w-52">
           <Combobox
             items={comboboxItems}
-            value={linkedIssue?.id.toString() ?? ""}
+            value={linkedIssue?.id ?? ""}
             onOpenChange={(open) => {
               if (open) {
                 refetchIssues();
@@ -326,13 +306,11 @@ export function IssuesSection({
               }
 
               const oldIssueId = externalIssueId ?? null;
-              const oldIssue = issues.find(
-                (issue) => issue.id.toString() === oldIssueId,
-              );
+              const oldIssue = issues.find((issue) => issue.id === oldIssueId);
               // If clicking the same issue, unlink it
               const newIssueId = oldIssueId === value ? null : value || null;
               const newIssue = newIssueId
-                ? issues.find((issue) => issue.id.toString() === newIssueId)
+                ? issues.find((issue) => issue.id === newIssueId)
                 : undefined;
               mutate.thread.update(threadId, {
                 externalIssueId: newIssueId,
@@ -399,7 +377,7 @@ export function IssuesSection({
                   !group.footer ? (
                     <ComboboxGroup key={group.value} items={group.items}>
                       <ComboboxGroupContent>
-                        {(item: BaseItem & { issue: GitHubIssue }) => (
+                        {(item: BaseItem & { issue: ExternalIssue }) => (
                           <ComboboxItem key={item.value} value={item.value}>
                             <span>#{item.issue.number}</span>
                             <span className="truncate">{item.issue.title}</span>

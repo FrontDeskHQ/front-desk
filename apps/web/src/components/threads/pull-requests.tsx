@@ -1,5 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
+import { type ExternalPullRequest } from "@workspace/schemas/external-issue";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
   Combobox,
@@ -16,20 +17,6 @@ import { useState } from "react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
-
-type GitHubPullRequest = {
-  id: number;
-  number: number;
-  title: string;
-  body: string;
-  state: string;
-  html_url: string;
-  repository: {
-    owner: string;
-    name: string;
-    fullName: string;
-  };
-};
 
 interface PullRequestsSectionProps {
   threadId: string;
@@ -75,19 +62,19 @@ export function PullRequestsSection({
   });
 
   const pullRequests = (allPullRequests?.pullRequests ??
-    []) as GitHubPullRequest[];
+    []) as ExternalPullRequest[];
 
   console.log("pullRequests", pullRequests);
 
   const comboboxItems = pullRequests.map((pr) => ({
-    value: pr.id?.toString() ?? "",
+    value: pr.id ?? "",
     label: `${pr.repository.fullName}#${pr.number} ${pr.title}`,
     pr,
   }));
 
   type PRItem = (typeof comboboxItems)[number];
 
-  const linkedPr = pullRequests.find((pr) => pr.id.toString() === externalPrId);
+  const linkedPr = pullRequests.find((pr) => pr.id === externalPrId);
 
   const handleUnlinkPr = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -123,7 +110,7 @@ export function PullRequestsSection({
         <div className="flex gap-1 items-center group w-full max-w-52">
           <Combobox
             items={comboboxItems}
-            value={linkedPr?.id.toString() ?? ""}
+            value={linkedPr?.id ?? ""}
             onOpenChange={(open) => {
               if (open) {
                 refetchPullRequests();
@@ -131,13 +118,11 @@ export function PullRequestsSection({
             }}
             onValueChange={(value) => {
               const oldPrId = externalPrId ?? null;
-              const oldPr = pullRequests.find(
-                (pr) => pr.id.toString() === oldPrId,
-              );
+              const oldPr = pullRequests.find((pr) => pr.id === oldPrId);
               // If clicking the same PR, unlink it
               const newPrId = oldPrId === value ? null : value || null;
               const newPr = newPrId
-                ? pullRequests.find((pr) => pr.id.toString() === newPrId)
+                ? pullRequests.find((pr) => pr.id === newPrId)
                 : undefined;
               mutate.thread.update(threadId, {
                 externalPrId: newPrId,
