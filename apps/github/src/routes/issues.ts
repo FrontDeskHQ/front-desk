@@ -27,12 +27,7 @@ export const issuesRoutes = new Elysia({ prefix: "/api/issues" })
     }
 
     const { installation_id, owner, repo, state } = parsed.data;
-    const installationId = Number.parseInt(installation_id, 10);
-
-    if (Number.isNaN(installationId)) {
-      set.status = 400;
-      return { error: "Invalid installation_id" };
-    }
+    const installationId = installation_id;
 
     try {
       const issues = await fetchIssues(installationId, owner, repo, state);
@@ -60,12 +55,7 @@ export const issuesRoutes = new Elysia({ prefix: "/api/issues" })
       title,
       body: issueBody,
     } = parsed.data;
-    const installationId = Number.parseInt(installation_id, 10);
-
-    if (Number.isNaN(installationId)) {
-      set.status = 400;
-      return { error: "Invalid installation_id" };
-    }
+    const installationId = installation_id;
 
     try {
       const issue = await createIssue(

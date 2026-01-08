@@ -20,12 +20,7 @@ export const pullRequestsRoutes = new Elysia({
   }
 
   const { installation_id, owner, repo, state } = parsed.data;
-  const installationId = Number.parseInt(installation_id, 10);
-
-  if (Number.isNaN(installationId)) {
-    set.status = 400;
-    return { error: "Invalid installation_id" };
-  }
+  const installationId = installation_id;
 
   try {
     const pullRequests = await fetchPullRequests(

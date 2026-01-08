@@ -22,12 +22,7 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
 
     const { installation_id: installationIdParam, state } = parsed.data;
 
-    const installationId = Number.parseInt(installationIdParam, 10);
-
-    if (Number.isNaN(installationId)) {
-      set.redirect = `${getBaseUrl()}/app/settings/organization/integration/github?error=invalid_installation_id`;
-      return;
-    }
+    const installationId = installationIdParam;
 
     const [orgId, csrfToken] = state.split("_");
 
