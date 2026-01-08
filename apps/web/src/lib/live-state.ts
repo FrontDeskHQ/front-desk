@@ -27,7 +27,12 @@ export { client, mutate, query };
 
 // Check this setup when it's deployed
 export const fetchClient = createFetchClient<Router>({
-  url: "/api/ls",
+  url: import.meta.env.DEV
+    ? new URL(
+        "/api/ls",
+        import.meta.env.VITE_BASE_URL ?? "http://localhost:3000"
+      ).toString()
+    : "/api/ls",
   schema,
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))

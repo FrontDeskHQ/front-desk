@@ -13,25 +13,7 @@ const getRequestTimeout = () => {
 export const Route = createFileRoute("/api/$")({
   server: {
     handlers: {
-      GET: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
-      POST: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
-      PUT: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
-      PATCH: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
-      DELETE: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
-      OPTIONS: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
-      HEAD: async ({ request, params }) => {
+      ANY: async ({ request, params }) => {
         return handleProxy(request, params);
       },
     },
