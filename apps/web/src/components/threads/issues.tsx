@@ -272,6 +272,10 @@ export function IssuesSection({
               }
             }}
             onValueChange={(value) => {
+              if (value?.startsWith("footer:")) {
+                return;
+              }
+
               const oldIssueId = externalIssueId ?? null;
               const oldIssue = issues.find(
                 (issue) => issue.id.toString() === oldIssueId,
