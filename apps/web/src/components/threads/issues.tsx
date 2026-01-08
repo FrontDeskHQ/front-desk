@@ -1,5 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -84,11 +84,13 @@ export function IssuesSection({
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const queryClient = useQueryClient();
   const [showCreateDialog, setShowCreateDialog] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [issueTitle, setIssueTitle] = useState("");
   const [issueBody, setIssueBody] = useState("");
   const [selectedRepo, setSelectedRepo] = useState<string>("");
   const [search, setSearch] = useState("");
+  const [optimisticIssue, setOptimisticIssue] = useState<GitHubIssue | null>(
+    null,
+  );
 
   const githubIntegration = useLiveQuery(
     query.integration.first({
@@ -136,9 +138,9 @@ export function IssuesSection({
     ],
   );
 
-  const linkedIssue = issues.find(
-    (issue) => issue.id.toString() === externalIssueId,
-  );
+  const linkedIssue = optimisticIssue
+    ? optimisticIssue
+    : issues.find((issue) => issue.id.toString() === externalIssueId);
 
   const repos: Repository[] = githubIntegration?.configStr
     ? (() => {
@@ -158,21 +160,27 @@ export function IssuesSection({
     setShowCreateDialog(true);
   };
 
-  const handleCreateIssue = async () => {
-    if (!currentOrg || !selectedRepo || !issueTitle.trim()) return;
+  const createIssueMutation = useMutation({
+    mutationFn: async ({
+      title,
+      body,
+      owner,
+      repo,
+    }: {
+      title: string;
+      body: string;
+      owner: string;
+      repo: string;
+    }) => {
+      if (!currentOrg) throw new Error("No organization selected");
 
-    const repo = repos.find((r) => r.fullName === selectedRepo);
-    if (!repo) return;
-
-    setIsCreating(true);
-    try {
       const result = await fetchClient.mutate.thread.createGithubIssue({
         organizationId: currentOrg.id,
         threadId,
-        title: issueTitle.trim(),
-        body: issueBody,
-        owner: repo.owner,
-        repo: repo.name,
+        title: title.trim(),
+        body,
+        owner,
+        repo,
       });
 
       if (
@@ -182,6 +190,30 @@ export function IssuesSection({
       ) {
         throw new Error("Invalid response from GitHub API");
       }
+
+      return result;
+    },
+    onSuccess: (result, variables) => {
+      const repo = repos.find((r) => r.fullName === selectedRepo);
+      if (!repo || !result?.issue) return;
+
+      // Create optimistic issue object
+      const optimisticIssueData: GitHubIssue = {
+        id: result.issue.id,
+        number: result.issue.number,
+        title: result.issue.title || variables.title,
+        body: result.issue.body || variables.body,
+        state: result.issue.state || "open",
+        html_url: result.issue.html_url,
+        repository: {
+          owner: repo.owner,
+          name: repo.name,
+          fullName: repo.fullName,
+        },
+      };
+
+      // Set optimistic issue state
+      setOptimisticIssue(optimisticIssueData);
 
       // Link the thread to the newly created issue
       mutate.thread.update(threadId, {
@@ -205,9 +237,6 @@ export function IssuesSection({
         replicatedStr: JSON.stringify({}),
       });
 
-      // Invalidate issues query to refetch the list
-      queryClient.invalidateQueries({ queryKey: ["github-issues"] });
-
       toast.success("Issue created successfully", {
         duration: 10000,
         action: {
@@ -223,12 +252,32 @@ export function IssuesSection({
       });
 
       setShowCreateDialog(false);
-    } catch (error) {
+
+      // After 3 seconds, invalidate query and remove optimistic value
+      setTimeout(() => {
+        refetchIssues().then(() => {
+          setOptimisticIssue(null);
+        });
+      }, 3000);
+    },
+    onError: (error) => {
       console.error("Failed to create issue:", error);
       toast.error("Failed to create issue");
-    } finally {
-      setIsCreating(false);
-    }
+    },
+  });
+
+  const handleCreateIssue = () => {
+    if (!currentOrg || !selectedRepo || !issueTitle.trim()) return;
+
+    const repo = repos.find((r) => r.fullName === selectedRepo);
+    if (!repo) return;
+
+    createIssueMutation.mutate({
+      title: issueTitle.trim(),
+      body: issueBody,
+      owner: repo.owner,
+      repo: repo.name,
+    });
   };
 
   const handleUnlinkIssue = (e: React.MouseEvent) => {
@@ -450,15 +499,21 @@ export function IssuesSection({
             <Button
               variant="outline"
               onClick={() => setShowCreateDialog(false)}
-              disabled={isCreating}
+              disabled={createIssueMutation.isPending}
             >
               Cancel
             </Button>
             <Button
               onClick={handleCreateIssue}
-              disabled={isCreating || !issueTitle.trim() || !selectedRepo}
+              disabled={
+                createIssueMutation.isPending ||
+                !issueTitle.trim() ||
+                !selectedRepo
+              }
             >
-              {isCreating && <Loader2 className="size-4 animate-spin" />}
+              {createIssueMutation.isPending && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
               Create Issue
             </Button>
           </DialogFooter>
