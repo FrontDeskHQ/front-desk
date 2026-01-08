@@ -19,7 +19,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import type { schema } from "api/schema";
 import { PlusIcon, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 import type { GetSupportAuthUserResponse } from "~/lib/server-funcs/get-portal-auth-user";
@@ -30,15 +30,17 @@ interface CreateThreadDialogProps {
   organization: InferLiveObject<(typeof schema)["organization"]>;
   portalSession: GetSupportAuthUserResponse | null | undefined;
   trigger?: React.ReactNode;
+  defaultOpen?: boolean;
 }
 
 export function CreateThreadDialog({
   organization,
   portalSession,
   trigger,
+  defaultOpen = false,
 }: CreateThreadDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [threadTitle, setThreadTitle] = useState("");
   const [threadContent, setThreadContent] = useState<ThreadContent>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,24 +59,6 @@ export function CreateThreadDialog({
     }
     setOpen(newOpen);
   };
-
-  // Auto-open dialog after sign-in if the URL parameter is present
-  useEffect(() => {
-    if (portalSession?.user) {
-      const searchParams = new URLSearchParams(window.location.search);
-      if (searchParams.get("openCreateThread") === "true") {
-        // Remove the query parameter from URL
-        searchParams.delete("openCreateThread");
-        const newSearch = searchParams.toString();
-        const newUrl =
-          window.location.pathname + (newSearch ? `?${newSearch}` : "");
-        window.history.replaceState({}, "", newUrl);
-
-        // Open the dialog
-        setOpen(true);
-      }
-    }
-  }, [portalSession?.user]);
 
   const validateForm = () => {
     if (!threadTitle.trim()) {
@@ -141,7 +125,7 @@ export function CreateThreadDialog({
             </Button>
           )}
         </DialogTrigger>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="py-14 sm:max-w-md">
           <DialogHeader className="text-center space-y-3 items-center">
             <Avatar
               fallback={organization.name}

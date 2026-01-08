@@ -23,6 +23,7 @@ import { Logo } from "@workspace/ui/components/logo";
 import { Navbar } from "@workspace/ui/components/navbar";
 import type { schema } from "api/schema";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect } from "react";
 import { CreateThreadDialog } from "~/components/threads/create-thread-dialog";
 import { reflagClient } from "~/lib/feature-flag";
@@ -92,6 +93,17 @@ export const Route = createFileRoute("/support/$slug")({
     const router = useRouter();
     const matches = useMatches();
 
+    const [openCreateThread, setOpenCreateThread] = useQueryState(
+      "openCreateThread",
+      parseAsBoolean.withDefault(false),
+    );
+
+    useEffect(() => {
+      if (openCreateThread) {
+        setOpenCreateThread(null);
+      }
+    }, [openCreateThread]);
+
     const discordUrl = safeParseJSON(organization.socials)?.discord;
 
     useEffect(() => {
@@ -148,6 +160,7 @@ export const Route = createFileRoute("/support/$slug")({
                 <CreateThreadDialog
                   organization={organization}
                   portalSession={portalSession}
+                  defaultOpen={openCreateThread}
                 />
                 {!!discordUrl && (
                   <DropdownMenu>
