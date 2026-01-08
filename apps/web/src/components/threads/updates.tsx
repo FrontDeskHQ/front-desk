@@ -131,6 +131,15 @@ export function Update({
 
       return `changed PR`;
     }
+
+    if (update.type === "github_issue_created") {
+      return (
+        <>
+          created issue{" "}
+          <span className="text-foreground">{metadata?.issueLabel}</span>
+        </>
+      );
+    }
   };
 
   return (
@@ -150,6 +159,9 @@ export function Update({
           ))}
         {update.type === "issue_changed" && <Github className="size-4" />}
         {update.type === "pr_changed" && <Github className="size-4" />}
+        {update.type === "github_issue_created" && (
+          <Github className="size-4" />
+        )}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">

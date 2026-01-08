@@ -645,6 +645,7 @@ export default publicRoute
         metadataStr: JSON.stringify({
           issueId: data.issue.id,
           issueNumber: data.issue.number,
+          issueLabel: `${req.input.owner}/${req.input.repo}#${data.issue.number}`,
         }),
         replicatedStr: null,
       });

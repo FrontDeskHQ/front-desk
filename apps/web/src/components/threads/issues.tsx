@@ -199,23 +199,6 @@ export function IssuesSection({
         externalIssueId: result.issue.id,
       });
 
-      // Add update record for issue creation
-      mutate.update.insert({
-        id: ulid().toLowerCase(),
-        threadId: threadId,
-        type: "issue_changed",
-        createdAt: new Date(),
-        userId: user.id,
-        metadataStr: JSON.stringify({
-          oldIssueId: null,
-          newIssueId: result.issue.id,
-          oldIssueLabel: null,
-          newIssueLabel: `${repo.fullName}#${result.issue.number}`,
-          userName: user.name,
-        }),
-        replicatedStr: JSON.stringify({}),
-      });
-
       toast.success("Issue created successfully", {
         duration: 10000,
         action: {
