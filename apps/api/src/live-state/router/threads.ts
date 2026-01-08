@@ -1,3 +1,8 @@
+import {
+  type ExternalIssue,
+  type ExternalPullRequest,
+  formatGitHubId,
+} from "@workspace/schemas/external-issue";
 import { ulid } from "ulid";
 import z from "zod";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
@@ -6,26 +11,6 @@ import { schema } from "../schema";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
-
-type Issue = {
-  id: number;
-  number: number;
-  title: string;
-  body: string;
-  state: string;
-  html_url: string;
-  repository: { owner: string; name: string; fullName: string };
-};
-
-type PullRequest = {
-  id: number;
-  number: number;
-  title: string;
-  body: string;
-  state: string;
-  html_url: string;
-  repository: { owner: string; name: string; fullName: string };
-};
 
 type FetchIssuesInput = {
   organizationId: string;
@@ -44,8 +29,8 @@ type FetchPRsInput = {
 // Helper function to fetch issues from GitHub
 const fetchIssuesFromGitHub = async (
   input: FetchIssuesInput
-): Promise<{ issues: Issue[]; count: number }> => {
-  const allIssues: Issue[] = [];
+): Promise<{ issues: ExternalIssue[]; count: number }> => {
+  const allIssues: ExternalIssue[] = [];
 
   const results = await Promise.allSettled(
     input.repos.map(async (repo) => {
@@ -75,7 +60,12 @@ const fetchIssuesFromGitHub = async (
       };
 
       return data.issues.map((issue) => ({
-        ...issue,
+        id: formatGitHubId(issue.id, repo.owner, repo.name),
+        number: issue.number,
+        title: issue.title,
+        body: issue.body,
+        state: issue.state,
+        url: issue.html_url,
         repository: {
           owner: repo.owner,
           name: repo.name,
@@ -99,8 +89,8 @@ const fetchIssuesFromGitHub = async (
 // Helper function to fetch pull requests from GitHub
 const fetchPRsFromGitHub = async (
   input: FetchPRsInput
-): Promise<{ pullRequests: PullRequest[]; count: number }> => {
-  const allPullRequests: PullRequest[] = [];
+): Promise<{ pullRequests: ExternalPullRequest[]; count: number }> => {
+  const allPullRequests: ExternalPullRequest[] = [];
 
   const results = await Promise.allSettled(
     input.repos.map(async (repo) => {
@@ -130,7 +120,12 @@ const fetchPRsFromGitHub = async (
       };
 
       return data.pullRequests.map((pr) => ({
-        ...pr,
+        id: formatGitHubId(pr.id, repo.owner, repo.name),
+        number: pr.number,
+        title: pr.title,
+        body: pr.body,
+        state: pr.state,
+        url: pr.html_url,
         repository: {
           owner: repo.owner,
           name: repo.name,
@@ -158,7 +153,7 @@ const fetchPRsFromGitHub = async (
 // Cache for 5 minutes with 1 minute stale-while-revalidate window
 const issuesCache = createReadThroughCache<
   FetchIssuesInput,
-  { issues: Issue[]; count: number }
+  { issues: ExternalIssue[]; count: number }
 >({
   namespace: "github-issues",
   fetch: fetchIssuesFromGitHub,
@@ -172,7 +167,7 @@ const issuesCache = createReadThroughCache<
 
 const pullRequestsCache = createReadThroughCache<
   FetchPRsInput,
-  { pullRequests: PullRequest[]; count: number }
+  { pullRequests: ExternalPullRequest[]; count: number }
 >({
   namespace: "github-pull-requests",
   fetch: fetchPRsFromGitHub,
@@ -672,7 +667,12 @@ export default publicRoute
 
       return {
         issue: {
-          ...data.issue,
+          id: formatGitHubId(data.issue.id, req.input.owner, req.input.repo),
+          number: data.issue.number,
+          title: data.issue.title,
+          body: data.issue.body,
+          state: data.issue.state,
+          url: data.issue.html_url,
           repository: {
             owner: req.input.owner,
             name: req.input.repo,
