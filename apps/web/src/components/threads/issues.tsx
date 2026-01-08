@@ -220,7 +220,8 @@ export function IssuesSection({
         duration: 10000,
         action: {
           label: "View on GitHub",
-          onClick: () => window.open(result.issue.url, "_blank"),
+          onClick: () =>
+            window.open(result.issue.url, "_blank", "noopener,noreferrer"),
         },
         actionButtonStyle: {
           background: "transparent",
