@@ -2,13 +2,9 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
-  type BaseItem,
-  type BaseItemGroup,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
-  ComboboxGroup,
-  ComboboxGroupContent,
   ComboboxInput,
   ComboboxItem,
   ComboboxList,
@@ -81,11 +77,15 @@ export function PullRequestsSection({
   const pullRequests = (allPullRequests?.pullRequests ??
     []) as GitHubPullRequest[];
 
+  console.log("pullRequests", pullRequests);
+
   const comboboxItems = pullRequests.map((pr) => ({
     value: pr.id?.toString() ?? "",
     label: `${pr.repository.fullName}#${pr.number} ${pr.title}`,
     pr,
   }));
+
+  type PRItem = (typeof comboboxItems)[number];
 
   const linkedPr = pullRequests.find((pr) => pr.id.toString() === externalPrId);
 
@@ -199,17 +199,11 @@ export function PullRequestsSection({
               />
               <ComboboxEmpty>No pull requests found</ComboboxEmpty>
               <ComboboxList>
-                {(group: BaseItemGroup) => (
-                  <ComboboxGroup key={group.value} items={group.items}>
-                    <ComboboxGroupContent>
-                      {(item: BaseItem & { pr: GitHubPullRequest }) => (
-                        <ComboboxItem key={item.value} value={item.value}>
-                          <span>#{item.pr.number}</span>
-                          <span className="truncate">{item.pr.title}</span>
-                        </ComboboxItem>
-                      )}
-                    </ComboboxGroupContent>
-                  </ComboboxGroup>
+                {(item: PRItem) => (
+                  <ComboboxItem key={item.value} value={item.value}>
+                    <span>#{item.pr.number}</span>
+                    <span className="truncate">{item.pr.title}</span>
+                  </ComboboxItem>
                 )}
               </ComboboxList>
             </ComboboxContent>
