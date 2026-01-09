@@ -240,7 +240,7 @@ export const LiveStateLog = () => {
           LS Log
         </Button>
       </DrawerTrigger>
-      <DrawerContent className="max-h-[50vh] h-[50vh]">
+      <DrawerContent hideOverlay className="max-h-[50vh] h-[50vh]">
         <DrawerHeader className="border-b shrink-0">
           <DrawerTitle>Live State WebSocket Event Log</DrawerTitle>
         </DrawerHeader>
