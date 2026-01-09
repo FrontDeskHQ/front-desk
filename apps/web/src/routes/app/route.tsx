@@ -33,10 +33,7 @@ export const Route = createFileRoute("/app")({
       .first({
         email: sessionData.user.email,
       })
-      .get()
-      .catch((e) => {
-        console.error(e);
-      });
+      .get();
 
     if (!allowlist) {
       throw redirect({

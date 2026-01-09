@@ -29,4 +29,14 @@ export const getTenantBaseApiUrl = createIsomorphicFn()
     return parsedBaseUrl.toString().replace(/\/$/, "");
   });
 
-export const getLiveStateApiUrl = () => `${getBaseApiUrl()}/api/ls`;
+export const getLiveStateApiUrl = createIsomorphicFn()
+  .server(() => {
+    return `${
+      process.env.SERVER_ENV === "cloudflare"
+        ? process.env.VITE_API_URL ?? "http://localhost:3333"
+        : process.env.VITE_BASE_URL ?? "http://localhost:3000"
+    }/api/ls`;
+  })
+  .client(() => {
+    return "/api/ls";
+  });
