@@ -17,7 +17,7 @@ function RouteComponent() {
   const { user } = Route.useRouteContext();
 
   return (
-    <div className="w-screen h-screen flex overflow-hidden">
+    <div className="w-screen h-full flex overflow-hidden">
       <AppSidebar />
       <Card className="flex-1 relative m-2 ml-0 h-auto">
         <Outlet />

@@ -8,7 +8,7 @@ export const Route = createFileRoute("/app/_workspace/settings")({
 
 function RouteComponent() {
   return (
-    <div className="w-screen h-screen flex overflow-hidden">
+    <div className="w-screen h-full flex overflow-hidden">
       <SettingsSidebar />
       <Card className="flex-1 bg-muted/30 relative m-2 ml-0 h-auto p-4">
         <div className="max-w-3xl mx-auto w-full flex flex-col">
