@@ -290,11 +290,11 @@ function RouteComponent() {
             <h1 className="text-5xl font-bold text-center">
               Make community support actually good
             </h1>
-            <span className="text-xl">
+            <h2 className="text-xl">
               FrontDesk gives you everything you need to deliver really good
               community support at scale. Built for products that value their
               communities and are truly customer-obsessed.
-            </span>
+            </h2>
             <ApplyToWaitlistForm />
           </AnimatedGroup>
         </section>
