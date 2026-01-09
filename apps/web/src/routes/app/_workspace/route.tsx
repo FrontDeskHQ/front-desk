@@ -219,7 +219,7 @@ function RouteComponent() {
           </Dialog>
           <Outlet />
         </SidebarProvider>
-        <Toolbar />
+        {import.meta.env.DEV && <Toolbar />}
       </ReflagClientProvider>
     </div>
   );
