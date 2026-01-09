@@ -1,11 +1,11 @@
+"use client";
+
 import { useForm } from "@tanstack/react-form";
-import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@workspace/ui/components/dialog";
 import {
   FormControl,
@@ -20,8 +20,8 @@ import {
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/tabs";
+import { Button } from "@workspace/ui/components/button";
 import { useAtomValue } from "jotai/react";
-import { useState } from "react";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -159,9 +159,13 @@ const createSingleThreadSchema = z.object({
   author: z.string().min(1, "Author is required"),
 });
 
-export const CreateThread = () => {
+interface CreateThreadDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}
+
+export const CreateThreadDialog = ({ open, onOpenChange }: CreateThreadDialogProps) => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const [isOpen, setIsOpen] = useState(false);
 
   const randomForm = useForm({
     defaultValues: {
@@ -225,7 +229,7 @@ export const CreateThread = () => {
       }
 
       randomForm.reset();
-      setIsOpen(false);
+      onOpenChange(false);
     },
   });
 
@@ -272,15 +276,12 @@ export const CreateThread = () => {
       });
 
       singleForm.reset();
-      setIsOpen(false);
+      onOpenChange(false);
     },
   });
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger render={<Button variant="outline" size="sm" />}>
-        New Thread
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Create Thread</DialogTitle>

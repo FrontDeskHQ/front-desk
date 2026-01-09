@@ -13,6 +13,7 @@ import {
   MenuSeparator,
   MenuTrigger,
   Submenu,
+  SubmenuContent,
   SubmenuTrigger,
 } from "../menu";
 
@@ -249,7 +250,7 @@ const Filter = ({
                       {group.icon ?? <div className="size-4" />}
                       {group.label}
                     </SubmenuTrigger>
-                    <MenuContent>
+                    <SubmenuContent>
                       <SubMenuOptions
                         group={group}
                         value={value}
@@ -257,7 +258,7 @@ const Filter = ({
                         key={key}
                         groupKey={key}
                       />
-                    </MenuContent>
+                    </SubmenuContent>
                   </Submenu>
                 ))}
               </MenuGroup>
