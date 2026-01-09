@@ -3,6 +3,7 @@
 import { DevtoolsMenu } from "./devtools-menu/devtools-menu";
 import { FpsMeter } from "./fps-meter";
 import { LiveStateLog } from "./live-state-log";
+import { ReflagFlagsMenu } from "./reflag-flags-menu";
 
 export const Toolbar = () => {
   return (
@@ -10,6 +11,8 @@ export const Toolbar = () => {
       <FpsMeter />
       <div className="bg-border w-px h-4" />
       <DevtoolsMenu />
+      <div className="bg-border w-px h-4" />
+      <ReflagFlagsMenu />
       <div className="bg-border w-px h-4" />
       <LiveStateLog />
     </div>

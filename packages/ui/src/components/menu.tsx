@@ -119,6 +119,19 @@ function MenuCheckboxItem({
   );
 }
 
+function MenuSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof MenuPrimitive.Separator>) {
+  return (
+    <MenuPrimitive.Separator
+      data-slot="menu-separator"
+      className={cn("bg-border -mx-1 my-1 h-px", className)}
+      {...props}
+    />
+  );
+}
+
 function Submenu({
   ...props
 }: React.ComponentProps<typeof MenuPrimitive.SubmenuRoot>) {
@@ -156,6 +169,7 @@ export {
   MenuGroup,
   MenuItem,
   MenuPortal,
+  MenuSeparator,
   MenuTrigger,
   Submenu,
   SubmenuContent,
