@@ -144,11 +144,6 @@ export default publicRoute
         organizationId: z.string(),
       })
     ).handler(async ({ req }) => {
-      console.log(
-        "all messages",
-        await typesenseClient?.collections("messages").documents().export()
-      );
-
       const messages = await typesenseClient
         ?.collections("messages")
         .documents()
@@ -163,8 +158,6 @@ export default publicRoute
   }))
   .withHooks({
     afterInsert: ({ value, db }) => {
-      console.log("afterInsert", value);
-
       (async () => {
         const thread = (
           await db.find(schema.thread, {
@@ -182,7 +175,6 @@ export default publicRoute
             content: jsonContentToPlainText(safeParseJSON(value.content)),
             organizationId: organizationId,
           })
-          .then(() => console.log(`message ${value.id} created in typesense`))
           .catch((error) =>
             console.error(
               `error creating message ${value.id} in typesense`,
