@@ -237,7 +237,7 @@ export const LiveStateLog = () => {
           className="h-5 text-xs font-mono"
           aria-label="Show Live State event log"
         >
-          LS Log
+          live-state log
         </Button>
       </DrawerTrigger>
       <DrawerContent hideOverlay className="max-h-[50vh] h-[50vh]">

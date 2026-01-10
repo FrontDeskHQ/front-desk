@@ -7,7 +7,7 @@ import { ReflagFlagsMenu } from "./reflag-flags-menu";
 
 export const Toolbar = () => {
   return (
-    <div className="w-screen h-6 bg-background-secondary border-t shrink-0 flex font-mono text-xs gap-2 items-center px-2 z-10">
+    <div className="w-screen h-6 bg-background-secondary border-t shrink-0 flex font-mono text-xs gap-2 items-center px-8 z-10">
       <FpsMeter />
       <div className="bg-border w-px h-4" />
       <DevtoolsMenu />
