@@ -12,10 +12,12 @@ import {
   DialogTitle,
 } from "@workspace/ui/components/dialog";
 import { Separator } from "@workspace/ui/components/separator";
+import { SidebarProvider } from "@workspace/ui/components/sidebar";
 import type { schema } from "api/schema";
 import { addDays, isAfter } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
+import { Toolbar } from "~/components/devtools/toolbar";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { reflagClient } from "~/lib/feature-flag";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
@@ -142,78 +144,83 @@ function RouteComponent() {
   }, []);
 
   return (
-    <ReflagClientProvider client={reflagClient}>
-      <Dialog open={showTrialExpiredDialog} disablePointerDismissal>
-        <DialogContent showCloseButton={false} className="max-w-3xl">
-          <DialogHeader className="text-left">
-            <DialogTitle className="mb-2">
-              Unlock full access to FrontDesk
-            </DialogTitle>
-            <DialogDescription>
-              Your 14-day free trial has ended. Please choose a plan to continue
-              using FrontDesk.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
-            <Card className="bg-[#27272A]/30">
-              <CardContent className="gap-4">
-                <div className="flex justify-between">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col">
-                      <div className="text-primary">Starter</div>
-                      <div className="text-muted-foreground">
-                        $9 per seat/month
+    <div className="flex flex-col w-full overflow-hidden h-svh">
+      <ReflagClientProvider client={reflagClient}>
+        <SidebarProvider className="min-h-0 overflow-hidden">
+          <Dialog open={showTrialExpiredDialog} disablePointerDismissal>
+            <DialogContent showCloseButton={false} className="max-w-3xl">
+              <DialogHeader className="text-left">
+                <DialogTitle className="mb-2">
+                  Unlock full access to FrontDesk
+                </DialogTitle>
+                <DialogDescription>
+                  Your 14-day free trial has ended. Please choose a plan to
+                  continue using FrontDesk.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="flex flex-col gap-4 py-4">
+                <Card className="bg-[#27272A]/30">
+                  <CardContent className="gap-4">
+                    <div className="flex justify-between">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex flex-col">
+                          <div className="text-primary">Starter</div>
+                          <div className="text-muted-foreground">
+                            $9 per seat/month
+                          </div>
+                        </div>
+                        <div className="w-full max-w-sm">
+                          <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
+                            <li>Unlimited support tickets</li>
+                            <li>Unlimited customers</li>
+                            <li>Public support portal</li>
+                            <li>2 support channels</li>
+                          </ul>
+                        </div>
                       </div>
+                      <Button
+                        variant="secondary"
+                        onClick={() => handleSubscribe("starter")}
+                        disabled={isSubscribing}
+                      >
+                        Subscribe
+                      </Button>
                     </div>
-                    <div className="w-full max-w-sm">
-                      <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
-                        <li>Unlimited support tickets</li>
-                        <li>Unlimited customers</li>
-                        <li>Public support portal</li>
-                        <li>2 support channels</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <Button
-                    variant="secondary"
-                    onClick={() => handleSubscribe("starter")}
-                    disabled={isSubscribing}
-                  >
-                    Subscribe
-                  </Button>
-                </div>
-                <Separator />
-                <div className="flex justify-between">
-                  <div className="flex flex-col gap-4">
-                    <div className="flex flex-col">
-                      <div className="text-primary">Pro</div>
-                      <div className="text-muted-foreground">
-                        $24 per seat/month
+                    <Separator />
+                    <div className="flex justify-between">
+                      <div className="flex flex-col gap-4">
+                        <div className="flex flex-col">
+                          <div className="text-primary">Pro</div>
+                          <div className="text-muted-foreground">
+                            $24 per seat/month
+                          </div>
+                        </div>
+                        <div className="w-full max-w-sm">
+                          <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
+                            <li>Unlimited support tickets</li>
+                            <li>Unlimited customers</li>
+                            <li>Public support portal with custom domain</li>
+                            <li>Unlimited support channels</li>
+                          </ul>
+                        </div>
                       </div>
+                      <Button
+                        onClick={() => handleSubscribe("pro")}
+                        disabled={isSubscribing}
+                        variant="primary"
+                      >
+                        Subscribe
+                      </Button>
                     </div>
-                    <div className="w-full max-w-sm">
-                      <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
-                        <li>Unlimited support tickets</li>
-                        <li>Unlimited customers</li>
-                        <li>Public support portal with custom domain</li>
-                        <li>Unlimited support channels</li>
-                      </ul>
-                    </div>
-                  </div>
-                  <Button
-                    onClick={() => handleSubscribe("pro")}
-                    disabled={isSubscribing}
-                    variant="primary"
-                  >
-                    Subscribe
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </DialogContent>
-      </Dialog>
-      <Outlet />
-    </ReflagClientProvider>
+                  </CardContent>
+                </Card>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Outlet />
+        </SidebarProvider>
+        {import.meta.env.DEV && <Toolbar />}
+      </ReflagClientProvider>
+    </div>
   );
 }

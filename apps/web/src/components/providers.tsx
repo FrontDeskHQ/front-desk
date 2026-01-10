@@ -1,4 +1,3 @@
-import { SidebarProvider } from "@workspace/ui/components/sidebar";
 import { ThemeProvider as NextThemesProvider } from "next-themes";
 import type { PostHogConfig } from "posthog-js";
 import { PostHogProvider as PostHogProviderComponent } from "posthog-js/react";
@@ -38,7 +37,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableColorScheme
         forcedTheme="dark"
       >
-        <SidebarProvider>{children}</SidebarProvider>
+        {children}
       </NextThemesProvider>
     </PosthogProvider>
   );
