@@ -1,9 +1,5 @@
 import DefaultHeading from "@tiptap/extension-heading";
-import {
-  type Editor,
-  Extension,
-  type JSONContent,
-} from "@tiptap/react";
+import { type Editor, Extension, type JSONContent } from "@tiptap/react";
 import { StarterKit as DefaultStarterKit } from "@tiptap/starter-kit";
 
 export const StarterKit = DefaultStarterKit.configure({
@@ -32,6 +28,7 @@ export const KeyBinds = Extension.create<{
   },
 });
 
+/** @deprecated Use getFirstTextContent from @workspace/utils instead */
 export function getFirstTextContent(
   content: JSONContent[] | JSONContent | string
 ): string {
@@ -64,6 +61,7 @@ export function getFirstTextContent(
   return "";
 }
 
+/** @deprecated Use safeParseJSON from @workspace/utils instead */
 export const safeParseJSON = (raw: string) => {
   try {
     const parsed = JSON.parse(raw);
