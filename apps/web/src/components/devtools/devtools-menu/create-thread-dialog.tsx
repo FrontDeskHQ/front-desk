@@ -1,6 +1,7 @@
 "use client";
 
 import { useForm } from "@tanstack/react-form";
+import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +21,6 @@ import {
   TabsList,
   TabsTrigger,
 } from "@workspace/ui/components/tabs";
-import { Button } from "@workspace/ui/components/button";
 import { useAtomValue } from "jotai/react";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -164,7 +164,10 @@ interface CreateThreadDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export const CreateThreadDialog = ({ open, onOpenChange }: CreateThreadDialogProps) => {
+export const CreateThreadDialog = ({
+  open,
+  onOpenChange,
+}: CreateThreadDialogProps) => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
   const randomForm = useForm({
@@ -220,7 +223,12 @@ export const CreateThreadDialog = ({ open, onOpenChange }: CreateThreadDialogPro
         mutate.message.insert({
           id: ulid().toLowerCase(),
           authorId: authorId,
-          content: JSON.stringify(randomThread.message),
+          content: JSON.stringify([
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: randomThread.message }],
+            },
+          ]),
           threadId: threadId,
           createdAt: new Date(),
           origin: null,

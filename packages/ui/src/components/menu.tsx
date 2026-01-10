@@ -58,6 +58,7 @@ function SubmenuContent({
 }) {
   return (
     <MenuContent
+      className={className}
       positionerProps={{ ...positionerProps, alignOffset: -5, sideOffset: 0 }}
       {...props}
     />

@@ -24,7 +24,6 @@ export const ReflagFlagsMenu = () => {
       const flagsState: Record<string, FlagState> = {};
 
       for (const [flagKey, flag] of Object.entries(allFlags)) {
-        console.log(flagKey, flag);
         flagsState[flagKey] = {
           isEnabled: (flag.isEnabled || flag.isEnabledOverride) ?? false,
           flagKey,
@@ -49,19 +48,20 @@ export const ReflagFlagsMenu = () => {
     loadFlags();
 
     // Listen to flag updates
-    const unsubscribe = reflagClient.on("flagsUpdated", () => {
-      console.log("flagsUpdated");
+    const unsubscribeFlagsUpdated = reflagClient.on("flagsUpdated", () => {
       loadFlags();
     });
 
-    reflagClient.on("stateUpdated", () => {
-      console.log("stateUpdated");
+    const unsubscribeStateUpdated = reflagClient.on("stateUpdated", () => {
       loadFlags();
     });
 
     return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe();
+      if (typeof unsubscribeFlagsUpdated === "function") {
+        unsubscribeFlagsUpdated();
+      }
+      if (typeof unsubscribeStateUpdated === "function") {
+        unsubscribeStateUpdated();
       }
     };
   }, []);
