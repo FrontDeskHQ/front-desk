@@ -219,7 +219,7 @@ function RouteComponent() {
             An error occurred while searching
           </div>
         )}
-        {!isLoading && !error && messageIds.length === 0 && searchQuery && (
+        {!isLoading && !error && messageIds.length === 0 && submittedQuery && (
           <div className="text-center text-muted-foreground py-8">
             No results found
           </div>

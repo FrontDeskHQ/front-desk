@@ -27,7 +27,6 @@ export const useReactScanEnabled = () => {
 
 export const ReactScan = () => {
   const [enabled] = useReactScanEnabled();
-  console.log("enabled", enabled);
   const isInitializedRef = useRef(false);
   const setOptionsRef = useRef<
     ((options: { enabled: boolean }) => void) | null
