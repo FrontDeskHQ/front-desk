@@ -2,18 +2,26 @@
 
 import {
   Menu,
+  MenuCheckboxItem,
   MenuContent,
+  MenuSeparator,
   MenuTrigger,
   Submenu,
   SubmenuContent,
   SubmenuTrigger,
 } from "@workspace/ui/components/menu";
 import { useState } from "react";
+import { useReactScanEnabled } from "../react-scan";
 import { CreateThreadDialog } from "./create-thread-dialog";
 import { ThreadsSubmenu } from "./threads-submenu";
 
 export const DevtoolsMenu = () => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [reactScanEnabled, setReactScanEnabled] = useReactScanEnabled();
+
+  const handleToggleReactScan = (checked: boolean) => {
+    setReactScanEnabled(checked);
+  };
 
   return (
     <>
@@ -28,6 +36,13 @@ export const DevtoolsMenu = () => {
               <ThreadsSubmenu onOpenDialog={() => setIsDialogOpen(true)} />
             </SubmenuContent>
           </Submenu>
+          <MenuSeparator />
+          <MenuCheckboxItem
+            checked={reactScanEnabled}
+            onCheckedChange={handleToggleReactScan}
+          >
+            React Scan
+          </MenuCheckboxItem>
         </MenuContent>
       </Menu>
       <CreateThreadDialog open={isDialogOpen} onOpenChange={setIsDialogOpen} />
