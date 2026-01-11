@@ -34,11 +34,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader className="bg-none flex-row">
         <OrgSwitcher />
         {isSearchEnabled && (
-          <Link to="/app/search">
-            <ActionButton variant="ghost" size="icon" tooltip="Search">
-              <Search />
-            </ActionButton>
-          </Link>
+          <ActionButton
+            variant="ghost"
+            size="icon"
+            tooltip="Search"
+            render={<Link to="/app/search" />}
+          >
+            <Search />
+          </ActionButton>
         )}
         {/* <NavMain items={data.navMain} /> */}
       </SidebarHeader>

@@ -24,40 +24,32 @@ const createOrUpdateCollection = async (
   }
 
   try {
-    // Try to retrieve the collection to check if it exists
     const existingSchema = await typesenseClient
       .collections(schema.name)
       .retrieve();
-    // If it exists, compare fields and only update if there are new or changed fields
+
     const { name: _name, fields: newFields, ...restSchema } = schema;
 
     if (!newFields || newFields.length === 0) {
-      // No fields to update
       return;
     }
 
-    // Create a map of existing fields by name
     const existingFieldMap = new Map(
       (existingSchema.fields || []).map((field) => [field.name, field])
     );
 
-    // Helper function to check if a field has changed
-    // Only compares properties that are defined in the new field
     const hasFieldChanged = (
       newField: (typeof newFields)[0],
       existingField: (typeof existingSchema.fields)[0] | undefined
     ): boolean => {
       if (!existingField) {
-        // Field doesn't exist, so it's new
         return true;
       }
 
-      // Compare only the properties defined in the new field
       for (const key of Object.keys(newField)) {
         const newValue = newField[key as keyof typeof newField];
         const existingValue = existingField[key as keyof typeof existingField];
 
-        // Compare values, handling undefined/null cases
         if (newValue !== existingValue) {
           return true;
         }
@@ -67,34 +59,27 @@ const createOrUpdateCollection = async (
     };
 
     const fieldsToUpdate = newFields.filter((field) => {
-      // Skip 'id' field as it cannot be modified
       if (field.name === "id") {
         return false;
       }
-      // Include field if it's new or has changed
       const existingField = existingFieldMap.get(field.name);
       return hasFieldChanged(field, existingField);
     });
 
-    // If there are no fields to update, skip the update
     if (fieldsToUpdate.length === 0) {
       return;
     }
 
-    // Update the collection with only new or changed fields
     const updateSchema = {
       ...restSchema,
       fields: fieldsToUpdate,
     };
     await typesenseClient.collections(schema.name).update(updateSchema);
   } catch (error) {
-    // Collection doesn't exist, which is fine - we'll create it
     const errorMessage = error instanceof Error ? error.message : String(error);
     if (!errorMessage.includes("Not Found")) {
-      // If it's a different error, rethrow it
       throw error;
     }
-    // Create the collection with the new schema
     await typesenseClient.collections().create(schema);
   }
 };
@@ -106,4 +91,6 @@ createOrUpdateCollection({
     { name: "content", type: "string" },
     { name: "organizationId", type: "string" },
   ],
+}).catch((error) => {
+  console.error("Error creating or updating typesense collection", error);
 });

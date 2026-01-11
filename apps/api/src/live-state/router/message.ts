@@ -159,28 +159,42 @@ export default publicRoute
   .withHooks({
     afterInsert: ({ value, db }) => {
       (async () => {
-        const thread = (
-          await db.find(schema.thread, {
-            where: { id: value.threadId },
-          })
-        )[0];
+        try {
+          const thread = (
+            await db.find(schema.thread, {
+              where: { id: value.threadId },
+            })
+          )[0];
 
-        const organizationId = thread.organizationId;
-
-        await typesenseClient
-          ?.collections("messages")
-          .documents()
-          .create({
-            id: value.id,
-            content: jsonContentToPlainText(safeParseJSON(value.content)),
-            organizationId: organizationId,
-          })
-          .catch((error) =>
+          if (!thread) {
             console.error(
-              `error creating message ${value.id} in typesense`,
-              error
-            )
+              `Thread not found for message ${value.id}, threadId: ${value.threadId}`
+            );
+            return;
+          }
+
+          const organizationId = thread.organizationId;
+
+          await typesenseClient
+            ?.collections("messages")
+            .documents()
+            .create({
+              id: value.id,
+              content: jsonContentToPlainText(safeParseJSON(value.content)),
+              organizationId: organizationId,
+            })
+            .catch((error) =>
+              console.error(
+                `error creating message ${value.id} in typesense`,
+                error
+              )
+            );
+        } catch (error) {
+          console.error(
+            `Unhandled error in afterInsert hook for message ${value.id}`,
+            error
           );
+        }
       })();
     },
   });
