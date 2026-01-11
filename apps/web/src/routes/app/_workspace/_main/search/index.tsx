@@ -19,7 +19,13 @@ import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
 import { CircleUser, Search } from "lucide-react";
-import { useState } from "react";
+import {
+  createStandardSchemaV1,
+  debounce,
+  parseAsString,
+  useQueryState,
+} from "nuqs";
+import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
 
@@ -111,13 +117,23 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
   );
 };
 
+const searchParams = {
+  q: parseAsString.withDefault(""),
+};
+
 export const Route = createFileRoute("/app/_workspace/_main/search/")({
   component: RouteComponent,
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
+  }),
 });
 
 function RouteComponent() {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [submittedQuery, setSubmittedQuery] = useState<string>("");
+  const [submittedQuery, setSubmittedQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useQueryState(
+    "q",
+    parseAsString.withDefault(""),
+  );
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
   type TypesenseHit = {
@@ -166,6 +182,13 @@ function RouteComponent() {
     }
   };
 
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      setSubmittedQuery(searchQuery.trim());
+      handleSearch();
+    }
+  }, []);
+
   return (
     <>
       <CardHeader className="flex items-center gap-2">
@@ -173,11 +196,16 @@ function RouteComponent() {
         <Input
           placeholder="Search..."
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          onKeyDown={handleKeyDown}
+          onChange={(e) =>
+            setSearchQuery(e.target.value, {
+              limitUrlUpdates:
+                e.target.value === "" ? undefined : debounce(750),
+            })
+          }
           className="flex-1"
           aria-label="Search input"
           variant="borderless"
+          onKeyDown={handleKeyDown}
         />
       </CardHeader>
       <CardContent className="flex flex-col gap-4">
@@ -191,7 +219,7 @@ function RouteComponent() {
             An error occurred while searching
           </div>
         )}
-        {!isLoading && !error && messageIds.length === 0 && submittedQuery && (
+        {!isLoading && !error && messageIds.length === 0 && searchQuery && (
           <div className="text-center text-muted-foreground py-8">
             No results found
           </div>
