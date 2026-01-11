@@ -10,6 +10,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Logo } from "@workspace/ui/components/logo";
 import { Spinner } from "@workspace/ui/components/spinner";
+import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { z } from "zod";
 import { authClient } from "~/lib/auth-client";
@@ -20,6 +21,11 @@ const signInFormSchema = z.object({
 });
 
 export const SignInForm = () => {
+  const posthog = usePostHog();
+  const oauthClick = () => {
+    posthog?.capture("oauth_click");
+  };
+
   const { Field, handleSubmit } = useForm({
     defaultValues: {
       email: "",
@@ -68,6 +74,7 @@ export const SignInForm = () => {
           type="button"
           className="mt-6 w-full"
           onClick={() => {
+            oauthClick();
             authClient.signIn.social({
               provider: "google",
               callbackURL: `${window.location.origin}/app`,
@@ -273,6 +280,12 @@ export const SignUpForm = () => {
 };
 
 export const AuthButtonGroup = () => {
+  const posthog = usePostHog();
+
+  const loginClick = () => {
+    posthog?.capture("login_click");
+  };
+
   const { data: session } = authClient.useSession();
 
   return (
@@ -288,6 +301,7 @@ export const AuthButtonGroup = () => {
               import.meta.env.VITE_ENABLE_GOOGLE_LOGIN ? "primary" : "ghost"
             }
             render={<Link to="/sign-in" />}
+            onClick={loginClick}
           >
             Log in
           </Button>
