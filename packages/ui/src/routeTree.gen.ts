@@ -9,9 +9,15 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as CommandRouteImport } from './routes/command'
 import { Route as ButtonsRouteImport } from './routes/buttons'
 import { Route as IndexRouteImport } from './routes/index'
 
+const CommandRoute = CommandRouteImport.update({
+  id: '/command',
+  path: '/command',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ButtonsRoute = ButtonsRouteImport.update({
   id: '/buttons',
   path: '/buttons',
@@ -26,31 +32,42 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/buttons': typeof ButtonsRoute
+  '/command': typeof CommandRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/buttons': typeof ButtonsRoute
+  '/command': typeof CommandRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/buttons': typeof ButtonsRoute
+  '/command': typeof CommandRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/buttons'
+  fullPaths: '/' | '/buttons' | '/command'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/buttons'
-  id: '__root__' | '/' | '/buttons'
+  to: '/' | '/buttons' | '/command'
+  id: '__root__' | '/' | '/buttons' | '/command'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ButtonsRoute: typeof ButtonsRoute
+  CommandRoute: typeof CommandRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/command': {
+      id: '/command'
+      path: '/command'
+      fullPath: '/command'
+      preLoaderRoute: typeof CommandRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/buttons': {
       id: '/buttons'
       path: '/buttons'
@@ -71,6 +88,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ButtonsRoute: ButtonsRoute,
+  CommandRoute: CommandRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
