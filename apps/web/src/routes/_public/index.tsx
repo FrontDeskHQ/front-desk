@@ -210,6 +210,7 @@ function ApplyToWaitlistForm() {
       await applyToWaitlist({ data: value })
         .then(() => {
           setSuccess(true);
+          waitlistApply();
         })
         .finally(() => {
           setLoading(false);
@@ -249,12 +250,7 @@ function ApplyToWaitlistForm() {
           </FormItem>
         )}
       </Field>
-      <Button
-        variant="primary"
-        type="submit"
-        disabled={loading}
-        onClick={waitlistApply}
-      >
+      <Button variant="primary" type="submit" disabled={loading}>
         {loading ? <Spinner /> : null}
         {success ? "Thank you!" : "Request access"}
       </Button>
