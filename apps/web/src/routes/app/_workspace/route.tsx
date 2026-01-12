@@ -84,6 +84,8 @@ function RouteComponent() {
 
   const posthog = usePostHog();
 
+  const currentOrg = useAtomValue(activeOrganizationAtom);
+
   useEffect(() => {
     if (user?.id) {
       posthog?.identify(user.id, {
@@ -92,7 +94,13 @@ function RouteComponent() {
     }
   }, [user?.id, user?.name, posthog]);
 
-  const currentOrg = useAtomValue(activeOrganizationAtom);
+  useEffect(() => {
+    if (currentOrg?.id) {
+      posthog?.group("organization", currentOrg.id, {
+        name: currentOrg.name,
+      });
+    }
+  }, [currentOrg?.id, currentOrg?.name, posthog]);
   const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
 
   const seats =
