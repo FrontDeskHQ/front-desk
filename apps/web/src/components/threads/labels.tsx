@@ -147,10 +147,6 @@ export function LabelsSection({
                 const existingThreadLabel = threadLabelMap.get(labelId);
                 const label = allLabels?.find((l) => l.id === labelId);
 
-                console.log(
-                  `are they equal? ${existingThreadLabel?.id === labelId}`,
-                );
-
                 if (existingThreadLabel) {
                   // Update existing connection
                   mutate.threadLabel.update(existingThreadLabel.id, {

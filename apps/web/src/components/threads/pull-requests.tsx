@@ -69,8 +69,6 @@ export function PullRequestsSection({
   const pullRequests = (allPullRequests?.pullRequests ??
     []) as ExternalPullRequest[];
 
-  console.log("pullRequests", pullRequests);
-
   const comboboxItems = pullRequests.map((pr) => ({
     value: pr.id ?? "",
     label: `${pr.repository.fullName}#${pr.number} ${pr.title}`,

@@ -113,7 +113,7 @@ function RouteComponent() {
       messages: { author: true },
       assignedUser: true,
       updates: { user: true },
-    }),
+    })
   )?.[0];
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
@@ -121,7 +121,7 @@ function RouteComponent() {
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
-      .include({ user: true }),
+      .include({ user: true })
   );
 
   const allItems = thread
@@ -251,23 +251,31 @@ function RouteComponent() {
                 </Dialog>
               </div>
             )}
-          </CardHeader>
-          <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
-            <div
-              className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
-              ref={scrollRef}
-              onScroll={disableAutoScroll}
-              onTouchMove={disableAutoScroll}
-            >
-              {allItems.map((item) => {
-                if (item.itemType === "message") {
-                  return (
-                    <Card
-                      key={item.id}
+          </CardTitle>
+        </CardHeader>
+        <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
+          <div
+            className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
+            ref={scrollRef}
+            onScroll={disableAutoScroll}
+            onTouchMove={disableAutoScroll}
+          >
+            {allItems.map((item) => {
+              if (item.itemType === "message") {
+                return (
+                  <Card
+                    key={item.id}
+                    className={cn(
+                      "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                      item?.author?.userId === user.id && "border-[#2662D9]/20"
+                    )}
+                  >
+                    <CardHeader
+                      size="sm"
                       className={cn(
                         "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         item?.author?.userId === user.id &&
-                          "border-[#2662D9]/20",
+                          "bg-[#2662D9]/15 border-[#2662D9]/20"
                       )}
                     >
                       <CardHeader
