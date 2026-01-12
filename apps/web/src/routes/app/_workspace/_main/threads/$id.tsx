@@ -173,79 +173,79 @@ function RouteComponent() {
       <div className="flex size-full">
         <div className="flex-1 flex flex-col">
           <CardHeader>
-            <CardTitle>
-              {" "}
-              {thread && (
-                <div className="flex justify-between items-center w-full">
-                  <Breadcrumb>
-                    <BreadcrumbList>
-                      <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                          <Link to="/app/threads">Threads</Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator />
-                      <BreadcrumbItem>
-                        <BreadcrumbLink asChild className="text-white">
-                          <Link to="/app/threads/$id" params={{ id: id }}>
-                            {thread.name}
-                          </Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                  <DropdownMenu modal={false}>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" aria-label="Open menu" size="sm">
-                        <MoreHorizontalIcon />
+            {thread && (
+              <div className="flex justify-between items-center w-full">
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link to="/app/threads">Threads</Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild className="text-white">
+                        <Link to="/app/threads/$id" params={{ id: id }}>
+                          {thread.name}
+                        </Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
+                <DropdownMenu modal={false}>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      aria-label="Open menu"
+                      size="sm"
+                      className="ml-auto"
+                    >
+                      <MoreHorizontalIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-40" align="end">
+                    <DropdownMenuGroup>
+                      <DropdownMenuItem onSelect={() => copyLinkToClipboard()}>
+                        <Copy />
+                        Copy link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        variant="destructive"
+                        onSelect={() => setShowDeleteDialog(true)}
+                      >
+                        <Trash2 />
+                        Delete thread
+                      </DropdownMenuItem>
+                    </DropdownMenuGroup>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+                <Dialog
+                  open={showDeleteDialog}
+                  onOpenChange={setShowDeleteDialog}
+                >
+                  <DialogContent className="sm:max-w-[425px]">
+                    <DialogHeader>
+                      <DialogTitle>Delete Thread</DialogTitle>
+                      <DialogDescription>
+                        Are you sure you want to delete the thread "
+                        {thread?.name}"?
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        onClick={() => {
+                          deleteThread();
+                        }}
+                      >
+                        Delete
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent className="w-40" align="end">
-                      <DropdownMenuGroup>
-                        <DropdownMenuItem
-                          onSelect={() => copyLinkToClipboard()}
-                        >
-                          <Copy />
-                          Copy link
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onSelect={() => setShowDeleteDialog(true)}
-                        >
-                          <Trash2 />
-                          Delete thread
-                        </DropdownMenuItem>
-                      </DropdownMenuGroup>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                  <Dialog
-                    open={showDeleteDialog}
-                    onOpenChange={setShowDeleteDialog}
-                  >
-                    <DialogContent className="sm:max-w-[425px]">
-                      <DialogHeader>
-                        <DialogTitle>Delete Thread</DialogTitle>
-                        <DialogDescription>
-                          Are you sure you want to delete the thread "
-                          {thread?.name}"?
-                        </DialogDescription>
-                      </DialogHeader>
-                      <DialogFooter>
-                        <Button
-                          type="submit"
-                          variant="destructive"
-                          onClick={() => {
-                            deleteThread();
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
-            </CardTitle>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
+            )}
           </CardHeader>
           <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
             <div
