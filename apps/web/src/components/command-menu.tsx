@@ -276,18 +276,20 @@ export const CommandMenu = () => {
             </>
           )}
         </CommandList>
-        <CommandFooter>
-          {currentPage ? (
-            <>
-              Press <Keybind keybind="backspace" /> to go back •{" "}
-              <Keybind keybind="esc" /> to close
-            </>
-          ) : (
-            <>
-              Press <Keybind keybind="esc" /> to close •{" "}
-              <Keybind keybind="mod+k" /> to open
-            </>
-          )}
+        <CommandFooter className="justify-between gap-4">
+          <div className="text-xs text-muted-foreground">
+            {currentContextId && registry.contexts[currentContextId]?.footer}
+          </div>
+          <div className="flex items-center gap-2">
+            {(currentPage || currentContextId) && (
+              <div className="flex items-center gap-1 text-foreground-secondary border-r pr-2">
+                <Keybind keybind="backspace" /> Go back
+              </div>
+            )}
+            <div className="flex items-center gap-1">
+              <Keybind keybind="enter" /> Select
+            </div>
+          </div>
         </CommandFooter>
       </CommandDialog>
     </>

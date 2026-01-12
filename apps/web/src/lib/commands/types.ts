@@ -36,6 +36,7 @@ export interface CommandPage {
 
 export interface CommandContext {
   id: ContextId;
+  footer?: ReactNode;
   label: string;
   commands: Command[];
   pages?: Record<PageId, CommandPage>;

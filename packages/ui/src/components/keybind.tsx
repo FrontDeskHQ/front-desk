@@ -1,9 +1,16 @@
+import { cn } from "@workspace/ui/lib/utils";
 import { forwardRef, useMemo } from "react";
 
 const isMacPlatform = () =>
   typeof navigator !== "undefined" && /Mac|iPad/.test(navigator.platform);
 
-export const Keybind = ({ keybind }: { keybind: string }) => {
+export const Keybind = ({
+  keybind,
+  className,
+}: {
+  keybind: string;
+  className?: string;
+}) => {
   const keys = keybind.split(/[-+]/);
 
   const isMac = isMacPlatform();
@@ -31,7 +38,10 @@ export const Keybind = ({ keybind }: { keybind: string }) => {
       {keys.map((key) => (
         <kbd
           key={key}
-          className="text-xs border-muted-foreground/20 text-muted-foreground rounded-xs h-5 min-w-5 px-1 flex items-center justify-center border font-family"
+          className={cn(
+            "text-xs border-muted-foreground/20 text-muted-foreground rounded-xs h-5 min-w-5 px-1 flex items-center justify-center border font-family",
+            className,
+          )}
         >
           {replacements[key] || key.toUpperCase()}
         </kbd>

@@ -180,6 +180,11 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
           ],
         },
       },
+      footer: (
+        <div className="text-xs bg-foreground-tertiary/15 px-2 py-1 rounded-sm">
+          {thread?.name}
+        </div>
+      ),
     },
     true,
     [threadId, userIds],
