@@ -135,15 +135,12 @@ export const commandRegistryActions = {
   },
 
   goBack: (state: CommandRegistryState): CommandRegistryState => {
-    console.log("goBack", state.history);
     if (state.history.length === 0) {
       return state;
     }
 
     const newHistory = [...state.history];
     const last = newHistory.pop();
-
-    console.log("last", last, newHistory);
 
     if (!last) {
       return state;

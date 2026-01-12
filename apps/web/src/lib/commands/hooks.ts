@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { commandRegistryActions, commandRegistryAtom } from "./registry";
 import type { Command, CommandContext, CommandPage } from "./types";
 
-export const useCommand = (command: Command) => {
+export const useCommand = (command: Command, deps: any[] = []) => {
   const setRegistry = useSetAtom(commandRegistryAtom);
   const commandRef = useRef(command);
 
@@ -22,7 +22,7 @@ export const useCommand = (command: Command) => {
         commandRegistryActions.unregisterCommand(state, currentCommand.id)
       );
     };
-  }, [setRegistry]);
+  }, [setRegistry, ...deps]);
 };
 
 export const useCommandPage = (page: CommandPage) => {
@@ -44,12 +44,13 @@ export const useCommandPage = (page: CommandPage) => {
         commandRegistryActions.unregisterPage(state, currentPage.id)
       );
     };
-  }, [setRegistry]);
+  }, [setRegistry, page]);
 };
 
 export const useCommandContext = (
   context: CommandContext,
-  active: boolean = true
+  active: boolean = true,
+  deps: any[] = []
 ) => {
   const setRegistry = useSetAtom(commandRegistryAtom);
   const contextRef = useRef(context);
@@ -71,7 +72,7 @@ export const useCommandContext = (
         commandRegistryActions.unregisterContext(state, currentContext.id)
       );
     };
-  }, [setRegistry]);
+  }, [setRegistry, active, ...deps]);
 
   useEffect(() => {
     if (activeRef.current) {
@@ -97,13 +98,11 @@ export const useCommandMenu = () => {
   const currentPage = commandRegistryActions.getCurrentPage(registry);
 
   const navigateToPage = (pageId: string | null) => {
-    console.log("navigateToPage", pageId);
     setRegistry((state) => commandRegistryActions.setPage(state, pageId));
   };
 
   const goBack = () => {
     setRegistry((state) => {
-      console.log("goBack", state);
       const currentPage = commandRegistryActions.getCurrentPage(state);
       if (currentPage?.onBack) {
         currentPage.onBack();
@@ -113,7 +112,6 @@ export const useCommandMenu = () => {
   };
 
   const setContext = (contextId: string | null) => {
-    console.log("setContext", contextId, new Error().stack);
     setRegistry((state) => commandRegistryActions.setContext(state, contextId));
   };
 
