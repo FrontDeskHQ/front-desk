@@ -57,6 +57,10 @@ interface IssuesSectionProps {
   externalIssueId: string | null;
   user: { id: string; name: string };
   threadName?: string;
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>,
+  ) => void;
 }
 
 export function IssuesSection({
@@ -64,6 +68,7 @@ export function IssuesSection({
   externalIssueId,
   user,
   threadName,
+  captureThreadEvent,
 }: IssuesSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -266,6 +271,12 @@ export function IssuesSection({
       }),
       replicatedStr: JSON.stringify({}),
     });
+
+    captureThreadEvent("thread_issue_unlinked", {
+      old_issue_id: externalIssueId,
+      old_issue_number: linkedIssue.number,
+      repository: linkedIssue.repository.fullName,
+    });
   };
 
   if (!githubIntegration || !githubIntegration.enabled) return null;
@@ -317,6 +328,19 @@ export function IssuesSection({
                 }),
                 replicatedStr: JSON.stringify({}),
               });
+
+              captureThreadEvent(
+                newIssueId ? "thread_issue_linked" : "thread_issue_unlinked",
+                {
+                  old_issue_id: oldIssueId,
+                  new_issue_id: newIssueId,
+                  old_issue_number: oldIssue?.number,
+                  new_issue_number: newIssue?.number,
+                  repository:
+                    newIssue?.repository.fullName ??
+                    oldIssue?.repository.fullName,
+                },
+              );
             }}
           >
             <ComboboxTrigger

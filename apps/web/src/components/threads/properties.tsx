@@ -36,6 +36,10 @@ interface PropertiesSectionProps {
     typeof schema.organizationUser,
     { user: true }
   >[];
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>,
+  ) => void;
 }
 
 export function PropertiesSection({
@@ -43,6 +47,7 @@ export function PropertiesSection({
   id,
   user,
   organizationUsers,
+  captureThreadEvent,
 }: PropertiesSectionProps) {
   return (
     <>
@@ -78,6 +83,13 @@ export function PropertiesSection({
                 userName: user.name,
               }),
               replicatedStr: JSON.stringify({}),
+            });
+
+            captureThreadEvent("thread_status_updated", {
+              old_status: oldStatus,
+              old_status_label: oldStatusLabel,
+              new_status: newStatus,
+              new_status_label: newStatusLabel,
             });
           }}
         >
@@ -162,6 +174,13 @@ export function PropertiesSection({
               }),
               replicatedStr: JSON.stringify({}),
             });
+
+            captureThreadEvent("thread_priority_updated", {
+              old_priority: oldPriority,
+              old_priority_label: oldPriorityLabel,
+              new_priority: newPriority,
+              new_priority_label: newPriorityLabel,
+            });
           }}
         >
           <ComboboxTrigger
@@ -221,6 +240,14 @@ export function PropertiesSection({
                 name: thread?.assignedUser?.name ?? null,
               },
               userId: user.id,
+            });
+
+            captureThreadEvent("thread_assigned_user_updated", {
+              old_assigned_user_id: oldAssignedUserId,
+              old_assigned_user_name: oldAssignedUserName,
+              new_assigned_user_id: newAssignedUserId,
+              new_assigned_user_name: newAssignedUserName,
+              action: newAssignedUserId ? "assigned" : "unassigned",
             });
           }}
         >

@@ -60,6 +60,7 @@ import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
+import { useThreadAnalytics } from "~/lib/hooks/use-analytics";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
@@ -114,6 +115,8 @@ function RouteComponent() {
       updates: { user: true },
     }),
   )?.[0];
+
+  const { captureThreadEvent } = useThreadAnalytics(thread);
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
@@ -332,7 +335,24 @@ function RouteComponent() {
                   origin: null,
                   externalMessageId: null,
                 });
-              }}
+              }
+
+              mutate.message.insert({
+                id: ulid().toLowerCase(),
+                authorId: authorId,
+                content: JSON.stringify(value),
+                threadId: id,
+                createdAt: new Date(),
+                origin: null,
+                externalMessageId: null,
+              });
+
+              captureThreadEvent("thread_reply");
+            }}
+          >
+            <EditorInput
+              className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+              placeholder="Write a reply..."
             >
               <EditorInput
                 className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
@@ -368,6 +388,40 @@ function RouteComponent() {
           </TooltipProvider>
         </div>
       </div>
-    </>
+      <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
+        <TooltipProvider>
+          <div className="flex flex-col gap-2">
+            <PropertiesSection
+              thread={thread}
+              id={id}
+              organizationUsers={organizationUsers}
+              user={user as InferLiveObject<typeof schema.user>}
+              captureThreadEvent={captureThreadEvent}
+            />
+            <LabelsSection
+              threadId={id}
+              captureThreadEvent={captureThreadEvent}
+            />
+            {isGithubIntegrationEnabled && (
+              <>
+                <IssuesSection
+                  threadId={id}
+                  user={user}
+                  externalIssueId={thread?.externalIssueId ?? null}
+                  threadName={thread?.name}
+                  captureThreadEvent={captureThreadEvent}
+                />
+                <PullRequestsSection
+                  threadId={id}
+                  user={user}
+                  externalPrId={thread?.externalPrId ?? null}
+                  captureThreadEvent={captureThreadEvent}
+                />
+              </>
+            )}
+          </div>
+        </TooltipProvider>
+      </div>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
-import { type ExternalPullRequest } from "@workspace/schemas/external-issue";
+import type { ExternalPullRequest } from "@workspace/schemas/external-issue";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
   Combobox,
@@ -22,12 +22,17 @@ interface PullRequestsSectionProps {
   threadId: string;
   externalPrId: string | null;
   user: { id: string; name: string };
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>,
+  ) => void;
 }
 
 export function PullRequestsSection({
   threadId,
   externalPrId,
   user,
+  captureThreadEvent,
 }: PullRequestsSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const [search, setSearch] = useState("");
@@ -99,6 +104,12 @@ export function PullRequestsSection({
       }),
       replicatedStr: JSON.stringify({}),
     });
+
+    captureThreadEvent("thread_pr_unlinked", {
+      old_pr_id: externalPrId,
+      old_pr_number: linkedPr.number,
+      repository: linkedPr.repository.fullName,
+    });
   };
 
   if (!githubIntegration || !githubIntegration.enabled) return null;
@@ -146,6 +157,18 @@ export function PullRequestsSection({
                 }),
                 replicatedStr: JSON.stringify({}),
               });
+
+              captureThreadEvent(
+                newPrId ? "thread_pr_linked" : "thread_pr_unlinked",
+                {
+                  old_pr_id: oldPrId,
+                  new_pr_id: newPrId,
+                  old_pr_number: oldPr?.number,
+                  new_pr_number: newPr?.number,
+                  repository:
+                    newPr?.repository.fullName ?? oldPr?.repository.fullName,
+                },
+              );
             }}
           >
             <ComboboxTrigger
