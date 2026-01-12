@@ -85,7 +85,7 @@ export function PropertiesSection({
               replicatedStr: JSON.stringify({}),
             });
 
-            captureThreadEvent("thread_status_updated", {
+            captureThreadEvent("thread:status_update", {
               old_status: oldStatus,
               old_status_label: oldStatusLabel,
               new_status: newStatus,
@@ -175,7 +175,7 @@ export function PropertiesSection({
               replicatedStr: JSON.stringify({}),
             });
 
-            captureThreadEvent("thread_priority_updated", {
+            captureThreadEvent("thread:priority_update", {
               old_priority: oldPriority,
               old_priority_label: oldPriorityLabel,
               new_priority: newPriority,
@@ -242,7 +242,7 @@ export function PropertiesSection({
               userId: user.id,
             });
 
-            captureThreadEvent("thread_assigned_user_updated", {
+            captureThreadEvent("thread:assignee_update", {
               old_assigned_user_id: oldAssignedUserId,
               old_assigned_user_name: oldAssignedUserName,
               new_assigned_user_id: newAssignedUserId,

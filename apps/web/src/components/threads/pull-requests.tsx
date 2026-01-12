@@ -105,7 +105,7 @@ export function PullRequestsSection({
       replicatedStr: JSON.stringify({}),
     });
 
-    captureThreadEvent("thread_pr_unlinked", {
+    captureThreadEvent("thread:pr_unlink", {
       old_pr_id: externalPrId,
       old_pr_number: linkedPr.number,
       repository: linkedPr.repository.fullName,
@@ -159,7 +159,7 @@ export function PullRequestsSection({
               });
 
               captureThreadEvent(
-                newPrId ? "thread_pr_linked" : "thread_pr_unlinked",
+                newPrId ? "thread:pr_link" : "thread:pr_unlink",
                 {
                   old_pr_id: oldPrId,
                   new_pr_id: newPrId,

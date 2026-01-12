@@ -23,7 +23,7 @@ const signInFormSchema = z.object({
 export const SignInForm = () => {
   const posthog = usePostHog();
   const oauthClick = () => {
-    posthog?.capture("oauth_click");
+    posthog?.capture("auth:oauth_button_click");
   };
 
   const { Field, handleSubmit } = useForm({
@@ -283,7 +283,7 @@ export const AuthButtonGroup = () => {
   const posthog = usePostHog();
 
   const loginClick = () => {
-    posthog?.capture("login_click");
+    posthog?.capture("auth:login_button_click");
   };
 
   const { data: session } = authClient.useSession();

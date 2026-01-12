@@ -166,7 +166,7 @@ export function LabelsSection({
                   });
                 }
 
-                captureThreadEvent("thread_label_added", {
+                captureThreadEvent("thread:label_add", {
                   label_id: labelId,
                   label_name: label?.name,
                 });
@@ -182,7 +182,7 @@ export function LabelsSection({
                     enabled: false,
                   });
 
-                  captureThreadEvent("thread_label_removed", {
+                  captureThreadEvent("thread:label_remove", {
                     label_id: labelId,
                     label_name: label?.name,
                   });

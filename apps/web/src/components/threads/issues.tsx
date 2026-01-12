@@ -272,7 +272,7 @@ export function IssuesSection({
       replicatedStr: JSON.stringify({}),
     });
 
-    captureThreadEvent("thread_issue_unlinked", {
+    captureThreadEvent("thread:issue_unlink", {
       old_issue_id: externalIssueId,
       old_issue_number: linkedIssue.number,
       repository: linkedIssue.repository.fullName,
@@ -330,7 +330,7 @@ export function IssuesSection({
               });
 
               captureThreadEvent(
-                newIssueId ? "thread_issue_linked" : "thread_issue_unlinked",
+                newIssueId ? "thread:issue_link" : "thread:issue_unlink",
                 {
                   old_issue_id: oldIssueId,
                   new_issue_id: newIssueId,

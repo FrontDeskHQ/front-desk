@@ -222,7 +222,7 @@ function ApplyToWaitlistForm() {
 
   const waitlistApply = () => {
     if (form.state.values.email.trim() !== "") {
-      posthog?.capture("waitlist_apply");
+      posthog?.capture("waitlist:form_submit");
     }
   };
 

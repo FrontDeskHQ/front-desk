@@ -347,7 +347,7 @@ function RouteComponent() {
                 externalMessageId: null,
               });
 
-              captureThreadEvent("thread_reply");
+              captureThreadEvent("thread:message_send");
             }}
           >
             <EditorInput
