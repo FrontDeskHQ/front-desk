@@ -12,6 +12,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
@@ -64,6 +65,7 @@ const generateStateToken = (): string => {
 };
 
 function RouteComponent() {
+  const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "slack" }),
@@ -178,6 +180,10 @@ function RouteComponent() {
 
     // https://api.slack.com/authentication/oauth-v2
     const slackOAuthUrl = `https://slack.com/oauth/v2/authorize?${queryParams.toString()}`;
+
+    posthog?.capture("integration_enable", {
+      integration_type: "slack",
+    });
 
     window.location.href = slackOAuthUrl;
   };

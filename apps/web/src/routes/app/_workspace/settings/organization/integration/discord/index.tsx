@@ -12,6 +12,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
@@ -55,6 +56,7 @@ const generateStateToken = (): string => {
 };
 
 function RouteComponent() {
+  const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
@@ -172,6 +174,10 @@ function RouteComponent() {
 
     // https://discord.com/developers/docs/topics/oauth2#bot-authorization-flow
     const discordOAuthUrl = `https://discord.com/api/oauth2/authorize?${queryParams.toString().replaceAll("%2B", "+")}`;
+
+    posthog?.capture("integration_enable", {
+      integration_type: "discord",
+    });
 
     window.location.href = discordOAuthUrl;
   };

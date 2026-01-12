@@ -147,6 +147,7 @@ function RouteComponent() {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard");
+    captureThreadEvent("thread:link_copy");
   };
 
   const deleteThread = () => {
@@ -167,6 +168,7 @@ function RouteComponent() {
         textDecoration: "underline",
       },
     });
+    captureThreadEvent("thread:thread_delete");
     navigate({ to: "/app/threads" });
   };
 

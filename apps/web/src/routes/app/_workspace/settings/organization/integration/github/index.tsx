@@ -10,6 +10,7 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -46,6 +47,9 @@ const generateStateToken = (): string => {
 };
 
 function RouteComponent() {
+  const posthog = usePostHog();
+  const { isEnabled: isGithubIntegrationEnabled, isLoading: isFlagLoading } =
+    useFlag("github-integration");
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
     query.integration.first({ organizationId: activeOrg?.id, type: "github" }),
@@ -113,6 +117,10 @@ function RouteComponent() {
     // The state parameter will be passed back in the callback
     const state = `${activeOrg?.id}_${csrfToken}`;
     const githubAppInstallUrl = `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new?state=${encodeURIComponent(state)}`;
+
+    posthog?.capture("integration_enable", {
+      integration_type: "github",
+    });
 
     window.location.href = githubAppInstallUrl;
   };
