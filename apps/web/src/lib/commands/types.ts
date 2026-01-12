@@ -6,13 +6,14 @@ export type ContextId = string;
 
 type BaseCommand = {
   id: CommandId;
-  label: string;
+  label: ReactNode;
   icon?: ReactNode;
   keywords?: string[];
   shortcut?: string;
   contextId?: ContextId; // If set, only shows in this context
   disabled?: boolean;
   group?: string; // Optional group label for organizing commands
+  visible?: boolean | ((state: CommandRegistryState) => boolean);
 };
 
 export type PageCommand = BaseCommand & {
@@ -48,4 +49,5 @@ export interface CommandRegistryState {
   currentPageId: PageId | null;
   history: Array<{ type: "context" | "page"; id: string }>;
   lastDeclaredContextId: ContextId | null;
+  search: string;
 }

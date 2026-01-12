@@ -1,13 +1,13 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { getRouteApi } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { CircleUser, Copy, User } from "lucide-react";
+import { ChevronRight, CircleUser, Copy, User } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
 import { assignThreadToUser } from "~/actions/threads";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { query } from "~/lib/live-state";
-import { useCommandContext } from "../..";
+import { Command, useCommandContext } from "../..";
 
 export const ThreadCommands = ({ threadId }: { threadId: string }) => {
   const { activeOrganization } = useOrganizationSwitcher();
@@ -26,7 +26,7 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
   );
 
   const userIds = useMemo(() => {
-    return orgUsers?.map((orgUser) => orgUser.userId) ?? [];
+    return (orgUsers?.map((orgUser) => orgUser.userId) ?? []).join(",");
   }, [orgUsers]);
 
   useCommandContext(
@@ -50,6 +50,84 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
             toast.success("Link copied to clipboard");
           },
         },
+        {
+          id: "quick-unassign",
+          label: "Unassign",
+          icon: <CircleUser />,
+          onSelect: () => {
+            assignThreadToUser({
+              threadId: threadId,
+              newAssignedUser: { id: null, name: null },
+              oldAssignedUser: {
+                id: thread?.assignedUser?.id ?? null,
+                name: thread?.assignedUser?.name ?? null,
+              },
+              userId: user.id,
+            });
+          },
+          visible: (state) => {
+            return !!state.search;
+          },
+        },
+        {
+          id: "quick-self-assign",
+          label: "Self Assign",
+          icon: <User />,
+          onSelect: () => {
+            assignThreadToUser({
+              threadId: threadId,
+              newAssignedUser: { id: user.id, name: user.name },
+              oldAssignedUser: {
+                id: thread?.assignedUser?.id ?? null,
+                name: thread?.assignedUser?.name ?? null,
+              },
+              userId: user.id,
+            });
+          },
+          visible: (state) => {
+            return !!state.search;
+          },
+        },
+        ...(orgUsers?.map(
+          (orgUser) =>
+            ({
+              id: `quick-assign-to-${orgUser.userId}`,
+              label: (
+                <div className="flex items-center gap-0.5 text-foreground-secondary">
+                  Assign to <ChevronRight />
+                  <div className="text-foreground-primary">
+                    {orgUser.user.name}
+                  </div>
+                </div>
+              ),
+              keywords: [orgUser.user.name, "assign to", "user"],
+              icon: (
+                <Avatar
+                  variant="user"
+                  size="md"
+                  fallback={orgUser.user.name}
+                  src={orgUser.user.image}
+                />
+              ),
+              visible: (state) => {
+                return !!state.search;
+              },
+              onSelect: () => {
+                assignThreadToUser({
+                  threadId: threadId,
+                  newAssignedUser: {
+                    id: orgUser.userId,
+                    name: orgUser.user.name,
+                  },
+                  oldAssignedUser: {
+                    id: thread?.assignedUser?.id ?? null,
+                    name: thread?.assignedUser?.name ?? null,
+                  },
+                  userId: user.id,
+                });
+              },
+            }) satisfies Command,
+        ) ?? []),
       ],
       pages: {
         "assign-user": {

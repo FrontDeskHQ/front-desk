@@ -12,19 +12,21 @@ import {
   CommandTrail,
 } from "@workspace/ui/components/command";
 import { Keybind } from "@workspace/ui/components/keybind";
+import { useAtomValue } from "jotai/react";
 import { ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 import { RootCommands } from "~/lib/commands/commands/root";
 import { useCommandMenu } from "~/lib/commands/hooks";
+import { commandRegistryAtom } from "~/lib/commands/registry";
 import type { Command, DirectCommand, PageCommand } from "~/lib/commands/types";
 
 export const CommandMenu = () => {
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const [animationKey, setAnimationKey] = useState(0);
   const prevPageIdRef = useRef<string | null>(null);
+  const registry = useAtomValue(commandRegistryAtom);
   const {
     commands,
     contextCommands,
@@ -32,9 +34,11 @@ export const CommandMenu = () => {
     currentPage,
     currentPageId,
     currentContextId,
+    search,
     goBack,
     navigateToPage,
     resetNavigation,
+    setSearch,
   } = useCommandMenu();
 
   useHotkeys("mod+k", (e) => {
@@ -61,7 +65,7 @@ export const CommandMenu = () => {
         setSearch("");
       }, 100);
     }
-  }, [open]);
+  }, [open, resetNavigation]);
 
   // Trigger animation on navigation
   useEffect(() => {
@@ -81,12 +85,24 @@ export const CommandMenu = () => {
     }
   };
 
+  // Check if command is visible (defaults to true)
+  const isCommandVisible = (command: Command): boolean => {
+    if (command.visible === undefined) return true;
+    if (typeof command.visible === "boolean") return command.visible;
+    if (typeof command.visible === "function") return command.visible(registry);
+    return true;
+  };
+
+  // Filter commands by visibility first
+  const filterByVisible = (command: Command) => isCommandVisible(command);
+
   // Filter commands by search query
   const filterCommand = (command: Command) => {
     if (!search) return true;
     const searchLower = search.toLowerCase();
     return (
-      command.label.toLowerCase().includes(searchLower) ||
+      (typeof command.label === "string" &&
+        command.label.toLowerCase().includes(searchLower)) ||
       command.keywords?.some((keyword) =>
         keyword.toLowerCase().includes(searchLower),
       )
@@ -96,7 +112,9 @@ export const CommandMenu = () => {
   const pageUngrouped: Command[] = [];
   const pageGrouped: Record<string, Command[]> = {};
 
-  const filteredPageCommands = commands.filter(filterCommand);
+  const filteredPageCommands = commands
+    .filter(filterByVisible)
+    .filter(filterCommand);
 
   // Separate grouped vs ungrouped for page commands
   filteredPageCommands.forEach((command) => {
@@ -116,8 +134,12 @@ export const CommandMenu = () => {
   );
 
   // Filter context and global commands separately (when not on a page)
-  const filteredContextCommands = contextCommands.filter(filterCommand);
-  const filteredGlobalCommands = globalCommands.filter(filterCommand);
+  const filteredContextCommands = contextCommands
+    .filter(filterByVisible)
+    .filter(filterCommand);
+  const filteredGlobalCommands = globalCommands
+    .filter(filterByVisible)
+    .filter(filterCommand);
 
   // Separate grouped vs ungrouped for context commands
   const contextUngrouped: Command[] = [];

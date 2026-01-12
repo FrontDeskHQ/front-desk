@@ -119,6 +119,10 @@ export const useCommandMenu = () => {
     setRegistry((state) => commandRegistryActions.resetNavigation(state));
   };
 
+  const setSearch = (search: string) => {
+    setRegistry((state) => commandRegistryActions.setSearch(state, search));
+  };
+
   // Get context and global commands separately
   const contextCommands =
     registry.currentContextId && registry.contexts[registry.currentContextId]
@@ -136,9 +140,11 @@ export const useCommandMenu = () => {
     currentContextId: registry.currentContextId,
     currentPageId: registry.currentPageId,
     lastDeclaredContextId: registry.lastDeclaredContextId,
+    search: registry.search,
     navigateToPage,
     goBack,
     setContext,
     resetNavigation,
+    setSearch,
   };
 };

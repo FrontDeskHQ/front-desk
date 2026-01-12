@@ -16,6 +16,7 @@ const initialState: CommandRegistryState = {
   currentPageId: null,
   history: [],
   lastDeclaredContextId: null,
+  search: "",
 };
 
 export const commandRegistryAtom = atom<CommandRegistryState>(initialState);
@@ -236,6 +237,17 @@ export const commandRegistryActions = {
       history: state.lastDeclaredContextId
         ? [{ type: "context" as const, id: state.lastDeclaredContextId }]
         : [],
+      search: "",
+    };
+  },
+
+  setSearch: (
+    state: CommandRegistryState,
+    search: string
+  ): CommandRegistryState => {
+    return {
+      ...state,
+      search,
     };
   },
 };
