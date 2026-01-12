@@ -1,13 +1,14 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { getRouteApi } from "@tanstack/react-router";
-import { Avatar } from "@workspace/ui/components/avatar";
-import { ChevronRight, CircleUser, Copy, User } from "lucide-react";
+import { Copy } from "lucide-react";
 import { useMemo } from "react";
 import { toast } from "sonner";
-import { assignThreadToUser } from "~/actions/threads";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { query } from "~/lib/live-state";
-import { Command, useCommandContext } from "../..";
+import { useCommandContext } from "../..";
+import { createAssignmentCommands } from "./assignment";
+import { createPriorityCommands } from "./priority";
+import { createStatusCommands } from "./status";
 
 export const ThreadCommands = ({ threadId }: { threadId: string }) => {
   const { activeOrganization } = useOrganizationSwitcher();
@@ -29,18 +30,45 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
     return (orgUsers?.map((orgUser) => orgUser.userId) ?? []).join(",");
   }, [orgUsers]);
 
+  const { commands: assignmentCommands, assignUserPage } = useMemo(
+    () =>
+      createAssignmentCommands({
+        threadId,
+        thread,
+        user,
+        orgUsers: orgUsers ?? null,
+      }),
+    [threadId, thread, user, orgUsers],
+  );
+
+  const { commands: statusCommands, statusPage } = useMemo(
+    () =>
+      createStatusCommands({
+        threadId,
+        thread,
+        user,
+      }),
+    [threadId, thread, user],
+  );
+
+  const { commands: priorityCommands, priorityPage } = useMemo(
+    () =>
+      createPriorityCommands({
+        threadId,
+        thread,
+        user,
+      }),
+    [threadId, thread, user],
+  );
+
   useCommandContext(
     {
       id: "thread",
       label: "Thread",
       commands: [
-        {
-          id: "assign-to",
-          label: "Assign to...",
-          icon: <User />,
-          pageId: "assign-user",
-          shortcut: "a",
-        },
+        ...assignmentCommands,
+        ...statusCommands,
+        ...priorityCommands,
         {
           id: "copy-link",
           label: "Copy Link",
@@ -50,135 +78,11 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
             toast.success("Link copied to clipboard");
           },
         },
-        {
-          id: "quick-unassign",
-          label: "Unassign",
-          icon: <CircleUser />,
-          onSelect: () => {
-            assignThreadToUser({
-              threadId: threadId,
-              newAssignedUser: { id: null, name: null },
-              oldAssignedUser: {
-                id: thread?.assignedUser?.id ?? null,
-                name: thread?.assignedUser?.name ?? null,
-              },
-              userId: user.id,
-            });
-          },
-          visible: (state) => {
-            return !!state.search;
-          },
-        },
-        {
-          id: "quick-self-assign",
-          label: "Self Assign",
-          icon: <User />,
-          onSelect: () => {
-            assignThreadToUser({
-              threadId: threadId,
-              newAssignedUser: { id: user.id, name: user.name },
-              oldAssignedUser: {
-                id: thread?.assignedUser?.id ?? null,
-                name: thread?.assignedUser?.name ?? null,
-              },
-              userId: user.id,
-            });
-          },
-          visible: (state) => {
-            return !!state.search;
-          },
-        },
-        ...(orgUsers?.map(
-          (orgUser) =>
-            ({
-              id: `quick-assign-to-${orgUser.userId}`,
-              label: (
-                <div className="flex items-center gap-0.5 text-foreground-secondary">
-                  Assign to <ChevronRight />
-                  <div className="text-foreground-primary">
-                    {orgUser.user.name}
-                  </div>
-                </div>
-              ),
-              keywords: [orgUser.user.name, "assign to", "user"],
-              icon: (
-                <Avatar
-                  variant="user"
-                  size="md"
-                  fallback={orgUser.user.name}
-                  src={orgUser.user.image}
-                />
-              ),
-              visible: (state) => {
-                return !!state.search;
-              },
-              onSelect: () => {
-                assignThreadToUser({
-                  threadId: threadId,
-                  newAssignedUser: {
-                    id: orgUser.userId,
-                    name: orgUser.user.name,
-                  },
-                  oldAssignedUser: {
-                    id: thread?.assignedUser?.id ?? null,
-                    name: thread?.assignedUser?.name ?? null,
-                  },
-                  userId: user.id,
-                });
-              },
-            }) satisfies Command,
-        ) ?? []),
       ],
       pages: {
-        "assign-user": {
-          id: "assign-user",
-          label: "Assign to user",
-          icon: <User />,
-          commands: [
-            {
-              id: "unassigned",
-              label: "Unassigned",
-              icon: <CircleUser />,
-              onSelect: () => {
-                assignThreadToUser({
-                  threadId: threadId,
-                  newAssignedUser: { id: null, name: null },
-                  oldAssignedUser: {
-                    id: thread?.assignedUser?.id ?? null,
-                    name: thread?.assignedUser?.name ?? null,
-                  },
-                  userId: user.id,
-                });
-              },
-            },
-            ...(orgUsers?.map((orgUser) => ({
-              id: orgUser.userId,
-              label: orgUser.user.name,
-              icon: (
-                <Avatar
-                  variant="user"
-                  size="md"
-                  fallback={orgUser.user.name}
-                  src={orgUser.user.image}
-                />
-              ),
-              onSelect: () => {
-                assignThreadToUser({
-                  threadId: threadId,
-                  newAssignedUser: {
-                    id: orgUser.userId,
-                    name: orgUser.user.name,
-                  },
-                  oldAssignedUser: {
-                    id: thread?.assignedUser?.id ?? null,
-                    name: thread?.assignedUser?.name ?? null,
-                  },
-                  userId: user.id,
-                });
-              },
-            })) ?? []),
-          ],
-        },
+        "assign-user": assignUserPage,
+        status: statusPage,
+        priority: priorityPage,
       },
       footer: (
         <div className="text-xs bg-foreground-tertiary/15 px-2 py-1 rounded-sm">
@@ -187,7 +91,16 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
       ),
     },
     true,
-    [threadId, userIds],
+    [
+      threadId,
+      userIds,
+      assignmentCommands,
+      assignUserPage,
+      statusCommands,
+      statusPage,
+      priorityCommands,
+      priorityPage,
+    ],
   );
 
   return null;
