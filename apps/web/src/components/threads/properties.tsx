@@ -22,6 +22,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { CircleUser } from "lucide-react";
 import { ulid } from "ulid";
+import { assignThreadToUser } from "~/actions/threads";
 import { mutate } from "~/lib/live-state";
 
 interface PropertiesSectionProps {
@@ -207,32 +208,19 @@ export function PropertiesSection({
           ]}
           value={thread?.assignedUser?.id}
           onValueChange={(value) => {
-            const oldAssignedUserId = thread?.assignedUser?.id ?? null;
-            const oldAssignedUserName = thread?.assignedUser?.name ?? null;
-            const newAssignedUserId = value;
-            const newAssignedUser = organizationUsers?.find(
-              (ou) => ou.userId === value,
-            );
-            const newAssignedUserName = newAssignedUser?.user.name ?? null;
-
-            mutate.thread.update(id, {
-              assignedUserId: value,
-            });
-
-            mutate.update.insert({
-              id: ulid().toLowerCase(),
+            assignThreadToUser({
               threadId: id,
+              newAssignedUser: {
+                id: value,
+                name:
+                  organizationUsers?.find((ou) => ou.userId === value)?.user
+                    .name ?? null,
+              },
+              oldAssignedUser: {
+                id: thread?.assignedUser?.id ?? null,
+                name: thread?.assignedUser?.name ?? null,
+              },
               userId: user.id,
-              type: "assigned_changed",
-              createdAt: new Date(),
-              metadataStr: JSON.stringify({
-                oldAssignedUserId,
-                newAssignedUserId,
-                oldAssignedUserName,
-                newAssignedUserName,
-                userName: user.name,
-              }),
-              replicatedStr: JSON.stringify({}),
             });
           }}
         >
