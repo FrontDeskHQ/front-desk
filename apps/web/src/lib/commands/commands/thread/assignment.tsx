@@ -120,6 +120,7 @@ export const createAssignmentCommands = ({
         id: "unassigned",
         label: "Unassigned",
         icon: <CircleUser />,
+        checked: !thread?.assignedUser,
         onSelect: async () => {
           await handleAssign({ id: null, name: null });
         },
@@ -135,6 +136,7 @@ export const createAssignmentCommands = ({
             src={orgUser.user.image}
           />
         ),
+        checked: thread?.assignedUser?.id === orgUser.userId,
         onSelect: async () => {
           await handleAssign({
             id: orgUser.userId,

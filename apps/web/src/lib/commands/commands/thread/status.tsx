@@ -78,6 +78,7 @@ export const createStatusCommands = ({
       id: statusKey,
       label: statusValue.label,
       icon: <StatusIndicator status={+statusKey} />,
+      checked: thread?.status === +statusKey,
       onSelect: async () => {
         await handleStatusChange(+statusKey);
       },

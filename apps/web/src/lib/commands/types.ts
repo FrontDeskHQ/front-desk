@@ -14,6 +14,7 @@ type BaseCommand = {
   disabled?: boolean;
   group?: string; // Optional group label for organizing commands
   visible?: boolean | ((state: CommandRegistryState) => boolean);
+  checked?: boolean;
 };
 
 export type PageCommand = BaseCommand & {

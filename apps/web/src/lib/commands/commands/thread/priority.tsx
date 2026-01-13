@@ -91,6 +91,7 @@ export const createPriorityCommands = ({
       id: priorityKey,
       label: priorityLabels[+priorityKey] ?? priorityLabel,
       icon: <PriorityIndicator priority={+priorityKey} />,
+      checked: thread?.priority === +priorityKey,
       onSelect: async () => {
         await handlePriorityChange(+priorityKey);
       },

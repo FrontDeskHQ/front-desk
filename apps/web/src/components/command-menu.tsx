@@ -13,7 +13,7 @@ import {
 } from "@workspace/ui/components/command";
 import { Keybind } from "@workspace/ui/components/keybind";
 import { useAtomValue } from "jotai/react";
-import { ChevronRight } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
@@ -189,6 +189,7 @@ export const CommandMenu = () => {
         {command.icon}
         <span>{command.label}</span>
         <CommandTrail>
+          {command.checked && <Check className="text-foreground-secondary" />}
           {command.shortcut && <CommandShortcut keybind={command.shortcut} />}
           {(command as PageCommand).pageId && <ChevronRight />}
         </CommandTrail>
