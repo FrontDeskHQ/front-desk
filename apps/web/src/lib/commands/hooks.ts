@@ -102,13 +102,11 @@ export const useCommandMenu = () => {
   };
 
   const goBack = () => {
-    setRegistry((state) => {
-      const currentPage = commandRegistryActions.getCurrentPage(state);
-      if (currentPage?.onBack) {
-        currentPage.onBack();
-      }
-      return commandRegistryActions.goBack(state);
-    });
+    const currentPage = commandRegistryActions.getCurrentPage(registry);
+    if (currentPage?.onBack) {
+      currentPage.onBack();
+    }
+    setRegistry((state) => commandRegistryActions.goBack(state));
   };
 
   const setContext = (contextId: string | null) => {

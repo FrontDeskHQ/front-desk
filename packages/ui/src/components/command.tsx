@@ -161,19 +161,8 @@ function CommandItem({
   );
 }
 
-function CommandShortcut({
-  keybind,
-  className,
-  ...props
-}: {
-  keybind: string;
-  className?: string;
-}) {
-  return (
-    <span data-slot="command-shortcut" className={className} {...props}>
-      <Keybind keybind={keybind} />
-    </span>
-  );
+function CommandShortcut(props: React.ComponentProps<typeof Keybind>) {
+  return <Keybind data-slot="command-shortcut" {...props} />;
 }
 
 function CommandTrail({ className, ...props }: React.ComponentProps<"div">) {

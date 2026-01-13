@@ -28,8 +28,8 @@ export const createStatusCommands = ({
   commands: Command[];
   statusPage: CommandPage;
 } => {
-  const handleStatusChange = (newStatus: number) => {
-    updateThreadStatus({
+  const handleStatusChange = async (newStatus: number) => {
+    await updateThreadStatus({
       threadId,
       newStatus,
       oldStatus: thread?.status ?? 0,
@@ -63,8 +63,8 @@ export const createStatusCommands = ({
           visible: (state) => {
             return !!state.search;
           },
-          onSelect: () => {
-            handleStatusChange(+statusKey);
+          onSelect: async () => {
+            await handleStatusChange(+statusKey);
           },
         }) satisfies Command,
     ),
@@ -78,8 +78,8 @@ export const createStatusCommands = ({
       id: statusKey,
       label: statusValue.label,
       icon: <StatusIndicator status={+statusKey} />,
-      onSelect: () => {
-        handleStatusChange(+statusKey);
+      onSelect: async () => {
+        await handleStatusChange(+statusKey);
       },
     })),
   };

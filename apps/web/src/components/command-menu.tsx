@@ -228,21 +228,21 @@ export const CommandMenu = () => {
         <CommandList>
           <CommandEmpty>No results found.</CommandEmpty>
           {currentPageId ? (
-            pageUngrouped.length > 0 && (
-              <>
+            <>
+              {pageUngrouped.length > 0 && (
                 <CommandGroup>
                   {pageUngrouped.map((command) => renderCommand(command))}
                 </CommandGroup>
-                {/* Grouped page commands */}
-                {sortedPageGroups.map((groupName) => (
-                  <CommandGroup key={groupName} heading={groupName}>
-                    {pageGrouped[groupName].map((command) =>
-                      renderCommand(command),
-                    )}
-                  </CommandGroup>
-                ))}
-              </>
-            )
+              )}
+              {/* Grouped page commands */}
+              {sortedPageGroups.map((groupName) => (
+                <CommandGroup key={groupName} heading={groupName}>
+                  {pageGrouped[groupName].map((command) =>
+                    renderCommand(command),
+                  )}
+                </CommandGroup>
+              ))}
+            </>
           ) : (
             <>
               {/* 1. Ungrouped context commands */}

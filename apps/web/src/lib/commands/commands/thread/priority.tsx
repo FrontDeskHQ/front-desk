@@ -35,8 +35,8 @@ export const createPriorityCommands = ({
   commands: Command[];
   priorityPage: CommandPage;
 } => {
-  const handlePriorityChange = (newPriority: number) => {
-    updateThreadPriority({
+  const handlePriorityChange = async (newPriority: number) => {
+    await updateThreadPriority({
       threadId,
       newPriority,
       oldPriority: thread?.priority ?? 0,
@@ -76,8 +76,8 @@ export const createPriorityCommands = ({
           visible: (state) => {
             return !!state.search;
           },
-          onSelect: () => {
-            handlePriorityChange(+priorityKey);
+          onSelect: async () => {
+            await handlePriorityChange(+priorityKey);
           },
         }) satisfies Command,
     ),
@@ -91,8 +91,8 @@ export const createPriorityCommands = ({
       id: priorityKey,
       label: priorityLabels[+priorityKey] ?? priorityLabel,
       icon: <PriorityIndicator priority={+priorityKey} />,
-      onSelect: () => {
-        handlePriorityChange(+priorityKey);
+      onSelect: async () => {
+        await handlePriorityChange(+priorityKey);
       },
     })),
   };

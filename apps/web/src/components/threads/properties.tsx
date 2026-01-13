@@ -207,8 +207,8 @@ export function PropertiesSection({
             })) ?? []),
           ]}
           value={thread?.assignedUser?.id}
-          onValueChange={(value) => {
-            assignThreadToUser({
+          onValueChange={async (value) => {
+            await assignThreadToUser({
               threadId: id,
               newAssignedUser: {
                 id: value,

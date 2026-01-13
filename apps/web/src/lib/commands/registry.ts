@@ -148,18 +148,53 @@ export const commandRegistryActions = {
     }
 
     if (last.type === "page") {
+      const previousPage = newHistory
+        .slice()
+        .reverse()
+        .find((entry) => entry.type === "page");
+
       return {
         ...state,
-        currentPageId: null,
+        currentPageId: previousPage ? (previousPage.id as PageId) : null,
         history: newHistory,
       };
     }
 
     if (last.type === "context") {
+      // Find the most recent context in the remaining history
+      const previousContext = newHistory
+        .slice()
+        .reverse()
+        .find((entry) => entry.type === "context");
+
+      // When going back from a context, find the most recent page
+      // that was set after the previous context (if any)
+      let previousPage: { type: "context" | "page"; id: string } | undefined;
+      if (previousContext) {
+        // Find the index of the previous context in the history by comparing id
+        const contextIndex = newHistory.findIndex(
+          (entry) => entry.type === "context" && entry.id === previousContext.id
+        );
+        // Find pages that appear after this context
+        const pagesAfterContext = newHistory
+          .slice(contextIndex + 1)
+          .filter((entry) => entry.type === "page");
+        // Get the most recent page (last one in the filtered array)
+        previousPage = pagesAfterContext[pagesAfterContext.length - 1];
+      } else {
+        // If no previous context, find the most recent page in all remaining history
+        previousPage = newHistory
+          .slice()
+          .reverse()
+          .find((entry) => entry.type === "page");
+      }
+
       return {
         ...state,
-        currentContextId: null,
-        currentPageId: null,
+        currentContextId: previousContext
+          ? (previousContext.id as ContextId)
+          : null,
+        currentPageId: previousPage ? (previousPage.id as PageId) : null,
         history: newHistory,
       };
     }

@@ -37,11 +37,11 @@ export const createAssignmentCommands = ({
   commands: Command[];
   assignUserPage: CommandPage;
 } => {
-  const handleAssign = (newAssignedUser: {
+  const handleAssign = async (newAssignedUser: {
     id: string | null;
     name: string | null;
   }) => {
-    assignThreadToUser({
+    await assignThreadToUser({
       threadId: threadId,
       newAssignedUser,
       oldAssignedUser: {
@@ -64,16 +64,16 @@ export const createAssignmentCommands = ({
       id: "quick-self-assign",
       label: "Self assign",
       icon: <User />,
-      onSelect: () => {
-        handleAssign({ id: user.id, name: user.name });
+      onSelect: async () => {
+        await handleAssign({ id: user.id, name: user.name });
       },
     },
     {
       id: "quick-unassign",
       label: "Unassign",
       icon: <CircleUser />,
-      onSelect: () => {
-        handleAssign({ id: null, name: null });
+      onSelect: async () => {
+        await handleAssign({ id: null, name: null });
       },
       visible: (state) => {
         return !!state.search;
@@ -101,8 +101,8 @@ export const createAssignmentCommands = ({
           visible: (state) => {
             return !!state.search;
           },
-          onSelect: () => {
-            handleAssign({
+          onSelect: async () => {
+            await handleAssign({
               id: orgUser.userId,
               name: orgUser.user.name,
             });
@@ -120,8 +120,8 @@ export const createAssignmentCommands = ({
         id: "unassigned",
         label: "Unassigned",
         icon: <CircleUser />,
-        onSelect: () => {
-          handleAssign({ id: null, name: null });
+        onSelect: async () => {
+          await handleAssign({ id: null, name: null });
         },
       },
       ...(orgUsers?.map((orgUser) => ({
@@ -135,8 +135,8 @@ export const createAssignmentCommands = ({
             src={orgUser.user.image}
           />
         ),
-        onSelect: () => {
-          handleAssign({
+        onSelect: async () => {
+          await handleAssign({
             id: orgUser.userId,
             name: orgUser.user.name,
           });
