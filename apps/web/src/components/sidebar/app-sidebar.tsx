@@ -1,4 +1,6 @@
+import { useFlag } from "@reflag/react-sdk";
 import { Link, useMatches } from "@tanstack/react-router";
+import { ActionButton } from "@workspace/ui/components/button";
 import {
   Sidebar,
   SidebarContent,
@@ -10,7 +12,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
-import { MessagesSquare } from "lucide-react";
+import { MessagesSquare, Search } from "lucide-react";
 import { OrgSwitcher } from "./organization-switcher";
 
 const items: { title: string; url: string; icon: React.ComponentType<any> }[] =
@@ -25,10 +27,22 @@ const items: { title: string; url: string; icon: React.ComponentType<any> }[] =
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const matches = useMatches();
 
+  const { isEnabled: isSearchEnabled } = useFlag("in-app-search");
+
   return (
     <Sidebar variant="inset" className="bg-none">
-      <SidebarHeader className="bg-none">
+      <SidebarHeader className="bg-none flex-row">
         <OrgSwitcher />
+        {isSearchEnabled && (
+          <ActionButton
+            variant="ghost"
+            size="icon"
+            tooltip="Search"
+            render={<Link to="/app/search" />}
+          >
+            <Search />
+          </ActionButton>
+        )}
         {/* <NavMain items={data.navMain} /> */}
       </SidebarHeader>
       <SidebarContent className="bg-none">

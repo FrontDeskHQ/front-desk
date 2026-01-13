@@ -68,6 +68,7 @@
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^4.6.0",
     "postcss": "^8.5.1",
+    "react-scan": "^0.4.3",
     "tailwindcss": "^4.1.12",
     "typescript": "^5.7.2",
     "vite": "^7.1.10",
