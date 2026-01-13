@@ -2,6 +2,7 @@ import {
   StatusIndicator,
   statusValues,
 } from "@workspace/ui/components/indicator";
+import { ChevronRight } from "lucide-react";
 import { updateThreadStatus } from "~/actions/threads";
 import type { Command, CommandPage } from "../../types";
 
@@ -43,7 +44,7 @@ export const createStatusCommands = ({
     {
       id: "change-status",
       label: "Change status...",
-      icon: <StatusIndicator status={thread?.status ?? 0} />,
+      icon: <StatusIndicator status={0} />,
       pageId: "status",
       shortcut: "s",
     },
@@ -51,7 +52,12 @@ export const createStatusCommands = ({
       ([statusKey, statusValue]) =>
         ({
           id: `quick-status-${statusKey}`,
-          label: statusValue.label,
+          label: (
+            <div className="flex items-center gap-0.5 text-foreground-secondary">
+              Change status <ChevronRight />
+              <div className="text-foreground-primary">{statusValue.label}</div>
+            </div>
+          ),
           keywords: [statusValue.label.toLowerCase(), "status"],
           icon: <StatusIndicator status={+statusKey} />,
           visible: (state) => {

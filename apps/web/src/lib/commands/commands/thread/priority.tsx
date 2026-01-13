@@ -1,12 +1,19 @@
-import { PriorityIndicator, priorityText } from "@workspace/ui/components/indicator";
+import {
+  PriorityIndicator,
+  priorityText,
+} from "@workspace/ui/components/indicator";
+import { ChevronRight } from "lucide-react";
 import { updateThreadPriority } from "~/actions/threads";
 import type { Command, CommandPage } from "../../types";
 
 type PriorityCommandsParams = {
   threadId: string;
-  thread: {
-    priority?: number;
-  } | null | undefined;
+  thread:
+    | {
+        priority?: number;
+      }
+    | null
+    | undefined;
   user: {
     id: string;
     name: string;
@@ -18,7 +25,6 @@ const priorityLabels: Record<number, string> = {
   1: "Low priority",
   2: "Medium priority",
   3: "High priority",
-  4: "Urgent priority",
 };
 
 export const createPriorityCommands = ({
@@ -53,7 +59,14 @@ export const createPriorityCommands = ({
       ([priorityKey, priorityLabel]) =>
         ({
           id: `quick-priority-${priorityKey}`,
-          label: priorityLabels[+priorityKey] ?? priorityLabel,
+          label: (
+            <div className="flex items-center gap-0.5 text-foreground-secondary">
+              Change priority <ChevronRight />
+              <div className="text-foreground-primary">
+                {priorityLabels[+priorityKey] ?? priorityLabel}
+              </div>
+            </div>
+          ),
           keywords: [
             priorityLabel.toLowerCase(),
             priorityLabels[+priorityKey]?.toLowerCase() ?? "",

@@ -39,7 +39,7 @@ export const priorityText: Record<number, string> = {
   1: "Low",
   2: "Medium",
   3: "High",
-  4: "Urgent",
+  // 4: "Urgent",
 };
 
 export const PriorityText = ({ priority }: { priority: number }) => {

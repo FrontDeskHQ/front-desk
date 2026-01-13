@@ -61,22 +61,19 @@ export const createAssignmentCommands = ({
       shortcut: "a",
     },
     {
+      id: "quick-self-assign",
+      label: "Self assign",
+      icon: <User />,
+      onSelect: () => {
+        handleAssign({ id: user.id, name: user.name });
+      },
+    },
+    {
       id: "quick-unassign",
       label: "Unassign",
       icon: <CircleUser />,
       onSelect: () => {
         handleAssign({ id: null, name: null });
-      },
-      visible: (state) => {
-        return !!state.search;
-      },
-    },
-    {
-      id: "quick-self-assign",
-      label: "Self Assign",
-      icon: <User />,
-      onSelect: () => {
-        handleAssign({ id: user.id, name: user.name });
       },
       visible: (state) => {
         return !!state.search;
