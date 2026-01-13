@@ -5,11 +5,16 @@ import { cn } from "@workspace/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import * as React from "react";
 import { Button } from "./button";
+import { KeybindIsolation } from "./keybind";
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
+  return (
+    <KeybindIsolation>
+      <DialogPrimitive.Root data-slot="dialog" {...props} />
+    </KeybindIsolation>
+  );
 }
 
 function DialogTrigger({
@@ -66,14 +71,16 @@ function DialogContent({
   className,
   children,
   showCloseButton = true,
+  hideOverlay = false,
   ...props
 }: Omit<React.ComponentProps<typeof DialogPrimitive.Popup>, "children"> & {
   children?: React.ReactNode;
   showCloseButton?: boolean;
+  hideOverlay?: boolean;
 }) {
   return (
     <DialogPortal data-slot="dialog-portal">
-      <DialogOverlay />
+      {!hideOverlay && <DialogOverlay />}
       <DialogPrimitive.Viewport className="fixed inset-0 flex items-center justify-center">
         <DialogPrimitive.Popup
           data-slot="dialog-content"

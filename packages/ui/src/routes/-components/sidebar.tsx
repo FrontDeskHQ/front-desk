@@ -41,6 +41,16 @@ export const RootSidebar = () => {
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  data-active={matches.at(-1)?.pathname === "/command"}
+                  asChild
+                >
+                  <Link to="/command">
+                    <span>Command</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
