@@ -16,18 +16,21 @@ type ThreadInputAreaProps = {
   organizationId: string | undefined;
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
   user: { id: string; name: string };
+  lastMessageId: string | undefined;
 };
 
 export const ThreadInputArea = ({
   threadId,
   organizationId,
   threadLabels,
+  lastMessageId,
   user,
 }: ThreadInputAreaProps) => {
   const { suggestedLabels, suggestion } = usePendingLabelSuggestions({
     threadId,
     organizationId,
     threadLabels,
+    lastMessageId,
   });
 
   const hasSuggestions = suggestedLabels?.length > 0;

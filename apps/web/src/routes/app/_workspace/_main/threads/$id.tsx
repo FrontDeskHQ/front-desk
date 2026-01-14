@@ -316,6 +316,7 @@ function RouteComponent() {
               organizationId={thread?.organizationId}
               threadLabels={threadLabels}
               user={user}
+              lastMessageId={allItems[allItems.length - 1]?.id}
             />
           </div>
         </div>

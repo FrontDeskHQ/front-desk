@@ -10,15 +10,17 @@ type UsePendingLabelSuggestionsProps = {
   threadId: string;
   organizationId: string | undefined;
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
+  lastMessageId: string | undefined;
 };
 
 export const usePendingLabelSuggestions = ({
   threadId,
   organizationId,
   threadLabels,
+  lastMessageId,
 }: UsePendingLabelSuggestionsProps) => {
   useQuery({
-    queryKey: ["label-suggestions", threadId, organizationId],
+    queryKey: ["label-suggestions", threadId, organizationId, lastMessageId],
     queryFn: () => {
       if (!organizationId) return null;
       return fetchClient.mutate.label.suggestLabels({ threadId });
@@ -33,6 +35,8 @@ export const usePendingLabelSuggestions = ({
       organizationId: organizationId,
     }),
   );
+
+  console.log("suggestion", suggestion, threadId, organizationId);
 
   const suggestionMetadata = useMemo(() => {
     if (!suggestion?.metadataStr) {
