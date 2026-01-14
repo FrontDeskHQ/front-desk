@@ -1,9 +1,10 @@
 import { useLiveQuery } from "@live-state/sync/client";
+import { useQuery } from "@tanstack/react-query";
 import { ActionButton } from "@workspace/ui/components/button";
 import { Check, X, Zap } from "lucide-react";
 import { useMemo } from "react";
 import { ulid } from "ulid";
-import { mutate, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
 
 type UsePendingLabelSuggestionsProps = {
   threadId: string;
@@ -16,6 +17,15 @@ export const usePendingLabelSuggestions = ({
   organizationId,
   threadLabels,
 }: UsePendingLabelSuggestionsProps) => {
+  useQuery({
+    queryKey: ["label-suggestions", threadId, organizationId],
+    queryFn: () => {
+      if (!organizationId) return null;
+      return fetchClient.mutate.label.suggestLabels({ threadId });
+    },
+    enabled: !!threadId && !!organizationId,
+  });
+
   const suggestion = useLiveQuery(
     query.suggestion.first({
       type: "label",
