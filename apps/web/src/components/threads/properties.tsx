@@ -45,7 +45,7 @@ export function PropertiesSection({
   organizationUsers,
 }: PropertiesSectionProps) {
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <div className="text-muted-foreground text-xs">Properties</div>
       <div className="flex flex-col gap-1.5">
         <Combobox
@@ -271,6 +271,6 @@ export function PropertiesSection({
           </ComboboxContent>
         </Combobox>
       </div>
-    </>
+    </div>
   );
 }

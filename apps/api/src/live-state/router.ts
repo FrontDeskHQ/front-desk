@@ -9,6 +9,7 @@ import { resend } from "../lib/resend";
 import { privateRoute, publicRoute } from "./factories";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
+import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
@@ -624,6 +625,7 @@ export const router = createRouter({
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,
+    suggestion: suggestionRoute,
     ...labelsRoute,
   },
 });

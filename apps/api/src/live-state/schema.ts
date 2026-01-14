@@ -140,6 +140,17 @@ const threadLabel = object("threadLabel", {
   enabled: boolean().default(true),
 });
 
+const suggestion = object("suggestion", {
+  id: id(),
+  type: string(), // "label", "priority", etc. - for future extensibility
+  entityId: string(), // thread ID, user ID, etc. - the entity being suggested for
+  organizationId: reference("organization.id"),
+  resultsStr: string().nullable(), // JSON array of results (e.g., label IDs)
+  metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
@@ -148,6 +159,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   subscriptions: many(subscription, "organizationId"),
   labels: many(label, "organizationId"),
   authors: many(author, "organizationId"),
+  suggestions: many(suggestion, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -203,6 +215,11 @@ const threadLabelRelations = createRelations(threadLabel, ({ one }) => ({
   thread: one(thread, "threadId"),
   label: one(label, "labelId"),
 }));
+
+const suggestionRelations = createRelations(suggestion, ({ one }) => ({
+  organization: one(organization, "organizationId"),
+}));
+
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
@@ -224,6 +241,7 @@ export const schema = createSchema({
   allowlist,
   label,
   threadLabel,
+  suggestion,
   // relations
   organizationUserRelations,
   organizationRelations,
@@ -236,4 +254,5 @@ export const schema = createSchema({
   updateRelations,
   labelRelations,
   threadLabelRelations,
+  suggestionRelations,
 });
