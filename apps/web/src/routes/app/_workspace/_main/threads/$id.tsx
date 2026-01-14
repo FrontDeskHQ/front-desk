@@ -2,7 +2,6 @@
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
-import { useQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
   getRouteApi,
@@ -11,12 +10,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import {
-  Editor,
-  EditorInput,
-  EditorSubmit,
-  RichText,
-} from "@workspace/ui/components/blocks/tiptap";
+import { RichText } from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -24,7 +18,7 @@ import {
   BreadcrumbList,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { ActionButton, Button } from "@workspace/ui/components/button";
+import { Button } from "@workspace/ui/components/button";
 import {
   Card,
   CardContent,
@@ -51,14 +45,14 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { Check, Copy, MoreHorizontalIcon, Trash2, X, Zap } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
-import { ulid } from "ulid";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
+import { ThreadInputArea } from "~/components/threads/thread-input-area";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -132,55 +126,6 @@ function RouteComponent() {
       .include({ label: true }),
   );
 
-  const suggestion = useLiveQuery(
-    query.suggestion.first({
-      type: "label",
-      entityId: id,
-      organizationId: thread?.organizationId,
-    }),
-  );
-
-  const suggestionMetadata = useMemo(() => {
-    if (!suggestion?.metadataStr) {
-      return { dismissed: [], accepted: [] };
-    }
-    try {
-      return JSON.parse(suggestion.metadataStr) as {
-        dismissed?: string[];
-        accepted?: string[];
-      };
-    } catch {
-      return { dismissed: [], accepted: [] };
-    }
-  }, [suggestion?.metadataStr]);
-
-  const dismissedLabelIds = new Set(suggestionMetadata.dismissed ?? []);
-
-  const { data: suggestionsData, refetch: refetchSuggestions } = useQuery({
-    queryKey: ["label-suggestions", id],
-    queryFn: async () => {
-      const result = await fetchClient.mutate.label.suggestLabels({
-        threadId: id,
-      });
-      return result as { labelIds: string[]; cached: boolean };
-    },
-    enabled: !!id,
-    staleTime: 1000 * 60 * 5, // 5 minutes
-  });
-
-  const suggestedLabelIds = useMemo(() => {
-    if (!suggestionsData?.labelIds) return [];
-
-    const appliedLabelIds = new Set(
-      threadLabels?.map((tl) => tl.label.id) ?? [],
-    );
-
-    return suggestionsData.labelIds.filter(
-      (labelId) =>
-        !appliedLabelIds.has(labelId) && !dismissedLabelIds.has(labelId),
-    );
-  }, [suggestionsData?.labelIds, threadLabels, dismissedLabelIds]);
-
   const allItems = thread
     ? [
         ...(thread?.messages ?? []).map((msg) => ({
@@ -225,77 +170,6 @@ function RouteComponent() {
       },
     });
     navigate({ to: "/app/threads" });
-  };
-
-  const suggestedLabels = useLiveQuery(
-    query.label.where({ id: { $in: suggestedLabelIds }, enabled: true }),
-  );
-
-  const handleAcceptLabel = async (labelId: string) => {
-    const existingThreadLabel = threadLabels?.find(
-      (tl) => tl.label.id === labelId,
-    );
-
-    if (existingThreadLabel) {
-      mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
-    } else {
-      mutate.threadLabel.insert({
-        id: ulid().toLowerCase(),
-        threadId: id,
-        labelId: labelId,
-        enabled: true,
-      });
-    }
-
-    await fetchClient.mutate.label.updateSuggestionMetadata({
-      threadId: id,
-      acceptedLabelIds: [labelId],
-    });
-
-    await refetchSuggestions();
-
-    toast.success("Label added");
-  };
-
-  const handleAcceptAllLabels = async () => {
-    for (const labelId of suggestedLabelIds) {
-      const existingThreadLabel = threadLabels?.find(
-        (tl) => tl.label.id === labelId,
-      );
-
-      if (existingThreadLabel) {
-        mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
-      } else {
-        mutate.threadLabel.insert({
-          id: ulid().toLowerCase(),
-          threadId: id,
-          labelId: labelId,
-          enabled: true,
-        });
-      }
-    }
-
-    await fetchClient.mutate.label.updateSuggestionMetadata({
-      threadId: id,
-      acceptedLabelIds: suggestedLabelIds,
-    });
-
-    await refetchSuggestions();
-
-    toast.success(
-      `${suggestedLabelIds.length} label${suggestedLabelIds.length > 1 ? "s" : ""} added`,
-    );
-  };
-
-  const handleDismissAllLabels = async () => {
-    await fetchClient.mutate.label.updateSuggestionMetadata({
-      threadId: id,
-      dismissedLabelIds: suggestedLabelIds,
-    });
-
-    await refetchSuggestions();
-
-    toast.success("Suggestions dismissed");
   };
 
   return (
@@ -437,89 +311,12 @@ function RouteComponent() {
                 return null;
               })}
             </div>
-            <div className="bottom-2.5 w-full flex flex-col bg-background-tertiary rounded-md border border-input">
-              {suggestedLabelIds.length > 0 && (
-                <div className="flex gap-2 items-center px-4 py-2">
-                  <Zap className="size-3.5 text-foreground-secondary stroke-2" />
-                  <div className="text-foreground-secondary mr-2">
-                    Label suggestions
-                  </div>
-
-                  {suggestedLabelIds.map((label) => (
-                    <ActionButton
-                      key={label}
-                      variant="ghost"
-                      size="sm"
-                      tooltip={`Add ${label} label`}
-                      className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-                      onClick={() => handleAcceptLabel(label)}
-                    >
-                      <div
-                        className="size-2 rounded-full"
-                        style={{ backgroundColor: "#000000" }}
-                      />
-                      {label}
-                    </ActionButton>
-                  ))}
-                  <ActionButton
-                    variant="ghost"
-                    size="icon-sm"
-                    tooltip="Accept all"
-                    className="text-foreground-secondary"
-                    onClick={handleAcceptAllLabels}
-                  >
-                    <Check />
-                  </ActionButton>
-                  <ActionButton
-                    variant="ghost"
-                    size="icon-sm"
-                    tooltip="Ignore all"
-                    className="text-foreground-secondary"
-                    onClick={handleDismissAllLabels}
-                  >
-                    <X />
-                  </ActionButton>
-                </div>
-              )}
-              <Editor
-                onSubmit={(value) => {
-                  const author = query.author.first({ userId: user.id }).get();
-                  let authorId = author?.id;
-
-                  if (!authorId) {
-                    authorId = ulid().toLowerCase();
-
-                    mutate.author.insert({
-                      id: authorId,
-                      userId: user.id,
-                      metaId: null,
-                      name: user.name,
-                      organizationId: thread?.organizationId,
-                    });
-                  }
-
-                  mutate.message.insert({
-                    id: ulid().toLowerCase(),
-                    authorId: authorId,
-                    content: JSON.stringify(value),
-                    threadId: id,
-                    createdAt: new Date(),
-                    origin: null,
-                    externalMessageId: null,
-                  });
-                }}
-              >
-                <EditorInput
-                  className={cn(
-                    "shadow-lg bg-[#1B1B1E] border-0",
-                    suggestedLabelIds.length > 0 && "border-t",
-                  )}
-                  placeholder="Write a reply..."
-                >
-                  <EditorSubmit />
-                </EditorInput>
-              </Editor>
-            </div>
+            <ThreadInputArea
+              threadId={id}
+              organizationId={thread?.organizationId}
+              threadLabels={threadLabels}
+              user={user}
+            />
           </div>
         </div>
         <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
