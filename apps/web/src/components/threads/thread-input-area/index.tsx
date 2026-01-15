@@ -65,6 +65,7 @@ export const ThreadInputArea = ({
         suggestedLabels={suggestedLabels}
         threadLabels={threadLabels}
         suggestion={suggestion}
+        captureThreadEvent={captureThreadEvent}
       />
       <Editor
         onSubmit={(value) => {
