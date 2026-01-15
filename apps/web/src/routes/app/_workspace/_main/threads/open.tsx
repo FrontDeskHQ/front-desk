@@ -1,6 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { statusValues } from "@workspace/ui/components/indicator";
 import { seo } from "~/utils/seo";
 import { ThreadsList } from "./index";
+
+// Extract status constants from statusValues to avoid magic numbers
+const STATUS_RESOLVED =
+  Number(
+    Object.entries(statusValues).find(
+      ([, value]) => value.label === "Resolved",
+    )?.[0],
+  ) ?? 2;
+const STATUS_CLOSED =
+  Number(
+    Object.entries(statusValues).find(
+      ([, value]) => value.label === "Closed",
+    )?.[0],
+  ) ?? 3;
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/open")({
   component: RouteComponent,
@@ -21,7 +36,7 @@ function RouteComponent() {
     <ThreadsList
       subTitle="Open"
       fixedFilters={{
-        status: { $not: { $in: [2, 3] } }, // Exclude Resolved (2) and Closed (3)
+        status: { $not: { $in: [STATUS_RESOLVED, STATUS_CLOSED] } },
       }}
     />
   );
