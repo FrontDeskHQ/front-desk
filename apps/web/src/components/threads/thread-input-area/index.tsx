@@ -9,7 +9,7 @@ import { mutate, query } from "~/lib/live-state";
 import {
   LabelSuggestions,
   usePendingLabelSuggestions,
-} from "./label-suggestions";
+} from "./support-intelligence";
 
 type ThreadInputAreaProps = {
   threadId: string;
