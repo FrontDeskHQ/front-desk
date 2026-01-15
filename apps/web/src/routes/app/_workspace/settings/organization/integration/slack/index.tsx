@@ -24,7 +24,7 @@ import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/slack/",
+  "/app/_workspace/settings/organization/integration/slack/"
 )({
   component: RouteComponent,
   head: () => {
@@ -41,7 +41,7 @@ export const Route = createFileRoute(
 
 // biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "slack",
+  (option) => option.id === "slack"
 )!;
 
 // Slack bot scopes - chat:write, channels:read, channels:history, groups:read, im:read, users:read
@@ -60,7 +60,7 @@ const generateStateToken = (): string => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
+    ""
   );
 };
 
@@ -68,7 +68,7 @@ function RouteComponent() {
   const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "slack" }),
+    query.integration.first({ organizationId: activeOrg?.id, type: "slack" })
   );
 
   const { integrations } = usePlanLimits("slack");
@@ -79,7 +79,7 @@ function RouteComponent() {
     if (!integration?.configStr) return null;
     try {
       return slackIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr),
+        JSON.parse(integration.configStr)
       );
     } catch {
       return {
@@ -94,7 +94,7 @@ function RouteComponent() {
   const updateIntegration = useCallback(
     (
       config: z.input<typeof slackIntegrationSchema>,
-      enabled: boolean = true,
+      enabled: boolean = true
     ) => {
       if (integration) {
         mutate.integration.update(integration.id, {
@@ -120,7 +120,7 @@ function RouteComponent() {
         });
       }
     },
-    [integration, activeOrg, parsedConfig?.data],
+    [integration, activeOrg, parsedConfig?.data]
   );
 
   const handleEnableSlack = async () => {
@@ -169,7 +169,9 @@ function RouteComponent() {
     const baseUrl = window.location.href
       .replace(/[?#].*$/, "")
       .replace(/\/$/, "");
-    const redirectUri = `${import.meta.env.DEV ? "https://redirectmeto.com/" : ""}${baseUrl}/redirect`;
+    const redirectUri = `${
+      import.meta.env.DEV ? "https://redirectmeto.com/" : ""
+    }${baseUrl}/redirect`;
 
     const queryParams = new URLSearchParams({
       client_id: SLACK_CLIENT_ID,
@@ -185,6 +187,9 @@ function RouteComponent() {
       integration_type: "slack",
     });
 
+    // Wait briefly to ensure analytics event is transmitted before navigation
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
     window.location.href = slackOAuthUrl;
   };
 
@@ -193,7 +198,7 @@ function RouteComponent() {
 
     console.error(
       "Invalid Slack integration configuration",
-      parsedConfig.error,
+      parsedConfig.error
     );
 
     return (
