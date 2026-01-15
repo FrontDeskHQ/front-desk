@@ -18,6 +18,7 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
 import {
@@ -142,17 +143,7 @@ function RouteComponent() {
                       </BreadcrumbItem>
                       <BreadcrumbSeparator />
                       <BreadcrumbItem>
-                        <BreadcrumbLink asChild className="text-white">
-                          <Link
-                            to="/support/$slug/threads/$id"
-                            params={{
-                              slug: organization.slug,
-                              id: thread.id,
-                            }}
-                          >
-                            {thread.name}
-                          </Link>
-                        </BreadcrumbLink>
+                        <BreadcrumbPage>{thread.name}</BreadcrumbPage>
                       </BreadcrumbItem>
                     </BreadcrumbList>
                   </Breadcrumb>

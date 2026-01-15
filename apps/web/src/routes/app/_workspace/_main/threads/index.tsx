@@ -7,6 +7,14 @@ import {
   type FilterOptions,
   type FilterValue,
 } from "@workspace/ui/components/blocks/filter";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
 import { Button } from "@workspace/ui/components/button";
 import {
   CardAction,
@@ -55,21 +63,17 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-export const Route = createFileRoute("/app/_workspace/_main/threads/")({
-  component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Threads - FrontDesk",
-          description: "Manage your support threads",
-        }),
-      ],
-    };
-  },
-});
+export type FixedFilters = {
+  status?: { $not: { $in: number[] } } | { $in: number[] };
+  assignedUserId?: string;
+};
 
-function RouteComponent() {
+export interface ThreadsListProps {
+  fixedFilters?: FixedFilters;
+  subTitle?: string;
+}
+
+export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
 
   const organization = useLiveQuery(
@@ -100,6 +104,7 @@ function RouteComponent() {
   let threadsQuery = query.thread.where({
     organizationId: organization?.id,
     deletedAt: null,
+    ...fixedFilters,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
@@ -175,16 +180,37 @@ function RouteComponent() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="gap-4">Threads</CardTitle>
-        <CardAction side="right">
-          {/* TODO: Implement search functionality when live-state supports full text search */}
-          {/* <Search placeholder="Search" /> */}
-
+        <CardTitle className="gap-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                {subTitle ? (
+                  <BreadcrumbLink asChild>
+                    <Link to="/app/threads">Threads</Link>
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage>Threads</BreadcrumbPage>
+                )}
+              </BreadcrumbItem>
+              {subTitle && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{subTitle}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
           <Filter
             options={filterOptions}
             value={filter}
             onValueChange={setFilter}
           />
+        </CardTitle>
+        <CardAction side="right">
+          {/* TODO: Implement search functionality when live-state supports full text search */}
+          {/* <Search placeholder="Search" /> */}
 
           <Popover>
             <PopoverTrigger>
@@ -338,4 +364,22 @@ function RouteComponent() {
       </CardContent>
     </>
   );
+}
+
+export const Route = createFileRoute("/app/_workspace/_main/threads/")({
+  component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Threads - FrontDesk",
+          description: "Manage your support threads",
+        }),
+      ],
+    };
+  },
+});
+
+function RouteComponent() {
+  return <ThreadsList />;
 }

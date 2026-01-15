@@ -10,27 +10,51 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
 import { MessagesSquare, Search } from "lucide-react";
 import { OrgSwitcher } from "./organization-switcher";
 
-const items: { title: string; url: string; icon: React.ComponentType<any> }[] =
-  [
-    {
-      title: "Threads",
-      url: "/app/threads/",
-      icon: MessagesSquare,
-    },
-  ];
+interface Item {
+  title: string;
+  url: string;
+  route: string;
+  icon?: React.ComponentType<Record<string, never>>;
+  items?: Item[];
+  collapsible?: boolean;
+}
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+const items: Item[] = [
+  {
+    title: "Threads",
+    url: "/app/threads/",
+    route: "/app/_workspace/_main/threads/",
+    icon: MessagesSquare,
+    items: [
+      {
+        title: "Open",
+        url: "/app/threads/open",
+        route: "/app/_workspace/_main/threads/open",
+      },
+      {
+        title: "Assigned to me",
+        url: "/app/threads/assigned",
+        route: "/app/_workspace/_main/threads/assigned",
+      },
+    ],
+  },
+];
+
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const matches = useMatches();
 
   const { isEnabled: isSearchEnabled } = useFlag("in-app-search");
 
   return (
-    <Sidebar variant="inset" className="bg-none">
+    <Sidebar variant="inset" className="bg-none" {...props}>
       <SidebarHeader className="bg-none flex-row">
         <OrgSwitcher />
         {isSearchEnabled && (
@@ -54,14 +78,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     data-active={matches.some(
-                      (match) => match.pathname === item.url,
+                      (match) => match.routeId === item.route,
                     )}
                   >
                     <Link to={item.url}>
-                      <item.icon />
+                      {item.icon && <item.icon />}
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
+                  {item.items && item.items.length > 0 && (
+                    <SidebarMenuSub>
+                      {item.items.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={matches.some(
+                              (match) => match.routeId === subItem.route,
+                            )}
+                          >
+                            <Link to={subItem.url}>
+                              {subItem.icon && <subItem.icon />}
+                              <span>{subItem.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
