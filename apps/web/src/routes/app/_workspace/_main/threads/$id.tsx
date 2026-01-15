@@ -11,12 +11,7 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import {
-  Editor,
-  EditorInput,
-  EditorSubmit,
-  RichText,
-} from "@workspace/ui/components/blocks/tiptap";
+import { RichText } from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -54,11 +49,11 @@ import type { schema } from "api/schema";
 import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { ulid } from "ulid";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
+import { ThreadInputArea } from "~/components/threads/thread-input-area";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
@@ -114,7 +109,7 @@ function RouteComponent() {
       messages: { author: true },
       assignedUser: true,
       updates: { user: true },
-    })
+    }),
   )?.[0];
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
@@ -125,7 +120,17 @@ function RouteComponent() {
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
-      .include({ user: true })
+      .include({ user: true }),
+  );
+
+  const threadLabels = useLiveQuery(
+    query.threadLabel
+      .where({
+        threadId: id,
+        enabled: true,
+        label: { enabled: true },
+      })
+      .include({ label: true }),
   );
 
   const allItems = thread
@@ -271,14 +276,14 @@ function RouteComponent() {
                       className={cn(
                         "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         item?.author?.userId === user.id &&
-                          "border-[#2662D9]/20"
+                          "border-[#2662D9]/20",
                       )}
                     >
                       <CardHeader
                         size="sm"
                         className={cn(
                           item?.author?.userId === user.id &&
-                            "bg-[#2662D9]/15 border-[#2662D9]/20"
+                            "bg-[#2662D9]/15 border-[#2662D9]/20",
                         )}
                       >
                         <CardTitle>
@@ -315,48 +320,19 @@ function RouteComponent() {
                 return null;
               })}
             </div>
-            <Editor
-              onSubmit={(value) => {
-                const author = query.author.first({ userId: user.id }).get();
-                let authorId = author?.id;
-
-                if (!authorId) {
-                  authorId = ulid().toLowerCase();
-
-                  mutate.author.insert({
-                    id: authorId,
-                    userId: user.id,
-                    metaId: null,
-                    name: user.name,
-                    organizationId: thread?.organizationId,
-                  });
-                }
-
-                mutate.message.insert({
-                  id: ulid().toLowerCase(),
-                  authorId: authorId,
-                  content: JSON.stringify(value),
-                  threadId: id,
-                  createdAt: new Date(),
-                  origin: null,
-                  externalMessageId: null,
-                });
-
-                captureThreadEvent("thread:message_send");
-              }}
-            >
-              <EditorInput
-                className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-                placeholder="Write a reply..."
-              >
-                <EditorSubmit />
-              </EditorInput>
-            </Editor>
+            <ThreadInputArea
+              threadId={id}
+              organizationId={thread?.organizationId}
+              threadLabels={threadLabels}
+              user={user}
+              lastMessageId={allItems[allItems.length - 1]?.id}
+              captureThreadEvent={captureThreadEvent}
+            />
           </div>
         </div>
         <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
           <TooltipProvider>
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-8">
               <PropertiesSection
                 thread={thread}
                 id={id}
@@ -368,23 +344,21 @@ function RouteComponent() {
                 threadId={id}
                 captureThreadEvent={captureThreadEvent}
               />
-              {isGithubIntegrationEnabled && (
-                <>
-                  <IssuesSection
-                    threadId={id}
-                    user={user}
-                    externalIssueId={thread?.externalIssueId ?? null}
-                    threadName={thread?.name}
-                    captureThreadEvent={captureThreadEvent}
-                  />
-                  <PullRequestsSection
-                    threadId={id}
-                    user={user}
-                    externalPrId={thread?.externalPrId ?? null}
-                    captureThreadEvent={captureThreadEvent}
-                  />
-                </>
-              )}
+              <div className="flex flex-col gap-2">
+                <IssuesSection
+                  threadId={id}
+                  user={user}
+                  externalIssueId={thread?.externalIssueId ?? null}
+                  threadName={thread?.name}
+                  captureThreadEvent={captureThreadEvent}
+                />
+                <PullRequestsSection
+                  threadId={id}
+                  user={user}
+                  externalPrId={thread?.externalPrId ?? null}
+                  captureThreadEvent={captureThreadEvent}
+                />
+              </div>
             </div>
           </TooltipProvider>
         </div>

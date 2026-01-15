@@ -95,6 +95,7 @@ function App() {
             user: true,
           },
           authors: true,
+          suggestions: true,
         },
       }),
   );
