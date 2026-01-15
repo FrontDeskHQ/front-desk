@@ -18,6 +18,7 @@ import { addDays, isAfter } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useState } from "react";
+import { Toolbar } from "~/components/devtools/toolbar";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { reflagClient } from "~/lib/feature-flag";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
@@ -239,7 +240,7 @@ function RouteComponent() {
           </Dialog>
           <Outlet />
         </SidebarProvider>
-        {/* {import.meta.env.DEV && <Toolbar />} */}
+        {import.meta.env.DEV && <Toolbar />}
       </ReflagClientProvider>
     </div>
   );

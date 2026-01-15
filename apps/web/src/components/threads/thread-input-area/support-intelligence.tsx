@@ -1,8 +1,8 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
 import { ActionButton } from "@workspace/ui/components/button";
-import { Check, X, Zap } from "lucide-react";
-import { useMemo } from "react";
+import { Check, ChevronDown, X, Zap } from "lucide-react";
+import { useMemo, useState } from "react";
 import { ulid } from "ulid";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 
@@ -102,6 +102,12 @@ export const LabelSuggestions = ({
   threadLabels,
   suggestion,
 }: LabelSuggestionProps) => {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const hasSuggestions = (suggestedLabels?.length ?? 0) > 0;
+
+  const handleToggleCollapse = () => {
+    setIsCollapsed((prev) => !prev);
+  };
   const updateSuggestionMetadata = (
     acceptedLabelIds?: string[],
     dismissedLabelIds?: string[],
@@ -188,56 +194,73 @@ export const LabelSuggestions = ({
     updateSuggestionMetadata(undefined, labelIds);
   };
 
-  if (suggestedLabels?.length === 0) {
-    return null;
-  }
-
   return (
-    <div className="flex flex-col gap-2 p-4">
+    <div
+      className="flex flex-col data-[state=open]:p-4 overflow-hidden transition-all duration-200 ease-in-out data-[state=open]:max-h-96 data-[state=closed]:max-h-0"
+      data-state={hasSuggestions ? "open" : "closed"}
+    >
       <div className="flex gap-4 items-center">
         <Zap className="size-3.5 stroke-2" />
-        <div>Support Intelligence</div>
+        <div className="flex-1">Support Intelligence</div>
+        <ActionButton
+          variant="ghost"
+          size="icon-sm"
+          tooltip={isCollapsed ? "Expand" : "Collapse"}
+          className="text-foreground-secondary"
+          onClick={handleToggleCollapse}
+        >
+          <ChevronDown
+            className={`text-muted-foreground pointer-events-none size-4 shrink-0 transition-transform duration-200 ${
+              isCollapsed ? "" : "rotate-180"
+            }`}
+          />
+        </ActionButton>
       </div>
-      <div className="flex gap-2 items-center border-input">
-        <div className="text-foreground-secondary mr-2">Suggestions</div>
-        {suggestedLabels?.map((label) => {
-          return (
-            <ActionButton
-              key={label.id}
-              variant="ghost"
-              size="sm"
-              tooltip={`Add ${label.name} label`}
-              className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-              onClick={() => handleAcceptLabel(label.id)}
-            >
-              <div
-                className="size-2 rounded-full"
-                style={{
-                  backgroundColor: label.color,
-                }}
-              />
-              {label.name}
-            </ActionButton>
-          );
-        })}
-        <ActionButton
-          variant="ghost"
-          size="icon-sm"
-          tooltip="Accept all"
-          className="text-foreground-secondary"
-          onClick={handleAcceptAllLabels}
-        >
-          <Check />
-        </ActionButton>
-        <ActionButton
-          variant="ghost"
-          size="icon-sm"
-          tooltip="Ignore all"
-          className="text-foreground-secondary"
-          onClick={handleDismissAllLabels}
-        >
-          <X />
-        </ActionButton>
+      <div
+        className="overflow-hidden text-sm transition-all duration-200 ease-in-out data-[state=closed]:max-h-0 data-[state=open]:max-h-96"
+        data-state={isCollapsed ? "closed" : "open"}
+      >
+        <div className="flex gap-2 items-center border-input mt-2">
+          <div className="text-foreground-secondary mr-2">Suggestions</div>
+          {suggestedLabels?.map((label) => {
+            return (
+              <ActionButton
+                key={label.id}
+                variant="ghost"
+                size="sm"
+                tooltip={`Add ${label.name} label`}
+                className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
+                onClick={() => handleAcceptLabel(label.id)}
+              >
+                <div
+                  className="size-2 rounded-full"
+                  style={{
+                    backgroundColor: label.color,
+                  }}
+                />
+                {label.name}
+              </ActionButton>
+            );
+          })}
+          <ActionButton
+            variant="ghost"
+            size="icon-sm"
+            tooltip="Accept all"
+            className="text-foreground-secondary"
+            onClick={handleAcceptAllLabels}
+          >
+            <Check />
+          </ActionButton>
+          <ActionButton
+            variant="ghost"
+            size="icon-sm"
+            tooltip="Ignore all"
+            className="text-foreground-secondary"
+            onClick={handleDismissAllLabels}
+          >
+            <X />
+          </ActionButton>
+        </div>
       </div>
     </div>
   );
