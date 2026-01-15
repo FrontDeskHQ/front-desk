@@ -196,7 +196,7 @@ export const LabelSuggestions = ({
 
   return (
     <div
-      className="flex flex-col data-[state=open]:p-4 overflow-hidden transition-all duration-200 ease-in-out data-[state=open]:max-h-96 data-[state=closed]:max-h-0"
+      className="flex flex-col h-0 px-4 overflow-hidden transition-all duration-200 ease-in-out data-[state=open]:h-auto data-[state=open]:py-4"
       data-state={hasSuggestions ? "open" : "closed"}
     >
       <div className="flex gap-4 items-center">
