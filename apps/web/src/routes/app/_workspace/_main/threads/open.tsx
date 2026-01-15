@@ -3,7 +3,6 @@ import { statusValues } from "@workspace/ui/components/indicator";
 import { seo } from "~/utils/seo";
 import { ThreadsList } from "./index";
 
-// Extract status constants from statusValues to avoid magic numbers
 const STATUS_RESOLVED =
   Number(
     Object.entries(statusValues).find(
