@@ -193,48 +193,52 @@ export const LabelSuggestions = ({
   }
 
   return (
-    <div className="flex gap-2 items-center px-4 py-2 border-t border-input">
-      <Zap className="size-3.5 text-foreground-secondary stroke-2" />
-      <div className="text-foreground-secondary mr-2">Label suggestions</div>
-
-      {suggestedLabels?.map((label) => {
-        return (
-          <ActionButton
-            key={label.id}
-            variant="ghost"
-            size="sm"
-            tooltip={`Add ${label.name} label`}
-            className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-            onClick={() => handleAcceptLabel(label.id)}
-          >
-            <div
-              className="size-2 rounded-full"
-              style={{
-                backgroundColor: label.color,
-              }}
-            />
-            {label.name}
-          </ActionButton>
-        );
-      })}
-      <ActionButton
-        variant="ghost"
-        size="icon-sm"
-        tooltip="Accept all"
-        className="text-foreground-secondary"
-        onClick={handleAcceptAllLabels}
-      >
-        <Check />
-      </ActionButton>
-      <ActionButton
-        variant="ghost"
-        size="icon-sm"
-        tooltip="Ignore all"
-        className="text-foreground-secondary"
-        onClick={handleDismissAllLabels}
-      >
-        <X />
-      </ActionButton>
+    <div className="flex flex-col gap-2 p-4">
+      <div className="flex gap-4 items-center">
+        <Zap className="size-3.5 stroke-2" />
+        <div>Support Intelligence</div>
+      </div>
+      <div className="flex gap-2 items-center border-input">
+        <div className="text-foreground-secondary mr-2">Suggestions</div>
+        {suggestedLabels?.map((label) => {
+          return (
+            <ActionButton
+              key={label.id}
+              variant="ghost"
+              size="sm"
+              tooltip={`Add ${label.name} label`}
+              className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
+              onClick={() => handleAcceptLabel(label.id)}
+            >
+              <div
+                className="size-2 rounded-full"
+                style={{
+                  backgroundColor: label.color,
+                }}
+              />
+              {label.name}
+            </ActionButton>
+          );
+        })}
+        <ActionButton
+          variant="ghost"
+          size="icon-sm"
+          tooltip="Accept all"
+          className="text-foreground-secondary"
+          onClick={handleAcceptAllLabels}
+        >
+          <Check />
+        </ActionButton>
+        <ActionButton
+          variant="ghost"
+          size="icon-sm"
+          tooltip="Ignore all"
+          className="text-foreground-secondary"
+          onClick={handleDismissAllLabels}
+        >
+          <X />
+        </ActionButton>
+      </div>
     </div>
   );
 };
