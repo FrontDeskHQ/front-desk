@@ -21,6 +21,7 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
 import { Button } from "@workspace/ui/components/button";
@@ -184,11 +185,7 @@ function RouteComponent() {
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      <BreadcrumbLink asChild className="text-white">
-                        <Link to="/app/threads/$id" params={{ id: id }}>
-                          {thread.name}
-                        </Link>
-                      </BreadcrumbLink>
+                      <BreadcrumbPage>{thread.name}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>

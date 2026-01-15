@@ -69,12 +69,12 @@ const avatarVariants = cva("", {
   compoundVariants: [
     {
       variant: "org",
-      size: "sm",
+      size: ["sm", "md"],
       className: "rounded-sm",
     },
     {
       variant: "org",
-      size: ["md", "lg", "xl", "xxl"],
+      size: ["lg", "xl", "xxl"],
       className: "rounded-md",
     },
   ],
@@ -103,12 +103,12 @@ const avatarFallbackVariants = cva(
     compoundVariants: [
       {
         variant: "org",
-        size: "sm",
+        size: ["sm", "md"],
         className: "rounded-sm",
       },
       {
         variant: "org",
-        size: ["md", "lg", "xl", "xxl"],
+        size: ["lg", "xl", "xxl"],
         className: "rounded-md",
       },
     ],
