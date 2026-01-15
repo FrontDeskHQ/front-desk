@@ -38,7 +38,7 @@ interface PropertiesSectionProps {
   >[];
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
@@ -227,17 +227,22 @@ export function PropertiesSection({
           ]}
           value={thread?.assignedUser?.id}
           onValueChange={async (value) => {
+            const oldAssignedUserId = thread?.assignedUser?.id ?? null;
+            const oldAssignedUserName = thread?.assignedUser?.name ?? null;
+            const newAssignedUserId = value;
+            const newAssignedUserName =
+              organizationUsers?.find((ou) => ou.userId === value)?.user.name ??
+              null;
+
             await assignThreadToUser({
               threadId: id,
               newAssignedUser: {
-                id: value,
-                name:
-                  organizationUsers?.find((ou) => ou.userId === value)?.user
-                    .name ?? null,
+                id: newAssignedUserId,
+                name: newAssignedUserName,
               },
               oldAssignedUser: {
-                id: thread?.assignedUser?.id ?? null,
-                name: thread?.assignedUser?.name ?? null,
+                id: oldAssignedUserId,
+                name: oldAssignedUserName,
               },
               userId: user.id,
             });
@@ -259,7 +264,7 @@ export function PropertiesSection({
                 size="sm"
                 className={cn(
                   "text-sm px-1.5 max-w-40 py-1 w-full justify-start text-muted-foreground",
-                  thread?.assignedUser?.name && "text-primary",
+                  thread?.assignedUser?.name && "text-primary"
                 )}
                 tooltip="Assign to"
                 keybind="a"

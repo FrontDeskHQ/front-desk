@@ -2,6 +2,7 @@
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   getRouteApi,
@@ -60,7 +61,7 @@ import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
-import { useThreadAnalytics } from "~/lib/hooks/use-analytics";
+import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
@@ -118,6 +119,9 @@ function RouteComponent() {
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
 
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
+
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
@@ -126,11 +130,11 @@ function RouteComponent() {
 
   const allItems = thread
     ? [
-        ...(thread?.messages ?? []).map((msg) => ({
+        ...(thread?.messages ?? []).map((msg: any) => ({
           ...msg,
           itemType: "message" as const,
         })),
-        ...(thread?.updates ?? []).map((update) => ({
+        ...(thread?.updates ?? []).map((update: any) => ({
           ...update,
           itemType: "update" as const,
         })),
@@ -251,38 +255,30 @@ function RouteComponent() {
                 </Dialog>
               </div>
             )}
-          </CardTitle>
-        </CardHeader>
-        <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
-          <div
-            className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
-            ref={scrollRef}
-            onScroll={disableAutoScroll}
-            onTouchMove={disableAutoScroll}
-          >
-            {allItems.map((item) => {
-              if (item.itemType === "message") {
-                return (
-                  <Card
-                    key={item.id}
-                    className={cn(
-                      "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                      item?.author?.userId === user.id && "border-[#2662D9]/20"
-                    )}
-                  >
-                    <CardHeader
-                      size="sm"
+          </CardHeader>
+          <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
+            <div
+              className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
+              ref={scrollRef}
+              onScroll={disableAutoScroll}
+              onTouchMove={disableAutoScroll}
+            >
+              {allItems.map((item) => {
+                if (item.itemType === "message") {
+                  return (
+                    <Card
+                      key={item.id}
                       className={cn(
-                        "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                        "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         item?.author?.userId === user.id &&
-                          "bg-[#2662D9]/15 border-[#2662D9]/20"
+                          "border-[#2662D9]/20"
                       )}
                     >
                       <CardHeader
                         size="sm"
                         className={cn(
                           item?.author?.userId === user.id &&
-                            "bg-[#2662D9]/15 border-[#2662D9]/20",
+                            "bg-[#2662D9]/15 border-[#2662D9]/20"
                         )}
                       >
                         <CardTitle>
@@ -345,24 +341,9 @@ function RouteComponent() {
                   origin: null,
                   externalMessageId: null,
                 });
-              }
 
-              mutate.message.insert({
-                id: ulid().toLowerCase(),
-                authorId: authorId,
-                content: JSON.stringify(value),
-                threadId: id,
-                createdAt: new Date(),
-                origin: null,
-                externalMessageId: null,
-              });
-
-              captureThreadEvent("thread:message_send");
-            }}
-          >
-            <EditorInput
-              className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-              placeholder="Write a reply..."
+                captureThreadEvent("thread:message_send");
+              }}
             >
               <EditorInput
                 className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
@@ -381,57 +362,33 @@ function RouteComponent() {
                 id={id}
                 organizationUsers={organizationUsers}
                 user={user as InferLiveObject<typeof schema.user>}
+                captureThreadEvent={captureThreadEvent}
               />
-              <LabelsSection threadId={id} />
-              <IssuesSection
+              <LabelsSection
                 threadId={id}
-                user={user}
-                externalIssueId={thread?.externalIssueId ?? null}
-                threadName={thread?.name}
+                captureThreadEvent={captureThreadEvent}
               />
-              <PullRequestsSection
-                threadId={id}
-                user={user}
-                externalPrId={thread?.externalPrId ?? null}
-              />
+              {isGithubIntegrationEnabled && (
+                <>
+                  <IssuesSection
+                    threadId={id}
+                    user={user}
+                    externalIssueId={thread?.externalIssueId ?? null}
+                    threadName={thread?.name}
+                    captureThreadEvent={captureThreadEvent}
+                  />
+                  <PullRequestsSection
+                    threadId={id}
+                    user={user}
+                    externalPrId={thread?.externalPrId ?? null}
+                    captureThreadEvent={captureThreadEvent}
+                  />
+                </>
+              )}
             </div>
           </TooltipProvider>
         </div>
       </div>
-      <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
-        <TooltipProvider>
-          <div className="flex flex-col gap-2">
-            <PropertiesSection
-              thread={thread}
-              id={id}
-              organizationUsers={organizationUsers}
-              user={user as InferLiveObject<typeof schema.user>}
-              captureThreadEvent={captureThreadEvent}
-            />
-            <LabelsSection
-              threadId={id}
-              captureThreadEvent={captureThreadEvent}
-            />
-            {isGithubIntegrationEnabled && (
-              <>
-                <IssuesSection
-                  threadId={id}
-                  user={user}
-                  externalIssueId={thread?.externalIssueId ?? null}
-                  threadName={thread?.name}
-                  captureThreadEvent={captureThreadEvent}
-                />
-                <PullRequestsSection
-                  threadId={id}
-                  user={user}
-                  externalPrId={thread?.externalPrId ?? null}
-                  captureThreadEvent={captureThreadEvent}
-                />
-              </>
-            )}
-          </div>
-        </TooltipProvider>
-      </div>
-    </div>
+    </>
   );
 }
