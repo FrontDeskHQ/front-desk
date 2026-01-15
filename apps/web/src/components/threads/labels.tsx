@@ -25,7 +25,18 @@ type LabelItem = BaseItem & {
   color: string;
 };
 
-export function LabelsSection({ threadId }: { threadId: string }) {
+interface LabelsSectionProps {
+  threadId: string;
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>,
+  ) => void;
+}
+
+export function LabelsSection({
+  threadId,
+  captureThreadEvent,
+}: LabelsSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
   const [search, setSearch] = useState("");
@@ -134,6 +145,7 @@ export function LabelsSection({ threadId }: { threadId: string }) {
               // Add labels
               for (const labelId of labelsToAdd) {
                 const existingThreadLabel = threadLabelMap.get(labelId);
+                const label = allLabels?.find((l) => l.id === labelId);
 
                 if (existingThreadLabel) {
                   // Update existing connection
@@ -149,15 +161,26 @@ export function LabelsSection({ threadId }: { threadId: string }) {
                     enabled: true,
                   });
                 }
+
+                captureThreadEvent("thread:label_add", {
+                  label_id: labelId,
+                  label_name: label?.name,
+                });
               }
 
               // Remove labels (set enabled to false)
               for (const labelId of labelsToRemove) {
                 const existingThreadLabel = threadLabelMap.get(labelId);
+                const label = allLabels?.find((l) => l.id === labelId);
 
                 if (existingThreadLabel) {
                   mutate.threadLabel.update(existingThreadLabel.id, {
                     enabled: false,
+                  });
+
+                  captureThreadEvent("thread:label_remove", {
+                    label_id: labelId,
+                    label_name: label?.name,
                   });
                 }
               }

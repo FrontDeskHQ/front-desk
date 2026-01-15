@@ -81,7 +81,6 @@ function RouteComponent() {
     <form
       className="p-4 flex flex-col gap-4 w-full"
       onSubmit={(e) => {
-        console.log("onSubmit");
         e.preventDefault();
         handleSubmit();
       }}

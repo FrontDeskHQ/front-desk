@@ -16,6 +16,7 @@ import { SidebarProvider } from "@workspace/ui/components/sidebar";
 import type { schema } from "api/schema";
 import { addDays, isAfter } from "date-fns";
 import { useAtomValue } from "jotai/react";
+import { usePostHog } from "posthog-js/react";
 import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { reflagClient } from "~/lib/feature-flag";
@@ -79,7 +80,27 @@ function RouteComponent() {
   // This is needed to set the active organization in the organization switcher
   useOrganizationSwitcher();
 
+  const { user } = Route.useRouteContext();
+
+  const posthog = usePostHog();
+
   const currentOrg = useAtomValue(activeOrganizationAtom);
+
+  useEffect(() => {
+    if (user?.id) {
+      posthog?.identify(user.id, {
+        name: user.name,
+      });
+    }
+  }, [user?.id, user?.name, posthog]);
+
+  useEffect(() => {
+    if (currentOrg?.id) {
+      posthog?.group("organization", currentOrg.id, {
+        name: currentOrg.name,
+      });
+    }
+  }, [currentOrg?.id, currentOrg?.name, posthog]);
   const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
 
   const seats =

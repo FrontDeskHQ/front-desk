@@ -57,6 +57,10 @@ interface IssuesSectionProps {
   externalIssueId: string | null;
   user: { id: string; name: string };
   threadName?: string;
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>
+  ) => void;
 }
 
 export function IssuesSection({
@@ -64,6 +68,7 @@ export function IssuesSection({
   externalIssueId,
   user,
   threadName,
+  captureThreadEvent,
 }: IssuesSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
@@ -72,14 +77,14 @@ export function IssuesSection({
   const [selectedRepo, setSelectedRepo] = useState<string>("");
   const [search, setSearch] = useState("");
   const [optimisticIssue, setOptimisticIssue] = useState<ExternalIssue | null>(
-    null,
+    null
   );
 
   const githubIntegration = useLiveQuery(
     query.integration.first({
       organizationId: currentOrg?.id,
       type: "github",
-    }),
+    })
   );
 
   const { data: allIssues, refetch: refetchIssues } = useQuery({
@@ -118,7 +123,7 @@ export function IssuesSection({
         value: `footer:create_issue`,
         label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
       },
-    ],
+    ]
   );
 
   const linkedIssue = optimisticIssue
@@ -266,6 +271,12 @@ export function IssuesSection({
       }),
       replicatedStr: JSON.stringify({}),
     });
+
+    captureThreadEvent("thread:issue_unlink", {
+      old_issue_id: externalIssueId,
+      old_issue_number: linkedIssue.number,
+      repository: linkedIssue.repository.fullName,
+    });
   };
 
   if (!githubIntegration || !githubIntegration.enabled) return null;
@@ -317,6 +328,22 @@ export function IssuesSection({
                 }),
                 replicatedStr: JSON.stringify({}),
               });
+
+              if (newIssueId) {
+                captureThreadEvent("thread:issue_link", {
+                  old_issue_id: oldIssueId,
+                  new_issue_id: newIssueId,
+                  old_issue_number: oldIssue?.number,
+                  new_issue_number: newIssue?.number,
+                  repository: newIssue?.repository.fullName,
+                });
+              } else {
+                captureThreadEvent("thread:issue_unlink", {
+                  old_issue_id: oldIssueId,
+                  old_issue_number: oldIssue?.number,
+                  repository: oldIssue?.repository.fullName,
+                });
+              }
             }}
           >
             <ComboboxTrigger

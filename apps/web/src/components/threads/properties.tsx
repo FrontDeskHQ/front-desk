@@ -36,6 +36,10 @@ interface PropertiesSectionProps {
     typeof schema.organizationUser,
     { user: true }
   >[];
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>
+  ) => void;
 }
 
 export function PropertiesSection({
@@ -43,6 +47,7 @@ export function PropertiesSection({
   id,
   user,
   organizationUsers,
+  captureThreadEvent,
 }: PropertiesSectionProps) {
   return (
     <>
@@ -78,6 +83,13 @@ export function PropertiesSection({
                 userName: user.name,
               }),
               replicatedStr: JSON.stringify({}),
+            });
+
+            captureThreadEvent("thread:status_update", {
+              old_status: oldStatus,
+              old_status_label: oldStatusLabel,
+              new_status: newStatus,
+              new_status_label: newStatusLabel,
             });
           }}
         >
@@ -162,6 +174,13 @@ export function PropertiesSection({
               }),
               replicatedStr: JSON.stringify({}),
             });
+
+            captureThreadEvent("thread:priority_update", {
+              old_priority: oldPriority,
+              old_priority_label: oldPriorityLabel,
+              new_priority: newPriority,
+              new_priority_label: newPriorityLabel,
+            });
           }}
         >
           <ComboboxTrigger
@@ -208,19 +227,32 @@ export function PropertiesSection({
           ]}
           value={thread?.assignedUser?.id}
           onValueChange={async (value) => {
+            const oldAssignedUserId = thread?.assignedUser?.id ?? null;
+            const oldAssignedUserName = thread?.assignedUser?.name ?? null;
+            const newAssignedUserId = value;
+            const newAssignedUserName =
+              organizationUsers?.find((ou) => ou.userId === value)?.user.name ??
+              null;
+
             await assignThreadToUser({
               threadId: id,
               newAssignedUser: {
-                id: value,
-                name:
-                  organizationUsers?.find((ou) => ou.userId === value)?.user
-                    .name ?? null,
+                id: newAssignedUserId,
+                name: newAssignedUserName,
               },
               oldAssignedUser: {
-                id: thread?.assignedUser?.id ?? null,
-                name: thread?.assignedUser?.name ?? null,
+                id: oldAssignedUserId,
+                name: oldAssignedUserName,
               },
               userId: user.id,
+            });
+
+            captureThreadEvent("thread:assignee_update", {
+              old_assigned_user_id: oldAssignedUserId,
+              old_assigned_user_name: oldAssignedUserName,
+              new_assigned_user_id: newAssignedUserId,
+              new_assigned_user_name: newAssignedUserName,
+              action: newAssignedUserId ? "assigned" : "unassigned",
             });
           }}
         >
@@ -232,7 +264,7 @@ export function PropertiesSection({
                 size="sm"
                 className={cn(
                   "text-sm px-1.5 max-w-40 py-1 w-full justify-start text-muted-foreground",
-                  thread?.assignedUser?.name && "text-primary",
+                  thread?.assignedUser?.name && "text-primary"
                 )}
                 tooltip="Assign to"
                 keybind="a"
