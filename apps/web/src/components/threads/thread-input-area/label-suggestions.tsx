@@ -36,8 +36,6 @@ export const usePendingLabelSuggestions = ({
     }),
   );
 
-  console.log("suggestion", suggestion, threadId, organizationId);
-
   const suggestionMetadata = useMemo(() => {
     if (!suggestion?.metadataStr) {
       return { dismissed: [], accepted: [] };
@@ -52,8 +50,6 @@ export const usePendingLabelSuggestions = ({
     }
   }, [suggestion?.metadataStr]);
 
-  const dismissedLabelIds = new Set(suggestionMetadata.dismissed ?? []);
-
   const suggestedLabelIdsFromResults = useMemo(() => {
     if (!suggestion?.resultsStr) return [];
     try {
@@ -67,12 +63,17 @@ export const usePendingLabelSuggestions = ({
     const appliedLabelIds = new Set(
       threadLabels?.map((tl) => tl.label.id) ?? [],
     );
+    const dismissedLabelIds = new Set(suggestionMetadata.dismissed ?? []);
 
     return suggestedLabelIdsFromResults.filter(
       (labelId) =>
         !appliedLabelIds.has(labelId) && !dismissedLabelIds.has(labelId),
     );
-  }, [suggestedLabelIdsFromResults, threadLabels, dismissedLabelIds]);
+  }, [
+    suggestedLabelIdsFromResults,
+    threadLabels,
+    suggestionMetadata.dismissed,
+  ]);
 
   const suggestedLabels = useLiveQuery(
     query.label.where({ id: { $in: suggestedLabelIds }, enabled: true }),
