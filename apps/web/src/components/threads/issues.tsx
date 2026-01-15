@@ -59,7 +59,7 @@ interface IssuesSectionProps {
   threadName?: string;
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
@@ -77,14 +77,14 @@ export function IssuesSection({
   const [selectedRepo, setSelectedRepo] = useState<string>("");
   const [search, setSearch] = useState("");
   const [optimisticIssue, setOptimisticIssue] = useState<ExternalIssue | null>(
-    null,
+    null
   );
 
   const githubIntegration = useLiveQuery(
     query.integration.first({
       organizationId: currentOrg?.id,
       type: "github",
-    }),
+    })
   );
 
   const { data: allIssues, refetch: refetchIssues } = useQuery({
@@ -123,7 +123,7 @@ export function IssuesSection({
         value: `footer:create_issue`,
         label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
       },
-    ],
+    ]
   );
 
   const linkedIssue = optimisticIssue
@@ -329,18 +329,21 @@ export function IssuesSection({
                 replicatedStr: JSON.stringify({}),
               });
 
-              captureThreadEvent(
-                newIssueId ? "thread:issue_link" : "thread:issue_unlink",
-                {
+              if (newIssueId) {
+                captureThreadEvent("thread:issue_link", {
                   old_issue_id: oldIssueId,
                   new_issue_id: newIssueId,
                   old_issue_number: oldIssue?.number,
                   new_issue_number: newIssue?.number,
-                  repository:
-                    newIssue?.repository.fullName ??
-                    oldIssue?.repository.fullName,
-                },
-              );
+                  repository: newIssue?.repository.fullName,
+                });
+              } else {
+                captureThreadEvent("thread:issue_unlink", {
+                  old_issue_id: oldIssueId,
+                  old_issue_number: oldIssue?.number,
+                  repository: oldIssue?.repository.fullName,
+                });
+              }
             }}
           >
             <ComboboxTrigger
