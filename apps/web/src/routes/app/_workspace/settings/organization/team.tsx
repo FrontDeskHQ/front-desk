@@ -28,6 +28,7 @@ import { useAsyncAction } from "@workspace/ui/hooks/use-action";
 import { cn } from "@workspace/ui/lib/utils";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAtomValue } from "jotai/react";
+import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -55,6 +56,8 @@ const roleOptions = [
 ];
 
 function RouteComponent() {
+  const posthog = usePostHog();
+
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
   const organizationUsers = useLiveQuery(
@@ -242,6 +245,7 @@ function RouteComponent() {
                 }),
               ).then(() => {
                 setInviteValue(null);
+                posthog?.capture("organization_invite_send");
               });
             }}
           >

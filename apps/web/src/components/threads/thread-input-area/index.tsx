@@ -17,6 +17,10 @@ type ThreadInputAreaProps = {
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
   user: { id: string; name: string };
   lastMessageId: string | undefined;
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>,
+  ) => void;
 };
 
 export const ThreadInputArea = ({
@@ -25,6 +29,7 @@ export const ThreadInputArea = ({
   threadLabels,
   lastMessageId,
   user,
+  captureThreadEvent,
 }: ThreadInputAreaProps) => {
   const { suggestedLabels, suggestion } = usePendingLabelSuggestions({
     threadId,
@@ -71,6 +76,8 @@ export const ThreadInputArea = ({
             origin: null,
             externalMessageId: null,
           });
+
+          captureThreadEvent("thread:message_send");
         }}
       >
         <EditorInput

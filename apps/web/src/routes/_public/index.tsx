@@ -27,6 +27,7 @@ import {
 } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import { ArrowUpRight, BookOpenText, Inbox, Zap } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
 import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
@@ -192,10 +193,12 @@ const applyToWaitlistSchema = z.object({
 });
 
 function ApplyToWaitlistForm() {
+  const posthog = usePostHog();
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { Field, handleSubmit } = useForm({
+  const form = useForm({
     defaultValues: {
       email: "",
     },
@@ -207,12 +210,21 @@ function ApplyToWaitlistForm() {
       await applyToWaitlist({ data: value })
         .then(() => {
           setSuccess(true);
+          waitlistApply();
         })
         .finally(() => {
           setLoading(false);
         });
     },
   });
+
+  const { Field, handleSubmit } = form;
+
+  const waitlistApply = () => {
+    if (form.state.values.email.trim() !== "") {
+      posthog?.capture("waitlist:form_submit");
+    }
+  };
 
   return (
     <form

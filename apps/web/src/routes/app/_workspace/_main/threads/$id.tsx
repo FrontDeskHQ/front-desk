@@ -2,6 +2,7 @@
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   getRouteApi,
@@ -55,6 +56,7 @@ import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { ThreadInputArea } from "~/components/threads/thread-input-area";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
+import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
@@ -110,6 +112,11 @@ function RouteComponent() {
     }),
   )?.[0];
 
+  const { captureThreadEvent } = useThreadAnalytics(thread);
+
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
+
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
@@ -128,11 +135,11 @@ function RouteComponent() {
 
   const allItems = thread
     ? [
-        ...(thread?.messages ?? []).map((msg) => ({
+        ...(thread?.messages ?? []).map((msg: any) => ({
           ...msg,
           itemType: "message" as const,
         })),
-        ...(thread?.updates ?? []).map((update) => ({
+        ...(thread?.updates ?? []).map((update: any) => ({
           ...update,
           itemType: "update" as const,
         })),
@@ -149,6 +156,7 @@ function RouteComponent() {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard");
+    captureThreadEvent("thread:link_copy");
   };
 
   const deleteThread = () => {
@@ -169,6 +177,7 @@ function RouteComponent() {
         textDecoration: "underline",
       },
     });
+    captureThreadEvent("thread:thread_delete");
     navigate({ to: "/app/threads" });
   };
 
@@ -265,7 +274,7 @@ function RouteComponent() {
                     <Card
                       key={item.id}
                       className={cn(
-                        "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                        "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         item?.author?.userId === user.id &&
                           "border-[#2662D9]/20",
                       )}
@@ -317,6 +326,7 @@ function RouteComponent() {
               threadLabels={threadLabels}
               user={user}
               lastMessageId={allItems[allItems.length - 1]?.id}
+              captureThreadEvent={captureThreadEvent}
             />
           </div>
         </div>
@@ -328,19 +338,25 @@ function RouteComponent() {
                 id={id}
                 organizationUsers={organizationUsers}
                 user={user as InferLiveObject<typeof schema.user>}
+                captureThreadEvent={captureThreadEvent}
               />
-              <LabelsSection threadId={id} />
+              <LabelsSection
+                threadId={id}
+                captureThreadEvent={captureThreadEvent}
+              />
               <div className="flex flex-col gap-2">
                 <IssuesSection
                   threadId={id}
                   user={user}
                   externalIssueId={thread?.externalIssueId ?? null}
                   threadName={thread?.name}
+                  captureThreadEvent={captureThreadEvent}
                 />
                 <PullRequestsSection
                   threadId={id}
                   user={user}
                   externalPrId={thread?.externalPrId ?? null}
+                  captureThreadEvent={captureThreadEvent}
                 />
               </div>
             </div>

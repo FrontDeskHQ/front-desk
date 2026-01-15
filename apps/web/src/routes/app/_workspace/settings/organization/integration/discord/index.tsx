@@ -12,6 +12,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
@@ -23,7 +24,7 @@ import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/discord/",
+  "/app/_workspace/settings/organization/integration/discord/"
 )({
   component: RouteComponent,
   head: () => {
@@ -40,7 +41,7 @@ export const Route = createFileRoute(
 
 // biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "discord",
+  (option) => option.id === "discord"
 )!;
 
 // Discord bot permissions number - read messages, send messages, and manage webhooks, ...
@@ -50,14 +51,15 @@ const generateStateToken = (): string => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
+    ""
   );
 };
 
 function RouteComponent() {
+  const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
+    query.integration.first({ organizationId: activeOrg?.id, type: "discord" })
   );
 
   const { integrations } = usePlanLimits("discord");
@@ -68,7 +70,7 @@ function RouteComponent() {
     if (!integration?.configStr) return null;
     try {
       return discordIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr),
+        JSON.parse(integration.configStr)
       );
     } catch {
       return {
@@ -83,7 +85,7 @@ function RouteComponent() {
   const updateIntegration = useCallback(
     (
       config: z.input<typeof discordIntegrationSchema>,
-      enabled: boolean = true,
+      enabled: boolean = true
     ) => {
       if (integration) {
         mutate.integration.update(integration.id, {
@@ -109,7 +111,7 @@ function RouteComponent() {
         });
       }
     },
-    [integration, activeOrg, parsedConfig?.data],
+    [integration, activeOrg, parsedConfig?.data]
   );
 
   const handleEnableDiscord = async () => {
@@ -171,7 +173,16 @@ function RouteComponent() {
     });
 
     // https://discord.com/developers/docs/topics/oauth2#bot-authorization-flow
-    const discordOAuthUrl = `https://discord.com/api/oauth2/authorize?${queryParams.toString().replaceAll("%2B", "+")}`;
+    const discordOAuthUrl = `https://discord.com/api/oauth2/authorize?${queryParams
+      .toString()
+      .replaceAll("%2B", "+")}`;
+
+    posthog?.capture("integration_enable", {
+      integration_type: "discord",
+    });
+
+    // Wait briefly to ensure analytics event is transmitted before navigation
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     window.location.href = discordOAuthUrl;
   };
@@ -181,7 +192,7 @@ function RouteComponent() {
 
     console.error(
       "Invalid Discord integration configuration",
-      parsedConfig.error,
+      parsedConfig.error
     );
 
     return (

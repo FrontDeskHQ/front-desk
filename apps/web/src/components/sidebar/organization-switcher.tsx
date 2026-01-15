@@ -16,11 +16,14 @@ import {
 } from "@workspace/ui/components/sidebar";
 import { useAtom } from "jotai/react";
 import { ChevronDown } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useLogout } from "~/lib/hooks/auth";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 
 export function OrgSwitcher() {
+  const posthog = usePostHog();
+
   const { organizationUsers } = useOrganizationSwitcher();
 
   const [activeOrganization, setActiveOrganization] = useAtom(
@@ -64,9 +67,13 @@ export function OrgSwitcher() {
             {Object.entries(organizationUsers).map(([id, userOrg], index) => (
               <DropdownMenuItem
                 key={id}
-                onSelect={() =>
-                  setActiveOrganization(userOrg.organization as any)
-                }
+                onSelect={() => {
+                  setActiveOrganization(userOrg.organization as any);
+                  posthog?.capture("organization_switch", {
+                    organization_id: userOrg.organization.id,
+                    organization_name: userOrg.organization.name,
+                  });
+                }}
                 className="gap-2 p-2"
               >
                 <Avatar
@@ -88,7 +95,13 @@ export function OrgSwitcher() {
             <DropdownMenuItem className="gap-2 p-2" asChild>
               <Link to="/app/threads/archive">Archive</Link>
             </DropdownMenuItem>
-            <DropdownMenuItem className="gap-2 p-2" onClick={logout}>
+            <DropdownMenuItem
+              className="gap-2 p-2"
+              onClick={() => {
+                logout();
+                posthog?.capture("auth:logout");
+              }}
+            >
               Logout
             </DropdownMenuItem>
           </DropdownMenuContent>

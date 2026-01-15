@@ -1,6 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useQuery } from "@tanstack/react-query";
-import { type ExternalPullRequest } from "@workspace/schemas/external-issue";
+import type { ExternalPullRequest } from "@workspace/schemas/external-issue";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
   Combobox,
@@ -22,12 +22,17 @@ interface PullRequestsSectionProps {
   threadId: string;
   externalPrId: string | null;
   user: { id: string; name: string };
+  captureThreadEvent: (
+    eventName: string,
+    properties?: Record<string, unknown>,
+  ) => void;
 }
 
 export function PullRequestsSection({
   threadId,
   externalPrId,
   user,
+  captureThreadEvent,
 }: PullRequestsSectionProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const [search, setSearch] = useState("");
@@ -64,8 +69,6 @@ export function PullRequestsSection({
   const pullRequests = (allPullRequests?.pullRequests ??
     []) as ExternalPullRequest[];
 
-  console.log("pullRequests", pullRequests);
-
   const comboboxItems = pullRequests.map((pr) => ({
     value: pr.id ?? "",
     label: `${pr.repository.fullName}#${pr.number} ${pr.title}`,
@@ -98,6 +101,12 @@ export function PullRequestsSection({
         userName: user.name,
       }),
       replicatedStr: JSON.stringify({}),
+    });
+
+    captureThreadEvent("thread:pr_unlink", {
+      old_pr_id: externalPrId,
+      old_pr_number: linkedPr.number,
+      repository: linkedPr.repository.fullName,
     });
   };
 
@@ -146,6 +155,18 @@ export function PullRequestsSection({
                 }),
                 replicatedStr: JSON.stringify({}),
               });
+
+              captureThreadEvent(
+                newPrId ? "thread:pr_link" : "thread:pr_unlink",
+                {
+                  old_pr_id: oldPrId,
+                  new_pr_id: newPrId,
+                  old_pr_number: oldPr?.number,
+                  new_pr_number: newPr?.number,
+                  repository:
+                    newPr?.repository.fullName ?? oldPr?.repository.fullName,
+                },
+              );
             }}
           >
             <ComboboxTrigger
