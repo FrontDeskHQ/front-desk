@@ -4,6 +4,7 @@ import {
   Menu,
   MenuCheckboxItem,
   MenuContent,
+  MenuItem,
   MenuSeparator,
   MenuTrigger,
   Submenu,
@@ -15,12 +16,24 @@ import { useReactScanEnabled } from "../react-scan";
 import { CreateThreadDialog } from "./create-thread-dialog";
 import { ThreadsSubmenu } from "./threads-submenu";
 
-export const DevtoolsMenu = () => {
+interface DevtoolsMenuProps {
+  onHideToolbar: (mode: "temporary" | "section") => void;
+}
+
+export const DevtoolsMenu = ({ onHideToolbar }: DevtoolsMenuProps) => {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [reactScanEnabled, setReactScanEnabled] = useReactScanEnabled();
 
   const handleToggleReactScan = (checked: boolean) => {
     setReactScanEnabled(checked);
+  };
+
+  const handleHideTemporary = () => {
+    onHideToolbar("temporary");
+  };
+
+  const handleHideForSection = () => {
+    onHideToolbar("section");
   };
 
   return (
@@ -34,6 +47,15 @@ export const DevtoolsMenu = () => {
             <SubmenuTrigger>Threads</SubmenuTrigger>
             <SubmenuContent>
               <ThreadsSubmenu onOpenDialog={() => setIsDialogOpen(true)} />
+            </SubmenuContent>
+          </Submenu>
+          <Submenu>
+            <SubmenuTrigger>Hide Toolbar</SubmenuTrigger>
+            <SubmenuContent>
+              <MenuItem onClick={handleHideTemporary}>Hide Toolbar</MenuItem>
+              <MenuItem onClick={handleHideForSection}>
+                Hide for this Section
+              </MenuItem>
             </SubmenuContent>
           </Submenu>
           <MenuSeparator />
