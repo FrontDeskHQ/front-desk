@@ -1,27 +1,14 @@
 import { google } from "@ai-sdk/google";
+import type { InferLiveObject } from "@live-state/sync";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
 import z from "zod";
+import type { schema } from "../../live-state/schema";
 
-type Thread = {
-  id: string;
-  name: string;
-  createdAt: string | Date;
-  messages?: Array<{
-    id: string;
-    content: string;
-    createdAt: string | Date;
-  }>;
-};
+type Thread = InferLiveObject<typeof schema.thread, { messages: true }>;
 
-type Label = {
-  id: string;
-  name: string;
-  enabled: boolean;
-  createdAt: string | Date;
-  updatedAt: string | Date;
-};
+type Label = InferLiveObject<typeof schema.label>;
 
 type SuggestionMetadata = {
   hash?: string;
