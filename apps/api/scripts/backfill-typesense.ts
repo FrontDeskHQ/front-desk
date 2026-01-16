@@ -1,6 +1,7 @@
 import "../src/env";
 
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
+import { generateEmbedding } from "../src/lib/ai/embeddings";
 import { typesenseClient } from "../src/lib/search/typesense";
 import { storage } from "../src/live-state/storage";
 
@@ -10,6 +11,7 @@ type MessageRow = {
   id: string;
   content: string;
   organizationId: string;
+  threadId: string;
 };
 
 const backfillMessages = async () => {
@@ -25,12 +27,17 @@ const backfillMessages = async () => {
   const db = storage.internalDB;
 
   try {
-    // Fetch all messages from the database with their thread organizationId
+    // Fetch all messages from the database with their thread organizationId and threadId
     console.log("Fetching messages from database...");
     const allMessages = (await db
       .selectFrom("message")
       .innerJoin("thread", "thread.id", "message.threadId")
-      .select(["message.id", "message.content", "thread.organizationId"])
+      .select([
+        "message.id",
+        "message.content",
+        "message.threadId",
+        "thread.organizationId",
+      ])
       .execute()) as MessageRow[];
 
     console.log(`Found ${allMessages.length} messages to index.\n`);
@@ -38,6 +45,19 @@ const backfillMessages = async () => {
     if (allMessages.length === 0) {
       console.log("No messages to backfill.");
       return;
+    }
+
+    // Group messages by thread to calculate message indices
+    const messagesByThread = new Map<string, MessageRow[]>();
+    for (const message of allMessages) {
+      const threadMessages = messagesByThread.get(message.threadId) ?? [];
+      threadMessages.push(message);
+      messagesByThread.set(message.threadId, threadMessages);
+    }
+
+    // Sort messages within each thread by ID (ULID-based chronological order)
+    for (const messages of messagesByThread.values()) {
+      messages.sort((a, b) => a.id.localeCompare(b.id));
     }
 
     let successCount = 0;
@@ -73,12 +93,40 @@ const backfillMessages = async () => {
             safeParseJSON(message.content)
           );
 
-          // Index the message in Typesense
-          await typesenseClient.collections("messages").documents().upsert({
+          // Calculate message index within thread
+          const threadMessages = messagesByThread.get(message.threadId) ?? [];
+          const messageIndex =
+            threadMessages.findIndex((msg) => msg.id === message.id) + 1;
+
+          // Generate embedding for the message content
+          const embedding = await generateEmbedding(plainTextContent);
+
+          // Prepare Typesense document
+          const typesenseDocument: {
+            id: string;
+            content: string;
+            organizationId: string;
+            threadId: string;
+            messageIndex: number;
+            embedding?: number[];
+          } = {
             id: message.id,
             content: plainTextContent,
             organizationId: message.organizationId,
-          });
+            threadId: message.threadId,
+            messageIndex: messageIndex,
+          };
+
+          // Add embedding if generation was successful
+          if (embedding) {
+            typesenseDocument.embedding = embedding;
+          }
+
+          // Index the message in Typesense
+          await typesenseClient
+            .collections("messages")
+            .documents()
+            .upsert(typesenseDocument);
 
           successCount++;
         } catch (error) {

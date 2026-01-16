@@ -77,9 +77,16 @@ const createOrUpdateCollection = async (
     await typesenseClient.collections(schema.name).update(updateSchema);
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
-    if (!errorMessage.includes("Not Found")) {
+    const httpStatus = (error as { httpStatus?: number })?.httpStatus;
+    // Check for "Not Found" in message or 404 status code
+    if (
+      !errorMessage.includes("Not Found") &&
+      !errorMessage.includes("not found") &&
+      httpStatus !== 404
+    ) {
       throw error;
     }
+    // Collection doesn't exist, create it
     await typesenseClient.collections().create(schema);
   }
 };
@@ -90,7 +97,44 @@ createOrUpdateCollection({
     { name: "id", type: "string" },
     { name: "content", type: "string" },
     { name: "organizationId", type: "string" },
+    {
+      name: "embedding",
+      type: "float[]",
+      num_dim: 768,
+      optional: true,
+    },
+    { name: "threadId", type: "string" },
+    { name: "messageIndex", type: "int32" },
   ],
 }).catch((error) => {
   console.error("Error creating or updating typesense collection", error);
+});
+
+createOrUpdateCollection({
+  name: "threadChunks",
+  fields: [
+    { name: "id", type: "string" },
+    { name: "threadId", type: "string" },
+    { name: "organizationId", type: "string" },
+    { name: "chunkIndex", type: "int32" },
+    { name: "content", type: "string" },
+    { name: "keywords", type: "string" },
+    {
+      name: "embedding",
+      type: "float[]",
+      num_dim: 768,
+      optional: true,
+    },
+  ],
+}).catch((error) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const httpStatus = (error as { httpStatus?: number })?.httpStatus;
+  // Only log if it's not a "collection not found" error (which is expected on first run)
+  if (
+    !errorMessage.includes("Not Found") &&
+    !errorMessage.includes("not found") &&
+    httpStatus !== 404
+  ) {
+    console.error("Error creating or updating threadChunks collection", error);
+  }
 });
