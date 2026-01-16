@@ -30,7 +30,8 @@
     "dev": "tsdown --watch --on-success \"node dist/index.js\"",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "format": "bun biome format ./src --fix"
+    "format": "bun biome format ./src --fix",
+    "test:hybrid-search": "bun run src/lib/ai/__tests__/hybrid-search.eval.ts"
   },
   "devDependencies": {
     "@types/cors": "^2.8.18",

@@ -1,6 +1,11 @@
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { ulid } from "ulid";
 import z from "zod";
+import { generateEmbedding } from "../../lib/ai/embeddings";
+import {
+  generateAndStoreThreadEmbeddings,
+  shouldIncludeMessageInEmbedding,
+} from "../../lib/ai/thread-embeddings";
 import { typesenseClient } from "../../lib/search/typesense";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -174,14 +179,33 @@ export default publicRoute
           }
 
           const organizationId = thread.organizationId;
+          const plainTextContent = jsonContentToPlainText(
+            safeParseJSON(value.content)
+          );
+
+          const allMessages = Object.values(
+            await db.find(schema.message, {
+              where: { threadId: value.threadId },
+              sort: [{ key: "id", direction: "asc" }],
+            })
+          );
+
+          const messageIndex =
+            allMessages.findIndex((msg) => msg.id === value.id) + 1;
+
+          const embedding =
+            (await generateEmbedding(plainTextContent)) ?? undefined;
 
           await typesenseClient
             ?.collections("messages")
             .documents()
             .create({
               id: value.id,
-              content: jsonContentToPlainText(safeParseJSON(value.content)),
+              content: plainTextContent,
               organizationId: organizationId,
+              threadId: value.threadId,
+              messageIndex: messageIndex,
+              embedding,
             })
             .catch((error) =>
               console.error(
@@ -189,6 +213,23 @@ export default publicRoute
                 error
               )
             );
+
+          const threadWithRelations = Object.values(
+            await db.find(schema.thread, {
+              where: { id: value.threadId },
+              include: {
+                messages: true,
+                labels: { label: true },
+              },
+            })
+          )[0];
+
+          if (
+            threadWithRelations &&
+            shouldIncludeMessageInEmbedding(threadWithRelations, value.id)
+          ) {
+            await generateAndStoreThreadEmbeddings(threadWithRelations);
+          }
         } catch (error) {
           console.error(
             `Unhandled error in afterInsert hook for message ${value.id}`,
