@@ -49,6 +49,9 @@ function RouteComponent() {
             ],
           },
         ]}
+        trigger={{
+          className: "dark:bg-background-secondary dark:hover:bg-background-tertiary"
+        }}
       />
     </div>
   );
