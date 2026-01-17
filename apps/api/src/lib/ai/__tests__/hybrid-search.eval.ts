@@ -1,4 +1,5 @@
 import type { InferLiveObject } from "@live-state/sync";
+import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import dotenv from "dotenv";
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,11 +9,9 @@ import { typesenseClient } from "../../search/typesense";
 import {
   findSimilarThreadsById,
   generateAndStoreThreadEmbeddings,
-  type CombinedThreadDebugInfo,
+  generateNormalizedThreadSummary,
   type FindSimilarThreadsDebugResult,
-  type KeywordChunkDebugInfo,
   type SimilarThreadResult,
-  type VectorChunkDebugInfo,
 } from "../thread-embeddings";
 
 // Load environment variables from .env.local
@@ -113,6 +112,77 @@ const convertToThread = (data: FakeThreadData): Thread => {
   };
 };
 
+const printPreprocessOutputForFirstThread = async (
+  threadId?: string
+): Promise<void> => {
+  const fakeData = loadFakeThreads();
+
+  let targetThread: FakeThreadData | undefined;
+  if (threadId) {
+    targetThread = fakeData.threads.find((t) => t.id === threadId);
+    if (!targetThread) {
+      console.log(
+        `Thread with ID "${threadId}" not found in fake-threads.json`
+      );
+      console.log(
+        `Available thread IDs: ${fakeData.threads.map((t) => t.id).join(", ")}`
+      );
+      return;
+    }
+  } else {
+    targetThread = fakeData.threads[0];
+  }
+
+  if (!targetThread) {
+    console.log("No threads found in fake-threads.json");
+    return;
+  }
+
+  const thread = convertToThread(targetThread);
+  const labels =
+    thread.labels
+      ?.filter((tl) => tl.enabled && tl.label?.enabled)
+      .map((tl) => tl.label?.name)
+      .filter((name): name is string => !!name) ?? [];
+
+  const sortedMessages = [...(thread.messages ?? [])].sort((a, b) =>
+    a.id.localeCompare(b.id)
+  );
+  const messageTexts: string[] = [];
+
+  for (const message of sortedMessages) {
+    if (messageTexts.length >= 3) {
+      break;
+    }
+
+    const text = safeParseJSON(message.content);
+    const plainText = jsonContentToPlainText(text).trim();
+    if (plainText) {
+      messageTexts.push(plainText);
+    }
+  }
+
+  const body = messageTexts.join("\n\n");
+  const { normalizedSummary } = await generateNormalizedThreadSummary({
+    title: thread.name ?? undefined,
+    labels,
+    body,
+  });
+
+  console.log("\n" + "=".repeat(70));
+  console.log("Preprocess Output (Gemini Normalized Summary)");
+  console.log("=".repeat(70));
+  console.log(`Thread ID: ${thread.id}`);
+  console.log(`Thread Title: ${thread.name ?? "(no title)"}`);
+  console.log(`Labels: ${labels.length > 0 ? labels.join(", ") : "(none)"}`);
+  console.log(`Messages used: ${messageTexts.length}`);
+  console.log(`Body length: ${body.length} characters`);
+  console.log("\n" + "-".repeat(70));
+  console.log("Normalized Summary:");
+  console.log("-".repeat(70));
+  console.log(normalizedSummary || "(empty)");
+};
+
 // Cleanup function to remove test data
 const cleanupTestData = async (): Promise<void> => {
   if (!typesenseClient) {
@@ -124,7 +194,7 @@ const cleanupTestData = async (): Promise<void> => {
 
   try {
     const searchResults = await client
-      .collections("threadChunks")
+      .collections("threads")
       .documents()
       .search({
         q: "*",
@@ -135,17 +205,17 @@ const cleanupTestData = async (): Promise<void> => {
     if (searchResults.hits && searchResults.hits.length > 0) {
       await Promise.all(
         searchResults.hits.map((hit) => {
-          const chunkId = (hit.document as { id: string }).id;
+          const threadId = (hit.document as { id: string }).id;
           return client
-            .collections("threadChunks")
-            .documents(chunkId)
+            .collections("threads")
+            .documents(threadId)
             .delete()
             .catch((error) => {
-              console.warn(`Error deleting chunk ${chunkId}:`, error);
+              console.warn(`Error deleting thread ${threadId}:`, error);
             });
         })
       );
-      console.log(`✅ Cleaned up ${searchResults.hits.length} test chunks`);
+      console.log(`✅ Cleaned up ${searchResults.hits.length} test threads`);
     } else {
       console.log("No test data found to clean up");
     }
@@ -177,8 +247,16 @@ const indexFakeThreads = async (): Promise<Map<string, Thread>> => {
     threads.set(thread.id, thread);
 
     try {
-      await generateAndStoreThreadEmbeddings(thread);
-      console.log(`  ✅ Indexed: ${thread.name}`);
+      const embedResult = await generateAndStoreThreadEmbeddings(thread);
+      const debug = embedResult.debug;
+      console.log(
+        `  ✅ Indexed: ${thread.name} (messages: ${debug.messageCount}, chars: ${debug.bodyCharacterCount})`
+      );
+      if (!embedResult.success) {
+        console.warn(
+          `    ⚠️  Embed warning: ${embedResult.error ?? "unknown"}`
+        );
+      }
     } catch (error) {
       console.error(`  ❌ Failed to index ${thread.id}:`, error);
       throw error;
@@ -264,11 +342,7 @@ const evaluateTestCaseDetailed = async (
   metrics: EvalMetrics;
   results: SimilarThreadResult[] | null;
   passed: boolean;
-  combinedResults: CombinedThreadDebugInfo[];
-  vectorChunks: VectorChunkDebugInfo[];
-  keywordChunks: KeywordChunkDebugInfo[];
-  keywords: string[];
-  searchParams?: FindSimilarThreadsDebugResult["debug"]["searchParams"];
+  searchDebug?: FindSimilarThreadsDebugResult["debug"];
 }> => {
   if (!typesenseClient) {
     throw new Error("Typesense client not available");
@@ -280,10 +354,8 @@ const evaluateTestCaseDetailed = async (
     TEST_ORGANIZATION_ID,
     {
       limit: 10,
-      vectorWeight: 0.6,
-      keywordWeight: 0.4,
-      keywordSteepness: 10,
-      cutoffScore: 0.3,
+      minScore: 0,
+      k: 40,
       includeDebug: true,
     }
   );
@@ -303,10 +375,7 @@ const evaluateTestCaseDetailed = async (
       },
       results: null,
       passed: false,
-      combinedResults: [],
-      vectorChunks: [],
-      keywordChunks: [],
-      keywords: [],
+      searchDebug: undefined,
     };
   }
 
@@ -326,11 +395,7 @@ const evaluateTestCaseDetailed = async (
     metrics,
     results,
     passed,
-    combinedResults: debug.combinedResults,
-    vectorChunks: debug.vectorSearch.chunks,
-    keywordChunks: debug.keywordSearch.chunks,
-    keywords: debug.keywordSearch.keywords,
-    searchParams: debug.searchParams,
+    searchDebug: debug,
   };
 };
 
@@ -371,126 +436,35 @@ const runTestCases = async (threads: Map<string, Thread>): Promise<number> => {
     });
 
     // Show search params from the real implementation
-    if (result.searchParams) {
+    if (result.searchDebug) {
       console.log(`\n  ⚙️  Search Parameters (from real implementation):`);
+      console.log(`    Collection: ${result.searchDebug.collection}`);
       console.log(
-        `    Vector Weight: ${result.searchParams.vectorWeight} (${(
-          result.searchParams.vectorWeight * 100
-        ).toFixed(0)}%)`
+        `    Limit: ${result.searchDebug.limit}, k: ${result.searchDebug.k}`
       );
-      console.log(
-        `    Keyword Weight: ${result.searchParams.keywordWeight} (${(
-          result.searchParams.keywordWeight * 100
-        ).toFixed(0)}%)`
-      );
-      console.log(
-        `    Keyword S-curve Steepness: ${result.searchParams.keywordSteepness}`
-      );
-      console.log(`    Cutoff Score: ${result.searchParams.cutoffScore}`);
-      console.log(
-        `    Limit: ${result.searchParams.limit}, k: ${result.searchParams.k}`
-      );
-    }
-
-    // Show keywords used
-    if (result.keywords.length > 0) {
-      console.log(`\n  🔑 Keywords (${result.keywords.length}):`);
-      console.log(
-        `    ${result.keywords.slice(0, 15).join(", ")}${
-          result.keywords.length > 15 ? "..." : ""
-        }`
-      );
+      console.log(`    Min Score: ${result.searchDebug.minScore}`);
+      console.log(`    Vector Query: ${result.searchDebug.vectorQuery}`);
     }
 
     // Show scoring breakdown
     console.log(`\n  📊 Scoring Breakdown:`);
-    console.log(`  Vector search chunks found: ${result.vectorChunks.length}`);
-    console.log(
-      `  Keyword search chunks found: ${result.keywordChunks.length}`
-    );
+    const hitCount = result.searchDebug?.totalHits ?? 0;
+    console.log(`  Vector search hits found: ${hitCount}`);
 
-    // Show vector search statistics
-    if (result.vectorChunks.length > 0) {
+    if (result.searchDebug && result.searchDebug.hits.length > 0) {
       console.log(`\n  🔍 Vector Search Results:`);
       const avgVectorScore =
-        result.vectorChunks.reduce((sum, c) => sum + c.vectorScore, 0) /
-        result.vectorChunks.length;
+        result.searchDebug.hits.reduce((sum, c) => sum + c.score, 0) /
+        result.searchDebug.hits.length;
       console.log(`    Avg vector score: ${avgVectorScore.toFixed(3)}`);
 
-      // Show top 5 vector results
-      const topVectorChunks = [...result.vectorChunks]
-        .sort((a, b) => b.vectorScore - a.vectorScore)
+      const topVectorHits = [...result.searchDebug.hits]
+        .sort((a, b) => b.score - a.score)
         .slice(0, 5);
       console.log(`    Top 5 vector matches:`);
-      for (const chunk of topVectorChunks) {
-        console.log(
-          `      - ${chunk.threadId}${
-            chunk.chunkIndex !== undefined ? ` (chunk ${chunk.chunkIndex})` : ""
-          }: ${chunk.vectorScore.toFixed(4)}`
-        );
+      for (const hit of topVectorHits) {
+        console.log(`      - ${hit.threadId}: ${hit.score.toFixed(4)}`);
       }
-    }
-
-    // Show keyword search statistics
-    if (result.keywordChunks.length > 0) {
-      console.log(`\n  🏷️  Keyword Search Results:`);
-      const avgKeywordScore =
-        result.keywordChunks.reduce((sum, c) => sum + c.keywordScore, 0) /
-        result.keywordChunks.length;
-      const avgMatchRatio =
-        result.keywordChunks.reduce((sum, c) => sum + c.matchRatio, 0) /
-        result.keywordChunks.length;
-      console.log(
-        `    Avg keyword score (S-curve): ${avgKeywordScore.toFixed(3)}`
-      );
-      console.log(`    Avg match ratio: ${(avgMatchRatio * 100).toFixed(1)}%`);
-
-      // Show top 5 keyword results
-      const topKeywordChunks = [...result.keywordChunks]
-        .sort((a, b) => b.keywordScore - a.keywordScore)
-        .slice(0, 5);
-      console.log(`    Top 5 keyword matches:`);
-      for (const chunk of topKeywordChunks) {
-        console.log(
-          `      - ${chunk.threadId}${
-            chunk.chunkIndex !== undefined ? ` (chunk ${chunk.chunkIndex})` : ""
-          }: score=${chunk.keywordScore.toFixed(4)}, ratio=${(
-            chunk.matchRatio * 100
-          ).toFixed(0)}% (${chunk.matchedKeywords.length}/${
-            chunk.totalKeywords
-          })`
-        );
-      }
-    }
-
-    // Show combined results with scoring explanation
-    if (result.combinedResults && result.combinedResults.length > 0) {
-      console.log(`\n  ✅ Final Combined Thread Scores:`);
-      for (const combined of result.combinedResults.slice(0, 10)) {
-        const isSimilar = testCase.expectedSimilar.includes(combined.threadId);
-        const isDissimilar = testCase.expectedDissimilar.includes(
-          combined.threadId
-        );
-        let marker = "";
-        if (isSimilar) marker = " [EXPECTED ✓]";
-        else if (isDissimilar) marker = " [WRONG ✗]";
-
-        console.log(`\n    ${combined.threadId}${marker}`);
-        console.log(`      Final Score: ${combined.finalScore.toFixed(4)}`);
-        console.log(
-          `      Vector Score: ${combined.vectorScore.toFixed(
-            4
-          )} (weight: ${combined.vectorWeight.toFixed(2)})`
-        );
-        console.log(
-          `      Keyword Score: ${combined.keywordScore.toFixed(
-            4
-          )} (weight: ${combined.keywordWeight.toFixed(2)})`
-        );
-        console.log(`      Formula: ${combined.formulaDetails}`);
-      }
-    } else {
-      console.log("  No results returned");
     }
 
     // Show summary results
@@ -503,9 +477,7 @@ const runTestCases = async (threads: Map<string, Thread>): Promise<number> => {
         const isDissimilar = testCase.expectedDissimilar.includes(r.threadId);
         const marker = isSimilar ? "[EXPECTED]" : isDissimilar ? "[WRONG]" : "";
         console.log(
-          `    - ${r.threadId} (score: ${r.score.toFixed(4)}, chunks: ${
-            r.chunkCount
-          }) ${marker}`
+          `    - ${r.threadId} (score: ${r.score.toFixed(4)}) ${marker}`
         );
       }
     }
@@ -589,6 +561,8 @@ Usage:
 Commands:
   --prepare, --index    Index fake threads into Typesense
   --cleanup, --clean    Remove all test data from Typesense
+  --preprocess [id]    Show Gemini preprocessing output for a thread
+                       (if no ID provided, uses first thread)
   --help, -h            Show this help message
   (no args)             Run test cases (assumes threads are already indexed)
 
@@ -602,12 +576,21 @@ Examples:
   # Clean up when done
   bun run hybrid-search.eval.ts --cleanup
 
+  # Check preprocessing output for the first thread
+  bun run hybrid-search.eval.ts --preprocess
+
+  # Check preprocessing output for a specific thread
+  bun run hybrid-search.eval.ts --preprocess thread_123
+
 Note: The test organization ID is: ${TEST_ORGANIZATION_ID}
 `);
 };
 
 // Parse CLI arguments
-const parseArgs = (): { mode: "prepare" | "cleanup" | "test" | "help" } => {
+const parseArgs = (): {
+  mode: "prepare" | "cleanup" | "test" | "help" | "preprocess";
+  threadId?: string;
+} => {
   const args = process.argv.slice(2);
 
   if (args.includes("--help") || args.includes("-h")) {
@@ -622,12 +605,19 @@ const parseArgs = (): { mode: "prepare" | "cleanup" | "test" | "help" } => {
     return { mode: "cleanup" };
   }
 
+  if (args.includes("--preprocess")) {
+    const preprocessIndex = args.indexOf("--preprocess");
+    const threadId = args[preprocessIndex + 1];
+    return { mode: "preprocess", threadId };
+  }
+
   return { mode: "test" };
 };
 
 // Main entry point
 const main = async (): Promise<void> => {
-  const { mode } = parseArgs();
+  const args = parseArgs();
+  const { mode, threadId } = args;
 
   if (mode === "help") {
     printUsage();
@@ -666,6 +656,12 @@ const main = async (): Promise<void> => {
       await cleanupTestData();
 
       console.log("\n✅ Cleanup complete!");
+      process.exit(0);
+    } else if (mode === "preprocess") {
+      console.log("=".repeat(70));
+      console.log("Thread Preprocessing Output");
+      console.log("=".repeat(70));
+      await printPreprocessOutputForFirstThread(threadId);
       process.exit(0);
     } else {
       // Run tests

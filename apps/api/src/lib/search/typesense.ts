@@ -138,3 +138,31 @@ createOrUpdateCollection({
     console.error("Error creating or updating threadChunks collection", error);
   }
 });
+
+createOrUpdateCollection({
+  name: "threads",
+  fields: [
+    { name: "id", type: "string" },
+    { name: "threadId", type: "string" },
+    { name: "organizationId", type: "string" },
+    { name: "title", type: "string" },
+    { name: "labels", type: "string" },
+    { name: "content", type: "string" },
+    {
+      name: "embedding",
+      type: "float[]",
+      num_dim: 768,
+      optional: true,
+    },
+  ],
+}).catch((error) => {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  const httpStatus = (error as { httpStatus?: number })?.httpStatus;
+  if (
+    !errorMessage.includes("Not Found") &&
+    !errorMessage.includes("not found") &&
+    httpStatus !== 404
+  ) {
+    console.error("Error creating or updating Thread collection", error);
+  }
+});

@@ -34,7 +34,14 @@ export const generateEmbedding = async (
       },
     });
 
-    return embedding;
+    const norm = Math.hypot(...embedding);
+
+    if (!Number.isFinite(norm) || norm === 0) {
+      console.warn("Embedding normalization failed: invalid norm", norm);
+      return embedding;
+    }
+
+    return embedding.map((value) => value / norm);
   } catch (error) {
     console.error("Error generating embedding:", error);
     return null;
