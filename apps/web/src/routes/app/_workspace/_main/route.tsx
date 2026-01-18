@@ -19,7 +19,7 @@ function RouteComponent() {
   return (
     <div className="w-screen h-full flex overflow-hidden">
       <AppSidebar />
-      <Card className="flex-1 relative m-2 ml-0 h-auto">
+      <Card className="flex-1 relative m-2 ml-0 h-auto overflow-hidden">
         <Outlet />
       </Card>
 
@@ -49,6 +49,10 @@ function RouteComponent() {
             ],
           },
         ]}
+        trigger={{
+          className:
+            "dark:bg-background-secondary dark:hover:bg-background-tertiary",
+        }}
       />
     </div>
   );

@@ -310,8 +310,9 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
                 />
                 <div>{thread?.name}</div>
               </div>
+              {/* TODO fix overflow issues with labels */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 mr-1">
+                <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
                   {thread?.labels
                     ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
                     .map((threadLabel) => (
@@ -335,8 +336,8 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
                 <StatusIndicator status={thread?.status ?? 0} />
               </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
+            <div className="flex gap-2 justify-between md:gap-0">
+              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-3xs sm:max-w-lg md:max-w-xl lg:max-w-2xl">
                 <span className="font-medium">
                   {
                     thread?.messages?.[thread?.messages?.length - 1]?.author
