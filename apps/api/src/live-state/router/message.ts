@@ -2,16 +2,18 @@ import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { ulid } from "ulid";
 import z from "zod";
 import { generateEmbedding } from "../../lib/ai/embeddings";
+import type { RelatedThreadsParams } from "../../lib/ai/related-thread-suggestions";
 import {
+  findSimilarThreadsById,
   generateAndStoreThreadEmbeddings,
   shouldIncludeMessageInEmbedding,
 } from "../../lib/ai/thread-embeddings";
-import {
-  createDocument,
-  searchDocuments,
-} from "../../lib/search/typesense";
+import { createDocument, searchDocuments } from "../../lib/search/typesense";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
+import { storage } from "../storage";
+
+const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
 
 export default publicRoute
   .collectionRoute(schema.message, {
@@ -74,7 +76,7 @@ export default publicRoute
       }
 
       // Verify thread exists and belongs to the expected organization
-      const thread = await db.findOne(schema.thread, req.input.threadId);
+      const thread = await storage.findOne(schema.thread, req.input.threadId);
       if (!thread || thread.organizationId !== req.input.organizationId) {
         throw new Error("THREAD_NOT_FOUND");
       }
@@ -166,7 +168,7 @@ export default publicRoute
       (async () => {
         try {
           const thread = (
-            await db.find(schema.thread, {
+            await storage.find(schema.thread, {
               where: { id: value.threadId },
             })
           )[0];
@@ -184,7 +186,7 @@ export default publicRoute
           );
 
           const allMessages = Object.values(
-            await db.find(schema.message, {
+            await storage.find(schema.message, {
               where: { threadId: value.threadId },
               sort: [{ key: "id", direction: "asc" }],
             })
@@ -206,13 +208,11 @@ export default publicRoute
           });
 
           if (!created) {
-            console.error(
-              `error creating message ${value.id} in typesense`
-            );
+            console.error(`error creating message ${value.id} in typesense`);
           }
 
           const threadWithRelations = Object.values(
-            await db.find(schema.thread, {
+            await storage.find(schema.thread, {
               where: { id: value.threadId },
               include: {
                 messages: true,
@@ -222,10 +222,67 @@ export default publicRoute
           )[0];
 
           if (
-            threadWithRelations &&
-            shouldIncludeMessageInEmbedding(threadWithRelations, value.id)
+            !threadWithRelations ||
+            !shouldIncludeMessageInEmbedding(threadWithRelations, value.id)
           ) {
-            await generateAndStoreThreadEmbeddings(threadWithRelations);
+            return;
+          }
+
+          await generateAndStoreThreadEmbeddings(threadWithRelations);
+
+          const limit = 10;
+          const minScore = 0;
+          const k = limit * 4;
+          const excludeThreadIds: string[] = [];
+
+          const params: RelatedThreadsParams = {
+            limit,
+            minScore,
+            k,
+            excludeThreadIds,
+          };
+
+          const existingSuggestions = Object.values(
+            await storage.find(schema.suggestion, {
+              where: {
+                type: SUGGESTION_TYPE_RELATED_THREADS,
+                entityId: value.threadId,
+                organizationId,
+              },
+            })
+          );
+
+          const existingSuggestion = existingSuggestions[0];
+
+          const similarThreads =
+            (await findSimilarThreadsById(value.threadId, organizationId, {
+              limit,
+              minScore,
+              k,
+              excludeThreadIds,
+            })) ?? [];
+
+          const now = new Date();
+          const metadataStr = JSON.stringify({ params });
+          const resultsStr = JSON.stringify(similarThreads);
+
+          if (existingSuggestion) {
+            await storage.update(schema.suggestion, existingSuggestion.id, {
+              resultsStr,
+              metadataStr,
+              updatedAt: now,
+            });
+          } else {
+            await storage.insert(schema.suggestion, {
+              id: ulid().toLowerCase(),
+              type: SUGGESTION_TYPE_RELATED_THREADS,
+              entityId: value.threadId,
+              organizationId,
+              resultsStr,
+              metadataStr,
+              createdAt: now,
+              updatedAt: now,
+            });
           }
         } catch (error) {
           console.error(
