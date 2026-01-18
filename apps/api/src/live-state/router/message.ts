@@ -6,7 +6,10 @@ import {
   generateAndStoreThreadEmbeddings,
   shouldIncludeMessageInEmbedding,
 } from "../../lib/ai/thread-embeddings";
-import { typesenseClient } from "../../lib/search/typesense";
+import {
+  createDocument,
+  searchDocuments,
+} from "../../lib/search/typesense";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -149,14 +152,11 @@ export default publicRoute
         organizationId: z.string(),
       })
     ).handler(async ({ req }) => {
-      const messages = await typesenseClient
-        ?.collections("messages")
-        .documents()
-        .search({
-          q: req.input.query,
-          filter_by: `organizationId:=${req.input.organizationId}`,
-          query_by: "content",
-        });
+      const messages = await searchDocuments("messages", {
+        q: req.input.query,
+        filter_by: `organizationId:=${req.input.organizationId}`,
+        query_by: "content",
+      });
 
       return messages;
     }),
@@ -196,23 +196,20 @@ export default publicRoute
           const embedding =
             (await generateEmbedding(plainTextContent)) ?? undefined;
 
-          await typesenseClient
-            ?.collections("messages")
-            .documents()
-            .create({
-              id: value.id,
-              content: plainTextContent,
-              organizationId: organizationId,
-              threadId: value.threadId,
-              messageIndex: messageIndex,
-              embedding,
-            })
-            .catch((error) =>
-              console.error(
-                `error creating message ${value.id} in typesense`,
-                error
-              )
+          const created = await createDocument("messages", {
+            id: value.id,
+            content: plainTextContent,
+            organizationId: organizationId,
+            threadId: value.threadId,
+            messageIndex: messageIndex,
+            embedding,
+          });
+
+          if (!created) {
+            console.error(
+              `error creating message ${value.id} in typesense`
             );
+          }
 
           const threadWithRelations = Object.values(
             await db.find(schema.thread, {

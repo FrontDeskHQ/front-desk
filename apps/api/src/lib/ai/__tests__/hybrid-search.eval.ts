@@ -5,7 +5,11 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { schema } from "../../../live-state/schema";
-import { typesenseClient } from "../../search/typesense";
+import {
+  deleteDocument,
+  isTypesenseAvailable,
+  searchDocuments,
+} from "../../search/typesense";
 import {
   findSimilarThreadsById,
   generateAndStoreThreadEmbeddings,
@@ -185,34 +189,31 @@ const printPreprocessOutputForFirstThread = async (
 
 // Cleanup function to remove test data
 const cleanupTestData = async (): Promise<void> => {
-  if (!typesenseClient) {
+  if (!isTypesenseAvailable()) {
     console.log("Typesense client not available, skipping cleanup");
     return;
   }
 
-  const client = typesenseClient;
-
   try {
-    const searchResults = await client
-      .collections("threads")
-      .documents()
-      .search({
-        q: "*",
-        filter_by: `organizationId:=${TEST_ORGANIZATION_ID}`,
-        per_page: 250,
-      });
+    const searchResults = await searchDocuments<{
+      hits?: Array<{ document?: { id?: string } }>;
+    }>("threads", {
+      q: "*",
+      filter_by: `organizationId:=${TEST_ORGANIZATION_ID}`,
+      per_page: 250,
+    });
 
-    if (searchResults.hits && searchResults.hits.length > 0) {
+    if (searchResults?.hits && searchResults.hits.length > 0) {
       await Promise.all(
-        searchResults.hits.map((hit) => {
-          const threadId = (hit.document as { id: string }).id;
-          return client
-            .collections("threads")
-            .documents(threadId)
-            .delete()
-            .catch((error) => {
-              console.warn(`Error deleting thread ${threadId}:`, error);
-            });
+        searchResults.hits.map(async (hit) => {
+          const threadId = hit.document?.id ?? "";
+          if (!threadId) {
+            return;
+          }
+          const deleted = await deleteDocument("threads", threadId);
+          if (!deleted) {
+            console.warn(`Error deleting thread ${threadId}`);
+          }
         })
       );
       console.log(`✅ Cleaned up ${searchResults.hits.length} test threads`);
@@ -227,7 +228,7 @@ const cleanupTestData = async (): Promise<void> => {
 
 // Index fake threads into Typesense
 const indexFakeThreads = async (): Promise<Map<string, Thread>> => {
-  if (!typesenseClient) {
+  if (!isTypesenseAvailable()) {
     throw new Error(
       "Typesense client not available. Please set TYPESENSE_API_KEY."
     );
@@ -344,7 +345,7 @@ const evaluateTestCaseDetailed = async (
   passed: boolean;
   searchDebug?: FindSimilarThreadsDebugResult["debug"];
 }> => {
-  if (!typesenseClient) {
+  if (!isTypesenseAvailable()) {
     throw new Error("Typesense client not available");
   }
 
@@ -624,7 +625,7 @@ const main = async (): Promise<void> => {
     process.exit(0);
   }
 
-  if (!typesenseClient) {
+  if (!isTypesenseAvailable()) {
     console.error(
       "Typesense client not available. Please set TYPESENSE_API_KEY."
     );

@@ -4,7 +4,13 @@ import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import z from "zod";
 import type { schema } from "../../live-state/schema";
-import { typesenseClient } from "../search/typesense";
+import {
+  createDocument,
+  deleteDocument,
+  isTypesenseAvailable,
+  performMultiSearch,
+  retrieveDocument,
+} from "../search/typesense";
 import { generateEmbedding } from "./embeddings";
 
 type Thread = InferLiveObject<
@@ -244,7 +250,7 @@ export const generateAndStoreThreadEmbeddings = async (
     documentId: thread.id,
   };
 
-  if (!typesenseClient) {
+  if (!isTypesenseAvailable()) {
     return {
       success: false,
       error: "Typesense client not available",
@@ -296,33 +302,36 @@ export const generateAndStoreThreadEmbeddings = async (
       };
     }
 
-    const client = typesenseClient;
+    const deleteOk = await deleteDocument(THREAD_COLLECTION, thread.id, {
+      ignore_not_found: true,
+    });
 
-    try {
-      await client.collections(THREAD_COLLECTION).documents(thread.id).delete();
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      if (!errorMessage.includes("Not Found")) {
-        console.warn(
-          `Error deleting existing thread doc ${thread.id}:`,
-          errorMessage
-        );
-      }
+    if (!deleteOk) {
+      console.warn(`Error deleting existing thread doc ${thread.id}`);
     }
 
-    await client
-      .collections(THREAD_COLLECTION)
-      .documents()
-      .create({
-        id: thread.id,
-        threadId: thread.id,
-        organizationId: thread.organizationId,
-        title: thread.name ?? "",
-        labels: labels.join(", "),
-        content: normalizedSummary,
-        embedding,
-      });
+    const createOk = await createDocument(THREAD_COLLECTION, {
+      id: thread.id,
+      threadId: thread.id,
+      organizationId: thread.organizationId,
+      title: thread.name ?? "",
+      labels: labels.join(", "),
+      content: normalizedSummary,
+      embedding,
+    });
+
+    if (!createOk) {
+      return {
+        success: false,
+        error: "Failed to index thread embedding",
+        debug: {
+          ...debugBase,
+          summaryPrompt: prompt,
+          normalizedSummary,
+          embeddingDimensions: embedding.length,
+        },
+      };
+    }
 
     return {
       success: true,
@@ -401,10 +410,6 @@ export async function findSimilarThreadsById(
   organizationId: string,
   options: FindSimilarThreadsOptions = {}
 ): Promise<SimilarThreadResult[] | FindSimilarThreadsDebugResult | null> {
-  if (!typesenseClient) {
-    return null;
-  }
-
   const {
     limit = 10,
     minScore = 0,
@@ -429,11 +434,7 @@ export async function findSimilarThreadsById(
   });
 
   try {
-    const sourceDoc = await typesenseClient
-      .collections(THREAD_COLLECTION)
-      .documents(threadId)
-      .retrieve()
-      .catch(() => null);
+    const sourceDoc = await retrieveDocument(THREAD_COLLECTION, threadId);
 
     if (!sourceDoc) {
       console.warn(`No indexed thread found for ${threadId}`);
@@ -450,20 +451,22 @@ export async function findSimilarThreadsById(
 
     const vectorQuery = `embedding:([], id: ${threadId}, k: ${k})`;
 
-    const vectorResults = await typesenseClient.multiSearch.perform(
-      {
-        searches: [
-          {
-            collection: THREAD_COLLECTION,
-            q: "*",
-            vector_query: vectorQuery,
-            filter_by: filterBy,
-            per_page: k,
-          },
-        ],
-      },
-      {}
-    );
+    const vectorResults = await performMultiSearch({
+      searches: [
+        {
+          collection: THREAD_COLLECTION,
+          q: "*",
+          vector_query: vectorQuery,
+          filter_by: filterBy,
+          per_page: k,
+        },
+      ],
+    });
+
+    if (!vectorResults) {
+      console.warn("Failed to fetch vector search results");
+      return includeDebug ? createEmptyDebugResult() : null;
+    }
 
     const vectorSearchResult = vectorResults.results[0] as
       | {

@@ -2,7 +2,10 @@ import "../src/env";
 
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateEmbedding } from "../src/lib/ai/embeddings";
-import { typesenseClient } from "../src/lib/search/typesense";
+import {
+  isTypesenseAvailable,
+  upsertDocument,
+} from "../src/lib/search/typesense";
 import { storage } from "../src/live-state/storage";
 
 const BATCH_SIZE = 100;
@@ -15,7 +18,7 @@ type MessageRow = {
 };
 
 const backfillMessages = async () => {
-  if (!typesenseClient) {
+  if (!isTypesenseAvailable()) {
     console.error(
       "Typesense client is not configured. Please set TYPESENSE_API_KEY environment variable."
     );
@@ -123,10 +126,14 @@ const backfillMessages = async () => {
           }
 
           // Index the message in Typesense
-          await typesenseClient
-            .collections("messages")
-            .documents()
-            .upsert(typesenseDocument);
+          const upserted = await upsertDocument(
+            "messages",
+            typesenseDocument
+          );
+
+          if (!upserted) {
+            throw new Error("Typesense upsert failed");
+          }
 
           successCount++;
         } catch (error) {
