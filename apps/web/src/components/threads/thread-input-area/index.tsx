@@ -4,12 +4,13 @@ import {
   EditorSubmit,
 } from "@workspace/ui/components/blocks/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
+import { useEffect, useState } from "react";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
 import {
   LabelSuggestions,
   usePendingLabelSuggestions,
-} from "./label-suggestions";
+} from "./support-intelligence";
 
 type ThreadInputAreaProps = {
   threadId: string;
@@ -38,7 +39,23 @@ export const ThreadInputArea = ({
     lastMessageId,
   });
 
-  const hasSuggestions = suggestedLabels?.length > 0;
+  const [showBorder, setShowBorder] = useState(false);
+  const hasSuggestions = (suggestedLabels?.length ?? 0) > 0;
+
+  useEffect(() => {
+    if (hasSuggestions) {
+      // Show border immediately when suggestions appear
+      setShowBorder(true);
+      return;
+    }
+
+    // Hide border after transition finishes (200ms matches transition duration)
+    const timeoutId = setTimeout(() => {
+      setShowBorder(false);
+    }, 200);
+
+    return () => clearTimeout(timeoutId);
+  }, [hasSuggestions]);
 
   return (
     <div className="bottom-2.5 w-full flex flex-col bg-background-tertiary rounded-md border border-input">
@@ -48,6 +65,7 @@ export const ThreadInputArea = ({
         suggestedLabels={suggestedLabels}
         threadLabels={threadLabels}
         suggestion={suggestion}
+        captureThreadEvent={captureThreadEvent}
       />
       <Editor
         onSubmit={(value) => {
@@ -83,7 +101,7 @@ export const ThreadInputArea = ({
         <EditorInput
           className={cn(
             "shadow-lg bg-[#1B1B1E] border-0",
-            hasSuggestions && "border-t border-input",
+            showBorder && "border-t border-input",
           )}
           placeholder="Write a reply..."
         >
