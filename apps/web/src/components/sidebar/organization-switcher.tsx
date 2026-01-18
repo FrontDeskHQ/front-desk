@@ -40,7 +40,6 @@ export function OrgSwitcher() {
             <SidebarMenuButton className="w-fit px-1.5 select-none">
               <Avatar
                 variant="org"
-                size="lg"
                 src={activeOrganization?.logoUrl}
                 fallback={activeOrganization?.name}
               />
@@ -78,8 +77,6 @@ export function OrgSwitcher() {
               >
                 <Avatar
                   variant="org"
-                  size="lg"
-                  className="size-6"
                   src={userOrg.organization.logoUrl}
                   fallback={userOrg.organization.name}
                 />
