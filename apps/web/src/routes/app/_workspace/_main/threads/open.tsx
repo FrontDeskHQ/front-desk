@@ -8,13 +8,13 @@ const STATUS_RESOLVED =
     Object.entries(statusValues).find(
       ([, value]) => value.label === "Resolved",
     )?.[0],
-  ) ?? 2;
+  ) || 2;
 const STATUS_CLOSED =
   Number(
     Object.entries(statusValues).find(
       ([, value]) => value.label === "Closed",
     )?.[0],
-  ) ?? 3;
+  ) || 3;
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/open")({
   component: RouteComponent,
