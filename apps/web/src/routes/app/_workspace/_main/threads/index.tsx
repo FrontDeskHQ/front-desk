@@ -284,8 +284,9 @@ function RouteComponent() {
                 />
                 <div>{thread?.name}</div>
               </div>
+              {/* TODO fix overflow issues with labels */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 mr-1">
+                <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
                   {thread?.labels
                     ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
                     .map((threadLabel) => (
