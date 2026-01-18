@@ -27,6 +27,7 @@ export const Toolbar = () => {
   if (hideMode === "temporary") {
     return (
       <button
+        type="button"
         onClick={handleShowToolbar}
         className="fixed bottom-0 left-1/2 -translate-x-1/2 mb-2 px-3 py-1 bg-background-secondary border border-border rounded text-xs font-mono hover:bg-background-tertiary transition-colors outline-none focus-visible:ring-1 focus-visible:ring-ring z-50"
         aria-label="Show toolbar"

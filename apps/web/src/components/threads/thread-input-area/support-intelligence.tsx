@@ -122,15 +122,13 @@ export const LabelSuggestions = ({
   }, [hasSuggestions, suggestedLabels?.length, captureThreadEvent]);
 
   const handleToggleCollapse = () => {
-    setIsCollapsed((prev) => {
-      const newState = !prev;
-      captureThreadEvent(
-        newState
-          ? "support_intelligence:suggestions_collapsed"
-          : "support_intelligence:suggestions_expanded",
-      );
-      return newState;
-    });
+    const newState = !isCollapsed;
+    captureThreadEvent(
+      newState
+        ? "support_intelligence:suggestions_collapsed"
+        : "support_intelligence:suggestions_expanded",
+    );
+    setIsCollapsed(newState);
   };
   const updateSuggestionMetadata = (
     acceptedLabelIds?: string[],
