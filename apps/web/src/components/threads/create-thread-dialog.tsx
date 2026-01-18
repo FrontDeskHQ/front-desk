@@ -117,14 +117,18 @@ export function CreateThreadDialog({
   if (!portalSession?.user) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger>
-          {trigger ?? (
-            <Button size="sm" variant="primary">
-              <PlusIcon />
-              Create thread
-            </Button>
-          )}
-        </DialogTrigger>
+        {trigger ? (
+          <DialogTrigger>{trigger}</DialogTrigger>
+        ) : (
+          <DialogTrigger
+            render={
+              <Button size="sm" variant="primary">
+                <PlusIcon />
+                Create thread
+              </Button>
+            }
+          />
+        )}
         <DialogContent className="py-14 sm:max-w-md">
           <DialogHeader className="text-center space-y-3 items-center">
             <Avatar
@@ -162,14 +166,18 @@ export function CreateThreadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger>
-        {trigger ?? (
-          <Button size="sm" variant="primary">
-            <PlusIcon />
-            Create thread
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger>{trigger}</DialogTrigger>
+      ) : (
+        <DialogTrigger
+          render={
+            <Button size="sm" variant="primary">
+              <PlusIcon />
+              Create thread
+            </Button>
+          }
+        />
+      )}
       <DialogContent
         className="sm:max-w-2xl p-0 gap-0 overflow-hidden"
         showCloseButton={false}
