@@ -411,7 +411,7 @@ export async function findSimilarThreadsById(
   options: FindSimilarThreadsOptions = {}
 ): Promise<SimilarThreadResult[] | FindSimilarThreadsDebugResult | null> {
   const {
-    limit = 10,
+    limit = 5,
     minScore = 0,
     excludeThreadIds = [],
     k = limit * 4,
