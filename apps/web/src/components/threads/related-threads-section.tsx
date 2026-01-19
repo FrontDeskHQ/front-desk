@@ -34,7 +34,7 @@ const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
       <Avatar
         variant="user"
         size="md"
-        fallback={thread.author.user?.name ?? "Unknown"}
+        fallback={thread.author.user?.name ?? thread.author.name ?? "Unknown"}
         src={thread.author.user?.image}
       />
       <div className="grow shrink truncate">{thread.name}</div>
