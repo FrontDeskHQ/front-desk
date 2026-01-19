@@ -78,6 +78,160 @@ const safeParseJSON = (raw: string) => {
   ];
 };
 
+type RelatedThreadResult = {
+  threadId: string;
+  score: number;
+};
+
+type RelatedThreadLink = {
+  threadId: string;
+  name: string | null;
+  url: string;
+};
+
+const RELATED_THREADS_SUGGESTION_TYPE = "related_threads";
+const RELATED_THREAD_LINK_LIMIT = 5;
+const RELATED_THREADS_POLL_ATTEMPTS = 5;
+const RELATED_THREADS_INITIAL_DELAY_MS = 30000;
+const RELATED_THREADS_BACKOFF_BASE_MS = 1000;
+const RELATED_THREADS_BACKOFF_MAX_MULTIPLIER = 5;
+const RELATED_THREADS_BACKOFF_MAX_MS =
+  RELATED_THREADS_BACKOFF_BASE_MS * RELATED_THREADS_BACKOFF_MAX_MULTIPLIER;
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const buildPortalThreadUrl = (
+  baseUrl: string,
+  organizationSlug: string,
+  threadId: string
+) => {
+  const baseUrlObj = new URL(baseUrl);
+  const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+  return `${baseUrlObj.protocol}//${organizationSlug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+};
+
+const parseRelatedThreadResults = (
+  resultsStr: string | null | undefined
+): RelatedThreadResult[] => {
+  if (!resultsStr) return [];
+  try {
+    const parsed = JSON.parse(resultsStr);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item.threadId === "string")
+      .map((item) => ({
+        threadId: item.threadId as string,
+        score: typeof item.score === "number" ? item.score : 0,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const getRelatedThreadLinks = async ({
+  organizationId,
+  organizationSlug,
+  threadId,
+  baseUrl,
+}: {
+  organizationId: string;
+  organizationSlug: string;
+  threadId: string;
+  baseUrl: string;
+}): Promise<RelatedThreadLink[]> => {
+  const seenThreadIds = new Set<string>();
+  const links: RelatedThreadLink[] = [];
+  let backoffMs = RELATED_THREADS_BACKOFF_BASE_MS;
+
+  for (let attempt = 0; attempt < RELATED_THREADS_POLL_ATTEMPTS; attempt += 1) {
+    const suggestion = await fetchClient.query.suggestion
+      .first({
+        type: RELATED_THREADS_SUGGESTION_TYPE,
+        entityId: threadId,
+        organizationId,
+      })
+      .get();
+
+    const results = parseRelatedThreadResults(suggestion?.resultsStr).filter(
+      (result) => result.threadId !== threadId
+    );
+
+    if (results.length > 0) {
+      for (const result of results) {
+        if (seenThreadIds.has(result.threadId)) continue;
+        if (links.length >= RELATED_THREAD_LINK_LIMIT) break;
+
+        const thread = store.query.thread.first({ id: result.threadId }).get();
+
+        if (thread?.deletedAt) continue;
+
+        seenThreadIds.add(result.threadId);
+        links.push({
+          threadId: result.threadId,
+          name: thread?.name ?? null,
+          url: buildPortalThreadUrl(baseUrl, organizationSlug, result.threadId),
+        });
+      }
+
+      if (links.length > 0) {
+        return links;
+      }
+    }
+
+    if (attempt < RELATED_THREADS_POLL_ATTEMPTS - 1) {
+      await sleep(backoffMs);
+      backoffMs = Math.min(backoffMs * 2, RELATED_THREADS_BACKOFF_MAX_MS);
+    }
+  }
+
+  return links;
+};
+
+const buildPortalBotText = ({
+  portalUrl,
+  relatedThreadLinks,
+}: {
+  portalUrl: string;
+  relatedThreadLinks: RelatedThreadLink[];
+}) => {
+  const lines = [
+    `This thread is also being tracked in our community portal: <${portalUrl}|Open in portal>`,
+  ];
+
+  if (relatedThreadLinks.length > 0) {
+    lines.push("");
+    lines.push("Related threads on the portal:");
+    for (const link of relatedThreadLinks) {
+      if (link.name) {
+        lines.push(`• <${link.url}|${link.name}>`);
+      } else {
+        lines.push(`• <${link.url}>`);
+      }
+    }
+  }
+
+  return lines.join("\n");
+};
+
+const buildPortalBotBlocks = ({
+  portalUrl,
+  relatedThreadLinks,
+}: {
+  portalUrl: string;
+  relatedThreadLinks: RelatedThreadLink[];
+}) => [
+  {
+    type: "section",
+    text: {
+      type: "mrkdwn",
+      text: buildPortalBotText({ portalUrl, relatedThreadLinks }),
+    },
+  },
+];
+
 const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
   try {
     const installation = await installationStore.fetchInstallation({
@@ -217,16 +371,61 @@ app.message(
 
           if (showPortalMessage) {
             const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-            const baseUrlObj = new URL(baseUrl);
-            const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-            const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+            const portalUrl = buildPortalThreadUrl(
+              baseUrl,
+              organization.slug,
+              threadId
+            );
+            const portalText = buildPortalBotText({
+              portalUrl,
+              relatedThreadLinks: [],
+            });
+            const portalBlocks = buildPortalBotBlocks({
+              portalUrl,
+              relatedThreadLinks: [],
+            });
 
-            const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
-            await say({
-              text: portalMessage,
+            const postResult = await say({
+              text: portalText,
+              blocks: portalBlocks,
               channel: message.channel,
               thread_ts: message.ts,
             });
+
+            void (async () => {
+              try {
+                await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
+
+                const relatedThreadLinks = await getRelatedThreadLinks({
+                  organizationId: integration.organizationId,
+                  organizationSlug: organization.slug,
+                  threadId,
+                  baseUrl,
+                });
+
+                if (relatedThreadLinks.length === 0) return;
+
+                const updatedText = buildPortalBotText({
+                  portalUrl,
+                  relatedThreadLinks,
+                });
+                const updatedBlocks = buildPortalBotBlocks({
+                  portalUrl,
+                  relatedThreadLinks,
+                });
+
+                if (!postResult?.ts) return;
+
+                await client.chat.update({
+                  channel: message.channel,
+                  ts: postResult.ts,
+                  text: updatedText,
+                  blocks: updatedBlocks,
+                });
+              } catch (error) {
+                console.error("Error updating portal link message:", error);
+              }
+            })();
           }
         }
       } catch (error) {
