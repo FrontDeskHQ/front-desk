@@ -1,5 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
+import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { ChevronRightIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -11,7 +12,13 @@ type SimilarThreadResult = {
 };
 
 const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
-  const thread = useLiveQuery(query.thread.first({ id: result.threadId }));
+  const thread = useLiveQuery(
+    query.thread.first({ id: result.threadId }).include({
+      author: {
+        user: true,
+      },
+    }),
+  );
 
   if (!thread || !!thread.deletedAt) {
     return null;
@@ -20,12 +27,18 @@ const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
   return (
     <Button
       variant="ghost"
-      className="group px-1.5"
+      className="text-foreground-secondary hover:text-foreground px-1.5 cursor-default"
       key={result.threadId}
       render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
     >
+      <Avatar
+        variant="user"
+        size="md"
+        fallback={thread.author.user?.name ?? "Unknown"}
+        src={thread.author.user?.image}
+      />
       <div className="grow shrink truncate">{thread.name}</div>
-      <div className="flex gap-1 ml-auto opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:duration-0">
+      <div className="flex gap-1 ml-auto">
         <ChevronRightIcon className="size-4" />
       </div>
     </Button>
