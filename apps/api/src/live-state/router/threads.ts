@@ -408,6 +408,7 @@ export default publicRoute
         organizationId: z.string(),
       })
     ).handler(async ({ req, db }) => {
+      // TODO: Add proper authorization
       const { threadId, organizationId } = req.input;
 
       const thread = await db.findOne(schema.thread, threadId);

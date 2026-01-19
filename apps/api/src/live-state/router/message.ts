@@ -2,7 +2,6 @@ import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { ulid } from "ulid";
 import z from "zod";
 import { generateEmbedding } from "../../lib/ai/embeddings";
-import type { RelatedThreadsParams } from "../../lib/ai/related-thread-suggestions";
 import {
   findSimilarThreadsById,
   generateAndStoreThreadEmbeddings,
@@ -235,7 +234,7 @@ export default publicRoute
           const k = limit * 4;
           const excludeThreadIds: string[] = [];
 
-          const params: RelatedThreadsParams = {
+          const params = {
             limit,
             minScore,
             k,

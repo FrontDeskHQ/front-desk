@@ -190,6 +190,14 @@ const getRelatedThreadLinks = async ({
   return links;
 };
 
+const sanitizeSlackLinkLabel = (label: string): string => {
+  return label
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\|/g, "-");
+};
+
 const buildPortalBotText = ({
   portalUrl,
   relatedThreadLinks,
@@ -198,7 +206,7 @@ const buildPortalBotText = ({
   relatedThreadLinks: RelatedThreadLink[];
 }) => {
   const lines = [
-    `This thread is also being tracked in our community portal: <${portalUrl}|Open in portal>`,
+    `This thread is also being tracked in our community portal: <${portalUrl}|${sanitizeSlackLinkLabel("Open in portal")}>`,
   ];
 
   if (relatedThreadLinks.length > 0) {
@@ -206,7 +214,8 @@ const buildPortalBotText = ({
     lines.push("Related threads on the portal:");
     for (const link of relatedThreadLinks) {
       if (link.name) {
-        lines.push(`• <${link.url}|${link.name}>`);
+        const sanitizedName = sanitizeSlackLinkLabel(link.name);
+        lines.push(`• <${link.url}|${sanitizedName}>`);
       } else {
         lines.push(`• <${link.url}>`);
       }
