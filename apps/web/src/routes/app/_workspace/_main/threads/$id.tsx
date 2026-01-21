@@ -11,7 +11,10 @@ import {
   useNavigate,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { RichText } from "@workspace/ui/components/blocks/tiptap";
+import {
+  RichText,
+  TruncatedText,
+} from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -20,10 +23,12 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Button } from "@workspace/ui/components/button";
+import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
   Card,
+  CardAction,
   CardContent,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
@@ -47,8 +52,14 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  ArrowDown,
+  Check,
+  Copy,
+  MoreHorizontalIcon,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
@@ -103,6 +114,25 @@ function RouteComponent() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [highlightAnswer, setHighlightAnswer] = useState(false);
+
+  useEffect(() => {
+    const checkHash = () => {
+      const hasHash = window.location.hash === "#answer-message";
+      setHighlightAnswer(hasHash);
+
+      if (hasHash) {
+        setHighlightAnswer(true);
+      }
+    };
+
+    checkHash();
+    window.addEventListener("hashchange", checkHash);
+
+    return () => {
+      window.removeEventListener("hashchange", checkHash);
+    };
+  }, []);
 
   const thread = useLiveQuery(
     query.thread.where({ id }).include({
@@ -181,6 +211,26 @@ function RouteComponent() {
     captureThreadEvent("thread:thread_delete");
     navigate({ to: "/app/threads" });
   };
+
+  const answerMessage = thread?.messages.find(
+    (message) => message.markedAsAnswer,
+  );
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    if (highlightAnswer) {
+      timeoutId = setTimeout(() => {
+        setHighlightAnswer(false);
+      }, 5000);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [highlightAnswer]);
 
   return (
     <>
@@ -265,48 +315,121 @@ function RouteComponent() {
               onScroll={disableAutoScroll}
               onTouchMove={disableAutoScroll}
             >
-              {allItems.map((item) => {
+              {allItems.map((item, i) => {
                 if (item.itemType === "message") {
                   return (
-                    <Card
-                      key={item.id}
-                      className={cn(
-                        "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                        item?.author?.userId === user.id &&
-                          "border-[#2662D9]/20",
-                      )}
-                    >
-                      <CardHeader
-                        size="sm"
+                    <TooltipProvider key={item.id}>
+                      <Card
                         className={cn(
+                          "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border group transition-[color,box-shadow] data-[highlight=true]:border-ring data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
                           item?.author?.userId === user.id &&
-                            "bg-[#2662D9]/15 border-[#2662D9]/20",
+                            "border-[#2662D9]/20",
+                          item.markedAsAnswer && "border-green-700/30",
                         )}
+                        data-highlight={item.markedAsAnswer && highlightAnswer}
+                        id={item.markedAsAnswer ? "answer-message" : undefined}
                       >
-                        <CardTitle>
-                          <Avatar
-                            variant="user"
-                            size="md"
-                            fallback={item.author.name}
-                          />
-                          <p>{item.author.name}</p>
-                          <p className="text-muted-foreground">
-                            {formatRelativeTime(item.createdAt as Date)}
-                          </p>
-                          {item.origin === "discord" && (
-                            <>
-                              <span className="bg-muted-foreground size-0.75 rounded-full" />
-                              <p className="text-muted-foreground">
-                                Imported from Discord
-                              </p>
-                            </>
+                        <CardHeader
+                          size="sm"
+                          className={cn(
+                            "px-2",
+                            item?.author?.userId === user.id &&
+                              "bg-[#2662D9]/15 border-[#2662D9]/20",
+                            item.markedAsAnswer &&
+                              "bg-green-800/10 border-green-700/30",
                           )}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <RichText content={safeParseJSON(item.content)} />
-                      </CardContent>
-                    </Card>
+                        >
+                          <CardTitle>
+                            <Avatar
+                              variant="user"
+                              size="md"
+                              fallback={item.author.name}
+                            />
+                            <p>{item.author.name}</p>
+                            <p className="text-foreground-secondary">
+                              {formatRelativeTime(item.createdAt as Date)}
+                            </p>
+                            {item.origin === "discord" && (
+                              <>
+                                <span className="bg-muted-foreground size-0.75 rounded-full" />
+                                <p className="text-foreground-secondary">
+                                  Imported from Discord
+                                </p>
+                              </>
+                            )}
+                            {item.markedAsAnswer && (
+                              <>
+                                <span className="bg-muted-foreground size-0.75 rounded-full" />
+                                <Check className="size-3.5" />
+                                <p className="text-foreground-secondary">
+                                  Marked as answer
+                                </p>
+                              </>
+                            )}
+                          </CardTitle>
+                          {i > 0 && !answerMessage && (
+                            <CardAction
+                              side="right"
+                              className="hidden group-hover:flex"
+                            >
+                              <ActionButton
+                                variant="ghost"
+                                size="icon-sm"
+                                tooltip="Mark as answer"
+                                onClick={() => {
+                                  mutate.message.markAsAnswer({
+                                    messageId: item.id,
+                                  });
+                                }}
+                              >
+                                <Check />
+                              </ActionButton>
+                            </CardAction>
+                          )}
+                        </CardHeader>
+                        <CardContent
+                          className={cn(i === 0 && answerMessage && "border-b")}
+                        >
+                          <RichText content={safeParseJSON(item.content)} />
+                        </CardContent>
+                        {i === 0 && answerMessage && (
+                          <CardFooter className="flex-col items-start p-4 gap-2 bg-green-800/15 border-t-0">
+                            <div className="text-xs flex items-center gap-2">
+                              <Check className="size-3.5" /> Answered by{" "}
+                              {answerMessage.author.name}
+                              <p className="text-foreground-secondary">
+                                {formatRelativeTime(
+                                  answerMessage.createdAt as Date,
+                                )}
+                              </p>
+                            </div>
+                            <TruncatedText maxHeight={64} hideShowMore>
+                              <RichText
+                                content={safeParseJSON(answerMessage.content)}
+                              />
+                            </TruncatedText>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              render={
+                                <Link
+                                  to={`/app/threads/$id`}
+                                  params={{ id: thread.id }}
+                                  hash="answer-message"
+                                  onClick={() => {
+                                    setHighlightAnswer(true);
+                                  }}
+                                />
+                              }
+                              className="cursor-default"
+                            >
+                              Go to answer
+                              <ArrowDown className="size-3.5" />
+                            </Button>
+                          </CardFooter>
+                        )}
+                      </Card>
+                    </TooltipProvider>
                   );
                 }
 
