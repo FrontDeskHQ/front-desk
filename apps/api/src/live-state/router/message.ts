@@ -218,12 +218,13 @@ export default publicRoute
       }
 
       if (!message.markedAsAnswer) {
-        await db.update(schema.message, message.id, {
-          markedAsAnswer: true,
-        });
-
-        await db.update(schema.thread, thread.id, {
-          status: STATUS_RESOLVED,
+        await db.transaction(async ({ trx }) => {
+          await trx.update(schema.message, message.id, {
+            markedAsAnswer: true,
+          });
+          await trx.update(schema.thread, thread.id, {
+            status: STATUS_RESOLVED,
+          });
         });
       }
 
