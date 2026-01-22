@@ -43,6 +43,7 @@ import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { ArrowDown, Check, CircleUser } from "lucide-react";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 import { SupportRelatedThreadsSection } from "~/components/threads/support-related-threads-section";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
@@ -265,12 +266,22 @@ function RouteComponent() {
                                   size="icon-sm"
                                   tooltip="Mark as answer"
                                   onClick={async () => {
-                                    await fetchClient.mutate.message.markAsAnswer(
-                                      {
-                                        messageId: item.id,
-                                      },
-                                    );
-                                    route.invalidate();
+                                    try {
+                                      await fetchClient.mutate.message.markAsAnswer(
+                                        {
+                                          messageId: item.id,
+                                        },
+                                      );
+                                      route.invalidate();
+                                    } catch (error) {
+                                      console.error(
+                                        "Failed to mark message as answer:",
+                                        error,
+                                      );
+                                      toast.error(
+                                        "Failed to mark message as answer",
+                                      );
+                                    }
                                   }}
                                 >
                                   <Check />
