@@ -5,11 +5,10 @@ import { generateText, Output } from "ai";
 import z from "zod";
 import type { schema } from "../../live-state/schema";
 import {
-  createDocument,
-  deleteDocument,
   isTypesenseAvailable,
   performMultiSearch,
   retrieveDocument,
+  upsertDocument,
 } from "../search/typesense";
 import { generateEmbedding } from "./embeddings";
 
@@ -302,15 +301,7 @@ export const generateAndStoreThreadEmbeddings = async (
       };
     }
 
-    const deleteOk = await deleteDocument(THREAD_COLLECTION, thread.id, {
-      ignore_not_found: true,
-    });
-
-    if (!deleteOk) {
-      console.warn(`Error deleting existing thread doc ${thread.id}`);
-    }
-
-    const createOk = await createDocument(THREAD_COLLECTION, {
+    const upsertOk = await upsertDocument(THREAD_COLLECTION, {
       id: thread.id,
       threadId: thread.id,
       organizationId: thread.organizationId,
@@ -320,7 +311,7 @@ export const generateAndStoreThreadEmbeddings = async (
       embedding,
     });
 
-    if (!createOk) {
+    if (!upsertOk) {
       return {
         success: false,
         error: "Failed to index thread embedding",
