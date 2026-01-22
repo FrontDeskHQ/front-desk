@@ -4,7 +4,7 @@ import type { Router } from "api/router";
 import { schema } from "api/schema";
 
 export const { client, store } = createClient<Router>({
-  url: process.env.LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
+  url: process.env.LIVE_STATE_WS_URL || "ws://localhost:3333/api/ls/ws",
   schema,
   credentials: async () => ({
     discordBotKey: process.env.DISCORD_BOT_KEY ?? "",
@@ -48,11 +48,11 @@ client.load(
         user: true,
       },
     })
-    .buildQueryRequest()
+    .buildQueryRequest(),
 );
 
 export const fetchClient = createFetchClient<Router>({
-  url: process.env.LIVE_STATE_API_URL ?? "http://localhost:3333/api/ls",
+  url: process.env.LIVE_STATE_API_URL || "http://localhost:3333/api/ls",
   schema,
   credentials: async () => ({
     "x-discord-bot-key": process.env.DISCORD_BOT_KEY ?? "",
