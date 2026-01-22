@@ -11,6 +11,12 @@ import { schema } from "../schema";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
+const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
+
+type SimilarThreadResult = {
+  threadId: string;
+  score: number;
+};
 
 type FetchIssuesInput = {
   organizationId: string;
@@ -178,6 +184,18 @@ const pullRequestsCache = createReadThroughCache<
       input.repos.map((r) => r.fullName).sort()
     )}:${input.installationId}`,
 });
+
+const parseSimilarThreadResults = (
+  resultsStr: string | null | undefined
+): SimilarThreadResult[] => {
+  if (!resultsStr) return [];
+
+  try {
+    return JSON.parse(resultsStr) as SimilarThreadResult[];
+  } catch {
+    return [];
+  }
+};
 
 export default publicRoute
   .collectionRoute(schema.thread, {
@@ -383,6 +401,62 @@ export default publicRoute
       )[0];
 
       return thread;
+    }),
+    fetchRelatedThreads: mutation(
+      z.object({
+        threadId: z.string(),
+        organizationId: z.string(),
+      })
+    ).handler(async ({ req, db }) => {
+      // TODO: Add proper authorization
+      const { threadId, organizationId } = req.input;
+
+      const thread = await db.findOne(schema.thread, threadId);
+      if (!thread || thread.organizationId !== organizationId) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      const suggestion = Object.values(
+        await db.find(schema.suggestion, {
+          where: {
+            type: SUGGESTION_TYPE_RELATED_THREADS,
+            entityId: threadId,
+            organizationId,
+          },
+        })
+      )[0];
+
+      const results = parseSimilarThreadResults(suggestion?.resultsStr);
+      if (results.length === 0) {
+        return [];
+      }
+
+      const resultThreadIds = results.map((result) => result.threadId);
+      const relatedThreads = Object.values(
+        await db.find(schema.thread, {
+          where: {
+            id: { $in: resultThreadIds },
+            organizationId,
+          },
+          include: {
+            author: { user: true },
+          },
+        })
+      );
+
+      const threadById = new Map(
+        relatedThreads.map((relatedThread) => [relatedThread.id, relatedThread])
+      );
+      const orderedThreads = resultThreadIds
+        .map((id) => threadById.get(id))
+        .filter(
+          (
+            relatedThread
+          ): relatedThread is (typeof relatedThreads)[number] =>
+            !!relatedThread && !relatedThread.deletedAt
+        );
+
+      return orderedThreads;
     }),
     fetchGithubIssues: mutation(
       z.object({

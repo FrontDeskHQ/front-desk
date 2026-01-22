@@ -43,6 +43,7 @@ import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { ArrowDown, Check, CircleUser } from "lucide-react";
 import { useEffect, useState } from "react";
+import { SupportRelatedThreadsSection } from "~/components/threads/support-related-threads-section";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -416,6 +417,11 @@ function RouteComponent() {
                 </div>
               </div>
             </div>
+            <SupportRelatedThreadsSection
+              threadId={thread.id}
+              organizationId={thread.organizationId}
+              slug={organization.slug}
+            />
           </div>
         </div>
       </div>
