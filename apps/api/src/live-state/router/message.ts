@@ -14,6 +14,8 @@ import { storage } from "../storage";
 
 const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
 
+const STATUS_RESOLVED = 2;
+
 export default publicRoute
   .collectionRoute(schema.message, {
     read: () => true,
@@ -146,6 +148,105 @@ export default publicRoute
       )[0];
 
       return message;
+    }),
+    markAsAnswer: mutation(
+      z.object({
+        messageId: z.string(),
+      })
+    ).handler(async ({ req, db }) => {
+      const isInternalApiKey = !!req.context?.internalApiKey;
+      const callerUserId =
+        req.context?.session?.userId ??
+        req.context?.portalSession?.session.userId;
+
+      if (!isInternalApiKey && !callerUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const message = (
+        await db.find(schema.message, {
+          where: { id: req.input.messageId },
+        })
+      )[0];
+
+      if (!message) {
+        throw new Error("MESSAGE_NOT_FOUND");
+      }
+
+      const thread = (
+        await db.find(schema.thread, {
+          where: { id: message.threadId },
+        })
+      )[0];
+
+      if (!thread) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      if (!isInternalApiKey && callerUserId) {
+        const threadAuthor = (
+          await db.find(schema.author, {
+            where: { id: thread.authorId },
+          })
+        )[0];
+
+        const isThreadAuthor = threadAuthor?.userId === callerUserId;
+
+        const organizationUsers = Object.values(
+          await db.find(schema.organizationUser, {
+            where: {
+              organizationId: thread.organizationId,
+              userId: callerUserId,
+              enabled: true,
+            },
+          })
+        );
+
+        const isOrganizationMember = organizationUsers.length > 0;
+
+        if (!isThreadAuthor && !isOrganizationMember) {
+          throw new Error("UNAUTHORIZED");
+        }
+      }
+
+      const existingAnswers = Object.values(
+        await db.find(schema.message, {
+          where: {
+            threadId: message.threadId,
+            markedAsAnswer: true,
+          },
+        })
+      );
+
+      const hasOtherAnswer = existingAnswers.some(
+        (existingMessage) => existingMessage.id !== message.id
+      );
+
+      if (hasOtherAnswer) {
+        throw new Error("ANSWER_ALREADY_SET");
+      }
+
+      if (!message.markedAsAnswer) {
+        await db.transaction(async ({ trx }) => {
+          await trx.update(schema.message, message.id, {
+            markedAsAnswer: true,
+          });
+          await trx.update(schema.thread, thread.id, {
+            status: STATUS_RESOLVED,
+          });
+        });
+      }
+
+      const updatedMessage = Object.values(
+        await db.find(schema.message, {
+          where: { id: message.id },
+          include: {
+            author: true,
+          },
+        })
+      )[0];
+
+      return updatedMessage ?? { ...message, markedAsAnswer: true };
     }),
     search: mutation(
       z.object({

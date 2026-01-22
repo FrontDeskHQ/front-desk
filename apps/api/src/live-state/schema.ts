@@ -66,6 +66,7 @@ const message = object("message", {
   createdAt: timestamp(),
   origin: string().nullable(),
   externalMessageId: string().nullable(),
+  markedAsAnswer: boolean().default(false),
 });
 
 const author = object("author", {

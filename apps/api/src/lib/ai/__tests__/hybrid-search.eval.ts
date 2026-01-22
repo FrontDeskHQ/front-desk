@@ -97,6 +97,7 @@ const convertToThread = (data: FakeThreadData): Thread => {
       createdAt: new Date(),
       origin: null,
       externalMessageId: null,
+      markedAsAnswer: false,
     })),
     labels: data.labels.map((labelName) => ({
       id: `label_${data.id}_${labelName}`,
