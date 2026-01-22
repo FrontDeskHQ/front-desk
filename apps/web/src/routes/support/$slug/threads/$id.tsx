@@ -38,6 +38,7 @@ import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { CircleUser } from "lucide-react";
+import { SupportRelatedThreadsSection } from "~/components/threads/support-related-threads-section";
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -79,7 +80,6 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
     };
   },
   head: ({ loaderData }) => {
-    const thread = loaderData?.thread;
     const orgName = loaderData?.headData?.organizationName ?? "Support";
     const threadName = loaderData?.headData?.threadName ?? "Thread";
     return {
@@ -163,7 +163,7 @@ function RouteComponent() {
                       <Card
                         key={item.id}
                         className={cn(
-                          "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
+                          "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
                         )}
                       >
                         {/* TODO: update the way it's checking if it's an message from the current user */}
@@ -283,6 +283,11 @@ function RouteComponent() {
                 </div>
               </div>
             </div>
+            <SupportRelatedThreadsSection
+              threadId={thread.id}
+              organizationId={thread.organizationId}
+              slug={organization.slug}
+            />
           </div>
         </div>
       </div>

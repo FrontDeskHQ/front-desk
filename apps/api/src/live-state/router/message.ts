@@ -1,9 +1,18 @@
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { ulid } from "ulid";
 import z from "zod";
-import { typesenseClient } from "../../lib/search/typesense";
+import { generateEmbedding } from "../../lib/ai/embeddings";
+import {
+  findSimilarThreadsById,
+  generateAndStoreThreadEmbeddings,
+  shouldIncludeMessageInEmbedding,
+} from "../../lib/ai/thread-embeddings";
+import { createDocument, searchDocuments } from "../../lib/search/typesense";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
+import { storage } from "../storage";
+
+const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
 
 export default publicRoute
   .collectionRoute(schema.message, {
@@ -66,7 +75,7 @@ export default publicRoute
       }
 
       // Verify thread exists and belongs to the expected organization
-      const thread = await db.findOne(schema.thread, req.input.threadId);
+      const thread = await storage.findOne(schema.thread, req.input.threadId);
       if (!thread || thread.organizationId !== req.input.organizationId) {
         throw new Error("THREAD_NOT_FOUND");
       }
@@ -144,14 +153,11 @@ export default publicRoute
         organizationId: z.string(),
       })
     ).handler(async ({ req }) => {
-      const messages = await typesenseClient
-        ?.collections("messages")
-        .documents()
-        .search({
-          q: req.input.query,
-          filter_by: `organizationId:=${req.input.organizationId}`,
-          query_by: "content",
-        });
+      const messages = await searchDocuments("messages", {
+        q: req.input.query,
+        filter_by: `organizationId:=${req.input.organizationId}`,
+        query_by: "content",
+      });
 
       return messages;
     }),
@@ -161,7 +167,7 @@ export default publicRoute
       (async () => {
         try {
           const thread = (
-            await db.find(schema.thread, {
+            await storage.find(schema.thread, {
               where: { id: value.threadId },
             })
           )[0];
@@ -174,21 +180,109 @@ export default publicRoute
           }
 
           const organizationId = thread.organizationId;
+          const plainTextContent = jsonContentToPlainText(
+            safeParseJSON(value.content)
+          );
 
-          await typesenseClient
-            ?.collections("messages")
-            .documents()
-            .create({
-              id: value.id,
-              content: jsonContentToPlainText(safeParseJSON(value.content)),
-              organizationId: organizationId,
+          const allMessages = Object.values(
+            await storage.find(schema.message, {
+              where: { threadId: value.threadId },
+              sort: [{ key: "id", direction: "asc" }],
             })
-            .catch((error) =>
-              console.error(
-                `error creating message ${value.id} in typesense`,
-                error
-              )
-            );
+          );
+
+          const messageIndex =
+            allMessages.findIndex((msg) => msg.id === value.id) + 1;
+
+          const embedding =
+            (await generateEmbedding(plainTextContent)) ?? undefined;
+
+          const created = await createDocument("messages", {
+            id: value.id,
+            content: plainTextContent,
+            organizationId: organizationId,
+            threadId: value.threadId,
+            messageIndex: messageIndex,
+            embedding,
+          });
+
+          if (!created) {
+            console.error(`error creating message ${value.id} in typesense`);
+          }
+
+          const threadWithRelations = Object.values(
+            await storage.find(schema.thread, {
+              where: { id: value.threadId },
+              include: {
+                messages: true,
+                labels: { label: true },
+              },
+            })
+          )[0];
+
+          if (
+            !threadWithRelations ||
+            !shouldIncludeMessageInEmbedding(threadWithRelations, value.id)
+          ) {
+            return;
+          }
+
+          await generateAndStoreThreadEmbeddings(threadWithRelations);
+
+          const limit = 10;
+          const minScore = 0;
+          const k = limit * 4;
+          const excludeThreadIds: string[] = [];
+
+          const params = {
+            limit,
+            minScore,
+            k,
+            excludeThreadIds,
+          };
+
+          const existingSuggestions = Object.values(
+            await storage.find(schema.suggestion, {
+              where: {
+                type: SUGGESTION_TYPE_RELATED_THREADS,
+                entityId: value.threadId,
+                organizationId,
+              },
+            })
+          );
+
+          const existingSuggestion = existingSuggestions[0];
+
+          const similarThreads =
+            (await findSimilarThreadsById(value.threadId, organizationId, {
+              limit,
+              minScore,
+              k,
+              excludeThreadIds,
+            })) ?? [];
+
+          const now = new Date();
+          const metadataStr = JSON.stringify({ params });
+          const resultsStr = JSON.stringify(similarThreads);
+
+          if (existingSuggestion) {
+            await storage.update(schema.suggestion, existingSuggestion.id, {
+              resultsStr,
+              metadataStr,
+              updatedAt: now,
+            });
+          } else {
+            await storage.insert(schema.suggestion, {
+              id: ulid().toLowerCase(),
+              type: SUGGESTION_TYPE_RELATED_THREADS,
+              entityId: value.threadId,
+              organizationId,
+              resultsStr,
+              metadataStr,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
         } catch (error) {
           console.error(
             `Unhandled error in afterInsert hook for message ${value.id}`,

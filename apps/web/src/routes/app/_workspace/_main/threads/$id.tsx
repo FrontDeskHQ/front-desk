@@ -54,6 +54,7 @@ import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
+import { RelatedThreadsSection } from "~/components/threads/related-threads-section";
 import { ThreadInputArea } from "~/components/threads/thread-input-area";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
@@ -329,34 +330,33 @@ function RouteComponent() {
         </div>
         <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
           <TooltipProvider>
-            <div className="flex flex-col gap-8">
-              <PropertiesSection
-                thread={thread}
-                id={id}
-                organizationUsers={organizationUsers}
-                user={user as InferLiveObject<typeof schema.user>}
-                captureThreadEvent={captureThreadEvent}
-              />
-              <LabelsSection
-                threadId={id}
-                captureThreadEvent={captureThreadEvent}
-              />
-              <div className="flex flex-col gap-2">
-                <IssuesSection
-                  threadId={id}
-                  user={user}
-                  externalIssueId={thread?.externalIssueId ?? null}
-                  threadName={thread?.name}
-                  captureThreadEvent={captureThreadEvent}
-                />
-                <PullRequestsSection
-                  threadId={id}
-                  user={user}
-                  externalPrId={thread?.externalPrId ?? null}
-                  captureThreadEvent={captureThreadEvent}
-                />
-              </div>
-            </div>
+            <PropertiesSection
+              thread={thread}
+              id={id}
+              organizationUsers={organizationUsers}
+              user={user as InferLiveObject<typeof schema.user>}
+              captureThreadEvent={captureThreadEvent}
+            />
+            <LabelsSection
+              threadId={id}
+              captureThreadEvent={captureThreadEvent}
+            />
+
+            <IssuesSection
+              threadId={id}
+              user={user}
+              externalIssueId={thread?.externalIssueId ?? null}
+              threadName={thread?.name}
+              captureThreadEvent={captureThreadEvent}
+            />
+            <PullRequestsSection
+              threadId={id}
+              user={user}
+              externalPrId={thread?.externalPrId ?? null}
+              captureThreadEvent={captureThreadEvent}
+            />
+
+            <RelatedThreadsSection threadId={id} />
           </TooltipProvider>
         </div>
       </div>
