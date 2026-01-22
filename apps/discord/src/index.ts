@@ -4,8 +4,13 @@ import type { InferLiveObject } from "@live-state/sync";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
-import type { Message } from "discord.js";
-import { Client, GatewayIntentBits, TextChannel } from "discord.js";
+import type { ForumChannel, Message, ThreadChannel } from "discord.js";
+import {
+  ChannelType,
+  Client,
+  GatewayIntentBits,
+  TextChannel,
+} from "discord.js";
 import { ulid } from "ulid";
 import { fetchClient, store } from "./lib/live-state";
 import { safeParseIntegrationSettings } from "./lib/utils";
@@ -254,6 +259,233 @@ client.on("error", (error) => {
   console.error("Discord client error:", error);
 });
 
+/**
+ * Helper to get or create an author record for a Discord user
+ */
+const getOrCreateAuthor = async (
+  discordUserId: string,
+  displayName: string,
+  organizationId: string,
+): Promise<string> => {
+  let authorId = store.query.author
+    .first({ metaId: `discord:${discordUserId}` })
+    .get()?.id;
+
+  if (!authorId) {
+    authorId = ulid().toLowerCase();
+    await fetchClient.mutate.author.insert({
+      id: authorId,
+      name: displayName,
+      userId: null,
+      metaId: `discord:${discordUserId}`,
+      organizationId,
+    });
+  }
+
+  return authorId;
+};
+
+/**
+ * Backfill existing threads from Discord channels
+ * Fetches active and archived threads and syncs them to the store
+ */
+const backfillThreads = async () => {
+  console.log("Starting thread backfill...");
+
+  const integrations = await fetchClient.query.integration
+    .where({ type: "discord" })
+    .get();
+
+  for (const integration of integrations) {
+    const settings = safeParseIntegrationSettings(integration.configStr);
+    if (!settings?.guildId || !settings.selectedChannels?.length) continue;
+
+    const guild = client.guilds.cache.get(settings.guildId);
+    if (!guild) {
+      console.log(`Guild ${settings.guildId} not found in cache, skipping`);
+      continue;
+    }
+
+    console.log(`Backfilling threads for guild: ${guild.name}`);
+
+    // Find channels matching the selected channel names
+    const selectedChannels = settings.selectedChannels ?? [];
+    const targetChannels = guild.channels.cache.filter(
+      (c): c is TextChannel | ForumChannel =>
+        (c.type === ChannelType.GuildText ||
+          c.type === ChannelType.GuildForum) &&
+        selectedChannels.includes(c.name),
+    );
+
+    for (const channel of targetChannels.values()) {
+      console.log(`  Fetching threads from #${channel.name}...`);
+
+      try {
+        // Fetch active threads
+        const activeThreads = await channel.threads.fetchActive();
+        // Fetch archived threads (fetches up to 100 by default)
+        const archivedThreads = await channel.threads.fetchArchived();
+
+        const allThreads = [
+          ...activeThreads.threads.values(),
+          ...archivedThreads.threads.values(),
+        ];
+
+        console.log(`    Found ${allThreads.length} threads`);
+
+        for (const thread of allThreads) {
+          await backfillThread(thread, integration.organizationId);
+        }
+      } catch (error) {
+        console.error(
+          `    Error fetching threads from #${channel.name}:`,
+          error,
+        );
+      }
+    }
+  }
+
+  console.log("Thread backfill complete");
+};
+
+/**
+ * Backfill a single thread and its messages
+ */
+const backfillThread = async (
+  thread: ThreadChannel,
+  organizationId: string,
+) => {
+  // Check if thread already exists in our store
+  const existingThread = store.query.thread
+    .first({ discordChannelId: thread.id })
+    .get();
+
+  if (existingThread) {
+    // Thread exists, but we should still check for missing messages
+    await backfillMessages(thread, existingThread.id, organizationId);
+    return;
+  }
+
+  console.log(`      Creating thread: ${thread.name}`);
+
+  // Fetch messages to find the original author
+  const messages = await thread.messages.fetch({ limit: 100 });
+  const sortedMessages = [...messages.values()].sort(
+    (a, b) => a.createdTimestamp - b.createdTimestamp,
+  );
+
+  if (sortedMessages.length === 0) {
+    console.log(`      Skipping thread with no messages: ${thread.name}`);
+    return;
+  }
+
+  // Get the first non-bot message author as the thread author
+  const firstMessage =
+    sortedMessages.find((m) => !m.author.bot) ?? sortedMessages[0];
+  const authorId = await getOrCreateAuthor(
+    firstMessage.author.id,
+    firstMessage.author.displayName,
+    organizationId,
+  );
+
+  // Create the thread
+  const threadId = ulid().toLowerCase();
+  store.mutate.thread.insert({
+    id: threadId,
+    organizationId,
+    name: thread.name,
+    createdAt: thread.createdAt ?? new Date(),
+    deletedAt: null,
+    discordChannelId: thread.id,
+    authorId,
+    assignedUserId: null,
+    externalIssueId: null,
+    externalPrId: null,
+    externalId: thread.id,
+    externalOrigin: "discord",
+    externalMetadataStr: JSON.stringify({ channelId: thread.id }),
+  });
+
+  // Wait for the thread to be created
+  await new Promise((resolve) => setTimeout(resolve, 150));
+
+  // Optionally send portal message for new threads
+  // (Skipped during backfill to avoid spamming old threads)
+
+  // Sync all messages
+  for (const message of sortedMessages) {
+    if (message.author.bot) continue;
+
+    await backfillMessage(message, threadId, organizationId);
+  }
+
+  console.log(
+    `      Synced ${sortedMessages.filter((m) => !m.author.bot).length} messages`,
+  );
+};
+
+/**
+ * Backfill messages for an existing thread (check for missing messages)
+ */
+const backfillMessages = async (
+  thread: ThreadChannel,
+  threadId: string,
+  organizationId: string,
+) => {
+  const messages = await thread.messages.fetch({ limit: 100 });
+  const sortedMessages = [...messages.values()].sort(
+    (a, b) => a.createdTimestamp - b.createdTimestamp,
+  );
+
+  let syncedCount = 0;
+  for (const message of sortedMessages) {
+    if (message.author.bot) continue;
+
+    // Check if message already exists
+    const existingMessage = store.query.message
+      .first({ externalMessageId: message.id })
+      .get();
+
+    if (!existingMessage) {
+      await backfillMessage(message, threadId, organizationId);
+      syncedCount++;
+    }
+  }
+
+  if (syncedCount > 0) {
+    console.log(
+      `      Synced ${syncedCount} missing messages for thread: ${thread.name}`,
+    );
+  }
+};
+
+/**
+ * Backfill a single message
+ */
+const backfillMessage = async (
+  message: Message,
+  threadId: string,
+  organizationId: string,
+) => {
+  const authorId = await getOrCreateAuthor(
+    message.author.id,
+    message.author.displayName,
+    organizationId,
+  );
+
+  const contentWithMentions = parseContentAsMarkdown(message);
+
+  store.mutate.message.insert({
+    id: ulid().toLowerCase(),
+    threadId,
+    authorId,
+    content: JSON.stringify(parse(contentWithMentions)),
+    createdAt: message.createdAt,
+    origin: "discord",
+    externalMessageId: message.id,
+  });
+};
+
 const THREAD_CREATION_THRESHOLD_MS = 1000;
 
 client.on("messageCreate", async (message) => {
@@ -262,7 +494,7 @@ client.on("messageCreate", async (message) => {
 
   const isFirstMessage =
     Math.abs(
-      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0)
+      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
     ) < THREAD_CREATION_THRESHOLD_MS;
 
   let threadId: string | null = null;
@@ -278,32 +510,23 @@ client.on("messageCreate", async (message) => {
   if (!integration) return;
 
   const integrationSettings = safeParseIntegrationSettings(
-    integration.configStr
+    integration.configStr,
   );
 
   if (
     !(integrationSettings?.selectedChannels ?? [])?.includes(
-      message.channel.parent?.name ?? ""
+      message.channel.parent?.name ?? "",
     )
   )
     return;
 
   // TODO do this in a transaction
 
-  let authorId = store.query.author
-    .first({ metaId: `discord:${message.author.id}` })
-    .get()?.id;
-
-  if (!authorId) {
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
-      name: message.author.displayName,
-      userId: null,
-      metaId: `discord:${message.author.id}`,
-      organizationId: integration.organizationId,
-    });
-  }
+  const authorId = await getOrCreateAuthor(
+    message.author.id,
+    message.author.displayName,
+    integration.organizationId,
+  );
 
   if (isFirstMessage) {
     threadId = ulid().toLowerCase();
@@ -419,7 +642,7 @@ const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
     { thread: true; author: { user: true } }
-  >[]
+  >[],
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
@@ -476,7 +699,7 @@ const formatUpdateMessage = (
   update: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >
+  >,
 ): string => {
   let metadata: any = null;
   if (update.metadataStr) {
@@ -516,7 +739,7 @@ const handleUpdates = async (
   updates: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >[]
+  >[],
 ) => {
   for (const update of updates) {
     const replicated = update.replicatedStr
@@ -577,6 +800,21 @@ const handleUpdates = async (
   }
 };
 
+client.once("ready", async () => {
+  if (!client.user) return;
+  console.log(`Logged in as ${client.user.tag}`);
+
+  // Wait for live state to be ready
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+
+  // Backfill existing threads from Discord
+  try {
+    await backfillThreads();
+  } catch (error) {
+    console.error("Error during thread backfill:", error);
+  }
+});
+
 setTimeout(async () => {
   // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
   await handleMessages(
@@ -588,7 +826,7 @@ setTimeout(async () => {
         },
       })
       .include({ thread: true, author: { user: true } })
-      .get()
+      .get(),
   );
   store.query.message
     .where({
