@@ -71,6 +71,11 @@ export const ensureThreadsCollection = async (): Promise<boolean> => {
       field_schema: "integer",
     });
 
+    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
+      field_name: "threadId",
+      field_schema: "keyword",
+    });
+
     console.log(`Created Qdrant collection: ${THREADS_COLLECTION}`);
     return true;
   } catch (error) {
@@ -80,7 +85,7 @@ export const ensureThreadsCollection = async (): Promise<boolean> => {
 };
 
 export const upsertThreadVector = async (
-  id: string,
+  pointId: string,
   vector: number[],
   payload: ThreadPayload,
 ): Promise<boolean> => {
@@ -89,7 +94,7 @@ export const upsertThreadVector = async (
       wait: true,
       points: [
         {
-          id,
+          id: pointId,
           vector,
           payload: payload as unknown as Record<string, unknown>,
         },
@@ -97,20 +102,26 @@ export const upsertThreadVector = async (
     });
     return true;
   } catch (error) {
-    console.error(`Failed to upsert thread vector ${id}:`, error);
+    console.error(`Failed to upsert thread vector ${payload.threadId} (pointId: ${pointId}):`, error);
     return false;
   }
 };
 
-export const deleteThreadVector = async (id: string): Promise<boolean> => {
+export const deleteThreadVector = async (threadId: string): Promise<boolean> => {
   try {
+    const result = await getThreadVector(threadId);
+    if (!result) {
+      console.warn(`Thread vector not found for deletion: ${threadId}`);
+      return false;
+    }
+
     await qdrantClient.delete(THREADS_COLLECTION, {
       wait: true,
-      points: [id],
+      points: [result.pointId],
     });
     return true;
   } catch (error) {
-    console.error(`Failed to delete thread vector ${id}:`, error);
+    console.error(`Failed to delete thread vector ${threadId}:`, error);
     return false;
   }
 };
@@ -182,16 +193,19 @@ export const searchSimilarThreads = async (
 };
 
 export const getThreadVector = async (
-  id: string,
-): Promise<{ vector: number[]; payload: ThreadPayload } | null> => {
+  threadId: string,
+): Promise<{ vector: number[]; payload: ThreadPayload; pointId: string } | null> => {
   try {
-    const results = await qdrantClient.retrieve(THREADS_COLLECTION, {
-      ids: [id],
+    const results = await qdrantClient.scroll(THREADS_COLLECTION, {
+      filter: {
+        must: [{ key: "threadId", match: { value: threadId } }],
+      },
+      limit: 1,
       with_vector: true,
       with_payload: true,
     });
 
-    const point = results[0];
+    const point = results.points[0];
     if (!point) {
       return null;
     }
@@ -199,9 +213,10 @@ export const getThreadVector = async (
     return {
       vector: point.vector as number[],
       payload: point.payload as unknown as ThreadPayload,
+      pointId: typeof point.id === "string" ? point.id : String(point.id),
     };
   } catch (error) {
-    console.error(`Failed to get thread vector ${id}:`, error);
+    console.error(`Failed to get thread vector ${threadId}:`, error);
     return null;
   }
 };

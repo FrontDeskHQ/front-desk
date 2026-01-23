@@ -5,7 +5,9 @@
   "private": true,
   "scripts": {
     "worker": "bun run src/worker.ts",
-    "publisher": "bun run src/publisher.ts"
+    "publisher": "bun run src/publisher.ts",
+    "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
+    "eval:similarity": "bun run src/evals/thread-similarity.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.13",

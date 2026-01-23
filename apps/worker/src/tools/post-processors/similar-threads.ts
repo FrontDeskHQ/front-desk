@@ -23,12 +23,6 @@ export const batchFindSimilarThreads = async (
     return results;
   }
 
-  const points = await qdrantClient.retrieve(THREADS_COLLECTION, {
-    ids: threadIds,
-    with_vector: true,
-    with_payload: true,
-  });
-
   const mustConditions: Array<{ key: string; match: { value: string | number } }> = [
     { key: "organizationId", match: { value: organizationId } },
   ];
@@ -40,10 +34,23 @@ export const batchFindSimilarThreads = async (
   }
 
   await Promise.all(
-    points.map(async (point) => {
-      const threadId = (point.payload as unknown as ThreadPayload).threadId;
-      const vector = point.vector as number[];
+    threadIds.map(async (threadId) => {
+      const scrollResult = await qdrantClient.scroll(THREADS_COLLECTION, {
+        filter: {
+          must: [{ key: "threadId", match: { value: threadId } }],
+        },
+        limit: 1,
+        with_vector: true,
+        with_payload: true,
+      });
 
+      const point = scrollResult.points[0];
+      if (!point) {
+        results.set(threadId, []);
+        return;
+      }
+
+      const vector = point.vector as number[];
       if (!vector) {
         results.set(threadId, []);
         return;

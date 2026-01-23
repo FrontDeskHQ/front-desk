@@ -4,6 +4,54 @@ import { generateText, Output } from "ai";
 import type { schema } from "api/schema";
 import z from "zod";
 
+const MAX_RETRIES = 5;
+const INITIAL_RETRY_DELAY_MS = 1000;
+const MAX_RETRY_DELAY_MS = 10000; // 10 seconds max
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+const isRateLimitError = (error: unknown): boolean => {
+  if (error instanceof Error) {
+    const message = error.message.toLowerCase();
+    return (
+      message.includes("overloaded") ||
+      message.includes("rate limit") ||
+      message.includes("too many requests") ||
+      message.includes("quota") ||
+      message.includes("429")
+    );
+  }
+  return false;
+};
+
+const isRetryableError = (error: unknown): boolean => {
+  if (error instanceof Error) {
+    const errorName = error.constructor.name;
+    const message = error.message.toLowerCase();
+
+    // Retryable errors
+    if (
+      errorName.includes("RetryError") ||
+      errorName.includes("NoObjectGeneratedError") ||
+      errorName.includes("APIError") ||
+      message.includes("timeout") ||
+      message.includes("network") ||
+      message.includes("connection") ||
+      isRateLimitError(error)
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const getRetryDelay = (attempt: number, isRateLimit: boolean): number => {
+  const baseDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+  const delay = isRateLimit ? baseDelay * 2 : baseDelay;
+  return Math.min(delay, MAX_RETRY_DELAY_MS);
+};
+
 export const summarySchema = z.object({
   title: z
     .string()
@@ -39,6 +87,7 @@ export const summarizeThread = async (
     { messages: true; labels: { label: true } }
   >,
 ) => {
+  console.log(`Summarizing thread ${thread.id}`);
   const firstMessage = thread.messages?.sort((a, b) =>
     a.id.localeCompare(b.id),
   )[0];
@@ -99,17 +148,61 @@ Analyze this thread to identify what the user ACTUALLY needs, not just what they
 Think: "If another user has the exact same underlying problem with different wording, would this summary match theirs?"
   `;
 
-  const { output } = await generateText({
-    model: google("gemini-3-flash-preview"),
-    output: Output.object({ schema: summarySchema }),
-    prompt,
-  });
+  let lastError: unknown;
 
-  return `
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    try {
+      const { output } = await generateText({
+        model: google("gemini-3-flash-preview"),
+        output: Output.object({ schema: summarySchema }),
+        prompt,
+      });
+
+      console.log(`Summary for thread ${thread.id}`);
+      return `
   Title: ${output.title}
   Short Description: ${output.shortDescription}
   Keywords: ${output.keywords.join(", ")}
   Entities: ${output.entities.join(", ")}
   Expected Action: ${output.expectedAction}
   `;
+    } catch (error) {
+      lastError = error;
+      const isLastAttempt = attempt === MAX_RETRIES - 1;
+      const isRetryable = isRetryableError(error);
+      const isRateLimit = isRateLimitError(error);
+
+      if (!isRetryable) {
+        // Non-retryable error, throw immediately
+        console.error(
+          `Non-retryable error summarizing thread ${thread.id}:`,
+          error,
+        );
+        throw error;
+      }
+
+      if (isLastAttempt) {
+        // Last attempt failed, throw the error
+        console.error(
+          `Failed to summarize thread ${thread.id} after ${MAX_RETRIES} attempts:`,
+          error,
+        );
+        throw error;
+      }
+
+      // Calculate delay with exponential backoff
+      const delay = getRetryDelay(attempt, isRateLimit);
+      const errorType = isRateLimit ? "rate limit" : "retryable";
+      console.warn(
+        `Thread ${thread.id} summary attempt ${
+          attempt + 1
+        }/${MAX_RETRIES} failed (${errorType} error), retrying in ${delay}ms...`,
+      );
+
+      await sleep(delay);
+    }
+  }
+
+  // This should never be reached, but TypeScript needs it
+  throw lastError || new Error("Failed to summarize thread");
 };
