@@ -1,0 +1,27 @@
+{
+  "name": "@workspace/worker",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "worker": "bun run src/worker.ts",
+    "publisher": "bun run src/publisher.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.13",
+    "@live-state/sync": "catalog:",
+    "@qdrant/js-client-rest": "^1.16.2",
+    "@workspace/schemas": "workspace:*",
+    "ai": "^6.0.48",
+    "api": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.3.2",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}
