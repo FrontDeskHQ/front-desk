@@ -1,18 +1,11 @@
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { ulid } from "ulid";
 import z from "zod";
-import { generateEmbedding } from "../../lib/ai/embeddings";
-import {
-  findSimilarThreadsById,
-  generateAndStoreThreadEmbeddings,
-  shouldIncludeMessageInEmbedding,
-} from "../../lib/ai/thread-embeddings";
+import { enqueueIngestThreadJob } from "../../lib/queue";
 import { createDocument, searchDocuments } from "../../lib/search/typesense";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 import { storage } from "../storage";
-
-const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
 
 const STATUS_RESOLVED = 2;
 
@@ -58,7 +51,7 @@ export default publicRoute
         userId: z.string().optional(),
         userName: z.string().optional(),
         organizationId: z.string(),
-      })
+      }),
     ).handler(async ({ req, db }) => {
       // Support portal session or internal API key
       if (
@@ -110,7 +103,7 @@ export default publicRoute
               userId: userId,
               organizationId: req.input.organizationId,
             },
-          })
+          }),
         );
 
         let authorId = existingAuthor[0]?.id;
@@ -144,7 +137,7 @@ export default publicRoute
           include: {
             author: true,
           },
-        })
+        }),
       )[0];
 
       return message;
@@ -152,7 +145,7 @@ export default publicRoute
     markAsAnswer: mutation(
       z.object({
         messageId: z.string(),
-      })
+      }),
     ).handler(async ({ req, db }) => {
       const isInternalApiKey = !!req.context?.internalApiKey;
       const callerUserId =
@@ -199,7 +192,7 @@ export default publicRoute
               userId: callerUserId,
               enabled: true,
             },
-          })
+          }),
         );
 
         const isOrganizationMember = organizationUsers.length > 0;
@@ -215,11 +208,11 @@ export default publicRoute
             threadId: message.threadId,
             markedAsAnswer: true,
           },
-        })
+        }),
       );
 
       const hasOtherAnswer = existingAnswers.some(
-        (existingMessage) => existingMessage.id !== message.id
+        (existingMessage) => existingMessage.id !== message.id,
       );
 
       if (hasOtherAnswer) {
@@ -243,7 +236,7 @@ export default publicRoute
           include: {
             author: true,
           },
-        })
+        }),
       )[0];
 
       return updatedMessage ?? { ...message, markedAsAnswer: true };
@@ -252,7 +245,7 @@ export default publicRoute
       z.object({
         query: z.string(),
         organizationId: z.string(),
-      })
+      }),
     ).handler(async ({ req }) => {
       const messages = await searchDocuments("messages", {
         q: req.input.query,
@@ -264,39 +257,39 @@ export default publicRoute
     }),
   }))
   .withHooks({
-    afterInsert: ({ value, db }) => {
+    afterInsert: ({ value }) => {
       (async () => {
         try {
-          const thread = (
+          const plainTextContent = jsonContentToPlainText(
+            safeParseJSON(value.content),
+          );
+
+          const thread = Object.values(
             await storage.find(schema.thread, {
               where: { id: value.threadId },
-            })
+            }),
           )[0];
 
           if (!thread) {
             console.error(
-              `Thread not found for message ${value.id}, threadId: ${value.threadId}`
+              `Thread not found for message ${value.id}, threadId: ${value.threadId}`,
             );
             return;
           }
 
           const organizationId = thread.organizationId;
-          const plainTextContent = jsonContentToPlainText(
-            safeParseJSON(value.content)
-          );
 
           const allMessages = Object.values(
             await storage.find(schema.message, {
               where: { threadId: value.threadId },
-              sort: [{ key: "id", direction: "asc" }],
-            })
+            }),
           );
 
+          const sortedMessages = [...allMessages].sort((a, b) =>
+            a.id.localeCompare(b.id),
+          );
           const messageIndex =
-            allMessages.findIndex((msg) => msg.id === value.id) + 1;
-
-          const embedding =
-            (await generateEmbedding(plainTextContent)) ?? undefined;
+            sortedMessages.findIndex((msg) => msg.id === value.id) + 1;
 
           const created = await createDocument("messages", {
             id: value.id,
@@ -304,90 +297,30 @@ export default publicRoute
             organizationId: organizationId,
             threadId: value.threadId,
             messageIndex: messageIndex,
-            embedding,
           });
 
           if (!created) {
             console.error(`error creating message ${value.id} in typesense`);
           }
 
-          const threadWithRelations = Object.values(
-            await storage.find(schema.thread, {
-              where: { id: value.threadId },
-              include: {
-                messages: true,
-                labels: { label: true },
-              },
-            })
-          )[0];
-
-          if (
-            !threadWithRelations ||
-            !shouldIncludeMessageInEmbedding(threadWithRelations, value.id)
-          ) {
+          const isFirstMessageInThread = sortedMessages[0]?.id === value.id;
+          if (!isFirstMessageInThread) {
             return;
           }
 
-          await generateAndStoreThreadEmbeddings(threadWithRelations);
+          const jobId = await enqueueIngestThreadJob({
+            threadIds: [value.threadId],
+          });
 
-          const limit = 10;
-          const minScore = 0;
-          const k = limit * 4;
-          const excludeThreadIds: string[] = [];
-
-          const params = {
-            limit,
-            minScore,
-            k,
-            excludeThreadIds,
-          };
-
-          const existingSuggestions = Object.values(
-            await storage.find(schema.suggestion, {
-              where: {
-                type: SUGGESTION_TYPE_RELATED_THREADS,
-                entityId: value.threadId,
-                organizationId,
-              },
-            })
-          );
-
-          const existingSuggestion = existingSuggestions[0];
-
-          const similarThreads =
-            (await findSimilarThreadsById(value.threadId, organizationId, {
-              limit,
-              minScore,
-              k,
-              excludeThreadIds,
-            })) ?? [];
-
-          const now = new Date();
-          const metadataStr = JSON.stringify({ params });
-          const resultsStr = JSON.stringify(similarThreads);
-
-          if (existingSuggestion) {
-            await storage.update(schema.suggestion, existingSuggestion.id, {
-              resultsStr,
-              metadataStr,
-              updatedAt: now,
-            });
-          } else {
-            await storage.insert(schema.suggestion, {
-              id: ulid().toLowerCase(),
-              type: SUGGESTION_TYPE_RELATED_THREADS,
-              entityId: value.threadId,
-              organizationId,
-              resultsStr,
-              metadataStr,
-              createdAt: now,
-              updatedAt: now,
-            });
+          if (!jobId) {
+            console.warn(
+              `Redis queue not configured; skipping ingest-thread enqueue for thread ${value.threadId}`,
+            );
           }
         } catch (error) {
           console.error(
             `Unhandled error in afterInsert hook for message ${value.id}`,
-            error
+            error,
           );
         }
       })();
