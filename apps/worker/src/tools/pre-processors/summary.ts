@@ -3,6 +3,7 @@ import type { InferLiveObject } from "@live-state/sync";
 import { generateText, Output } from "ai";
 import type { schema } from "api/schema";
 import z from "zod";
+import type { ParsedSummary } from "../../pipelines/types";
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY_MS = 1000;
@@ -86,7 +87,7 @@ export const summarizeThread = async (
     typeof schema.thread,
     { messages: true; labels: { label: true } }
   >,
-) => {
+): Promise<ParsedSummary> => {
   console.log(`Summarizing thread ${thread.id}`);
   const firstMessage = thread.messages?.sort((a, b) =>
     a.id.localeCompare(b.id),
@@ -159,13 +160,13 @@ Think: "If another user has the exact same underlying problem with different wor
       });
 
       console.log(`Summary for thread ${thread.id}`);
-      return `
-  Title: ${output.title}
-  Short Description: ${output.shortDescription}
-  Keywords: ${output.keywords.join(", ")}
-  Entities: ${output.entities.join(", ")}
-  Expected Action: ${output.expectedAction}
-  `;
+      return {
+        title: output.title,
+        shortDescription: output.shortDescription,
+        keywords: output.keywords,
+        entities: output.entities,
+        expectedAction: output.expectedAction,
+      };
     } catch (error) {
       lastError = error;
       const isLastAttempt = attempt === MAX_RETRIES - 1;

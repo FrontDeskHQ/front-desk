@@ -1,23 +1,26 @@
 import { google } from "@ai-sdk/google";
-import type { InferLiveObject } from "@live-state/sync";
 import { embed } from "ai";
-import type { schema } from "api/schema";
-import { summarizeThread } from "../pre-processors/summary";
+import {
+  type ThreadPayload,
+  upsertThreadVector,
+} from "../../lib/qdrant/threads";
+import type {
+  ParsedSummary,
+  ProcessorInput,
+  ProcessorResult,
+  Thread,
+} from "../../pipelines/types";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const BATCH_CONCURRENCY = 5;
 
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
 
-type Thread = InferLiveObject<
-  typeof schema.thread,
-  { messages: true; labels: { label: true } }
->;
-
 export interface ThreadEmbeddingResult {
   threadId: string;
   summary: string;
   embedding: number[];
+  storedInQdrant: boolean;
   success: true;
 }
 
@@ -59,172 +62,184 @@ const generateEmbedding = async (text: string): Promise<number[] | null> => {
   }
 };
 
-interface SummarizedThread {
-  threadId: string;
-  summary: string;
-  success: true;
-}
-
-interface SummarizedThreadError {
-  threadId: string;
-  error: string;
-  success: false;
-}
-
-type SummarizedThreadResult = SummarizedThread | SummarizedThreadError;
-
-const summarizeSingleThread = async (
+/**
+ * Build ThreadPayload from thread data and parsed summary
+ */
+const buildThreadPayload = (
   thread: Thread,
-): Promise<SummarizedThreadResult> => {
-  try {
-    const summary = await summarizeThread(thread);
+  parsedSummary: ParsedSummary,
+): ThreadPayload => {
+  const labelNames =
+    thread.labels
+      ?.map((threadLabel) => threadLabel.label?.name)
+      .filter((label): label is string => Boolean(label)) ?? [];
 
-    if (!summary || summary.trim().length === 0) {
-      console.error(
-        `Failed to generate summary for thread ${thread.id}: empty result`,
-      );
-      return {
-        threadId: thread.id,
-        error: "Failed to generate summary: empty result",
-        success: false,
-      };
-    }
+  const createdAt = thread.createdAt?.getTime?.() ?? Date.now();
 
-    return {
-      threadId: thread.id,
-      summary,
-      success: true,
-    };
-  } catch (error) {
-    console.error(`Failed to summarize thread ${thread.id}: ${error}`);
-    return {
-      threadId: thread.id,
-      error: error instanceof Error ? error.message : String(error),
-      success: false,
-    };
-  }
+  return {
+    threadId: thread.id,
+    organizationId: thread.organizationId,
+    title: parsedSummary.title || thread.name || "Untitled",
+    shortDescription:
+      parsedSummary.shortDescription ||
+      thread.messages?.[0]?.content ||
+      "No summary available.",
+    keywords: parsedSummary.keywords,
+    entities: parsedSummary.entities,
+    expectedAction: parsedSummary.expectedAction || "triage",
+    status: thread.status ?? 0,
+    priority: thread.priority ?? 0,
+    authorId: thread.authorId ?? "",
+    assignedUserId: thread.assignedUserId ?? null,
+    labels: labelNames,
+    createdAt,
+    updatedAt: Date.now(),
+  };
 };
 
-const embedSingleSummary = async (
-  summarized: SummarizedThread,
-): Promise<BatchEmbedResult> => {
-  console.log(`Embedding thread ${summarized.threadId}`);
+/**
+ * Create a string representation from ParsedSummary for embedding generation
+ */
+const createSummaryText = (summary: ParsedSummary): string => {
+  return `${summary.title}\n\n${summary.shortDescription}`.trim();
+};
+
+/**
+ * Process a single thread: generate embedding and store in Qdrant
+ */
+export const embedAndStoreThread = async (
+  input: ProcessorInput,
+): Promise<ProcessorResult> => {
+  const { threadId, thread, summary } = input;
+
+  console.log(`Embedding thread ${threadId}`);
+
   try {
-    const embedding = await generateEmbedding(summarized.summary);
+    // Create text representation for embedding generation
+    const summaryText = createSummaryText(summary);
+
+    // Generate embedding from summary text
+    const embedding = await generateEmbedding(summaryText);
 
     if (!embedding) {
-      console.error(
-        `Failed to generate embedding for thread ${summarized.threadId}`,
-      );
+      console.error(`Failed to generate embedding for thread ${threadId}`);
       return {
-        threadId: summarized.threadId,
-        error: "Failed to generate embedding",
+        threadId,
         success: false,
+        error: "Failed to generate embedding",
       };
     }
 
-    return {
-      threadId: summarized.threadId,
-      summary: summarized.summary,
+    // Build ThreadPayload using ParsedSummary directly
+    const payload = buildThreadPayload(thread, summary);
+
+    // Generate a unique point ID for Qdrant
+    const pointId = crypto.randomUUID();
+
+    // Upsert to Qdrant
+    const storedInQdrant = await upsertThreadVector(
+      pointId,
       embedding,
+      payload,
+    );
+
+    if (!storedInQdrant) {
+      console.warn(
+        `Failed to store thread ${threadId} in Qdrant, but embedding was generated`,
+      );
+    }
+
+    // Serialize ParsedSummary to string for EmbedOutput
+    const summaryString = JSON.stringify(summary);
+
+    return {
+      threadId,
       success: true,
+      data: {
+        embedding,
+        summary: summaryString,
+        storedInQdrant,
+      },
     };
   } catch (error) {
-    console.error(
-      `Failed to embed thread ${summarized.threadId}: ${error}`,
-    );
+    console.error(`Failed to embed thread ${threadId}:`, error);
     return {
-      threadId: summarized.threadId,
-      error: error instanceof Error ? error.message : String(error),
+      threadId,
       success: false,
+      error: error instanceof Error ? error.message : String(error),
     };
   }
 };
 
-export const batchEmbedThread = async (
-  threads: Thread[],
+interface SummaryInput {
+  threadId: string;
+  thread: Thread;
+  summary: ParsedSummary;
+}
+
+/**
+ * Batch process threads: generate embeddings and store in Qdrant
+ * This function takes pre-computed summaries (from the pre-processor stage)
+ */
+export const batchEmbedAndStore = async (
+  inputs: SummaryInput[],
   options?: { concurrency?: number },
 ): Promise<BatchEmbedResult[]> => {
   const concurrency = options?.concurrency ?? BATCH_CONCURRENCY;
 
-  if (threads.length === 0) {
+  if (inputs.length === 0) {
     return [];
   }
 
   console.log(
-    `Batch processing ${threads.length} threads with concurrency ${concurrency}`,
+    `Batch embedding ${inputs.length} threads with concurrency ${concurrency}`,
   );
 
   const results: BatchEmbedResult[] = [];
   const resultsMap = new Map<string, BatchEmbedResult>();
 
-  // Process threads in batches with pipeline: summarize -> embed (while next batch summarizes)
-  const totalBatches = Math.ceil(threads.length / concurrency);
-  const embeddingPromises: Promise<void>[] = [];
+  // Process in batches
+  const totalBatches = Math.ceil(inputs.length / concurrency);
 
-  // Start first batch summarization
-  let summarizePromise = Promise.all(
-    threads.slice(0, concurrency).map((thread) => summarizeSingleThread(thread)),
-  );
+  for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+    const batchStart = batchIndex * concurrency;
+    const batch = inputs.slice(batchStart, batchStart + concurrency);
 
-  for (let currentBatchIndex = 0; currentBatchIndex < totalBatches; currentBatchIndex++) {
-    // Wait for current batch summaries to complete
-    const summarizedResults = await summarizePromise;
+    const batchResults = await Promise.all(
+      batch.map(async (input) => {
+        const result = await embedAndStoreThread(input);
 
-    // Process successful summaries: embed them
-    const successfulSummaries = summarizedResults.filter(
-      (r): r is SummarizedThread => r.success === true,
-    );
+        if (result.success) {
+          return {
+            threadId: result.threadId,
+            summary: result.data.summary,
+            embedding: result.data.embedding,
+            storedInQdrant: result.data.storedInQdrant,
+            success: true as const,
+          };
+        }
 
-    // Add summarization errors to results
-    for (const result of summarizedResults) {
-      if (!result.success) {
-        resultsMap.set(result.threadId, {
+        return {
           threadId: result.threadId,
           error: result.error,
-          success: false,
-        });
-      }
-    }
+          success: false as const,
+        };
+      }),
+    );
 
-    // Start embedding successful summaries from this batch
-    if (successfulSummaries.length > 0) {
-      const embeddingPromise = Promise.all(
-        successfulSummaries.map((summarized) => embedSingleSummary(summarized)),
-      ).then((embeddingResults) => {
-        for (const result of embeddingResults) {
-          resultsMap.set(result.threadId, result);
-        }
-      });
-      embeddingPromises.push(embeddingPromise);
-    }
-
-    // Start next batch summarization (if there are more batches)
-    const nextBatchIndex = currentBatchIndex + 1;
-    if (nextBatchIndex < totalBatches) {
-      const nextBatchStart = nextBatchIndex * concurrency;
-      const nextBatch = threads.slice(
-        nextBatchStart,
-        nextBatchStart + concurrency,
-      );
-      summarizePromise = Promise.all(
-        nextBatch.map((thread) => summarizeSingleThread(thread)),
-      );
+    for (const result of batchResults) {
+      resultsMap.set(result.threadId, result);
     }
   }
 
-  // Wait for all embedding operations to complete
-  await Promise.all(embeddingPromises);
-
-  // Convert map to array, maintaining thread order
-  for (const thread of threads) {
-    const result = resultsMap.get(thread.id);
+  // Convert map to array, maintaining input order
+  for (const input of inputs) {
+    const result = resultsMap.get(input.threadId);
     if (result) {
       results.push(result);
     } else {
-      // Fallback: should not happen, but handle gracefully
       results.push({
-        threadId: thread.id,
+        threadId: input.threadId,
         error: "Unknown error: result not found",
         success: false,
       });
@@ -235,7 +250,7 @@ export const batchEmbedThread = async (
   const errorCount = results.filter((r) => !r.success).length;
 
   console.log(
-    `Batch processing complete: ${successCount} successful, ${errorCount} failed out of ${threads.length} threads`,
+    `Batch embedding complete: ${successCount} successful, ${errorCount} failed out of ${inputs.length} threads`,
   );
 
   return results;
