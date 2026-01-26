@@ -182,7 +182,10 @@ export const executePipeline = async (
   options: PipelineJobOptions = {},
 ): Promise<PipelineExecutionResult> => {
   const startTime = performance.now();
-  const concurrency = options.concurrency ?? DEFAULT_CONCURRENCY;
+  const concurrency =
+    options.concurrency && options.concurrency > 0
+      ? options.concurrency
+      : DEFAULT_CONCURRENCY;
 
   console.log("=".repeat(72));
   console.log(
@@ -239,7 +242,7 @@ export const executePipeline = async (
     }
 
     const turns: TurnSummary[] = [];
-    const threadIds = Array.from(threads.keys());
+    const requestedThreadIds = input.threadIds;
     let completedProcessors = 0;
 
     for (let turnIndex = 0; turnIndex < executionOrder.length; turnIndex++) {
@@ -260,7 +263,7 @@ export const executePipeline = async (
             console.error(`Processor "${processorName}" not found in registry`);
             return {
               processor: processorName,
-              threadResults: threadIds.map((threadId) => ({
+              threadResults: requestedThreadIds.map((threadId) => ({
                 threadId,
                 success: false as const,
                 error: `Processor "${processorName}" not found`,
@@ -272,7 +275,7 @@ export const executePipeline = async (
           const results = await executeProcessor(
             processor,
             context,
-            threadIds,
+            requestedThreadIds,
             concurrency,
           );
 

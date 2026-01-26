@@ -102,12 +102,17 @@ export const upsertThreadVector = async (
     });
     return true;
   } catch (error) {
-    console.error(`Failed to upsert thread vector ${payload.threadId} (pointId: ${pointId}):`, error);
+    console.error(
+      `Failed to upsert thread vector ${payload.threadId} (pointId: ${pointId}):`,
+      error,
+    );
     return false;
   }
 };
 
-export const deleteThreadVector = async (threadId: string): Promise<boolean> => {
+export const deleteThreadVector = async (
+  threadId: string,
+): Promise<boolean> => {
   try {
     const result = await getThreadVector(threadId);
     if (!result) {
@@ -155,14 +160,12 @@ export const searchSimilarThreads = async (
   try {
     const mustConditions: Array<{
       key: string;
-      match?: { value: string | number };
+      match?: { value: string | number } | { any: (string | number)[] };
       range?: { gte?: number; lte?: number };
     }> = [{ key: "organizationId", match: { value: organizationId } }];
 
     if (statusFilter && statusFilter.length > 0) {
-      for (const status of statusFilter) {
-        mustConditions.push({ key: "status", match: { value: status } });
-      }
+      mustConditions.push({ key: "status", match: { any: statusFilter } });
     }
 
     const mustNotConditions = excludeThreadIds.map((id) => ({
@@ -194,7 +197,11 @@ export const searchSimilarThreads = async (
 
 export const getThreadVector = async (
   threadId: string,
-): Promise<{ vector: number[]; payload: ThreadPayload; pointId: string } | null> => {
+): Promise<{
+  vector: number[];
+  payload: ThreadPayload;
+  pointId: string;
+} | null> => {
   try {
     const results = await qdrantClient.scroll(THREADS_COLLECTION, {
       filter: {

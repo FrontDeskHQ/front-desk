@@ -26,7 +26,7 @@ services:
       - ./.typesense-data:/data
     command: "--data-dir /data --api-key=typesense-api-key --enable-cors"
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.16.3
     restart: on-failure
     ports:
       - "6333:6333"

@@ -17,7 +17,7 @@ interface IngestThreadJobData {
 
 const getRedisConnection = (): Redis => {
   if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL);
+    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
   }
 
   const redisConfig: {
@@ -63,10 +63,15 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
     `\n📥 Ingest-thread job ${job.id}: Processing ${threadIds.length} threads`,
   );
 
+  const concurrency =
+    options?.concurrency && options.concurrency > 0
+      ? options.concurrency
+      : undefined;
+
   const result = await executePipeline(
     { threadIds },
     {
-      concurrency: options?.concurrency,
+      concurrency,
       similarThreadsLimit: options?.similarThreadsLimit,
       scoreThreshold: options?.scoreThreshold,
     },

@@ -11,7 +11,7 @@ import type {
   ProcessorExecuteContext,
   ProcessorResult,
 } from "../core/types";
-import type { EmbedOutput } from "./embed";
+import type { EmbedOutput } from "../../types";
 
 const DEFAULT_SIMILAR_THREADS_LIMIT = 10;
 const DEFAULT_SCORE_THRESHOLD = 0.7;
@@ -61,8 +61,15 @@ export const findSimilarProcessor: ProcessorDefinition<FindSimilarOutput> = {
       return computeSha256("");
     }
 
-    const embeddingPrefix = embedOutput.embedding.slice(0, 10).join(",");
-    return computeSha256(embeddingPrefix);
+    const limit =
+      jobContext.options.similarThreadsLimit ?? DEFAULT_SIMILAR_THREADS_LIMIT;
+    const scoreThreshold =
+      jobContext.options.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
+
+    // First 50 values should be enough to identify any changes in the embeddings
+    const embeddingString = embedOutput.embedding.slice(0, 50).join(",");
+    const hashInput = `${embeddingString}|limit:${limit}|scoreThreshold:${scoreThreshold}`;
+    return computeSha256(hashInput);
   },
 
   async execute(

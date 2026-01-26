@@ -57,7 +57,7 @@ export interface ProcessorInput {
 
 export interface EmbedOutput {
   embedding: number[];
-  summary: string;
+  summaryText: string;
   storedInQdrant: boolean;
 }
 

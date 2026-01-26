@@ -1,7 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
-import { schema } from "api/schema";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 import z from "zod";
@@ -263,11 +262,6 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
           allLabels,
         );
 
-        const filteredSuggestedIds = filterDismissedLabels(
-          suggestedLabelIds,
-          existingMetadata.dismissed ?? [],
-        );
-
         const now = new Date();
         const metadataStr = createSuggestionMetadata(
           currentHash,
@@ -277,7 +271,7 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
 
         if (existingSuggestion) {
           await fetchClient.mutate.suggestion.update(existingSuggestion.id, {
-            resultsStr: JSON.stringify(filteredSuggestedIds),
+            resultsStr: JSON.stringify(suggestedLabelIds),
             metadataStr,
             updatedAt: now,
           });
@@ -287,7 +281,7 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
             type: SUGGESTION_TYPE_LABEL,
             entityId: threadId,
             organizationId,
-            resultsStr: JSON.stringify(filteredSuggestedIds),
+            resultsStr: JSON.stringify(suggestedLabelIds),
             metadataStr,
             createdAt: now,
             updatedAt: now,
@@ -295,13 +289,13 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
         }
 
         console.log(
-          `Generated label suggestions for thread ${threadId}: ${filteredSuggestedIds.length} labels`,
+          `Generated label suggestions for thread ${threadId}: ${suggestedLabelIds.length} labels`,
         );
 
         return {
           threadId,
           success: true,
-          data: { labelIds: filteredSuggestedIds, cached: false },
+          data: { labelIds: suggestedLabelIds, cached: false },
         };
       } catch (error) {
         console.error(

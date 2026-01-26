@@ -5,25 +5,16 @@ import {
   type ThreadPayload,
   upsertThreadVector,
 } from "../../lib/qdrant/threads";
-import type { ParsedSummary, Thread } from "../../types";
+import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
   ProcessorResult,
 } from "../core/types";
-import { summarizeThread, type SummarizeOutput } from "./summarize";
+import { type SummarizeOutput, summarizeThread } from "./summarize";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
-
-/**
- * Output type for the embed processor
- */
-export interface EmbedOutput {
-  embedding: number[];
-  summaryText: string;
-  storedInQdrant: boolean;
-}
 
 /**
  * Compute SHA256 hash of input data
@@ -131,21 +122,18 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
   computeHash(context: ProcessorExecuteContext): string {
     const { context: jobContext, threadId } = context;
 
-    // Get the summary output from the summarize processor
     const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
       "summarize",
       threadId,
     );
 
     if (!summarizeOutput) {
-      // No summary available, use empty hash (will need processing or will fail)
       return computeSha256("");
     }
 
     const { summary } = summarizeOutput;
 
-    // Hash based on summary title and description
-    const hashInput = `${summary.title}|${summary.shortDescription}`;
+    const hashInput = createSummaryText(summary);
     return computeSha256(hashInput);
   },
 
@@ -154,7 +142,6 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
   ): Promise<ProcessorResult<EmbedOutput>> {
     const { context: jobContext, thread, threadId } = context;
 
-    // Get the summary from the summarize processor
     const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
       "summarize",
       threadId,
@@ -173,10 +160,8 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
     try {
       console.log(`Embedding thread ${threadId}`);
 
-      // Create text representation for embedding
       const summaryText = createSummaryText(summary);
 
-      // Generate embedding
       const embedding = await generateEmbedding(summaryText);
 
       if (!embedding) {
@@ -187,7 +172,6 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
         };
       }
 
-      // Build payload and store in Qdrant
       const payload = buildThreadPayload(thread, summary);
       const pointId = crypto.randomUUID();
 
@@ -201,6 +185,16 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
         console.warn(
           `Failed to store thread ${threadId} in Qdrant, but embedding was generated`,
         );
+        return {
+          threadId,
+          success: false,
+          error: "Failed to store thread vector in Qdrant",
+          data: {
+            embedding,
+            summaryText,
+            storedInQdrant,
+          },
+        } as ProcessorResult<EmbedOutput>;
       }
 
       return {
