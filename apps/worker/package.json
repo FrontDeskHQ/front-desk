@@ -1,11 +1,11 @@
 {
-  "name": "@workspace/worker",
+  "name": "worker",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
-    "worker": "bun run src/worker.ts",
-    "publisher": "bun run src/publisher.ts",
+    "dev": "bun run --watch src/worker.ts",
+    "start": "bun run src/worker.ts",
     "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
     "eval:similarity": "bun run src/evals/thread-similarity.eval.ts"
   },

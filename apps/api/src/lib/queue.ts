@@ -1,6 +1,6 @@
 import { Queue } from "bullmq";
 import Redis from "ioredis";
-import "../../env";
+import "../env";
 
 const INGEST_THREAD_QUEUE = "ingest-thread";
 
