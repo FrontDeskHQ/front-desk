@@ -5,10 +5,7 @@ import {
   THREADS_COLLECTION,
   type ThreadPayload,
 } from "../../lib/qdrant/threads";
-import type {
-  PostProcessorInput,
-  PostProcessorResult,
-} from "../../pipelines/types";
+import type { PostProcessorInput, PostProcessorResult } from "../../types";
 
 export interface FindSimilarThreadsOptions {
   organizationId: string;

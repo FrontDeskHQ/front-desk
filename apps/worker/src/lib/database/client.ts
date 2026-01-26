@@ -2,7 +2,7 @@ import { createClient as createFetchClient } from "@live-state/sync/client/fetch
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { ulid } from "ulid";
-import type { Thread } from "../../pipelines/types";
+import type { Thread } from "../../types";
 import type { SimilarThreadResult } from "../qdrant/threads";
 
 const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
@@ -13,7 +13,9 @@ const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
 export const fetchClient = createFetchClient<Router>({
   url: process.env.LIVE_STATE_API_URL ?? "http://localhost:3333/api/ls",
   schema,
-  credentials: async () => ({}),
+  credentials: async () => ({
+    "x-discord-bot-key": process.env.DISCORD_BOT_KEY ?? "",
+  }),
 });
 
 /**

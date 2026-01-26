@@ -86,9 +86,9 @@ export const router = createRouter({
                 },
                 {
                   message: "This slug is reserved and cannot be used",
-                }
+                },
               ),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = ulid().toLowerCase();
 
@@ -130,7 +130,7 @@ export const router = createRouter({
             organizationId: z.string(),
             expiresAt: z.iso.datetime().optional(),
             name: z.string().optional(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
@@ -147,7 +147,7 @@ export const router = createRouter({
                   user: true,
                   organization: true,
                 },
-              })
+              }),
             )[0] as any;
 
             authorized = selfOrgUser && selfOrgUser.role === "owner";
@@ -175,7 +175,7 @@ export const router = createRouter({
         revokePublicApiKey: mutation(
           z.object({
             id: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           if (!req.context?.session?.userId) {
             throw new Error("UNAUTHORIZED");
@@ -193,7 +193,7 @@ export const router = createRouter({
                 organizationId: publicApiKey.metadata.ownerId,
                 userId: req.context.session.userId,
               },
-            })
+            }),
           )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
@@ -212,7 +212,7 @@ export const router = createRouter({
         listApiKeys: mutation(
           z.object({
             organizationId: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
@@ -225,7 +225,7 @@ export const router = createRouter({
                   organizationId,
                   userId: req.context.session.userId,
                 },
-              })
+              }),
             )[0] as any;
 
             authorized = selfOrgUser && selfOrgUser.role === "owner";
@@ -288,7 +288,7 @@ export const router = createRouter({
           z.object({
             organizationId: z.string(),
             email: z.email().array(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const orgId = req.input!.organizationId;
 
@@ -303,7 +303,7 @@ export const router = createRouter({
                 user: true,
                 organization: true,
               },
-            })
+            }),
           )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
@@ -318,7 +318,7 @@ export const router = createRouter({
               include: {
                 user: true,
               },
-            })
+            }),
           );
 
           const existingInvites = Object.values(
@@ -330,20 +330,20 @@ export const router = createRouter({
                   $gt: new Date(),
                 },
               },
-            })
+            }),
           );
 
           // TODO follow https://github.com/pedroscosta/live-state/issues/74
           const filteredEmails = Array.from(
-            new Set(req.input!.email.map((e) => e.trim().toLowerCase()))
+            new Set(req.input!.email.map((e) => e.trim().toLowerCase())),
           ).filter(
             (email) =>
               !existingMembers.some(
-                (member) => (member as any).user?.email.toLowerCase() === email
+                (member) => (member as any).user?.email.toLowerCase() === email,
               ) &&
               !existingInvites.some(
-                (invite) => (invite as any).email.toLowerCase() === email
-              )
+                (invite) => (invite as any).email.toLowerCase() === email,
+              ),
           );
 
           await Promise.allSettled(
@@ -374,7 +374,7 @@ export const router = createRouter({
                 .catch((error) => {
                   console.error("Error sending email", error);
                 });
-            })
+            }),
           );
 
           return {
@@ -515,7 +515,7 @@ export const router = createRouter({
             return {
               success: true,
             };
-          }
+          },
         ),
         decline: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
@@ -536,7 +536,7 @@ export const router = createRouter({
             return {
               success: true,
             };
-          }
+          },
         ),
       })),
     integration: privateRoute.collectionRoute(schema.integration, {
@@ -627,6 +627,26 @@ export const router = createRouter({
     message: messageRoute,
     suggestion: suggestionRoute,
     ...labelsRoute,
+    // Internal pipeline tables (not synced to clients, used by worker)
+    pipelineIdempotencyKey: publicRoute.collectionRoute(
+      schema.pipelineIdempotencyKey,
+      {
+        read: ({ ctx }) => !!ctx?.internalApiKey,
+        insert: ({ ctx }) => !!ctx?.internalApiKey,
+        update: {
+          preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+          postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        },
+      },
+    ),
+    pipelineJob: publicRoute.collectionRoute(schema.pipelineJob, {
+      read: ({ ctx }) => !!ctx?.internalApiKey,
+      insert: ({ ctx }) => !!ctx?.internalApiKey,
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      },
+    }),
   },
 });
 

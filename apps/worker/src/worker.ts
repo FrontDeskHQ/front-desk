@@ -1,7 +1,8 @@
-import { Worker, type Job } from "bullmq";
+import { type Job, Worker } from "bullmq";
 import Redis from "ioredis";
 import { ensureThreadsCollection } from "./lib/qdrant/threads";
-import { processIngestThreadBatch } from "./pipelines/ingest-thread";
+import { executePipeline } from "./pipeline/core/orchestrator";
+import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
 const INGEST_THREAD_QUEUE = "ingest-thread";
 
@@ -62,20 +63,33 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
     `\n📥 Ingest-thread job ${job.id}: Processing ${threadIds.length} threads`,
   );
 
-  const result = await processIngestThreadBatch(threadIds, options);
+  const result = await executePipeline(
+    { threadIds },
+    {
+      concurrency: options?.concurrency,
+      similarThreadsLimit: options?.similarThreadsLimit,
+      scoreThreshold: options?.scoreThreshold,
+    },
+  );
 
-  const successRate = (
-    (result.summary.postProcessorSuccess / result.summary.total) *
-    100
-  ).toFixed(1);
+  const successRate =
+    result.summary.totalThreads > 0
+      ? (
+          (result.summary.processedThreads / result.summary.totalThreads) *
+          100
+        ).toFixed(1)
+      : "0";
 
   console.log(`\n📊 Job ${job.id} complete: ${successRate}% success rate`);
 
   return {
-    jobId: job.id,
+    jobId: result.jobId,
+    bullmqJobId: job.id,
     threadIds,
     summary: result.summary,
     successRate: `${successRate}%`,
+    status: result.status,
+    duration: result.duration,
   };
 };
 
@@ -103,6 +117,7 @@ ingestThreadWorker.on("completed", (job) => {
 
 ingestThreadWorker.on("failed", (job, err) => {
   console.error(`❌ Ingest-thread job ${job?.id} has failed:`, err.message);
+  console.error(err);
 });
 
 ingestThreadWorker.on("error", (err) => {
@@ -112,6 +127,10 @@ ingestThreadWorker.on("error", (err) => {
 // Initialize and start
 const initialize = async () => {
   console.log("Initializing worker...");
+
+  // Register default processors
+  registerDefaultProcessors();
+  console.log("✅ Processors registered");
 
   // Ensure Qdrant collection exists
   const qdrantReady = await ensureThreadsCollection();

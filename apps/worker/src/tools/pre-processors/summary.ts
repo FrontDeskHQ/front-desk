@@ -3,7 +3,7 @@ import type { InferLiveObject } from "@live-state/sync";
 import { generateText, Output } from "ai";
 import type { schema } from "api/schema";
 import z from "zod";
-import type { ParsedSummary } from "../../pipelines/types";
+import type { ParsedSummary } from "../../types";
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY_MS = 1000;

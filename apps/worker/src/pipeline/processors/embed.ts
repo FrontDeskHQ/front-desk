@@ -1,0 +1,224 @@
+import { google } from "@ai-sdk/google";
+import { embed } from "ai";
+import { createHash } from "node:crypto";
+import {
+  type ThreadPayload,
+  upsertThreadVector,
+} from "../../lib/qdrant/threads";
+import type { ParsedSummary, Thread } from "../../types";
+import type {
+  ProcessorDefinition,
+  ProcessorExecuteContext,
+  ProcessorResult,
+} from "../core/types";
+import type { SummarizeOutput } from "./summarize";
+
+const EMBEDDING_MODEL = "gemini-embedding-001";
+const embeddingModel = google.embedding(EMBEDDING_MODEL);
+
+/**
+ * Output type for the embed processor
+ */
+export interface EmbedOutput {
+  embedding: number[];
+  summaryText: string;
+  storedInQdrant: boolean;
+}
+
+/**
+ * Compute SHA256 hash of input data
+ */
+const computeSha256 = (data: string): string => {
+  return createHash("sha256").update(data).digest("hex");
+};
+
+/**
+ * Create text representation from ParsedSummary for embedding
+ */
+const createSummaryText = (summary: ParsedSummary): string => {
+  return Object.entries(summary)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("\n")
+    .trim();
+};
+
+/**
+ * Generate embedding vector from text
+ */
+const generateEmbedding = async (text: string): Promise<number[] | null> => {
+  if (!text || text.trim().length === 0) {
+    return null;
+  }
+
+  try {
+    const { embedding } = await embed({
+      model: embeddingModel,
+      value: text,
+      providerOptions: {
+        google: {
+          taskType: "SEMANTIC_SIMILARITY",
+        },
+      },
+    });
+
+    // Normalize the embedding vector
+    const norm = Math.hypot(...embedding);
+
+    if (!Number.isFinite(norm) || norm === 0) {
+      console.warn("Embedding normalization failed: invalid norm", norm);
+      return embedding;
+    }
+
+    return embedding.map((value) => value / norm);
+  } catch (error) {
+    console.error("Error generating embedding:", error);
+    return null;
+  }
+};
+
+/**
+ * Build ThreadPayload from thread data and parsed summary
+ */
+const buildThreadPayload = (
+  thread: Thread,
+  parsedSummary: ParsedSummary,
+): ThreadPayload => {
+  const labelNames =
+    thread.labels
+      ?.map((threadLabel) => threadLabel.label?.name)
+      .filter((label): label is string => Boolean(label)) ?? [];
+
+  const createdAt = thread.createdAt?.getTime?.() ?? Date.now();
+
+  return {
+    threadId: thread.id,
+    organizationId: thread.organizationId,
+    title: parsedSummary.title || thread.name || "Untitled",
+    shortDescription:
+      parsedSummary.shortDescription ||
+      thread.messages?.[0]?.content ||
+      "No summary available.",
+    keywords: parsedSummary.keywords,
+    entities: parsedSummary.entities,
+    expectedAction: parsedSummary.expectedAction || "triage",
+    status: thread.status ?? 0,
+    priority: thread.priority ?? 0,
+    authorId: thread.authorId ?? "",
+    assignedUserId: thread.assignedUserId ?? null,
+    labels: labelNames,
+    createdAt,
+    updatedAt: Date.now(),
+  };
+};
+
+/**
+ * Embed processor
+ *
+ * Takes the summary from the summarize processor and generates embeddings,
+ * then stores the vector in Qdrant.
+ *
+ * Dependencies: summarize
+ */
+export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
+  name: "embed",
+
+  dependencies: ["summarize"],
+
+  getIdempotencyKey(threadId: string): string {
+    return `embed:${threadId}`;
+  },
+
+  computeHash(context: ProcessorExecuteContext): string {
+    const { context: jobContext, threadId } = context;
+
+    // Get the summary output from the summarize processor
+    const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
+      "summarize",
+      threadId,
+    );
+
+    if (!summarizeOutput) {
+      // No summary available, use empty hash (will need processing or will fail)
+      return computeSha256("");
+    }
+
+    const { summary } = summarizeOutput;
+
+    // Hash based on summary title and description
+    const hashInput = `${summary.title}|${summary.shortDescription}`;
+    return computeSha256(hashInput);
+  },
+
+  async execute(
+    context: ProcessorExecuteContext,
+  ): Promise<ProcessorResult<EmbedOutput>> {
+    const { context: jobContext, thread, threadId } = context;
+
+    // Get the summary from the summarize processor
+    const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
+      "summarize",
+      threadId,
+    );
+
+    if (!summarizeOutput) {
+      return {
+        threadId,
+        success: false,
+        error: "No summary available from summarize processor",
+      };
+    }
+
+    const { summary } = summarizeOutput;
+
+    try {
+      console.log(`Embedding thread ${threadId}`);
+
+      // Create text representation for embedding
+      const summaryText = createSummaryText(summary);
+
+      // Generate embedding
+      const embedding = await generateEmbedding(summaryText);
+
+      if (!embedding) {
+        return {
+          threadId,
+          success: false,
+          error: "Failed to generate embedding",
+        };
+      }
+
+      // Build payload and store in Qdrant
+      const payload = buildThreadPayload(thread, summary);
+      const pointId = crypto.randomUUID();
+
+      const storedInQdrant = await upsertThreadVector(
+        pointId,
+        embedding,
+        payload,
+      );
+
+      if (!storedInQdrant) {
+        console.warn(
+          `Failed to store thread ${threadId} in Qdrant, but embedding was generated`,
+        );
+      }
+
+      return {
+        threadId,
+        success: true,
+        data: {
+          embedding,
+          summaryText,
+          storedInQdrant,
+        },
+      };
+    } catch (error) {
+      console.error(`Embed processor failed for thread ${threadId}:`, error);
+      return {
+        threadId,
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+};

@@ -15,7 +15,7 @@ export default privateRoute.collectionRoute(schema.suggestion, {
       },
     };
   },
-  insert: () => false,
+  insert: ({ ctx }) => !!ctx?.internalApiKey,
   update: {
     preMutation: ({ ctx }) => {
       if (ctx?.internalApiKey) return true;

@@ -1,6 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { schema } from "api/schema";
-import type { SimilarThreadResult } from "../lib/qdrant/threads";
+import type { SimilarThreadResult } from "./lib/qdrant/threads";
 
 /**
  * Thread type with messages and labels included
@@ -41,7 +41,9 @@ export interface SummaryOutput {
 
 export type PreProcessorResult = PipelineStageResult<SummaryOutput>;
 
-export type PreProcessor = (input: PreProcessorInput) => Promise<PreProcessorResult>;
+export type PreProcessor = (
+  input: PreProcessorInput,
+) => Promise<PreProcessorResult>;
 
 /**
  * Processor types
@@ -80,7 +82,9 @@ export interface SimilarThreadsOutput {
 
 export type PostProcessorResult = PipelineStageResult<SimilarThreadsOutput>;
 
-export type PostProcessor = (input: PostProcessorInput) => Promise<PostProcessorResult>;
+export type PostProcessor = (
+  input: PostProcessorInput,
+) => Promise<PostProcessorResult>;
 
 /**
  * Pipeline context for the entire batch

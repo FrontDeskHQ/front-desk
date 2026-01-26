@@ -9,7 +9,7 @@ import type {
   ProcessorInput,
   ProcessorResult,
   Thread,
-} from "../../pipelines/types";
+} from "../../types";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const BATCH_CONCURRENCY = 5;

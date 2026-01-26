@@ -267,6 +267,7 @@ export const schema = createSchema({
   threadLabel,
   suggestion,
   pipelineIdempotencyKey,
+  pipelineJob,
   // relations
   organizationUserRelations,
   organizationRelations,
