@@ -17,7 +17,6 @@ type ThreadInputAreaProps = {
   organizationId: string | undefined;
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
   user: { id: string; name: string };
-  lastMessageId: string | undefined;
   captureThreadEvent: (
     eventName: string,
     properties?: Record<string, unknown>,
@@ -28,7 +27,6 @@ export const ThreadInputArea = ({
   threadId,
   organizationId,
   threadLabels,
-  lastMessageId,
   user,
   captureThreadEvent,
 }: ThreadInputAreaProps) => {
@@ -36,7 +34,6 @@ export const ThreadInputArea = ({
     threadId,
     organizationId,
     threadLabels,
-    lastMessageId,
   });
 
   const [showBorder, setShowBorder] = useState(false);
