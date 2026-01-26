@@ -1,4 +1,4 @@
-import { batchFindSimilarThreads } from "../tools/post-processors/similar-threads";
+import { batchFindSimilarThreads } from "../pipeline/processors/find-similar";
 import {
   buildThreadSimilarityDataset,
   TEST_ORGANIZATION_ID,

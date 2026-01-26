@@ -11,7 +11,7 @@ import type {
   ProcessorExecuteContext,
   ProcessorResult,
 } from "../core/types";
-import type { SummarizeOutput } from "./summarize";
+import { summarizeThread, type SummarizeOutput } from "./summarize";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
@@ -221,4 +221,84 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       };
     }
   },
+};
+
+export interface BatchEmbedResult {
+  threadId: string;
+  embedding: number[];
+  summary: string;
+  success: true;
+}
+
+export interface BatchEmbedError {
+  threadId: string;
+  error: string;
+  success: false;
+}
+
+export type BatchEmbedThreadResult = BatchEmbedResult | BatchEmbedError;
+
+const DEFAULT_BATCH_CONCURRENCY = 5;
+
+export const batchEmbedThread = async (
+  threads: Thread[],
+  options?: { concurrency?: number },
+): Promise<BatchEmbedThreadResult[]> => {
+  const concurrency = options?.concurrency ?? DEFAULT_BATCH_CONCURRENCY;
+
+  if (threads.length === 0) {
+    return [];
+  }
+
+  console.log(
+    `Batch embedding ${threads.length} threads with concurrency ${concurrency}`,
+  );
+
+  const results: BatchEmbedThreadResult[] = [];
+
+  for (let i = 0; i < threads.length; i += concurrency) {
+    const batch = threads.slice(i, i + concurrency);
+
+    const batchResults = await Promise.all(
+      batch.map(async (thread): Promise<BatchEmbedThreadResult> => {
+        try {
+          const summary = await summarizeThread(thread);
+          const summaryText = createSummaryText(summary);
+          const embedding = await generateEmbedding(summaryText);
+
+          if (!embedding) {
+            return {
+              threadId: thread.id,
+              error: "Failed to generate embedding",
+              success: false,
+            };
+          }
+
+          return {
+            threadId: thread.id,
+            embedding,
+            summary: summaryText,
+            success: true,
+          };
+        } catch (error) {
+          return {
+            threadId: thread.id,
+            error: error instanceof Error ? error.message : String(error),
+            success: false,
+          };
+        }
+      }),
+    );
+
+    results.push(...batchResults);
+  }
+
+  const successCount = results.filter((r) => r.success).length;
+  const errorCount = results.filter((r) => !r.success).length;
+
+  console.log(
+    `Batch embedding complete: ${successCount} successful, ${errorCount} failed out of ${threads.length} threads`,
+  );
+
+  return results;
 };

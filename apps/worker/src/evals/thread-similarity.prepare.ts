@@ -1,4 +1,4 @@
-import { batchEmbedThread } from "../tools/processors/embed";
+import { batchEmbedThread } from "../pipeline/processors/embed";
 import { ensureThreadsCollection, upsertThreadVector } from "../lib/qdrant/threads";
 import {
   buildThreadSimilarityDataset,

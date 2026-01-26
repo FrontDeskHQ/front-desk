@@ -161,3 +161,82 @@ export const findSimilarProcessor: ProcessorDefinition<FindSimilarOutput> = {
     }
   },
 };
+
+export interface FindSimilarOptions {
+  organizationId: string;
+  limit?: number;
+  scoreThreshold?: number;
+}
+
+export const batchFindSimilarThreads = async (
+  threadIds: string[],
+  options: FindSimilarOptions,
+): Promise<Map<string, Array<{ threadId: string; score: number }>>> => {
+  const { organizationId, limit = 10, scoreThreshold = 0.7 } = options;
+  const results = new Map<string, Array<{ threadId: string; score: number }>>();
+
+  if (threadIds.length === 0) {
+    return results;
+  }
+
+  console.log(`Finding similar threads for ${threadIds.length} threads`);
+
+  for (const threadId of threadIds) {
+    try {
+      // First get the thread's embedding from Qdrant
+      const existingPoints = await qdrantClient.scroll(THREADS_COLLECTION, {
+        filter: {
+          must: [
+            { key: "threadId", match: { value: threadId } },
+            { key: "organizationId", match: { value: organizationId } },
+          ],
+        },
+        limit: 1,
+        with_vector: true,
+        with_payload: true,
+      });
+
+      if (existingPoints.points.length === 0) {
+        console.warn(`No embedding found for thread ${threadId}`);
+        results.set(threadId, []);
+        continue;
+      }
+
+      const point = existingPoints.points[0];
+      if (!point) {
+        results.set(threadId, []);
+        continue;
+      }
+
+      const embedding = point.vector as number[];
+
+      const mustConditions: Array<{
+        key: string;
+        match: { value: string | number };
+      }> = [{ key: "organizationId", match: { value: organizationId } }];
+
+      const searchResults = await qdrantClient.search(THREADS_COLLECTION, {
+        vector: embedding,
+        limit: limit + 1,
+        score_threshold: scoreThreshold,
+        filter: {
+          must: mustConditions,
+          must_not: [{ key: "threadId", match: { value: threadId } }],
+        },
+        with_payload: true,
+      });
+
+      const similarThreads = searchResults.slice(0, limit).map((r) => ({
+        threadId: (r.payload as unknown as ThreadPayload).threadId,
+        score: r.score,
+      }));
+
+      results.set(threadId, similarThreads);
+    } catch (error) {
+      console.error(`Failed to find similar threads for ${threadId}:`, error);
+      results.set(threadId, []);
+    }
+  }
+
+  return results;
+};
