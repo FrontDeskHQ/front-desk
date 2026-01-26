@@ -172,7 +172,7 @@ const organizationUserRelations = createRelations(
   ({ one }) => ({
     organization: one(organization, "organizationId"),
     user: one(user, "userId"),
-  })
+  }),
 );
 
 const threadRelations = createRelations(thread, ({ one, many }) => ({
@@ -227,6 +227,29 @@ const allowlist = object("allowlist", {
   email: string().unique().index(),
 });
 
+/**
+ *  Ingesting-related tables
+ *
+ *  These tables are used to store the data for the ingesting pipeline.
+ *  They are not synced to the clients.
+ */
+
+const pipelineIdempotencyKey = object("pipelineIdempotencyKey", {
+  id: id(),
+  key: string().unique().index(),
+  hash: string(),
+  createdAt: timestamp(),
+});
+
+const pipelineJob = object("pipelineJob", {
+  id: id(),
+  name: string(),
+  status: string(),
+  metadataStr: string().nullable(),
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+});
+
 export const schema = createSchema({
   // models
   organization,
@@ -243,6 +266,7 @@ export const schema = createSchema({
   label,
   threadLabel,
   suggestion,
+  pipelineIdempotencyKey,
   // relations
   organizationUserRelations,
   organizationRelations,
