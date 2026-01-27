@@ -337,8 +337,8 @@ const backfillThread = async (
     .get();
 
   if (existingThread) {
-    // Thread exists (re-added channel), backfill only missing messages
-    await backfillMessages(thread, existingThread.id, organizationId);
+    // Thread exists (re-added channel), sync status and backfill missing messages
+    await backfillMessages(thread, existingThread, organizationId);
     return;
   }
 
@@ -404,13 +404,31 @@ const backfillThread = async (
 
 /**
  * Backfill messages for an existing thread (check for missing messages)
+ * Also syncs thread status between Discord and FrontDesk
  * Used when a channel is re-added to an integration
  */
 const backfillMessages = async (
   thread: ThreadChannel,
-  threadId: string,
+  existingThread: { id: string; status: number },
   organizationId: string,
 ) => {
+  // Sync thread status: Discord archived = FrontDesk Closed (3), active = Open (0)
+  const expectedStatus = thread.archived ? 3 : 0;
+  const currentStatus = existingThread.status;
+
+  // Only sync between Open (0) and Closed (3), preserve other statuses like In Progress (1) or Resolved (2)
+  if (
+    (currentStatus === 0 && expectedStatus === 3) ||
+    (currentStatus === 3 && expectedStatus === 0)
+  ) {
+    console.log(
+      `      Updating thread status: ${thread.name} (${currentStatus} → ${expectedStatus})`,
+    );
+    await fetchClient.mutate.thread.update(existingThread.id, {
+      status: expectedStatus,
+    });
+  }
+
   const messages = await thread.messages.fetch({ limit: 100 });
   const sortedMessages = [...messages.values()].sort(
     (a, b) => a.createdTimestamp - b.createdTimestamp,
@@ -426,7 +444,7 @@ const backfillMessages = async (
       .get();
 
     if (!existingMessage) {
-      await backfillMessage(message, threadId, organizationId);
+      await backfillMessage(message, existingThread.id, organizationId);
       syncedCount++;
     }
   }
