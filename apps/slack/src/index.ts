@@ -152,6 +152,7 @@ const getRelatedThreadLinks = async ({
         type: RELATED_THREADS_SUGGESTION_TYPE,
         entityId: threadId,
         organizationId,
+        active: true,
       })
       .get();
 

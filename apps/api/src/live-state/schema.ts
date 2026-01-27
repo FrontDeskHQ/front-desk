@@ -145,7 +145,9 @@ const suggestion = object("suggestion", {
   id: id(),
   type: string(), // "label", "priority", etc. - for future extensibility
   entityId: string(), // thread ID, user ID, etc. - the entity being suggested for
-  relatedEntityId: string().nullable(), //  IDthread, user ID, etc. - the entity being related to, e.g. the related thread ID
+  relatedEntityId: string().nullable(), //  thread ID, user ID, etc. - the entity being related to, e.g. the related thread ID
+  active: boolean().default(true),
+  accepted: boolean().default(false),
   organizationId: reference("organization.id"),
   resultsStr: string().nullable(), // JSON array of results (e.g., label IDs)
   metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)

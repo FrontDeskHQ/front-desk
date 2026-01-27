@@ -30,16 +30,13 @@ type SuggestionRow = {
   type: string;
   entityId: string;
   relatedEntityId: string | null;
+  active: boolean;
+  accepted: boolean;
   organizationId: string;
   resultsStr: string | null;
   metadataStr: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
-};
-
-type SuggestionMetadata = {
-  dismissed?: boolean;
-  accepted?: boolean;
 };
 
 const computeSha256 = (data: string): string => {
@@ -100,26 +97,6 @@ Return only label IDs that are most relevant to this thread.`,
 
   const validLabelIds = new Set(enabledLabels.map((l) => l.id));
   return aiResult.labelIds.filter((id) => validLabelIds.has(id));
-};
-
-const getSuggestionMetadata = (
-  metadataStr: string | null | undefined,
-): SuggestionMetadata => {
-  if (!metadataStr) {
-    return { dismissed: false, accepted: false };
-  }
-  try {
-    return JSON.parse(metadataStr) as SuggestionMetadata;
-  } catch {
-    return { dismissed: false, accepted: false };
-  }
-};
-
-const createSuggestionMetadata = (
-  dismissed = false,
-  accepted = false,
-): string => {
-  return JSON.stringify({ dismissed, accepted });
 };
 
 export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
@@ -201,18 +178,10 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
 
         for (const labelId of suggestedLabelIds) {
           const existing = existingByLabelId.get(labelId);
-          const existingMeta = existing
-            ? getSuggestionMetadata(existing.metadataStr)
-            : { dismissed: false, accepted: false };
-
-          const metadataStr = createSuggestionMetadata(
-            existingMeta.dismissed,
-            existingMeta.accepted,
-          );
-
           if (existing) {
             await fetchClient.mutate.suggestion.update(existing.id, {
-              metadataStr,
+              active: existing.active,
+              accepted: existing.accepted,
               updatedAt: now,
             });
           } else {
@@ -222,14 +191,16 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
               entityId: threadId,
               relatedEntityId: labelId,
               organizationId,
+              active: true,
+              accepted: false,
               resultsStr: null,
-              metadataStr,
+              metadataStr: null,
               createdAt: now,
               updatedAt: now,
             });
           }
 
-          if (!existingMeta.dismissed) {
+          if (!existing || existing.active) {
             filteredSuggestedLabelIds.push(labelId);
           }
         }
