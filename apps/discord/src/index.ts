@@ -365,6 +365,7 @@ const backfillThread = async (
   );
 
   // Create the thread
+  // Status: 0 = Open, 3 = Closed (for archived Discord threads)
   const threadId = ulid().toLowerCase();
   store.mutate.thread.insert({
     id: threadId,
@@ -375,6 +376,7 @@ const backfillThread = async (
     discordChannelId: thread.id,
     authorId,
     assignedUserId: null,
+    status: thread.archived ? 3 : 0,
     externalIssueId: null,
     externalPrId: null,
     externalId: thread.id,
