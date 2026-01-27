@@ -8,7 +8,8 @@ import { mutate, query } from "~/lib/live-state";
 type SuggestionRow = {
   id: string;
   relatedEntityId: string | null;
-  metadataStr: string | null;
+  active: boolean;
+  accepted: boolean;
 };
 
 type UsePendingLabelSuggestionsProps = {
@@ -22,16 +23,15 @@ export const usePendingLabelSuggestions = ({
   organizationId,
   threadLabels,
 }: UsePendingLabelSuggestionsProps) => {
-  // Query multiple label suggestions instead of single row
   const suggestions = useLiveQuery(
     query.suggestion.where({
       type: "label",
       entityId: threadId,
       organizationId: organizationId,
+      active: true,
     }),
   ) as SuggestionRow[] | undefined;
 
-  // Filter to active (non-dismissed) suggestions
   const activeSuggestions = useMemo(() => {
     if (!suggestions) return [];
 
@@ -41,11 +41,8 @@ export const usePendingLabelSuggestions = ({
 
     return suggestions.filter((s) => {
       if (!s.relatedEntityId) return false;
-      // Skip if label is already applied
       if (appliedLabelIds.has(s.relatedEntityId)) return false;
-
-      const meta = s.metadataStr ? JSON.parse(s.metadataStr) : {};
-      return !meta.dismissed;
+      return s.active;
     });
   }, [suggestions, threadLabels]);
 
@@ -94,7 +91,6 @@ export const LabelSuggestions = ({
   const previousHasSuggestionsRef = useRef(false);
 
   useEffect(() => {
-    // Only capture event when transitioning from no suggestions to having suggestions
     if (hasSuggestions && !previousHasSuggestionsRef.current) {
       captureThreadEvent("support_intelligence:suggestions_shown", {
         suggestion_count: suggestedLabels?.length ?? 0,
@@ -113,26 +109,15 @@ export const LabelSuggestions = ({
     setIsCollapsed(newState);
   };
 
-  const updateSuggestionForLabel = (
-    labelId: string,
-    accepted: boolean,
-    dismissed: boolean,
-  ) => {
+  const updateSuggestionForLabel = (labelId: string, accepted: boolean) => {
     if (!organizationId || !suggestions) return;
 
     const suggestion = suggestions.find((s) => s.relatedEntityId === labelId);
     if (!suggestion) return;
 
-    const existingMetadata = suggestion.metadataStr
-      ? JSON.parse(suggestion.metadataStr)
-      : {};
-
     mutate.suggestion.update(suggestion.id, {
-      metadataStr: JSON.stringify({
-        ...existingMetadata,
-        accepted,
-        dismissed,
-      }),
+      accepted,
+      active: false,
       updatedAt: new Date(),
     });
   };
@@ -155,7 +140,7 @@ export const LabelSuggestions = ({
       });
     }
 
-    updateSuggestionForLabel(labelId, true, false);
+    updateSuggestionForLabel(labelId, true);
 
     captureThreadEvent("support_intelligence:label_accepted", {
       label_id: labelId,
@@ -184,7 +169,7 @@ export const LabelSuggestions = ({
         });
       }
 
-      updateSuggestionForLabel(labelId, true, false);
+      updateSuggestionForLabel(labelId, true);
     }
 
     captureThreadEvent("support_intelligence:all_labels_accepted", {
@@ -196,7 +181,7 @@ export const LabelSuggestions = ({
     const labelIds = suggestedLabels?.map((l) => l.id) ?? [];
 
     for (const labelId of labelIds) {
-      updateSuggestionForLabel(labelId, false, true);
+      updateSuggestionForLabel(labelId, false);
     }
 
     captureThreadEvent("support_intelligence:all_labels_dismissed", {

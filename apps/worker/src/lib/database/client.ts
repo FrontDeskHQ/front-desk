@@ -83,6 +83,8 @@ type SuggestionRow = {
   type: string;
   entityId: string;
   relatedEntityId: string | null;
+  active: boolean;
+  accepted: boolean;
   organizationId: string;
   resultsStr: string | null;
   metadataStr: string | null;
@@ -125,12 +127,21 @@ export const storeSuggestion = async (
     const now = new Date();
     const metadataStr = metadata ? JSON.stringify(metadata) : null;
 
+    for (const suggestion of existingSuggestions) {
+      await fetchClient.mutate.suggestion.update(suggestion.id, {
+        active: false,
+        updatedAt: now,
+      });
+    }
+
     for (const st of similarThreads) {
       const existing = existingByRelatedId.get(st.threadId);
       const resultsStr = JSON.stringify({ score: st.score });
 
       if (existing) {
         await fetchClient.mutate.suggestion.update(existing.id, {
+          active: true,
+          accepted: existing.accepted,
           resultsStr,
           metadataStr,
           updatedAt: now,
@@ -142,6 +153,8 @@ export const storeSuggestion = async (
           entityId: threadId,
           relatedEntityId: st.threadId,
           organizationId,
+          active: true,
+          accepted: false,
           resultsStr,
           metadataStr,
           createdAt: now,

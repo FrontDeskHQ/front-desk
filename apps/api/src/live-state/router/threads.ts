@@ -429,6 +429,7 @@ export default publicRoute
             type: SUGGESTION_TYPE_RELATED_THREADS,
             entityId: threadId,
             organizationId,
+            active: true,
           },
         }),
       ) as SuggestionRow[];

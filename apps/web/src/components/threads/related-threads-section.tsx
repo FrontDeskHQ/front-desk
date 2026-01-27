@@ -50,6 +50,7 @@ export function RelatedThreadsSection({ threadId }: { threadId: string }) {
     query.suggestion.where({
       entityId: threadId,
       type: "related_threads",
+      active: true,
     }),
   );
 
