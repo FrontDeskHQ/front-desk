@@ -9,10 +9,16 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
 import { Route as CommandRouteImport } from './routes/command'
 import { Route as ButtonsRouteImport } from './routes/buttons'
 import { Route as IndexRouteImport } from './routes/index'
 
+const StatusIndicatorRoute = StatusIndicatorRouteImport.update({
+  id: '/status-indicator',
+  path: '/status-indicator',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const CommandRoute = CommandRouteImport.update({
   id: '/command',
   path: '/command',
@@ -33,34 +39,45 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/buttons': typeof ButtonsRoute
   '/command': typeof CommandRoute
+  '/status-indicator': typeof StatusIndicatorRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/buttons': typeof ButtonsRoute
   '/command': typeof CommandRoute
+  '/status-indicator': typeof StatusIndicatorRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/buttons': typeof ButtonsRoute
   '/command': typeof CommandRoute
+  '/status-indicator': typeof StatusIndicatorRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/buttons' | '/command'
+  fullPaths: '/' | '/buttons' | '/command' | '/status-indicator'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/buttons' | '/command'
-  id: '__root__' | '/' | '/buttons' | '/command'
+  to: '/' | '/buttons' | '/command' | '/status-indicator'
+  id: '__root__' | '/' | '/buttons' | '/command' | '/status-indicator'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ButtonsRoute: typeof ButtonsRoute
   CommandRoute: typeof CommandRoute
+  StatusIndicatorRoute: typeof StatusIndicatorRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/status-indicator': {
+      id: '/status-indicator'
+      path: '/status-indicator'
+      fullPath: '/status-indicator'
+      preLoaderRoute: typeof StatusIndicatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/command': {
       id: '/command'
       path: '/command'
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ButtonsRoute: ButtonsRoute,
   CommandRoute: CommandRoute,
+  StatusIndicatorRoute: StatusIndicatorRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
