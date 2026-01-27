@@ -42,6 +42,7 @@ const generateContentHash = (
   labels: Label[],
 ): string => {
   const messages = thread.messages ?? [];
+  // Using only the first 5 messages is on purpose to avoid to keep the hash valid on long threads.
   const messageContents = messages
     .sort((a, b) => a.id.localeCompare(b.id))
     .map((m) => jsonContentToPlainText(safeParseJSON(m.content)))
@@ -262,6 +263,11 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
           allLabels,
         );
 
+        const filteredSuggestedLabelIds = filterDismissedLabels(
+          suggestedLabelIds,
+          existingMetadata.dismissed ?? [],
+        );
+
         const now = new Date();
         const metadataStr = createSuggestionMetadata(
           currentHash,
@@ -289,13 +295,13 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
         }
 
         console.log(
-          `Generated label suggestions for thread ${threadId}: ${suggestedLabelIds.length} labels`,
+          `Generated label suggestions for thread ${threadId}: ${filteredSuggestedLabelIds.length} labels`,
         );
 
         return {
           threadId,
           success: true,
-          data: { labelIds: suggestedLabelIds, cached: false },
+          data: { labelIds: filteredSuggestedLabelIds, cached: false },
         };
       } catch (error) {
         console.error(

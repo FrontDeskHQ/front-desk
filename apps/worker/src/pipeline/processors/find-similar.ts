@@ -138,9 +138,14 @@ export const findSimilarProcessor: ProcessorDefinition<FindSimilarOutput> = {
       });
 
       if (!storedInSuggestions) {
-        console.warn(
-          `Failed to store suggestions for thread ${threadId}, but similar threads were found`,
+        console.error(
+          `Failed to store suggestions for thread ${threadId}`,
         );
+        return {
+          threadId,
+          success: false,
+          error: "Failed to store suggestions",
+        };
       }
 
       console.log(
