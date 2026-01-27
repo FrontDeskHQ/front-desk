@@ -303,11 +303,6 @@ export default publicRoute
             console.error(`error creating message ${value.id} in typesense`);
           }
 
-          const isFirstMessageInThread = sortedMessages[0]?.id === value.id;
-          if (!isFirstMessageInThread) {
-            return;
-          }
-
           const jobId = await enqueueIngestThreadJob({
             threadIds: [value.threadId],
           });

@@ -143,6 +143,41 @@ export const batchCheckIdempotency = async (
 };
 
 /**
+ * Batch check if idempotency keys exist (regardless of hash)
+ * Used to determine if a processor has ever run successfully for a thread
+ *
+ * @returns Map of key -> exists (true if key exists in database)
+ */
+export const batchCheckIdempotencyKeyExists = async (
+  keys: string[],
+): Promise<Map<string, boolean>> => {
+  const results = new Map<string, boolean>();
+
+  if (keys.length === 0) {
+    return results;
+  }
+
+  try {
+    const existingKeys = await fetchClient.query.pipelineIdempotencyKey
+      .where({ key: { $in: keys } })
+      .get();
+
+    const existingSet = new Set(existingKeys.map((k) => k.key));
+
+    for (const key of keys) {
+      results.set(key, existingSet.has(key));
+    }
+  } catch (error) {
+    console.error("Error batch checking idempotency key existence:", error);
+    for (const key of keys) {
+      results.set(key, false);
+    }
+  }
+
+  return results;
+};
+
+/**
  * Batch store idempotency keys after successful execution
  */
 export const batchStoreIdempotencyKeys = async (

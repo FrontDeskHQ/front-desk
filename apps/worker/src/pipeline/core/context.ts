@@ -19,6 +19,12 @@ export class JobContext {
    */
   private processorOutputs: Map<string, unknown> = new Map();
 
+  /**
+   * Tracks which processor+thread combinations were skipped (idempotent)
+   * Key format: `${processorName}:${threadId}`
+   */
+  private skippedProcessors: Set<string> = new Set();
+
   constructor(
     jobId: string,
     input: PipelineJobInput,
@@ -91,5 +97,31 @@ export class JobContext {
    */
   getAllOutputKeys(): string[] {
     return Array.from(this.processorOutputs.keys());
+  }
+
+  /**
+   * Mark a processor as skipped for a thread
+   */
+  markProcessorSkipped(processorName: string, threadId: string): void {
+    const key = this.buildKey(processorName, threadId);
+    this.skippedProcessors.add(key);
+  }
+
+  /**
+   * Check if a processor was skipped for a thread
+   */
+  wasProcessorSkipped(processorName: string, threadId: string): boolean {
+    const key = this.buildKey(processorName, threadId);
+    return this.skippedProcessors.has(key);
+  }
+
+  /**
+   * Check if all processors in a list were skipped for a thread
+   */
+  wereAllProcessorsSkipped(processorNames: string[], threadId: string): boolean {
+    if (processorNames.length === 0) {
+      return false;
+    }
+    return processorNames.every((name) => this.wasProcessorSkipped(name, threadId));
   }
 }

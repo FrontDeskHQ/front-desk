@@ -4,6 +4,7 @@ import { processorRegistry } from "../processors/registry";
 import { JobContext } from "./context";
 import {
   batchCheckIdempotency,
+  batchCheckIdempotencyKeyExists,
   batchStoreIdempotencyKeys,
   buildIdempotencyKey,
 } from "./idempotency";
@@ -53,6 +54,69 @@ const executeProcessor = async (
   threadIds: string[],
   concurrency: number,
 ): Promise<ProcessorResult[]> => {
+  const results: ProcessorResult[] = [];
+  const dependencies = processor.dependencies ?? [];
+
+  // First, identify threads where all dependencies were skipped
+  // These threads need special handling - they should skip if we've run before
+  const threadsWithAllDepsSkipped: string[] = [];
+  const threadsToCheckNormally: string[] = [];
+
+  for (const threadId of threadIds) {
+    const thread = context.threads.get(threadId);
+    if (!thread) {
+      results.push({
+        threadId,
+        success: false,
+        error: "Thread not found in context",
+      });
+      continue;
+    }
+
+    if (
+      dependencies.length > 0 &&
+      context.wereAllProcessorsSkipped(dependencies, threadId)
+    ) {
+      threadsWithAllDepsSkipped.push(threadId);
+    } else {
+      threadsToCheckNormally.push(threadId);
+    }
+  }
+
+  if (threadsWithAllDepsSkipped.length > 0) {
+    const keysToCheck = threadsWithAllDepsSkipped.map((threadId) =>
+      buildIdempotencyKey(processor.name, threadId),
+    );
+
+    const keyExistsMap = await batchCheckIdempotencyKeyExists(keysToCheck);
+
+    for (const threadId of threadsWithAllDepsSkipped) {
+      const key = buildIdempotencyKey(processor.name, threadId);
+      const keyExists = keyExistsMap.get(key);
+
+      if (keyExists) {
+        results.push({
+          threadId,
+          success: true,
+          skipped: true,
+          reason: "dependencies-skipped",
+        });
+        context.markProcessorSkipped(processor.name, threadId);
+      } else {
+        console.warn(
+          `Processor ${processor.name} for thread ${threadId}: dependencies skipped but no prior run found. Skipping.`,
+        );
+        results.push({
+          threadId,
+          success: true,
+          skipped: true,
+          reason: "dependencies-skipped-no-prior-run",
+        });
+        context.markProcessorSkipped(processor.name, threadId);
+      }
+    }
+  }
+
   const threadsToCheck: Array<{
     threadId: string;
     key: string;
@@ -60,7 +124,7 @@ const executeProcessor = async (
     thread: Thread;
   }> = [];
 
-  for (const threadId of threadIds) {
+  for (const threadId of threadsToCheckNormally) {
     const thread = context.threads.get(threadId);
     if (!thread) {
       continue;
@@ -77,6 +141,10 @@ const executeProcessor = async (
     threadsToCheck.push({ threadId, key, hash, thread });
   }
 
+  if (threadsToCheck.length === 0) {
+    return results;
+  }
+
   const shouldSkipMap = await batchCheckIdempotency(
     threadsToCheck.map(({ key, hash }) => ({ key, hash })),
   );
@@ -87,7 +155,6 @@ const executeProcessor = async (
     hash: string;
     thread: Thread;
   }> = [];
-  const results: ProcessorResult[] = [];
 
   for (const item of threadsToCheck) {
     const shouldSkip = shouldSkipMap.get(item.key);
@@ -98,19 +165,9 @@ const executeProcessor = async (
         skipped: true,
         reason: "idempotent",
       });
+      context.markProcessorSkipped(processor.name, item.threadId);
     } else {
       toProcess.push(item);
-    }
-  }
-
-  const foundThreadIds = new Set(threadsToCheck.map((t) => t.threadId));
-  for (const threadId of threadIds) {
-    if (!foundThreadIds.has(threadId)) {
-      results.push({
-        threadId,
-        success: false,
-        error: "Thread not found in context",
-      });
     }
   }
 
@@ -312,34 +369,33 @@ export const executePipeline = async (
     }
 
     const processedSet = new Set<string>();
-    const skippedSet = new Set<string>();
     const failedSet = new Set<string>();
 
-    // Look at the last turn's results to determine final status per thread
-    // A thread is "processed" if any processor successfully processed it
-    // A thread is "skipped" if all processors skipped it
-    // A thread is "failed" if it never succeeded
+    // Count operations (processor-thread combinations)
+    let processedOps = 0;
+    let skippedOps = 0;
+    let failedOps = 0;
 
     for (const turn of turns) {
       for (const { threadResults } of turn.results) {
         for (const result of threadResults) {
           if (result.success && !result.skipped) {
             processedSet.add(result.threadId);
-            skippedSet.delete(result.threadId);
-            failedSet.delete(result.threadId);
+            processedOps++;
           } else if (result.success && result.skipped) {
-            if (!processedSet.has(result.threadId)) {
-              skippedSet.add(result.threadId);
-            }
+            skippedOps++;
           } else if (!result.success) {
-            if (
-              !processedSet.has(result.threadId) &&
-              !skippedSet.has(result.threadId)
-            ) {
-              failedSet.add(result.threadId);
-            }
+            failedSet.add(result.threadId);
+            failedOps++;
           }
         }
+      }
+    }
+
+    const skippedSet = new Set<string>();
+    for (const threadId of requestedThreadIds) {
+      if (!processedSet.has(threadId) && !failedSet.has(threadId)) {
+        skippedSet.add(threadId);
       }
     }
 
@@ -367,9 +423,8 @@ export const executePipeline = async (
     console.log("=".repeat(72));
     console.log(`  Job ID: ${jobId}`);
     console.log(`  Total threads: ${result.summary.totalThreads}`);
-    console.log(`  Processed: ${result.summary.processedThreads}`);
-    console.log(`  Skipped (idempotent): ${result.summary.skippedThreads}`);
-    console.log(`  Failed: ${result.summary.failedThreads}`);
+    console.log(`  Threads: ${result.summary.processedThreads} processed, ${result.summary.skippedThreads} fully skipped, ${result.summary.failedThreads} failed`);
+    console.log(`  Operations: ${processedOps} processed, ${skippedOps} skipped, ${failedOps} failed`);
     console.log(
       `  Processors: ${result.summary.completedProcessors}/${result.summary.totalProcessors}`,
     );

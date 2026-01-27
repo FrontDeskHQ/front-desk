@@ -18,7 +18,7 @@ export interface ProcessorSkippedResult {
   threadId: string;
   success: true;
   skipped: true;
-  reason: "idempotent";
+  reason: "idempotent" | "dependencies-skipped" | "dependencies-skipped-no-prior-run";
 }
 
 export type ProcessorResult<T = unknown> =
