@@ -1,0 +1,31 @@
+{
+  "name": "worker",
+  "module": "index.ts",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "dev": "bun run --watch src/worker.ts",
+    "start": "bun run src/worker.ts",
+    "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
+    "eval:similarity": "bun run src/evals/thread-similarity.eval.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/google": "^3.0.13",
+    "@live-state/sync": "catalog:",
+    "@qdrant/js-client-rest": "^1.16.2",
+    "@workspace/schemas": "workspace:*",
+    "@workspace/utils": "workspace:*",
+    "ai": "^6.0.48",
+    "api": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.3.2",
+    "ulid": "^3.0.0",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  }
+}

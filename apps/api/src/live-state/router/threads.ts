@@ -34,7 +34,7 @@ type FetchPRsInput = {
 
 // Helper function to fetch issues from GitHub
 const fetchIssuesFromGitHub = async (
-  input: FetchIssuesInput
+  input: FetchIssuesInput,
 ): Promise<{ issues: ExternalIssue[]; count: number }> => {
   const allIssues: ExternalIssue[] = [];
 
@@ -50,7 +50,7 @@ const fetchIssuesFromGitHub = async (
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch issues for ${repo.fullName}: ${response.statusText}`
+          `Failed to fetch issues for ${repo.fullName}: ${response.statusText}`,
         );
       }
 
@@ -78,7 +78,7 @@ const fetchIssuesFromGitHub = async (
           fullName: repo.fullName,
         },
       }));
-    })
+    }),
   );
 
   for (const result of results) {
@@ -94,7 +94,7 @@ const fetchIssuesFromGitHub = async (
 
 // Helper function to fetch pull requests from GitHub
 const fetchPRsFromGitHub = async (
-  input: FetchPRsInput
+  input: FetchPRsInput,
 ): Promise<{ pullRequests: ExternalPullRequest[]; count: number }> => {
   const allPullRequests: ExternalPullRequest[] = [];
 
@@ -110,7 +110,7 @@ const fetchPRsFromGitHub = async (
 
       if (!response.ok) {
         throw new Error(
-          `Failed to fetch pull requests for ${repo.fullName}: ${response.statusText}`
+          `Failed to fetch pull requests for ${repo.fullName}: ${response.statusText}`,
         );
       }
 
@@ -138,7 +138,7 @@ const fetchPRsFromGitHub = async (
           fullName: repo.fullName,
         },
       }));
-    })
+    }),
   );
 
   for (const result of results) {
@@ -167,7 +167,7 @@ const issuesCache = createReadThroughCache<
   swr: 30000, // 30 seconds stale-while-revalidate
   keyGenerator: (input) =>
     `${input.organizationId}:${input.state}:${JSON.stringify(
-      input.repos.map((r) => r.fullName).sort()
+      input.repos.map((r) => r.fullName).sort(),
     )}:${input.installationId}`,
 });
 
@@ -181,19 +181,26 @@ const pullRequestsCache = createReadThroughCache<
   swr: 30000, // 30 seconds stale-while-revalidate
   keyGenerator: (input) =>
     `${input.organizationId}:${input.state}:${JSON.stringify(
-      input.repos.map((r) => r.fullName).sort()
+      input.repos.map((r) => r.fullName).sort(),
     )}:${input.installationId}`,
 });
 
-const parseSimilarThreadResults = (
-  resultsStr: string | null | undefined
-): SimilarThreadResult[] => {
-  if (!resultsStr) return [];
+type SuggestionRow = {
+  id: string;
+  relatedEntityId: string | null;
+  resultsStr: string | null;
+};
+
+const parseScoreFromResultsStr = (
+  resultsStr: string | null | undefined,
+): number => {
+  if (!resultsStr) return 0;
 
   try {
-    return JSON.parse(resultsStr) as SimilarThreadResult[];
+    const parsed = JSON.parse(resultsStr);
+    return parsed.score ?? 0;
   } catch {
-    return [];
+    return 0;
   }
 };
 
@@ -256,7 +263,7 @@ export default publicRoute
           .optional(), // Optional - can be inferred from session
         userId: z.string().optional(), // For portal sessions
         userName: z.string().optional(), // For portal sessions
-      })
+      }),
     ).handler(async ({ req, db }) => {
       // Support internal API key, public API key, or portal session
       if (
@@ -315,7 +322,7 @@ export default publicRoute
                 userId: userId,
                 organizationId: organizationId,
               },
-            })
+            }),
           );
 
           authorId = existingAuthor[0]?.id;
@@ -338,7 +345,7 @@ export default publicRoute
                 metaId: req.input.author.id,
                 organizationId: organizationId,
               },
-            })
+            }),
           );
 
           authorId = existingAuthor[0]?.id;
@@ -397,7 +404,7 @@ export default publicRoute
               author: true,
             },
           },
-        })
+        }),
       )[0];
 
       return thread;
@@ -406,7 +413,7 @@ export default publicRoute
       z.object({
         threadId: z.string(),
         organizationId: z.string(),
-      })
+      }),
     ).handler(async ({ req, db }) => {
       // TODO: Add proper authorization
       const { threadId, organizationId } = req.input;
@@ -416,17 +423,27 @@ export default publicRoute
         throw new Error("THREAD_NOT_FOUND");
       }
 
-      const suggestion = Object.values(
+      const suggestions = Object.values(
         await db.find(schema.suggestion, {
           where: {
             type: SUGGESTION_TYPE_RELATED_THREADS,
             entityId: threadId,
             organizationId,
           },
-        })
-      )[0];
+        }),
+      ) as SuggestionRow[];
 
-      const results = parseSimilarThreadResults(suggestion?.resultsStr);
+      const results: SimilarThreadResult[] = suggestions
+        .filter(
+          (s): s is SuggestionRow & { relatedEntityId: string } =>
+            !!s.relatedEntityId,
+        )
+        .map((s) => ({
+          threadId: s.relatedEntityId,
+          score: parseScoreFromResultsStr(s.resultsStr),
+        }))
+        .sort((a, b) => b.score - a.score);
+
       if (results.length === 0) {
         return [];
       }
@@ -441,19 +458,20 @@ export default publicRoute
           include: {
             author: { user: true },
           },
-        })
+        }),
       );
 
       const threadById = new Map(
-        relatedThreads.map((relatedThread) => [relatedThread.id, relatedThread])
+        relatedThreads.map((relatedThread) => [
+          relatedThread.id,
+          relatedThread,
+        ]),
       );
       const orderedThreads = resultThreadIds
         .map((id) => threadById.get(id))
         .filter(
-          (
-            relatedThread
-          ): relatedThread is (typeof relatedThreads)[number] =>
-            !!relatedThread && !relatedThread.deletedAt
+          (relatedThread): relatedThread is (typeof relatedThreads)[number] =>
+            !!relatedThread && !relatedThread.deletedAt,
         );
 
       return orderedThreads;
@@ -462,7 +480,7 @@ export default publicRoute
       z.object({
         organizationId: z.string(),
         state: z.enum(["open", "closed", "all"]).optional().default("open"),
-      })
+      }),
     ).handler(async ({ req, db }) => {
       const organizationId = req.input.organizationId;
 
@@ -481,7 +499,7 @@ export default publicRoute
               userId: req.context.session.userId,
               enabled: true,
             },
-          })
+          }),
         )[0];
 
         authorized = !!selfOrgUser;
@@ -499,7 +517,7 @@ export default publicRoute
             type: "github",
             enabled: true,
           },
-        })
+        }),
       )[0];
 
       if (!integration || !integration.configStr) {
@@ -530,7 +548,7 @@ export default publicRoute
       z.object({
         organizationId: z.string(),
         state: z.enum(["open", "closed", "all"]).optional().default("open"),
-      })
+      }),
     ).handler(async ({ req, db }) => {
       const organizationId = req.input.organizationId;
 
@@ -548,7 +566,7 @@ export default publicRoute
               userId: req.context.session.userId,
               enabled: true,
             },
-          })
+          }),
         )[0];
 
         authorized = !!selfOrgUser;
@@ -565,7 +583,7 @@ export default publicRoute
             type: "github",
             enabled: true,
           },
-        })
+        }),
       )[0];
 
       if (!integration || !integration.configStr) {
@@ -600,7 +618,7 @@ export default publicRoute
         body: z.string().optional(),
         owner: z.string(),
         repo: z.string(),
-      })
+      }),
     ).handler(async ({ req, db }) => {
       const organizationId = req.input.organizationId;
 
@@ -618,7 +636,7 @@ export default publicRoute
               userId: req.context.session.userId,
               enabled: true,
             },
-          })
+          }),
         )[0];
 
         authorized = !!selfOrgUser;
@@ -639,7 +657,7 @@ export default publicRoute
           include: {
             organization: true,
           },
-        })
+        }),
       )[0] as any; // TODO: Remove type assertion when live-state supports includes properly
 
       if (!integration || !integration.configStr) {
@@ -660,7 +678,7 @@ export default publicRoute
       // Verify the repository is in the connected repos
       const targetRepo = repos.find(
         (r: { owner: string; name: string }) =>
-          r.owner === req.input.owner && r.name === req.input.repo
+          r.owner === req.input.owner && r.name === req.input.repo,
       );
 
       if (!targetRepo) {
