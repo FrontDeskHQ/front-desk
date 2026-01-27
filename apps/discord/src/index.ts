@@ -1,40 +1,29 @@
-import "./env";
-
 import type { InferLiveObject } from "@live-state/sync";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
-import type { ForumChannel, Message, ThreadChannel } from "discord.js";
 import {
   ChannelType,
   Client,
+  type ForumChannel,
   GatewayIntentBits,
-  TextChannel,
+  type Message,
+  type TextChannel,
+  type ThreadChannel,
 } from "discord.js";
 import { ulid } from "ulid";
+import "./env";
 import { fetchClient, store } from "./lib/live-state";
-import { safeParseIntegrationSettings } from "./lib/utils";
+import {
+  parseContentAsMarkdown,
+  safeParseIntegrationSettings,
+  safeParseJSON,
+} from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
 
-const safeParseJSON = (raw: string) => {
-  try {
-    const parsed = JSON.parse(raw);
-    // Accept common shapes produced by our editor:
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object" && "content" in parsed) {
-      // e.g. a full doc { type: 'doc', content: [...] }
-      // Normalize to content[] to match our usage.
-      return (parsed as any).content ?? [];
-    }
-  } catch {}
-  // Fallback: wrap plain text in a single paragraph node.
-  return [
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: String(raw) }],
-    },
-  ];
-};
+const THREAD_CREATION_THRESHOLD_MS = 1000;
+
+const token = process.env.DISCORD_TOKEN;
 
 type RelatedThreadResult = {
   threadId: string;
@@ -213,52 +202,6 @@ const client = new Client({
   ],
 });
 
-const token = process.env.DISCORD_TOKEN;
-
-if (!token) {
-  console.error("DISCORD_TOKEN is not defined in environment variables");
-  process.exit(1);
-}
-
-// client.once("ready", async () => {
-//   if (!client.user) return;
-//   console.log(`Logged in as ${client.user.tag}`);
-
-//   // Set up webhooks for all text channels in all guilds
-//   for (const [guildId, guild] of client.guilds.cache) {
-//     try {
-//       console.log(`Setting up webhooks for server: ${guild.name} (${guildId})`);
-
-//       // Get all text channels
-//       const channels = guild.channels.cache.filter(
-//         (c): c is TextChannel =>
-//           c.type === ChannelType.GuildText &&
-//           c.viewable &&
-//           guild.members.me?.permissionsIn(c).has("ManageWebhooks") === true
-//       );
-
-//       // Create webhooks for each channel
-//       for (const channel of channels.values()) {
-//         try {
-//           await getOrCreateWebhook(channel);
-//           console.log(`  ✓ Webhook ready for #${channel.name}`);
-//         } catch (error) {
-//           console.error(
-//             `  ✗ Failed to set up webhook for #${channel.name}:`,
-//             error
-//           );
-//         }
-//       }
-//     } catch (error) {
-//       console.error(`Error setting up webhooks for guild ${guildId}:`, error);
-//     }
-//   }
-// });
-
-client.on("error", (error) => {
-  console.error("Discord client error:", error);
-});
-
 /**
  * Helper to get or create an author record for a Discord user
  */
@@ -285,67 +228,100 @@ const getOrCreateAuthor = async (
   return authorId;
 };
 
+// Track which channels have been configured per integration to detect additions
+const integrationChannels = new Map<string, Set<string>>();
+
 /**
- * Backfill existing threads from Discord channels
- * Fetches active and archived threads and syncs them to the store
+ * Backfill threads from a specific Discord channel
  */
-const backfillThreads = async () => {
-  console.log("Starting thread backfill...");
+const backfillChannel = async (
+  channel: TextChannel | ForumChannel,
+  organizationId: string,
+) => {
+  console.log(`  Fetching threads from #${channel.name}...`);
 
-  const integrations = await fetchClient.query.integration
-    .where({ type: "discord" })
-    .get();
+  try {
+    // Fetch active threads
+    const activeThreads = await channel.threads.fetchActive();
+    // Fetch archived threads (fetches up to 100 by default)
+    const archivedThreads = await channel.threads.fetchArchived();
 
-  for (const integration of integrations) {
-    const settings = safeParseIntegrationSettings(integration.configStr);
-    if (!settings?.guildId || !settings.selectedChannels?.length) continue;
+    const allThreads = [
+      ...activeThreads.threads.values(),
+      ...archivedThreads.threads.values(),
+    ];
 
-    const guild = client.guilds.cache.get(settings.guildId);
-    if (!guild) {
-      console.log(`Guild ${settings.guildId} not found in cache, skipping`);
-      continue;
+    console.log(`    Found ${allThreads.length} threads`);
+
+    for (const thread of allThreads) {
+      await backfillThread(thread, organizationId);
     }
+  } catch (error) {
+    console.error(`    Error fetching threads from #${channel.name}:`, error);
+  }
+};
 
-    console.log(`Backfilling threads for guild: ${guild.name}`);
+/**
+ * Handle Discord integration changes - triggers backfill when channels are added
+ */
+const handleIntegrationChanges = async (
+  integrations: {
+    id: string;
+    organizationId: string;
+    configStr: string | null;
+  }[],
+) => {
+  for (const integration of integrations) {
+    try {
+      const settings = safeParseIntegrationSettings(integration.configStr);
+      if (!settings?.guildId) continue;
 
-    // Find channels matching the selected channel names
-    const selectedChannels = settings.selectedChannels ?? [];
-    const targetChannels = guild.channels.cache.filter(
-      (c): c is TextChannel | ForumChannel =>
-        (c.type === ChannelType.GuildText ||
-          c.type === ChannelType.GuildForum) &&
-        selectedChannels.includes(c.name),
-    );
+      const currentChannels = new Set(settings.selectedChannels ?? []);
+      const previousChannels =
+        integrationChannels.get(integration.id) ?? new Set();
 
-    for (const channel of targetChannels.values()) {
-      console.log(`  Fetching threads from #${channel.name}...`);
+      // Find newly added channels
+      const addedChannels = [...currentChannels].filter(
+        (ch) => !previousChannels.has(ch),
+      );
 
-      try {
-        // Fetch active threads
-        const activeThreads = await channel.threads.fetchActive();
-        // Fetch archived threads (fetches up to 100 by default)
-        const archivedThreads = await channel.threads.fetchArchived();
+      // Update tracked channels
+      integrationChannels.set(integration.id, currentChannels);
 
-        const allThreads = [
-          ...activeThreads.threads.values(),
-          ...archivedThreads.threads.values(),
-        ];
+      if (addedChannels.length === 0) continue;
 
-        console.log(`    Found ${allThreads.length} threads`);
+      console.log(
+        `Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
+      );
 
-        for (const thread of allThreads) {
-          await backfillThread(thread, integration.organizationId);
-        }
-      } catch (error) {
-        console.error(
-          `    Error fetching threads from #${channel.name}:`,
-          error,
-        );
+      const guild = client.guilds.cache.get(settings.guildId);
+      if (!guild) {
+        console.log(`Guild ${settings.guildId} not found in cache, skipping`);
+        continue;
       }
+
+      // Find and backfill the newly added channels
+      for (const channelName of addedChannels) {
+        const channel = guild.channels.cache.find(
+          (c): c is TextChannel | ForumChannel =>
+            (c.type === ChannelType.GuildText ||
+              c.type === ChannelType.GuildForum) &&
+            c.name === channelName,
+        );
+
+        if (channel) {
+          await backfillChannel(channel, integration.organizationId);
+        } else {
+          console.log(`    Channel #${channelName} not found in guild`);
+        }
+      }
+    } catch (error) {
+      console.error(
+        `Error processing integration ${integration.id}:`,
+        error,
+      );
     }
   }
-
-  console.log("Thread backfill complete");
 };
 
 /**
@@ -355,13 +331,13 @@ const backfillThread = async (
   thread: ThreadChannel,
   organizationId: string,
 ) => {
-  // Check if thread already exists in our store
-  const existingThread = store.query.thread
-    .first({ discordChannelId: thread.id })
+  // Check if thread already exists in the database using externalId
+  const existingThread = await fetchClient.query.thread
+    .first({ externalId: thread.id })
     .get();
 
   if (existingThread) {
-    // Thread exists, but we should still check for missing messages
+    // Thread exists (re-added channel), backfill only missing messages
     await backfillMessages(thread, existingThread.id, organizationId);
     return;
   }
@@ -426,6 +402,7 @@ const backfillThread = async (
 
 /**
  * Backfill messages for an existing thread (check for missing messages)
+ * Used when a channel is re-added to an integration
  */
 const backfillMessages = async (
   thread: ThreadChannel,
@@ -441,8 +418,8 @@ const backfillMessages = async (
   for (const message of sortedMessages) {
     if (message.author.bot) continue;
 
-    // Check if message already exists
-    const existingMessage = store.query.message
+    // Check if message already exists in the database
+    const existingMessage = await fetchClient.query.message
       .first({ externalMessageId: message.id })
       .get();
 
@@ -800,19 +777,158 @@ const handleUpdates = async (
   }
 };
 
+client.on("messageCreate", async (message) => {
+  if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
+    return;
+
+  const isFirstMessage =
+    Math.abs(
+      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
+    ) < THREAD_CREATION_THRESHOLD_MS;
+
+  let threadId: string | null = null;
+
+  const integration = (
+    await fetchClient.query.integration.where({ type: "discord" }).get()
+  ).find((i) => {
+    const parsed = safeParseIntegrationSettings(i.configStr);
+    return parsed?.guildId === message.guild?.id;
+  });
+
+  if (!integration) return;
+
+  const integrationSettings = safeParseIntegrationSettings(
+    integration.configStr,
+  );
+
+  if (
+    !(integrationSettings?.selectedChannels ?? [])?.includes(
+      message.channel.parent?.name ?? "",
+    )
+  )
+    return;
+
+  // TODO do this in a transaction
+
+  const authorId = await getOrCreateAuthor(
+    message.author.id,
+    message.author.displayName,
+    integration.organizationId,
+  );
+
+  if (isFirstMessage) {
+    threadId = ulid().toLowerCase();
+    store.mutate.thread.insert({
+      id: threadId,
+      organizationId: integration.organizationId,
+      name: message.channel.name,
+      createdAt: new Date(),
+      deletedAt: null,
+      discordChannelId: message.channel.id,
+      authorId: authorId,
+      assignedUserId: null,
+      externalIssueId: null,
+      externalPrId: null,
+      externalId: message.channel.id,
+      externalOrigin: "discord",
+      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
+
+    try {
+      const organization = await fetchClient.query.organization
+        .first({ id: integration.organizationId })
+        .get();
+
+      if (organization?.slug) {
+        const showPortalMessage =
+          integrationSettings?.showPortalMessage !== false;
+
+        if (showPortalMessage) {
+          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+          const baseUrlObj = new URL(baseUrl);
+          const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+          const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+
+          const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
+          await message.channel.send({
+            content: portalMessage,
+          });
+        } else {
+          console.log("Skipping sending portal link message");
+        }
+      }
+    } catch (error) {
+      console.error("Error sending portal link message:", error);
+    }
+  } else {
+    const thread = store.query.thread
+      .first({
+        discordChannelId: message.channel.id,
+      })
+      .get();
+
+    if (!thread) return;
+    threadId = thread.id;
+  }
+
+  if (!threadId) return;
+
+  const contentWithMentions = parseContentAsMarkdown(message);
+
+  store.mutate.message.insert({
+    id: ulid().toLowerCase(),
+    threadId,
+    authorId: authorId,
+    content: JSON.stringify(parse(contentWithMentions)),
+    createdAt: message.createdAt,
+    origin: "discord",
+    externalMessageId: message.id,
+  });
+});
+
+client.on("error", (error) => {
+  console.error("Discord client error:", error);
+});
+
+// client.once("ready", async () => {
+//   if (!client.user) return;
+//   console.log(`Logged in as ${client.user.tag}`);
+
+//   // Set up webhooks for all text channels in all guilds
+//   for (const [guildId, guild] of client.guilds.cache) {
+//     try {
+//       console.log(`Setting up webhooks for server: ${guild.name} (${guildId})`);
+
+//       // Get all text channels
+//       const channels = guild.channels.cache.filter(
+//         (c): c is TextChannel =>
+//           c.type === ChannelType.GuildText &&
+//           c.viewable &&
+//           guild.members.me?.permissionsIn(c).has("ManageWebhooks") === true
+//       );
+
+//       // Create webhooks for each channel
+//       for (const channel of channels.values()) {
+//         try {
+//           await getOrCreateWebhook(channel);
+//           console.log(`  ✓ Webhook ready for #${channel.name}`);
+//         } catch (error) {
+//           console.error(
+//             `  ✗ Failed to set up webhook for #${channel.name}:`,
+//             error
+//           );
+//         }
+//       }
+//     } catch (error) {
+//       console.error(`Error setting up webhooks for guild ${guildId}:`, error);
+//     }
+//   }
+// });
+
 client.once("ready", async () => {
   if (!client.user) return;
   console.log(`Logged in as ${client.user.tag}`);
-
-  // Wait for live state to be ready
-  await new Promise((resolve) => setTimeout(resolve, 1500));
-
-  // Backfill existing threads from Discord
-  try {
-    await backfillThreads();
-  } catch (error) {
-    console.error("Error during thread backfill:", error);
-  }
 });
 
 setTimeout(async () => {
@@ -857,6 +973,11 @@ setTimeout(async () => {
     })
     .include({ thread: true, user: true })
     .subscribe(handleUpdates);
+
+  // Subscribe to Discord integrations to trigger backfill when channels are added
+  store.query.integration
+    .where({ type: "discord" })
+    .subscribe(handleIntegrationChanges);
 }, 1000);
 
 client.login(token).catch(console.error);
