@@ -62,9 +62,9 @@ export const findSimilarProcessor: ProcessorDefinition<FindSimilarOutput> = {
     }
 
     const limit =
-      jobContext.options.similarThreadsLimit ?? DEFAULT_SIMILAR_THREADS_LIMIT;
+      jobContext.options?.similarThreadsLimit ?? DEFAULT_SIMILAR_THREADS_LIMIT;
     const scoreThreshold =
-      jobContext.options.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
+      jobContext.options?.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
 
     // First 50 values should be enough to identify any changes in the embeddings
     const embeddingString = embedOutput.embedding.slice(0, 50).join(",");
@@ -94,9 +94,9 @@ export const findSimilarProcessor: ProcessorDefinition<FindSimilarOutput> = {
     const organizationId = thread.organizationId;
 
     const limit =
-      jobContext.options.similarThreadsLimit ?? DEFAULT_SIMILAR_THREADS_LIMIT;
+      jobContext.options?.similarThreadsLimit ?? DEFAULT_SIMILAR_THREADS_LIMIT;
     const scoreThreshold =
-      jobContext.options.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
+      jobContext.options?.scoreThreshold ?? DEFAULT_SCORE_THRESHOLD;
 
     try {
       console.log(`Finding similar threads for ${threadId}`);
