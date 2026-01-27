@@ -15,6 +15,11 @@ import { ulid } from "ulid";
 import "./env";
 import { fetchClient, store } from "./lib/live-state";
 import {
+  addChannelBackfillJob,
+  closeBackfillQueue,
+  initializeBackfillWorker,
+} from "./lib/queue";
+import {
   parseContentAsMarkdown,
   safeParseIntegrationSettings,
   safeParseJSON,
@@ -300,7 +305,7 @@ const handleIntegrationChanges = async (
         continue;
       }
 
-      // Find and backfill the newly added channels
+      // Queue backfill jobs for newly added channels
       for (const channelName of addedChannels) {
         const channel = guild.channels.cache.find(
           (c): c is TextChannel | ForumChannel =>
@@ -310,16 +315,17 @@ const handleIntegrationChanges = async (
         );
 
         if (channel) {
-          await backfillChannel(channel, integration.organizationId);
+          await addChannelBackfillJob(
+            channel,
+            settings.guildId,
+            integration.organizationId,
+          );
         } else {
           console.log(`    Channel #${channelName} not found in guild`);
         }
       }
     } catch (error) {
-      console.error(
-        `Error processing integration ${integration.id}:`,
-        error,
-      );
+      console.error(`Error processing integration ${integration.id}:`, error);
     }
   }
 };
@@ -949,6 +955,12 @@ client.on("error", (error) => {
 client.once("ready", async () => {
   if (!client.user) return;
   console.log(`Logged in as ${client.user.tag}`);
+
+  // Initialize the backfill worker with handlers
+  initializeBackfillWorker(client, {
+    processChannel: backfillChannel,
+    processThread: backfillThread,
+  });
 });
 
 setTimeout(async () => {
@@ -1001,3 +1013,14 @@ setTimeout(async () => {
 }, 1000);
 
 client.login(token).catch(console.error);
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("Shutting down...");
+  await closeBackfillQueue();
+  client.destroy();
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

@@ -28,6 +28,7 @@
   "dependencies": {
     "@live-state/sync": "catalog:",
     "api": "workspace:*",
+    "bullmq": "^5.67.1",
     "discord.js": "^14.22.1",
     "dotenv": "^16.5.0",
     "@workspace/schemas": "workspace:*",
