@@ -23,65 +23,27 @@ type Label = {
   name: string;
   enabled: boolean;
   organizationId: string;
+};
+
+type SuggestionRow = {
+  id: string;
+  type: string;
+  entityId: string;
+  relatedEntityId: string | null;
+  organizationId: string;
+  resultsStr: string | null;
+  metadataStr: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
 };
 
 type SuggestionMetadata = {
-  hash?: string;
-  dismissed?: string[];
-  accepted?: string[];
+  dismissed?: boolean;
+  accepted?: boolean;
 };
 
 const computeSha256 = (data: string): string => {
   return createHash("sha256").update(data).digest("hex");
-};
-
-const generateContentHash = (
-  thread: ProcessorExecuteContext["thread"],
-  labels: Label[],
-): string => {
-  const messages = thread.messages ?? [];
-  // Using only the first 5 messages is on purpose to avoid to keep the hash valid on long threads.
-  const messageContents = messages
-    .sort((a, b) => a.id.localeCompare(b.id))
-    .map((m) => jsonContentToPlainText(safeParseJSON(m.content)))
-    .filter((text) => text.trim().length > 0)
-    .slice(0, 5)
-    .join("|");
-
-  const enabledLabels = labels
-    .filter((l) => l.enabled)
-    .sort((a, b) => a.id.localeCompare(b.id))
-    .map((l) => `${l.id}:${l.name}`)
-    .join("|");
-
-  const labelTimestamps = labels
-    .map((l) => {
-      const createdAt =
-        l.createdAt instanceof Date ? l.createdAt.toISOString() : l.createdAt;
-      const updatedAt =
-        l.updatedAt instanceof Date ? l.updatedAt.toISOString() : l.updatedAt;
-      return `${createdAt}:${updatedAt}`;
-    })
-    .sort()
-    .join("|");
-
-  const threadCreatedAt =
-    thread.createdAt instanceof Date
-      ? thread.createdAt.toISOString()
-      : thread.createdAt;
-
-  const content = [
-    thread.id,
-    thread.name,
-    threadCreatedAt,
-    messageContents,
-    enabledLabels,
-    labelTimestamps,
-  ].join("||");
-
-  return createHash("sha256").update(content).digest("hex");
 };
 
 const generateLabelSuggestions = async (
@@ -144,29 +106,20 @@ const getSuggestionMetadata = (
   metadataStr: string | null | undefined,
 ): SuggestionMetadata => {
   if (!metadataStr) {
-    return { dismissed: [], accepted: [] };
+    return { dismissed: false, accepted: false };
   }
   try {
     return JSON.parse(metadataStr) as SuggestionMetadata;
   } catch {
-    return { dismissed: [], accepted: [] };
+    return { dismissed: false, accepted: false };
   }
 };
 
-const filterDismissedLabels = (
-  labelIds: string[],
-  dismissedIds: string[],
-): string[] => {
-  const dismissedSet = new Set(dismissedIds);
-  return labelIds.filter((id) => !dismissedSet.has(id));
-};
-
 const createSuggestionMetadata = (
-  hash: string,
-  dismissed: string[] = [],
-  accepted: string[] = [],
+  dismissed = false,
+  accepted = false,
 ): string => {
-  return JSON.stringify({ hash, dismissed, accepted });
+  return JSON.stringify({ dismissed, accepted });
 };
 
 export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
@@ -223,39 +176,19 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
           };
         }
 
-        const currentHash = generateContentHash(thread, allLabels);
-
-        const existingSuggestion = await fetchClient.query.suggestion
-          .first({
+        const existingSuggestions = (await fetchClient.query.suggestion
+          .where({
             type: SUGGESTION_TYPE_LABEL,
             entityId: threadId,
             organizationId,
           })
-          .get();
+          .get()) as SuggestionRow[];
 
-        const existingMetadata = getSuggestionMetadata(
-          existingSuggestion?.metadataStr,
-        );
-
-        if (existingSuggestion && existingMetadata.hash === currentHash) {
-          const results = existingSuggestion.resultsStr
-            ? (JSON.parse(existingSuggestion.resultsStr) as string[])
-            : [];
-
-          const validLabelIds = new Set(enabledLabels.map((l) => l.id));
-          const filteredResults = filterDismissedLabels(
-            results.filter((id) => validLabelIds.has(id)),
-            existingMetadata.dismissed ?? [],
-          );
-
-          console.log(
-            `Using cached label suggestions for thread ${threadId}: ${filteredResults.length} labels`,
-          );
-          return {
-            threadId,
-            success: true,
-            data: { labelIds: filteredResults, cached: true },
-          };
+        const existingByLabelId = new Map<string, SuggestionRow>();
+        for (const s of existingSuggestions) {
+          if (s.relatedEntityId) {
+            existingByLabelId.set(s.relatedEntityId, s);
+          }
         }
 
         const suggestedLabelIds = await generateLabelSuggestions(
@@ -263,35 +196,42 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
           allLabels,
         );
 
-        const filteredSuggestedLabelIds = filterDismissedLabels(
-          suggestedLabelIds,
-          existingMetadata.dismissed ?? [],
-        );
-
         const now = new Date();
-        const metadataStr = createSuggestionMetadata(
-          currentHash,
-          existingMetadata.dismissed ?? [],
-          existingMetadata.accepted ?? [],
-        );
+        const filteredSuggestedLabelIds: string[] = [];
 
-        if (existingSuggestion) {
-          await fetchClient.mutate.suggestion.update(existingSuggestion.id, {
-            resultsStr: JSON.stringify(suggestedLabelIds),
-            metadataStr,
-            updatedAt: now,
-          });
-        } else {
-          await fetchClient.mutate.suggestion.insert({
-            id: ulid().toLowerCase(),
-            type: SUGGESTION_TYPE_LABEL,
-            entityId: threadId,
-            organizationId,
-            resultsStr: JSON.stringify(suggestedLabelIds),
-            metadataStr,
-            createdAt: now,
-            updatedAt: now,
-          });
+        for (const labelId of suggestedLabelIds) {
+          const existing = existingByLabelId.get(labelId);
+          const existingMeta = existing
+            ? getSuggestionMetadata(existing.metadataStr)
+            : { dismissed: false, accepted: false };
+
+          const metadataStr = createSuggestionMetadata(
+            existingMeta.dismissed,
+            existingMeta.accepted,
+          );
+
+          if (existing) {
+            await fetchClient.mutate.suggestion.update(existing.id, {
+              metadataStr,
+              updatedAt: now,
+            });
+          } else {
+            await fetchClient.mutate.suggestion.insert({
+              id: ulid().toLowerCase(),
+              type: SUGGESTION_TYPE_LABEL,
+              entityId: threadId,
+              relatedEntityId: labelId,
+              organizationId,
+              resultsStr: null,
+              metadataStr,
+              createdAt: now,
+              updatedAt: now,
+            });
+          }
+
+          if (!existingMeta.dismissed) {
+            filteredSuggestedLabelIds.push(labelId);
+          }
         }
 
         console.log(

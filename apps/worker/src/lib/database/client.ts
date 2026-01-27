@@ -78,6 +78,18 @@ export const fetchThreadsWithRelations = async (
   return threads;
 };
 
+type SuggestionRow = {
+  id: string;
+  type: string;
+  entityId: string;
+  relatedEntityId: string | null;
+  organizationId: string;
+  resultsStr: string | null;
+  metadataStr: string | null;
+  createdAt: Date | string;
+  updatedAt: Date | string;
+};
+
 interface SuggestionData {
   threadId: string;
   organizationId: string;
@@ -86,7 +98,8 @@ interface SuggestionData {
 }
 
 /**
- * Store or update a related threads suggestion
+ * Store or update related threads suggestions.
+ * Creates one suggestion row per related thread using relatedEntityId.
  */
 export const storeSuggestion = async (
   data: SuggestionData,
@@ -94,46 +107,47 @@ export const storeSuggestion = async (
   const { threadId, organizationId, similarThreads, metadata } = data;
 
   try {
-    // Check if suggestion already exists
-    const existingSuggestion = await fetchClient.query.suggestion
-      .first({
+    const existingSuggestions = (await fetchClient.query.suggestion
+      .where({
         type: SUGGESTION_TYPE_RELATED_THREADS,
         entityId: threadId,
         organizationId,
       })
-      .get();
+      .get()) as SuggestionRow[];
+
+    const existingByRelatedId = new Map<string, SuggestionRow>();
+    for (const s of existingSuggestions) {
+      if (s.relatedEntityId) {
+        existingByRelatedId.set(s.relatedEntityId, s);
+      }
+    }
 
     const now = new Date();
-
-    // Format similar threads for storage (just threadId and score)
-    const resultsStr = JSON.stringify(
-      similarThreads.map((st) => ({
-        threadId: st.threadId,
-        score: st.score,
-      })),
-    );
-
     const metadataStr = metadata ? JSON.stringify(metadata) : null;
 
-    if (existingSuggestion) {
-      // Update existing suggestion
-      await fetchClient.mutate.suggestion.update(existingSuggestion.id, {
-        resultsStr,
-        metadataStr,
-        updatedAt: now,
-      });
-    } else {
-      // Insert new suggestion
-      await fetchClient.mutate.suggestion.insert({
-        id: ulid().toLowerCase(),
-        type: SUGGESTION_TYPE_RELATED_THREADS,
-        entityId: threadId,
-        organizationId,
-        resultsStr,
-        metadataStr,
-        createdAt: now,
-        updatedAt: now,
-      });
+    for (const st of similarThreads) {
+      const existing = existingByRelatedId.get(st.threadId);
+      const resultsStr = JSON.stringify({ score: st.score });
+
+      if (existing) {
+        await fetchClient.mutate.suggestion.update(existing.id, {
+          resultsStr,
+          metadataStr,
+          updatedAt: now,
+        });
+      } else {
+        await fetchClient.mutate.suggestion.insert({
+          id: ulid().toLowerCase(),
+          type: SUGGESTION_TYPE_RELATED_THREADS,
+          entityId: threadId,
+          relatedEntityId: st.threadId,
+          organizationId,
+          resultsStr,
+          metadataStr,
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
     }
 
     return true;

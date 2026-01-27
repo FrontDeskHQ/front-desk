@@ -46,25 +46,41 @@ const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
 };
 
 export function RelatedThreadsSection({ threadId }: { threadId: string }) {
-  const relatedThreads = useLiveQuery(
-    query.suggestion.first({
+  const relatedThreadSuggestions = useLiveQuery(
+    query.suggestion.where({
       entityId: threadId,
       type: "related_threads",
     }),
   );
 
   const results: SimilarThreadResult[] = useMemo(() => {
-    try {
-      if (!relatedThreads?.resultsStr) {
-        return [];
-      }
-      return JSON.parse(relatedThreads.resultsStr);
-    } catch {
+    if (!relatedThreadSuggestions || relatedThreadSuggestions.length === 0) {
       return [];
     }
-  }, [relatedThreads?.resultsStr]);
 
-  if (!relatedThreads || results.length === 0) {
+    return relatedThreadSuggestions
+      .filter(
+        (s): s is typeof s & { relatedEntityId: string } => !!s.relatedEntityId,
+      )
+      .map((s) => {
+        let score = 0;
+        if (s.resultsStr) {
+          try {
+            const parsed = JSON.parse(s.resultsStr);
+            score = parsed.score ?? 0;
+          } catch {
+            // Ignore parse errors
+          }
+        }
+        return {
+          threadId: s.relatedEntityId,
+          score,
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  }, [relatedThreadSuggestions]);
+
+  if (results.length === 0) {
     return null;
   }
 

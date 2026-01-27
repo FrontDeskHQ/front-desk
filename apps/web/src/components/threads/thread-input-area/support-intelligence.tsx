@@ -5,6 +5,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
 
+type SuggestionRow = {
+  id: string;
+  relatedEntityId: string | null;
+  metadataStr: string | null;
+};
+
 type UsePendingLabelSuggestionsProps = {
   threadId: string;
   organizationId: string | undefined;
@@ -16,52 +22,40 @@ export const usePendingLabelSuggestions = ({
   organizationId,
   threadLabels,
 }: UsePendingLabelSuggestionsProps) => {
-  const suggestion = useLiveQuery(
-    query.suggestion.first({
+  // Query multiple label suggestions instead of single row
+  const suggestions = useLiveQuery(
+    query.suggestion.where({
       type: "label",
       entityId: threadId,
       organizationId: organizationId,
     }),
-  );
+  ) as SuggestionRow[] | undefined;
 
-  const suggestionMetadata = useMemo(() => {
-    if (!suggestion?.metadataStr) {
-      return { dismissed: [], accepted: [] };
-    }
-    try {
-      return JSON.parse(suggestion.metadataStr) as {
-        dismissed?: string[];
-        accepted?: string[];
-      };
-    } catch {
-      return { dismissed: [], accepted: [] };
-    }
-  }, [suggestion?.metadataStr]);
+  // Filter to active (non-dismissed) suggestions
+  const activeSuggestions = useMemo(() => {
+    if (!suggestions) return [];
 
-  const suggestedLabelIdsFromResults = useMemo(() => {
-    if (!suggestion?.resultsStr) return [];
-    try {
-      return JSON.parse(suggestion.resultsStr) as string[];
-    } catch {
-      return [];
-    }
-  }, [suggestion?.resultsStr]);
-
-  const suggestedLabelIds = useMemo(() => {
     const appliedLabelIds = new Set(
       threadLabels?.map((tl) => tl.label.id) ?? [],
     );
-    const dismissedLabelIds = new Set(suggestionMetadata.dismissed ?? []);
 
-    return suggestedLabelIdsFromResults.filter(
-      (labelId) =>
-        !appliedLabelIds.has(labelId) && !dismissedLabelIds.has(labelId),
-    );
-  }, [
-    suggestedLabelIdsFromResults,
-    threadLabels,
-    suggestionMetadata.dismissed,
-  ]);
+    return suggestions.filter((s) => {
+      if (!s.relatedEntityId) return false;
+      // Skip if label is already applied
+      if (appliedLabelIds.has(s.relatedEntityId)) return false;
+
+      const meta = s.metadataStr ? JSON.parse(s.metadataStr) : {};
+      return !meta.dismissed;
+    });
+  }, [suggestions, threadLabels]);
+
+  const suggestedLabelIds = useMemo(() => {
+    return activeSuggestions
+      .filter(
+        (s): s is typeof s & { relatedEntityId: string } => !!s.relatedEntityId,
+      )
+      .map((s) => s.relatedEntityId);
+  }, [activeSuggestions]);
 
   const suggestedLabels = useLiveQuery(
     query.label.where({ id: { $in: suggestedLabelIds }, enabled: true }),
@@ -69,7 +63,7 @@ export const usePendingLabelSuggestions = ({
 
   return {
     suggestedLabels,
-    suggestion,
+    suggestions,
   };
 };
 
@@ -80,7 +74,7 @@ type LabelSuggestionProps = {
     | Array<{ id: string; name: string; color: string }>
     | undefined;
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
-  suggestion: { id: string; metadataStr: string | null } | undefined;
+  suggestions: SuggestionRow[] | undefined;
   captureThreadEvent: (
     eventName: string,
     properties?: Record<string, unknown>,
@@ -92,7 +86,7 @@ export const LabelSuggestions = ({
   organizationId,
   suggestedLabels,
   threadLabels,
-  suggestion,
+  suggestions,
   captureThreadEvent,
 }: LabelSuggestionProps) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -118,39 +112,27 @@ export const LabelSuggestions = ({
     );
     setIsCollapsed(newState);
   };
-  const updateSuggestionMetadata = (
-    acceptedLabelIds?: string[],
-    dismissedLabelIds?: string[],
+
+  const updateSuggestionForLabel = (
+    labelId: string,
+    accepted: boolean,
+    dismissed: boolean,
   ) => {
-    if (!organizationId || !suggestion) return;
+    if (!organizationId || !suggestions) return;
+
+    const suggestion = suggestions.find((s) => s.relatedEntityId === labelId);
+    if (!suggestion) return;
 
     const existingMetadata = suggestion.metadataStr
-      ? (JSON.parse(suggestion.metadataStr) as {
-          dismissed?: string[];
-          accepted?: string[];
-        })
-      : { dismissed: [], accepted: [] };
-
-    const metadata = { ...existingMetadata };
-
-    if (acceptedLabelIds) {
-      const acceptedSet = new Set([
-        ...(metadata.accepted ?? []),
-        ...acceptedLabelIds,
-      ]);
-      metadata.accepted = Array.from(acceptedSet);
-    }
-
-    if (dismissedLabelIds) {
-      const dismissedSet = new Set([
-        ...(metadata.dismissed ?? []),
-        ...dismissedLabelIds,
-      ]);
-      metadata.dismissed = Array.from(dismissedSet);
-    }
+      ? JSON.parse(suggestion.metadataStr)
+      : {};
 
     mutate.suggestion.update(suggestion.id, {
-      metadataStr: JSON.stringify(metadata),
+      metadataStr: JSON.stringify({
+        ...existingMetadata,
+        accepted,
+        dismissed,
+      }),
       updatedAt: new Date(),
     });
   };
@@ -173,7 +155,7 @@ export const LabelSuggestions = ({
       });
     }
 
-    updateSuggestionMetadata([labelId]);
+    updateSuggestionForLabel(labelId, true, false);
 
     captureThreadEvent("support_intelligence:label_accepted", {
       label_id: labelId,
@@ -201,9 +183,9 @@ export const LabelSuggestions = ({
           enabled: true,
         });
       }
-    }
 
-    updateSuggestionMetadata(labelIds);
+      updateSuggestionForLabel(labelId, true, false);
+    }
 
     captureThreadEvent("support_intelligence:all_labels_accepted", {
       label_count: labelIds.length,
@@ -212,7 +194,10 @@ export const LabelSuggestions = ({
 
   const handleDismissAllLabels = async () => {
     const labelIds = suggestedLabels?.map((l) => l.id) ?? [];
-    updateSuggestionMetadata(undefined, labelIds);
+
+    for (const labelId of labelIds) {
+      updateSuggestionForLabel(labelId, false, true);
+    }
 
     captureThreadEvent("support_intelligence:all_labels_dismissed", {
       label_count: labelIds.length,

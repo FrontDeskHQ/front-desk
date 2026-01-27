@@ -30,7 +30,7 @@ export const ThreadInputArea = ({
   user,
   captureThreadEvent,
 }: ThreadInputAreaProps) => {
-  const { suggestedLabels, suggestion } = usePendingLabelSuggestions({
+  const { suggestedLabels, suggestions } = usePendingLabelSuggestions({
     threadId,
     organizationId,
     threadLabels,
@@ -61,7 +61,7 @@ export const ThreadInputArea = ({
         organizationId={organizationId}
         suggestedLabels={suggestedLabels}
         threadLabels={threadLabels}
-        suggestion={suggestion}
+        suggestions={suggestions}
         captureThreadEvent={captureThreadEvent}
       />
       <Editor
