@@ -8,14 +8,16 @@ import { useEffect, useState } from "react";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
 import {
-  LabelSuggestions,
+  Suggestions,
   usePendingLabelSuggestions,
+  usePendingStatusSuggestions,
 } from "./support-intelligence";
 
 type ThreadInputAreaProps = {
   threadId: string;
   organizationId: string | undefined;
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
+  currentStatus: number;
   user: { id: string; name: string };
   captureThreadEvent: (
     eventName: string,
@@ -27,6 +29,7 @@ export const ThreadInputArea = ({
   threadId,
   organizationId,
   threadLabels,
+  currentStatus,
   user,
   captureThreadEvent,
 }: ThreadInputAreaProps) => {
@@ -36,8 +39,16 @@ export const ThreadInputArea = ({
     threadLabels,
   });
 
+  const { statusSuggestion } = usePendingStatusSuggestions({
+    threadId,
+    organizationId,
+    currentStatus,
+  });
+
   const [showBorder, setShowBorder] = useState(false);
-  const hasSuggestions = (suggestedLabels?.length ?? 0) > 0;
+  const hasLabelSuggestions = (suggestedLabels?.length ?? 0) > 0;
+  const hasStatusSuggestion = statusSuggestion !== null;
+  const hasSuggestions = hasLabelSuggestions || hasStatusSuggestion;
 
   useEffect(() => {
     if (hasSuggestions) {
@@ -56,12 +67,15 @@ export const ThreadInputArea = ({
 
   return (
     <div className="bottom-2.5 w-full flex flex-col bg-background-tertiary rounded-md border border-input">
-      <LabelSuggestions
+      <Suggestions
         threadId={threadId}
         organizationId={organizationId}
         suggestedLabels={suggestedLabels}
         threadLabels={threadLabels}
         suggestions={suggestions}
+        statusSuggestion={statusSuggestion}
+        currentStatus={currentStatus}
+        user={user}
         captureThreadEvent={captureThreadEvent}
       />
       <Editor

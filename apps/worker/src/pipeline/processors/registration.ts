@@ -2,6 +2,7 @@ import { processorRegistry } from "./registry";
 import { embedProcessor } from "./embed";
 import { findSimilarProcessor } from "./find-similar";
 import { suggestLabelsProcessor } from "./suggest-labels";
+import { suggestStatusProcessor } from "./suggest-status";
 import { summarizeProcessor } from "./summarize";
 
 export const registerDefaultProcessors = (): void => {
@@ -11,6 +12,7 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(embedProcessor);
   processorRegistry.register(findSimilarProcessor);
   processorRegistry.register(suggestLabelsProcessor);
+  processorRegistry.register(suggestStatusProcessor);
 
   console.log(`  Registered ${processorRegistry.getNames().length} processors:`);
   for (const name of processorRegistry.getNames()) {

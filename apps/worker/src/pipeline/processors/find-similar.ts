@@ -6,14 +6,14 @@ import {
   THREADS_COLLECTION,
   type ThreadPayload,
 } from "../../lib/qdrant/threads";
+import type { EmbedOutput } from "../../types";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
   ProcessorResult,
 } from "../core/types";
-import type { EmbedOutput } from "../../types";
 
-const DEFAULT_SIMILAR_THREADS_LIMIT = 10;
+const DEFAULT_SIMILAR_THREADS_LIMIT = 5;
 const DEFAULT_SCORE_THRESHOLD = 0.7;
 
 /**
@@ -138,9 +138,7 @@ export const findSimilarProcessor: ProcessorDefinition<FindSimilarOutput> = {
       });
 
       if (!storedInSuggestions) {
-        console.error(
-          `Failed to store suggestions for thread ${threadId}`,
-        );
+        console.error(`Failed to store suggestions for thread ${threadId}`);
         return {
           threadId,
           success: false,
@@ -184,7 +182,7 @@ export const batchFindSimilarThreads = async (
   threadIds: string[],
   options: FindSimilarOptions,
 ): Promise<Map<string, Array<{ threadId: string; score: number }>>> => {
-  const { organizationId, limit = 10, scoreThreshold = 0.7 } = options;
+  const { organizationId, limit = 5, scoreThreshold = 0.7 } = options;
   const results = new Map<string, Array<{ threadId: string; score: number }>>();
 
   if (threadIds.length === 0) {
