@@ -15,6 +15,7 @@
     "@workspace/ui": "workspace:*",
     "@workspace/schemas": "workspace:*",
     "api": "workspace:*",
+    "bullmq": "^5.67.1",
     "dotenv": "^16.6.1",
     "ulid": "^3.0.0",
     "zod": "catalog:"
