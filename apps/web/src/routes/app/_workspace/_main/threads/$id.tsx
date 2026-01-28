@@ -445,6 +445,7 @@ function RouteComponent() {
               threadId={id}
               organizationId={thread?.organizationId}
               threadLabels={threadLabels}
+              currentStatus={thread?.status ?? 0}
               user={user}
               captureThreadEvent={captureThreadEvent}
             />
