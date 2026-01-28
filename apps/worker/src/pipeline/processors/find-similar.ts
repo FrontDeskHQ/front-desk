@@ -182,7 +182,7 @@ export const batchFindSimilarThreads = async (
   threadIds: string[],
   options: FindSimilarOptions,
 ): Promise<Map<string, Array<{ threadId: string; score: number }>>> => {
-  const { organizationId, limit = 10, scoreThreshold = 0.7 } = options;
+  const { organizationId, limit = 5, scoreThreshold = 0.7 } = options;
   const results = new Map<string, Array<{ threadId: string; score: number }>>();
 
   if (threadIds.length === 0) {

@@ -496,7 +496,10 @@ export const Suggestions = ({
                 <ActionButton
                   variant="outline"
                   size="sm"
-                  onClick={payload?.handleAccept}
+                  onClick={() => {
+                    setHoverCardOpen(false);
+                    payload?.handleAccept();
+                  }}
                   className="w-full"
                 >
                   Apply suggestion
