@@ -63,7 +63,7 @@ export const LiveStateLog = () => {
       return 24;
     },
     overscan: 5,
-    keyExtractor: (index) => events[index]?.id ?? index.toString(),
+    getItemKey: (index) => events[index]?.id ?? index.toString(),
   });
 
   // Recalculate virtualizer when expanded events change
