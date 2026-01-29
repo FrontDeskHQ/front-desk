@@ -1,6 +1,5 @@
 import { useNavigate } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
-import { useMemo } from "react";
 import { useCommand } from "../../hooks";
 
 // Memoize icons outside component to ensure stable references
@@ -9,8 +8,7 @@ const arrowRightIcon = <ArrowRight />;
 export const RootCommands = () => {
   const navigate = useNavigate();
 
-  // Memoize command objects to prevent unnecessary re-registrations
-  const goToThreadsCommand = useMemo(
+  useCommand(
     () => ({
       id: "go-to-threads",
       label: "Go to Threads",
@@ -23,7 +21,7 @@ export const RootCommands = () => {
     [navigate],
   );
 
-  const goToSettingsCommand = useMemo(
+  useCommand(
     () => ({
       id: "go-to-settings",
       label: "Go to Settings",
@@ -35,10 +33,6 @@ export const RootCommands = () => {
     }),
     [navigate],
   );
-
-  // Pass stable primitive dependencies - command.id is already included internally
-  useCommand(goToThreadsCommand, []);
-  useCommand(goToSettingsCommand, []);
 
   return null;
 };
