@@ -1,14 +1,16 @@
 "use client";
 
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Button } from "@workspace/ui/components/button";
 import {
-  Drawer,
-  DrawerClose,
-  DrawerContent,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@workspace/ui/components/drawer";
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@workspace/ui/components/sheet";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { client } from "~/lib/live-state";
@@ -39,8 +41,35 @@ export const LiveStateLog = () => {
   const [events, setEvents] = useState<EventLogEntry[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
-  const eventsEndRef = useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
   const eventIdRef = useRef(0);
+  const shouldAutoScrollRef = useRef(true);
+
+  const virtualizer = useVirtualizer({
+    count: events.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: (index) => {
+      const event = events[index];
+      if (!event) return 24;
+      const isExpanded = expandedEvents.has(event.id);
+      const hasData = event.data !== undefined;
+
+      if (!hasData) return 24;
+      if (isExpanded) {
+        const jsonString = JSON.stringify(event.data, null, 2);
+        const lines = jsonString.split("\n").length;
+        return Math.max(24, lines * 20 + 40);
+      }
+      return 24;
+    },
+    overscan: 5,
+    getItemKey: (index) => events[index]?.id ?? index.toString(),
+  });
+
+  // Recalculate virtualizer when expanded events change
+  useEffect(() => {
+    virtualizer.measure();
+  }, [expandedEvents, virtualizer]);
 
   useEffect(() => {
     const addEvent = (type: EventLogEntry["type"], data?: unknown) => {
@@ -155,11 +184,34 @@ export const LiveStateLog = () => {
     };
   }, []);
 
+  // Auto-scroll to bottom when new events arrive
   useEffect(() => {
-    if (isOpen && eventsEndRef.current) {
-      eventsEndRef.current.scrollIntoView({ behavior: "smooth" });
+    if (isOpen && shouldAutoScrollRef.current && events.length > 0) {
+      const scrollElement = parentRef.current;
+      if (scrollElement) {
+        // Use requestAnimationFrame to ensure DOM has updated
+        requestAnimationFrame(() => {
+          // Scroll to the total size of the virtualizer
+          scrollElement.scrollTop = virtualizer.getTotalSize();
+        });
+      }
     }
-  }, [events, isOpen]);
+  }, [events.length, isOpen, virtualizer]);
+
+  // Track scroll position to determine if we should auto-scroll
+  useEffect(() => {
+    const scrollElement = parentRef.current;
+    if (!scrollElement) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = scrollElement;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 50;
+      shouldAutoScrollRef.current = isNearBottom;
+    };
+
+    scrollElement.addEventListener("scroll", handleScroll);
+    return () => scrollElement.removeEventListener("scroll", handleScroll);
+  }, [isOpen]);
 
   const formatTimestamp = (date: Date) => {
     return date.toLocaleTimeString("en-US", {
@@ -229,8 +281,8 @@ export const LiveStateLog = () => {
   };
 
   return (
-    <Drawer open={isOpen} onOpenChange={setIsOpen} direction="bottom">
-      <DrawerTrigger asChild>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
         <Button
           variant="ghost"
           size="sm"
@@ -239,75 +291,102 @@ export const LiveStateLog = () => {
         >
           live-state log
         </Button>
-      </DrawerTrigger>
-      <DrawerContent hideOverlay className="max-h-[50vh] h-[50vh]">
-        <DrawerHeader className="border-b shrink-0">
-          <DrawerTitle>Live State WebSocket Event Log</DrawerTitle>
-        </DrawerHeader>
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
+      </SheetTrigger>
+      <SheetContent
+        side="bottom"
+        className="max-h-[50vh] h-[50vh] flex flex-col p-0"
+      >
+        <SheetHeader className="border-b shrink-0 px-4 py-3">
+          <SheetTitle>Live State WebSocket Event Log</SheetTitle>
+        </SheetHeader>
+        <div
+          ref={parentRef}
+          className="flex-1 overflow-y-auto p-4"
+          style={{ contain: "strict" }}
+        >
           {events.length === 0 ? (
             <div className="text-muted-foreground text-sm text-center py-8">
               No events yet. Events will appear here when they occur.
             </div>
           ) : (
-            events.map((event) => {
-              const isExpanded = expandedEvents.has(event.id);
-              const hasData = event.data !== undefined;
+            <div
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
+                const event = events[virtualItem.index];
+                if (!event) return null;
 
-              return (
-                <div
-                  key={event.id}
-                  className="flex gap-2 text-xs font-mono items-start"
-                >
-                  <span className="text-muted-foreground shrink-0">
-                    {formatTimestamp(event.timestamp)}
-                  </span>
-                  <span
-                    className={`shrink-0 font-semibold ${getEventTypeColor(event.type)}`}
+                const isExpanded = expandedEvents.has(event.id);
+                const hasData = event.data !== undefined;
+
+                return (
+                  <div
+                    key={event.id}
+                    data-index={virtualItem.index}
+                    ref={virtualizer.measureElement}
+                    style={{
+                      position: "absolute",
+                      top: 0,
+                      left: 0,
+                      width: "100%",
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
                   >
-                    [{event.type.toUpperCase()}]
-                  </span>
-                  {hasData ? (
-                    <div className="flex-1 min-w-0">
-                      <button
-                        type="button"
-                        onClick={() => toggleEventExpansion(event.id)}
-                        className="flex items-start gap-1.5 w-full text-left hover:bg-accent/50 rounded px-1 py-0.5 -mx-1 -my-0.5 transition-colors"
-                        aria-label={
-                          isExpanded ? "Collapse event" : "Expand event"
-                        }
+                    <div className="flex gap-2 text-xs font-mono items-start pb-1">
+                      <span className="text-muted-foreground shrink-0">
+                        {formatTimestamp(event.timestamp)}
+                      </span>
+                      <span
+                        className={`shrink-0 font-semibold ${getEventTypeColor(event.type)}`}
                       >
-                        {isExpanded ? (
-                          <ChevronDown className="size-3 shrink-0 mt-0.5" />
-                        ) : (
-                          <ChevronRight className="size-3 shrink-0 mt-0.5" />
-                        )}
-                        {isExpanded ? (
-                          <pre className="flex-1 overflow-x-auto text-xs whitespace-pre-wrap wrap-break-word">
-                            {JSON.stringify(event.data, null, 2)}
-                          </pre>
-                        ) : (
-                          <span className="flex-1 truncate text-xs">
-                            {formatDataPreview(event.data)}
-                          </span>
-                        )}
-                      </button>
+                        [{event.type.toUpperCase()}]
+                      </span>
+                      {hasData ? (
+                        <div className="flex-1 min-w-0">
+                          <button
+                            type="button"
+                            onClick={() => toggleEventExpansion(event.id)}
+                            className="flex items-start gap-1.5 w-full text-left hover:bg-accent/50 rounded px-1 py-0.5 -mx-1 -my-0.5 transition-colors"
+                            aria-label={
+                              isExpanded ? "Collapse event" : "Expand event"
+                            }
+                          >
+                            {isExpanded ? (
+                              <ChevronDown className="size-3 shrink-0 mt-0.5" />
+                            ) : (
+                              <ChevronRight className="size-3 shrink-0 mt-0.5" />
+                            )}
+                            {isExpanded ? (
+                              <pre className="flex-1 overflow-x-auto text-xs whitespace-pre-wrap wrap-break-word">
+                                {JSON.stringify(event.data, null, 2)}
+                              </pre>
+                            ) : (
+                              <span className="flex-1 truncate text-xs">
+                                {formatDataPreview(event.data)}
+                              </span>
+                            )}
+                          </button>
+                        </div>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              );
-            })
+                  </div>
+                );
+              })}
+            </div>
           )}
-          <div ref={eventsEndRef} />
         </div>
-        <div className="border-t shrink-0 p-2 flex justify-end">
-          <DrawerClose asChild>
+        <SheetFooter className="border-t shrink-0 px-4 py-2">
+          <SheetClose asChild>
             <Button variant="outline" size="sm">
               Close
             </Button>
-          </DrawerClose>
-        </div>
-      </DrawerContent>
-    </Drawer>
+          </SheetClose>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 };
