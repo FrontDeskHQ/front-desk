@@ -3,6 +3,7 @@ import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Card } from "@workspace/ui/components/card";
 import { useEffect } from "react";
 import { CommandMenu } from "~/components/command-menu";
+import { RootCommands } from "~/lib/commands/commands/root";
 import { client, fetchClient, query } from "~/lib/live-state";
 import type { GetAuthUserResponse } from "~/lib/server-funcs/get-auth-user";
 import { getAuthUser } from "~/lib/server-funcs/get-auth-user";
@@ -103,6 +104,7 @@ function App() {
   return (
     <>
       <Outlet />
+      <RootCommands />
       <CommandMenu />
     </>
   );

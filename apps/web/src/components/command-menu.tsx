@@ -12,21 +12,17 @@ import {
   CommandTrail,
 } from "@workspace/ui/components/command";
 import { Keybind } from "@workspace/ui/components/keybind";
-import { useAtomValue } from "jotai/react";
 import { Check, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
-import { RootCommands } from "~/lib/commands/commands/root";
 import { useCommandMenu } from "~/lib/commands/hooks";
-import { commandRegistryAtom } from "~/lib/commands/registry";
 import type { Command, DirectCommand, PageCommand } from "~/lib/commands/types";
 
 export const CommandMenu = () => {
   const [open, setOpen] = useState(false);
   const [animationKey, setAnimationKey] = useState(0);
   const prevPageIdRef = useRef<string | null>(null);
-  const registry = useAtomValue(commandRegistryAtom);
   const {
     commands,
     contextCommands,
@@ -35,6 +31,8 @@ export const CommandMenu = () => {
     currentPageId,
     currentContextId,
     search,
+    currentContextFooter,
+    registry,
     goBack,
     navigateToPage,
     resetNavigation,
@@ -198,101 +196,98 @@ export const CommandMenu = () => {
   };
 
   return (
-    <>
-      <RootCommands />
-      <CommandDialog
-        open={open}
-        onOpenChange={setOpen}
-        render={
-          <motion.div
-            key={animationKey}
-            animate={{
-              scale: animationKey > 0 ? [1, 0.99, 1] : 1,
-            }}
-            transition={{
-              duration: 0.15,
-              ease: "easeOut",
-            }}
-          />
-        }
-      >
-        <CommandInput
-          placeholder={
-            currentPage
-              ? `${currentPage.label}...`
-              : "Type a command or search..."
-          }
-          value={search}
-          onValueChange={setSearch}
-          onKeyDown={handleKeyDown}
+    <CommandDialog
+      open={open}
+      onOpenChange={setOpen}
+      render={
+        <motion.div
+          key={animationKey}
+          animate={{
+            scale: animationKey > 0 ? [1, 0.99, 1] : 1,
+          }}
+          transition={{
+            duration: 0.15,
+            ease: "easeOut",
+          }}
         />
-        <CommandList>
-          <CommandEmpty>No results found.</CommandEmpty>
-          {currentPageId ? (
-            <>
-              {pageUngrouped.length > 0 && (
-                <CommandGroup>
-                  {pageUngrouped.map((command) => renderCommand(command))}
-                </CommandGroup>
-              )}
-              {/* Grouped page commands */}
-              {sortedPageGroups.map((groupName) => (
-                <CommandGroup key={groupName} heading={groupName}>
-                  {pageGrouped[groupName].map((command) =>
-                    renderCommand(command),
-                  )}
-                </CommandGroup>
-              ))}
-            </>
-          ) : (
-            <>
-              {/* 1. Ungrouped context commands */}
-              {contextUngrouped.length > 0 && (
-                <CommandGroup>
-                  {contextUngrouped.map((command) => renderCommand(command))}
-                </CommandGroup>
-              )}
-              {/* 2. Grouped context commands */}
-              {sortedContextGroups.map((groupName) => (
-                <CommandGroup key={groupName} heading={groupName}>
-                  {contextGrouped[groupName].map((command) =>
-                    renderCommand(command),
-                  )}
-                </CommandGroup>
-              ))}
-              {/* 3. Ungrouped global commands */}
-              {globalUngrouped.length > 0 && (
-                <CommandGroup>
-                  {globalUngrouped.map((command) => renderCommand(command))}
-                </CommandGroup>
-              )}
-              {/* 4. Grouped global commands */}
-              {sortedGlobalGroups.map((groupName) => (
-                <CommandGroup key={groupName} heading={groupName}>
-                  {globalGrouped[groupName].map((command) =>
-                    renderCommand(command),
-                  )}
-                </CommandGroup>
-              ))}
-            </>
-          )}
-        </CommandList>
-        <CommandFooter className="justify-between gap-4">
-          <div className="text-xs text-muted-foreground">
-            {currentContextId && registry.contexts[currentContextId]?.footer}
-          </div>
-          <div className="flex items-center gap-2">
-            {(currentPage || currentContextId) && (
-              <div className="flex items-center gap-1 text-foreground-secondary border-r pr-2">
-                <Keybind keybind="backspace" /> Go back
-              </div>
+      }
+    >
+      <CommandInput
+        placeholder={
+          currentPage
+            ? `${currentPage.label}...`
+            : "Type a command or search..."
+        }
+        value={search}
+        onValueChange={setSearch}
+        onKeyDown={handleKeyDown}
+      />
+      <CommandList>
+        <CommandEmpty>No results found.</CommandEmpty>
+        {currentPageId ? (
+          <>
+            {pageUngrouped.length > 0 && (
+              <CommandGroup>
+                {pageUngrouped.map((command) => renderCommand(command))}
+              </CommandGroup>
             )}
-            <div className="flex items-center gap-1">
-              <Keybind keybind="enter" /> Select
+            {/* Grouped page commands */}
+            {sortedPageGroups.map((groupName) => (
+              <CommandGroup key={groupName} heading={groupName}>
+                {pageGrouped[groupName].map((command) =>
+                  renderCommand(command),
+                )}
+              </CommandGroup>
+            ))}
+          </>
+        ) : (
+          <>
+            {/* 1. Ungrouped context commands */}
+            {contextUngrouped.length > 0 && (
+              <CommandGroup>
+                {contextUngrouped.map((command) => renderCommand(command))}
+              </CommandGroup>
+            )}
+            {/* 2. Grouped context commands */}
+            {sortedContextGroups.map((groupName) => (
+              <CommandGroup key={groupName} heading={groupName}>
+                {contextGrouped[groupName].map((command) =>
+                  renderCommand(command),
+                )}
+              </CommandGroup>
+            ))}
+            {/* 3. Ungrouped global commands */}
+            {globalUngrouped.length > 0 && (
+              <CommandGroup>
+                {globalUngrouped.map((command) => renderCommand(command))}
+              </CommandGroup>
+            )}
+            {/* 4. Grouped global commands */}
+            {sortedGlobalGroups.map((groupName) => (
+              <CommandGroup key={groupName} heading={groupName}>
+                {globalGrouped[groupName].map((command) =>
+                  renderCommand(command),
+                )}
+              </CommandGroup>
+            ))}
+          </>
+        )}
+      </CommandList>
+      <CommandFooter className="justify-between gap-4">
+        <div className="text-xs text-muted-foreground">
+          {currentContextFooter}
+        </div>
+        <div className="flex items-center gap-2">
+          {(currentPage || currentContextId) && (
+            <div className="flex items-center gap-1 text-foreground-secondary border-r pr-2">
+              <Keybind keybind="backspace" /> Go back
             </div>
+          )}
+          <div className="flex items-center gap-1">
+            <Keybind keybind="enter" /> Select
           </div>
-        </CommandFooter>
-      </CommandDialog>
-    </>
+        </div>
+      </CommandFooter>
+    </CommandDialog>
   );
 };
