@@ -24,8 +24,26 @@ export const commandRegistryAtom = atom<CommandRegistryState>(initialState);
 export const commandRegistryActions = {
   registerCommand: (
     state: CommandRegistryState,
-    command: Command
+    command: Command,
   ): CommandRegistryState => {
+    // Check if command already exists
+    const existingIndex = state.globalCommands.findIndex(
+      (c) => c.id === command.id,
+    );
+    if (existingIndex !== -1) {
+      // If it's the same reference, don't update
+      if (state.globalCommands[existingIndex] === command) {
+        return state;
+      }
+      // Replace existing command
+      const newCommands = [...state.globalCommands];
+      newCommands[existingIndex] = command;
+      return {
+        ...state,
+        globalCommands: newCommands,
+      };
+    }
+
     return {
       ...state,
       globalCommands: [...state.globalCommands, command],
@@ -34,7 +52,7 @@ export const commandRegistryActions = {
 
   unregisterCommand: (
     state: CommandRegistryState,
-    commandId: string
+    commandId: string,
   ): CommandRegistryState => {
     return {
       ...state,
@@ -44,7 +62,7 @@ export const commandRegistryActions = {
 
   registerPage: (
     state: CommandRegistryState,
-    page: CommandPage
+    page: CommandPage,
   ): CommandRegistryState => {
     return {
       ...state,
@@ -57,7 +75,7 @@ export const commandRegistryActions = {
 
   unregisterPage: (
     state: CommandRegistryState,
-    pageId: PageId
+    pageId: PageId,
   ): CommandRegistryState => {
     const { [pageId]: _, ...restPages } = state.globalPages;
     return {
@@ -68,8 +86,14 @@ export const commandRegistryActions = {
 
   registerContext: (
     state: CommandRegistryState,
-    context: CommandContext
+    context: CommandContext,
   ): CommandRegistryState => {
+    // If context already exists and is the same reference, don't update
+    const existingContext = state.contexts[context.id];
+    if (existingContext === context) {
+      return state;
+    }
+
     return {
       ...state,
       contexts: {
@@ -82,7 +106,7 @@ export const commandRegistryActions = {
 
   unregisterContext: (
     state: CommandRegistryState,
-    contextId: ContextId
+    contextId: ContextId,
   ): CommandRegistryState => {
     const { [contextId]: _, ...restContexts } = state.contexts;
     return {
@@ -96,7 +120,7 @@ export const commandRegistryActions = {
 
   setContext: (
     state: CommandRegistryState,
-    contextId: ContextId | null
+    contextId: ContextId | null,
   ): CommandRegistryState => {
     if (state.currentContextId === contextId) {
       return state;
@@ -118,7 +142,7 @@ export const commandRegistryActions = {
 
   setPage: (
     state: CommandRegistryState,
-    pageId: PageId | null
+    pageId: PageId | null,
   ): CommandRegistryState => {
     if (state.currentPageId === pageId) {
       return state;
@@ -173,7 +197,8 @@ export const commandRegistryActions = {
       if (previousContext) {
         // Find the index of the previous context in the history by comparing id
         const contextIndex = newHistory.findIndex(
-          (entry) => entry.type === "context" && entry.id === previousContext.id
+          (entry) =>
+            entry.type === "context" && entry.id === previousContext.id,
         );
         // Find pages that appear after this context
         const pagesAfterContext = newHistory
@@ -232,7 +257,7 @@ export const commandRegistryActions = {
       const context = state.contexts[state.currentContextId];
       const contextCommands = context?.commands ?? [];
       const globalCommands = state.globalCommands.filter(
-        (cmd) => !cmd.contextId || cmd.contextId === state.currentContextId
+        (cmd) => !cmd.contextId || cmd.contextId === state.currentContextId,
       );
       return [...contextCommands, ...globalCommands];
     }
@@ -278,7 +303,7 @@ export const commandRegistryActions = {
 
   setSearch: (
     state: CommandRegistryState,
-    search: string
+    search: string,
   ): CommandRegistryState => {
     return {
       ...state,
