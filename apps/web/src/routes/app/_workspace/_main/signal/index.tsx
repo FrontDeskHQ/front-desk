@@ -18,6 +18,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAtomValue } from "jotai/react";
 import { Check, Inbox, X } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { useMemo, useState } from "react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -77,6 +78,7 @@ function groupSuggestions(
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
   const currentOrg = useAtomValue(activeOrganizationAtom);
+  const posthog = usePostHog();
 
   // Track locally accepted suggestions (within this session)
   const [locallyAccepted, setLocallyAccepted] = useState<
@@ -227,6 +229,12 @@ function RouteComponent() {
       active: false,
       updatedAt: new Date(),
     });
+
+    posthog?.capture("signal:suggestion_accept", {
+      thread_id: suggestion.entityId,
+      suggestion_id: suggestion.id,
+      organization_id: currentOrg?.id,
+    });
   };
 
   const handleDismiss = (suggestion: ParsedSuggestion) => {
@@ -235,15 +243,31 @@ function RouteComponent() {
       active: false,
       updatedAt: new Date(),
     });
+
+    posthog?.capture("signal:suggestion_dismiss", {
+      thread_id: suggestion.entityId,
+      suggestion_id: suggestion.id,
+      organization_id: currentOrg?.id,
+    });
   };
 
   const handleAcceptAll = (pendingInGroup: ParsedSuggestion[]) => {
+    posthog?.capture("signal:suggestion_accept_all", {
+      count: pendingInGroup.length,
+      thread_ids: pendingInGroup.map((s) => s.entityId),
+      organization_id: currentOrg?.id,
+    });
     for (const suggestion of pendingInGroup) {
       handleAccept(suggestion);
     }
   };
 
   const handleDismissAll = (pendingInGroup: ParsedSuggestion[]) => {
+    posthog?.capture("signal:suggestion_dismiss_all", {
+      count: pendingInGroup.length,
+      thread_ids: pendingInGroup.map((s) => s.entityId),
+      organization_id: currentOrg?.id,
+    });
     for (const suggestion of pendingInGroup) {
       handleDismiss(suggestion);
     }
