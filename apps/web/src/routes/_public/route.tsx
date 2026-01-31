@@ -1,3 +1,4 @@
+/** biome-ignore-all lint/a11y/useAnchorContent: <explanation> */
 import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Logo } from "@workspace/ui/components/logo";
@@ -21,7 +22,21 @@ function RouteComponent() {
               </Logo>
               <h1 className="text-lg font-normal">FrontDesk</h1>
             </Link>
-            <Button variant="link" render={<Link to="/" hash="pricing" />}>Pricing</Button>
+            <Button variant="link" render={<Link to="/" hash="pricing" />}>
+              Pricing
+            </Button>
+            <Button
+              variant="link"
+              render={
+                <a
+                  href="https://support.tryfrontdesk.app"
+                  target="_blank"
+                  rel="noopener"
+                />
+              }
+            >
+              Community
+            </Button>
           </div>
           <AuthButtonGroup />
         </div>
