@@ -195,11 +195,9 @@ function RouteComponent() {
       <div className="flex items-center justify-between">
         <h2 className="text-base">Labels</h2>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus />
-              New label
-            </Button>
+          <DialogTrigger render={<Button />}>
+            <Plus />
+            New label
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>

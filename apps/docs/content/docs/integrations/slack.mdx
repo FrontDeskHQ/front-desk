@@ -1,0 +1,35 @@
+---
+title: Slack Integration
+---
+
+Connect your Slack workspace to FrontDesk and manage support conversations directly from Slack threads. When users create threads in your Slack support channels, they automatically sync to FrontDesk in real-time.
+
+## How it works
+
+When a user creates a thread in a Slack channel you've configured for support, it automatically syncs to FrontDesk. Messages sent on Slack appear instantly in FrontDesk, and replies from your support team in FrontDesk post back to the Slack thread.
+
+## Setting up Slack
+
+1. Go to Organization Settings → Integrations
+2. Find **Slack** in the integrations list
+3. Click **Enable** to start the authorization flow
+4. Authorize FrontDesk to access your Slack workspace
+5. Once connected, add the support channels you want to monitor (e.g., `support-channel`, `help-channel`)
+
+Only threads created in the channels you've added will sync to FrontDesk.
+
+### Adding the FrontDesk app to your channels
+
+After enabling the integration, you need to add the FrontDesk app to each channel you want to monitor:
+
+1. Open the Slack channel you configured for support
+2. Click the channel name at the top to open channel details
+3. Go to the **Integrations** tab
+4. Click **Add apps** and search for **FrontDesk**
+5. Add the app to the channel
+
+Repeat this for each channel you've configured in FrontDesk. The app won't be able to read messages from channels it hasn't been added to.
+
+## Managing Slack threads
+
+Once threads are synced, you can manage them just like any other FrontDesk thread. Update status, set priority, assign team members — all changes sync back to Slack automatically.

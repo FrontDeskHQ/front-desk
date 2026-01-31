@@ -1,6 +1,8 @@
 ("use client");
 
+import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   getRouteApi,
@@ -10,35 +12,26 @@ import {
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import {
-  Editor,
-  EditorInput,
-  EditorSubmit,
   RichText,
+  TruncatedText,
 } from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
+  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
   Card,
+  CardAction,
   CardContent,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import {
-  type BaseItem,
-  Combobox,
-  ComboboxContent,
-  ComboboxEmpty,
-  ComboboxInput,
-  ComboboxItem,
-  ComboboxList,
-  ComboboxTrigger,
-} from "@workspace/ui/components/combobox";
 import {
   Dialog,
   DialogContent,
@@ -54,23 +47,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
-import {
-  PriorityIndicator,
-  PriorityText,
-  StatusIndicator,
-  StatusText,
-  statusValues,
-} from "@workspace/ui/components/indicator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { CircleUser, Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
-import { useState } from "react";
+import type { schema } from "api/schema";
+import {
+  ArrowDown,
+  Check,
+  Copy,
+  MoreHorizontalIcon,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ulid } from "ulid";
-import { LabelsSection } from "~/components/threads/properties-sidebar";
+import { IssuesSection } from "~/components/threads/issues";
+import { LabelsSection } from "~/components/threads/labels";
+import { PropertiesSection } from "~/components/threads/properties";
+import { PullRequestsSection } from "~/components/threads/pull-requests";
+import { RelatedThreadsSection } from "~/components/threads/related-threads-section";
+import { ThreadInputArea } from "~/components/threads/thread-input-area";
 import { Update } from "~/components/threads/updates";
+import { ThreadCommands } from "~/lib/commands/commands/thread";
+import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
@@ -116,6 +115,25 @@ function RouteComponent() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [highlightAnswer, setHighlightAnswer] = useState(false);
+
+  useEffect(() => {
+    const checkHash = () => {
+      const hasHash = window.location.hash === "#answer-message";
+      setHighlightAnswer(hasHash);
+
+      if (hasHash) {
+        setHighlightAnswer(true);
+      }
+    };
+
+    checkHash();
+    window.addEventListener("hashchange", checkHash);
+
+    return () => {
+      window.removeEventListener("hashchange", checkHash);
+    };
+  }, []);
 
   const thread = useLiveQuery(
     query.thread.where({ id }).include({
@@ -123,22 +141,37 @@ function RouteComponent() {
       messages: { author: true },
       assignedUser: true,
       updates: { user: true },
-    })
+    }),
   )?.[0];
+
+  const { captureThreadEvent } = useThreadAnalytics(thread);
+
+  const { isEnabled: isGithubIntegrationEnabled } =
+    useFlag("github-integration");
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
-      .include({ user: true })
+      .include({ user: true }),
+  );
+
+  const threadLabels = useLiveQuery(
+    query.threadLabel
+      .where({
+        threadId: id,
+        enabled: true,
+        label: { enabled: true },
+      })
+      .include({ label: true }),
   );
 
   const allItems = thread
     ? [
-        ...(thread?.messages ?? []).map((msg) => ({
+        ...(thread?.messages ?? []).map((msg: any) => ({
           ...msg,
           itemType: "message" as const,
         })),
-        ...(thread?.updates ?? []).map((update) => ({
+        ...(thread?.updates ?? []).map((update: any) => ({
           ...update,
           itemType: "update" as const,
         })),
@@ -155,6 +188,7 @@ function RouteComponent() {
     const url = window.location.href;
     navigator.clipboard.writeText(url);
     toast.success("Link copied to clipboard");
+    captureThreadEvent("thread:link_copy");
   };
 
   const deleteThread = () => {
@@ -175,15 +209,36 @@ function RouteComponent() {
         textDecoration: "underline",
       },
     });
+    captureThreadEvent("thread:thread_delete");
     navigate({ to: "/app/threads" });
   };
 
+  const answerMessage = thread?.messages.find(
+    (message) => message.markedAsAnswer,
+  );
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    if (highlightAnswer) {
+      timeoutId = setTimeout(() => {
+        setHighlightAnswer(false);
+      }, 5000);
+    }
+
+    return () => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
+  }, [highlightAnswer]);
+
   return (
-    <div className="flex size-full">
-      <div className="flex-1 flex flex-col">
-        <CardHeader>
-          <CardTitle>
-            {" "}
+    <>
+      <ThreadCommands threadId={id} />
+      <div className="flex size-full">
+        <div className="flex-1 flex flex-col">
+          <CardHeader>
             {thread && (
               <div className="flex justify-between items-center w-full">
                 <Breadcrumb>
@@ -195,17 +250,18 @@ function RouteComponent() {
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      <BreadcrumbLink asChild className="text-white">
-                        <Link to="/app/threads/$id" params={{ id: id }}>
-                          {thread.name}
-                        </Link>
-                      </BreadcrumbLink>
+                      <BreadcrumbPage>{thread.name}</BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" aria-label="Open menu" size="sm">
+                    <Button
+                      variant="ghost"
+                      aria-label="Open menu"
+                      size="sm"
+                      className="ml-auto"
+                    >
                       <MoreHorizontalIcon />
                     </Button>
                   </DropdownMenuTrigger>
@@ -252,358 +308,181 @@ function RouteComponent() {
                 </Dialog>
               </div>
             )}
-          </CardTitle>
-        </CardHeader>
-        <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
-          <div
-            className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
-            ref={scrollRef}
-            onScroll={disableAutoScroll}
-            onTouchMove={disableAutoScroll}
-          >
-            {allItems.map((item) => {
-              if (item.itemType === "message") {
-                return (
-                  <Card
-                    key={item.id}
-                    className={cn(
-                      "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                      item?.author?.userId === user.id && "border-[#2662D9]/20"
-                    )}
-                  >
-                    <CardHeader
-                      size="sm"
-                      className={cn(
-                        item?.author?.userId === user.id &&
-                          "bg-[#2662D9]/15 border-[#2662D9]/20"
-                      )}
-                    >
-                      <CardTitle>
-                        <Avatar
-                          variant="user"
-                          size="md"
-                          fallback={item.author.name}
-                        />
-                        <p>{item.author.name}</p>
-                        <p className="text-muted-foreground">
-                          {formatRelativeTime(item.createdAt as Date)}
-                        </p>
-                        {item.origin === "discord" && (
-                          <>
-                            <span className="bg-muted-foreground size-0.75 rounded-full" />
-                            <p className="text-muted-foreground">
-                              Imported from Discord
-                            </p>
-                          </>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <RichText content={safeParseJSON(item.content)} />
-                    </CardContent>
-                  </Card>
-                );
-              }
-
-              if (item.itemType === "update") {
-                return <Update key={item.id} update={item} user={user} />;
-              }
-
-              return null;
-            })}
-          </div>
-          <Editor
-            onSubmit={(value) => {
-              const author = query.author.first({ userId: user.id }).get();
-              let authorId = author?.id;
-
-              if (!authorId) {
-                authorId = ulid().toLowerCase();
-
-                mutate.author.insert({
-                  id: authorId,
-                  userId: user.id,
-                  metaId: null,
-                  name: user.name,
-                  organizationId: thread?.organizationId,
-                });
-              }
-
-              mutate.message.insert({
-                id: ulid().toLowerCase(),
-                authorId: authorId,
-                content: JSON.stringify(value),
-                threadId: id,
-                createdAt: new Date(),
-                origin: null,
-                externalMessageId: null,
-              });
-            }}
-          >
-            <EditorInput
-              className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-              placeholder="Write a reply..."
+          </CardHeader>
+          <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
+            <div
+              className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
+              ref={scrollRef}
+              onScroll={disableAutoScroll}
+              onTouchMove={disableAutoScroll}
             >
-              <EditorSubmit />
-            </EditorInput>
-          </Editor>
+              {allItems.map((item, i) => {
+                if (item.itemType === "message") {
+                  return (
+                    <TooltipProvider key={item.id}>
+                      <Card
+                        className={cn(
+                          "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border group transition-[color,box-shadow] data-[highlight=true]:border-ring data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
+                          item?.author?.userId === user.id &&
+                            "border-[#2662D9]/20",
+                          item.markedAsAnswer && "border-green-700/30",
+                        )}
+                        data-highlight={item.markedAsAnswer && highlightAnswer}
+                        id={item.markedAsAnswer ? "answer-message" : undefined}
+                      >
+                        <CardHeader
+                          size="sm"
+                          className={cn(
+                            "px-2",
+                            item?.author?.userId === user.id &&
+                              "bg-[#2662D9]/15 border-[#2662D9]/20",
+                            item.markedAsAnswer &&
+                              "bg-green-800/10 border-green-700/30",
+                          )}
+                        >
+                          <CardTitle>
+                            <Avatar
+                              variant="user"
+                              size="md"
+                              fallback={item.author.name}
+                            />
+                            <p>{item.author.name}</p>
+                            <p className="text-foreground-secondary">
+                              {formatRelativeTime(item.createdAt as Date)}
+                            </p>
+                            {item.origin === "discord" && (
+                              <>
+                                <span className="bg-muted-foreground size-0.75 rounded-full" />
+                                <p className="text-foreground-secondary">
+                                  Imported from Discord
+                                </p>
+                              </>
+                            )}
+                            {item.markedAsAnswer && (
+                              <>
+                                <span className="bg-muted-foreground size-0.75 rounded-full" />
+                                <Check className="size-3.5" />
+                                <p className="text-foreground-secondary">
+                                  Marked as answer
+                                </p>
+                              </>
+                            )}
+                          </CardTitle>
+                          {i > 0 && !answerMessage && (
+                            <CardAction
+                              side="right"
+                              className="hidden group-hover:flex"
+                            >
+                              <ActionButton
+                                variant="ghost"
+                                size="icon-sm"
+                                tooltip="Mark as answer"
+                                onClick={() => {
+                                  mutate.message.markAsAnswer({
+                                    messageId: item.id,
+                                  });
+                                }}
+                              >
+                                <Check />
+                              </ActionButton>
+                            </CardAction>
+                          )}
+                        </CardHeader>
+                        <CardContent
+                          className={cn(i === 0 && answerMessage && "border-b")}
+                        >
+                          <RichText content={safeParseJSON(item.content)} />
+                        </CardContent>
+                        {i === 0 && answerMessage && (
+                          <CardFooter className="flex-col items-start p-4 gap-2 bg-green-800/15 border-t-0">
+                            <div className="text-xs flex items-center gap-2">
+                              <Check className="size-3.5" /> Answered by{" "}
+                              {answerMessage.author.name}
+                              <p className="text-foreground-secondary">
+                                {formatRelativeTime(
+                                  answerMessage.createdAt as Date,
+                                )}
+                              </p>
+                            </div>
+                            <TruncatedText maxHeight={64} hideShowMore>
+                              <RichText
+                                content={safeParseJSON(answerMessage.content)}
+                              />
+                            </TruncatedText>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              render={
+                                <Link
+                                  to={`/app/threads/$id`}
+                                  params={{ id: thread.id }}
+                                  hash="answer-message"
+                                  onClick={() => {
+                                    setHighlightAnswer(true);
+                                  }}
+                                />
+                              }
+                              className="cursor-default"
+                            >
+                              Go to answer
+                              <ArrowDown className="size-3.5" />
+                            </Button>
+                          </CardFooter>
+                        )}
+                      </Card>
+                    </TooltipProvider>
+                  );
+                }
+
+                if (item.itemType === "update") {
+                  return <Update key={item.id} update={item} user={user} />;
+                }
+
+                return null;
+              })}
+            </div>
+            <ThreadInputArea
+              threadId={id}
+              organizationId={thread?.organizationId}
+              threadLabels={threadLabels}
+              currentStatus={thread?.status ?? 0}
+              user={user}
+              captureThreadEvent={captureThreadEvent}
+            />
+          </div>
+        </div>
+        <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
+          <TooltipProvider>
+            <PropertiesSection
+              thread={thread}
+              id={id}
+              organizationUsers={organizationUsers}
+              user={user as InferLiveObject<typeof schema.user>}
+              captureThreadEvent={captureThreadEvent}
+            />
+            <LabelsSection
+              threadId={id}
+              captureThreadEvent={captureThreadEvent}
+            />
+
+            <IssuesSection
+              threadId={id}
+              user={user}
+              externalIssueId={thread?.externalIssueId ?? null}
+              threadName={thread?.name}
+              captureThreadEvent={captureThreadEvent}
+            />
+            <PullRequestsSection
+              threadId={id}
+              user={user}
+              externalPrId={thread?.externalPrId ?? null}
+              captureThreadEvent={captureThreadEvent}
+            />
+
+            <RelatedThreadsSection threadId={id} />
+          </TooltipProvider>
         </div>
       </div>
-      <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
-        <TooltipProvider>
-          <div className="flex flex-col gap-2">
-            <div className="text-muted-foreground text-xs">Properties</div>
-            <div className="flex flex-col gap-1.5">
-              <Combobox
-                items={Object.entries(statusValues).map(([key, value]) => ({
-                  value: key,
-                  label: value.label,
-                }))}
-                value={thread?.status ?? 0}
-                onValueChange={(value) => {
-                  const oldStatus = thread?.status ?? 0;
-                  const newStatus = value ? +value : 0;
-                  const oldStatusLabel =
-                    statusValues[oldStatus]?.label ?? "Unknown";
-                  const newStatusLabel =
-                    statusValues[newStatus]?.label ?? "Unknown";
-
-                  mutate.thread.update(id, {
-                    status: newStatus,
-                  });
-
-                  mutate.update.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: id,
-                    type: "status_changed",
-                    createdAt: new Date(),
-                    userId: user.id,
-                    metadataStr: JSON.stringify({
-                      oldStatus,
-                      newStatus,
-                      oldStatusLabel,
-                      newStatusLabel,
-                      userName: user.name,
-                    }),
-                    replicatedStr: JSON.stringify({}),
-                  });
-                }}
-              >
-                <ComboboxTrigger
-                  variant="unstyled"
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className="text-sm px-1.5 max-w-40 py-1 w-full justify-start"
-                      tooltip="Change status"
-                      keybind="s"
-                    >
-                      <div className="flex items-center justify-center size-4">
-                        <StatusIndicator status={thread?.status ?? 0} />
-                      </div>
-                      <StatusText status={thread?.status ?? 0} />
-                    </ActionButton>
-                  }
-                />
-                <ComboboxContent className="w-48">
-                  <ComboboxInput placeholder="Search..." />
-                  <ComboboxEmpty />
-                  <ComboboxList>
-                    {(item: BaseItem) => (
-                      <ComboboxItem key={item.value} value={item.value}>
-                        <StatusIndicator status={+item.value} />
-                        {item.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <Combobox
-                items={[
-                  {
-                    value: 0,
-                    label: "No priority",
-                  },
-                  {
-                    value: 1,
-                    label: "Low priority",
-                  },
-                  {
-                    value: 2,
-                    label: "Medium priority",
-                  },
-                  {
-                    value: 3,
-                    label: "High priority",
-                  },
-                ]}
-                value={thread?.priority}
-                onValueChange={(value) => {
-                  const oldPriority = thread?.priority ?? 0;
-                  const newPriority = value ? +value : 0;
-                  const priorityLabels: Record<number, string> = {
-                    0: "No priority",
-                    1: "Low priority",
-                    2: "Medium priority",
-                    3: "High priority",
-                  };
-                  const oldPriorityLabel =
-                    priorityLabels[oldPriority] ?? "Unknown";
-                  const newPriorityLabel =
-                    priorityLabels[newPriority] ?? "Unknown";
-
-                  mutate.thread.update(id, {
-                    priority: newPriority,
-                  });
-
-                  mutate.update.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: id,
-                    type: "priority_changed",
-                    createdAt: new Date(),
-                    userId: user.id,
-                    metadataStr: JSON.stringify({
-                      oldPriority,
-                      newPriority,
-                      oldPriorityLabel,
-                      newPriorityLabel,
-                      userName: user.name,
-                    }),
-                    replicatedStr: JSON.stringify({}),
-                  });
-                }}
-              >
-                <ComboboxTrigger
-                  variant="unstyled"
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className="text-sm px-1.5 max-w-40 py-1 w-full justify-start"
-                      tooltip="Change priority"
-                      keybind="p"
-                    >
-                      <div className="flex items-center justify-center size-4">
-                        <PriorityIndicator priority={thread?.priority ?? 0} />
-                      </div>
-                      <PriorityText priority={thread?.priority ?? 0} />
-                    </ActionButton>
-                  }
-                />
-
-                <ComboboxContent className="w-48">
-                  <ComboboxInput placeholder="Search..." />
-                  <ComboboxEmpty />
-                  <ComboboxList>
-                    {(item: BaseItem) => (
-                      <ComboboxItem key={item.value} value={item.value}>
-                        <PriorityIndicator priority={+item.value} />
-                        {item.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-              <Combobox
-                items={[
-                  {
-                    value: null,
-                    label: "Unassigned",
-                  },
-                  ...(organizationUsers?.map((user) => ({
-                    value: user.userId,
-                    label: user.user.name,
-                  })) ?? []),
-                ]}
-                value={thread?.assignedUser?.id}
-                onValueChange={(value) => {
-                  const oldAssignedUserId = thread?.assignedUser?.id ?? null;
-                  const oldAssignedUserName =
-                    thread?.assignedUser?.name ?? null;
-                  const newAssignedUserId = value;
-                  const newAssignedUser = organizationUsers?.find(
-                    (ou) => ou.userId === value,
-                  );
-                  const newAssignedUserName =
-                    newAssignedUser?.user.name ?? null;
-
-                  mutate.thread.update(id, {
-                    assignedUserId: value,
-                  });
-
-                  mutate.update.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: id,
-                    userId: user.id,
-                    type: "assigned_changed",
-                    createdAt: new Date(),
-                    metadataStr: JSON.stringify({
-                      oldAssignedUserId,
-                      newAssignedUserId,
-                      oldAssignedUserName,
-                      newAssignedUserName,
-                      userName: user.name,
-                    }),
-                    replicatedStr: JSON.stringify({}),
-                  });
-                }}
-              >
-                <ComboboxTrigger
-                  variant="unstyled"
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className={cn(
-                        "text-sm px-1.5 max-w-40 py-1 w-full justify-start text-muted-foreground",
-                        thread?.assignedUser?.name && "text-primary",
-                      )}
-                      tooltip="Assign to"
-                      keybind="a"
-                    >
-                      <div className="flex items-center justify-center size-4">
-                        {thread?.assignedUser ? (
-                          <Avatar
-                            variant="user"
-                            size="md"
-                            fallback={thread?.assignedUser.name}
-                          />
-                        ) : (
-                          <CircleUser className="size-4" />
-                        )}
-                      </div>
-                      {thread?.assignedUser?.name ?? "Unassigned"}
-                    </ActionButton>
-                  }
-                />
-
-                <ComboboxContent className="w-48">
-                  <ComboboxInput placeholder="Search..." />
-                  <ComboboxEmpty />
-                  <ComboboxList>
-                    {(item: BaseItem) => (
-                      <ComboboxItem key={item.value} value={item.value}>
-                        {item.value ? (
-                          <Avatar
-                            variant="user"
-                            size="md"
-                            fallback={item.label}
-                          />
-                        ) : (
-                          <CircleUser className="mx-0.5" />
-                        )}
-                        {item.label}
-                      </ComboboxItem>
-                    )}
-                  </ComboboxList>
-                </ComboboxContent>
-              </Combobox>
-            </div>
-            <LabelsSection threadId={id} />
-          </div>
-        </TooltipProvider>
-      </div>
-    </div>
+    </>
   );
 }

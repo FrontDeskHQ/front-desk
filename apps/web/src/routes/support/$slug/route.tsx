@@ -23,6 +23,7 @@ import { Logo } from "@workspace/ui/components/logo";
 import { Navbar } from "@workspace/ui/components/navbar";
 import type { schema } from "api/schema";
 import { ArrowUpRight, ChevronDown } from "lucide-react";
+import { parseAsBoolean, useQueryState } from "nuqs";
 import { useEffect } from "react";
 import { CreateThreadDialog } from "~/components/threads/create-thread-dialog";
 import { reflagClient } from "~/lib/feature-flag";
@@ -92,6 +93,17 @@ export const Route = createFileRoute("/support/$slug")({
     const router = useRouter();
     const matches = useMatches();
 
+    const [openCreateThread, setOpenCreateThread] = useQueryState(
+      "openCreateThread",
+      parseAsBoolean.withDefault(false),
+    );
+
+    useEffect(() => {
+      if (openCreateThread) {
+        setOpenCreateThread(null);
+      }
+    }, [openCreateThread]);
+
     const discordUrl = safeParseJSON(organization.socials)?.discord;
 
     useEffect(() => {
@@ -132,39 +144,24 @@ export const Route = createFileRoute("/support/$slug")({
                       match.pathname === `/support/${slug}/threads/`,
                   )}
                   size="sm"
-                  asChild
-                >
-                  <Link
-                    to="/support/$slug/threads"
-                    params={{ slug: organization.slug }}
-                  >
-                    Threads
-                  </Link>
-                </Navbar.LinkItem>
+                  render={
+                    <Link
+                      to="/support/$slug/threads"
+                      params={{ slug: organization.slug }}
+                    >
+                      Threads
+                    </Link>
+                  }
+                />
               </Navbar.LinkGroup>
             </Navbar.Group>
             <Navbar.Group>
               <ButtonGroup>
-                {portalSession?.user ? (
-                  <CreateThreadDialog
-                    organization={organization}
-                    portalSession={portalSession}
-                  />
-                ) : (
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={() =>
-                      portalAuthClient.signIn.social({
-                        provider: "google",
-                        additionalData: { tenantSlug: organization.slug },
-                        callbackURL: window.location.origin,
-                      })
-                    }
-                  >
-                    Sign in
-                  </Button>
-                )}
+                <CreateThreadDialog
+                  organization={organization}
+                  portalSession={portalSession}
+                  defaultOpen={openCreateThread}
+                />
                 {!!discordUrl && (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>

@@ -8,6 +8,9 @@ import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { privateRoute, publicRoute } from "./factories";
 import labelsRoute from "./router/labels";
+import messageRoute from "./router/message";
+import suggestionRoute from "./router/suggestions";
+import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
@@ -83,9 +86,9 @@ export const router = createRouter({
                 },
                 {
                   message: "This slug is reserved and cannot be used",
-                }
+                },
               ),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = ulid().toLowerCase();
 
@@ -127,7 +130,7 @@ export const router = createRouter({
             organizationId: z.string(),
             expiresAt: z.iso.datetime().optional(),
             name: z.string().optional(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
@@ -144,7 +147,7 @@ export const router = createRouter({
                   user: true,
                   organization: true,
                 },
-              })
+              }),
             )[0] as any;
 
             authorized = selfOrgUser && selfOrgUser.role === "owner";
@@ -172,7 +175,7 @@ export const router = createRouter({
         revokePublicApiKey: mutation(
           z.object({
             id: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           if (!req.context?.session?.userId) {
             throw new Error("UNAUTHORIZED");
@@ -190,7 +193,7 @@ export const router = createRouter({
                 organizationId: publicApiKey.metadata.ownerId,
                 userId: req.context.session.userId,
               },
-            })
+            }),
           )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
@@ -209,7 +212,7 @@ export const router = createRouter({
         listApiKeys: mutation(
           z.object({
             organizationId: z.string(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
@@ -222,7 +225,7 @@ export const router = createRouter({
                   organizationId,
                   userId: req.context.session.userId,
                 },
-              })
+              }),
             )[0] as any;
 
             authorized = selfOrgUser && selfOrgUser.role === "owner";
@@ -285,7 +288,7 @@ export const router = createRouter({
           z.object({
             organizationId: z.string(),
             email: z.email().array(),
-          })
+          }),
         ).handler(async ({ req, db }) => {
           const orgId = req.input!.organizationId;
 
@@ -300,7 +303,7 @@ export const router = createRouter({
                 user: true,
                 organization: true,
               },
-            })
+            }),
           )[0] as any;
 
           if (!selfOrgUser || selfOrgUser.role !== "owner") {
@@ -315,7 +318,7 @@ export const router = createRouter({
               include: {
                 user: true,
               },
-            })
+            }),
           );
 
           const existingInvites = Object.values(
@@ -327,20 +330,20 @@ export const router = createRouter({
                   $gt: new Date(),
                 },
               },
-            })
+            }),
           );
 
           // TODO follow https://github.com/pedroscosta/live-state/issues/74
           const filteredEmails = Array.from(
-            new Set(req.input!.email.map((e) => e.trim().toLowerCase()))
+            new Set(req.input!.email.map((e) => e.trim().toLowerCase())),
           ).filter(
             (email) =>
               !existingMembers.some(
-                (member) => (member as any).user?.email.toLowerCase() === email
+                (member) => (member as any).user?.email.toLowerCase() === email,
               ) &&
               !existingInvites.some(
-                (invite) => (invite as any).email.toLowerCase() === email
-              )
+                (invite) => (invite as any).email.toLowerCase() === email,
+              ),
           );
 
           await Promise.allSettled(
@@ -371,7 +374,7 @@ export const router = createRouter({
                 .catch((error) => {
                   console.error("Error sending email", error);
                 });
-            })
+            }),
           );
 
           return {
@@ -379,346 +382,7 @@ export const router = createRouter({
           };
         }),
       })),
-    thread: publicRoute
-      .collectionRoute(schema.thread, {
-        read: () => true,
-        insert: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-          return {
-            organization: {
-              organizationUsers: {
-                userId:
-                  ctx.session?.userId ?? ctx.portalSession?.session.userId,
-                enabled: true,
-              },
-            },
-          };
-        },
-        update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                },
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                },
-              },
-            };
-          },
-        },
-      })
-      .withMutations(({ mutation }) => ({
-        create: mutation(
-          z.object({
-            organizationId: z.string().optional(),
-            title: z.string().min(3),
-            message: z.union([z.string(), z.any()]), // Accept string or TipTap JSONContent
-            author: z
-              .object({
-                id: z.string(),
-                name: z.string(),
-              })
-              .optional(), // Optional - can be inferred from session
-            userId: z.string().optional(), // For portal sessions
-            userName: z.string().optional(), // For portal sessions
-          })
-        ).handler(async ({ req, db }) => {
-          // Support internal API key, public API key, or portal session
-          if (
-            !req.context?.internalApiKey &&
-            !req.context?.publicApiKey &&
-            !req.context?.portalSession?.session
-          ) {
-            throw new Error("UNAUTHORIZED");
-          }
-
-          // Determine organization ID
-          const organizationId =
-            req.context?.publicApiKey?.ownerId ?? req.input.organizationId;
-
-          if (!organizationId) {
-            throw new Error("MISSING_ORGANIZATION_ID");
-          }
-
-          // For portal sessions, verify the user matches
-          if (req.context?.portalSession?.session) {
-            const sessionUserId = req.context.portalSession.session.userId;
-            if (req.input.userId && req.input.userId !== sessionUserId) {
-              throw new Error("UNAUTHORIZED");
-            }
-          }
-
-          // Convert string message to TipTap format if needed
-          const content =
-            typeof req.input.message === "string"
-              ? JSON.stringify([
-                  {
-                    type: "paragraph",
-                    content: [{ type: "text", text: req.input.message }],
-                  },
-                ])
-              : JSON.stringify(req.input.message);
-
-          const threadId = ulid().toLowerCase();
-
-          await db.transaction(async ({ trx }) => {
-            let authorId: string;
-
-            // Determine author based on context
-            if (req.input.userId || req.context?.portalSession?.session) {
-              // Portal session flow - use userId
-              const userId =
-                req.input.userId ??
-                req.context?.portalSession?.session.userId;
-              const userName =
-                req.input.userName ??
-                req.context?.portalSession?.session.userName ??
-                "Unknown User";
-
-              const existingAuthor = Object.values(
-                await trx.find(schema.author, {
-                  where: {
-                    userId: userId,
-                    organizationId: organizationId,
-                  },
-                })
-              );
-
-              authorId = existingAuthor[0]?.id;
-
-              if (!authorId) {
-                authorId = ulid().toLowerCase();
-                await trx.insert(schema.author, {
-                  id: authorId,
-                  userId: userId,
-                  metaId: null,
-                  name: userName,
-                  organizationId: organizationId,
-                });
-              }
-            } else if (req.input.author) {
-              // API key flow - use metaId
-              const existingAuthor = Object.values(
-                await trx.find(schema.author, {
-                  where: {
-                    metaId: req.input.author.id,
-                    organizationId: organizationId,
-                  },
-                })
-              );
-
-              authorId = existingAuthor[0]?.id;
-
-              if (!authorId) {
-                authorId = ulid().toLowerCase();
-                await trx.insert(schema.author, {
-                  id: authorId,
-                  name: req.input.author.name,
-                  organizationId: organizationId,
-                  metaId: req.input.author.id,
-                  userId: null,
-                });
-              }
-            } else {
-              throw new Error("MISSING_AUTHOR_INFO");
-            }
-
-            // Create thread
-            await trx.insert(schema.thread, {
-              id: threadId,
-              name: req.input.title,
-              organizationId: organizationId,
-              authorId: authorId,
-              status: 0,
-              priority: 0,
-              assignedUserId: null,
-              createdAt: new Date(),
-              deletedAt: null,
-              discordChannelId: null,
-            });
-
-            // Create first message
-            await trx.insert(schema.message, {
-              id: ulid().toLowerCase(),
-              authorId: authorId,
-              content: content,
-              threadId: threadId,
-              createdAt: new Date(),
-              origin: null,
-              externalMessageId: null,
-            });
-          });
-
-          const thread = Object.values(
-            await db.find(schema.thread, {
-              where: { id: threadId },
-              include: {
-                author: true,
-                messages: {
-                  author: true,
-                },
-              },
-            })
-          )[0];
-
-          return thread;
-        }),
-      })),
-    message: publicRoute
-      .collectionRoute(schema.message, {
-        read: () => true,
-        insert: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-
-          if (ctx?.publicApiKey) {
-            return {
-              thread: {
-                organization: {
-                  id: ctx.publicApiKey.ownerId,
-                },
-              },
-            };
-          }
-
-          if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-          return {
-            thread: {
-              organization: {
-                organizationUsers: {
-                  userId:
-                    ctx.session?.userId ?? ctx.portalSession?.session.userId,
-                  enabled: true,
-                },
-              },
-            },
-          };
-        },
-        update: {
-          preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-          postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        },
-      })
-      .withMutations(({ mutation }) => ({
-        create: mutation(
-          z.object({
-            threadId: z.string(),
-            content: z.union([z.string(), z.any()]), // Accept string or TipTap JSONContent
-            userId: z.string().optional(),
-            userName: z.string().optional(),
-            organizationId: z.string(),
-          })
-        ).handler(async ({ req, db }) => {
-          // Support portal session or internal API key
-          if (
-            !req.context?.portalSession?.session &&
-            !req.context?.internalApiKey
-          ) {
-            throw new Error("UNAUTHORIZED");
-          }
-
-          // For portal sessions, verify the user matches
-          if (req.context?.portalSession?.session) {
-            const sessionUserId = req.context.portalSession.session.userId;
-            if (req.input.userId && req.input.userId !== sessionUserId) {
-              throw new Error("UNAUTHORIZED");
-            }
-          }
-
-          // Verify thread exists and belongs to the expected organization
-          const thread = await db.findOne(schema.thread, req.input.threadId);
-          if (!thread || thread.organizationId !== req.input.organizationId) {
-            throw new Error("THREAD_NOT_FOUND");
-          }
-
-          // Convert string content to TipTap format if needed
-          const content =
-            typeof req.input.content === "string"
-              ? JSON.stringify([
-                  {
-                    type: "paragraph",
-                    content: [{ type: "text", text: req.input.content }],
-                  },
-                ])
-              : JSON.stringify(req.input.content);
-
-          const messageId = ulid().toLowerCase();
-
-          await db.transaction(async ({ trx }) => {
-            // Get or create author
-            const userId =
-              req.input.userId ??
-              req.context?.portalSession?.session.userId;
-            const userName =
-              req.input.userName ??
-              req.context?.portalSession?.session.userName ??
-              "Unknown User";
-
-            const existingAuthor = Object.values(
-              await trx.find(schema.author, {
-                where: {
-                  userId: userId,
-                  organizationId: req.input.organizationId,
-                },
-              })
-            );
-
-            let authorId = existingAuthor[0]?.id;
-
-            if (!authorId) {
-              authorId = ulid().toLowerCase();
-              await trx.insert(schema.author, {
-                id: authorId,
-                userId: userId,
-                metaId: null,
-                name: userName,
-                organizationId: req.input.organizationId,
-              });
-            }
-
-            // Create message
-            await trx.insert(schema.message, {
-              id: messageId,
-              authorId: authorId,
-              content: content,
-              threadId: req.input.threadId,
-              createdAt: new Date(),
-              origin: null,
-              externalMessageId: null,
-            });
-          });
-
-          const message = Object.values(
-            await db.find(schema.message, {
-              where: { id: messageId },
-              include: {
-                author: true,
-              },
-            })
-          )[0];
-
-          return message;
-        }),
-      })),
-    user: privateRoute.collectionRoute(schema.user, {
+    user: publicRoute.collectionRoute(schema.user, {
       read: () => true,
       insert: () => false,
       update: {
@@ -851,7 +515,7 @@ export const router = createRouter({
             return {
               success: true,
             };
-          }
+          },
         ),
         decline: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
@@ -872,7 +536,7 @@ export const router = createRouter({
             return {
               success: true,
             };
-          }
+          },
         ),
       })),
     integration: privateRoute.collectionRoute(schema.integration, {
@@ -958,8 +622,31 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
+    thread: threadsRoute,
     update: updateRoute,
+    message: messageRoute,
+    suggestion: suggestionRoute,
     ...labelsRoute,
+    // Internal pipeline tables (not synced to clients, used by worker)
+    pipelineIdempotencyKey: publicRoute.collectionRoute(
+      schema.pipelineIdempotencyKey,
+      {
+        read: ({ ctx }) => !!ctx?.internalApiKey,
+        insert: ({ ctx }) => !!ctx?.internalApiKey,
+        update: {
+          preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+          postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        },
+      },
+    ),
+    pipelineJob: publicRoute.collectionRoute(schema.pipelineJob, {
+      read: ({ ctx }) => !!ctx?.internalApiKey,
+      insert: ({ ctx }) => !!ctx?.internalApiKey,
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      },
+    }),
   },
 });
 

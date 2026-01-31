@@ -38,6 +38,7 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
 import { ProductDemo } from "~/components/landing-page/product-demo";
@@ -206,10 +207,12 @@ const applyToWaitlistSchema = z.object({
 });
 
 function ApplyToWaitlistForm() {
+  const posthog = usePostHog();
+
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
 
-  const { Field, handleSubmit } = useForm({
+  const form = useForm({
     defaultValues: {
       email: "",
     },
@@ -221,12 +224,21 @@ function ApplyToWaitlistForm() {
       await applyToWaitlist({ data: value })
         .then(() => {
           setSuccess(true);
+          waitlistApply();
         })
         .finally(() => {
           setLoading(false);
         });
     },
   });
+
+  const { Field, handleSubmit } = form;
+
+  const waitlistApply = () => {
+    if (form.state.values.email.trim() !== "") {
+      posthog?.capture("waitlist:form_submit");
+    }
+  };
 
   return (
     <form
@@ -252,7 +264,7 @@ function ApplyToWaitlistForm() {
           </FormItem>
         )}
       </Field>
-      <Button variant="default" type="submit" disabled={loading}>
+      <Button variant="primary" type="submit" disabled={loading}>
         {loading ? <Spinner /> : null}
         {success ? "Thank you!" : "Request access"}
       </Button>

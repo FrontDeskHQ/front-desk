@@ -1,8 +1,8 @@
 {
-  "name": "turborepo-empty-starter",
+  "name": "front-desk",
   "version": "1.0.0",
   "private": true,
-  "description": "An empty Turborepo starter",
+  "description": "FrontDesk is a platform for managing your community and customer support.",
   "main": "index.js",
   "scripts": {
     "build": "turbo build",
@@ -11,9 +11,9 @@
     "dev": "turbo dev"
   },
   "keywords": [],
-  "author": "tknickman",
-  "license": "ISC",
-  "packageManager": "pnpm@10.17.1",
+  "author": "front-desk",
+  "license": "AGPL-3.0",
+  "packageManager": "bun@1.3.5",
   "dependencies": {
     "turbo": "^2.5.5"
   },
@@ -21,11 +21,24 @@
     "@biomejs/biome": "2.1.2",
     "typescript": "^5.9.2"
   },
-  "pnpm": {
-    "overrides": {
-      "@types/react": "catalog:",
-      "@types/react-dom": "catalog:",
-      "csstype": "^3.1.3"
+  "overrides": {
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "csstype": "^3.1.3"
+  },
+  "workspaces": {
+    "packages": [
+      "apps/*",
+      "packages/*"
+    ],
+    "catalog": {
+      "@live-state/sync": "0.0.6-pr-1",
+      "@types/react": "^19.2.3",
+      "@types/react-dom": "^19.2.3",
+      "better-auth": "^1.4.0",
+      "react": "19.2.3",
+      "react-dom": "19.2.3",
+      "zod": "4.1.9"
     }
   }
 }

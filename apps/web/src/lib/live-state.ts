@@ -5,6 +5,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { authClient } from "./auth-client";
+import { getLiveStateApiUrl } from "./urls";
 
 const { client, store } = createClient<Router>({
   url:
@@ -27,7 +28,7 @@ export { client, mutate, query };
 
 // Check this setup when it's deployed
 export const fetchClient = createFetchClient<Router>({
-  url: "/api/ls",
+  url: getLiveStateApiUrl(),
   schema,
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))

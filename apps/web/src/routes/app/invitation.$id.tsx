@@ -23,8 +23,7 @@ export const Route = createFileRoute("/app/invitation/$id")({
       }));
   },
   head: ({ loaderData }) => {
-    const orgName =
-      loaderData?.data?.organization?.name ?? "Organization";
+    const orgName = loaderData?.data?.organization?.name ?? "Organization";
     return {
       meta: [
         ...seo({
@@ -90,7 +89,7 @@ function RouteComponent() {
                     Decline
                   </Button>
                   <Button
-                    variant="default"
+                    variant="primary"
                     className="grow"
                     disabled={isPending}
                     onClick={() => {
@@ -131,12 +130,15 @@ function RouteComponent() {
                 <p className="text-center">This invitation is not valid.</p>
               )}
               <div className="flex justify-between items-center gap-4">
-                <Button variant="link" asChild>
-                  <Link to="/app">
-                    <ArrowLeft />
-                    Back to App
-                  </Link>
-                </Button>
+                <Button
+                  variant="link"
+                  render={
+                    <Link to="/app">
+                      <ArrowLeft />
+                      Back to App
+                    </Link>
+                  }
+                />
                 {error === "INVALID_USER" && (
                   <Button variant="link" onClick={logout}>
                     Logout

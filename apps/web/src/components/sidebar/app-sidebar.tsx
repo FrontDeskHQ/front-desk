@@ -1,38 +1,72 @@
 import { useFlag } from "@reflag/react-sdk";
 import { Link, useMatches } from "@tanstack/react-router";
+import { ActionButton } from "@workspace/ui/components/button";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
-import { Book, MessageCircleQuestion, MessagesSquare } from "lucide-react";
+import { MessagesSquare, Search } from "lucide-react";
 import { OrgSwitcher } from "./organization-switcher";
 
-const items: { title: string; url: string; icon: React.ComponentType<any> }[] =
-  [
-    {
-      title: "Threads",
-      url: "/app/threads/",
-      icon: MessagesSquare,
-    },
-  ];
+interface Item {
+  title: string;
+  url: string;
+  route: string;
+  icon?: React.ComponentType<Record<string, never>>;
+  items?: Item[];
+  collapsible?: boolean;
+}
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+const items: Item[] = [
+  {
+    title: "Threads",
+    url: "/app/threads/",
+    route: "/app/_workspace/_main/threads/",
+    icon: MessagesSquare,
+    items: [
+      {
+        title: "Open",
+        url: "/app/threads/open",
+        route: "/app/_workspace/_main/threads/open",
+      },
+      {
+        title: "Assigned to me",
+        url: "/app/threads/assigned",
+        route: "/app/_workspace/_main/threads/assigned",
+      },
+    ],
+  },
+];
+
+export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const matches = useMatches();
 
-  const { isEnabled: isWidgetEnabled, config } = useFlag("widget");
+  const { isEnabled: isSearchEnabled } = useFlag("in-app-search");
 
   return (
-    <Sidebar variant="inset" className="bg-none">
-      <SidebarHeader className="bg-none">
+    <Sidebar variant="inset" className="bg-none" {...props}>
+      <SidebarHeader className="bg-none flex-row">
         <OrgSwitcher />
+        {isSearchEnabled && (
+          <ActionButton
+            variant="ghost"
+            size="icon"
+            tooltip="Search"
+            render={<Link to="/app/search" />}
+          >
+            <Search />
+          </ActionButton>
+        )}
         {/* <NavMain items={data.navMain} /> */}
       </SidebarHeader>
       <SidebarContent className="bg-none">
@@ -44,14 +78,33 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     data-active={matches.some(
-                      (match) => match.pathname === item.url,
+                      (match) => match.routeId === item.route,
                     )}
                   >
                     <Link to={item.url}>
-                      <item.icon />
+                      {item.icon && <item.icon />}
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
+                  {item.items && item.items.length > 0 && (
+                    <SidebarMenuSub>
+                      {item.items.map((subItem) => (
+                        <SidebarMenuSubItem key={subItem.title}>
+                          <SidebarMenuSubButton
+                            asChild
+                            isActive={matches.some(
+                              (match) => match.routeId === subItem.route,
+                            )}
+                          >
+                            <Link to={subItem.url}>
+                              {subItem.icon && <subItem.icon />}
+                              <span>{subItem.title}</span>
+                            </Link>
+                          </SidebarMenuSubButton>
+                        </SidebarMenuSubItem>
+                      ))}
+                    </SidebarMenuSub>
+                  )}
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -60,26 +113,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         {/* <NavFavorites favorites={data.favorites} /> */}
         {/* <NavWorkspaces workspaces={data.workspaces} /> */}
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
-        {!isWidgetEnabled && (
-          <SidebarFooter>
-            <SidebarMenuButton asChild>
-              <a href="/docs" target="_blank" rel="noopener noreferrer">
-                <Book />
-                Docs
-              </a>
-            </SidebarMenuButton>
-            <SidebarMenuButton asChild>
-              <a
-                href="https://discord.gg/5MDHqKHrHr"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <MessageCircleQuestion />
-                Support
-              </a>
-            </SidebarMenuButton>
-          </SidebarFooter>
-        )}
       </SidebarContent>
       <SidebarRail />
     </Sidebar>

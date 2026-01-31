@@ -1,5 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useRouter } from "@tanstack/react-router";
+import { Avatar } from "@workspace/ui/components/avatar";
 import {
   Editor,
   EditorInput,
@@ -10,7 +11,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -28,17 +28,19 @@ type ThreadContent = JSONContent[];
 
 interface CreateThreadDialogProps {
   organization: InferLiveObject<(typeof schema)["organization"]>;
-  portalSession: GetSupportAuthUserResponse;
+  portalSession: GetSupportAuthUserResponse | null | undefined;
   trigger?: React.ReactNode;
+  defaultOpen?: boolean;
 }
 
 export function CreateThreadDialog({
   organization,
   portalSession,
   trigger,
+  defaultOpen = false,
 }: CreateThreadDialogProps) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(defaultOpen);
   const [threadTitle, setThreadTitle] = useState("");
   const [threadContent, setThreadContent] = useState<ThreadContent>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -115,34 +117,48 @@ export function CreateThreadDialog({
   if (!portalSession?.user) {
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
-        <DialogTrigger asChild>
-          {trigger ?? (
-            <Button size="sm">
-              <PlusIcon />
-              Create thread
-            </Button>
-          )}
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Sign in required</DialogTitle>
-            <DialogDescription>
+        {trigger ? (
+          <DialogTrigger>{trigger}</DialogTrigger>
+        ) : (
+          <DialogTrigger
+            render={
+              <Button size="sm" variant="primary">
+                <PlusIcon />
+                Create thread
+              </Button>
+            }
+          />
+        )}
+        <DialogContent className="py-14 sm:max-w-md">
+          <DialogHeader className="text-center space-y-3 items-center">
+            <Avatar
+              fallback={organization.name}
+              src={organization.logoUrl}
+              variant="org"
+              size="xxl"
+            />
+            <DialogTitle className="text-xl font-medium">
+              Log in to {organization.name}
+            </DialogTitle>
+            <DialogDescription className="text-base">
               You need to sign in to create a new support thread.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button
-              onClick={() =>
-                portalAuthClient.signIn.social({
-                  provider: "google",
-                  additionalData: { tenantSlug: organization.slug },
-                  callbackURL: window.location.href,
-                })
-              }
-            >
-              Sign in with Google
-            </Button>
-          </DialogFooter>
+          <Button
+            size="lg"
+            className="w-full max-w-xs mx-auto"
+            onClick={() => {
+              const url = new URL(window.location.href);
+              url.searchParams.set("openCreateThread", "true");
+              portalAuthClient.signIn.social({
+                provider: "google",
+                additionalData: { tenantSlug: organization.slug },
+                callbackURL: url.toString(),
+              });
+            }}
+          >
+            Continue with Google
+          </Button>
         </DialogContent>
       </Dialog>
     );
@@ -150,14 +166,18 @@ export function CreateThreadDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm">
-            <PlusIcon />
-            Create thread
-          </Button>
-        )}
-      </DialogTrigger>
+      {trigger ? (
+        <DialogTrigger>{trigger}</DialogTrigger>
+      ) : (
+        <DialogTrigger
+          render={
+            <Button size="sm" variant="primary">
+              <PlusIcon />
+              Create thread
+            </Button>
+          }
+        />
+      )}
       <DialogContent
         className="sm:max-w-2xl p-0 gap-0 overflow-hidden"
         showCloseButton={false}

@@ -1,1 +1,8 @@
-<svg width="368" height="368" viewBox="0 0 368 368" fill="none" xmlns="http://www.w3.org/2000/svg" class="size-12"><title>FrontDesk logo</title><path d="M288.263 168H78.936L67.65 104h231.898l-11.285 64zM252.998 368H114.201l-11.285-64h161.367l-11.285 64z" fill="#FFFFFF"></path><path fill="#FFFFFF" d="M0 204H368V268H0z"></path><circle cx="184" cy="38" r="38" fill="#FFFFFF"></circle></svg>
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="144px" height="144px" viewBox="0 0 144 144" version="1.1">
+<g id="surface1">
+<path style=" stroke:none;fill-rule:nonzero;fill:rgb(100%,100%,100%);fill-opacity:1;" d="M 112.796875 65.738281 L 30.886719 65.738281 L 26.472656 40.695312 L 117.214844 40.695312 Z M 99 144 L 44.6875 144 L 40.269531 118.957031 L 103.414062 118.957031 Z M 99 144 "/>
+<path style=" stroke:none;fill-rule:nonzero;fill:rgb(100%,100%,100%);fill-opacity:1;" d="M 0 79.824219 L 144 79.824219 L 144 104.871094 L 0 104.871094 Z M 0 79.824219 "/>
+<path style=" stroke:none;fill-rule:nonzero;fill:rgb(100%,100%,100%);fill-opacity:1;" d="M 86.871094 14.871094 C 86.871094 6.65625 80.210938 0 72 0 C 63.789062 0 57.128906 6.65625 57.128906 14.871094 C 57.128906 23.082031 63.789062 29.738281 72 29.738281 C 80.210938 29.738281 86.871094 23.082031 86.871094 14.871094 Z M 86.871094 14.871094 "/>
+</g>
+</svg>

@@ -112,7 +112,7 @@ export function EditorSubmit({
   return (
     <Button
       size="sm"
-      variant={isDisabled ? "secondary" : "default"}
+      variant={isDisabled ? "secondary" : "primary"}
       onClick={onClick}
       disabled={isDisabled}
     >
@@ -439,11 +439,13 @@ export function TruncatedText({
   className,
   showMoreText = "Show more",
   showLessText = "Show less",
+  hideShowMore = false,
   ...props
 }: React.ComponentProps<"div"> & {
   maxHeight?: number;
   showMoreText?: string;
   showLessText?: string;
+  hideShowMore?: boolean;
 }) {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isOverflowing, setIsOverflowing] = useState(false);
@@ -486,7 +488,7 @@ export function TruncatedText({
       >
         {children}
       </div>
-      {isOverflowing && (
+      {isOverflowing && !hideShowMore && (
         <Button
           variant="ghost"
           size="sm"

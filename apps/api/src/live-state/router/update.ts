@@ -1,7 +1,7 @@
-import { privateRoute } from "../factories";
+import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
-export default privateRoute.collectionRoute(schema.update, {
+export default publicRoute.collectionRoute(schema.update, {
   read: () => true,
   insert: ({ ctx }) => {
     if (ctx?.internalApiKey) return true;

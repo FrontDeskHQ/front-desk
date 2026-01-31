@@ -9,18 +9,22 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { InputWithSeparator } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
+import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
+import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
+import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/discord/",
+  "/app/_workspace/settings/organization/integration/discord/"
 )({
   component: RouteComponent,
   head: () => {
@@ -37,7 +41,7 @@ export const Route = createFileRoute(
 
 // biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "discord",
+  (option) => option.id === "discord"
 )!;
 
 // Discord bot permissions number - read messages, send messages, and manage webhooks, ...
@@ -47,15 +51,18 @@ const generateStateToken = (): string => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
+    ""
   );
 };
 
 function RouteComponent() {
+  const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
+    query.integration.first({ organizationId: activeOrg?.id, type: "discord" })
   );
+
+  const { integrations } = usePlanLimits("discord");
 
   const parsedConfig: ReturnType<
     typeof discordIntegrationSchema.safeParse
@@ -63,7 +70,7 @@ function RouteComponent() {
     if (!integration?.configStr) return null;
     try {
       return discordIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr),
+        JSON.parse(integration.configStr)
       );
     } catch {
       return {
@@ -77,8 +84,8 @@ function RouteComponent() {
 
   const updateIntegration = useCallback(
     (
-      config: z.infer<typeof discordIntegrationSchema>,
-      enabled: boolean = true,
+      config: z.input<typeof discordIntegrationSchema>,
+      enabled: boolean = true
     ) => {
       if (integration) {
         mutate.integration.update(integration.id, {
@@ -104,10 +111,14 @@ function RouteComponent() {
         });
       }
     },
-    [integration, activeOrg, parsedConfig?.data],
+    [integration, activeOrg, parsedConfig?.data]
   );
 
   const handleEnableDiscord = async () => {
+    if (integrations.hasReachedLimit) {
+      return;
+    }
+
     const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
 
     if (!DISCORD_CLIENT_ID) {
@@ -162,7 +173,16 @@ function RouteComponent() {
     });
 
     // https://discord.com/developers/docs/topics/oauth2#bot-authorization-flow
-    const discordOAuthUrl = `https://discord.com/api/oauth2/authorize?${queryParams.toString().replaceAll("%2B", "+")}`;
+    const discordOAuthUrl = `https://discord.com/api/oauth2/authorize?${queryParams
+      .toString()
+      .replaceAll("%2B", "+")}`;
+
+    posthog?.capture("integration_enable", {
+      integration_type: "discord",
+    });
+
+    // Wait briefly to ensure analytics event is transmitted before navigation
+    await new Promise((resolve) => setTimeout(resolve, 300));
 
     window.location.href = discordOAuthUrl;
   };
@@ -172,7 +192,7 @@ function RouteComponent() {
 
     console.error(
       "Invalid Discord integration configuration",
-      parsedConfig.error,
+      parsedConfig.error
     );
 
     return (
@@ -187,13 +207,18 @@ function RouteComponent() {
 
   return (
     <>
-      <Button variant="ghost" asChild className="absolute top-2 left-1">
-        <Link to="/app/settings/organization/integration">
-          <ArrowLeft />
-          Integrations
-        </Link>
-      </Button>
+      <Button
+        variant="ghost"
+        render={
+          <Link to="/app/settings/organization/integration">
+            <ArrowLeft />
+            Integrations
+          </Link>
+        }
+        className="absolute top-2 left-1"
+      />
       <div className="flex flex-col gap-4 pt-12">
+        {integrations.hasReachedLimit && <LimitCallout className="mb-4" />}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {integrationDetails.icon}
@@ -210,7 +235,12 @@ function RouteComponent() {
                 <h3 className="text-muted-foreground">Built by</h3>
                 <p>FrontDesk</p>
               </div>
-              <Button onClick={handleEnableDiscord}>Enable</Button>
+              <Button
+                onClick={handleEnableDiscord}
+                disabled={integrations.hasReachedLimit}
+              >
+                Enable
+              </Button>
             </div>
           )}
         </div>
@@ -237,6 +267,21 @@ function RouteComponent() {
                     value={parsedConfig?.data?.selectedChannels ?? []}
                     onValueChange={(value) => {
                       updateIntegration({ selectedChannels: value });
+                    }}
+                  />
+                </div>
+                <div className="flex gap-8 items-center justify-between">
+                  <div className="flex flex-col">
+                    <div>Send portal link on new threads</div>
+                    <div className="text-muted-foreground">
+                      Send a message in Discord with a link to the same thread
+                      in the portal
+                    </div>
+                  </div>
+                  <Switch
+                    checked={parsedConfig?.data?.showPortalMessage !== false}
+                    onCheckedChange={(checked) => {
+                      updateIntegration({ showPortalMessage: checked });
                     }}
                   />
                 </div>

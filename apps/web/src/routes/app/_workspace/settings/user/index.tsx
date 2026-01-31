@@ -72,7 +72,7 @@ function RouteComponent() {
   });
 
   const nonPersistentIsDirty = useStore(store, (s) => {
-    return Object.values(s.fieldMeta).some((field) => !field.isDefaultValue);
+    return Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue);
   });
 
   if (!user) return null;
@@ -144,7 +144,9 @@ function RouteComponent() {
         </CardContent>
       </Card>
       <div className="flex justify-end">
-        <Button disabled={!nonPersistentIsDirty}>Save</Button>
+        <Button disabled={!nonPersistentIsDirty} type="submit">
+          Save
+        </Button>
       </div>
     </form>
   );

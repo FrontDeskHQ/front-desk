@@ -46,10 +46,16 @@ const thread = object("thread", {
   authorId: reference("author.id"),
   createdAt: timestamp(),
   deletedAt: timestamp().nullable(),
+  /** @deprecated use externalId and externalOrigin instead */
   discordChannelId: string().nullable(),
+  externalIssueId: string().nullable(),
+  externalPrId: string().nullable(),
   status: number().default(0),
   priority: number().default(0),
   assignedUserId: reference("user.id").nullable(),
+  externalId: string().nullable(),
+  externalOrigin: string().nullable(),
+  externalMetadataStr: string().nullable(),
 });
 
 const message = object("message", {
@@ -60,6 +66,7 @@ const message = object("message", {
   createdAt: timestamp(),
   origin: string().nullable(),
   externalMessageId: string().nullable(),
+  markedAsAnswer: boolean().default(false),
 });
 
 const author = object("author", {
@@ -134,6 +141,20 @@ const threadLabel = object("threadLabel", {
   enabled: boolean().default(true),
 });
 
+const suggestion = object("suggestion", {
+  id: id(),
+  type: string(), // "label", "priority", etc. - for future extensibility
+  entityId: string(), // thread ID, user ID, etc. - the entity being suggested for
+  relatedEntityId: string().nullable(), //  thread ID, user ID, etc. - the entity being related to, e.g. the related thread ID
+  active: boolean().default(true),
+  accepted: boolean().default(false),
+  organizationId: reference("organization.id"),
+  resultsStr: string().nullable(), // JSON array of results (e.g., label IDs)
+  metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
@@ -141,6 +162,8 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   integrations: many(integration, "organizationId"),
   subscriptions: many(subscription, "organizationId"),
   labels: many(label, "organizationId"),
+  authors: many(author, "organizationId"),
+  suggestions: many(suggestion, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -152,7 +175,7 @@ const organizationUserRelations = createRelations(
   ({ one }) => ({
     organization: one(organization, "organizationId"),
     user: one(user, "userId"),
-  })
+  }),
 );
 
 const threadRelations = createRelations(thread, ({ one, many }) => ({
@@ -196,10 +219,38 @@ const threadLabelRelations = createRelations(threadLabel, ({ one }) => ({
   thread: one(thread, "threadId"),
   label: one(label, "labelId"),
 }));
+
+const suggestionRelations = createRelations(suggestion, ({ one }) => ({
+  organization: one(organization, "organizationId"),
+}));
+
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
   email: string().unique().index(),
+});
+
+/**
+ *  Ingesting-related tables
+ *
+ *  These tables are used to store the data for the ingesting pipeline.
+ *  They are not synced to the clients.
+ */
+
+const pipelineIdempotencyKey = object("pipelineIdempotencyKey", {
+  id: id(),
+  key: string().unique().index(),
+  hash: string(),
+  createdAt: timestamp(),
+});
+
+const pipelineJob = object("pipelineJob", {
+  id: id(),
+  name: string(),
+  status: string(),
+  metadataStr: string().nullable(),
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
 });
 
 export const schema = createSchema({
@@ -217,6 +268,9 @@ export const schema = createSchema({
   allowlist,
   label,
   threadLabel,
+  suggestion,
+  pipelineIdempotencyKey,
+  pipelineJob,
   // relations
   organizationUserRelations,
   organizationRelations,
@@ -229,4 +283,5 @@ export const schema = createSchema({
   updateRelations,
   labelRelations,
   threadLabelRelations,
+  suggestionRelations,
 });

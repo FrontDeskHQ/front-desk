@@ -1,0 +1,18 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "bun run build -F github...",
+    "watchPatterns": [
+      "apps/api/**",
+      "packages/schemas/**",
+      "packages/ui/**",
+      "apps/github/**"
+    ]
+  },
+  "deploy": {
+    "startCommand": "cd apps/github && bun run start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}

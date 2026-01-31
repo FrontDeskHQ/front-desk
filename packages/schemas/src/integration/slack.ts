@@ -5,4 +5,6 @@ export const slackIntegrationSchema = z.object({
   csrfToken: z.string().optional(),
   selectedChannels: z.array(z.string()).optional(),
   accessToken: z.string().optional(),
+  installation: z.any().optional(),
+  showPortalMessage: z.boolean().optional().default(true),
 });

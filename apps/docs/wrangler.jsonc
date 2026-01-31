@@ -9,7 +9,7 @@
     "binding": "ASSETS"
   },
   "build": {
-    "command": "pnpm --filter docs build:cloudflare",
+    "command": "bun --filter docs build:cloudflare",
     "watch_dir": ["apps/docs/src/*", "apps/docs/content/*", "packages/ui/src/*"]
   }
 }

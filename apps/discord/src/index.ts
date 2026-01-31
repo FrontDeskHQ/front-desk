@@ -4,6 +4,7 @@ import type { InferLiveObject } from "@live-state/sync";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
+import type { Message } from "discord.js";
 import { Client, GatewayIntentBits, TextChannel } from "discord.js";
 import { ulid } from "ulid";
 import { fetchClient, store } from "./lib/live-state";
@@ -28,6 +29,173 @@ const safeParseJSON = (raw: string) => {
       content: [{ type: "text", text: String(raw) }],
     },
   ];
+};
+
+type RelatedThreadResult = {
+  threadId: string;
+  score: number;
+};
+
+type RelatedThreadLink = {
+  threadId: string;
+  name: string | null;
+  url: string;
+};
+
+const parseContentAsMarkdown = (message: Message): string => {
+  let content = message.content;
+
+  // Replace user mentions: <@userId> or <@!userId> with @Username
+  for (const [userId, user] of message.mentions.users) {
+    const mentionPattern = new RegExp(`<@!?${userId}>`, "g");
+    content = content.replace(mentionPattern, `@${user.displayName}`);
+  }
+
+  // Replace role mentions: <@&roleId> with @RoleName
+  for (const [roleId, role] of message.mentions.roles) {
+    const mentionPattern = new RegExp(`<@&${roleId}>`, "g");
+    content = content.replace(mentionPattern, `@${role.name}`);
+  }
+
+  // Replace channel mentions: <#channelId> with #ChannelName
+  for (const [channelId, channel] of message.mentions.channels) {
+    const mentionPattern = new RegExp(`<#${channelId}>`, "g");
+    if ("name" in channel) {
+      content = content.replace(mentionPattern, `#${channel.name}`);
+    }
+  }
+
+  return content;
+};
+
+const RELATED_THREADS_SUGGESTION_TYPE = "related_threads";
+const RELATED_THREAD_LINK_LIMIT = 5;
+const RELATED_THREADS_POLL_ATTEMPTS = 5;
+const RELATED_THREADS_INITIAL_DELAY_MS = 30000;
+const RELATED_THREADS_BACKOFF_BASE_MS = 1000;
+const RELATED_THREADS_BACKOFF_MAX_MULTIPLIER = 5;
+const RELATED_THREADS_BACKOFF_MAX_MS =
+  RELATED_THREADS_BACKOFF_BASE_MS * RELATED_THREADS_BACKOFF_MAX_MULTIPLIER;
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+const buildPortalThreadUrl = (
+  baseUrl: string,
+  organizationSlug: string,
+  threadId: string
+) => {
+  const baseUrlObj = new URL(baseUrl);
+  const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+  return `${baseUrlObj.protocol}//${organizationSlug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+};
+
+const parseRelatedThreadResults = (
+  resultsStr: string | null | undefined
+): RelatedThreadResult[] => {
+  if (!resultsStr) return [];
+  try {
+    const parsed = JSON.parse(resultsStr);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item) => item && typeof item.threadId === "string")
+      .map((item) => ({
+        threadId: item.threadId as string,
+        score: typeof item.score === "number" ? item.score : 0,
+      }));
+  } catch {
+    return [];
+  }
+};
+
+const getRelatedThreadLinks = async ({
+  organizationId,
+  organizationSlug,
+  threadId,
+  baseUrl,
+}: {
+  organizationId: string;
+  organizationSlug: string;
+  threadId: string;
+  baseUrl: string;
+}): Promise<RelatedThreadLink[]> => {
+  const seenThreadIds = new Set<string>();
+  const links: RelatedThreadLink[] = [];
+  let backoffMs = RELATED_THREADS_BACKOFF_BASE_MS;
+
+  for (let attempt = 0; attempt < RELATED_THREADS_POLL_ATTEMPTS; attempt += 1) {
+    const suggestion = await fetchClient.query.suggestion
+      .first({
+        type: RELATED_THREADS_SUGGESTION_TYPE,
+        entityId: threadId,
+        organizationId,
+        active: true,
+      })
+      .get();
+
+    const results = parseRelatedThreadResults(suggestion?.resultsStr).filter(
+      (result) => result.threadId !== threadId
+    );
+
+    if (results.length > 0) {
+      for (const result of results) {
+        if (seenThreadIds.has(result.threadId)) continue;
+        if (links.length >= RELATED_THREAD_LINK_LIMIT) break;
+
+        const thread = store.query.thread.first({ id: result.threadId }).get();
+
+        if (thread?.deletedAt) continue;
+
+        seenThreadIds.add(result.threadId);
+        links.push({
+          threadId: result.threadId,
+          name: thread?.name ?? null,
+          url: buildPortalThreadUrl(baseUrl, organizationSlug, result.threadId),
+        });
+      }
+
+      if (links.length > 0) {
+        return links;
+      }
+    }
+
+    if (attempt < RELATED_THREADS_POLL_ATTEMPTS - 1) {
+      await sleep(backoffMs);
+      backoffMs = Math.min(backoffMs * 2, RELATED_THREADS_BACKOFF_MAX_MS);
+    }
+  }
+
+  return links;
+};
+
+const buildPortalBotEmbed = ({
+  portalUrl,
+  relatedThreadLinks,
+}: {
+  portalUrl: string;
+  relatedThreadLinks: RelatedThreadLink[];
+}) => {
+  const lines = [
+    `This thread is also being tracked in our community portal: <${portalUrl}>`,
+  ];
+
+  if (relatedThreadLinks.length > 0) {
+    lines.push("");
+    lines.push("Related threads:");
+    for (const link of relatedThreadLinks) {
+      if (link.name) {
+        lines.push(`- [${link.name}](${link.url})`);
+      } else {
+        lines.push(`- ${link.url}`);
+      }
+    }
+  }
+
+  return {
+    description: lines.join("\n"),
+  };
 };
 
 const client = new Client({
@@ -98,14 +266,14 @@ client.on("messageCreate", async (message) => {
     ) < THREAD_CREATION_THRESHOLD_MS;
 
   let threadId: string | null = null;
+  let portalMessageOrgSlug: string | null = null;
 
-  const integration = store.query.integration
-    .where({ type: "discord" })
-    .get()
-    .find((i) => {
-      const parsed = safeParseIntegrationSettings(i.configStr);
-      return parsed?.guildId === message.guild?.id;
-    });
+  const integration = (
+    await fetchClient.query.integration.where({ type: "discord" }).get()
+  ).find((i) => {
+    const parsed = safeParseIntegrationSettings(i.configStr);
+    return parsed?.guildId === message.guild?.id;
+  });
 
   if (!integration) return;
 
@@ -123,16 +291,16 @@ client.on("messageCreate", async (message) => {
   // TODO do this in a transaction
 
   let authorId = store.query.author
-    .first({ metaId: message.author.id })
+    .first({ metaId: `discord:${message.author.id}` })
     .get()?.id;
 
   if (!authorId) {
     authorId = ulid().toLowerCase();
     await fetchClient.mutate.author.insert({
       id: authorId,
-      name: message.author.username,
+      name: message.author.displayName,
       userId: null,
-      metaId: message.author.id,
+      metaId: `discord:${message.author.id}`,
       organizationId: integration.organizationId,
     });
   }
@@ -148,6 +316,11 @@ client.on("messageCreate", async (message) => {
       discordChannelId: message.channel.id,
       authorId: authorId,
       assignedUserId: null,
+      externalIssueId: null,
+      externalPrId: null,
+      externalId: message.channel.id,
+      externalOrigin: "discord",
+      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
     });
     await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
@@ -157,25 +330,24 @@ client.on("messageCreate", async (message) => {
         .get();
 
       if (organization?.slug) {
-        const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-        const baseUrlObj = new URL(baseUrl);
-        const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-        const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+        const showPortalMessage =
+          integrationSettings?.showPortalMessage !== false;
 
-        const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
-        await message.channel.send({
-          content: portalMessage,
-        });
+        if (showPortalMessage) {
+          portalMessageOrgSlug = organization.slug;
+        } else {
+          console.log("Skipping sending portal link message");
+        }
       }
     } catch (error) {
       console.error("Error sending portal link message:", error);
     }
   } else {
     const thread = store.query.thread
-      .where({
+      .first({
         discordChannelId: message.channel.id,
       })
-      .get()?.[0];
+      .get();
 
     if (!thread) return;
     threadId = thread.id;
@@ -183,28 +355,77 @@ client.on("messageCreate", async (message) => {
 
   if (!threadId) return;
 
+  const contentWithMentions = parseContentAsMarkdown(message);
+
   store.mutate.message.insert({
     id: ulid().toLowerCase(),
     threadId,
     authorId: authorId,
-    content: JSON.stringify(parse(message.content)),
+    content: JSON.stringify(parse(contentWithMentions)),
     createdAt: message.createdAt,
     origin: "discord",
     externalMessageId: message.id,
   });
+
+  if (isFirstMessage && portalMessageOrgSlug) {
+    const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+    const portalUrl = buildPortalThreadUrl(
+      baseUrl,
+      portalMessageOrgSlug,
+      threadId
+    );
+    const portalEmbed = buildPortalBotEmbed({
+      portalUrl,
+      relatedThreadLinks: [],
+    });
+
+    try {
+      const botMessage = await message.channel.send({
+        embeds: [portalEmbed],
+      });
+
+      void (async () => {
+        try {
+          await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
+
+          const relatedThreadLinks = await getRelatedThreadLinks({
+            organizationId: integration.organizationId,
+            organizationSlug: portalMessageOrgSlug,
+            threadId,
+            baseUrl,
+          });
+
+          if (relatedThreadLinks.length === 0) return;
+
+          const updatedEmbed = buildPortalBotEmbed({
+            portalUrl,
+            relatedThreadLinks,
+          });
+
+          await botMessage.edit({
+            embeds: [updatedEmbed],
+          });
+        } catch (error) {
+          console.error("Error updating portal link message:", error);
+        }
+      })();
+    } catch (error) {
+      console.error("Error sending portal link message:", error);
+    }
+  }
 });
 
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: true }
+    { thread: true; author: { user: true } }
   >[]
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
+    const integration = await fetchClient.query.integration
       .first({
-        organizationId: messages[0]?.thread?.organizationId,
+        organizationId: message.thread?.organizationId,
         type: "discord",
       })
       .get();
@@ -240,7 +461,7 @@ const handleMessages = async (
         }),
         threadId: channel.id,
         username: message.author.name,
-        // avatarURL: message.author.displayAvatarURL(),
+        avatarURL: message.author?.user?.image ?? undefined,
       });
       store.mutate.message.update(message.id, {
         externalMessageId: webhookMessage.id,
@@ -306,7 +527,7 @@ const handleUpdates = async (
     if (handlingUpdates.has(update.id)) continue;
 
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
+    const integration = await fetchClient.query.integration
       .first({
         organizationId: update.thread?.organizationId,
         type: "discord",
@@ -366,7 +587,7 @@ setTimeout(async () => {
           discordChannelId: { $not: null },
         },
       })
-      .include({ thread: true, author: true })
+      .include({ thread: true, author: { user: true } })
       .get()
   );
   store.query.message
@@ -376,7 +597,7 @@ setTimeout(async () => {
         discordChannelId: { $not: null },
       },
     })
-    .include({ thread: true, author: true })
+    .include({ thread: true, author: { user: true } })
     .subscribe(handleMessages);
 
   // Handle updates for threads linked to Discord

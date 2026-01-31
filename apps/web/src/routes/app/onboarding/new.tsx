@@ -10,6 +10,7 @@ import {
 import { Input } from "@workspace/ui/components/input";
 import { Logo } from "@workspace/ui/components/logo";
 import { Spinner } from "@workspace/ui/components/spinner";
+import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { z } from "zod";
 import { useLogout } from "~/lib/hooks/auth";
@@ -74,6 +75,7 @@ const onboardingFormSchema = z.object({
 });
 
 function OnboardingForm() {
+  const posthog = usePostHog();
   const navigate = useNavigate();
   const { user } = Route.useRouteContext();
   const logout = useLogout();
@@ -109,6 +111,8 @@ function OnboardingForm() {
             name: value.organizationName,
             slug: value.organizationSlug,
           });
+
+          posthog?.capture("onboarding:organization_create");
 
           setLoading(false);
           navigate({ to: "/app" });

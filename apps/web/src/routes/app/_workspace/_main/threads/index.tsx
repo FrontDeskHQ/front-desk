@@ -7,11 +7,18 @@ import {
   type FilterOptions,
   type FilterValue,
 } from "@workspace/ui/components/blocks/filter";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
 import { Button } from "@workspace/ui/components/button";
 import {
   CardAction,
   CardContent,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
@@ -52,26 +59,21 @@ import {
   Settings2,
 } from "lucide-react";
 import { useState } from "react";
-import { CreateThread } from "~/components/devtools/create-thread";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-export const Route = createFileRoute("/app/_workspace/_main/threads/")({
-  component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Threads - FrontDesk",
-          description: "Manage your support threads",
-        }),
-      ],
-    };
-  },
-});
+export type FixedFilters = {
+  status?: { $not: { $in: number[] } } | { $in: number[] };
+  assignedUserId?: string;
+};
 
-function RouteComponent() {
+export interface ThreadsListProps {
+  fixedFilters?: FixedFilters;
+  subTitle?: string;
+}
+
+export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
 
   const organization = useLiveQuery(
@@ -102,6 +104,7 @@ function RouteComponent() {
   let threadsQuery = query.thread.where({
     organizationId: organization?.id,
     deletedAt: null,
+    ...fixedFilters,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
@@ -177,16 +180,37 @@ function RouteComponent() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="gap-4">Threads</CardTitle>
-        <CardAction side="right">
-          {/* TODO: Implement search functionality when live-state supports full text search */}
-          {/* <Search placeholder="Search" /> */}
-
+        <CardTitle className="gap-4">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                {subTitle ? (
+                  <BreadcrumbLink asChild>
+                    <Link to="/app/threads">Threads</Link>
+                  </BreadcrumbLink>
+                ) : (
+                  <BreadcrumbPage>Threads</BreadcrumbPage>
+                )}
+              </BreadcrumbItem>
+              {subTitle && (
+                <>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage>{subTitle}</BreadcrumbPage>
+                  </BreadcrumbItem>
+                </>
+              )}
+            </BreadcrumbList>
+          </Breadcrumb>
           <Filter
             options={filterOptions}
             value={filter}
             onValueChange={setFilter}
           />
+        </CardTitle>
+        <CardAction side="right">
+          {/* TODO: Implement search functionality when live-state supports full text search */}
+          {/* <Search placeholder="Search" /> */}
 
           <Popover>
             <PopoverTrigger>
@@ -259,11 +283,13 @@ function RouteComponent() {
             ) : (
               <>
                 <p>Looks like you don't have any integrations set up</p>
-                <Button asChild>
-                  <Link to="/app/settings/organization/integration">
-                    Set up new channels
-                  </Link>
-                </Button>
+                <Button
+                  render={
+                    <Link to="/app/settings/organization/integration">
+                      Set up new channels
+                    </Link>
+                  }
+                />
               </>
             )}
           </div>
@@ -284,8 +310,9 @@ function RouteComponent() {
                 />
                 <div>{thread?.name}</div>
               </div>
+              {/* TODO fix overflow issues with labels */}
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 mr-1">
+                <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
                   {thread?.labels
                     ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
                     .map((threadLabel) => (
@@ -309,8 +336,8 @@ function RouteComponent() {
                 <StatusIndicator status={thread?.status ?? 0} />
               </div>
             </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
+            <div className="flex gap-2 justify-between md:gap-0">
+              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-3xs sm:max-w-lg md:max-w-xl lg:max-w-2xl">
                 <span className="font-medium">
                   {
                     thread?.messages?.[thread?.messages?.length - 1]?.author
@@ -336,11 +363,24 @@ function RouteComponent() {
           </Link>
         ))}
       </CardContent>
-      {import.meta.env.MODE === "development" && (
-        <CardFooter>
-          <CreateThread />
-        </CardFooter>
-      )}
     </>
   );
+}
+
+export const Route = createFileRoute("/app/_workspace/_main/threads/")({
+  component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Threads - FrontDesk",
+          description: "Manage your support threads",
+        }),
+      ],
+    };
+  },
+});
+
+function RouteComponent() {
+  return <ThreadsList />;
 }
