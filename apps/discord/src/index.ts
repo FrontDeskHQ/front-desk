@@ -339,7 +339,7 @@ const backfillThread = async (
 ) => {
   // Check if thread already exists in the database using externalId
   const existingThread = await fetchClient.query.thread
-    .first({ externalId: thread.id })
+    .first({ externalId: thread.id, organizationId })
     .get();
 
   if (existingThread) {
@@ -891,6 +891,7 @@ client.on("messageCreate", async (message) => {
     const thread = store.query.thread
       .first({
         discordChannelId: message.channel.id,
+        organizationId: integration.organizationId,
       })
       .get();
 
