@@ -327,7 +327,7 @@ const getOrCreateAuthor = async (
   organizationId: string,
 ): Promise<string> => {
   let authorId = store.query.author
-    .first({ metaId: `slack:${slackUserId}` })
+    .first({ metaId: `slack:${slackUserId}`, organizationId })
     .get()?.id;
 
   if (!authorId) {
@@ -373,7 +373,7 @@ const backfillMessage = async (
   const authorId = await getOrCreateAuthor(client, msg.user, organizationId);
   const messageContent = msg.text || "";
 
-  store.mutate.message.insert({
+  await store.mutate.message.insert({
     id: ulid().toLowerCase(),
     threadId,
     authorId,
@@ -394,19 +394,35 @@ const createThreadWithMessages = async (
   teamId: string,
   organizationId: string,
 ): Promise<void> => {
-  // Fetch all messages in the thread using conversations.replies
-  const replies = await client.conversations.replies({
-    channel: channelId,
-    ts: threadTs,
-    limit: 200,
-  });
+  // Fetch all messages in the thread using conversations.replies with pagination
+  const messages: MessageElement[] = [];
+  let cursor: string | undefined;
 
-  if (!replies.ok || !replies.messages || replies.messages.length === 0) {
+  do {
+    const replies = await client.conversations.replies({
+      channel: channelId,
+      ts: threadTs,
+      limit: 200,
+      cursor,
+    });
+
+    if (!replies.ok || !replies.messages) {
+      if (messages.length === 0) {
+        console.log(`    [Slack] No messages found for thread ${threadTs}`);
+        return;
+      }
+      break;
+    }
+
+    messages.push(...replies.messages);
+    cursor = replies.response_metadata?.next_cursor;
+  } while (cursor);
+
+  if (messages.length === 0) {
     console.log(`    [Slack] No messages found for thread ${threadTs}`);
     return;
   }
 
-  const messages = replies.messages;
   const parentMessage = messages[0];
 
   // Skip if parent message is from a bot
@@ -430,7 +446,7 @@ const createThreadWithMessages = async (
 
   // Create the thread
   const threadId = ulid().toLowerCase();
-  store.mutate.thread.insert({
+  await store.mutate.thread.insert({
     id: threadId,
     organizationId,
     name: threadName,
@@ -471,24 +487,40 @@ const backfillMissingMessages = async (
   existingThread: { id: string },
   organizationId: string,
 ): Promise<void> => {
-  // Fetch all messages in the thread
-  const replies = await client.conversations.replies({
-    channel: channelId,
-    ts: threadTs,
-    limit: 200,
-  });
+  // Fetch all messages in the thread with pagination
+  const messages: MessageElement[] = [];
+  let cursor: string | undefined;
 
-  if (!replies.ok || !replies.messages) {
+  do {
+    const replies = await client.conversations.replies({
+      channel: channelId,
+      ts: threadTs,
+      limit: 200,
+      cursor,
+    });
+
+    if (!replies.ok || !replies.messages) {
+      break;
+    }
+
+    messages.push(...replies.messages);
+    cursor = replies.response_metadata?.next_cursor;
+  } while (cursor);
+
+  if (messages.length === 0) {
     return;
   }
 
   let syncedCount = 0;
-  for (const msg of replies.messages) {
+  for (const msg of messages) {
     if (!msg.ts || msg.bot_id || !msg.user) continue;
 
     // Check if message already exists
     const existingMessage = await fetchClient.query.message
-      .first({ externalMessageId: msg.ts })
+      .first({
+        externalMessageId: msg.ts,
+        threadId: existingThread.id,
+      })
       .get();
 
     if (!existingMessage) {
@@ -508,16 +540,12 @@ const backfillMissingMessages = async (
  * Backfill a single thread (check if exists, create or update)
  */
 const backfillThread = async (
+  client: WebClient,
   channelId: string,
   threadTs: string,
   teamId: string,
   organizationId: string,
 ): Promise<void> => {
-  const client = await getClientForTeam(teamId);
-  if (!client) {
-    throw new Error(`Could not get client for team ${teamId}`);
-  }
-
   // Check if thread already exists
   const existingThread = await fetchClient.query.thread
     .first({ externalId: threadTs, externalOrigin: "slack" })
@@ -548,15 +576,11 @@ const backfillThread = async (
  * Backfill all threads from a Slack channel
  */
 const backfillChannel = async (
+  client: WebClient,
   channelId: string,
   teamId: string,
   organizationId: string,
 ): Promise<void> => {
-  const client = await getClientForTeam(teamId);
-  if (!client) {
-    throw new Error(`Could not get client for team ${teamId}`);
-  }
-
   console.log(`  [Slack] Fetching messages from channel ${channelId}...`);
 
   try {
@@ -724,7 +748,7 @@ app.message(
     const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
 
     let authorId = store.query.author
-      .first({ metaId: `slack:${message.user}` })
+      .first({ metaId: `slack:${message.user}`, organizationId: integration.organizationId })
       .get()?.id;
 
     if (!authorId) {

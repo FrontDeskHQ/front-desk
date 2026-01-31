@@ -60,11 +60,13 @@ let backfillWorker: Worker<BackfillJobData> | null = null;
 
 export type BackfillHandlers = {
   processChannel: (
+    client: WebClient,
     channelId: string,
     teamId: string,
     organizationId: string,
   ) => Promise<void>;
   processThread: (
+    client: WebClient,
     channelId: string,
     threadTs: string,
     teamId: string,
@@ -86,29 +88,26 @@ export const initializeBackfillWorker = (
     async (job: Job<BackfillJobData>) => {
       const { data } = job;
 
-      if (data.type === "backfill-channel") {
-        const client = await getClientForTeam(data.teamId);
-        if (!client) {
-          throw new Error(`Could not get client for team ${data.teamId}`);
-        }
+      const client = await getClientForTeam(data.teamId);
+      if (!client) {
+        throw new Error(`Could not get client for team ${data.teamId}`);
+      }
 
+      if (data.type === "backfill-channel") {
         console.log(
           `[Queue] Processing channel backfill: #${data.channelName}`,
         );
         await handlers.processChannel(
+          client,
           data.channelId,
           data.teamId,
           data.organizationId,
         );
         console.log(`[Queue] Completed channel backfill: #${data.channelName}`);
       } else if (data.type === "backfill-thread") {
-        const client = await getClientForTeam(data.teamId);
-        if (!client) {
-          throw new Error(`Could not get client for team ${data.teamId}`);
-        }
-
         console.log(`[Queue] Processing thread backfill: ${data.threadTs}`);
         await handlers.processThread(
+          client,
           data.channelId,
           data.threadTs,
           data.teamId,
