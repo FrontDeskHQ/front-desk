@@ -27,7 +27,7 @@ export const PortalLayout = ({
           </Navbar.LinkGroup>
         </Navbar.Group>
         <Navbar.Group>
-          <Button variant="default" size="sm">
+          <Button variant="primary" size="sm">
             Sign in
           </Button>
         </Navbar.Group>
