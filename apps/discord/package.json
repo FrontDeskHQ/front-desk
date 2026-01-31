@@ -26,6 +26,7 @@
     "node": ">=20.18.0"
   },
   "dependencies": {
+    "@reflag/node-sdk": "^1.1.0",
     "@live-state/sync": "catalog:",
     "api": "workspace:*",
     "bullmq": "^5.67.1",
