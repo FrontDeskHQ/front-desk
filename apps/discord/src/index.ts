@@ -41,32 +41,6 @@ type RelatedThreadLink = {
   url: string;
 };
 
-const parseContentAsMarkdown = (message: Message): string => {
-  let content = message.content;
-
-  // Replace user mentions: <@userId> or <@!userId> with @Username
-  for (const [userId, user] of message.mentions.users) {
-    const mentionPattern = new RegExp(`<@!?${userId}>`, "g");
-    content = content.replace(mentionPattern, `@${user.displayName}`);
-  }
-
-  // Replace role mentions: <@&roleId> with @RoleName
-  for (const [roleId, role] of message.mentions.roles) {
-    const mentionPattern = new RegExp(`<@&${roleId}>`, "g");
-    content = content.replace(mentionPattern, `@${role.name}`);
-  }
-
-  // Replace channel mentions: <#channelId> with #ChannelName
-  for (const [channelId, channel] of message.mentions.channels) {
-    const mentionPattern = new RegExp(`<#${channelId}>`, "g");
-    if ("name" in channel) {
-      content = content.replace(mentionPattern, `#${channel.name}`);
-    }
-  }
-
-  return content;
-};
-
 const RELATED_THREADS_SUGGESTION_TYPE = "related_threads";
 const RELATED_THREAD_LINK_LIMIT = 5;
 const RELATED_THREADS_POLL_ATTEMPTS = 5;
@@ -84,7 +58,7 @@ const sleep = (ms: number) =>
 const buildPortalThreadUrl = (
   baseUrl: string,
   organizationSlug: string,
-  threadId: string
+  threadId: string,
 ) => {
   const baseUrlObj = new URL(baseUrl);
   const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
@@ -92,7 +66,7 @@ const buildPortalThreadUrl = (
 };
 
 const parseRelatedThreadResults = (
-  resultsStr: string | null | undefined
+  resultsStr: string | null | undefined,
 ): RelatedThreadResult[] => {
   if (!resultsStr) return [];
   try {
@@ -135,7 +109,7 @@ const getRelatedThreadLinks = async ({
       .get();
 
     const results = parseRelatedThreadResults(suggestion?.resultsStr).filter(
-      (result) => result.threadId !== threadId
+      (result) => result.threadId !== threadId,
     );
 
     if (results.length > 0) {
@@ -489,8 +463,6 @@ const backfillMessage = async (
   });
 };
 
-const THREAD_CREATION_THRESHOLD_MS = 1000;
-
 client.on("messageCreate", async (message) => {
   if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
     return;
@@ -598,7 +570,7 @@ client.on("messageCreate", async (message) => {
     const portalUrl = buildPortalThreadUrl(
       baseUrl,
       portalMessageOrgSlug,
-      threadId
+      threadId,
     );
     const portalEmbed = buildPortalBotEmbed({
       portalUrl,
