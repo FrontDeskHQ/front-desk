@@ -8,6 +8,7 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
+    "@reflag/node-sdk": "^1.1.0",
     "@live-state/sync": "catalog:",
     "@slack/bolt": "^4.6.0",
     "@slack/oauth": "^3.0.4",

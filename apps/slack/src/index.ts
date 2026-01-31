@@ -13,6 +13,7 @@ import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
 import { ulid } from "ulid";
+import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
 import {
@@ -113,7 +114,7 @@ const sleep = (ms: number) =>
 const buildPortalThreadUrl = (
   baseUrl: string,
   organizationSlug: string,
-  threadId: string
+  threadId: string,
 ) => {
   const baseUrlObj = new URL(baseUrl);
   const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
@@ -121,7 +122,7 @@ const buildPortalThreadUrl = (
 };
 
 const parseRelatedThreadResults = (
-  resultsStr: string | null | undefined
+  resultsStr: string | null | undefined,
 ): RelatedThreadResult[] => {
   if (!resultsStr) return [];
   try {
@@ -164,7 +165,7 @@ const getRelatedThreadLinks = async ({
       .get();
 
     const results = parseRelatedThreadResults(suggestion?.resultsStr).filter(
-      (result) => result.threadId !== threadId
+      (result) => result.threadId !== threadId,
     );
 
     if (results.length > 0) {
@@ -655,6 +656,18 @@ const handleIntegrationChanges = async (
 
       if (addedChannels.length === 0) continue;
 
+      // Check if backfill feature is enabled
+      const { isEnabled: isBackfillEnabled } = reflagClient.getFlag(
+        {},
+        "backfill-threads",
+      );
+      if (!isBackfillEnabled) {
+        console.log(
+          `[Slack] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
+        );
+        continue;
+      }
+
       console.log(
         `[Slack] Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
       );
@@ -748,7 +761,10 @@ app.message(
     const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
 
     let authorId = store.query.author
-      .first({ metaId: `slack:${message.user}`, organizationId: integration.organizationId })
+      .first({
+        metaId: `slack:${message.user}`,
+        organizationId: integration.organizationId,
+      })
       .get()?.id;
 
     if (!authorId) {
@@ -802,7 +818,7 @@ app.message(
             const portalUrl = buildPortalThreadUrl(
               baseUrl,
               organization.slug,
-              threadId
+              threadId,
             );
             const portalText = buildPortalBotText({
               portalUrl,
@@ -1079,6 +1095,10 @@ const handleUpdates = async (
 };
 
 (async () => {
+  // Initialize Reflag client for feature flags
+  await reflagClient.initialize();
+  console.log("[Slack] Reflag initialized");
+
   await app.start(process.env.PORT || 3011);
 
   app.logger.info(
@@ -1151,6 +1171,7 @@ const handleUpdates = async (
 // Graceful shutdown
 const shutdown = async () => {
   console.log("[Slack] Shutting down...");
+  await reflagClient.flush();
   await closeBackfillQueue();
   process.exit(0);
 };

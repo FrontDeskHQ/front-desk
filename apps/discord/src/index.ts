@@ -13,6 +13,7 @@ import {
 } from "discord.js";
 import { ulid } from "ulid";
 import "./env";
+import { reflagClient } from "./lib/feature-flag";
 import { fetchClient, store } from "./lib/live-state";
 import {
   addChannelBackfillJob,
@@ -268,6 +269,18 @@ const handleIntegrationChanges = async (
       integrationChannels.set(integration.id, currentChannels);
 
       if (addedChannels.length === 0) continue;
+
+      // Check if backfill feature is enabled
+      const { isEnabled: isBackfillEnabled } = reflagClient.getFlag(
+        {},
+        "backfill-threads",
+      );
+      if (!isBackfillEnabled) {
+        console.log(
+          `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
+        );
+        continue;
+      }
 
       console.log(
         `Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
@@ -929,6 +942,10 @@ client.once("ready", async () => {
   if (!client.user) return;
   console.log(`Logged in as ${client.user.tag}`);
 
+  // Initialize Reflag client for feature flags
+  await reflagClient.initialize();
+  console.log("[Discord] Reflag initialized");
+
   // Initialize the backfill worker with handlers
   initializeBackfillWorker(client, {
     processChannel: backfillChannel,
@@ -990,6 +1007,7 @@ client.login(token).catch(console.error);
 // Graceful shutdown
 const shutdown = async () => {
   console.log("Shutting down...");
+  await reflagClient.flush();
   await closeBackfillQueue();
   client.destroy();
   process.exit(0);
