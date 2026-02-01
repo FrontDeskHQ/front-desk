@@ -15,7 +15,7 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
-import { MessagesSquare, Search } from "lucide-react";
+import { Activity, MessagesSquare, Search } from "lucide-react";
 import { OrgSwitcher } from "./organization-switcher";
 
 interface Item {
@@ -28,6 +28,12 @@ interface Item {
 }
 
 const items: Item[] = [
+  {
+    title: "Signals",
+    url: "/app/signal/",
+    route: "/app/_workspace/_main/signal/",
+    icon: Activity,
+  },
   {
     title: "Threads",
     url: "/app/threads/",
