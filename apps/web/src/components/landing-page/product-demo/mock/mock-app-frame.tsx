@@ -1,3 +1,4 @@
+import { SidebarProvider } from "@workspace/ui/components/sidebar";
 import type * as React from "react";
 import { MockSidebar } from "./mock-sidebar";
 
@@ -20,8 +21,10 @@ export const MockAppFrame = ({
       role="img"
       aria-label={ariaLabel}
     >
-      {showSidebar && <MockSidebar activeItem={activeSidebarItem} />}
-      {children}
+      <SidebarProvider>
+        {showSidebar && <MockSidebar activeItem={activeSidebarItem} />}
+        {children}
+      </SidebarProvider>
     </div>
   );
 };
