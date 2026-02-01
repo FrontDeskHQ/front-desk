@@ -17,9 +17,9 @@ import {
 import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAtomValue } from "jotai/react";
-import { Check, Inbox, X } from "lucide-react";
+import { Activity, Check, X } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
@@ -84,6 +84,11 @@ function RouteComponent() {
   const [locallyAccepted, setLocallyAccepted] = useState<
     Map<string, ParsedSuggestion>
   >(new Map());
+
+  // Reset locally accepted when org changes so allThreadIds stays scoped to current tenant
+  useEffect(() => {
+    setLocallyAccepted(new Map());
+  }, [currentOrg?.id]);
 
   // Query active (pending) suggestions
   const pendingSuggestions = useLiveQuery(
@@ -174,11 +179,16 @@ function RouteComponent() {
   ]);
 
   const threads = useLiveQuery(
-    query.thread.where({ id: { $in: allThreadIds } }).include({
-      author: {
-        user: true,
-      },
-    }),
+    query.thread
+      .where({
+        id: { $in: allThreadIds },
+        organizationId: currentOrg?.id,
+      })
+      .include({
+        author: {
+          user: true,
+        },
+      }),
   );
 
   const threadsMap = useMemo(() => {
@@ -296,14 +306,17 @@ function RouteComponent() {
   return (
     <>
       <CardHeader className="flex items-center gap-2">Signal</CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <div className="flex flex-col gap-4 max-w-3xl w-full mx-auto">
+      <CardContent className="flex flex-1 min-h-0 flex-col gap-4">
+        <div
+          className={`flex flex-col gap-4 max-w-3xl w-full mx-auto ${isEmpty ? "flex-1 min-h-0" : ""}`}
+        >
           {isEmpty ? (
-            <div className="flex flex-col items-center justify-center py-16 text-foreground-secondary">
-              <Inbox className="size-12 mb-4 opacity-50" />
-              <p className="text-lg font-medium">No suggestions</p>
+            <div className="flex flex-1 flex-col items-center justify-center py-16 text-foreground-secondary">
+              <Activity className="size-12 mb-4 opacity-50" />
+              <p className="text-lg font-medium">No signals</p>
               <p className="text-sm">
-                When threads are ready to be resolved, they'll appear here.
+                As threads are created, they'll be analyzed and suggestions will
+                appear here.
               </p>
             </div>
           ) : (

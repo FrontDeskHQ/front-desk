@@ -29,7 +29,7 @@ interface Item {
 
 const items: Item[] = [
   {
-    title: "Signal",
+    title: "Signals",
     url: "/app/signal/",
     route: "/app/_workspace/_main/signal/",
     icon: Activity,
