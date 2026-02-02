@@ -1,5 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
+import { Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import {
   PriorityIndicator,
@@ -7,7 +8,8 @@ import {
 } from "@workspace/ui/components/indicator";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { CircleUserIcon, Github } from "lucide-react";
+import { CircleUserIcon, CopySlash, Github } from "lucide-react";
+import { ThreadChip } from "~/components/chips";
 import { query } from "~/lib/live-state";
 
 export function Update({
@@ -28,6 +30,12 @@ export function Update({
 
   const assignedUser = useLiveQuery(
     query.user.first({ id: metadata?.newAssignedUserId }),
+  );
+
+  const duplicateThread = useLiveQuery(
+    query.thread
+      .first({ id: metadata?.duplicateOfThreadId })
+      .include({ author: { user: true }, assignedUser: true }),
   );
 
   const getUpdateText = () => {
@@ -140,6 +148,32 @@ export function Update({
         </>
       );
     }
+
+    if (update.type === "marked_duplicate") {
+      return (
+        <span className="inline-flex items-center gap-1">
+          marked as duplicate of{" "}
+          {duplicateThread ? (
+            <ThreadChip
+              thread={duplicateThread}
+              className="mx-0.5"
+              render={
+                <Link
+                  to="/app/threads/$id"
+                  params={{
+                    id: duplicateThread.id,
+                  }}
+                />
+              }
+            />
+          ) : (
+            <span className="text-foreground">
+              {metadata?.duplicateOfThreadName ?? "another thread"}
+            </span>
+          )}
+        </span>
+      );
+    }
   };
 
   return (
@@ -162,6 +196,7 @@ export function Update({
         {update.type === "github_issue_created" && (
           <Github className="size-4" />
         )}
+        {update.type === "marked_duplicate" && <CopySlash className="size-4" />}
       </div>
       <span className="text-xs text-muted-foreground">
         <span className="text-foreground">
