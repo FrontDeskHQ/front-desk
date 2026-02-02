@@ -280,8 +280,10 @@ export const Suggestions = ({
   const hasStatusSuggestion = statusSuggestion !== null;
   const hasDuplicateSuggestion =
     duplicateSuggestion !== null && duplicateSuggestion.thread !== null;
+  const hasStatusOrLabelSuggestions =
+    hasLabelSuggestions || hasStatusSuggestion;
   const hasSuggestions =
-    hasLabelSuggestions || hasStatusSuggestion || hasDuplicateSuggestion;
+    hasStatusOrLabelSuggestions || hasDuplicateSuggestion;
   const previousHasSuggestionsRef = useRef(false);
   const [hoverCardOpen, setHoverCardOpen] = useState(false);
   const matches = useMatches();
@@ -561,9 +563,11 @@ export const Suggestions = ({
         data-state={isCollapsed ? "closed" : "open"}
       >
         <div className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 mt-2 items-center">
-          <div className="text-foreground-secondary">Suggestions</div>
-          <div className="flex gap-2 items-center flex-wrap">
-            {statusSuggestion &&
+          {hasStatusOrLabelSuggestions && (
+            <>
+              <div className="text-foreground-secondary">Suggestions</div>
+              <div className="flex gap-2 items-center flex-wrap group">
+                {statusSuggestion &&
               (() => {
                 const reasoning = getSuggestionReasoning(
                   statusSuggestion.suggestion.metadataStr,
@@ -673,25 +677,29 @@ export const Suggestions = ({
                 </HoverCardContent>
               )}
             </HoverCard>
-            <ActionButton
-              variant="ghost"
-              size="icon-sm"
-              tooltip="Accept all"
-              className="text-foreground-secondary"
-              onClick={handleAcceptAll}
-            >
-              <Check />
-            </ActionButton>
-            <ActionButton
-              variant="ghost"
-              size="icon-sm"
-              tooltip="Ignore all"
-              className="text-foreground-secondary"
-              onClick={handleDismissAll}
-            >
-              <X />
-            </ActionButton>
-          </div>
+                <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
+                  <ActionButton
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip="Accept all"
+                    className="text-foreground-secondary"
+                    onClick={handleAcceptAll}
+                  >
+                    <Check />
+                  </ActionButton>
+                  <ActionButton
+                    variant="ghost"
+                    size="icon-sm"
+                    tooltip="Ignore all"
+                    className="text-foreground-secondary"
+                    onClick={handleDismissAll}
+                  >
+                    <X />
+                  </ActionButton>
+                </div>
+              </div>
+            </>
+          )}
 
           {hasDuplicateSuggestion && duplicateSuggestion?.thread && (
             <>
