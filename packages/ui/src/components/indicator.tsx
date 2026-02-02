@@ -59,7 +59,7 @@ type AngleStatus = {
 
 export const statusValues: Record<number, AngleStatus | PredefinedShapeStatus> =
   {
-    0: { label: "Open", color: "text-primary", angle: 0 },
+    0: { label: "Open", color: "text-foreground-secondary", angle: 0 },
     1: {
       label: "In progress",
       color: "dark:text-amber-300/90 text-yellow-500",

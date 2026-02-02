@@ -9,6 +9,7 @@ import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
 import {
   Suggestions,
+  usePendingDuplicateSuggestions,
   usePendingLabelSuggestions,
   usePendingStatusSuggestions,
 } from "./support-intelligence";
@@ -45,10 +46,18 @@ export const ThreadInputArea = ({
     currentStatus,
   });
 
+  const { duplicateSuggestion } = usePendingDuplicateSuggestions({
+    threadId,
+    organizationId,
+  });
+
   const [showBorder, setShowBorder] = useState(false);
   const hasLabelSuggestions = (suggestedLabels?.length ?? 0) > 0;
   const hasStatusSuggestion = statusSuggestion !== null;
-  const hasSuggestions = hasLabelSuggestions || hasStatusSuggestion;
+  const hasDuplicateSuggestion =
+    duplicateSuggestion !== null && duplicateSuggestion.thread !== null;
+  const hasSuggestions =
+    hasLabelSuggestions || hasStatusSuggestion || hasDuplicateSuggestion;
 
   useEffect(() => {
     if (hasSuggestions) {
@@ -74,6 +83,7 @@ export const ThreadInputArea = ({
         threadLabels={threadLabels}
         suggestions={suggestions}
         statusSuggestion={statusSuggestion}
+        duplicateSuggestion={duplicateSuggestion}
         currentStatus={currentStatus}
         user={user}
         captureThreadEvent={captureThreadEvent}
