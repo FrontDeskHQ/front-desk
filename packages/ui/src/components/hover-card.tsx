@@ -9,6 +9,15 @@ function HoverCard<T extends object>({
   ...props
 }: PreviewCardPrimitive.Root.Props<T> & {
   handle: PreviewCardPrimitive.Handle<T>;
+}): React.ReactElement;
+function HoverCard<T extends object>(
+  props: PreviewCardPrimitive.Root.Props<T>,
+): React.ReactElement;
+function HoverCard<T extends object>({
+  handle,
+  ...props
+}: PreviewCardPrimitive.Root.Props<T> & {
+  handle?: PreviewCardPrimitive.Handle<T>;
 }) {
   return (
     <PreviewCardPrimitive.Root<T>

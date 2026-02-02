@@ -1,6 +1,6 @@
+import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
-import { createFileRoute, getRouteApi } from "@tanstack/react-router";
-import { Avatar } from "@workspace/ui/components/avatar";
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
   Card,
@@ -16,11 +16,13 @@ import {
 } from "@workspace/ui/components/indicator";
 import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
+import type { schema } from "api/schema";
 import { useAtomValue } from "jotai/react";
 import { Activity, Check, X } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useMemo, useState } from "react";
 import { ulid } from "ulid";
+import { ThreadChip } from "~/components/chips";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 
@@ -186,6 +188,9 @@ function RouteComponent() {
       })
       .include({
         author: {
+          user: true,
+        },
+        assignedUser: {
           user: true,
         },
       }),
@@ -375,12 +380,10 @@ type SignalCardProps = {
   acceptedSuggestions: ParsedSuggestion[];
   threadsMap: Map<
     string,
-    {
-      id: string;
-      name: string;
-      status: number;
-      author?: { name: string; user?: { image: string | null } | null } | null;
-    }
+    InferLiveObject<
+      typeof schema.thread,
+      { author: { user: true }; assignedUser: { user: true } }
+    >
   >;
   onAccept: (suggestion: ParsedSuggestion) => void;
   onDismiss: (suggestion: ParsedSuggestion) => void;
@@ -492,11 +495,10 @@ function SignalCard({
 
 type SuggestionItemProps = {
   suggestion: ParsedSuggestion;
-  thread?: {
-    id: string;
-    name: string;
-    author?: { name: string; user?: { image: string | null } | null } | null;
-  } | null;
+  thread?: InferLiveObject<
+    typeof schema.thread,
+    { author: { user: true }; assignedUser: { user: true } }
+  > | null;
   onAccept?: () => void;
   onDismiss?: () => void;
   isAccepted?: boolean;
@@ -513,17 +515,11 @@ function SuggestionItem({
   return (
     <div className="relative pl-7.5 group/nested-item flex gap-1.5">
       <div className="absolute left-[13px] -top-[64px] w-[13px] h-19 border-[#5C5C5C] border-b border-l rounded-bl-lg" />
-      <div
-        className={`border flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15 ${isAccepted ? "opacity-50" : ""}`}
-      >
-        <Avatar
-          variant="user"
-          size="sm"
-          fallback={thread.author?.name}
-          src={thread.author?.user?.image ?? undefined}
-        />
-        {thread.name}
-      </div>
+      <ThreadChip
+        thread={thread}
+        className={isAccepted ? "opacity-50" : ""}
+        render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+      />
       {!isAccepted && onAccept && onDismiss && (
         <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
           <ActionButton
