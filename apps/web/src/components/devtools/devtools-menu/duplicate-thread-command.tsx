@@ -8,9 +8,13 @@ import { fetchClient } from "~/lib/live-state";
 
 export const DuplicateThreadMenuItem = () => {
   const navigate = useNavigate();
-  const { id: threadId } = getRouteApi(
-    "/app/_workspace/_main/threads/$id",
-  ).useParams();
+  const { id: threadId } = (() => {
+    try {
+      return getRouteApi("/app/_workspace/_main/threads/$id").useParams();
+    } catch {
+      return { id: null };
+    }
+  })();
 
   const handleDuplicateThread = async () => {
     if (!threadId) {
