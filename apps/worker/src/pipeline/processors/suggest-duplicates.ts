@@ -5,7 +5,6 @@ import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 import z from "zod";
 import { fetchClient } from "../../lib/database/client";
-import type { SimilarThreadResult } from "../../lib/qdrant/threads";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -40,6 +39,37 @@ type SuggestionRow = {
   metadataStr: string | null;
   createdAt: Date | string;
   updatedAt: Date | string;
+};
+
+const resolveDuplicateTarget = async ({
+  organizationId,
+  candidateThreadId,
+  currentThreadId,
+}: {
+  organizationId: string;
+  candidateThreadId: string;
+  currentThreadId: string;
+}): Promise<string> => {
+  const candidateSuggestions = (await fetchClient.query.suggestion
+    .where({
+      type: SUGGESTION_TYPE_DUPLICATE,
+      entityId: candidateThreadId,
+      organizationId,
+    })
+    .get()) as SuggestionRow[];
+
+  const activeCandidateSuggestion = candidateSuggestions.find(
+    (suggestion) =>
+      suggestion.active &&
+      suggestion.relatedEntityId &&
+      suggestion.relatedEntityId !== currentThreadId
+  );
+
+  if (activeCandidateSuggestion?.relatedEntityId) {
+    return activeCandidateSuggestion.relatedEntityId;
+  }
+
+  return candidateThreadId;
 };
 
 const computeSha256 = (data: string): string => {
@@ -257,9 +287,16 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
           }
         }
 
+        let resolvedDuplicateThreadId: string | null = null;
+
         // Store suggestion if duplicate found
         if (selectedDuplicate) {
           const now = new Date();
+          resolvedDuplicateThreadId = await resolveDuplicateTarget({
+            organizationId,
+            candidateThreadId: selectedDuplicate.threadId,
+            currentThreadId: threadId,
+          });
 
           // Check for existing suggestion
           const existingSuggestions = (await fetchClient.query.suggestion
@@ -271,7 +308,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
             .get()) as SuggestionRow[];
 
           const existingForDuplicate = existingSuggestions.find(
-            (s) => s.relatedEntityId === selectedDuplicate!.threadId
+            (s) => s.relatedEntityId === resolvedDuplicateThreadId
           );
 
           if (existingForDuplicate) {
@@ -302,7 +339,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
               id: ulid().toLowerCase(),
               type: SUGGESTION_TYPE_DUPLICATE,
               entityId: threadId,
-              relatedEntityId: selectedDuplicate.threadId,
+              relatedEntityId: resolvedDuplicateThreadId,
               organizationId,
               active: true,
               accepted: false,
@@ -318,7 +355,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
           }
 
           console.log(
-            `Found duplicate for thread ${threadId}: ${selectedDuplicate.threadId} (confidence: ${selectedDuplicate.confidence})`
+            `Found duplicate for thread ${threadId}: ${resolvedDuplicateThreadId} (confidence: ${selectedDuplicate.confidence})`
           );
         } else {
           console.log(`No high-confidence duplicates found for thread ${threadId}`);
@@ -328,7 +365,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
           threadId,
           success: true,
           data: {
-            duplicateThreadId: selectedDuplicate?.threadId ?? null,
+            duplicateThreadId: resolvedDuplicateThreadId,
             evaluatedCount: candidates.length,
           },
         };
