@@ -142,6 +142,7 @@
     "apps/web": {
       "name": "web",
       "dependencies": {
+        "@base-ui/react": "^1.1.0",
         "@bradenmacdonald/s3-lite-client": "npm:@jsr/bradenmacdonald__s3-lite-client@^0.9.3",
         "@faker-js/faker": "^10.0.0",
         "@fontsource-variable/intel-one-mono": "^5.2.1",
