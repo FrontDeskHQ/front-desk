@@ -37,6 +37,7 @@ export function BaseThreadChip({
         disabled && "opacity-50 pointer-events-none",
         className,
       )}
+      disabled={disabled}
       {...props}
     >
       <Avatar
