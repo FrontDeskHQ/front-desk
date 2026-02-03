@@ -121,6 +121,10 @@ function RouteComponent() {
       ].sort((a, b) => a.id.localeCompare(b.id))
     : [];
 
+  const enabledLabels = thread?.labels?.filter(
+    (tl) => tl.enabled && !!tl.label?.enabled
+  ) ?? [];
+
   useEffect(() => {
     const checkHash = () => {
       const hasHash = window.location.hash === "#answer-message";
@@ -415,16 +419,16 @@ function RouteComponent() {
             <div className="flex flex-col gap-2">
               <div className="text-muted-foreground text-xs">Labels</div>
               <div className="flex flex-col gap-1.5">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {thread?.labels
-                    ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
-                    .map((threadLabel) => (
-                      <LabelBadge
-                        key={threadLabel.label.id}
-                        name={threadLabel.label.name}
-                        color={threadLabel.label.color}
-                      />
-                    ))}
+                <div className="flex items-center px-1.5 gap-2 flex-wrap">
+                  {enabledLabels.length > 0 ?
+                    enabledLabels
+                      .map((threadLabel) => (
+                        <LabelBadge
+                          key={threadLabel.label.id}
+                          name={threadLabel.label.name}
+                          color={threadLabel.label.color}
+                        />
+                      )) : <span className="text-muted-foreground">No labels</span>}
                 </div>
               </div>
             </div>
