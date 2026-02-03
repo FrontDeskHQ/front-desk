@@ -474,6 +474,9 @@ export const Suggestions = ({
       updatedAt: new Date(),
     });
 
+    // Set thread status to Duplicated (4)
+    mutate.thread.update(threadId, { status: 4 });
+
     // Create update record for the duplicate link
     mutate.update.insert({
       id: ulid().toLowerCase(),

@@ -512,6 +512,9 @@ function RouteComponent() {
       new Map(prev).set(suggestion.id, suggestion),
     );
 
+    // Set thread status to Duplicated (4)
+    mutate.thread.update(suggestion.entityId, { status: 4 });
+
     // Create update record for the duplicate link
     mutate.update.insert({
       id: ulid().toLowerCase(),
