@@ -238,7 +238,7 @@ export function AiTriageVisual() {
   return (
     <div
       ref={ref}
-      className="relative w-full flex items-center justify-center gap-4 px-4 max-w-2xl max-h-96 overflow-hidden lg:ml-48"
+      className="relative flex items-center justify-center gap-4 px-4 w-[140%] max-w-3xl max-h-96 overflow-hidden lg:ml-48 md:scale-100 md:max-w-2xl scale-75 md:w-full"
     >
       {/* Thread card */}
       <motion.div
