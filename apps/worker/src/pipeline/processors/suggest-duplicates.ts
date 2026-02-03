@@ -58,15 +58,15 @@ const resolveDuplicateTarget = async ({
     })
     .get()) as SuggestionRow[];
 
-  const activeCandidateSuggestion = candidateSuggestions.find(
+  const preferredSuggestion = candidateSuggestions.find(
     (suggestion) =>
-      suggestion.active &&
+      (suggestion.active || suggestion.accepted) &&
       suggestion.relatedEntityId &&
       suggestion.relatedEntityId !== currentThreadId
   );
 
-  if (activeCandidateSuggestion?.relatedEntityId) {
-    return activeCandidateSuggestion.relatedEntityId;
+  if (preferredSuggestion?.relatedEntityId) {
+    return preferredSuggestion.relatedEntityId;
   }
 
   return candidateThreadId;

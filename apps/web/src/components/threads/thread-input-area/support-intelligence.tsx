@@ -282,8 +282,7 @@ export const Suggestions = ({
     duplicateSuggestion !== null && duplicateSuggestion.thread !== null;
   const hasStatusOrLabelSuggestions =
     hasLabelSuggestions || hasStatusSuggestion;
-  const hasSuggestions =
-    hasStatusOrLabelSuggestions || hasDuplicateSuggestion;
+  const hasSuggestions = hasStatusOrLabelSuggestions || hasDuplicateSuggestion;
   const previousHasSuggestionsRef = useRef(false);
   const [hoverCardOpen, setHoverCardOpen] = useState(false);
   const matches = useMatches();
@@ -568,115 +567,79 @@ export const Suggestions = ({
               <div className="text-foreground-secondary">Suggestions</div>
               <div className="flex gap-2 items-center flex-wrap group">
                 {statusSuggestion &&
-              (() => {
-                const reasoning = getSuggestionReasoning(
-                  statusSuggestion.suggestion.metadataStr,
-                );
-                return (
-                  <HoverCardTrigger
-                    render={
-                      <ActionButton
-                        variant="ghost"
-                        size="sm"
-                        className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-                        onClick={handleAcceptStatus}
-                      />
-                    }
-                    handle={hoverCardHandle}
-                    payload={{
-                      subtitle: "Suggested status",
-                      element: (
-                        <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15">
-                          <StatusIndicator
-                            status={statusSuggestion.suggestedStatus}
+                  (() => {
+                    const reasoning = getSuggestionReasoning(
+                      statusSuggestion.suggestion.metadataStr,
+                    );
+                    return (
+                      <HoverCardTrigger
+                        render={
+                          <ActionButton
+                            variant="ghost"
+                            size="sm"
+                            className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
+                            onClick={handleAcceptStatus}
                           />
-                          {statusSuggestion.label}
-                        </div>
-                      ),
-                      reasoning: reasoning,
-                      handleAccept: handleAcceptStatus,
-                    }}
-                  >
-                    <StatusIndicator
-                      status={statusSuggestion.suggestedStatus}
-                    />
-                    {statusSuggestion.label}
-                  </HoverCardTrigger>
-                );
-              })()}
-            {suggestedLabels?.map((label) => {
-              return (
-                <HoverCardTrigger
-                  render={
-                    <ActionButton
-                      variant="ghost"
-                      size="sm"
-                      className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-                      onClick={() => handleAcceptLabel(label.id)}
-                    />
-                  }
-                  handle={hoverCardHandle}
-                  payload={{
-                    subtitle: "Suggested label",
-                    element: (
-                      <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15">
-                        <div
-                          className="size-2 rounded-full"
-                          style={{ backgroundColor: label.color }}
+                        }
+                        handle={hoverCardHandle}
+                        payload={{
+                          subtitle: "Suggested status",
+                          element: (
+                            <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15">
+                              <StatusIndicator
+                                status={statusSuggestion.suggestedStatus}
+                              />
+                              {statusSuggestion.label}
+                            </div>
+                          ),
+                          reasoning: reasoning,
+                          handleAccept: handleAcceptStatus,
+                        }}
+                      >
+                        <StatusIndicator
+                          status={statusSuggestion.suggestedStatus}
                         />
-                        {label.name}
-                      </div>
-                    ),
-                    handleAccept: () => handleAcceptLabel(label.id),
-                  }}
-                >
-                  <div
-                    className="size-2 rounded-full"
-                    style={{
-                      backgroundColor: label.color,
-                    }}
-                  />
-                  {label.name}
-                </HoverCardTrigger>
-              );
-            })}
-            <HoverCard
-              handle={hoverCardHandle}
-              open={hoverCardOpen && hasSuggestions}
-              onOpenChange={setHoverCardOpen}
-            >
-              {({ payload }) => (
-                <HoverCardContent className="min-w-76 w-full max-w-96 flex flex-col gap-3">
-                  <div className="text-xs flex flex-col gap-1">
-                    <div>{payload?.subtitle}</div>
-                    {payload?.element}
-                  </div>
-                  <Separator />
-                  {payload?.reasoning && (
-                    <>
-                      <div className="text-xs flex flex-col gap-1">
-                        <div>Why this was suggested?</div>
-                        <div className="text-foreground-secondary">
-                          {payload.reasoning}
-                        </div>
-                      </div>
-                      <Separator />
-                    </>
-                  )}
-                  <ActionButton
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setHoverCardOpen(false);
-                      payload?.handleAccept();
-                    }}
-                    className="w-full"
-                  >
-                    Apply suggestion
-                  </ActionButton>
-                </HoverCardContent>
-              )}
-            </HoverCard>
+                        {statusSuggestion.label}
+                      </HoverCardTrigger>
+                    );
+                  })()}
+                {suggestedLabels?.map((label) => {
+                  return (
+                    <HoverCardTrigger
+                      render={
+                        <ActionButton
+                          variant="ghost"
+                          size="sm"
+                          className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
+                          onClick={() => handleAcceptLabel(label.id)}
+                        />
+                      }
+                      handle={hoverCardHandle}
+                      payload={{
+                        subtitle: "Suggested label",
+                        element: (
+                          <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15">
+                            <div
+                              className="size-2 rounded-full"
+                              style={{ backgroundColor: label.color }}
+                            />
+                            {label.name}
+                          </div>
+                        ),
+                        handleAccept: () => handleAcceptLabel(label.id),
+                      }}
+                    >
+                      <div
+                        className="size-2 rounded-full"
+                        style={{
+                          backgroundColor: label.color,
+                        }}
+                      />
+                      {label.name}
+                    </HoverCardTrigger>
+                  );
+                })}
+
                 <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
                   <ActionButton
                     variant="ghost"
@@ -852,6 +815,44 @@ export const Suggestions = ({
               </div>
             </>
           )}
+
+          <HoverCard
+            handle={hoverCardHandle}
+            open={hoverCardOpen && hasSuggestions}
+            onOpenChange={setHoverCardOpen}
+          >
+            {({ payload }) => (
+              <HoverCardContent className="min-w-76 w-full max-w-96 flex flex-col gap-3">
+                <div className="text-xs flex flex-col gap-1">
+                  <div>{payload?.subtitle}</div>
+                  {payload?.element}
+                </div>
+                <Separator />
+                {payload?.reasoning && (
+                  <>
+                    <div className="text-xs flex flex-col gap-1">
+                      <div>Why this was suggested?</div>
+                      <div className="text-foreground-secondary">
+                        {payload.reasoning}
+                      </div>
+                    </div>
+                    <Separator />
+                  </>
+                )}
+                <ActionButton
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setHoverCardOpen(false);
+                    payload?.handleAccept();
+                  }}
+                  className="w-full"
+                >
+                  Apply suggestion
+                </ActionButton>
+              </HoverCardContent>
+            )}
+          </HoverCard>
         </div>
       </div>
     </div>
