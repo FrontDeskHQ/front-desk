@@ -3,6 +3,9 @@ import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Logo } from "@workspace/ui/components/logo";
 import { HorizontalLine } from "@workspace/ui/components/surface";
+import { cn } from "@workspace/ui/lib/utils";
+import { MenuIcon, XIcon } from "lucide-react";
+import { useState } from "react";
 
 import { AuthButtonGroup } from "~/components/auth";
 
@@ -11,9 +14,16 @@ export const Route = createFileRoute("/_public")({
 });
 
 function RouteComponent() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <div className="w-full min-h-screen flex flex-col items-center relative">
-      <header className="h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background-primary/80">
+      <header
+        className={cn(
+          "h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background-primary/90 transition-colors",
+          menuOpen && "border-0 bg-transparent",
+        )}
+      >
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
           <div className="flex gap-4">
             <Link to="/" className="flex items-center gap-2">
@@ -22,11 +32,16 @@ function RouteComponent() {
               </Logo>
               <h1 className="text-lg font-normal">FrontDesk</h1>
             </Link>
-            <Button variant="link" render={<Link to="/" hash="pricing" />}>
+            <Button
+              variant="link"
+              className="hidden md:inline-flex"
+              render={<Link to="/" hash="pricing" />}
+            >
               Pricing
             </Button>
             <Button
               variant="link"
+              className="hidden md:inline-flex"
               render={
                 <a
                   href="https://support.tryfrontdesk.app"
@@ -38,9 +53,47 @@ function RouteComponent() {
               Community
             </Button>
           </div>
-          <AuthButtonGroup />
+          <div className="flex items-center gap-2">
+            <AuthButtonGroup />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden"
+              aria-label={menuOpen ? "Close menu" : "Open menu"}
+              onClick={() => setMenuOpen(!menuOpen)}
+            >
+              {menuOpen ? (
+                <XIcon className="size-5" />
+              ) : (
+                <MenuIcon className="size-5" />
+              )}
+            </Button>
+          </div>
         </div>
       </header>
+      <div
+        className={`fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden ${menuOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+      >
+        <nav className="flex flex-col gap-2 w-full max-w-6xl p-4">
+          <Link
+            to="/"
+            hash="pricing"
+            className="py-2 text-lg"
+            onClick={() => setMenuOpen(false)}
+          >
+            Pricing
+          </Link>
+          <a
+            href="https://support.tryfrontdesk.app"
+            target="_blank"
+            rel="noopener"
+            className="py-2 text-lg"
+            onClick={() => setMenuOpen(false)}
+          >
+            Community
+          </a>
+        </nav>
+      </div>
       <Outlet />
       <HorizontalLine variant="full" />
       <footer className="col-span-full grid grid-cols-12 border-x max-w-6xl">
