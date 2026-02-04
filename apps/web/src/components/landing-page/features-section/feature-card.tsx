@@ -25,8 +25,8 @@ export function FeatureCard({
         )}
       >
         <div className="px-6 py-6 md:px-8 lg:absolute pb-0!">
-          <h3 className="text-xl font-semibold mb-2">{title}</h3>
-          <p className="text-foreground-secondary leading-relaxed max-w-xl">
+          <h3 className="text-xl lg:text-3xl font-semibold mb-2">{title}</h3>
+          <p className="text-foreground-secondary leading-relaxed max-w-xl lg:text-base">
             {body}
           </p>
         </div>
