@@ -70,26 +70,26 @@ export function FeaturesSection() {
           </p>
         </div>
         <div className="border-r flex items-center justify-center min-h-16">
-          <Discord className="size-8 text-foreground-secondary" />
+          <Discord className="md:size-8 size-5 text-foreground-secondary" />
         </div>
         <div className="border-r flex items-center justify-center min-h-16">
-          <Slack className="size-8 text-foreground-secondary" />
+          <Slack className="md:size-8 size-5 text-foreground-secondary" />
         </div>
         <div className="border-r flex items-center justify-center min-h-16">
-          <MessagesSquare className="size-8 text-foreground-secondary" />
+          <MessagesSquare className="md:size-8 size-5 text-foreground-secondary" />
         </div>
         <div className="border-r flex items-center justify-center min-h-16">
-          <GitHub className="size-8 text-foreground-secondary" />
+          <GitHub className="md:size-8 size-5 text-foreground-secondary" />
         </div>
         <div className="border-r flex items-center justify-center min-h-16">
-          <Linear className="size-8 text-foreground-secondary" />
+          <Linear className="md:size-8 size-5 text-foreground-secondary" />
         </div>
         <a
           href="/docs/integrations"
           className="col-span-3 flex items-center gap-2 justify-center text-foreground-secondary md:text-lg md:font-light"
         >
           All integrations
-          <ArrowRight className="size-4.5 stroke-2" />
+          <ArrowRight className="md:size-4.5 size-4 stroke-2" />
         </a>
       </div>
     </section>

@@ -300,8 +300,12 @@ function RouteComponent() {
             <ApplyToWaitlistForm />
           </AnimatedGroup>
         </section>
-        <HorizontalLine variant="outer" />
-        <ProductDemo />
+        <div className="col-span-full md:block hidden">
+          <HorizontalLine variant="outer" />
+          <ProductDemo />
+        </div>
+        <DashedPattern className="col-span-full md:hidden block h-3 border-y text-foreground-tertiary/65" />
+
         <HorizontalLine variant="outer" />
         <FeaturesSection />
         <HorizontalLine variant="outer" />
