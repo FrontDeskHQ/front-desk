@@ -12,14 +12,12 @@ import {
   FormItem,
   FormMessage,
 } from "@workspace/ui/components/form";
-import { Discord, GitHub, Linear, Slack } from "@workspace/ui/components/icons";
 import { Input } from "@workspace/ui/components/input";
 import { AnimatedGroup } from "@workspace/ui/components/motion";
 import { Spinner } from "@workspace/ui/components/spinner";
 import Dither, {
   DashedPattern,
   HorizontalLine,
-  VerticalLine,
 } from "@workspace/ui/components/surface";
 import {
   Tooltip,
@@ -28,19 +26,11 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Inbox,
-  MessagesSquare,
-  Search,
-  Sparkles,
-  Users,
-  Zap,
-} from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
+import { FeaturesSection } from "~/components/landing-page/features-section";
 import { ProductDemo } from "~/components/landing-page/product-demo";
 import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
 
@@ -264,7 +254,7 @@ function ApplyToWaitlistForm() {
           </FormItem>
         )}
       </Field>
-      <Button variant="primary" type="submit" disabled={loading}>
+      <Button variant="primary" type="submit" size="lg" disabled={loading}>
         {loading ? <Spinner /> : null}
         {success ? "Thank you!" : "Request access"}
       </Button>
@@ -310,112 +300,14 @@ function RouteComponent() {
             <ApplyToWaitlistForm />
           </AnimatedGroup>
         </section>
+        <div className="col-span-full md:block hidden">
+          <HorizontalLine variant="outer" />
+          <ProductDemo />
+        </div>
+        <DashedPattern className="col-span-full md:hidden block h-3 border-y text-foreground-tertiary/65" />
+
         <HorizontalLine variant="outer" />
-        <ProductDemo />
-        <HorizontalLine variant="outer" />
-        <section
-          id="features"
-          className="col-span-full border-x scroll-mt-15 border-b"
-        >
-          <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
-            01 - Main features
-          </div>
-          <div className="grid grid-cols-12 border-b">
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-7 md:row-span-2 md:border-r border-b">
-              <Users className="size-10 text-foreground-secondary stroke-[1.2] mb-2" />
-              <h3 className="text-xl font-semibold">Community-first support</h3>
-              <p className="text-foreground-secondary leading-relaxed max-w-lg">
-                Turn support into a shared knowledge space. Every question
-                becomes a public thread, every answer helps the next customer.
-                Your community doesn't just ask for help — it scales your
-                support for you.
-              </p>
-            </div>
-
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-5 md:row-span-2 border-b">
-              <Search className="size-8 text-foreground-secondary mb-2" />
-              <h3 className="text-xl font-semibold">
-                Public, searchable answers
-              </h3>
-              <p className="text-foreground-secondary leading-relaxed">
-                Support that works before users even ask. Threads are public,
-                indexable, and searchable — real answers from real
-                conversations.
-              </p>
-            </div>
-
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0 md:border-r">
-              <Inbox className="size-8 text-foreground-secondary mb-2" />
-              <h3 className="text-xl font-semibold">
-                Unified inbox for agents
-              </h3>
-              <p className="text-foreground-secondary leading-relaxed">
-                Discord, Slack, in-app and every other support channel flow into
-                a single inbox. No more context switching between apps to
-                respond to customers.
-              </p>
-            </div>
-
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4 border-b md:border-b-0 md:border-r">
-              <Zap className="size-8 text-foreground-secondary mb-2" />
-              <h3 className="text-xl font-semibold">Built for speed</h3>
-              <p className="text-foreground-secondary leading-relaxed">
-                Realtime sync, instant search, no page loads. Don't keep
-                customers waiting because of a slow support tool.
-              </p>
-            </div>
-
-            <div className="bg-background flex flex-col px-6 py-8 gap-4 col-span-full md:col-span-4">
-              <Sparkles className="size-8 text-foreground-secondary mb-2" />
-              <h3 className="text-xl font-semibold">AI native</h3>
-              <p className="text-foreground-secondary leading-relaxed">
-                Built from the ground up with AI at its core. Smart suggestions,
-                intelligent routing, and automated responses that actually help.
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-3">
-            <div className="relative h-12">
-              <VerticalLine className="hidden md:block absolute right-0 inset-y-0" />
-            </div>
-            <div className="relative h-12">
-              <VerticalLine className="hidden md:block absolute right-0 inset-y-0" />
-            </div>
-            <div className="relative h-12" />
-          </div>
-          <HorizontalLine variant="contained" />
-          <div className="grid col-span-full grid-cols-8 md:grid-cols-12">
-            <div className="col-span-full md:col-span-4 flex flex-col gap-3 px-6 py-4 md:border-r border-b md:border-b-0">
-              <h3 className="text-xl font-semibold">Connect everything</h3>
-              <p className="text-foreground-secondary leading-relaxed">
-                Bring all your channels together. Connect Discord, Slack,
-                GitHub, Linear, and more.
-              </p>
-            </div>
-            <div className="border-r flex items-center justify-center min-h-16">
-              <Discord className="size-8 text-foreground-secondary" />
-            </div>
-            <div className="border-r flex items-center justify-center min-h-16">
-              <Slack className="size-8 text-foreground-secondary" />
-            </div>
-            <div className="border-r flex items-center justify-center min-h-16">
-              <MessagesSquare className="size-8 text-foreground-secondary" />
-            </div>
-            <div className="border-r flex items-center justify-center min-h-16">
-              <GitHub className="size-8 text-foreground-secondary" />
-            </div>
-            <div className="border-r flex items-center justify-center min-h-16">
-              <Linear className="size-8 text-foreground-secondary" />
-            </div>
-            <a
-              href="/docs/integrations"
-              className="col-span-3 flex items-center gap-2 justify-center text-foreground-secondary md:text-lg md:font-light"
-            >
-              All integrations
-              <ArrowRight className="size-4.5 stroke-2" />
-            </a>
-          </div>
-        </section>
+        <FeaturesSection />
         <HorizontalLine variant="outer" />
         <section
           id="pricing"
