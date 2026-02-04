@@ -656,11 +656,10 @@ const handleIntegrationChanges = async (
 
       if (addedChannels.length === 0) continue;
 
-      // Check if backfill feature is enabled
-      const { isEnabled: isBackfillEnabled } = reflagClient.getFlag(
-        {},
-        "backfill-threads",
-      );
+      // Check if backfill feature is enabled for this organization
+      const { isEnabled: isBackfillEnabled } = reflagClient
+        .bindClient({ company: { id: integration.organizationId } })
+        .getFlag("backfill-threads");
       if (!isBackfillEnabled) {
         console.log(
           `[Slack] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,

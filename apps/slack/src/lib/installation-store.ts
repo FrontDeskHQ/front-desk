@@ -94,8 +94,14 @@ export const installationStore = {
       return;
     }
 
-    const currentConfig =
-      safeParseIntegrationSettings(integration.configStr) ?? {};
+    const currentConfig = safeParseIntegrationSettings(integration.configStr);
+    if (!currentConfig) {
+      console.warn(
+        `[Slack] Failed to parse integration config during uninstall for teamId: ${teamId}, skipping cleanup`,
+      );
+      return;
+    }
+
     const { installation: _installation, ...configWithoutInstallation } =
       currentConfig;
 
