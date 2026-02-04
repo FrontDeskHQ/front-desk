@@ -1,4 +1,5 @@
-import { Check, Eye, Search } from "lucide-react";
+import { StatusIndicator } from "@workspace/ui/components/indicator";
+import { Eye, Search } from "lucide-react";
 import { AnimatePresence, motion, useInView } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
@@ -128,7 +129,7 @@ export function PortalVisual() {
               className="flex items-center justify-between rounded-lg border bg-background-primary px-3 py-2.5 shadow-sm"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <Check className="size-3.5 text-emerald-500 shrink-0" />
+                <StatusIndicator status={2} className="size-3.5 shrink-0" />
                 <span className="text-sm font-medium truncate">
                   {thread.title}
                 </span>
