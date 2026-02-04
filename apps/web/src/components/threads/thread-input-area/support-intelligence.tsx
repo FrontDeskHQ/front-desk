@@ -196,7 +196,7 @@ export const usePendingDuplicateSuggestions = ({
   const duplicateThreads = useLiveQuery(
     query.thread
       .where({ id: { $in: duplicateThreadIds } })
-      .include({ author: { user: true } }),
+      .include({ author: { user: true }, assignedUser: true }),
   ) as DuplicateThread[] | undefined;
 
   const duplicateThread = duplicateThreads?.[0] ?? null;
@@ -609,6 +609,7 @@ export const Suggestions = ({
                 {suggestedLabels?.map((label) => {
                   return (
                     <HoverCardTrigger
+                      key={label.id}
                       render={
                         <ActionButton
                           variant="ghost"
