@@ -38,7 +38,7 @@ interface PropertiesSectionProps {
   >[];
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>
+    properties?: Record<string, unknown>,
   ) => void;
 }
 
@@ -110,7 +110,7 @@ export function PropertiesSection({
               </ActionButton>
             }
           />
-          <ComboboxContent className="w-48">
+          <ComboboxContent className="w-48" side="left">
             <ComboboxInput placeholder="Search..." />
             <ComboboxEmpty />
             <ComboboxList>
@@ -201,7 +201,7 @@ export function PropertiesSection({
             }
           />
 
-          <ComboboxContent className="w-48">
+          <ComboboxContent className="w-48" side="left">
             <ComboboxInput placeholder="Search..." />
             <ComboboxEmpty />
             <ComboboxList>
@@ -263,8 +263,7 @@ export function PropertiesSection({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "text-sm px-1.5 max-w-40 py-1 w-full justify-start text-muted-foreground",
-                  thread?.assignedUser?.name && "text-primary"
+                  "text-sm px-1.5 max-w-40 py-1 w-full justify-start",
                 )}
                 tooltip="Assign to"
                 keybind="a"
@@ -277,7 +276,7 @@ export function PropertiesSection({
                       fallback={thread?.assignedUser.name}
                     />
                   ) : (
-                    <CircleUser className="size-4" />
+                    <CircleUser className="size-4 text-foreground-secondary" />
                   )}
                 </div>
                 {thread?.assignedUser?.name ?? "Unassigned"}
@@ -285,7 +284,7 @@ export function PropertiesSection({
             }
           />
 
-          <ComboboxContent className="w-48">
+          <ComboboxContent className="w-48" side="left">
             <ComboboxInput placeholder="Search..." />
             <ComboboxEmpty />
             <ComboboxList>
