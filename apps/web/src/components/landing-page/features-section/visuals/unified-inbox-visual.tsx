@@ -15,7 +15,10 @@ export function UnifiedInboxVisual() {
   const isInView = useInView(ref, { once: true, margin: "-10%" });
 
   return (
-    <div ref={ref} className="w-full flex items-center justify-center gap-4 md:gap-8 py-4">
+    <div
+      ref={ref}
+      className="w-full flex items-center justify-center md:gap-4 gap-2 py-4"
+    >
       {/* Channel icons */}
       <div className="flex flex-col gap-3 shrink-0">
         {channels.map((channel, i) => {
@@ -24,11 +27,7 @@ export function UnifiedInboxVisual() {
             <motion.div
               key={channel.label}
               initial={{ opacity: 0, scale: 0.8 }}
-              animate={
-                isInView
-                  ? { opacity: 1, scale: 1 }
-                  : undefined
-              }
+              animate={isInView ? { opacity: 1, scale: 1 } : undefined}
               transition={{ duration: 0.3, delay: i * 0.1 }}
               className="size-10 rounded-lg border bg-background-primary flex items-center justify-center shadow-sm"
             >
@@ -39,9 +38,11 @@ export function UnifiedInboxVisual() {
       </div>
 
       {/* SVG connecting lines */}
+      {/** biome-ignore lint/a11y/noSvgWithoutTitle: this is a visual component */}
       <svg
         viewBox="0 0 60 130"
-        className="w-8 md:w-12 h-32 shrink-0"
+        preserveAspectRatio="none"
+        className="w-12 md:w-18 self-stretch shrink-0"
         fill="none"
       >
         {[0, 1, 2, 3].map((i) => {
@@ -65,11 +66,7 @@ export function UnifiedInboxVisual() {
       {/* Inbox */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
-        animate={
-          isInView
-            ? { opacity: 1, scale: 1 }
-            : undefined
-        }
+        animate={isInView ? { opacity: 1, scale: 1 } : undefined}
         transition={{ duration: 0.4, delay: 1 }}
         className="shrink-0 rounded-lg border bg-background-primary p-4 shadow-sm flex flex-col items-center gap-2"
       >

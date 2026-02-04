@@ -238,7 +238,7 @@ export function AiTriageVisual() {
   return (
     <div
       ref={ref}
-      className="relative flex items-center justify-center gap-4 px-4 w-[140%] max-w-3xl max-h-96 overflow-hidden lg:ml-48 md:scale-100 md:max-w-2xl scale-75 md:w-full"
+      className="relative flex items-center justify-center gap-4 px-4 max-w-2xl max-h-96 lg:ml-48 md:scale-100 scale-75 w-[200%] md:w-full"
     >
       {/* Thread card */}
       <motion.div
@@ -274,7 +274,7 @@ export function AiTriageVisual() {
       </motion.div>
 
       {/* SVG arrows */}
-      <div className="grow shrink min-w-0 self-stretch py-10">
+      <div className="grow shrink min-w-16 self-stretch py-10">
         {/** biome-ignore lint/a11y/noSvgWithoutTitle: this is a visual component */}
         <svg
           viewBox="0 0 60 120"
