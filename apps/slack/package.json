@@ -8,6 +8,7 @@
     "dev": "bun run --watch src/index.ts"
   },
   "dependencies": {
+    "@reflag/node-sdk": "^1.1.0",
     "@live-state/sync": "catalog:",
     "@slack/bolt": "^4.6.0",
     "@slack/oauth": "^3.0.4",
@@ -15,6 +16,7 @@
     "@workspace/ui": "workspace:*",
     "@workspace/schemas": "workspace:*",
     "api": "workspace:*",
+    "bullmq": "^5.67.1",
     "dotenv": "^16.6.1",
     "ulid": "^3.0.0",
     "zod": "catalog:"

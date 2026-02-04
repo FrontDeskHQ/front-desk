@@ -1,35 +1,35 @@
-import "./env";
-
 import type { InferLiveObject } from "@live-state/sync";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
-import type { Message } from "discord.js";
-import { Client, GatewayIntentBits, TextChannel } from "discord.js";
+import {
+  ChannelType,
+  Client,
+  type ForumChannel,
+  GatewayIntentBits,
+  type Message,
+  type TextChannel,
+  type ThreadChannel,
+} from "discord.js";
 import { ulid } from "ulid";
+import "./env";
+import { reflagClient } from "./lib/feature-flag";
 import { fetchClient, store } from "./lib/live-state";
-import { safeParseIntegrationSettings } from "./lib/utils";
+import {
+  addChannelBackfillJob,
+  closeBackfillQueue,
+  initializeBackfillWorker,
+} from "./lib/queue";
+import {
+  parseContentAsMarkdown,
+  safeParseIntegrationSettings,
+  safeParseJSON,
+} from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
 
-const safeParseJSON = (raw: string) => {
-  try {
-    const parsed = JSON.parse(raw);
-    // Accept common shapes produced by our editor:
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object" && "content" in parsed) {
-      // e.g. a full doc { type: 'doc', content: [...] }
-      // Normalize to content[] to match our usage.
-      return (parsed as any).content ?? [];
-    }
-  } catch {}
-  // Fallback: wrap plain text in a single paragraph node.
-  return [
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: String(raw) }],
-    },
-  ];
-};
+const THREAD_CREATION_THRESHOLD_MS = 1000;
+
+const token = process.env.DISCORD_TOKEN;
 
 type RelatedThreadResult = {
   threadId: string;
@@ -40,32 +40,6 @@ type RelatedThreadLink = {
   threadId: string;
   name: string | null;
   url: string;
-};
-
-const parseContentAsMarkdown = (message: Message): string => {
-  let content = message.content;
-
-  // Replace user mentions: <@userId> or <@!userId> with @Username
-  for (const [userId, user] of message.mentions.users) {
-    const mentionPattern = new RegExp(`<@!?${userId}>`, "g");
-    content = content.replace(mentionPattern, `@${user.displayName}`);
-  }
-
-  // Replace role mentions: <@&roleId> with @RoleName
-  for (const [roleId, role] of message.mentions.roles) {
-    const mentionPattern = new RegExp(`<@&${roleId}>`, "g");
-    content = content.replace(mentionPattern, `@${role.name}`);
-  }
-
-  // Replace channel mentions: <#channelId> with #ChannelName
-  for (const [channelId, channel] of message.mentions.channels) {
-    const mentionPattern = new RegExp(`<#${channelId}>`, "g");
-    if ("name" in channel) {
-      content = content.replace(mentionPattern, `#${channel.name}`);
-    }
-  }
-
-  return content;
 };
 
 const RELATED_THREADS_SUGGESTION_TYPE = "related_threads";
@@ -85,7 +59,7 @@ const sleep = (ms: number) =>
 const buildPortalThreadUrl = (
   baseUrl: string,
   organizationSlug: string,
-  threadId: string
+  threadId: string,
 ) => {
   const baseUrlObj = new URL(baseUrl);
   const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
@@ -93,7 +67,7 @@ const buildPortalThreadUrl = (
 };
 
 const parseRelatedThreadResults = (
-  resultsStr: string | null | undefined
+  resultsStr: string | null | undefined,
 ): RelatedThreadResult[] => {
   if (!resultsStr) return [];
   try {
@@ -136,7 +110,7 @@ const getRelatedThreadLinks = async ({
       .get();
 
     const results = parseRelatedThreadResults(suggestion?.resultsStr).filter(
-      (result) => result.threadId !== threadId
+      (result) => result.threadId !== threadId,
     );
 
     if (results.length > 0) {
@@ -208,53 +182,298 @@ const client = new Client({
   ],
 });
 
-const token = process.env.DISCORD_TOKEN;
+/**
+ * Helper to get or create an author record for a Discord user
+ */
+const getOrCreateAuthor = async (
+  discordUserId: string,
+  displayName: string,
+  organizationId: string,
+): Promise<string> => {
+  let authorId = store.query.author
+    .first({ metaId: `discord:${discordUserId}` })
+    .get()?.id;
 
-if (!token) {
-  console.error("DISCORD_TOKEN is not defined in environment variables");
-  process.exit(1);
-}
+  if (!authorId) {
+    authorId = ulid().toLowerCase();
+    await fetchClient.mutate.author.insert({
+      id: authorId,
+      name: displayName,
+      userId: null,
+      metaId: `discord:${discordUserId}`,
+      organizationId,
+    });
+  }
 
-// client.once("ready", async () => {
-//   if (!client.user) return;
-//   console.log(`Logged in as ${client.user.tag}`);
+  return authorId;
+};
 
-//   // Set up webhooks for all text channels in all guilds
-//   for (const [guildId, guild] of client.guilds.cache) {
-//     try {
-//       console.log(`Setting up webhooks for server: ${guild.name} (${guildId})`);
+// Track which channels have been configured per integration to detect additions
+const integrationChannels = new Map<string, Set<string>>();
 
-//       // Get all text channels
-//       const channels = guild.channels.cache.filter(
-//         (c): c is TextChannel =>
-//           c.type === ChannelType.GuildText &&
-//           c.viewable &&
-//           guild.members.me?.permissionsIn(c).has("ManageWebhooks") === true
-//       );
+/**
+ * Backfill threads from a specific Discord channel
+ */
+const backfillChannel = async (
+  channel: TextChannel | ForumChannel,
+  organizationId: string,
+) => {
+  console.log(`  Fetching threads from #${channel.name}...`);
 
-//       // Create webhooks for each channel
-//       for (const channel of channels.values()) {
-//         try {
-//           await getOrCreateWebhook(channel);
-//           console.log(`  ✓ Webhook ready for #${channel.name}`);
-//         } catch (error) {
-//           console.error(
-//             `  ✗ Failed to set up webhook for #${channel.name}:`,
-//             error
-//           );
-//         }
-//       }
-//     } catch (error) {
-//       console.error(`Error setting up webhooks for guild ${guildId}:`, error);
-//     }
-//   }
-// });
+  try {
+    // Fetch active threads
+    const activeThreads = await channel.threads.fetchActive();
+    // Fetch archived threads (fetches up to 100 by default)
+    const archivedThreads = await channel.threads.fetchArchived();
 
-client.on("error", (error) => {
-  console.error("Discord client error:", error);
-});
+    const allThreads = [
+      ...activeThreads.threads.values(),
+      ...archivedThreads.threads.values(),
+    ];
 
-const THREAD_CREATION_THRESHOLD_MS = 1000;
+    console.log(`    Found ${allThreads.length} threads`);
+
+    for (const thread of allThreads) {
+      await backfillThread(thread, organizationId);
+    }
+  } catch (error) {
+    console.error(`    Error fetching threads from #${channel.name}:`, error);
+  }
+};
+
+/**
+ * Handle Discord integration changes - triggers backfill when channels are added
+ */
+const handleIntegrationChanges = async (
+  integrations: {
+    id: string;
+    organizationId: string;
+    configStr: string | null;
+  }[],
+) => {
+  for (const integration of integrations) {
+    try {
+      const settings = safeParseIntegrationSettings(integration.configStr);
+      if (!settings?.guildId) continue;
+
+      const currentChannels = new Set(settings.selectedChannels ?? []);
+      const previousChannels =
+        integrationChannels.get(integration.id) ?? new Set();
+
+      // Find newly added channels
+      const addedChannels = [...currentChannels].filter(
+        (ch) => !previousChannels.has(ch),
+      );
+
+      // Update tracked channels
+      integrationChannels.set(integration.id, currentChannels);
+
+      if (addedChannels.length === 0) continue;
+
+      // Check if backfill feature is enabled for this organization
+      const { isEnabled: isBackfillEnabled } = reflagClient
+        .bindClient({ company: { id: integration.organizationId } })
+        .getFlag("backfill-threads");
+      if (!isBackfillEnabled) {
+        console.log(
+          `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
+        );
+        continue;
+      }
+
+      console.log(
+        `Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
+      );
+
+      const guild = client.guilds.cache.get(settings.guildId);
+      if (!guild) {
+        console.log(`Guild ${settings.guildId} not found in cache, skipping`);
+        continue;
+      }
+
+      // Queue backfill jobs for newly added channels
+      for (const channelName of addedChannels) {
+        const channel = guild.channels.cache.find(
+          (c): c is TextChannel | ForumChannel =>
+            (c.type === ChannelType.GuildText ||
+              c.type === ChannelType.GuildForum) &&
+            c.name === channelName,
+        );
+
+        if (channel) {
+          await addChannelBackfillJob(
+            channel,
+            settings.guildId,
+            integration.organizationId,
+          );
+        } else {
+          console.log(`    Channel #${channelName} not found in guild`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error processing integration ${integration.id}:`, error);
+    }
+  }
+};
+
+/**
+ * Backfill a single thread and its messages
+ */
+const backfillThread = async (
+  thread: ThreadChannel,
+  organizationId: string,
+) => {
+  // Check if thread already exists in the database using externalId
+  const existingThread = await fetchClient.query.thread
+    .first({ externalId: thread.id, organizationId })
+    .get();
+
+  if (existingThread) {
+    // Thread exists (re-added channel), sync status and backfill missing messages
+    await backfillMessages(thread, existingThread, organizationId);
+    return;
+  }
+
+  console.log(`      Creating thread: ${thread.name}`);
+
+  // Fetch messages to find the original author
+  const messages = await thread.messages.fetch({ limit: 100 });
+  const sortedMessages = [...messages.values()].sort(
+    (a, b) => a.createdTimestamp - b.createdTimestamp,
+  );
+
+  if (sortedMessages.length === 0) {
+    console.log(`      Skipping thread with no messages: ${thread.name}`);
+    return;
+  }
+
+  // Get the first non-bot message author as the thread author
+  const firstMessage =
+    sortedMessages.find((m) => !m.author.bot) ?? sortedMessages[0];
+  const authorId = await getOrCreateAuthor(
+    firstMessage.author.id,
+    firstMessage.author.displayName,
+    organizationId,
+  );
+
+  // Create the thread
+  // Status: 0 = Open, 3 = Closed (for archived Discord threads)
+  const threadId = ulid().toLowerCase();
+  store.mutate.thread.insert({
+    id: threadId,
+    organizationId,
+    name: thread.name,
+    createdAt: thread.createdAt ?? new Date(),
+    deletedAt: null,
+    discordChannelId: thread.id,
+    authorId,
+    assignedUserId: null,
+    status: thread.archived ? 3 : 0,
+    externalIssueId: null,
+    externalPrId: null,
+    externalId: thread.id,
+    externalOrigin: "discord",
+    externalMetadataStr: JSON.stringify({ channelId: thread.id }),
+  });
+
+  // Wait for the thread to be created
+  await new Promise((resolve) => setTimeout(resolve, 150));
+
+  // Optionally send portal message for new threads
+  // (Skipped during backfill to avoid spamming old threads)
+
+  // Sync all messages
+  for (const message of sortedMessages) {
+    if (message.author.bot) continue;
+
+    await backfillMessage(message, threadId, organizationId);
+  }
+
+  console.log(
+    `      Synced ${sortedMessages.filter((m) => !m.author.bot).length} messages`,
+  );
+};
+
+/**
+ * Backfill messages for an existing thread (check for missing messages)
+ * Also syncs thread status between Discord and FrontDesk
+ * Used when a channel is re-added to an integration
+ */
+const backfillMessages = async (
+  thread: ThreadChannel,
+  existingThread: { id: string; status: number },
+  organizationId: string,
+) => {
+  // Sync thread status: Discord archived = FrontDesk Closed (3), active = Open (0)
+  const expectedStatus = thread.archived ? 3 : 0;
+  const currentStatus = existingThread.status;
+
+  // Only sync between Open (0) and Closed (3), preserve other statuses like In Progress (1) or Resolved (2)
+  if (
+    (currentStatus === 0 && expectedStatus === 3) ||
+    (currentStatus === 3 && expectedStatus === 0)
+  ) {
+    console.log(
+      `      Updating thread status: ${thread.name} (${currentStatus} → ${expectedStatus})`,
+    );
+    await fetchClient.mutate.thread.update(existingThread.id, {
+      status: expectedStatus,
+    });
+  }
+
+  const messages = await thread.messages.fetch({ limit: 100 });
+  const sortedMessages = [...messages.values()].sort(
+    (a, b) => a.createdTimestamp - b.createdTimestamp,
+  );
+
+  let syncedCount = 0;
+  for (const message of sortedMessages) {
+    if (message.author.bot) continue;
+
+    // Check if message already exists in the database
+    const existingMessage = await fetchClient.query.message
+      .first({ externalMessageId: message.id })
+      .get();
+
+    if (!existingMessage) {
+      await backfillMessage(message, existingThread.id, organizationId);
+      syncedCount++;
+    }
+  }
+
+  if (syncedCount > 0) {
+    console.log(
+      `      Synced ${syncedCount} missing messages for thread: ${thread.name}`,
+    );
+  }
+};
+
+/**
+ * Backfill a single message
+ */
+const backfillMessage = async (
+  message: Message,
+  threadId: string,
+  organizationId: string,
+) => {
+  const authorId = await getOrCreateAuthor(
+    message.author.id,
+    message.author.displayName,
+    organizationId,
+  );
+
+  const contentWithMentions = parseContentAsMarkdown(message);
+
+  store.mutate.message.insert({
+    id: ulid().toLowerCase(),
+    threadId,
+    authorId,
+    content: JSON.stringify(parse(contentWithMentions)),
+    createdAt: message.createdAt,
+    origin: "discord",
+    externalMessageId: message.id,
+  });
+};
 
 client.on("messageCreate", async (message) => {
   if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
@@ -262,7 +481,7 @@ client.on("messageCreate", async (message) => {
 
   const isFirstMessage =
     Math.abs(
-      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0)
+      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
     ) < THREAD_CREATION_THRESHOLD_MS;
 
   let threadId: string | null = null;
@@ -278,32 +497,23 @@ client.on("messageCreate", async (message) => {
   if (!integration) return;
 
   const integrationSettings = safeParseIntegrationSettings(
-    integration.configStr
+    integration.configStr,
   );
 
   if (
     !(integrationSettings?.selectedChannels ?? [])?.includes(
-      message.channel.parent?.name ?? ""
+      message.channel.parent?.name ?? "",
     )
   )
     return;
 
   // TODO do this in a transaction
 
-  let authorId = store.query.author
-    .first({ metaId: `discord:${message.author.id}` })
-    .get()?.id;
-
-  if (!authorId) {
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
-      name: message.author.displayName,
-      userId: null,
-      metaId: `discord:${message.author.id}`,
-      organizationId: integration.organizationId,
-    });
-  }
+  const authorId = await getOrCreateAuthor(
+    message.author.id,
+    message.author.displayName,
+    integration.organizationId,
+  );
 
   if (isFirstMessage) {
     threadId = ulid().toLowerCase();
@@ -372,7 +582,7 @@ client.on("messageCreate", async (message) => {
     const portalUrl = buildPortalThreadUrl(
       baseUrl,
       portalMessageOrgSlug,
-      threadId
+      threadId,
     );
     const portalEmbed = buildPortalBotEmbed({
       portalUrl,
@@ -419,7 +629,7 @@ const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
     { thread: true; author: { user: true } }
-  >[]
+  >[],
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
@@ -476,7 +686,7 @@ const formatUpdateMessage = (
   update: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >
+  >,
 ): string => {
   let metadata: any = null;
   if (update.metadataStr) {
@@ -516,7 +726,7 @@ const handleUpdates = async (
   updates: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >[]
+  >[],
 ) => {
   for (const update of updates) {
     const replicated = update.replicatedStr
@@ -577,6 +787,171 @@ const handleUpdates = async (
   }
 };
 
+client.on("messageCreate", async (message) => {
+  if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
+    return;
+
+  const isFirstMessage =
+    Math.abs(
+      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
+    ) < THREAD_CREATION_THRESHOLD_MS;
+
+  let threadId: string | null = null;
+
+  const integration = (
+    await fetchClient.query.integration.where({ type: "discord" }).get()
+  ).find((i) => {
+    const parsed = safeParseIntegrationSettings(i.configStr);
+    return parsed?.guildId === message.guild?.id;
+  });
+
+  if (!integration) return;
+
+  const integrationSettings = safeParseIntegrationSettings(
+    integration.configStr,
+  );
+
+  if (
+    !(integrationSettings?.selectedChannels ?? [])?.includes(
+      message.channel.parent?.name ?? "",
+    )
+  )
+    return;
+
+  // TODO do this in a transaction
+
+  const authorId = await getOrCreateAuthor(
+    message.author.id,
+    message.author.displayName,
+    integration.organizationId,
+  );
+
+  if (isFirstMessage) {
+    threadId = ulid().toLowerCase();
+    store.mutate.thread.insert({
+      id: threadId,
+      organizationId: integration.organizationId,
+      name: message.channel.name,
+      createdAt: new Date(),
+      deletedAt: null,
+      discordChannelId: message.channel.id,
+      authorId: authorId,
+      assignedUserId: null,
+      externalIssueId: null,
+      externalPrId: null,
+      externalId: message.channel.id,
+      externalOrigin: "discord",
+      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
+
+    try {
+      const organization = await fetchClient.query.organization
+        .first({ id: integration.organizationId })
+        .get();
+
+      if (organization?.slug) {
+        const showPortalMessage =
+          integrationSettings?.showPortalMessage !== false;
+
+        if (showPortalMessage) {
+          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+          const baseUrlObj = new URL(baseUrl);
+          const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
+          const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
+
+          const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
+          await message.channel.send({
+            content: portalMessage,
+          });
+        } else {
+          console.log("Skipping sending portal link message");
+        }
+      }
+    } catch (error) {
+      console.error("Error sending portal link message:", error);
+    }
+  } else {
+    const thread = store.query.thread
+      .first({
+        discordChannelId: message.channel.id,
+        organizationId: integration.organizationId,
+      })
+      .get();
+
+    if (!thread) return;
+    threadId = thread.id;
+  }
+
+  if (!threadId) return;
+
+  const contentWithMentions = parseContentAsMarkdown(message);
+
+  store.mutate.message.insert({
+    id: ulid().toLowerCase(),
+    threadId,
+    authorId: authorId,
+    content: JSON.stringify(parse(contentWithMentions)),
+    createdAt: message.createdAt,
+    origin: "discord",
+    externalMessageId: message.id,
+  });
+});
+
+client.on("error", (error) => {
+  console.error("Discord client error:", error);
+});
+
+// client.once("ready", async () => {
+//   if (!client.user) return;
+//   console.log(`Logged in as ${client.user.tag}`);
+
+//   // Set up webhooks for all text channels in all guilds
+//   for (const [guildId, guild] of client.guilds.cache) {
+//     try {
+//       console.log(`Setting up webhooks for server: ${guild.name} (${guildId})`);
+
+//       // Get all text channels
+//       const channels = guild.channels.cache.filter(
+//         (c): c is TextChannel =>
+//           c.type === ChannelType.GuildText &&
+//           c.viewable &&
+//           guild.members.me?.permissionsIn(c).has("ManageWebhooks") === true
+//       );
+
+//       // Create webhooks for each channel
+//       for (const channel of channels.values()) {
+//         try {
+//           await getOrCreateWebhook(channel);
+//           console.log(`  ✓ Webhook ready for #${channel.name}`);
+//         } catch (error) {
+//           console.error(
+//             `  ✗ Failed to set up webhook for #${channel.name}:`,
+//             error
+//           );
+//         }
+//       }
+//     } catch (error) {
+//       console.error(`Error setting up webhooks for guild ${guildId}:`, error);
+//     }
+//   }
+// });
+
+client.once("ready", async () => {
+  if (!client.user) return;
+  console.log(`Logged in as ${client.user.tag}`);
+
+  // Initialize Reflag client for feature flags
+  await reflagClient.initialize();
+  console.log("[Discord] Reflag initialized");
+
+  // Initialize the backfill worker with handlers
+  initializeBackfillWorker(client, {
+    processChannel: backfillChannel,
+    processThread: backfillThread,
+  });
+});
+
 setTimeout(async () => {
   // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
   await handleMessages(
@@ -588,7 +963,7 @@ setTimeout(async () => {
         },
       })
       .include({ thread: true, author: { user: true } })
-      .get()
+      .get(),
   );
   store.query.message
     .where({
@@ -619,6 +994,23 @@ setTimeout(async () => {
     })
     .include({ thread: true, user: true })
     .subscribe(handleUpdates);
+
+  // Subscribe to Discord integrations to trigger backfill when channels are added
+  store.query.integration
+    .where({ type: "discord" })
+    .subscribe(handleIntegrationChanges);
 }, 1000);
 
 client.login(token).catch(console.error);
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("Shutting down...");
+  await reflagClient.flush();
+  await closeBackfillQueue();
+  client.destroy();
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

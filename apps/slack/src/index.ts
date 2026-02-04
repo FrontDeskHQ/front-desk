@@ -8,12 +8,20 @@ import type {
 } from "@slack/bolt";
 import { App } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
+import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse";
 import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stringify } from "@workspace/ui/lib/tiptap-md";
 import type { schema } from "api/schema";
 import { ulid } from "ulid";
+import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
+import {
+  addChannelBackfillJob,
+  addThreadBackfillJob,
+  closeBackfillQueue,
+  initializeBackfillWorker,
+} from "./lib/queue";
 import { safeParseIntegrationSettings } from "./lib/utils";
 
 const app = new App({
@@ -39,7 +47,7 @@ const app = new App({
 
       if (!botToken) {
         throw new Error(
-          `Bot token not found in installation for teamId: ${teamId}`
+          `Bot token not found in installation for teamId: ${teamId}`,
         );
       }
 
@@ -55,7 +63,7 @@ const app = new App({
     } catch (error) {
       console.error(
         `[Slack] Authorization failed for teamId: ${teamId}`,
-        error
+        error,
       );
       throw error;
     }
@@ -106,7 +114,7 @@ const sleep = (ms: number) =>
 const buildPortalThreadUrl = (
   baseUrl: string,
   organizationSlug: string,
-  threadId: string
+  threadId: string,
 ) => {
   const baseUrlObj = new URL(baseUrl);
   const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
@@ -114,7 +122,7 @@ const buildPortalThreadUrl = (
 };
 
 const parseRelatedThreadResults = (
-  resultsStr: string | null | undefined
+  resultsStr: string | null | undefined,
 ): RelatedThreadResult[] => {
   if (!resultsStr) return [];
   try {
@@ -157,7 +165,7 @@ const getRelatedThreadLinks = async ({
       .get();
 
     const results = parseRelatedThreadResults(suggestion?.resultsStr).filter(
-      (result) => result.threadId !== threadId
+      (result) => result.threadId !== threadId,
     );
 
     if (results.length > 0) {
@@ -262,7 +270,7 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
 
     if (!botToken) {
       console.error(
-        `Bot token not found in installation for teamId: ${teamId}`
+        `Bot token not found in installation for teamId: ${teamId}`,
       );
       return null;
     }
@@ -271,6 +279,427 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
   } catch (error) {
     console.error(`Failed to get client for teamId: ${teamId}`, error);
     return null;
+  }
+};
+
+// Track which channels have been configured per integration to detect additions
+const integrationChannels = new Map<string, Set<string>>();
+
+/**
+ * Resolve a channel name to its ID using Slack API
+ */
+const resolveChannelIdByName = async (
+  client: WebClient,
+  channelName: string,
+): Promise<string | null> => {
+  try {
+    let cursor: string | undefined;
+    do {
+      const result = await client.conversations.list({
+        types: "public_channel,private_channel",
+        limit: 200,
+        cursor,
+      });
+
+      const channel = result.channels?.find((c) => c.name === channelName);
+      if (channel?.id) {
+        return channel.id;
+      }
+
+      cursor = result.response_metadata?.next_cursor;
+    } while (cursor);
+
+    return null;
+  } catch (error) {
+    console.error(
+      `[Slack] Error resolving channel ID for #${channelName}:`,
+      error,
+    );
+    return null;
+  }
+};
+
+/**
+ * Get or create an author record for a Slack user
+ */
+const getOrCreateAuthor = async (
+  client: WebClient,
+  slackUserId: string,
+  organizationId: string,
+): Promise<string> => {
+  let authorId = store.query.author
+    .first({ metaId: `slack:${slackUserId}`, organizationId })
+    .get()?.id;
+
+  if (!authorId) {
+    // Fetch user info from Slack
+    let userName = "Unknown";
+    try {
+      const userInfo = await client.users.info({ user: slackUserId });
+      if (userInfo.ok && userInfo.user) {
+        userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
+      }
+    } catch (error) {
+      console.error(
+        `[Slack] Error fetching user info for ${slackUserId}:`,
+        error,
+      );
+    }
+
+    authorId = ulid().toLowerCase();
+    await fetchClient.mutate.author.insert({
+      id: authorId,
+      name: userName,
+      userId: null,
+      metaId: `slack:${slackUserId}`,
+      organizationId,
+    });
+  }
+
+  return authorId;
+};
+
+/**
+ * Backfill a single message into the database
+ */
+const backfillMessage = async (
+  client: WebClient,
+  msg: MessageElement,
+  threadId: string,
+  organizationId: string,
+): Promise<void> => {
+  // Skip bot messages
+  if (msg.bot_id || !msg.user || !msg.ts) return;
+
+  const authorId = await getOrCreateAuthor(client, msg.user, organizationId);
+  const messageContent = msg.text || "";
+
+  await store.mutate.message.insert({
+    id: ulid().toLowerCase(),
+    threadId,
+    authorId,
+    content: JSON.stringify(parse(messageContent)),
+    createdAt: new Date(Number.parseFloat(msg.ts) * 1000),
+    origin: "slack",
+    externalMessageId: msg.ts,
+  });
+};
+
+/**
+ * Create a new thread with all its messages
+ */
+const createThreadWithMessages = async (
+  client: WebClient,
+  channelId: string,
+  threadTs: string,
+  teamId: string,
+  organizationId: string,
+): Promise<void> => {
+  // Fetch all messages in the thread using conversations.replies with pagination
+  const messages: MessageElement[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const replies = await client.conversations.replies({
+      channel: channelId,
+      ts: threadTs,
+      limit: 200,
+      cursor,
+    });
+
+    if (!replies.ok || !replies.messages) {
+      if (messages.length === 0) {
+        console.log(`    [Slack] No messages found for thread ${threadTs}`);
+        return;
+      }
+      break;
+    }
+
+    messages.push(...replies.messages);
+    cursor = replies.response_metadata?.next_cursor;
+  } while (cursor);
+
+  if (messages.length === 0) {
+    console.log(`    [Slack] No messages found for thread ${threadTs}`);
+    return;
+  }
+
+  const parentMessage = messages[0];
+
+  // Skip if parent message is from a bot
+  if (parentMessage.bot_id || !parentMessage.user) {
+    console.log(`    [Slack] Skipping bot thread ${threadTs}`);
+    return;
+  }
+
+  // Get or create author for the thread creator
+  const authorId = await getOrCreateAuthor(
+    client,
+    parentMessage.user,
+    organizationId,
+  );
+
+  // Generate thread name from first message
+  const threadName =
+    parentMessage.text && parentMessage.text.length > 0
+      ? parentMessage.text.substring(0, 100)
+      : "Slack Thread";
+
+  // Create the thread
+  const threadId = ulid().toLowerCase();
+  await store.mutate.thread.insert({
+    id: threadId,
+    organizationId,
+    name: threadName,
+    createdAt: new Date(Number.parseFloat(threadTs) * 1000),
+    deletedAt: null,
+    discordChannelId: null,
+    authorId,
+    assignedUserId: null,
+    externalId: threadTs,
+    externalOrigin: "slack",
+    externalMetadataStr: JSON.stringify({ channelId }),
+    externalIssueId: null,
+    externalPrId: null,
+  });
+
+  // Wait for the thread to be created
+  await new Promise((resolve) => setTimeout(resolve, 150));
+
+  console.log(`    [Slack] Created thread: ${threadName.substring(0, 50)}...`);
+
+  // Insert all messages (including the parent)
+  for (const msg of messages) {
+    await backfillMessage(client, msg, threadId, organizationId);
+  }
+
+  console.log(
+    `    [Slack] Synced ${messages.filter((m) => !m.bot_id && m.user).length} messages`,
+  );
+};
+
+/**
+ * Backfill missing messages for an existing thread
+ */
+const backfillMissingMessages = async (
+  client: WebClient,
+  channelId: string,
+  threadTs: string,
+  existingThread: { id: string },
+  organizationId: string,
+): Promise<void> => {
+  // Fetch all messages in the thread with pagination
+  const messages: MessageElement[] = [];
+  let cursor: string | undefined;
+
+  do {
+    const replies = await client.conversations.replies({
+      channel: channelId,
+      ts: threadTs,
+      limit: 200,
+      cursor,
+    });
+
+    if (!replies.ok || !replies.messages) {
+      break;
+    }
+
+    messages.push(...replies.messages);
+    cursor = replies.response_metadata?.next_cursor;
+  } while (cursor);
+
+  if (messages.length === 0) {
+    return;
+  }
+
+  let syncedCount = 0;
+  for (const msg of messages) {
+    if (!msg.ts || msg.bot_id || !msg.user) continue;
+
+    // Check if message already exists
+    const existingMessage = await fetchClient.query.message
+      .first({
+        externalMessageId: msg.ts,
+        threadId: existingThread.id,
+      })
+      .get();
+
+    if (!existingMessage) {
+      await backfillMessage(client, msg, existingThread.id, organizationId);
+      syncedCount++;
+    }
+  }
+
+  if (syncedCount > 0) {
+    console.log(
+      `    [Slack] Synced ${syncedCount} missing messages for thread ${threadTs}`,
+    );
+  }
+};
+
+/**
+ * Backfill a single thread (check if exists, create or update)
+ */
+const backfillThread = async (
+  client: WebClient,
+  channelId: string,
+  threadTs: string,
+  teamId: string,
+  organizationId: string,
+): Promise<void> => {
+  // Check if thread already exists
+  const existingThread = await fetchClient.query.thread
+    .first({ externalId: threadTs, externalOrigin: "slack" })
+    .get();
+
+  if (existingThread) {
+    // Thread exists, backfill missing messages
+    await backfillMissingMessages(
+      client,
+      channelId,
+      threadTs,
+      existingThread,
+      organizationId,
+    );
+  } else {
+    // Create new thread with all messages
+    await createThreadWithMessages(
+      client,
+      channelId,
+      threadTs,
+      teamId,
+      organizationId,
+    );
+  }
+};
+
+/**
+ * Backfill all threads from a Slack channel
+ */
+const backfillChannel = async (
+  client: WebClient,
+  channelId: string,
+  teamId: string,
+  organizationId: string,
+): Promise<void> => {
+  console.log(`  [Slack] Fetching messages from channel ${channelId}...`);
+
+  try {
+    let cursor: string | undefined;
+    let threadCount = 0;
+
+    do {
+      const result = await client.conversations.history({
+        channel: channelId,
+        limit: 100,
+        cursor,
+      });
+
+      if (!result.ok || !result.messages) {
+        console.error(
+          `  [Slack] Failed to fetch history for channel ${channelId}`,
+        );
+        break;
+      }
+
+      // Find messages with replies (threads)
+      const threadsInBatch = result.messages.filter(
+        (msg) => msg.reply_count && msg.reply_count > 0 && msg.ts,
+      );
+
+      for (const msg of threadsInBatch) {
+        if (!msg.ts) continue;
+
+        // Queue each thread for backfill
+        await addThreadBackfillJob(channelId, msg.ts, teamId, organizationId);
+        threadCount++;
+      }
+
+      cursor = result.response_metadata?.next_cursor;
+    } while (cursor);
+
+    console.log(
+      `  [Slack] Queued ${threadCount} threads for backfill from channel ${channelId}`,
+    );
+  } catch (error) {
+    console.error(`  [Slack] Error backfilling channel ${channelId}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Handle integration changes - triggers backfill when channels are added
+ */
+const handleIntegrationChanges = async (
+  integrations: {
+    id: string;
+    organizationId: string;
+    configStr: string | null;
+  }[],
+): Promise<void> => {
+  for (const integration of integrations) {
+    try {
+      const settings = safeParseIntegrationSettings(integration.configStr);
+      if (!settings?.teamId) continue;
+
+      const currentChannels = new Set(settings.selectedChannels ?? []);
+      const previousChannels =
+        integrationChannels.get(integration.id) ?? new Set();
+
+      // Find newly added channels
+      const addedChannels = [...currentChannels].filter(
+        (ch) => !previousChannels.has(ch),
+      );
+
+      // Update tracked channels
+      integrationChannels.set(integration.id, currentChannels);
+
+      if (addedChannels.length === 0) continue;
+
+      // Check if backfill feature is enabled for this organization
+      const { isEnabled: isBackfillEnabled } = reflagClient
+        .bindClient({ company: { id: integration.organizationId } })
+        .getFlag("backfill-threads");
+      if (!isBackfillEnabled) {
+        console.log(
+          `[Slack] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
+        );
+        continue;
+      }
+
+      console.log(
+        `[Slack] Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
+      );
+
+      const client = await getClientForTeam(settings.teamId);
+      if (!client) {
+        console.log(
+          `[Slack] Could not get client for team ${settings.teamId}, skipping`,
+        );
+        continue;
+      }
+
+      // Queue backfill jobs for newly added channels
+      for (const channelName of addedChannels) {
+        const channelId = await resolveChannelIdByName(client, channelName);
+
+        if (channelId) {
+          await addChannelBackfillJob(
+            channelId,
+            channelName,
+            settings.teamId,
+            integration.organizationId,
+          );
+        } else {
+          console.log(`    [Slack] Channel #${channelName} not found`);
+        }
+      }
+    } catch (error) {
+      console.error(
+        `[Slack] Error processing integration ${integration.id}:`,
+        error,
+      );
+    }
   }
 };
 
@@ -315,7 +744,7 @@ app.message(
     if (!integration) return;
 
     const integrationSettings = safeParseIntegrationSettings(
-      integration.configStr
+      integration.configStr,
     );
 
     if (!(integrationSettings?.selectedChannels ?? []).includes(channelName)) {
@@ -331,7 +760,10 @@ app.message(
     const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
 
     let authorId = store.query.author
-      .first({ metaId: `slack:${message.user}` })
+      .first({
+        metaId: `slack:${message.user}`,
+        organizationId: integration.organizationId,
+      })
       .get()?.id;
 
     if (!authorId) {
@@ -366,6 +798,7 @@ app.message(
         externalOrigin: "slack",
         externalMetadataStr: JSON.stringify({ channelId: message.channel }),
         externalIssueId: null,
+        externalPrId: null,
       });
 
       await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
@@ -384,7 +817,7 @@ app.message(
             const portalUrl = buildPortalThreadUrl(
               baseUrl,
               organization.slug,
-              threadId
+              threadId,
             );
             const portalText = buildPortalBotText({
               portalUrl,
@@ -466,14 +899,14 @@ app.message(
       origin: "slack",
       externalMessageId: message.ts,
     });
-  }
+  },
 );
 
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
     { thread: true; author: { user: true } }
-  >[]
+  >[],
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
@@ -542,7 +975,7 @@ const formatUpdateMessage = (
   update: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >
+  >,
 ): string => {
   let metadata: Record<string, unknown> | null = null;
   if (update.metadataStr) {
@@ -582,7 +1015,7 @@ const handleUpdates = async (
   updates: InferLiveObject<
     (typeof schema)["update"],
     { thread: true; user: true }
-  >[]
+  >[],
 ) => {
   for (const update of updates) {
     const replicated = update.replicatedStr
@@ -661,11 +1094,21 @@ const handleUpdates = async (
 };
 
 (async () => {
+  // Initialize Reflag client for feature flags
+  await reflagClient.initialize();
+  console.log("[Slack] Reflag initialized");
+
   await app.start(process.env.PORT || 3011);
 
   app.logger.info(
-    `⚡️ Bolt app is running at port ${process.env.PORT || 3011}!`
+    `⚡️ Bolt app is running at port ${process.env.PORT || 3011}!`,
   );
+
+  // Initialize the backfill worker
+  initializeBackfillWorker(getClientForTeam, {
+    processChannel: backfillChannel,
+    processThread: backfillThread,
+  });
 
   setTimeout(async () => {
     // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
@@ -680,7 +1123,7 @@ const handleUpdates = async (
           },
         })
         .include({ thread: true, author: { user: true } })
-        .get()
+        .get(),
     );
     store.query.message
       .where({
@@ -716,5 +1159,21 @@ const handleUpdates = async (
       })
       .include({ thread: true, user: true })
       .subscribe(handleUpdates);
+
+    // Subscribe to Slack integrations to trigger backfill when channels are added
+    store.query.integration
+      .where({ type: "slack" })
+      .subscribe(handleIntegrationChanges);
   }, 1000);
 })();
+
+// Graceful shutdown
+const shutdown = async () => {
+  console.log("[Slack] Shutting down...");
+  await reflagClient.flush();
+  await closeBackfillQueue();
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
