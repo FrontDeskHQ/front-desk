@@ -26,7 +26,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { OnboardingStep } from "~/lib/onboarding/types";
 import { useOnboarding } from "~/lib/onboarding/use-onboarding";
 
@@ -53,6 +53,7 @@ export function FirstStepsChecklist() {
 
   const [hoverCardOpen, setHoverCardOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const hasAutoCompletedRef = useRef(false);
 
   const matches = useMatches();
 
@@ -62,13 +63,23 @@ export function FirstStepsChecklist() {
     }
   }, [matches]);
 
+  useEffect(() => {
+    if (
+      isVisible &&
+      progress.total > 0 &&
+      progress.completed === progress.total &&
+      !hasAutoCompletedRef.current
+    ) {
+      hasAutoCompletedRef.current = true;
+      completeOnboarding();
+    }
+  }, [isVisible, progress.completed, progress.total, completeOnboarding]);
+
   if (!isVisible) {
     return null;
   }
 
-  // Auto-complete onboarding when all steps are done
   if (progress.completed === progress.total) {
-    completeOnboarding();
     return null;
   }
 

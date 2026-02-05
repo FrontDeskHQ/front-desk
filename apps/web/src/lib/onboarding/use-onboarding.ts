@@ -30,7 +30,13 @@ export function useOnboarding() {
     query.thread.where({ organizationId, deletedAt: null }),
   );
 
-  const updates = useLiveQuery(query.update.where({ type: "status" }));
+  const updates = useLiveQuery(
+    query.update.where({
+      type: {
+        $in: ["status_changed", "priority_changed", "assigned_changed"],
+      },
+    }),
+  );
 
   // Auto-initialize onboarding if it doesn't exist
   useEffect(() => {
