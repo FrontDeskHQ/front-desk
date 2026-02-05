@@ -155,6 +155,15 @@ const suggestion = object("suggestion", {
   updatedAt: timestamp(),
 });
 
+const onboarding = object("onboarding", {
+  id: id(),
+  organizationId: reference("organization.id"),
+  stepsStr: string().default("{}"), // JSON: { "step-id": { completedAt: "..." } }
+  status: string().default("incomplete"), // "incomplete" | "completed" | "skipped"
+  createdAt: timestamp(),
+  updatedAt: timestamp(),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
@@ -164,6 +173,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   labels: many(label, "organizationId"),
   authors: many(author, "organizationId"),
   suggestions: many(suggestion, "organizationId"),
+  onboardings: many(onboarding, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -224,6 +234,10 @@ const suggestionRelations = createRelations(suggestion, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
 
+const onboardingRelations = createRelations(onboarding, ({ one }) => ({
+  organization: one(organization, "organizationId"),
+}));
+
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
@@ -271,6 +285,7 @@ export const schema = createSchema({
   suggestion,
   pipelineIdempotencyKey,
   pipelineJob,
+  onboarding,
   // relations
   organizationUserRelations,
   organizationRelations,
@@ -284,4 +299,5 @@ export const schema = createSchema({
   labelRelations,
   threadLabelRelations,
   suggestionRelations,
+  onboardingRelations,
 });

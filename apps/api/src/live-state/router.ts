@@ -9,6 +9,7 @@ import { resend } from "../lib/resend";
 import { privateRoute, publicRoute } from "./factories";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
+import onboardingRoute from "./router/onboarding";
 import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
@@ -626,6 +627,7 @@ export const router = createRouter({
     update: updateRoute,
     message: messageRoute,
     suggestion: suggestionRoute,
+    onboarding: onboardingRoute,
     ...labelsRoute,
     // Internal pipeline tables (not synced to clients, used by worker)
     pipelineIdempotencyKey: publicRoute.collectionRoute(

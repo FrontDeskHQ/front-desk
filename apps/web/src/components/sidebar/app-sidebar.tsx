@@ -4,6 +4,7 @@ import { ActionButton } from "@workspace/ui/components/button";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -16,6 +17,7 @@ import {
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
 import { Activity, MessagesSquare, Search } from "lucide-react";
+import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
 import { OrgSwitcher } from "./organization-switcher";
 
 interface Item {
@@ -120,6 +122,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         {/* <NavWorkspaces workspaces={data.workspaces} /> */}
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
+      <SidebarFooter>
+        <FirstStepsChecklist />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
