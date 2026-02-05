@@ -1,6 +1,7 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import { Card } from "@workspace/ui/components/card";
 import { SettingsSidebar } from "~/components/sidebar/settings-sidebar";
+import { Widget } from "~/components/sidebar/widget";
 
 export const Route = createFileRoute("/app/_workspace/settings")({
   component: RouteComponent,
@@ -15,6 +16,7 @@ function RouteComponent() {
           <Outlet />
         </div>
       </Card>
+      <Widget />
     </div>
   );
 }

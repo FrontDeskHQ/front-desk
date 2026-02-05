@@ -3,6 +3,7 @@ import { getRouteApi, Link, useMatches } from "@tanstack/react-router";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -23,6 +24,7 @@ import {
   UserRoundPen,
   Users,
 } from "lucide-react";
+import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -144,6 +146,9 @@ export function SettingsSidebar() {
         {/* <NavWorkspaces workspaces={data.workspaces} /> */}
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
+      <SidebarFooter>
+        <FirstStepsChecklist />
+      </SidebarFooter>
       <SidebarRail />
     </Sidebar>
   );
