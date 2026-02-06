@@ -17,9 +17,10 @@ import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
+import { activateDiscord } from "~/lib/integrations/activate";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
-import { fetchClient, mutate, query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
@@ -43,17 +44,6 @@ export const Route = createFileRoute(
 const integrationDetails = integrationOptions.find(
   (option) => option.id === "discord"
 )!;
-
-// Discord bot permissions number - read messages, send messages, and manage webhooks, ...
-const DISCORD_BOT_PERMISSIONS = "292594747456";
-
-const generateStateToken = (): string => {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
-};
 
 function RouteComponent() {
   const posthog = usePostHog();
@@ -119,72 +109,17 @@ function RouteComponent() {
       return;
     }
 
-    const DISCORD_CLIENT_ID = import.meta.env.VITE_DISCORD_CLIENT_ID;
-
-    if (!DISCORD_CLIENT_ID) {
-      console.error("[Discord] Client ID is not configured");
-      return;
-    }
-
     if (!activeOrg?.id) {
       console.error("[Discord] No active organization selected");
       return;
     }
 
-    const csrfToken = generateStateToken();
-
-    if (integration) {
-      await fetchClient.mutate.integration.update(integration.id, {
-        enabled: false,
-        updatedAt: new Date(),
-        configStr: JSON.stringify({
-          ...(parsedConfig?.data ?? {}),
-          csrfToken,
-        }),
-      });
-    } else if (activeOrg?.id) {
-      await fetchClient.mutate.integration.insert({
-        id: ulid().toLowerCase(),
-        organizationId: activeOrg?.id,
-        type: "discord",
-        enabled: false,
-        updatedAt: new Date(),
-        createdAt: new Date(),
-        configStr: JSON.stringify({
-          ...(parsedConfig?.data ?? {}),
-          csrfToken,
-        }),
-      });
-    }
-
-    const baseUrl = window.location.href
-      .replace(/[?#].*$/, "")
-      .replace(/\/$/, "");
-    const redirectUri = `${baseUrl}/redirect`;
-
-    const queryParams = new URLSearchParams({
-      client_id: DISCORD_CLIENT_ID,
-      permissions: DISCORD_BOT_PERMISSIONS,
-      scope: "identify+bot", // We need identify because we wont get a redirect otherwise
-      integration_type: "0", // Add to guild
-      redirect_uri: redirectUri,
-      state: `${activeOrg?.id}_${csrfToken}`,
-      response_type: "code",
+    await activateDiscord({
+      organizationId: activeOrg.id,
+      existingIntegrationId: integration?.id,
+      existingConfig: parsedConfig?.data ?? undefined,
+      posthog,
     });
-
-    // https://discord.com/developers/docs/topics/oauth2#bot-authorization-flow
-    const discordOAuthUrl = `https://discord.com/api/oauth2/authorize?${queryParams
-      .toString()
-      .replaceAll("%2B", "+")}`;
-
-    posthog?.capture("integration_enable", {
-      integration_type: "discord",
-    });
-
-    // Wait briefly to ensure analytics event is transmitted before navigation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    window.location.href = discordOAuthUrl;
   };
 
   if (parsedConfig && !parsedConfig.success) {

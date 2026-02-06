@@ -17,9 +17,10 @@ import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
+import { activateSlack } from "~/lib/integrations/activate";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
-import { fetchClient, mutate, query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
@@ -43,26 +44,6 @@ export const Route = createFileRoute(
 const integrationDetails = integrationOptions.find(
   (option) => option.id === "slack"
 )!;
-
-// Slack bot scopes - chat:write, channels:read, channels:history, groups:read, im:read, users:read
-const SLACK_BOT_SCOPES = [
-  "channels:history",
-  "channels:read",
-  "chat:write",
-  "chat:write.customize",
-  "groups:history",
-  "groups:read",
-  "im:read",
-  "users:read",
-].join(",");
-
-const generateStateToken = (): string => {
-  const array = new Uint8Array(32);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
-};
 
 function RouteComponent() {
   const posthog = usePostHog();
@@ -128,69 +109,17 @@ function RouteComponent() {
       return;
     }
 
-    const SLACK_CLIENT_ID = import.meta.env.VITE_SLACK_CLIENT_ID;
-
-    if (!SLACK_CLIENT_ID) {
-      console.error("[Slack] Client ID is not configured");
-      return;
-    }
-
     if (!activeOrg?.id) {
       console.error("[Slack] No active organization selected");
       return;
     }
 
-    const csrfToken = generateStateToken();
-
-    if (integration) {
-      await fetchClient.mutate.integration.update(integration.id, {
-        enabled: false,
-        updatedAt: new Date(),
-        configStr: JSON.stringify({
-          ...(parsedConfig?.data ?? {}),
-          csrfToken,
-        }),
-      });
-    } else if (activeOrg?.id) {
-      await fetchClient.mutate.integration.insert({
-        id: ulid().toLowerCase(),
-        organizationId: activeOrg?.id,
-        type: "slack",
-        enabled: false,
-        updatedAt: new Date(),
-        createdAt: new Date(),
-        configStr: JSON.stringify({
-          ...(parsedConfig?.data ?? {}),
-          csrfToken,
-        }),
-      });
-    }
-
-    const baseUrl = window.location.href
-      .replace(/[?#].*$/, "")
-      .replace(/\/$/, "");
-    const redirectUri = `${
-      import.meta.env.DEV ? "https://redirectmeto.com/" : ""
-    }${baseUrl}/redirect`;
-
-    const queryParams = new URLSearchParams({
-      client_id: SLACK_CLIENT_ID,
-      scope: SLACK_BOT_SCOPES,
-      redirect_uri: redirectUri,
-      state: `${activeOrg?.id}_${csrfToken}`,
+    await activateSlack({
+      organizationId: activeOrg.id,
+      existingIntegrationId: integration?.id,
+      existingConfig: parsedConfig?.data ?? undefined,
+      posthog,
     });
-
-    // https://api.slack.com/authentication/oauth-v2
-    const slackOAuthUrl = `https://slack.com/oauth/v2/authorize?${queryParams.toString()}`;
-
-    posthog?.capture("integration_enable", {
-      integration_type: "slack",
-    });
-
-    // Wait briefly to ensure analytics event is transmitted before navigation
-    await new Promise((resolve) => setTimeout(resolve, 300));
-
-    window.location.href = slackOAuthUrl;
   };
 
   if (parsedConfig && !parsedConfig.success) {

@@ -98,7 +98,7 @@ export const router = createRouter({
             name: req.context.user?.name,
           });
 
-          await db.insert(schema.organization, {
+          const organization = await db.insert(schema.organization, {
             id: organizationId,
             name: req.input!.name,
             slug: req.input!.slug,
@@ -125,6 +125,11 @@ export const router = createRouter({
             enabled: true,
             role: "owner",
           });
+
+          return {
+            success: true,
+            organization,
+          };
         }),
         createPublicApiKey: mutation(
           z.object({
