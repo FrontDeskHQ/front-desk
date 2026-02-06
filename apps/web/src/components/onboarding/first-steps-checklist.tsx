@@ -1,6 +1,12 @@
 import { useMatches } from "@tanstack/react-router";
-import { Button } from "@workspace/ui/components/button";
+import { ActionButton } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu";
 import {
   createHoverCardHandle,
   HoverCard,
@@ -8,6 +14,7 @@ import {
   HoverCardTrigger,
 } from "@workspace/ui/components/hover-card";
 import { Progress } from "@workspace/ui/components/progress";
+import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import {
   SidebarMenu,
   SidebarMenuButton,
@@ -19,11 +26,11 @@ import {
   Check,
   CheckCircle,
   type LucideIcon,
+  Ellipsis,
   Minus,
   SlidersHorizontal,
   Tag,
   Users,
-  X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
@@ -116,24 +123,36 @@ export function FirstStepsChecklist() {
             <CardContent className="p-2 gap-2">
               <div className="flex items-center justify-between h-6 px-2">
                 <div className="text-foreground-secondary">First steps</div>
-                <div className="flex items-center gap-0.5">
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => setCollapsed(true)}
-                    aria-label="Collapse onboarding"
-                  >
-                    <Minus />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={skipOnboarding}
-                    aria-label="Dismiss onboarding"
-                  >
-                    <X />
-                  </Button>
-                </div>
+                <TooltipProvider>
+                  <div className="flex items-center gap-0.5">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <ActionButton
+                          variant="ghost"
+                          size="icon-sm"
+                          tooltip="More options"
+                          aria-label="Onboarding options"
+                        >
+                          <Ellipsis />
+                        </ActionButton>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={skipOnboarding}>
+                          Mark all as completed
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                    <ActionButton
+                      variant="ghost"
+                      size="icon-sm"
+                      tooltip="Collapse"
+                      onClick={() => setCollapsed(true)}
+                      aria-label="Collapse onboarding"
+                    >
+                      <Minus />
+                    </ActionButton>
+                  </div>
+                </TooltipProvider>
               </div>
               <div className="flex flex-col gap-3">
                 <div className="px-2">
