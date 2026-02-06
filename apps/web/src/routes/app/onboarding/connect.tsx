@@ -83,24 +83,50 @@ function RouteComponent() {
   // Fire the pending connect once orgId becomes available
   useEffect(() => {
     if (!orgId || !pendingConnect) return;
+    const showError = (err: unknown, label: string) => {
+      const message =
+        err instanceof Error ? err.message : `Failed to connect ${label}`;
+      toast.error(message);
+      setPendingConnect(null);
+    };
     if (pendingConnect === "discord") {
-      activateDiscord({ organizationId: orgId, posthog });
+      activateDiscord({ organizationId: orgId, posthog }).catch((err) =>
+        showError(err, "Discord"),
+      );
     } else {
-      activateSlack({ organizationId: orgId, posthog });
+      activateSlack({ organizationId: orgId, posthog }).catch((err) =>
+        showError(err, "Slack"),
+      );
     }
   }, [orgId, pendingConnect, posthog]);
 
-  const handleConnectDiscord = () => {
+  const handleConnectDiscord = async () => {
     if (orgId) {
-      activateDiscord({ organizationId: orgId, posthog });
+      setPendingConnect("discord");
+      try {
+        await activateDiscord({ organizationId: orgId, posthog });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to connect Discord";
+        toast.error(message);
+        setPendingConnect(null);
+      }
     } else {
       setPendingConnect("discord");
     }
   };
 
-  const handleConnectSlack = () => {
+  const handleConnectSlack = async () => {
     if (orgId) {
-      activateSlack({ organizationId: orgId, posthog });
+      setPendingConnect("slack");
+      try {
+        await activateSlack({ organizationId: orgId, posthog });
+      } catch (err) {
+        const message =
+          err instanceof Error ? err.message : "Failed to connect Slack";
+        toast.error(message);
+        setPendingConnect(null);
+      }
     } else {
       setPendingConnect("slack");
     }
