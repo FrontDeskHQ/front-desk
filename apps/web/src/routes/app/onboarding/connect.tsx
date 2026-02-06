@@ -80,36 +80,34 @@ function RouteComponent() {
       });
   }, [name, slug, posthog, navigate, setName, setSlug, setOrgId]);
 
-  // Fire the pending connect once orgId becomes available
+  // Deferred path: run activation only when pendingConnect was set before orgId was available
   useEffect(() => {
     if (!orgId || !pendingConnect) return;
     const showError = (err: unknown, label: string) => {
       const message =
         err instanceof Error ? err.message : `Failed to connect ${label}`;
       toast.error(message);
-      setPendingConnect(null);
     };
+    const clearPending = () => setPendingConnect(null);
     if (pendingConnect === "discord") {
-      activateDiscord({ organizationId: orgId, posthog }).catch((err) =>
-        showError(err, "Discord"),
-      );
+      activateDiscord({ organizationId: orgId, posthog })
+        .catch((err) => showError(err, "Discord"))
+        .finally(clearPending);
     } else {
-      activateSlack({ organizationId: orgId, posthog }).catch((err) =>
-        showError(err, "Slack"),
-      );
+      activateSlack({ organizationId: orgId, posthog })
+        .catch((err) => showError(err, "Slack"))
+        .finally(clearPending);
     }
   }, [orgId, pendingConnect, posthog]);
 
   const handleConnectDiscord = async () => {
     if (orgId) {
-      setPendingConnect("discord");
       try {
         await activateDiscord({ organizationId: orgId, posthog });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to connect Discord";
         toast.error(message);
-        setPendingConnect(null);
       }
     } else {
       setPendingConnect("discord");
@@ -118,14 +116,12 @@ function RouteComponent() {
 
   const handleConnectSlack = async () => {
     if (orgId) {
-      setPendingConnect("slack");
       try {
         await activateSlack({ organizationId: orgId, posthog });
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "Failed to connect Slack";
         toast.error(message);
-        setPendingConnect(null);
       }
     } else {
       setPendingConnect("slack");
@@ -167,10 +163,7 @@ function RouteComponent() {
                 </div>
               </div>
             </div>
-            <Button
-              onClick={handleConnectDiscord}
-              disabled={pendingConnect === "slack"}
-            >
+            <Button onClick={handleConnectDiscord} disabled={!!pendingConnect}>
               {pendingConnect === "discord" ? (
                 <>
                   <Spinner /> Setting up...
@@ -190,10 +183,7 @@ function RouteComponent() {
                 </div>
               </div>
             </div>
-            <Button
-              onClick={handleConnectSlack}
-              disabled={pendingConnect === "discord"}
-            >
+            <Button onClick={handleConnectSlack} disabled={!!pendingConnect}>
               {pendingConnect === "slack" ? (
                 <>
                   <Spinner /> Setting up...
