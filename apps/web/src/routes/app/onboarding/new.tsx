@@ -9,12 +9,9 @@ import {
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { Logo } from "@workspace/ui/components/logo";
-import { Spinner } from "@workspace/ui/components/spinner";
-import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { z } from "zod";
 import { useLogout } from "~/lib/hooks/auth";
-import { mutate } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/onboarding/new")({
@@ -75,7 +72,6 @@ const onboardingFormSchema = z.object({
 });
 
 function OnboardingForm() {
-  const posthog = usePostHog();
   const navigate = useNavigate();
   const { user } = Route.useRouteContext();
   const logout = useLogout();
@@ -103,29 +99,12 @@ function OnboardingForm() {
         onSubmit: onboardingFormSchema,
       },
       onSubmit: async ({ value }) => {
-        try {
-          setLoading(true);
-
-          // TODO change this to a fetch call
-          await mutate.organization.create({
-            name: value.organizationName,
-            slug: value.organizationSlug,
-          });
-
-          posthog?.capture("onboarding:organization_create");
-
-          setLoading(false);
-          navigate({ to: "/app" });
-        } catch (err) {
-          console.error("Error creating organization:", err);
-          setLoading(false);
-          setError(err instanceof Error ? err.message : "An error occurred");
-        }
+        navigate({
+          to: "/app/onboarding/connect",
+          search: { name: value.organizationName, slug: value.organizationSlug },
+        });
       },
     });
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   return (
     <div className="flex flex-col gap-6 w-96 items-center">
@@ -146,7 +125,6 @@ function OnboardingForm() {
         </Button>
       </div>
       <h1 className="text-xl font-medium">Create new organization</h1>
-      {error ? <p className="text-destructive">{error}</p> : null}
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -217,8 +195,8 @@ function OnboardingForm() {
             </FormItem>
           )}
         </Field>
-        <Button type="submit" className="mt-6 w-full" disabled={loading}>
-          {loading ? <Spinner /> : null} Create Organization
+        <Button type="submit" className="mt-6 w-full">
+          Continue
         </Button>
       </form>
     </div>

@@ -26,6 +26,7 @@ import { Route as PublicUpdatesIndexRouteImport } from './routes/_public/updates
 import { Route as SupportSlugSitemapDotxmlRouteImport } from './routes/support/$slug/sitemap[.]xml'
 import { Route as SupportSlugRobotsDottxtRouteImport } from './routes/support/$slug/robots[.]txt'
 import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
+import { Route as AppOnboardingConnectRouteImport } from './routes/app/onboarding/connect'
 import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
 import { Route as PublicLegalTermsOfServiceRouteImport } from './routes/_public/legal/terms-of-service'
 import { Route as PublicLegalPrivacyPolicyRouteImport } from './routes/_public/legal/privacy-policy'
@@ -139,6 +140,11 @@ const SupportSlugRobotsDottxtRoute = SupportSlugRobotsDottxtRouteImport.update({
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
   id: '/onboarding/new',
   path: '/onboarding/new',
+  getParentRoute: () => AppRouteRoute,
+} as any)
+const AppOnboardingConnectRoute = AppOnboardingConnectRouteImport.update({
+  id: '/onboarding/connect',
+  path: '/onboarding/connect',
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppInvitationIdRoute = AppInvitationIdRouteImport.update({
@@ -329,6 +335,7 @@ export interface FileRoutesByFullPath {
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
+  '/app/onboarding/connect': typeof AppOnboardingConnectRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
@@ -373,6 +380,7 @@ export interface FileRoutesByTo {
   '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
+  '/app/onboarding/connect': typeof AppOnboardingConnectRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
@@ -422,6 +430,7 @@ export interface FileRoutesById {
   '/_public/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
   '/_public/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
   '/app/invitation/$id': typeof AppInvitationIdRoute
+  '/app/onboarding/connect': typeof AppOnboardingConnectRoute
   '/app/onboarding/new': typeof AppOnboardingNewRoute
   '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
   '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
@@ -470,6 +479,7 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
+    | '/app/onboarding/connect'
     | '/app/onboarding/new'
     | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
@@ -514,6 +524,7 @@ export interface FileRouteTypes {
     | '/legal/privacy-policy'
     | '/legal/terms-of-service'
     | '/app/invitation/$id'
+    | '/app/onboarding/connect'
     | '/app/onboarding/new'
     | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/_public/legal/privacy-policy'
     | '/_public/legal/terms-of-service'
     | '/app/invitation/$id'
+    | '/app/onboarding/connect'
     | '/app/onboarding/new'
     | '/support/$slug/robots.txt'
     | '/support/$slug/sitemap.xml'
@@ -726,6 +738,13 @@ declare module '@tanstack/react-router' {
       path: '/onboarding/new'
       fullPath: '/app/onboarding/new'
       preLoaderRoute: typeof AppOnboardingNewRouteImport
+      parentRoute: typeof AppRouteRoute
+    }
+    '/app/onboarding/connect': {
+      id: '/app/onboarding/connect'
+      path: '/onboarding/connect'
+      fullPath: '/app/onboarding/connect'
+      preLoaderRoute: typeof AppOnboardingConnectRouteImport
       parentRoute: typeof AppRouteRoute
     }
     '/app/invitation/$id': {
@@ -1054,6 +1073,7 @@ const AppWorkspaceRouteRouteWithChildren =
 interface AppRouteRouteChildren {
   AppWorkspaceRouteRoute: typeof AppWorkspaceRouteRouteWithChildren
   AppInvitationIdRoute: typeof AppInvitationIdRoute
+  AppOnboardingConnectRoute: typeof AppOnboardingConnectRoute
   AppOnboardingNewRoute: typeof AppOnboardingNewRoute
   AppOnboardingIndexRoute: typeof AppOnboardingIndexRoute
 }
@@ -1061,6 +1081,7 @@ interface AppRouteRouteChildren {
 const AppRouteRouteChildren: AppRouteRouteChildren = {
   AppWorkspaceRouteRoute: AppWorkspaceRouteRouteWithChildren,
   AppInvitationIdRoute: AppInvitationIdRoute,
+  AppOnboardingConnectRoute: AppOnboardingConnectRoute,
   AppOnboardingNewRoute: AppOnboardingNewRoute,
   AppOnboardingIndexRoute: AppOnboardingIndexRoute,
 }
