@@ -33,7 +33,8 @@
             calc(
                 calc(var(--step-multiplier) * var(--background-multiplier)) *
                   0.04
-              ) * 0.75
+              ) *
+              0.75
           )
       )
       c h
@@ -45,10 +46,14 @@
           calc(
             calc(
                 calc(
-                    calc(var(--step-multiplier) * var(--background-multiplier)) *
+                    calc(
+                        var(--step-multiplier) * var(--background-multiplier)
+                      ) *
                       0.04
-                  ) * 0.75
-              ) * 0.8
+                  ) *
+                  0.75
+              ) *
+              0.8
           )
       )
       c h
@@ -71,7 +76,8 @@
             calc(
                 calc(var(--foreground-multiplier) * var(--step-multiplier)) *
                   0.13
-              ) * 2.3
+              ) *
+              2.3
           )
       )
       c h
@@ -83,10 +89,14 @@
           calc(
             calc(
                 calc(
-                    calc(var(--foreground-multiplier) * var(--step-multiplier)) *
+                    calc(
+                        var(--foreground-multiplier) * var(--step-multiplier)
+                      ) *
                       0.13
-                  ) * 2.3
-              ) * 0.7
+                  ) *
+                  2.3
+              ) *
+              0.7
           )
       )
       c h
@@ -352,4 +362,9 @@
 
 .customProse > p:first-child > img {
   @apply mt-0;
+}
+
+/* Sonner */
+.toaster [data-description] {
+  color: var(--color-foreground-secondary) !important;
 }

@@ -13,6 +13,7 @@ import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { ulid } from "ulid";
+import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -158,6 +159,11 @@ function RouteComponent() {
         Integrations
       </Button>
       <div className="flex flex-col gap-4 pt-12">
+        {integration?.enabled &&
+          (!parsedConfig?.data?.repos ||
+            parsedConfig.data.repos.length === 0) && (
+            <IntegrationWarningCallout title="No repositories connected." subtitle="Connect at least one repository for the integration to work." />
+          )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {integrationDetails.icon}

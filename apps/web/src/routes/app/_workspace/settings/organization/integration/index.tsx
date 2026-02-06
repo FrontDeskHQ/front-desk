@@ -1,7 +1,9 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { Badge } from "@workspace/ui/components/badge";
 import { cn } from "@workspace/ui/lib/utils";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
+import { useIntegrationWarnings } from "~/lib/hooks/query/use-integration-warnings";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { query } from "~/lib/live-state";
@@ -131,6 +133,8 @@ function RouteComponent() {
     (option) => !activeIntegrations.includes(option),
   );
 
+  const warnings = useIntegrationWarnings();
+
   const { user } = Route.useRouteContext();
   const isUserOwner =
     useLiveQuery(
@@ -150,6 +154,7 @@ function RouteComponent() {
         <h2 className="text-base">{label}</h2>
         <div className="grid grid-cols-3 gap-4">
           {options.map((option) => {
+            const hasWarning = warnings.some((w) => w.type === option.id);
             const content = (
               <>
                 <div className="flex items-center gap-2 justify-between">
@@ -157,6 +162,7 @@ function RouteComponent() {
                     {option.icon}
                     {option.label}
                   </div>
+                  {hasWarning && <Badge variant="warning">Needs setup</Badge>}
                 </div>
                 <div className="w-full text-muted-foreground">
                   {option.description}

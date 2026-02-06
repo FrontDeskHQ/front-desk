@@ -5,7 +5,8 @@ const calloutVariants = cva("rounded-md border p-4 flex flex-col gap-1", {
   variants: {
     variant: {
       default: "bg-background-secondary",
-      // TODO: add more variants
+      warning:
+        "bg-amber-50 border-amber-200/50 dark:bg-amber-500/5 dark:border-amber-500/15",
     },
   },
   defaultVariants: {

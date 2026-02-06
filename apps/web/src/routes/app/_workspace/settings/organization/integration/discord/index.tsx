@@ -16,6 +16,7 @@ import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
+import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { activateDiscord } from "~/lib/integrations/activate";
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -154,6 +155,11 @@ function RouteComponent() {
       />
       <div className="flex flex-col gap-4 pt-12">
         {integrations.hasReachedLimit && <LimitCallout className="mb-4" />}
+        {integration?.enabled &&
+          (!parsedConfig?.data?.selectedChannels ||
+            parsedConfig.data.selectedChannels.length === 0) && (
+            <IntegrationWarningCallout title="No support channels configured." subtitle="Add at least one channel for the integration to work." />
+          )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {integrationDetails.icon}
