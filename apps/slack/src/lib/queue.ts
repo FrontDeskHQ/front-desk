@@ -1,5 +1,5 @@
-import { type Job, Queue, Worker } from "bullmq";
 import type { WebClient } from "@slack/web-api";
+import { type Job, Queue, Worker } from "bullmq";
 import "../env";
 
 // Redis connection configuration
@@ -25,6 +25,7 @@ export type BackfillChannelJobData = {
   channelName: string;
   teamId: string; // Slack workspace ID
   organizationId: string;
+  integrationId: string;
 };
 
 export type BackfillThreadJobData = {
@@ -33,6 +34,7 @@ export type BackfillThreadJobData = {
   threadTs: string; // Thread parent timestamp
   teamId: string;
   organizationId: string;
+  integrationId: string;
 };
 
 export type BackfillJobData = BackfillChannelJobData | BackfillThreadJobData;
@@ -64,6 +66,7 @@ export type BackfillHandlers = {
     channelId: string,
     teamId: string,
     organizationId: string,
+    integrationId: string,
   ) => Promise<void>;
   processThread: (
     client: WebClient,
@@ -72,6 +75,7 @@ export type BackfillHandlers = {
     teamId: string,
     organizationId: string,
   ) => Promise<void>;
+  onThreadBackfillComplete?: (integrationId: string) => Promise<void>;
 };
 
 export const initializeBackfillWorker = (
@@ -102,6 +106,7 @@ export const initializeBackfillWorker = (
           data.channelId,
           data.teamId,
           data.organizationId,
+          data.integrationId,
         );
         console.log(`[Queue] Completed channel backfill: #${data.channelName}`);
       } else if (data.type === "backfill-thread") {
@@ -126,8 +131,14 @@ export const initializeBackfillWorker = (
     },
   );
 
-  backfillWorker.on("completed", (job) => {
+  backfillWorker.on("completed", async (job) => {
     console.log(`[Queue] Job ${job.id} completed successfully`);
+    if (
+      job.data.type === "backfill-thread" &&
+      handlers.onThreadBackfillComplete
+    ) {
+      await handlers.onThreadBackfillComplete(job.data.integrationId);
+    }
   });
 
   backfillWorker.on("failed", (job, err) => {
@@ -148,6 +159,7 @@ export const addChannelBackfillJob = async (
   channelName: string,
   teamId: string,
   organizationId: string,
+  integrationId: string,
 ) => {
   const jobId = `channel-${channelId}-${Date.now()}`;
   await backfillQueue.add(
@@ -158,6 +170,7 @@ export const addChannelBackfillJob = async (
       channelName,
       teamId,
       organizationId,
+      integrationId,
     },
     { jobId },
   );
@@ -170,6 +183,7 @@ export const addThreadBackfillJob = async (
   threadTs: string,
   teamId: string,
   organizationId: string,
+  integrationId: string,
 ) => {
   const jobId = `thread-${threadTs}-${Date.now()}`;
   await backfillQueue.add(
@@ -180,6 +194,7 @@ export const addThreadBackfillJob = async (
       threadTs,
       teamId,
       organizationId,
+      integrationId,
     },
     { jobId },
   );

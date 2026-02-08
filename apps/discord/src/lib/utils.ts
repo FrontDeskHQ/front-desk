@@ -1,6 +1,7 @@
 import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import type { Message } from "discord.js";
 import type z from "zod";
+import { fetchClient } from "./live-state";
 
 export const safeParseIntegrationSettings = (
   configStr: string | null,
@@ -11,6 +12,17 @@ export const safeParseIntegrationSettings = (
   } catch {
     return undefined;
   }
+};
+
+export const updateBackfillStatus = async (
+  integrationId: string,
+  configStr: string | null,
+  backfill: { processed: number; total: number } | null,
+) => {
+  const current = safeParseIntegrationSettings(configStr);
+  await fetchClient.mutate.integration.update(integrationId, {
+    configStr: JSON.stringify({ ...current, backfill }),
+  });
 };
 
 export const safeParseJSON = (raw: string) => {
