@@ -16,5 +16,9 @@
     "declaration": false,
     "jsx": "react-jsx"
   },
-  "include": ["src", "tests"]
+  "include": [
+    "src",
+    "tests",
+    "trigger.config.ts"
+  ]
 }

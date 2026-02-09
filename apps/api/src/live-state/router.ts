@@ -6,6 +6,7 @@ import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
+import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -125,6 +126,32 @@ export const router = createRouter({
             enabled: true,
             role: "owner",
           });
+
+          // Send welcome email if this is the user's first organization
+          const userMemberships = Object.values(
+            await db.find(schema.organizationUser, {
+              where: {
+                userId: req.context.session.userId,
+              },
+            }),
+          );
+
+          if (userMemberships.length === 1) {
+            const delayMinutes =
+              Math.floor(Math.random() * 21) + 20;
+
+            sendWelcomeEmail
+              .trigger(
+                {
+                  email: req.context.user!.email,
+                  name: req.context.user!.name,
+                },
+                { delay: `${delayMinutes}m` },
+              )
+              .catch((err) => {
+                console.error("Failed to schedule welcome email", err);
+              });
+          }
 
           return {
             success: true,
