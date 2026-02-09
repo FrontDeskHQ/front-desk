@@ -13,7 +13,6 @@ import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { ulid } from "ulid";
-import { SyncStatus } from "~/components/integration-settings/sync-status";
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -232,7 +231,7 @@ function RouteComponent() {
             )}
           </CardContent>
         </Card>
-        {integration?.enabled && <SyncStatus backfill={undefined} />}
+{/* SyncStatus omitted: GitHub integration does not support backfill */}
       </div>
     </>
   );

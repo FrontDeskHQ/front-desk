@@ -13,6 +13,31 @@ export const updateBackfillStatus = async (
   });
 };
 
+// Per-integration async mutex to serialize backfill status read-modify-write operations
+const backfillLocks = new Map<string, Promise<void>>();
+
+export const withBackfillLock = async <T>(
+  integrationId: string,
+  fn: () => Promise<T>,
+): Promise<T> => {
+  const existing = backfillLocks.get(integrationId) ?? Promise.resolve();
+  let resolve: () => void;
+  const next = new Promise<void>((r) => {
+    resolve = r;
+  });
+  backfillLocks.set(integrationId, next);
+
+  try {
+    await existing;
+    return await fn();
+  } finally {
+    resolve!();
+    if (backfillLocks.get(integrationId) === next) {
+      backfillLocks.delete(integrationId);
+    }
+  }
+};
+
 export const safeParseIntegrationSettings = (
   configStr: string | null,
 ): z.infer<typeof slackIntegrationSchema> | undefined => {

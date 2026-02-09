@@ -25,6 +25,7 @@ import {
   safeParseIntegrationSettings,
   safeParseJSON,
   updateBackfillStatus,
+  withBackfillLock,
 } from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
 
@@ -235,48 +236,57 @@ const backfillChannel = async (
 
     console.log(`    Found ${allThreads.length} threads`);
 
-    // Read current backfill state and accumulate total
-    const integration = await fetchClient.query.integration
-      .first({ id: integrationId })
-      .get();
-    const currentSettings = safeParseIntegrationSettings(
-      integration?.configStr ?? null,
-    );
-    const existingBackfill = currentSettings?.backfill;
-    const existingTotal = existingBackfill?.total ?? 0;
-    const existingProcessed = existingBackfill?.processed ?? 0;
-    const newTotal = existingTotal + allThreads.length;
+    // Read current backfill state and accumulate total (locked to avoid race with concurrent channel jobs)
+    await withBackfillLock(integrationId, async () => {
+      const integration = await fetchClient.query.integration
+        .first({ id: integrationId })
+        .get();
+      const currentSettings = safeParseIntegrationSettings(
+        integration?.configStr ?? null,
+      );
+      const existingBackfill = currentSettings?.backfill;
+      const existingTotal = existingBackfill?.total ?? 0;
+      const existingProcessed = existingBackfill?.processed ?? 0;
+      const newTotal = existingTotal + allThreads.length;
 
-    await updateBackfillStatus(integrationId, integration?.configStr ?? null, {
-      processed: existingProcessed,
-      total: newTotal,
+      await updateBackfillStatus(integrationId, integration?.configStr ?? null, {
+        processed: existingProcessed,
+        total: newTotal,
+      });
     });
 
     for (const thread of allThreads) {
       await backfillThread(thread, organizationId);
 
-      // Increment processed count
-      const latest = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
-      const latestSettings = safeParseIntegrationSettings(
-        latest?.configStr ?? null,
-      );
-      const currentProcessed = (latestSettings?.backfill?.processed ?? 0) + 1;
-      const currentTotal = latestSettings?.backfill?.total ?? newTotal;
-
-      if (currentProcessed >= currentTotal) {
-        await updateBackfillStatus(
-          integrationId,
+      // Increment processed count (locked to avoid race with concurrent channel jobs)
+      await withBackfillLock(integrationId, async () => {
+        const latest = await fetchClient.query.integration
+          .first({ id: integrationId })
+          .get();
+        const latestSettings = safeParseIntegrationSettings(
           latest?.configStr ?? null,
-          null,
         );
-      } else {
-        await updateBackfillStatus(integrationId, latest?.configStr ?? null, {
-          processed: currentProcessed,
-          total: currentTotal,
-        });
-      }
+        const currentProcessed =
+          (latestSettings?.backfill?.processed ?? 0) + 1;
+        const currentTotal = latestSettings?.backfill?.total ?? 0;
+
+        if (currentProcessed >= currentTotal) {
+          await updateBackfillStatus(
+            integrationId,
+            latest?.configStr ?? null,
+            null,
+          );
+        } else {
+          await updateBackfillStatus(
+            integrationId,
+            latest?.configStr ?? null,
+            {
+              processed: currentProcessed,
+              total: currentTotal,
+            },
+          );
+        }
+      });
     }
   } catch (error) {
     console.error(`    Error fetching threads from #${channel.name}:`, error);

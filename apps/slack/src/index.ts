@@ -25,6 +25,7 @@ import {
 import {
   safeParseIntegrationSettings,
   updateBackfillStatus,
+  withBackfillLock,
 } from "./lib/utils";
 
 const app = new App({
@@ -619,27 +620,29 @@ const backfillChannel = async (
       cursor = result.response_metadata?.next_cursor;
     } while (cursor);
 
-    // Update backfill status with accumulated total
-    const integration = await fetchClient.query.integration
-      .first({ id: integrationId })
-      .get();
-    const currentSettings = safeParseIntegrationSettings(
-      integration?.configStr ?? null,
-    );
-    const existingBackfill = currentSettings?.backfill;
-    const existingTotal = existingBackfill?.total ?? 0;
-    const existingProcessed = existingBackfill?.processed ?? 0;
-    const newTotal = existingTotal + threadTimestamps.length;
-
+    // Update backfill status with accumulated total (locked to avoid race with concurrent channel jobs)
     if (threadTimestamps.length > 0) {
-      await updateBackfillStatus(
-        integrationId,
-        integration?.configStr ?? null,
-        {
-          processed: existingProcessed,
-          total: newTotal,
-        },
-      );
+      await withBackfillLock(integrationId, async () => {
+        const integration = await fetchClient.query.integration
+          .first({ id: integrationId })
+          .get();
+        const currentSettings = safeParseIntegrationSettings(
+          integration?.configStr ?? null,
+        );
+        const existingBackfill = currentSettings?.backfill;
+        const existingTotal = existingBackfill?.total ?? 0;
+        const existingProcessed = existingBackfill?.processed ?? 0;
+        const newTotal = existingTotal + threadTimestamps.length;
+
+        await updateBackfillStatus(
+          integrationId,
+          integration?.configStr ?? null,
+          {
+            processed: existingProcessed,
+            total: newTotal,
+          },
+        );
+      });
     }
 
     // Queue each thread for backfill
@@ -1146,31 +1149,33 @@ const handleUpdates = async (
     processChannel: backfillChannel,
     processThread: backfillThread,
     onThreadBackfillComplete: async (integrationId: string) => {
-      const integration = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
-      const settings = safeParseIntegrationSettings(
-        integration?.configStr ?? null,
-      );
-      const currentProcessed = (settings?.backfill?.processed ?? 0) + 1;
-      const currentTotal = settings?.backfill?.total ?? 0;
+      await withBackfillLock(integrationId, async () => {
+        const integration = await fetchClient.query.integration
+          .first({ id: integrationId })
+          .get();
+        const settings = safeParseIntegrationSettings(
+          integration?.configStr ?? null,
+        );
+        const currentProcessed = (settings?.backfill?.processed ?? 0) + 1;
+        const currentTotal = settings?.backfill?.total ?? 0;
 
-      if (currentProcessed >= currentTotal) {
-        await updateBackfillStatus(
-          integrationId,
-          integration?.configStr ?? null,
-          null,
-        );
-      } else {
-        await updateBackfillStatus(
-          integrationId,
-          integration?.configStr ?? null,
-          {
-            processed: currentProcessed,
-            total: currentTotal,
-          },
-        );
-      }
+        if (currentProcessed >= currentTotal) {
+          await updateBackfillStatus(
+            integrationId,
+            integration?.configStr ?? null,
+            null,
+          );
+        } else {
+          await updateBackfillStatus(
+            integrationId,
+            integration?.configStr ?? null,
+            {
+              processed: currentProcessed,
+              total: currentTotal,
+            },
+          );
+        }
+      });
     },
   });
 
