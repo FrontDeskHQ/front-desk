@@ -30,6 +30,7 @@ export type BackfillChannelJobData = {
   channelName: string;
   guildId: string;
   organizationId: string;
+  integrationId: string;
 };
 
 export type BackfillThreadJobData = {
@@ -66,6 +67,7 @@ export type BackfillHandlers = {
   processChannel: (
     channel: TextChannel | ForumChannel,
     organizationId: string,
+    integrationId: string,
   ) => Promise<void>;
   processThread: (
     thread: ThreadChannel,
@@ -104,7 +106,11 @@ export const initializeBackfillWorker = (
         console.log(
           `[Queue] Processing channel backfill: #${data.channelName}`,
         );
-        await handlers.processChannel(channel, data.organizationId);
+        await handlers.processChannel(
+          channel,
+          data.organizationId,
+          data.integrationId,
+        );
         console.log(`[Queue] Completed channel backfill: #${data.channelName}`);
       } else if (data.type === "backfill-thread") {
         // Fetch the thread from Discord
@@ -151,6 +157,7 @@ export const addChannelBackfillJob = async (
   channel: TextChannel | ForumChannel,
   guildId: string,
   organizationId: string,
+  integrationId: string,
 ) => {
   const jobId = `channel-${channel.id}-${Date.now()}`;
   await backfillQueue.add(
@@ -161,6 +168,7 @@ export const addChannelBackfillJob = async (
       channelName: channel.name,
       guildId,
       organizationId,
+      integrationId,
     },
     { jobId },
   );

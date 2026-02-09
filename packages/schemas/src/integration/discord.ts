@@ -5,4 +5,8 @@ export const discordIntegrationSchema = z.object({
   csrfToken: z.string().optional(),
   selectedChannels: z.array(z.string()).optional(),
   showPortalMessage: z.boolean().optional().default(true),
+  backfill: z
+    .object({ processed: z.number(), total: z.number() })
+    .nullable()
+    .optional(),
 });

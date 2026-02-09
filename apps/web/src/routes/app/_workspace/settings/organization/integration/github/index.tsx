@@ -20,7 +20,7 @@ import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/github/"
+  "/app/_workspace/settings/organization/integration/github/",
 )({
   component: RouteComponent,
   head: () => {
@@ -37,14 +37,14 @@ export const Route = createFileRoute(
 
 // biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "github"
+  (option) => option.id === "github",
 )!;
 
 const generateStateToken = (): string => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
+    "",
   );
 };
 
@@ -54,7 +54,7 @@ function RouteComponent() {
     useFlag("github-integration");
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "github" })
+    query.integration.first({ organizationId: activeOrg?.id, type: "github" }),
   );
   if (!activeOrg) {
     return null;
@@ -66,7 +66,7 @@ function RouteComponent() {
     if (!integration?.configStr) return null;
     try {
       return githubIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr)
+        JSON.parse(integration.configStr),
       );
     } catch {
       return {
@@ -119,7 +119,7 @@ function RouteComponent() {
     // The state parameter will be passed back in the callback
     const state = `${activeOrg?.id}_${csrfToken}`;
     const githubAppInstallUrl = `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new?state=${encodeURIComponent(
-      state
+      state,
     )}`;
 
     posthog?.capture("integration_enable", {
@@ -135,7 +135,7 @@ function RouteComponent() {
   if (parsedConfig && !parsedConfig.success) {
     console.error(
       "Invalid GitHub integration configuration",
-      parsedConfig.error
+      parsedConfig.error,
     );
 
     return (
@@ -162,7 +162,10 @@ function RouteComponent() {
         {integration?.enabled &&
           (!parsedConfig?.data?.repos ||
             parsedConfig.data.repos.length === 0) && (
-            <IntegrationWarningCallout title="No repositories connected." subtitle="Connect at least one repository for the integration to work." />
+            <IntegrationWarningCallout
+              title="No repositories connected."
+              subtitle="Connect at least one repository for the integration to work."
+            />
           )}
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
@@ -228,6 +231,7 @@ function RouteComponent() {
             )}
           </CardContent>
         </Card>
+{/* SyncStatus omitted: GitHub integration does not support backfill */}
       </div>
     </>
   );

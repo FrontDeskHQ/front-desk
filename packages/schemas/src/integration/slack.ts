@@ -7,4 +7,8 @@ export const slackIntegrationSchema = z.object({
   accessToken: z.string().optional(),
   installation: z.any().optional(),
   showPortalMessage: z.boolean().optional().default(true),
+  backfill: z
+    .object({ processed: z.number(), total: z.number() })
+    .nullable()
+    .optional(),
 });
