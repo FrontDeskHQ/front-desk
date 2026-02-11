@@ -1,5 +1,6 @@
 import { type Job, Worker } from "bullmq";
 import Redis from "ioredis";
+import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensureThreadsCollection } from "./lib/qdrant/threads";
 import { executePipeline } from "./pipeline/core/orchestrator";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
@@ -137,14 +138,17 @@ const initialize = async () => {
   registerDefaultProcessors();
   console.log("✅ Processors registered");
 
-  // Ensure Qdrant collection exists
-  const qdrantReady = await ensureThreadsCollection();
-  if (!qdrantReady) {
+  // Ensure Qdrant collections exist
+  const [threadsReady, messagesReady] = await Promise.all([
+    ensureThreadsCollection(),
+    ensureMessagesCollection(),
+  ]);
+  if (!threadsReady || !messagesReady) {
     console.warn(
       "⚠️ Qdrant collection initialization failed - continuing anyway",
     );
   } else {
-    console.log("✅ Qdrant collection ready");
+    console.log("✅ Qdrant collections ready");
   }
 
   console.log("\nListening for jobs...");

@@ -1,8 +1,7 @@
-import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { ulid } from "ulid";
 import z from "zod";
 import { enqueueIngestThreadJob } from "../../lib/queue";
-import { createDocument, searchDocuments } from "../../lib/search/typesense";
+import { searchMessages } from "../../lib/search/qdrant";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 import { storage } from "../storage";
@@ -247,62 +246,22 @@ export default publicRoute
         organizationId: z.string(),
       }),
     ).handler(async ({ req }) => {
-      const messages = await searchDocuments("messages", {
-        q: req.input.query,
-        filter_by: `organizationId:=${req.input.organizationId}`,
-        query_by: "content",
+      const results = await searchMessages({
+        query: req.input.query,
+        organizationId: req.input.organizationId,
       });
 
-      return messages;
+      return {
+        hits: results.map((r) => ({
+          document: { id: r.messageId },
+        })),
+      };
     }),
   }))
   .withHooks({
     afterInsert: ({ value }) => {
       (async () => {
         try {
-          const plainTextContent = jsonContentToPlainText(
-            safeParseJSON(value.content),
-          );
-
-          const thread = Object.values(
-            await storage.find(schema.thread, {
-              where: { id: value.threadId },
-            }),
-          )[0];
-
-          if (!thread) {
-            console.error(
-              `Thread not found for message ${value.id}, threadId: ${value.threadId}`,
-            );
-            return;
-          }
-
-          const organizationId = thread.organizationId;
-
-          const allMessages = Object.values(
-            await storage.find(schema.message, {
-              where: { threadId: value.threadId },
-            }),
-          );
-
-          const sortedMessages = [...allMessages].sort((a, b) =>
-            a.id.localeCompare(b.id),
-          );
-          const messageIndex =
-            sortedMessages.findIndex((msg) => msg.id === value.id) + 1;
-
-          const created = await createDocument("messages", {
-            id: value.id,
-            content: plainTextContent,
-            organizationId: organizationId,
-            threadId: value.threadId,
-            messageIndex: messageIndex,
-          });
-
-          if (!created) {
-            console.error(`error creating message ${value.id} in typesense`);
-          }
-
           const jobId = await enqueueIngestThreadJob({
             threadIds: [value.threadId],
           });

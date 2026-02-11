@@ -136,13 +136,13 @@ function RouteComponent() {
   );
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
-  type TypesenseHit = {
+  type SearchHit = {
     document?: {
       id?: string;
     };
   };
-  type TypesenseResponse = {
-    hits?: TypesenseHit[];
+  type SearchResponse = {
+    hits?: SearchHit[];
   };
 
   const {
@@ -161,9 +161,9 @@ function RouteComponent() {
         organizationId: currentOrg.id,
       });
 
-      const hits = (searchResponse as TypesenseResponse)?.hits || [];
+      const hits = (searchResponse as SearchResponse)?.hits || [];
       const ids = hits
-        .map((hit: TypesenseHit) => hit.document?.id)
+        .map((hit: SearchHit) => hit.document?.id)
         .filter((id): id is string => Boolean(id));
 
       return ids;

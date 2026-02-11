@@ -11,7 +11,7 @@ bun install
 # Start all services in development mode (web, api, worker, integrations)
 bun dev
 
-# Start local infrastructure (Postgres, Redis, Typesense, Qdrant)
+# Start local infrastructure (Postgres, Redis, Qdrant)
 docker compose up -d
 
 # Build all packages
@@ -50,9 +50,6 @@ bun run --filter github dev
 ### Testing
 
 ```bash
-# Run hybrid search evaluation (API)
-bun run --filter api test:hybrid-search
-
 # Run thread similarity evaluation (Worker)
 bun run --filter worker eval:similarity
 ```
@@ -142,7 +139,6 @@ Subdomain-based routing: `{org}.tryfrontdesk.app` rewrites to `/support/{org}/..
 Copy `apps/api/.env.local.example` to `apps/api/.env.local` and configure:
 - `DATABASE_URL` - PostgreSQL connection
 - `REDIS_URL` - Redis connection
-- `TYPESENSE_API_KEY` - Search service
-- `QDRANT_URL` - Vector database
+- `QDRANT_URL` - Vector database (hybrid search + thread similarity)
 - `GOOGLE_GENERATIVE_AI_API_KEY` - Gemini API for embeddings
 - Auth provider credentials (Google OAuth, etc.)
