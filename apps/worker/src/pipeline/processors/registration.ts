@@ -1,5 +1,6 @@
 import { processorRegistry } from "./registry";
 import { embedProcessor } from "./embed";
+import { embedMessagesProcessor } from "./embed-messages";
 import { findSimilarProcessor } from "./find-similar";
 import { suggestDuplicatesProcessor } from "./suggest-duplicates";
 import { suggestLabelsProcessor } from "./suggest-labels";
@@ -11,6 +12,7 @@ export const registerDefaultProcessors = (): void => {
 
   processorRegistry.register(summarizeProcessor);
   processorRegistry.register(embedProcessor);
+  processorRegistry.register(embedMessagesProcessor);
   processorRegistry.register(findSimilarProcessor);
   processorRegistry.register(suggestDuplicatesProcessor);
   processorRegistry.register(suggestLabelsProcessor);

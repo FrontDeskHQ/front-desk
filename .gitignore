@@ -25,6 +25,5 @@ yarn-error.log*
 
 # docker
 .postgres-data
-.typesense-data
 .qdrant-data
 .redis-data

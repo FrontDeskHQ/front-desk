@@ -2,7 +2,6 @@ import { google } from "@ai-sdk/google";
 import { embed } from "ai";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
-const EMBEDDING_DIMENSIONS = 768;
 
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
 
@@ -16,7 +15,8 @@ export const generateEmbedding = async (
     | "RETRIEVAL_QUERY"
     | "QUESTION_ANSWERING"
     | "FACT_VERIFICATION"
-    | "CODE_RETRIEVAL_QUERY" = "SEMANTIC_SIMILARITY"
+    | "CODE_RETRIEVAL_QUERY" = "SEMANTIC_SIMILARITY",
+  outputDimensionality?: number
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -28,8 +28,8 @@ export const generateEmbedding = async (
       value: text,
       providerOptions: {
         google: {
-          outputDimensionality: EMBEDDING_DIMENSIONS,
           taskType: task,
+          ...(outputDimensionality !== undefined && { outputDimensionality }),
         },
       },
     });

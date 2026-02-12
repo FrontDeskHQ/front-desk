@@ -30,8 +30,7 @@
     "dev": "tsdown --watch --on-success \"node dist/index.js\"",
     "start": "node dist/index.js",
     "typecheck": "tsc --noEmit",
-    "format": "bun biome format ./src --fix",
-    "test:hybrid-search": "bun run src/lib/ai/__tests__/hybrid-search.eval.ts"
+    "format": "bun biome format ./src --fix"
   },
   "devDependencies": {
     "@trigger.dev/build": "4.3.3",
@@ -51,6 +50,7 @@
     "@dodopayments/express": "^0.2.1",
     "@keyv/redis": "^5.1.5",
     "@live-state/sync": "catalog:",
+    "@qdrant/js-client-rest": "^1.16.2",
     "@trigger.dev/sdk": "4.3.3",
     "@wll8/express-ws": "^1.0.6",
     "@workspace/emails": "workspace:*",
@@ -70,7 +70,6 @@
     "pg": "^8.15.6",
     "react": "catalog:",
     "resend": "^6.1.2",
-    "typesense": "^2.1.0",
     "ulid": "^3.0.0",
     "zod": "catalog:"
   }
