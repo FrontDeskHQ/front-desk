@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
 import { createHash } from "node:crypto";
+import { ULIDtoUUID } from "ulid-uuid-converter";
 import {
   deleteStaleMessageVectors,
   type MessagePayload,
@@ -156,9 +157,16 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
             batch.map(async ({ message, plainText, index }) => {
               const embedding = await generateMessageEmbedding(plainText);
               if (!embedding) return null;
+              const qdrantPointId = ULIDtoUUID(message.id.toUpperCase(), {
+                nullOnInvalidInput: true,
+              });
+              if (!qdrantPointId) {
+                console.warn("Invalid ULID for message, skipping:", message.id);
+                return null;
+              }
 
               return {
-                id: message.id,
+                id: qdrantPointId,
                 vector: {
                   dense: embedding,
                   bm25: {
