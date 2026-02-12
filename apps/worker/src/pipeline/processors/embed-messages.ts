@@ -3,8 +3,8 @@ import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
 import { createHash } from "node:crypto";
 import {
-  type MessagePayload,
   deleteStaleMessageVectors,
+  type MessagePayload,
   upsertMessageVectorsBatch,
 } from "../../lib/qdrant/messages";
 import type {
@@ -70,161 +70,164 @@ const generateMessageEmbedding = async (
  * Embeds all messages in a thread into Qdrant for hybrid search.
  * Runs in Turn 1 (no dependencies), parallel with summarize.
  */
-export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> = {
-  name: "embed-messages",
+export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
+  {
+    name: "embed-messages",
 
-  dependencies: [],
+    dependencies: [],
 
-  getIdempotencyKey(threadId: string): string {
-    return `embed-messages:${threadId}`;
-  },
+    getIdempotencyKey(threadId: string): string {
+      return `embed-messages:${threadId}`;
+    },
 
-  computeHash(context: ProcessorExecuteContext): string {
-    const messages = context.thread.messages ?? [];
-    const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
-    const hashInput = sorted.map((m) => `${m.id}:${m.content}`).join("|");
-    return computeSha256(hashInput);
-  },
-
-  async execute(
-    context: ProcessorExecuteContext,
-  ): Promise<ProcessorResult<EmbedMessagesOutput>> {
-    const { thread, threadId } = context;
-    const messages = thread.messages ?? [];
-
-    if (messages.length === 0) {
-      return {
-        threadId,
-        success: true,
-        data: { embeddedCount: 0, skippedCount: 0 },
-      };
-    }
-
-    try {
-      console.log(
-        `Embedding ${messages.length} messages for thread ${threadId}`,
-      );
-
+    computeHash(context: ProcessorExecuteContext): string {
+      const messages = context.thread.messages ?? [];
       const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
+      const hashInput = sorted.map((m) => `${m.id}:${m.content}`).join("|");
+      return computeSha256(hashInput);
+    },
 
-      // Prepare messages with plain text content
-      const messagesToEmbed: Array<{
-        message: (typeof sorted)[0];
-        plainText: string;
-        index: number;
-      }> = [];
+    async execute(
+      context: ProcessorExecuteContext,
+    ): Promise<ProcessorResult<EmbedMessagesOutput>> {
+      const { thread, threadId } = context;
+      const messages = thread.messages ?? [];
 
-      let skippedCount = 0;
-
-      for (let i = 0; i < sorted.length; i++) {
-        const message = sorted[i];
-        const plainText = jsonContentToPlainText(
-          safeParseJSON(message.content),
-        );
-
-        if (!plainText || plainText.trim().length === 0) {
-          skippedCount++;
-          continue;
-        }
-
-        messagesToEmbed.push({
-          message,
-          plainText,
-          index: i + 1,
-        });
+      if (messages.length === 0) {
+        return {
+          threadId,
+          success: true,
+          data: { embeddedCount: 0, skippedCount: 0 },
+        };
       }
 
-      // Generate embeddings in batches
-      const points: Array<{
-        id: string;
-        vector: {
-          dense: number[];
-          bm25: { text: string; model: "qdrant/bm25" };
-        };
-        payload: MessagePayload;
-      }> = [];
-
-      for (
-        let i = 0;
-        i < messagesToEmbed.length;
-        i += DEFAULT_BATCH_CONCURRENCY
-      ) {
-        const batch = messagesToEmbed.slice(i, i + DEFAULT_BATCH_CONCURRENCY);
-
-        const batchResults = await Promise.all(
-          batch.map(async ({ message, plainText, index }) => {
-            const embedding = await generateMessageEmbedding(plainText);
-            if (!embedding) return null;
-
-            return {
-              id: message.id,
-              vector: {
-                dense: embedding,
-                bm25: {
-                  text: plainText,
-                  model: "qdrant/bm25" as const,
-                },
-              },
-              payload: {
-                messageId: message.id,
-                threadId,
-                organizationId: thread.organizationId,
-                content: plainText,
-                messageIndex: index,
-                createdAt: message.createdAt
-                  ? new Date(message.createdAt as string | number).getTime()
-                  : Date.now(),
-              },
-            };
-          }),
+      try {
+        console.log(
+          `Embedding ${messages.length} messages for thread ${threadId}`,
         );
 
-        for (const result of batchResults) {
-          if (result) {
-            points.push(result);
-          } else {
+        const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
+
+        // Prepare messages with plain text content
+        const messagesToEmbed: Array<{
+          message: (typeof sorted)[0];
+          plainText: string;
+          index: number;
+        }> = [];
+
+        let skippedCount = 0;
+
+        for (let i = 0; i < sorted.length; i++) {
+          const message = sorted[i];
+          const plainText = jsonContentToPlainText(
+            safeParseJSON(message?.content ?? ""),
+          );
+
+          if (!plainText || plainText.trim().length === 0) {
             skippedCount++;
+            continue;
+          }
+
+          messagesToEmbed.push({
+            message: message as any,
+            plainText,
+            index: i + 1,
+          });
+        }
+
+        // Generate embeddings in batches
+        const points: Array<{
+          id: string;
+          vector: {
+            dense: number[];
+            bm25: { text: string; model: "qdrant/bm25" };
+          };
+          payload: MessagePayload;
+        }> = [];
+
+        for (
+          let i = 0;
+          i < messagesToEmbed.length;
+          i += DEFAULT_BATCH_CONCURRENCY
+        ) {
+          const batch = messagesToEmbed.slice(i, i + DEFAULT_BATCH_CONCURRENCY);
+
+          const batchResults = await Promise.all(
+            batch.map(async ({ message, plainText, index }) => {
+              const embedding = await generateMessageEmbedding(plainText);
+              if (!embedding) return null;
+
+              return {
+                id: message.id,
+                vector: {
+                  dense: embedding,
+                  bm25: {
+                    text: plainText,
+                    model: "qdrant/bm25" as const,
+                  },
+                },
+                payload: {
+                  messageId: message.id,
+                  threadId,
+                  organizationId: thread.organizationId,
+                  content: plainText,
+                  messageIndex: index,
+                  createdAt: message.createdAt
+                    ? new Date(
+                        message.createdAt as unknown as string | number,
+                      ).getTime()
+                    : Date.now(),
+                },
+              };
+            }),
+          );
+
+          for (const result of batchResults) {
+            if (result) {
+              points.push(result);
+            } else {
+              skippedCount++;
+            }
           }
         }
-      }
 
-      if (points.length > 0) {
-        const stored = await upsertMessageVectorsBatch(points);
+        if (points.length > 0) {
+          const stored = await upsertMessageVectorsBatch(points);
 
-        if (!stored) {
-          return {
-            threadId,
-            success: false,
-            error: "Failed to store message vectors in Qdrant",
-          };
+          if (!stored) {
+            return {
+              threadId,
+              success: false,
+              error: "Failed to store message vectors in Qdrant",
+            };
+          }
+
+          const keptMessageIds = points.map((p) => p.payload.messageId);
+          await deleteStaleMessageVectors(threadId, keptMessageIds);
         }
 
-        const keptMessageIds = points.map((p) => p.payload.messageId);
-        await deleteStaleMessageVectors(threadId, keptMessageIds);
+        console.log(
+          `Embedded ${points.length} messages for thread ${threadId} (${skippedCount} skipped)`,
+        );
+
+        return {
+          threadId,
+          success: true,
+          data: {
+            embeddedCount: points.length,
+            skippedCount,
+          },
+        };
+      } catch (error) {
+        console.error(
+          `Embed-messages processor failed for thread ${threadId}:`,
+          error,
+        );
+        return {
+          threadId,
+          success: false,
+          error: error instanceof Error ? error.message : String(error),
+        };
       }
-
-      console.log(
-        `Embedded ${points.length} messages for thread ${threadId} (${skippedCount} skipped)`,
-      );
-
-      return {
-        threadId,
-        success: true,
-        data: {
-          embeddedCount: points.length,
-          skippedCount,
-        },
-      };
-    } catch (error) {
-      console.error(
-        `Embed-messages processor failed for thread ${threadId}:`,
-        error,
-      );
-      return {
-        threadId,
-        success: false,
-        error: error instanceof Error ? error.message : String(error),
-      };
-    }
-  },
-};
+    },
+  };
