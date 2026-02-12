@@ -103,3 +103,43 @@ export const deleteMessageVectorsByThread = async (
     return false;
   }
 };
+
+/**
+ * Deletes message vectors for a thread that are NOT in the keepMessageIds set.
+ * Used after successful upsert to remove stale vectors (e.g. deleted messages).
+ * Safe to call with empty keepMessageIds - deletes all vectors for the thread.
+ */
+export const deleteStaleMessageVectors = async (
+  threadId: string,
+  keepMessageIds: string[],
+): Promise<boolean> => {
+  try {
+    const filter: {
+      must: Array<
+        | { key: string; match: { value: string } }
+        | { key: string; match: { except: string[] } }
+      >;
+    } = {
+      must: [{ key: "threadId", match: { value: threadId } }],
+    };
+
+    if (keepMessageIds.length > 0) {
+      filter.must.push({
+        key: "messageId",
+        match: { except: keepMessageIds },
+      });
+    }
+
+    await qdrantClient.delete(MESSAGES_COLLECTION, {
+      wait: true,
+      filter,
+    });
+    return true;
+  } catch (error) {
+    console.error(
+      `Failed to delete stale message vectors for thread ${threadId}:`,
+      error,
+    );
+    return false;
+  }
+};

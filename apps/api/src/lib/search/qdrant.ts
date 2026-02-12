@@ -34,7 +34,7 @@ export async function searchMessages(options: {
         {
           query: denseQueryEmbedding,
           using: "dense",
-          limit: 20,
+          limit,
         },
         {
           query: {
@@ -42,7 +42,7 @@ export async function searchMessages(options: {
             model: "qdrant/bm25",
           } as unknown as number[],
           using: "bm25",
-          limit: 20,
+          limit,
         },
       ],
       query: { fusion: "rrf" },

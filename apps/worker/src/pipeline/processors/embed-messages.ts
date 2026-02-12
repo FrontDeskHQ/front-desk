@@ -4,7 +4,7 @@ import { embed } from "ai";
 import { createHash } from "node:crypto";
 import {
   type MessagePayload,
-  deleteMessageVectorsByThread,
+  deleteStaleMessageVectors,
   upsertMessageVectorsBatch,
 } from "../../lib/qdrant/messages";
 import type {
@@ -107,9 +107,6 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> = 
 
       const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
 
-      // Delete existing message vectors for this thread before re-embedding
-      await deleteMessageVectorsByThread(threadId);
-
       // Prepare messages with plain text content
       const messagesToEmbed: Array<{
         message: (typeof sorted)[0];
@@ -160,7 +157,7 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> = 
             if (!embedding) return null;
 
             return {
-              id: crypto.randomUUID(),
+              id: message.id,
               vector: {
                 dense: embedding,
                 bm25: {
@@ -201,6 +198,9 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> = 
             error: "Failed to store message vectors in Qdrant",
           };
         }
+
+        const keptMessageIds = points.map((p) => p.payload.messageId);
+        await deleteStaleMessageVectors(threadId, keptMessageIds);
       }
 
       console.log(
