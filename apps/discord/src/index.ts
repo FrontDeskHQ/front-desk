@@ -609,6 +609,7 @@ client.on("messageCreate", async (message) => {
     const thread = store.query.thread
       .first({
         discordChannelId: message.channel.id,
+        organizationId: integration.organizationId,
       })
       .get();
 
@@ -839,117 +840,6 @@ const handleUpdates = async (
     }
   }
 };
-
-client.on("messageCreate", async (message) => {
-  if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
-    return;
-
-  const isFirstMessage =
-    Math.abs(
-      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
-    ) < THREAD_CREATION_THRESHOLD_MS;
-
-  let threadId: string | null = null;
-
-  const integration = (
-    await fetchClient.query.integration.where({ type: "discord" }).get()
-  ).find((i) => {
-    const parsed = safeParseIntegrationSettings(i.configStr);
-    return parsed?.guildId === message.guild?.id;
-  });
-
-  if (!integration) return;
-
-  const integrationSettings = safeParseIntegrationSettings(
-    integration.configStr,
-  );
-
-  if (
-    !(integrationSettings?.selectedChannels ?? [])?.includes(
-      message.channel.parent?.name ?? "",
-    )
-  )
-    return;
-
-  // TODO do this in a transaction
-
-  const authorId = await getOrCreateAuthor(
-    message.author.id,
-    message.author.displayName,
-    integration.organizationId,
-  );
-
-  if (isFirstMessage) {
-    threadId = ulid().toLowerCase();
-    store.mutate.thread.insert({
-      id: threadId,
-      organizationId: integration.organizationId,
-      name: message.channel.name,
-      createdAt: new Date(),
-      deletedAt: null,
-      discordChannelId: message.channel.id,
-      authorId: authorId,
-      assignedUserId: null,
-      externalIssueId: null,
-      externalPrId: null,
-      externalId: message.channel.id,
-      externalOrigin: "discord",
-      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
-    });
-    await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
-
-    try {
-      const organization = await fetchClient.query.organization
-        .first({ id: integration.organizationId })
-        .get();
-
-      if (organization?.slug) {
-        const showPortalMessage =
-          integrationSettings?.showPortalMessage !== false;
-
-        if (showPortalMessage) {
-          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-          const baseUrlObj = new URL(baseUrl);
-          const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-          const portalUrl = `${baseUrlObj.protocol}//${organization.slug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
-
-          const portalMessage = `This thread is also being tracked in our community portal: ${portalUrl}`;
-          await message.channel.send({
-            content: portalMessage,
-          });
-        } else {
-          console.log("Skipping sending portal link message");
-        }
-      }
-    } catch (error) {
-      console.error("Error sending portal link message:", error);
-    }
-  } else {
-    const thread = store.query.thread
-      .first({
-        discordChannelId: message.channel.id,
-        organizationId: integration.organizationId,
-      })
-      .get();
-
-    if (!thread) return;
-    threadId = thread.id;
-  }
-
-  if (!threadId) return;
-
-  const contentWithMentions = parseContentAsMarkdown(message);
-
-  store.mutate.message.insert({
-    id: ulid().toLowerCase(),
-    threadId,
-    authorId: authorId,
-    content: JSON.stringify(parse(contentWithMentions)),
-    createdAt: message.createdAt,
-    origin: "discord",
-    externalMessageId: message.id,
-  });
-});
 
 client.on("error", (error) => {
   console.error("Discord client error:", error);
