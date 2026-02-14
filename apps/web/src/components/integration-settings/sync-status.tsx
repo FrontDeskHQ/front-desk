@@ -3,9 +3,15 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 export function SyncStatus({
   backfill,
 }: {
-  backfill: { processed: number; total: number } | null | undefined;
+  backfill: {
+    processed: number;
+    total: number;
+    limit: number | null;
+    channelsDiscovering: number;
+  } | null | undefined;
 }) {
   const isSyncing = !!backfill;
+  const isDiscovering = isSyncing && backfill.channelsDiscovering > 0;
 
   return (
     <Card className="bg-muted/30">
@@ -20,7 +26,7 @@ export function SyncStatus({
                     <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-yellow-400 opacity-75" />
                     <span className="relative inline-flex size-2 rounded-full bg-yellow-500" />
                   </span>
-                  <span>Syncing</span>
+                  <span>{isDiscovering ? "Discovering threads..." : "Syncing"}</span>
                 </>
               ) : (
                 <>
@@ -32,6 +38,7 @@ export function SyncStatus({
             {isSyncing && (
               <div className="text-muted-foreground text-xs">
                 {backfill.processed}/{backfill.total} threads synced
+                {backfill.limit !== null && ` (limit: ${backfill.limit})`}
               </div>
             )}
           </div>

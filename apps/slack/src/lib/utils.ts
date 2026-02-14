@@ -5,12 +5,40 @@ import { fetchClient } from "./live-state";
 export const updateBackfillStatus = async (
   integrationId: string,
   configStr: string | null,
-  backfill: { processed: number; total: number } | null,
+  backfill: {
+    processed: number;
+    total: number;
+    limit: number | null;
+    channelsDiscovering: number;
+  } | null,
 ) => {
   const current = safeParseIntegrationSettings(configStr);
   await fetchClient.mutate.integration.update(integrationId, {
     configStr: JSON.stringify({ ...current, backfill }),
   });
+};
+
+export const updateSyncedChannels = async (
+  integrationId: string,
+  configStr: string | null,
+  syncedChannels: string[],
+) => {
+  const current = safeParseIntegrationSettings(configStr);
+  await fetchClient.mutate.integration.update(integrationId, {
+    configStr: JSON.stringify({ ...current, syncedChannels }),
+  });
+};
+
+export const getBackfillLimit = async (
+  organizationId: string,
+): Promise<number | null> => {
+  const subscription = await fetchClient.query.subscription
+    .first({ organizationId })
+    .get();
+  if (!subscription || subscription.plan === "trial") {
+    return 100;
+  }
+  return null;
 };
 
 // Per-integration async mutex to serialize backfill status read-modify-write operations
