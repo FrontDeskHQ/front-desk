@@ -17,14 +17,18 @@ import { reflagClient } from "./lib/feature-flag";
 import { fetchClient, store } from "./lib/live-state";
 import {
   addChannelBackfillJob,
+  addThreadBackfillJob,
   closeBackfillQueue,
   initializeBackfillWorker,
 } from "./lib/queue";
+import type { BackfillChannelResult } from "./lib/queue";
 import {
+  getBackfillLimit,
   parseContentAsMarkdown,
   safeParseIntegrationSettings,
   safeParseJSON,
   updateBackfillStatus,
+  updateSyncedChannels,
   withBackfillLock,
 } from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
@@ -210,33 +214,40 @@ const getOrCreateAuthor = async (
   return authorId;
 };
 
-// Track which channels have been configured per integration to detect additions
-const integrationChannels = new Map<string, Set<string>>();
-
 /**
- * Backfill threads from a specific Discord channel
+ * Backfill threads from a specific Discord channel (page-based)
+ * Returns { hasMore, nextCursor } so the worker can queue the next page
  */
 const backfillChannel = async (
   channel: TextChannel | ForumChannel,
   organizationId: string,
   integrationId: string,
-) => {
+  options: { archivedBefore?: string; activeProcessed?: boolean },
+): Promise<BackfillChannelResult> => {
   console.log(`  Fetching threads from #${channel.name}...`);
 
   try {
-    // Fetch active threads
-    const activeThreads = await channel.threads.fetchActive();
-    // Fetch archived threads (fetches up to 100 by default)
-    const archivedThreads = await channel.threads.fetchArchived();
+    const threads: ThreadChannel[] = [];
 
-    const allThreads = [
-      ...activeThreads.threads.values(),
-      ...archivedThreads.threads.values(),
-    ];
+    // On first page, fetch active threads
+    if (!options.activeProcessed) {
+      const activeThreads = await channel.threads.fetchActive();
+      threads.push(...activeThreads.threads.values());
+    }
 
-    console.log(`    Found ${allThreads.length} threads`);
+    // Fetch one page of archived threads
+    const archivedResult = await channel.threads.fetchArchived({
+      limit: 100,
+      ...(options.archivedBefore
+        ? { before: new Date(options.archivedBefore) }
+        : {}),
+    });
+    threads.push(...archivedResult.threads.values());
 
-    // Read current backfill state and accumulate total (locked to avoid race with concurrent channel jobs)
+    console.log(`    Found ${threads.length} threads on this page`);
+
+    // Check budget and queue thread jobs
+    const threadsToQueue: ThreadChannel[] = [];
     await withBackfillLock(integrationId, async () => {
       const integration = await fetchClient.query.integration
         .first({ id: integrationId })
@@ -245,56 +256,104 @@ const backfillChannel = async (
         integration?.configStr ?? null,
       );
       const existingBackfill = currentSettings?.backfill;
-      const existingTotal = existingBackfill?.total ?? 0;
-      const existingProcessed = existingBackfill?.processed ?? 0;
-      const newTotal = existingTotal + allThreads.length;
+      const limit = existingBackfill?.limit ?? null;
+      const currentTotal = existingBackfill?.total ?? 0;
 
+      // Check budget
+      let remaining = limit !== null ? limit - currentTotal : threads.length;
+      for (const thread of threads) {
+        if (remaining <= 0) break;
+        threadsToQueue.push(thread);
+        remaining--;
+      }
+
+      const newTotal = currentTotal + threadsToQueue.length;
       await updateBackfillStatus(integrationId, integration?.configStr ?? null, {
-        processed: existingProcessed,
+        processed: existingBackfill?.processed ?? 0,
         total: newTotal,
+        limit: existingBackfill?.limit ?? null,
+        channelsDiscovering: existingBackfill?.channelsDiscovering ?? 0,
       });
     });
 
-    for (const thread of allThreads) {
-      await backfillThread(thread, organizationId);
+    // Queue thread backfill jobs
+    for (const thread of threadsToQueue) {
+      await addThreadBackfillJob(thread, organizationId, integrationId);
+    }
 
-      // Increment processed count (locked to avoid race with concurrent channel jobs)
+    // Determine if there are more pages
+    const budgetExhausted = await (async () => {
+      const integration = await fetchClient.query.integration
+        .first({ id: integrationId })
+        .get();
+      const settings = safeParseIntegrationSettings(
+        integration?.configStr ?? null,
+      );
+      const limit = settings?.backfill?.limit ?? null;
+      const total = settings?.backfill?.total ?? 0;
+      return limit !== null && total >= limit;
+    })();
+
+    const hasMoreArchived = archivedResult.hasMore;
+
+    if (!hasMoreArchived || budgetExhausted) {
+      // This channel is done discovering — decrement channelsDiscovering
       await withBackfillLock(integrationId, async () => {
-        const latest = await fetchClient.query.integration
+        const integration = await fetchClient.query.integration
           .first({ id: integrationId })
           .get();
-        const latestSettings = safeParseIntegrationSettings(
-          latest?.configStr ?? null,
+        const settings = safeParseIntegrationSettings(
+          integration?.configStr ?? null,
         );
-        const currentProcessed =
-          (latestSettings?.backfill?.processed ?? 0) + 1;
-        const currentTotal = latestSettings?.backfill?.total ?? 0;
-
-        if (currentProcessed >= currentTotal) {
-          await updateBackfillStatus(
-            integrationId,
-            latest?.configStr ?? null,
-            null,
+        const backfill = settings?.backfill;
+        if (backfill) {
+          const newChannelsDiscovering = Math.max(
+            0,
+            backfill.channelsDiscovering - 1,
           );
-        } else {
-          await updateBackfillStatus(
-            integrationId,
-            latest?.configStr ?? null,
-            {
-              processed: currentProcessed,
-              total: currentTotal,
-            },
-          );
+          // Check if backfill is complete (no more discovery and all processed)
+          if (
+            newChannelsDiscovering === 0 &&
+            backfill.processed >= backfill.total
+          ) {
+            await updateBackfillStatus(
+              integrationId,
+              integration?.configStr ?? null,
+              null,
+            );
+          } else {
+            await updateBackfillStatus(
+              integrationId,
+              integration?.configStr ?? null,
+              {
+                ...backfill,
+                channelsDiscovering: newChannelsDiscovering,
+              },
+            );
+          }
         }
       });
+
+      return { hasMore: false };
     }
+
+    // Find the oldest archived thread's archiveTimestamp for the next page cursor
+    const archivedThreads = [...archivedResult.threads.values()];
+    const oldestThread = archivedThreads[archivedThreads.length - 1];
+    const nextCursor = oldestThread?.archiveTimestamp
+      ? new Date(oldestThread.archiveTimestamp).toISOString()
+      : undefined;
+
+    return { hasMore: true, nextCursor };
   } catch (error) {
     console.error(`    Error fetching threads from #${channel.name}:`, error);
+    return { hasMore: false };
   }
 };
 
 /**
  * Handle Discord integration changes - triggers backfill when channels are added
+ * Uses persisted syncedChannels instead of in-memory Map
  */
 const handleIntegrationChanges = async (
   integrations: {
@@ -308,17 +367,34 @@ const handleIntegrationChanges = async (
       const settings = safeParseIntegrationSettings(integration.configStr);
       if (!settings?.guildId) continue;
 
+      const guildId = settings.guildId;
       const currentChannels = new Set(settings.selectedChannels ?? []);
-      const previousChannels =
-        integrationChannels.get(integration.id) ?? new Set();
+      let syncedChannels = new Set(settings.syncedChannels ?? []);
 
-      // Find newly added channels
-      const addedChannels = [...currentChannels].filter(
-        (ch) => !previousChannels.has(ch),
+      // Migration: if syncedChannels is undefined, initialize from current selectedChannels
+      // This prevents false trigger on first deploy with new code
+      if (settings.syncedChannels === undefined) {
+        await updateSyncedChannels(
+          integration.id,
+          integration.configStr,
+          [...currentChannels],
+        );
+        continue;
+      }
+
+      // Cleanup: remove channels from syncedChannels that are no longer in selectedChannels
+      // This ensures re-adding a channel later triggers a fresh backfill
+      const cleanedSynced = [...syncedChannels].filter((ch) =>
+        currentChannels.has(ch),
       );
+      if (cleanedSynced.length !== syncedChannels.size) {
+        syncedChannels = new Set(cleanedSynced);
+      }
 
-      // Update tracked channels
-      integrationChannels.set(integration.id, currentChannels);
+      // Find newly added channels (in selected but not in synced)
+      const addedChannels = [...currentChannels].filter(
+        (ch) => !syncedChannels.has(ch),
+      );
 
       if (addedChannels.length === 0) continue;
 
@@ -330,6 +406,13 @@ const handleIntegrationChanges = async (
         console.log(
           `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
         );
+        // Still mark as synced so we don't re-check on restart
+        const newSynced = [...syncedChannels, ...addedChannels];
+        await updateSyncedChannels(
+          integration.id,
+          integration.configStr,
+          newSynced,
+        );
         continue;
       }
 
@@ -337,32 +420,74 @@ const handleIntegrationChanges = async (
         `Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
       );
 
-      const guild = client.guilds.cache.get(settings.guildId);
+      const guild = client.guilds.cache.get(guildId);
       if (!guild) {
-        console.log(`Guild ${settings.guildId} not found in cache, skipping`);
+        console.log(`Guild ${guildId} not found in cache, skipping`);
         continue;
       }
 
-      // Queue backfill jobs for newly added channels
-      for (const channelName of addedChannels) {
-        const channel = guild.channels.cache.find(
-          (c): c is TextChannel | ForumChannel =>
-            (c.type === ChannelType.GuildText ||
-              c.type === ChannelType.GuildForum) &&
-            c.name === channelName,
+      // Query plan limit
+      const limit = await getBackfillLimit(integration.organizationId);
+
+      // Add new channels to syncedChannels immediately (at backfill START)
+      // BullMQ handles retries for in-progress jobs
+      const newSynced = [...syncedChannels, ...addedChannels];
+      await updateSyncedChannels(
+        integration.id,
+        integration.configStr,
+        newSynced,
+      );
+
+      // Initialize/accumulate backfill status
+      await withBackfillLock(integration.id, async () => {
+        const latestIntegration = await fetchClient.query.integration
+          .first({ id: integration.id })
+          .get();
+        const latestSettings = safeParseIntegrationSettings(
+          latestIntegration?.configStr ?? null,
+        );
+        const existingBackfill = latestSettings?.backfill;
+
+        const channelsToQueue: { channel: TextChannel | ForumChannel; name: string }[] = [];
+        for (const channelName of addedChannels) {
+          const channel = guild.channels.cache.find(
+            (c): c is TextChannel | ForumChannel =>
+              (c.type === ChannelType.GuildText ||
+                c.type === ChannelType.GuildForum) &&
+              c.name === channelName,
+          );
+          if (channel) {
+            channelsToQueue.push({ channel, name: channelName });
+          } else {
+            console.log(`    Channel #${channelName} not found in guild`);
+          }
+        }
+
+        if (channelsToQueue.length === 0) return;
+
+        await updateBackfillStatus(
+          integration.id,
+          latestIntegration?.configStr ?? null,
+          {
+            processed: existingBackfill?.processed ?? 0,
+            total: existingBackfill?.total ?? 0,
+            limit: existingBackfill?.limit ?? limit,
+            channelsDiscovering:
+              (existingBackfill?.channelsDiscovering ?? 0) +
+              channelsToQueue.length,
+          },
         );
 
-        if (channel) {
+        // Queue first backfill-channel job (no cursor) for each new channel
+        for (const { channel } of channelsToQueue) {
           await addChannelBackfillJob(
             channel,
-            settings.guildId,
+            guildId,
             integration.organizationId,
             integration.id,
           );
-        } else {
-          console.log(`    Channel #${channelName} not found in guild`);
         }
-      }
+      });
     } catch (error) {
       console.error(`Error processing integration ${integration.id}:`, error);
     }
@@ -389,9 +514,23 @@ const backfillThread = async (
 
   console.log(`      Creating thread: ${thread.name}`);
 
-  // Fetch messages to find the original author
-  const messages = await thread.messages.fetch({ limit: 100 });
-  const sortedMessages = [...messages.values()].sort(
+  // Fetch all messages with pagination
+  const allMessages: Message[] = [];
+  let lastMessageId: string | undefined;
+  let hasMoreMessages = true;
+  while (hasMoreMessages) {
+    const batch = await thread.messages.fetch({
+      limit: 100,
+      ...(lastMessageId ? { before: lastMessageId } : {}),
+    });
+    if (batch.size === 0) {
+      hasMoreMessages = false;
+    } else {
+      allMessages.push(...batch.values());
+      lastMessageId = batch.last()?.id;
+    }
+  }
+  const sortedMessages = allMessages.sort(
     (a, b) => a.createdTimestamp - b.createdTimestamp,
   );
 
@@ -474,8 +613,23 @@ const backfillMessages = async (
     });
   }
 
-  const messages = await thread.messages.fetch({ limit: 100 });
-  const sortedMessages = [...messages.values()].sort(
+  // Fetch all messages with pagination
+  const allMessages: Message[] = [];
+  let lastMsgId: string | undefined;
+  let hasMoreMsgs = true;
+  while (hasMoreMsgs) {
+    const batch = await thread.messages.fetch({
+      limit: 100,
+      ...(lastMsgId ? { before: lastMsgId } : {}),
+    });
+    if (batch.size === 0) {
+      hasMoreMsgs = false;
+    } else {
+      allMessages.push(...batch.values());
+      lastMsgId = batch.last()?.id;
+    }
+  }
+  const sortedMessages = allMessages.sort(
     (a, b) => a.createdTimestamp - b.createdTimestamp,
   );
 
@@ -892,6 +1046,40 @@ client.once("ready", async () => {
   initializeBackfillWorker(client, {
     processChannel: backfillChannel,
     processThread: backfillThread,
+    onThreadBackfillComplete: async (integrationId: string) => {
+      await withBackfillLock(integrationId, async () => {
+        const integration = await fetchClient.query.integration
+          .first({ id: integrationId })
+          .get();
+        const settings = safeParseIntegrationSettings(
+          integration?.configStr ?? null,
+        );
+        const backfill = settings?.backfill;
+        if (!backfill) return;
+
+        const currentProcessed = backfill.processed + 1;
+
+        if (
+          backfill.channelsDiscovering === 0 &&
+          currentProcessed >= backfill.total
+        ) {
+          await updateBackfillStatus(
+            integrationId,
+            integration?.configStr ?? null,
+            null,
+          );
+        } else {
+          await updateBackfillStatus(
+            integrationId,
+            integration?.configStr ?? null,
+            {
+              ...backfill,
+              processed: currentProcessed,
+            },
+          );
+        }
+      });
+    },
   });
 });
 
