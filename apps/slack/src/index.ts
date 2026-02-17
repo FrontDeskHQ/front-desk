@@ -764,6 +764,11 @@ const handleIntegrationChanges = async (
       );
       if (cleanedSynced.length !== syncedChannels.size) {
         syncedChannels = new Set(cleanedSynced);
+        await updateSyncedChannels(
+          integration.id,
+          integration.configStr,
+          cleanedSynced,
+        );
       }
 
       // Find newly added channels (in selected but not in synced)

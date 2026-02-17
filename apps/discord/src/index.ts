@@ -248,7 +248,7 @@ const backfillChannel = async (
 
     // Check budget and queue thread jobs
     const threadsToQueue: ThreadChannel[] = [];
-    await withBackfillLock(integrationId, async () => {
+    const budgetExhausted = await withBackfillLock(integrationId, async () => {
       const integration = await fetchClient.query.integration
         .first({ id: integrationId })
         .get();
@@ -274,25 +274,14 @@ const backfillChannel = async (
         limit: existingBackfill?.limit ?? null,
         channelsDiscovering: existingBackfill?.channelsDiscovering ?? 0,
       });
+
+      return limit !== null && newTotal >= limit;
     });
 
     // Queue thread backfill jobs
     for (const thread of threadsToQueue) {
       await addThreadBackfillJob(thread, organizationId, integrationId);
     }
-
-    // Determine if there are more pages
-    const budgetExhausted = await (async () => {
-      const integration = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
-      const settings = safeParseIntegrationSettings(
-        integration?.configStr ?? null,
-      );
-      const limit = settings?.backfill?.limit ?? null;
-      const total = settings?.backfill?.total ?? 0;
-      return limit !== null && total >= limit;
-    })();
 
     const hasMoreArchived = archivedResult.hasMore;
 
@@ -389,6 +378,11 @@ const handleIntegrationChanges = async (
       );
       if (cleanedSynced.length !== syncedChannels.size) {
         syncedChannels = new Set(cleanedSynced);
+        await updateSyncedChannels(
+          integration.id,
+          integration.configStr,
+          cleanedSynced,
+        );
       }
 
       // Find newly added channels (in selected but not in synced)

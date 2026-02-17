@@ -153,9 +153,16 @@ export const initializeBackfillWorker = (
   );
 
   backfillWorker.on("completed", async (job) => {
-    console.log(`[Queue] Job ${job.id} completed successfully`);
-    if (job.data.type === "backfill-thread") {
-      await handlers.onThreadBackfillComplete(job.data.integrationId);
+    try {
+      console.log(`[Queue] Job ${job.id} completed successfully`);
+      if (job.data.type === "backfill-thread") {
+        await handlers.onThreadBackfillComplete(job.data.integrationId);
+      }
+    } catch (err) {
+      console.error(
+        `[Queue] Job ${job.id} onThreadBackfillComplete failed:`,
+        err,
+      );
     }
   });
 

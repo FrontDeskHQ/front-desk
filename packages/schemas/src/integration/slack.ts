@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { integrationBackfillSchema } from "./shared";
 
 export const slackIntegrationSchema = z.object({
   teamId: z.coerce.string().optional(),
@@ -8,13 +9,5 @@ export const slackIntegrationSchema = z.object({
   accessToken: z.string().optional(),
   installation: z.any().optional(),
   showPortalMessage: z.boolean().optional().default(true),
-  backfill: z
-    .object({
-      processed: z.number(),
-      total: z.number(),
-      limit: z.number().nullable(),
-      channelsDiscovering: z.number(),
-    })
-    .nullable()
-    .optional(),
+  backfill: integrationBackfillSchema,
 });
