@@ -246,8 +246,7 @@ const backfillChannel = async (
 
     console.log(`    Found ${threads.length} threads on this page`);
 
-    // Check budget and queue thread jobs
-    const threadsToQueue: ThreadChannel[] = [];
+    // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
     const budgetExhausted = await withBackfillLock(integrationId, async () => {
       const integration = await fetchClient.query.integration
         .first({ id: integrationId })
@@ -260,11 +259,17 @@ const backfillChannel = async (
       const currentTotal = existingBackfill?.total ?? 0;
 
       // Check budget
+      const threadsToQueue: ThreadChannel[] = [];
       let remaining = limit !== null ? limit - currentTotal : threads.length;
       for (const thread of threads) {
         if (remaining <= 0) break;
         threadsToQueue.push(thread);
         remaining--;
+      }
+
+      // Queue thread backfill jobs before updating total (ensures no drift on enqueue failure)
+      for (const thread of threadsToQueue) {
+        await addThreadBackfillJob(thread, organizationId, integrationId);
       }
 
       const newTotal = currentTotal + threadsToQueue.length;
@@ -277,11 +282,6 @@ const backfillChannel = async (
 
       return limit !== null && newTotal >= limit;
     });
-
-    // Queue thread backfill jobs
-    for (const thread of threadsToQueue) {
-      await addThreadBackfillJob(thread, organizationId, integrationId);
-    }
 
     const hasMoreArchived = archivedResult.hasMore;
 
@@ -336,6 +336,41 @@ const backfillChannel = async (
     return { hasMore: true, nextCursor };
   } catch (error) {
     console.error(`    Error fetching threads from #${channel.name}:`, error);
+    // Decrement channelsDiscovering on error so backfill can complete
+    await withBackfillLock(integrationId, async () => {
+      const integration = await fetchClient.query.integration
+        .first({ id: integrationId })
+        .get();
+      const settings = safeParseIntegrationSettings(
+        integration?.configStr ?? null,
+      );
+      const backfill = settings?.backfill;
+      if (backfill) {
+        const newChannelsDiscovering = Math.max(
+          0,
+          backfill.channelsDiscovering - 1,
+        );
+        if (
+          newChannelsDiscovering === 0 &&
+          backfill.processed >= backfill.total
+        ) {
+          await updateBackfillStatus(
+            integrationId,
+            integration?.configStr ?? null,
+            null,
+          );
+        } else {
+          await updateBackfillStatus(
+            integrationId,
+            integration?.configStr ?? null,
+            {
+              ...backfill,
+              channelsDiscovering: newChannelsDiscovering,
+            },
+          );
+        }
+      }
+    });
     return { hasMore: false };
   }
 };
@@ -363,9 +398,12 @@ const handleIntegrationChanges = async (
       // Migration: if syncedChannels is undefined, initialize from current selectedChannels
       // This prevents false trigger on first deploy with new code
       if (settings.syncedChannels === undefined) {
+        const latestIntegration = await fetchClient.query.integration
+          .first({ id: integration.id })
+          .get();
         await updateSyncedChannels(
           integration.id,
-          integration.configStr,
+          latestIntegration?.configStr ?? integration.configStr,
           [...currentChannels],
         );
         continue;
@@ -376,13 +414,9 @@ const handleIntegrationChanges = async (
       const cleanedSynced = [...syncedChannels].filter((ch) =>
         currentChannels.has(ch),
       );
-      if (cleanedSynced.length !== syncedChannels.size) {
+      const hadCleanup = cleanedSynced.length !== syncedChannels.size;
+      if (hadCleanup) {
         syncedChannels = new Set(cleanedSynced);
-        await updateSyncedChannels(
-          integration.id,
-          integration.configStr,
-          cleanedSynced,
-        );
       }
 
       // Find newly added channels (in selected but not in synced)
@@ -390,7 +424,27 @@ const handleIntegrationChanges = async (
         (ch) => !syncedChannels.has(ch),
       );
 
-      if (addedChannels.length === 0) continue;
+      if (addedChannels.length === 0) {
+        // Persist cleanup only (no new channels to add)
+        if (hadCleanup) {
+          const latestIntegration = await fetchClient.query.integration
+            .first({ id: integration.id })
+            .get();
+          await updateSyncedChannels(
+            integration.id,
+            latestIntegration?.configStr ?? null,
+            [...syncedChannels],
+          );
+        }
+        continue;
+      }
+
+      // Consolidate cleanup + add into a single update; use fresh config to avoid overwriting concurrent changes
+      const finalSynced = [...syncedChannels, ...addedChannels];
+      const latestIntegration = await fetchClient.query.integration
+        .first({ id: integration.id })
+        .get();
+      const freshConfigStr = latestIntegration?.configStr ?? null;
 
       // Check if backfill feature is enabled for this organization
       const { isEnabled: isBackfillEnabled } = reflagClient
@@ -401,11 +455,10 @@ const handleIntegrationChanges = async (
           `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
         );
         // Still mark as synced so we don't re-check on restart
-        const newSynced = [...syncedChannels, ...addedChannels];
         await updateSyncedChannels(
           integration.id,
-          integration.configStr,
-          newSynced,
+          freshConfigStr,
+          finalSynced,
         );
         continue;
       }
@@ -425,11 +478,10 @@ const handleIntegrationChanges = async (
 
       // Add new channels to syncedChannels immediately (at backfill START)
       // BullMQ handles retries for in-progress jobs
-      const newSynced = [...syncedChannels, ...addedChannels];
       await updateSyncedChannels(
         integration.id,
-        integration.configStr,
-        newSynced,
+        freshConfigStr,
+        finalSynced,
       );
 
       // Initialize/accumulate backfill status

@@ -611,8 +611,7 @@ const backfillChannel = async (
       .filter((msg) => msg.reply_count && msg.reply_count > 0 && msg.ts)
       .map((msg) => msg.ts!);
 
-    // Check budget and queue thread jobs
-    const threadsToQueue: string[] = [];
+    // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
     await withBackfillLock(integrationId, async () => {
       const integration = await fetchClient.query.integration
         .first({ id: integrationId })
@@ -625,6 +624,7 @@ const backfillChannel = async (
       const currentTotal = existingBackfill?.total ?? 0;
 
       // Check budget
+      const threadsToQueue: string[] = [];
       let remaining =
         limit !== null ? limit - currentTotal : threadTimestamps.length;
       for (const ts of threadTimestamps) {
@@ -634,6 +634,17 @@ const backfillChannel = async (
       }
 
       if (threadsToQueue.length > 0) {
+        // Queue thread backfill jobs before updating total (ensures no drift on enqueue failure)
+        for (const ts of threadsToQueue) {
+          await addThreadBackfillJob(
+            channelId,
+            ts,
+            teamId,
+            organizationId,
+            integrationId,
+          );
+        }
+
         const newTotal = currentTotal + threadsToQueue.length;
         await updateBackfillStatus(
           integrationId,
@@ -647,17 +658,6 @@ const backfillChannel = async (
         );
       }
     });
-
-    // Queue thread backfill jobs
-    for (const ts of threadsToQueue) {
-      await addThreadBackfillJob(
-        channelId,
-        ts,
-        teamId,
-        organizationId,
-        integrationId,
-      );
-    }
 
     console.log(
       `  [Slack] Queued ${threadsToQueue.length} threads for backfill from channel ${channelId}`,
@@ -749,11 +749,7 @@ const handleIntegrationChanges = async (
       // Migration: if syncedChannels is undefined, initialize from current selectedChannels
       // This prevents false trigger on first deploy with new code
       if (settings.syncedChannels === undefined) {
-        await updateSyncedChannels(
-          integration.id,
-          integration.configStr,
-          [...currentChannels],
-        );
+        await updateSyncedChannels(integration.id, [...currentChannels]);
         continue;
       }
 
@@ -764,11 +760,7 @@ const handleIntegrationChanges = async (
       );
       if (cleanedSynced.length !== syncedChannels.size) {
         syncedChannels = new Set(cleanedSynced);
-        await updateSyncedChannels(
-          integration.id,
-          integration.configStr,
-          cleanedSynced,
-        );
+        await updateSyncedChannels(integration.id, cleanedSynced);
       }
 
       // Find newly added channels (in selected but not in synced)
@@ -788,11 +780,7 @@ const handleIntegrationChanges = async (
         );
         // Still mark as synced so we don't re-check on restart
         const newSynced = [...syncedChannels, ...addedChannels];
-        await updateSyncedChannels(
-          integration.id,
-          integration.configStr,
-          newSynced,
-        );
+        await updateSyncedChannels(integration.id, newSynced);
         continue;
       }
 
@@ -814,11 +802,7 @@ const handleIntegrationChanges = async (
       // Add new channels to syncedChannels immediately (at backfill START)
       // BullMQ handles retries for in-progress jobs
       const newSynced = [...syncedChannels, ...addedChannels];
-      await updateSyncedChannels(
-        integration.id,
-        integration.configStr,
-        newSynced,
-      );
+      await updateSyncedChannels(integration.id, newSynced);
 
       // Resolve channel IDs and initialize backfill
       const channelsToQueue: { channelId: string; name: string }[] = [];

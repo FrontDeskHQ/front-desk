@@ -20,10 +20,14 @@ export const updateBackfillStatus = async (
 
 export const updateSyncedChannels = async (
   integrationId: string,
-  configStr: string | null,
   syncedChannels: string[],
 ) => {
-  const current = safeParseIntegrationSettings(configStr) ?? {};
+  const latestIntegration = await fetchClient.query.integration
+    .first({ id: integrationId })
+    .get();
+  const current = safeParseIntegrationSettings(
+    latestIntegration?.configStr ?? null,
+  ) ?? {};
   await fetchClient.mutate.integration.update(integrationId, {
     configStr: JSON.stringify({ ...current, syncedChannels }),
   });
