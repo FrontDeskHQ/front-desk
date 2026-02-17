@@ -22,9 +22,12 @@ import {
   closeBackfillQueue,
   initializeBackfillWorker,
 } from "./lib/queue";
+import type { BackfillChannelResult } from "./lib/queue";
 import {
+  getBackfillLimit,
   safeParseIntegrationSettings,
   updateBackfillStatus,
+  updateSyncedChannels,
   withBackfillLock,
 } from "./lib/utils";
 
@@ -285,9 +288,6 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
     return null;
   }
 };
-
-// Track which channels have been configured per integration to detect additions
-const integrationChannels = new Map<string, Set<string>>();
 
 /**
  * Resolve a channel name to its ID using Slack API
@@ -578,7 +578,8 @@ const backfillThread = async (
 };
 
 /**
- * Backfill all threads from a Slack channel
+ * Backfill threads from a Slack channel (single page)
+ * Returns { hasMore, nextCursor } so the worker can queue the next page
  */
 const backfillChannel = async (
   client: WebClient,
@@ -586,80 +587,139 @@ const backfillChannel = async (
   teamId: string,
   organizationId: string,
   integrationId: string,
-): Promise<void> => {
+  options: { cursor?: string },
+): Promise<BackfillChannelResult> => {
   console.log(`  [Slack] Fetching messages from channel ${channelId}...`);
 
   try {
-    let cursor: string | undefined;
-    let threadCount = 0;
+    // Fetch one page of history
+    const result = await client.conversations.history({
+      channel: channelId,
+      limit: 100,
+      ...(options.cursor ? { cursor: options.cursor } : {}),
+    });
 
-    // First pass: count threads
-    const threadTimestamps: string[] = [];
-    do {
-      const result = await client.conversations.history({
-        channel: channelId,
-        limit: 100,
-        cursor,
-      });
-
-      if (!result.ok || !result.messages) {
-        console.error(
-          `  [Slack] Failed to fetch history for channel ${channelId}`,
-        );
-        break;
-      }
-
-      const threadsInBatch = result.messages.filter(
-        (msg) => msg.reply_count && msg.reply_count > 0 && msg.ts,
+    if (!result.ok || !result.messages) {
+      console.error(
+        `  [Slack] Failed to fetch history for channel ${channelId}`,
       );
+      return { hasMore: false };
+    }
 
-      for (const msg of threadsInBatch) {
-        if (msg.ts) threadTimestamps.push(msg.ts);
+    // Filter threads with replies
+    const threadTimestamps = result.messages
+      .filter((msg) => msg.reply_count && msg.reply_count > 0 && msg.ts)
+      .map((msg) => msg.ts!);
+
+    // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
+    await withBackfillLock(integrationId, async () => {
+      const integration = await fetchClient.query.integration
+        .first({ id: integrationId })
+        .get();
+      const currentSettings = safeParseIntegrationSettings(
+        integration?.configStr ?? null,
+      );
+      const existingBackfill = currentSettings?.backfill;
+      const limit = existingBackfill?.limit ?? null;
+      const currentTotal = existingBackfill?.total ?? 0;
+
+      // Check budget
+      const threadsToQueue: string[] = [];
+      let remaining =
+        limit !== null ? limit - currentTotal : threadTimestamps.length;
+      for (const ts of threadTimestamps) {
+        if (remaining <= 0) break;
+        threadsToQueue.push(ts);
+        remaining--;
       }
 
-      cursor = result.response_metadata?.next_cursor;
-    } while (cursor);
+      if (threadsToQueue.length > 0) {
+        // Queue thread backfill jobs before updating total (ensures no drift on enqueue failure)
+        for (const ts of threadsToQueue) {
+          await addThreadBackfillJob(
+            channelId,
+            ts,
+            teamId,
+            organizationId,
+            integrationId,
+          );
+        }
 
-    // Update backfill status with accumulated total (locked to avoid race with concurrent channel jobs)
-    if (threadTimestamps.length > 0) {
-      await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration
-          .first({ id: integrationId })
-          .get();
-        const currentSettings = safeParseIntegrationSettings(
-          integration?.configStr ?? null,
-        );
-        const existingBackfill = currentSettings?.backfill;
-        const existingTotal = existingBackfill?.total ?? 0;
-        const existingProcessed = existingBackfill?.processed ?? 0;
-        const newTotal = existingTotal + threadTimestamps.length;
-
+        const newTotal = currentTotal + threadsToQueue.length;
         await updateBackfillStatus(
           integrationId,
           integration?.configStr ?? null,
           {
-            processed: existingProcessed,
+            processed: existingBackfill?.processed ?? 0,
             total: newTotal,
+            limit: existingBackfill?.limit ?? null,
+            channelsDiscovering: existingBackfill?.channelsDiscovering ?? 0,
           },
         );
-      });
-    }
-
-    // Queue each thread for backfill
-    for (const ts of threadTimestamps) {
-      await addThreadBackfillJob(
-        channelId,
-        ts,
-        teamId,
-        organizationId,
-        integrationId,
-      );
-      threadCount++;
-    }
+      }
+    });
 
     console.log(
-      `  [Slack] Queued ${threadCount} threads for backfill from channel ${channelId}`,
+      `  [Slack] Queued ${threadsToQueue.length} threads for backfill from channel ${channelId}`,
     );
+
+    // Determine if there are more pages
+    const budgetExhausted = await (async () => {
+      const integration = await fetchClient.query.integration
+        .first({ id: integrationId })
+        .get();
+      const settings = safeParseIntegrationSettings(
+        integration?.configStr ?? null,
+      );
+      const limit = settings?.backfill?.limit ?? null;
+      const total = settings?.backfill?.total ?? 0;
+      return limit !== null && total >= limit;
+    })();
+
+    const nextCursor = result.response_metadata?.next_cursor;
+    const hasMorePages = !!nextCursor;
+
+    if (!hasMorePages || budgetExhausted) {
+      // This channel is done discovering — decrement channelsDiscovering
+      await withBackfillLock(integrationId, async () => {
+        const integration = await fetchClient.query.integration
+          .first({ id: integrationId })
+          .get();
+        const settings = safeParseIntegrationSettings(
+          integration?.configStr ?? null,
+        );
+        const backfill = settings?.backfill;
+        if (backfill) {
+          const newChannelsDiscovering = Math.max(
+            0,
+            backfill.channelsDiscovering - 1,
+          );
+          if (
+            newChannelsDiscovering === 0 &&
+            backfill.processed >= backfill.total
+          ) {
+            await updateBackfillStatus(
+              integrationId,
+              integration?.configStr ?? null,
+              null,
+            );
+          } else {
+            await updateBackfillStatus(
+              integrationId,
+              integration?.configStr ?? null,
+              {
+                ...backfill,
+                channelsDiscovering: newChannelsDiscovering,
+              },
+            );
+          }
+        }
+      });
+
+      return { hasMore: false };
+    }
+
+    return { hasMore: true, nextCursor };
   } catch (error) {
     console.error(`  [Slack] Error backfilling channel ${channelId}:`, error);
     throw error;
@@ -668,6 +728,7 @@ const backfillChannel = async (
 
 /**
  * Handle integration changes - triggers backfill when channels are added
+ * Uses persisted syncedChannels instead of in-memory Map
  */
 const handleIntegrationChanges = async (
   integrations: {
@@ -680,18 +741,32 @@ const handleIntegrationChanges = async (
     try {
       const settings = safeParseIntegrationSettings(integration.configStr);
       if (!settings?.teamId) continue;
+      const teamId = settings.teamId;
 
       const currentChannels = new Set(settings.selectedChannels ?? []);
-      const previousChannels =
-        integrationChannels.get(integration.id) ?? new Set();
+      let syncedChannels = new Set(settings.syncedChannels ?? []);
 
-      // Find newly added channels
-      const addedChannels = [...currentChannels].filter(
-        (ch) => !previousChannels.has(ch),
+      // Migration: if syncedChannels is undefined, initialize from current selectedChannels
+      // This prevents false trigger on first deploy with new code
+      if (settings.syncedChannels === undefined) {
+        await updateSyncedChannels(integration.id, [...currentChannels]);
+        continue;
+      }
+
+      // Cleanup: remove channels from syncedChannels that are no longer in selectedChannels
+      // This ensures re-adding a channel later triggers a fresh backfill
+      const cleanedSynced = [...syncedChannels].filter((ch) =>
+        currentChannels.has(ch),
       );
+      if (cleanedSynced.length !== syncedChannels.size) {
+        syncedChannels = new Set(cleanedSynced);
+        await updateSyncedChannels(integration.id, cleanedSynced);
+      }
 
-      // Update tracked channels
-      integrationChannels.set(integration.id, currentChannels);
+      // Find newly added channels (in selected but not in synced)
+      const addedChannels = [...currentChannels].filter(
+        (ch) => !syncedChannels.has(ch),
+      );
 
       if (addedChannels.length === 0) continue;
 
@@ -703,6 +778,9 @@ const handleIntegrationChanges = async (
         console.log(
           `[Slack] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
         );
+        // Still mark as synced so we don't re-check on restart
+        const newSynced = [...syncedChannels, ...addedChannels];
+        await updateSyncedChannels(integration.id, newSynced);
         continue;
       }
 
@@ -710,30 +788,69 @@ const handleIntegrationChanges = async (
         `[Slack] Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
       );
 
-      const client = await getClientForTeam(settings.teamId);
-      if (!client) {
+      const slackClient = await getClientForTeam(settings.teamId);
+      if (!slackClient) {
         console.log(
           `[Slack] Could not get client for team ${settings.teamId}, skipping`,
         );
         continue;
       }
 
-      // Queue backfill jobs for newly added channels
-      for (const channelName of addedChannels) {
-        const channelId = await resolveChannelIdByName(client, channelName);
+      // Query plan limit
+      const limit = await getBackfillLimit(integration.organizationId);
 
+      // Add new channels to syncedChannels immediately (at backfill START)
+      // BullMQ handles retries for in-progress jobs
+      const newSynced = [...syncedChannels, ...addedChannels];
+      await updateSyncedChannels(integration.id, newSynced);
+
+      // Resolve channel IDs and initialize backfill
+      const channelsToQueue: { channelId: string; name: string }[] = [];
+      for (const channelName of addedChannels) {
+        const channelId = await resolveChannelIdByName(slackClient, channelName);
         if (channelId) {
-          await addChannelBackfillJob(
-            channelId,
-            channelName,
-            settings.teamId,
-            integration.organizationId,
-            integration.id,
-          );
+          channelsToQueue.push({ channelId, name: channelName });
         } else {
           console.log(`    [Slack] Channel #${channelName} not found`);
         }
       }
+
+      if (channelsToQueue.length === 0) continue;
+
+      // Initialize/accumulate backfill status
+      await withBackfillLock(integration.id, async () => {
+        const latestIntegration = await fetchClient.query.integration
+          .first({ id: integration.id })
+          .get();
+        const latestSettings = safeParseIntegrationSettings(
+          latestIntegration?.configStr ?? null,
+        );
+        const existingBackfill = latestSettings?.backfill;
+
+        await updateBackfillStatus(
+          integration.id,
+          latestIntegration?.configStr ?? null,
+          {
+            processed: existingBackfill?.processed ?? 0,
+            total: existingBackfill?.total ?? 0,
+            limit: existingBackfill?.limit ?? limit,
+            channelsDiscovering:
+              (existingBackfill?.channelsDiscovering ?? 0) +
+              channelsToQueue.length,
+          },
+        );
+
+        // Queue first backfill-channel job (no cursor) for each new channel
+        for (const { channelId, name } of channelsToQueue) {
+          await addChannelBackfillJob(
+            channelId,
+            name,
+            teamId,
+            integration.organizationId,
+            integration.id,
+          );
+        }
+      });
     } catch (error) {
       console.error(
         `[Slack] Error processing integration ${integration.id}:`,
@@ -1156,10 +1273,15 @@ const handleUpdates = async (
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );
-        const currentProcessed = (settings?.backfill?.processed ?? 0) + 1;
-        const currentTotal = settings?.backfill?.total ?? 0;
+        const backfill = settings?.backfill;
+        if (!backfill) return;
 
-        if (currentProcessed >= currentTotal) {
+        const currentProcessed = backfill.processed + 1;
+
+        if (
+          backfill.channelsDiscovering === 0 &&
+          currentProcessed >= backfill.total
+        ) {
           await updateBackfillStatus(
             integrationId,
             integration?.configStr ?? null,
@@ -1170,8 +1292,8 @@ const handleUpdates = async (
             integrationId,
             integration?.configStr ?? null,
             {
+              ...backfill,
               processed: currentProcessed,
-              total: currentTotal,
             },
           );
         }
