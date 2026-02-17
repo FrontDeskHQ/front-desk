@@ -10,11 +10,7 @@ import { KeybindIsolation } from "./keybind";
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
-  return (
-    <KeybindIsolation>
-      <DialogPrimitive.Root data-slot="dialog" {...props} />
-    </KeybindIsolation>
-  );
+  return <DialogPrimitive.Root data-slot="dialog" {...props} />;
 }
 
 function DialogTrigger({
@@ -85,15 +81,17 @@ function DialogContent({
         <DialogPrimitive.Popup
           data-slot="dialog-content"
           className={cn(
-            "bg-background-secondary data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 grid max-w-[calc(100%-2rem)] gap-4 rounded-lg p-4 text-xs/relaxed border duration-100 sm:max-w-sm fixed top-1/2 left-1/2 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
+            "bg-background-secondary data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 max-w-[calc(100%-2rem)] rounded-lg p-4 text-xs/relaxed border duration-100 sm:max-w-sm fixed top-1/2 left-1/2 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
             className,
           )}
           {...props}
         >
-          {children}
-          {showCloseButton && (
-            <DialogClose className="absolute top-4 right-4" />
-          )}
+          <KeybindIsolation className="grid gap-4">
+            {children}
+            {showCloseButton && (
+              <DialogClose className="absolute top-4 right-4" />
+            )}
+          </KeybindIsolation>
         </DialogPrimitive.Popup>
       </DialogPrimitive.Viewport>
     </DialogPortal>
