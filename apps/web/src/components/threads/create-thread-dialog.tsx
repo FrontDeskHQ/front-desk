@@ -118,7 +118,7 @@ export function CreateThreadDialog({
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger ? (
-          <DialogTrigger>{trigger}</DialogTrigger>
+          <DialogTrigger render={() => <>{trigger}</>} />
         ) : (
           <DialogTrigger
             render={
