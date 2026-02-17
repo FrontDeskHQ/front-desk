@@ -29,7 +29,7 @@ type ThreadContent = JSONContent[];
 interface CreateThreadDialogProps {
   organization: InferLiveObject<(typeof schema)["organization"]>;
   portalSession: GetSupportAuthUserResponse | null | undefined;
-  trigger?: React.ReactNode;
+  trigger?: React.ReactElement;
   defaultOpen?: boolean;
 }
 
@@ -118,7 +118,7 @@ export function CreateThreadDialog({
     return (
       <Dialog open={open} onOpenChange={handleOpenChange}>
         {trigger ? (
-          <DialogTrigger render={() => <>{trigger}</>} />
+          <DialogTrigger render={trigger} />
         ) : (
           <DialogTrigger
             render={
