@@ -44,6 +44,7 @@ import { Route as AppWorkspaceMainSignalIndexRouteImport } from './routes/app/_w
 import { Route as AppWorkspaceMainSearchIndexRouteImport } from './routes/app/_workspace/_main/search/index'
 import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
 import { Route as AppWorkspaceSettingsOrganizationLabelsRouteImport } from './routes/app/_workspace/settings/organization/labels'
+import { Route as AppWorkspaceSettingsOrganizationDocumentationRouteImport } from './routes/app/_workspace/settings/organization/documentation'
 import { Route as AppWorkspaceSettingsOrganizationBillingRouteImport } from './routes/app/_workspace/settings/organization/billing'
 import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from './routes/app/_workspace/settings/organization/api-keys'
 import { Route as AppWorkspaceMainThreadsOpenRouteImport } from './routes/app/_workspace/_main/threads/open'
@@ -242,6 +243,12 @@ const AppWorkspaceSettingsOrganizationLabelsRoute =
     path: '/organization/labels',
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationDocumentationRoute =
+  AppWorkspaceSettingsOrganizationDocumentationRouteImport.update({
+    id: '/organization/documentation',
+    path: '/organization/documentation',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationBillingRoute =
   AppWorkspaceSettingsOrganizationBillingRouteImport.update({
     id: '/organization/billing',
@@ -352,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
   '/app/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   '/app/settings/organization/billing': typeof AppWorkspaceSettingsOrganizationBillingRoute
+  '/app/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   '/app/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/search': typeof AppWorkspaceMainSearchIndexRoute
@@ -396,6 +404,7 @@ export interface FileRoutesByTo {
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
   '/app/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   '/app/settings/organization/billing': typeof AppWorkspaceSettingsOrganizationBillingRoute
+  '/app/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   '/app/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/search': typeof AppWorkspaceMainSearchIndexRoute
@@ -447,6 +456,7 @@ export interface FileRoutesById {
   '/app/_workspace/_main/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
   '/app/_workspace/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   '/app/_workspace/settings/organization/billing': typeof AppWorkspaceSettingsOrganizationBillingRoute
+  '/app/_workspace/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   '/app/_workspace/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
   '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
   '/app/_workspace/_main/search/': typeof AppWorkspaceMainSearchIndexRoute
@@ -496,6 +506,7 @@ export interface FileRouteTypes {
     | '/app/threads/open'
     | '/app/settings/organization/api-keys'
     | '/app/settings/organization/billing'
+    | '/app/settings/organization/documentation'
     | '/app/settings/organization/labels'
     | '/app/settings/organization/team'
     | '/app/search'
@@ -540,6 +551,7 @@ export interface FileRouteTypes {
     | '/app/threads/open'
     | '/app/settings/organization/api-keys'
     | '/app/settings/organization/billing'
+    | '/app/settings/organization/documentation'
     | '/app/settings/organization/labels'
     | '/app/settings/organization/team'
     | '/app/search'
@@ -590,6 +602,7 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/threads/open'
     | '/app/_workspace/settings/organization/api-keys'
     | '/app/_workspace/settings/organization/billing'
+    | '/app/_workspace/settings/organization/documentation'
     | '/app/_workspace/settings/organization/labels'
     | '/app/_workspace/settings/organization/team'
     | '/app/_workspace/_main/search/'
@@ -866,6 +879,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationLabelsRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
+    '/app/_workspace/settings/organization/documentation': {
+      id: '/app/_workspace/settings/organization/documentation'
+      path: '/organization/documentation'
+      fullPath: '/app/settings/organization/documentation'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
     '/app/_workspace/settings/organization/billing': {
       id: '/app/_workspace/settings/organization/billing'
       path: '/organization/billing'
@@ -1012,6 +1032,7 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
   AppWorkspaceSettingsOrganizationApiKeysRoute: typeof AppWorkspaceSettingsOrganizationApiKeysRoute
   AppWorkspaceSettingsOrganizationBillingRoute: typeof AppWorkspaceSettingsOrganizationBillingRoute
+  AppWorkspaceSettingsOrganizationDocumentationRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   AppWorkspaceSettingsOrganizationLabelsRoute: typeof AppWorkspaceSettingsOrganizationLabelsRoute
   AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
   AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
@@ -1031,6 +1052,8 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
       AppWorkspaceSettingsOrganizationApiKeysRoute,
     AppWorkspaceSettingsOrganizationBillingRoute:
       AppWorkspaceSettingsOrganizationBillingRoute,
+    AppWorkspaceSettingsOrganizationDocumentationRoute:
+      AppWorkspaceSettingsOrganizationDocumentationRoute,
     AppWorkspaceSettingsOrganizationLabelsRoute:
       AppWorkspaceSettingsOrganizationLabelsRoute,
     AppWorkspaceSettingsOrganizationTeamRoute:

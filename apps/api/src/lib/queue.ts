@@ -3,6 +3,7 @@ import Redis from "ioredis";
 import "../env";
 
 const INGEST_THREAD_QUEUE = "ingest-thread";
+const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 
 export type IngestThreadJobOptions = {
   concurrency?: number;
@@ -79,6 +80,54 @@ export const enqueueIngestThreadJob = async (params: {
   const job = await ingestThreadQueue.add("ingest-thread", {
     threadIds: params.threadIds,
     options: params.options,
+  });
+
+  return job.id ?? null;
+};
+
+// Crawl Documentation Queue
+
+export type CrawlDocumentationJobData = {
+  documentationSourceId: string;
+  organizationId: string;
+  baseUrl: string;
+};
+
+let crawlDocQueue: Queue<CrawlDocumentationJobData> | null = null;
+
+const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
+  if (crawlDocQueue) {
+    return crawlDocQueue;
+  }
+
+  connection ??= createRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  crawlDocQueue = new Queue<CrawlDocumentationJobData>(
+    CRAWL_DOCUMENTATION_QUEUE,
+    {
+      connection,
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+      },
+    },
+  );
+  return crawlDocQueue;
+};
+
+export const enqueueCrawlDocumentation = async (
+  data: CrawlDocumentationJobData,
+): Promise<string | null> => {
+  const queue = getCrawlDocQueue();
+  if (!queue) {
+    return null;
+  }
+
+  const job = await queue.add("crawl-documentation", data, {
+    jobId: `crawl-${data.documentationSourceId}`,
   });
 
   return job.id ?? null;

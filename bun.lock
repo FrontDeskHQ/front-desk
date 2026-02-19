@@ -21,6 +21,7 @@
         "@keyv/redis": "^5.1.5",
         "@live-state/sync": "catalog:",
         "@qdrant/js-client-rest": "^1.16.2",
+        "@reflag/node-sdk": "^1.1.0",
         "@trigger.dev/sdk": "4.3.3",
         "@wll8/express-ws": "^1.0.6",
         "@workspace/emails": "workspace:*",
