@@ -6,12 +6,10 @@ const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3010";
 export const revalidate = false;
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const docsBaseUrl = new URL("/docs", baseUrl).toString();
-  console.log(docsBaseUrl, baseUrl);
-  const url = (path: string): string => new URL(path, docsBaseUrl).toString();
+  const url = (path: string): string => new URL(path, baseUrl).toString();
 
   return source.getPages().map((page) => ({
-    url: url(page.url),
+    url: url(`/docs${page.url}`),
     lastModified: page.data.lastModified
       ? new Date(page.data.lastModified)
       : undefined,
