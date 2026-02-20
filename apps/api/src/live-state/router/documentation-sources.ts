@@ -167,6 +167,7 @@ export default privateRoute
       } catch (err) {
         await db.update(schema.documentationSource, id, {
           status: previousStatus,
+          errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
           updatedAt: new Date(),
         });
         throw err;

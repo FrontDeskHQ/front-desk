@@ -151,7 +151,7 @@ const chunkMarkdown = (markdown: string, pageUrl: string): MarkdownChunk[] => {
             const lastNewline = remaining.lastIndexOf("\n", end);
             const hasBreakPoint = lastPeriod >= 0 || lastNewline >= 0;
             if (hasBreakPoint) {
-              end = Math.max(lastPeriod + 1, lastNewline + 1, CHUNK_OVERLAP);
+              end = Math.max(lastPeriod + 1, lastNewline + 1, CHUNK_OVERLAP + 1);
               if (end > CHUNK_MAX_CHARS) end = CHUNK_MAX_CHARS;
             } else {
               // No sentence boundary found — hard cut at CHUNK_MAX_CHARS to guarantee forward progress
@@ -383,9 +383,13 @@ export const handleCrawlDocumentation = async (
         updatedAt: new Date(),
       });
 
-      job.updateProgress(
-        Math.round(((pageIdx + pageBatch.length) / pageUrls.length) * 100),
-      );
+      try {
+        await job.updateProgress(
+          Math.round(((pageIdx + pageBatch.length) / pageUrls.length) * 100),
+        );
+      } catch (err) {
+        console.warn(`Failed to update job progress for ${job.id}:`, err);
+      }
     }
 
     // 4. Mark as completed
