@@ -5,6 +5,8 @@ import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
+const DOCUMENTATION_SOURCE_NAME_MAX_LENGTH = 100;
+
 const checkFeatureFlag = async (organizationId: string) => {
   const { isEnabled } = reflagClient
     .bindClient({ company: { id: organizationId } })
@@ -40,7 +42,13 @@ export default privateRoute
     addDocumentationSource: mutation(
       z.object({
         organizationId: z.string(),
-        name: z.string().min(1),
+        name: z
+          .string()
+          .min(1, "Name is required")
+          .max(
+            DOCUMENTATION_SOURCE_NAME_MAX_LENGTH,
+            `Name must be at most ${DOCUMENTATION_SOURCE_NAME_MAX_LENGTH} characters`,
+          ),
         // TODO: SSRF risk — baseUrl accepts any valid URL but is used server-side (fetch in worker)
         // to crawl sitemap.xml and .md pages. Consider validating against internal/private IPs and
         // restricting to public HTTPS URLs.

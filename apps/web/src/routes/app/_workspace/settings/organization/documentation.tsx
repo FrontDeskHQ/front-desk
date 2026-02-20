@@ -147,7 +147,13 @@ function RouteComponent() {
   });
 
   const handleAdd = () => {
-    if (!currentOrg || !name.trim() || !baseUrl.trim()) return;
+    if (
+      !currentOrg ||
+      !name.trim() ||
+      name.length > 100 ||
+      !baseUrl.trim()
+    )
+      return;
     addMutation.mutate({
       organizationId: currentOrg.id,
       name: name.trim(),
@@ -196,7 +202,15 @@ function RouteComponent() {
                   placeholder="My Documentation"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
+                  maxLength={100}
+                  aria-describedby="doc-name-hint"
                 />
+                <p
+                  id="doc-name-hint"
+                  className="text-muted-foreground text-xs"
+                >
+                  Max 100 characters
+                </p>
               </div>
               <div className="flex flex-col gap-2">
                 <Label htmlFor="doc-url">Base URL</Label>
@@ -209,6 +223,7 @@ function RouteComponent() {
                     if (
                       e.key === "Enter" &&
                       name.trim() &&
+                      name.length <= 100 &&
                       baseUrl.trim()
                     ) {
                       handleAdd();
@@ -228,7 +243,10 @@ function RouteComponent() {
               <Button
                 onClick={handleAdd}
                 disabled={
-                  !name.trim() || !baseUrl.trim() || addMutation.isPending
+                  !name.trim() ||
+                  name.length > 100 ||
+                  !baseUrl.trim() ||
+                  addMutation.isPending
                 }
               >
                 {addMutation.isPending && (
