@@ -1,3 +1,4 @@
+import { useFlag } from "@reflag/react-sdk";
 import { useLiveQuery } from "@live-state/sync/client";
 import { getRouteApi, Link, useMatches } from "@tanstack/react-router";
 import {
@@ -17,6 +18,7 @@ import { useAtomValue } from "jotai/react";
 import {
   ArrowLeft,
   Banknote,
+  BookOpen,
   Cable,
   Code2,
   Settings,
@@ -28,14 +30,17 @@ import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checkli
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
+interface SidebarItem {
+  title: string;
+  url: string;
+  icon: React.ComponentType<any>;
+  role?: "owner" | "user";
+  featureFlag?: string;
+}
+
 const groups: {
   title: string;
-  items: {
-    title: string;
-    url: string;
-    icon: React.ComponentType<any>;
-    role?: "owner" | "user";
-  }[];
+  items: SidebarItem[];
 }[] = [
   {
     title: "Personal",
@@ -75,6 +80,13 @@ const groups: {
         url: "/app/settings/organization/billing",
         icon: Banknote,
         role: "owner",
+      },
+      {
+        title: "Documentation",
+        url: "/app/settings/organization/documentation",
+        icon: BookOpen,
+        role: "owner",
+        featureFlag: "documentation-crawler",
       },
       {
         title: "API keys",
@@ -124,19 +136,11 @@ export function SettingsSidebar() {
                     (item) => !item.role || item.role === selfOrgUser?.role,
                   )
                   .map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        data-active={matches.some(
-                          (match) => match.pathname === item.url,
-                        )}
-                      >
-                        <Link to={item.url}>
-                          <item.icon />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+                    <SettingsSidebarItem
+                      key={item.title}
+                      item={item}
+                      matches={matches}
+                    />
                   ))}
               </SidebarMenu>
             </SidebarGroupContent>
@@ -151,5 +155,33 @@ export function SettingsSidebar() {
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>
+  );
+}
+
+function SettingsSidebarItem({
+  item,
+  matches,
+}: {
+  item: SidebarItem;
+  matches: ReturnType<typeof useMatches>;
+}) {
+  const { isEnabled } = useFlag(item.featureFlag ?? "");
+
+  if (item.featureFlag && !isEnabled) {
+    return null;
+  }
+
+  return (
+    <SidebarMenuItem>
+      <SidebarMenuButton
+        asChild
+        data-active={matches.some((match) => match.pathname === item.url)}
+      >
+        <Link to={item.url}>
+          <item.icon />
+          <span>{item.title}</span>
+        </Link>
+      </SidebarMenuButton>
+    </SidebarMenuItem>
   );
 }

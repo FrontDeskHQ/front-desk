@@ -98,6 +98,7 @@ function App() {
           authors: true,
           suggestions: true,
           onboardings: true,
+          documentationSources: true,
         },
       }),
   );

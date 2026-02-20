@@ -11,6 +11,7 @@ import express from "express";
 import process from "node:process";
 import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
+import { reflagClient } from "./lib/feature-flag";
 import { portalAuth } from "./lib/portal-auth";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
@@ -214,6 +215,18 @@ expressAdapter(app as any, lsServer, {
   basePath: "/api/ls",
 });
 
+reflagClient.initialize().then(() => {
+  console.log("Reflag client initialized");
+});
+
 app.listen(process.env.PORT || 3333, () => {
   console.log(`Server running on port ${process.env.PORT || 3333}`);
 });
+
+const handleShutdown = () => {
+  reflagClient.flush();
+  process.exit(0);
+};
+
+process.on("SIGTERM", handleShutdown);
+process.on("SIGINT", handleShutdown);

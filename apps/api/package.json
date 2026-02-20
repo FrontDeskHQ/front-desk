@@ -47,6 +47,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.7",
+    "@reflag/node-sdk": "^1.1.0",
     "@dodopayments/express": "^0.2.1",
     "@keyv/redis": "^5.1.5",
     "@live-state/sync": "catalog:",

@@ -8,6 +8,7 @@ import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
+import documentationSourcesRoute from "./router/documentation-sources";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
@@ -660,6 +661,7 @@ export const router = createRouter({
     message: messageRoute,
     suggestion: suggestionRoute,
     onboarding: onboardingRoute,
+    documentationSource: documentationSourcesRoute,
     ...labelsRoute,
     // Internal pipeline tables (not synced to clients, used by worker)
     pipelineIdempotencyKey: publicRoute.collectionRoute(
