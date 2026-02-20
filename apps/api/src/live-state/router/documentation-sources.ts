@@ -41,6 +41,9 @@ export default privateRoute
       z.object({
         organizationId: z.string(),
         name: z.string().min(1),
+        // TODO: SSRF risk — baseUrl accepts any valid URL but is used server-side (fetch in worker)
+        // to crawl sitemap.xml and .md pages. Consider validating against internal/private IPs and
+        // restricting to public HTTPS URLs.
         baseUrl: z.string().url(),
       }),
     ).handler(async ({ req, db }) => {
@@ -86,11 +89,24 @@ export default privateRoute
         updatedAt: now,
       });
 
-      await enqueueCrawlDocumentation({
-        documentationSourceId: id,
-        organizationId,
-        baseUrl,
-      });
+      try {
+        // TODO: baseUrl is passed to worker which fetches sitemap.xml and .md URLs — SSRF risk
+        const jobId = await enqueueCrawlDocumentation({
+          documentationSourceId: id,
+          organizationId,
+          baseUrl,
+        });
+        if (!jobId) {
+          throw new Error("Queue unavailable: crawl job could not be scheduled");
+        }
+      } catch (err) {
+        await db.update(schema.documentationSource, id, {
+          status: "failed",
+          errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
+          updatedAt: new Date(),
+        });
+        throw err;
+      }
 
       return { id };
     }),
@@ -130,17 +146,31 @@ export default privateRoute
       // Feature flag check
       await checkFeatureFlag(source.organizationId);
 
+      const previousStatus = source.status;
+
       await db.update(schema.documentationSource, id, {
         status: "pending",
         errorStr: null,
         updatedAt: new Date(),
       });
 
-      await enqueueCrawlDocumentation({
-        documentationSourceId: id,
-        organizationId: source.organizationId,
-        baseUrl: source.baseUrl,
-      });
+      try {
+        // TODO: baseUrl from DB is passed to worker which fetches sitemap.xml and .md URLs — SSRF risk
+        const jobId = await enqueueCrawlDocumentation({
+          documentationSourceId: id,
+          organizationId: source.organizationId,
+          baseUrl: source.baseUrl,
+        });
+        if (!jobId) {
+          throw new Error("Queue unavailable: crawl job could not be scheduled");
+        }
+      } catch (err) {
+        await db.update(schema.documentationSource, id, {
+          status: previousStatus,
+          updatedAt: new Date(),
+        });
+        throw err;
+      }
 
       return { success: true };
     }),

@@ -14,6 +14,7 @@ const embeddingModel = google.embedding(EMBEDDING_MODEL);
 const BATCH_CONCURRENCY = 5;
 const CHUNK_MAX_CHARS = 1500;
 const CHUNK_OVERLAP = 200;
+const FETCH_TIMEOUT_MS = 30_000;
 
 interface CrawlDocumentationJobData {
   documentationSourceId: string;
@@ -43,7 +44,9 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
   const urls: string[] = [];
 
   try {
-    const response = await fetch(sitemapUrl);
+    const response = await fetch(sitemapUrl, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) {
       console.warn(`Failed to fetch sitemap from ${sitemapUrl}: ${response.status}`);
       return urls;
@@ -63,7 +66,9 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
       // Fetch each child sitemap (one level deep)
       for (const childSitemapUrl of sitemapLocs) {
         try {
-          const childResponse = await fetch(childSitemapUrl);
+          const childResponse = await fetch(childSitemapUrl, {
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          });
           if (!childResponse.ok) continue;
 
           const childXml = await childResponse.text();
@@ -96,7 +101,9 @@ const fetchMarkdown = async (pageUrl: string): Promise<string | null> => {
   const mdUrl = `${pageUrl.replace(/\/$/, "")}.md`;
 
   try {
-    const response = await fetch(mdUrl);
+    const response = await fetch(mdUrl, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
     if (!response.ok) return null;
 
     const text = await response.text();
@@ -142,8 +149,14 @@ const chunkMarkdown = (markdown: string, pageUrl: string): MarkdownChunk[] => {
             // Try to break at a sentence boundary
             const lastPeriod = remaining.lastIndexOf(". ", end);
             const lastNewline = remaining.lastIndexOf("\n", end);
-            end = Math.max(lastPeriod + 1, lastNewline + 1, CHUNK_OVERLAP);
-            if (end > CHUNK_MAX_CHARS) end = CHUNK_MAX_CHARS;
+            const hasBreakPoint = lastPeriod >= 0 || lastNewline >= 0;
+            if (hasBreakPoint) {
+              end = Math.max(lastPeriod + 1, lastNewline + 1, CHUNK_OVERLAP);
+              if (end > CHUNK_MAX_CHARS) end = CHUNK_MAX_CHARS;
+            } else {
+              // No sentence boundary found — hard cut at CHUNK_MAX_CHARS to guarantee forward progress
+              end = CHUNK_MAX_CHARS;
+            }
           }
 
           chunks.push({
@@ -270,7 +283,12 @@ export const handleCrawlDocumentation = async (
     console.log(`Found ${pageUrls.length} URLs in sitemap for ${baseUrl}`);
 
     // 2. Delete existing vectors for this source (for re-crawl)
-    await deleteDocumentationVectorsBySource(documentationSourceId);
+    const deleteOk = await deleteDocumentationVectorsBySource(documentationSourceId);
+    if (!deleteOk) {
+      throw new Error(
+        `Failed to delete documentation vectors for source ${documentationSourceId}`,
+      );
+    }
 
     // 3. Process pages and collect chunks
     let totalChunks = 0;
@@ -347,7 +365,12 @@ export const handleCrawlDocumentation = async (
           }
 
           if (points.length > 0) {
-            await upsertDocumentationChunksBatch(points);
+            const upsertOk = await upsertDocumentationChunksBatch(points);
+            if (!upsertOk) {
+              throw new Error(
+                `Failed to upsert documentation chunks batch for source ${documentationSourceId} (page: ${pageUrl}, ${points.length} chunks)`,
+              );
+            }
             totalChunks += points.length;
           }
         }
