@@ -52,6 +52,19 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
+      const thread = Object.values(
+        await db.find(schema.thread, {
+          where: {
+            id: req.input.threadId,
+            organizationId: req.input.organizationId,
+          },
+        }),
+      )[0];
+
+      if (!thread) {
+        throw new Error("UNAUTHORIZED");
+      }
+
       const id = ulid().toLowerCase();
 
       const agentChat = await db.insert(schema.agentChat, {
@@ -134,10 +147,12 @@ export const agentChatRoute = privateRoute
         ]),
       ];
       const authors = new Map<string, string>();
-      for (const authorId of allAuthorIds) {
-        const author = await db.findOne(schema.author, authorId);
-        if (author) authors.set(authorId, author.name);
-      }
+      await Promise.all(
+        allAuthorIds.map(async (authorId) => {
+          const author = await db.findOne(schema.author, authorId);
+          if (author) authors.set(authorId, author.name);
+        }),
+      );
 
       // Fetch assignee
       let assigneeName: string | null = null;
@@ -153,10 +168,13 @@ export const agentChatRoute = privateRoute
         }),
       );
       const labelNames: string[] = [];
-      for (const tl of threadLabels) {
-        const label = await db.findOne(schema.label, tl.labelId);
-        if (label?.enabled) labelNames.push(label.name);
-      }
+      const labelResults = await Promise.all(
+        threadLabels.map(async (tl) => {
+          const label = await db.findOne(schema.label, tl.labelId);
+          return label?.enabled ? label.name : null;
+        }),
+      );
+      labelNames.push(...labelResults.filter((name): name is string => name !== null));
 
       // Map status number to label
       const statusLabels: Record<number, string> = {
