@@ -42,6 +42,7 @@ import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './rou
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
 import { Route as AppWorkspaceMainSignalIndexRouteImport } from './routes/app/_workspace/_main/signal/index'
 import { Route as AppWorkspaceMainSearchIndexRouteImport } from './routes/app/_workspace/_main/search/index'
+import { Route as AppWorkspaceMainPlaygroundIndexRouteImport } from './routes/app/_workspace/_main/playground/index'
 import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
 import { Route as AppWorkspaceSettingsOrganizationLabelsRouteImport } from './routes/app/_workspace/settings/organization/labels'
 import { Route as AppWorkspaceSettingsOrganizationDocumentationRouteImport } from './routes/app/_workspace/settings/organization/documentation'
@@ -231,6 +232,12 @@ const AppWorkspaceMainSearchIndexRoute =
     path: '/search/',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceMainPlaygroundIndexRoute =
+  AppWorkspaceMainPlaygroundIndexRouteImport.update({
+    id: '/playground/',
+    path: '/playground/',
+    getParentRoute: () => AppWorkspaceMainRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationTeamRoute =
   AppWorkspaceSettingsOrganizationTeamRouteImport.update({
     id: '/organization/team',
@@ -362,6 +369,7 @@ export interface FileRoutesByFullPath {
   '/app/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   '/app/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
+  '/app/playground': typeof AppWorkspaceMainPlaygroundIndexRoute
   '/app/search': typeof AppWorkspaceMainSearchIndexRoute
   '/app/signal': typeof AppWorkspaceMainSignalIndexRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -407,6 +415,7 @@ export interface FileRoutesByTo {
   '/app/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   '/app/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
   '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
+  '/app/playground': typeof AppWorkspaceMainPlaygroundIndexRoute
   '/app/search': typeof AppWorkspaceMainSearchIndexRoute
   '/app/signal': typeof AppWorkspaceMainSignalIndexRoute
   '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
@@ -459,6 +468,7 @@ export interface FileRoutesById {
   '/app/_workspace/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
   '/app/_workspace/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
   '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
+  '/app/_workspace/_main/playground/': typeof AppWorkspaceMainPlaygroundIndexRoute
   '/app/_workspace/_main/search/': typeof AppWorkspaceMainSearchIndexRoute
   '/app/_workspace/_main/signal/': typeof AppWorkspaceMainSignalIndexRoute
   '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
@@ -509,6 +519,7 @@ export interface FileRouteTypes {
     | '/app/settings/organization/documentation'
     | '/app/settings/organization/labels'
     | '/app/settings/organization/team'
+    | '/app/playground'
     | '/app/search'
     | '/app/signal'
     | '/app/threads'
@@ -554,6 +565,7 @@ export interface FileRouteTypes {
     | '/app/settings/organization/documentation'
     | '/app/settings/organization/labels'
     | '/app/settings/organization/team'
+    | '/app/playground'
     | '/app/search'
     | '/app/signal'
     | '/app/threads'
@@ -605,6 +617,7 @@ export interface FileRouteTypes {
     | '/app/_workspace/settings/organization/documentation'
     | '/app/_workspace/settings/organization/labels'
     | '/app/_workspace/settings/organization/team'
+    | '/app/_workspace/_main/playground/'
     | '/app/_workspace/_main/search/'
     | '/app/_workspace/_main/signal/'
     | '/app/_workspace/_main/threads/'
@@ -865,6 +878,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainSearchIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/_main/playground/': {
+      id: '/app/_workspace/_main/playground/'
+      path: '/playground'
+      fullPath: '/app/playground'
+      preLoaderRoute: typeof AppWorkspaceMainPlaygroundIndexRouteImport
+      parentRoute: typeof AppWorkspaceMainRouteRoute
+    }
     '/app/_workspace/settings/organization/team': {
       id: '/app/_workspace/settings/organization/team'
       path: '/organization/team'
@@ -1003,6 +1023,7 @@ interface AppWorkspaceMainRouteRouteChildren {
   AppWorkspaceMainThreadsIdRoute: typeof AppWorkspaceMainThreadsIdRoute
   AppWorkspaceMainThreadsAssignedRoute: typeof AppWorkspaceMainThreadsAssignedRoute
   AppWorkspaceMainThreadsOpenRoute: typeof AppWorkspaceMainThreadsOpenRoute
+  AppWorkspaceMainPlaygroundIndexRoute: typeof AppWorkspaceMainPlaygroundIndexRoute
   AppWorkspaceMainSearchIndexRoute: typeof AppWorkspaceMainSearchIndexRoute
   AppWorkspaceMainSignalIndexRoute: typeof AppWorkspaceMainSignalIndexRoute
   AppWorkspaceMainThreadsIndexRoute: typeof AppWorkspaceMainThreadsIndexRoute
@@ -1015,6 +1036,7 @@ const AppWorkspaceMainRouteRouteChildren: AppWorkspaceMainRouteRouteChildren = {
   AppWorkspaceMainThreadsIdRoute: AppWorkspaceMainThreadsIdRoute,
   AppWorkspaceMainThreadsAssignedRoute: AppWorkspaceMainThreadsAssignedRoute,
   AppWorkspaceMainThreadsOpenRoute: AppWorkspaceMainThreadsOpenRoute,
+  AppWorkspaceMainPlaygroundIndexRoute: AppWorkspaceMainPlaygroundIndexRoute,
   AppWorkspaceMainSearchIndexRoute: AppWorkspaceMainSearchIndexRoute,
   AppWorkspaceMainSignalIndexRoute: AppWorkspaceMainSignalIndexRoute,
   AppWorkspaceMainThreadsIndexRoute: AppWorkspaceMainThreadsIndexRoute,

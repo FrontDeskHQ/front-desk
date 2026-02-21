@@ -99,6 +99,10 @@ function App() {
           suggestions: true,
           onboardings: true,
           documentationSources: true,
+          // TODO improve this to load only when needed
+          agentChats: {
+            messages: true,
+          },
         },
       }),
   );
