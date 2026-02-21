@@ -8,6 +8,10 @@ import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
+import {
+  agentChatMessageRoute,
+  agentChatRoute,
+} from "./router/agent-chat";
 import documentationSourcesRoute from "./router/documentation-sources";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -662,6 +666,8 @@ export const router = createRouter({
     suggestion: suggestionRoute,
     onboarding: onboardingRoute,
     documentationSource: documentationSourcesRoute,
+    agentChat: agentChatRoute,
+    agentChatMessage: agentChatMessageRoute,
     ...labelsRoute,
     // Internal pipeline tables (not synced to clients, used by worker)
     pipelineIdempotencyKey: publicRoute.collectionRoute(

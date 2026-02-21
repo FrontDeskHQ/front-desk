@@ -99,6 +99,9 @@ function App() {
           suggestions: true,
           onboardings: true,
           documentationSources: true,
+          agentChats: {
+            messages: true,
+          },
         },
       }),
   );

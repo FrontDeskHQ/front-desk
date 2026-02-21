@@ -164,6 +164,22 @@ const onboarding = object("onboarding", {
   updatedAt: timestamp(),
 });
 
+const agentChat = object("agentChat", {
+  id: id(),
+  organizationId: reference("organization.id"),
+  userId: reference("user.id"),
+  threadId: reference("thread.id"),
+  createdAt: timestamp(),
+});
+
+const agentChatMessage = object("agentChatMessage", {
+  id: id(),
+  agentChatId: reference("agentChat.id"),
+  role: string(),
+  content: string(),
+  createdAt: timestamp(),
+});
+
 const documentationSource = object("documentationSource", {
   id: id(),
   organizationId: reference("organization.id"),
@@ -189,6 +205,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   suggestions: many(suggestion, "organizationId"),
   onboardings: many(onboarding, "organizationId"),
   documentationSources: many(documentationSource, "organizationId"),
+  agentChats: many(agentChat, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -253,6 +270,23 @@ const onboardingRelations = createRelations(onboarding, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
 
+const agentChatRelations = createRelations(
+  agentChat,
+  ({ one, many }) => ({
+    organization: one(organization, "organizationId"),
+    user: one(user, "userId"),
+    thread: one(thread, "threadId"),
+    messages: many(agentChatMessage, "agentChatId"),
+  }),
+);
+
+const agentChatMessageRelations = createRelations(
+  agentChatMessage,
+  ({ one }) => ({
+    agentChat: one(agentChat, "agentChatId"),
+  }),
+);
+
 const documentationSourceRelations = createRelations(
   documentationSource,
   ({ one }) => ({
@@ -309,6 +343,8 @@ export const schema = createSchema({
   pipelineJob,
   onboarding,
   documentationSource,
+  agentChat,
+  agentChatMessage,
   // relations
   organizationUserRelations,
   organizationRelations,
@@ -324,4 +360,6 @@ export const schema = createSchema({
   suggestionRelations,
   onboardingRelations,
   documentationSourceRelations,
+  agentChatRelations,
+  agentChatMessageRelations,
 });
