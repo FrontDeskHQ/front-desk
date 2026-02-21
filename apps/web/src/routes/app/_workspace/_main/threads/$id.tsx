@@ -66,7 +66,8 @@ import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { RelatedThreadsSection } from "~/components/threads/related-threads-section";
-import { ThreadInputArea } from "~/components/threads/thread-input-area";
+import { ThreadInputArea } from "~/components/threads/thread-input-area-deprecated";
+import { ThreadToolbar } from "~/components/threads/thread-toolbar";
 import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
@@ -148,6 +149,8 @@ function RouteComponent() {
 
   const { isEnabled: isGithubIntegrationEnabled } =
     useFlag("github-integration");
+
+  const { isEnabled: isNewToolbar } = useFlag("new-thread-toolbar");
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
@@ -441,14 +444,25 @@ function RouteComponent() {
                 return null;
               })}
             </div>
-            <ThreadInputArea
-              threadId={id}
-              organizationId={thread?.organizationId}
-              threadLabels={threadLabels}
-              currentStatus={thread?.status ?? 0}
-              user={user}
-              captureThreadEvent={captureThreadEvent}
-            />
+            {isNewToolbar ? (
+              <ThreadToolbar
+                threadId={id}
+                organizationId={thread?.organizationId}
+                threadLabels={threadLabels}
+                currentStatus={thread?.status ?? 0}
+                user={user}
+                captureThreadEvent={captureThreadEvent}
+              />
+            ) : (
+              <ThreadInputArea
+                threadId={id}
+                organizationId={thread?.organizationId}
+                threadLabels={threadLabels}
+                currentStatus={thread?.status ?? 0}
+                user={user}
+                captureThreadEvent={captureThreadEvent}
+              />
+            )}
           </div>
         </div>
         <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">

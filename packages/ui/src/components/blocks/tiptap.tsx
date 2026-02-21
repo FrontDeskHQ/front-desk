@@ -130,11 +130,16 @@ export function EditorInput({
   className,
   placeholder,
   clearOnSubmit = true,
+  autoFocus = false,
   children,
   ...props
-}: Omit<React.ComponentProps<"div">, "value" | "onValueChange" | "onSubmit"> & {
+}: Omit<
+  React.ComponentProps<"div">,
+  "value" | "onValueChange" | "onSubmit"
+> & {
   placeholder?: string;
   clearOnSubmit?: boolean;
+  autoFocus?: boolean;
   children?: React.ReactNode;
 }) {
   const context = useEditorContext();
@@ -166,6 +171,7 @@ export function EditorInput({
         },
       }),
     ],
+    autofocus: autoFocus,
     content: context.value,
     onUpdate: ({ editor }) => {
       context.setValue(editor.getJSON().content);
