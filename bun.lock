@@ -320,6 +320,7 @@
         "react-hook-form": "^7.56.3",
         "react-resizable-panels": "^3.0.5",
         "react-textarea-autosize": "^8.5.9",
+        "react-use-measure": "^2.1.7",
         "recharts": "2.15.4",
         "remark-gfm": "^4.0.1",
         "remark-parse": "^11.0.0",
