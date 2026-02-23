@@ -82,7 +82,7 @@ export const ThreadToolbar = ({
     const currentIndex = threads.findIndex((t) => t.id === threadId);
     const nextIndex = currentIndex + 1;
 
-    if (nextIndex < threads.length) {
+    if (nextIndex < threads.length && nextIndex) {
       navigate({
         to: "/app/threads/$id",
         params: { id: threads[nextIndex].id },
