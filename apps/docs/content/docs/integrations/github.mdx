@@ -1,0 +1,82 @@
+---
+title: GitHub Integration
+---
+
+Connect your GitHub repositories to FrontDesk and link issues and pull requests directly to your support threads. This gives your team full visibility into the engineering work related to customer conversations.
+
+## How it works
+
+Once connected, the GitHub integration adds **Issues** and **Pull Requests** sections to your thread detail view. From there you can:
+
+- **Link existing issues** — Search and attach an open GitHub issue to any thread
+- **Create new issues** — Create a GitHub issue directly from a thread, pre-filled with the thread title
+- **Link pull requests** — Attach an open pull request to a thread
+- **Unlink** — Remove a linked issue or PR at any time
+
+Beyond linking, the integration also **automates thread resolution**. When a linked GitHub issue is closed or a linked pull request is closed or merged, FrontDesk automatically marks the associated thread as **Resolved** and records the status change in the activity log. This means your support threads stay in sync with your engineering progress without any manual work.
+
+All link, unlink, and automated status changes are recorded in the thread's activity log, so your team and customers can see the full history of engineering work tied to a support conversation.
+
+## Setting up GitHub
+
+1. Go to **Organization Settings** → **Integrations**
+2. Find **GitHub** in the integrations list
+3. Click **Enable** to start the setup flow
+4. You'll be redirected to GitHub to install the FrontDesk GitHub App
+5. Select the repositories you want to connect and authorize the installation
+6. Once installed, you'll be redirected back to FrontDesk
+
+<Callout type="warning" title="Connect at least one repository">
+  After enabling the integration, make sure at least one repository is
+  connected. The integration won't work without connected repositories.
+</Callout>
+
+## Linking issues to threads
+
+Once the integration is enabled, you'll see an **Issues** section in the thread sidebar.
+
+### Link an existing issue
+
+1. Open a thread
+2. Click **Link issue** in the sidebar (or press `I`)
+3. Search for the issue you want to link
+4. Select it from the list
+
+### Create a new issue
+
+1. Open a thread
+2. Click **Link issue** in the sidebar
+3. Click **Create issue** at the bottom of the dropdown
+4. Select the target repository, enter a title and description
+5. Click **Create Issue**
+
+The new issue is created on GitHub and automatically linked to the thread. If the issue is later closed on GitHub, the thread will be automatically marked as Resolved.
+
+## Linking pull requests to threads
+
+You'll also see a **Pull Requests** section in the thread sidebar.
+
+1. Open a thread
+2. Click **Link pull request** in the sidebar (or press `Shift+P`)
+3. Search for the pull request you want to link
+4. Select it from the list
+
+When a linked pull request is closed or merged on GitHub, the thread is automatically marked as **Resolved**.
+
+## Automatic thread resolution
+
+The GitHub integration listens for events from your connected repositories. When either of these happens:
+
+- A **linked issue** is closed
+- A **linked pull request** is closed or merged
+
+FrontDesk automatically sets the thread status to **Resolved** and logs the change in the thread's activity timeline. Threads that are already **Closed** are not affected.
+
+This lets your support team focus on conversations that still need attention, while threads tied to completed engineering work are resolved automatically.
+
+## Disabling the integration
+
+1. Go to **Organization Settings** → **Integrations** → **GitHub**
+2. Click **Disable** at the bottom of the settings page
+
+Disabling the integration removes the Issues and Pull Requests sections from your threads. Existing link history in the activity log is preserved.

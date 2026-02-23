@@ -1,5 +1,5 @@
 {
-  "pages": ["organizations", "threads", "api-keys"],
+  "pages": ["organizations", "threads", "api-keys", "support-intelligence"],
   "title": "FrontDesk basics",
   "defaultOpen": true
 }

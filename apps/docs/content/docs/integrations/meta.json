@@ -1,5 +1,5 @@
 {
-  "pages": ["widget", "slack", "discord"],
+  "pages": ["widget", "slack", "discord", "github"],
   "title": "Integrations",
   "defaultOpen": true
 }

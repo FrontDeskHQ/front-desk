@@ -1,0 +1,79 @@
+---
+title: Support Intelligence
+---
+
+Support Intelligence is FrontDesk's AI system that automatically analyzes your support threads. It runs in the background as threads are created and updated — summarizing content, finding similar conversations, and generating actionable suggestions.
+
+## What it does
+
+Support Intelligence powers two main surfaces in FrontDesk:
+
+- **Inside a thread** — An inline panel with per-thread suggestions (labels, status, duplicates) and a sidebar section showing related threads.
+- **Signals** — A dedicated feed of AI-generated suggestions (resolve, duplicate) that help you take quick action across your threads without reviewing each one individually.
+
+## Inside a thread
+
+When viewing a thread, Support Intelligence appears in two places:
+
+### Suggestions
+
+The **Support Intelligence** panel appears above the message input area when there are pending suggestions for the current thread. It can suggest:
+
+- **Labels** — Labels that are likely relevant to the thread based on its content. Each suggested label appears as a dashed chip that you can click to apply immediately.
+- **Status changes** — A recommended status (e.g. marking a thread as Resolved) when the conversation appears to have reached a conclusion.
+- **Duplicates** — When the thread looks like a duplicate of an existing conversation, the panel shows the original thread with a link to review it.
+
+Each suggestion shows a hover card with the reasoning behind it when you hover over it. You can accept or dismiss suggestions individually, or use **Accept all** / **Ignore all** to handle them in bulk. The panel collapses automatically when all suggestions have been acted on, and can be manually collapsed with the chevron button.
+
+### Related threads
+
+The sidebar includes a **Related Threads** section that automatically shows threads similar to the one you're currently viewing, ranked by relevance.
+
+This is useful for:
+
+- **Spotting patterns** — See if multiple customers are reporting the same issue
+- **Referencing past solutions** — Quickly jump to a similar thread that was already resolved to reuse the same approach
+- **Identifying duplicates** — Notice when a new thread is essentially the same as an existing one
+
+The related threads section appears automatically once the intelligence pipeline has processed the thread. If no similar threads are found, the section is hidden.
+
+## Signals
+
+Signals is a feed of quick actions and insights powered by Support Intelligence. Instead of reviewing every thread individually, Signals surfaces the most important recommendations so your team can act on them in one place.
+
+You can access Signals from the sidebar navigation.
+
+### Types of suggestions
+
+Signals currently surfaces two types of suggestions:
+
+#### Resolve suggestions
+
+When Support Intelligence detects that a thread's conversation has likely reached a resolution, it suggests marking the thread as **Resolved**. Each suggestion card shows the affected threads with links to review them before taking action.
+
+#### Duplicate suggestions
+
+When Support Intelligence identifies threads that are likely duplicates of an existing thread, it groups them together and presents them as a duplicate suggestion card. Each card shows:
+
+- The **target thread** — the original thread that duplicates are compared against
+- The **duplicate threads** — threads that are likely duplicates, with confidence levels
+
+### Acting on suggestions
+
+For each suggestion, you can:
+
+- **Apply** — Performs the suggested action (resolve or mark as duplicate) and records the change in the thread's activity log
+- **Dismiss** — Removes the suggestion without changing the thread
+
+You can also use **Apply all** or **Dismiss all** to handle an entire group of suggestions at once.
+
+### Applied suggestions
+
+Once you apply or dismiss suggestions, they move below an "Applied suggestions" separator. This gives you a clear view of what's been handled versus what still needs attention. After a page refresh, applied suggestions appear in a separate section so you can review past decisions.
+
+## Tips
+
+- **Review before applying** — Click on any thread link in a suggestion card to open and review it before deciding
+- **Use batch actions for routine cleanup** — When you trust the suggestions, use "Apply all" to quickly resolve or deduplicate groups of threads
+- **Check related threads** — When working on a thread, glance at the Related Threads section in the sidebar to see if similar issues have been resolved before
+- **Intelligence improves over time** — The more threads your organization processes, the better the similarity and duplicate detection becomes
