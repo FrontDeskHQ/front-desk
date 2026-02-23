@@ -14,6 +14,7 @@ type ToolbarActionsProps = {
   mode: "reply" | "support-intelligence" | null;
   isResolved: boolean;
   onToggleReply: () => void;
+  onToggleSupportIntelligence: () => void;
   onResolve: () => void;
   onNext: () => void;
 };
@@ -22,6 +23,7 @@ export const ToolbarActions = ({
   mode,
   isResolved,
   onToggleReply,
+  onToggleSupportIntelligence,
   onResolve,
   onNext,
 }: ToolbarActionsProps) => {
@@ -45,7 +47,11 @@ export const ToolbarActions = ({
           </ActionButton>
           <ActionButton
             variant="outline"
-            className="bg-background-tertiary dark:bg-background-tertiary"
+            className={cn(
+              "bg-background-tertiary dark:bg-background-tertiary",
+              mode === "support-intelligence" && "dark:bg-input/45",
+            )}
+            onClick={onToggleSupportIntelligence}
             size="lg"
             tooltip="Chat with Support Intelligence"
             keybind="b"

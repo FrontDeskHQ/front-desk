@@ -450,7 +450,7 @@ function RouteComponent() {
                 organizationId={thread?.organizationId}
                 threadLabels={threadLabels}
                 currentStatus={thread?.status ?? 0}
-                user={user}
+                user={{ ...user, image: user.image }}
                 captureThreadEvent={captureThreadEvent}
               />
             ) : (
