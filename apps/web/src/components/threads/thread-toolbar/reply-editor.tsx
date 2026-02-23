@@ -3,6 +3,7 @@ import {
   EditorInput,
   EditorSubmit,
 } from "@workspace/ui/components/blocks/tiptap";
+import { cn } from "@workspace/ui/lib/utils";
 import { ulid } from "ulid";
 import { mutate, query } from "~/lib/live-state";
 
@@ -14,6 +15,7 @@ type ReplyEditorProps = {
     eventName: string,
     properties?: Record<string, unknown>,
   ) => void;
+  className?: string;
 };
 
 export const ReplyEditor = ({
@@ -21,6 +23,7 @@ export const ReplyEditor = ({
   threadId,
   user,
   captureThreadEvent,
+  className,
 }: ReplyEditorProps) => {
   return (
     <div data-slot="reply-editor">
@@ -56,7 +59,10 @@ export const ReplyEditor = ({
         }}
       >
         <EditorInput
-          className="shadow-lg bg-[#1B1B1E] border-0 border-b-0"
+          className={cn(
+            "shadow-lg bg-[#1B1B1E] border-0 border-b-0",
+            className,
+          )}
           placeholder="Write a reply..."
           autoFocus
         >

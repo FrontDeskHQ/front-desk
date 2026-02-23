@@ -1,3 +1,4 @@
+import { cn } from "@workspace/ui/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
@@ -46,46 +47,62 @@ export const ThreadToolbar = ({
   const isPanelOpen = suggestionsData.hasSuggestions || mode === "reply";
 
   return (
-    <div data-slot="thread-toolbar" className="w-full flex flex-col gap-2.5">
+    <div
+      data-slot="thread-toolbar"
+      className="w-full flex flex-col gap-2.5 items-center"
+    >
       <AnimatePresence>
         {isPanelOpen && (
           <motion.div
             data-slot="thread-toolbar-panel"
-            className="flex flex-col bg-background-tertiary rounded-md border border-input origin-bottom overflow-hidden"
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.9, opacity: 0 }}
-            transition={{
-              type: "tween",
-              duration: 0.15,
-              ease: "easeOut",
-              layout: {
-                type: "tween",
-                duration: 0.15,
-                ease: "easeInOut",
-              },
+            initial={{ width: 576, scale: 0.9, opacity: 0 }}
+            animate={{
+              width: mode === "reply" ? 768 : 576,
+              scale: 1,
+              opacity: 1,
             }}
-            layout
+            exit={{ scale: 0.9, opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeInOut" }}
+            className="origin-bottom bg-background-tertiary rounded-md border border-input overflow-hidden"
           >
-            <QuickActionsPanel
-              threadId={threadId}
-              organizationId={organizationId}
-              threadLabels={threadLabels}
-              currentStatus={currentStatus}
-              user={user}
-              captureThreadEvent={captureThreadEvent}
-              showClose={mode === "reply"}
-              onClose={handleClose}
-              suggestionsData={suggestionsData}
-            />
-            {mode === "reply" && (
-              <ReplyEditor
-                organizationId={organizationId}
+            {(!mode || suggestionsData.hasSuggestions) && (
+              <QuickActionsPanel
                 threadId={threadId}
+                organizationId={organizationId}
+                threadLabels={threadLabels}
+                currentStatus={currentStatus}
                 user={user}
                 captureThreadEvent={captureThreadEvent}
+                showClose={mode === "reply"}
+                onClose={handleClose}
+                suggestionsData={suggestionsData}
               />
             )}
+            <AnimatePresence initial={false}>
+              {mode === "reply" && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15, ease: "easeInOut" }}
+                  className={cn(
+                    "overflow-hidden bg-background-tertiary",
+                    suggestionsData.hasSuggestions &&
+                      "border-t border-input rounded-t-none",
+                  )}
+                >
+                  <ReplyEditor
+                    organizationId={organizationId}
+                    threadId={threadId}
+                    user={user}
+                    captureThreadEvent={captureThreadEvent}
+                    className={cn(
+                      suggestionsData.hasSuggestions && "rounded-t-none!",
+                    )}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>

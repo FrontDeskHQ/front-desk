@@ -1,6 +1,7 @@
-import { motion, type Variants } from "motion/react";
-import type { ReactNode } from "react";
+import { motion, type Transition, type Variants } from "motion/react";
+import type { ComponentProps, ReactNode } from "react";
 import React from "react";
+import useMeasure from "react-use-measure";
 import { cn } from "../lib/utils";
 
 type PresetType =
@@ -185,4 +186,59 @@ function AnimatedGroup({
   );
 }
 
-export { AnimatedGroup };
+function AutoResizableBoxRoot({
+  children,
+  className,
+  transition,
+  ...props
+}: {
+  children: ReactNode;
+  className?: string;
+  transition?: Transition;
+} & Omit<
+  ComponentProps<"div">,
+  | "children"
+  | "className"
+  | "onDrag"
+  | "onDragStart"
+  | "onDragEnd"
+  | "onAnimationStart"
+>) {
+  const [ref, bounds] = useMeasure();
+
+  return (
+    <motion.div
+      animate={{
+        height: bounds.height > 0 ? bounds.height : undefined,
+      }}
+      transition={
+        transition ?? { type: "tween", duration: 0.15, ease: "easeInOut" }
+      }
+      className="overflow-hidden"
+      {...props}
+    >
+      <div ref={ref} className={className}>
+        {children}
+      </div>
+    </motion.div>
+  );
+}
+
+function AutoResizableBoxContent({
+  children,
+  className,
+  ...props
+}: ComponentProps<"div">) {
+  return (
+    <div className={className} {...props}>
+      {children}
+    </div>
+  );
+}
+
+const AutoResizableBox = {
+  Root: AutoResizableBoxRoot,
+  Content: AutoResizableBoxContent,
+};
+
+export { AnimatedGroup, AutoResizableBox };
