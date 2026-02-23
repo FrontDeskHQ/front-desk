@@ -8,15 +8,22 @@ import {
   CheckIcon,
   ReplyIcon,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 
 type ToolbarActionsProps = {
   mode: "reply" | "support-intelligence" | null;
+  isResolved: boolean;
   onToggleReply: () => void;
+  onResolve: () => void;
+  onNext: () => void;
 };
 
 export const ToolbarActions = ({
   mode,
+  isResolved,
   onToggleReply,
+  onResolve,
+  onNext,
 }: ToolbarActionsProps) => {
   return (
     <TooltipProvider>
@@ -47,28 +54,45 @@ export const ToolbarActions = ({
             Support Intelligence
           </ActionButton>
         </ButtonGroup>
-        <ButtonGroup>
+        <div className="flex">
+          <AnimatePresence initial={false}>
+            {!isResolved && (
+              <motion.div
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: "auto", opacity: 1 }}
+                exit={{ width: 0, opacity: 0 }}
+                transition={{ duration: 0.15, ease: "easeInOut" }}
+                className="overflow-hidden"
+              >
+                <ActionButton
+                  variant="outline"
+                  className="bg-background-tertiary dark:bg-background-tertiary rounded-r-none! border-r-0"
+                  size="lg"
+                  tooltip="Resolve the thread"
+                  keybind="cmd+option+r"
+                  onClick={onResolve}
+                >
+                  <CheckIcon />
+                  Resolve
+                </ActionButton>
+              </motion.div>
+            )}
+          </AnimatePresence>
           <ActionButton
             variant="outline"
-            className="bg-background-tertiary dark:bg-background-tertiary"
-            size="lg"
-            tooltip="Resolve the thread"
-            keybind="cmd+option+r"
-          >
-            <CheckIcon />
-            Resolve
-          </ActionButton>
-          <ActionButton
-            variant="outline"
-            className="bg-background-tertiary dark:bg-background-tertiary"
+            className={cn(
+              "bg-background-tertiary dark:bg-background-tertiary transition-[border-radius] duration-150",
+              !isResolved && "rounded-l-none!",
+            )}
             size="lg"
             tooltip="Navigate to the next thread"
             keybind="j"
+            onClick={onNext}
           >
             <ArrowRightIcon />
             Next
           </ActionButton>
-        </ButtonGroup>
+        </div>
       </div>
     </TooltipProvider>
   );

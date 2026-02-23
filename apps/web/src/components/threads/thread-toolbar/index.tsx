@@ -1,6 +1,11 @@
+import { useLiveQuery } from "@live-state/sync/client";
+import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@workspace/ui/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { toast } from "sonner";
+import { updateThreadStatus } from "~/actions/threads";
+import { query } from "~/lib/live-state";
 import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
 import { ReplyEditor } from "./reply-editor";
 import { ToolbarActions } from "./toolbar-actions";
@@ -25,6 +30,7 @@ export const ThreadToolbar = ({
   user,
   captureThreadEvent,
 }: ThreadToolbarProps) => {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"reply" | "support-intelligence" | null>(
     null,
   );
@@ -36,12 +42,54 @@ export const ThreadToolbar = ({
     currentStatus,
   });
 
+  const threads = useLiveQuery(
+    query.thread
+      .where({
+        organizationId,
+        deletedAt: null,
+      })
+      .orderBy("createdAt", "desc"),
+  );
+
   const handleToggleReply = () => {
     setMode((prev) => (prev === "reply" ? null : "reply"));
   };
 
   const handleClose = () => {
     setMode(null);
+  };
+
+  const isResolved = currentStatus === 2;
+
+  const handleResolve = async () => {
+    const newStatus = isResolved ? 0 : 2;
+    await updateThreadStatus({
+      threadId,
+      newStatus,
+      oldStatus: currentStatus,
+      userId: user.id,
+      userName: user.name,
+    });
+    captureThreadEvent("thread:status_change", {
+      oldStatus: currentStatus,
+      newStatus,
+    });
+  };
+
+  const handleNext = () => {
+    if (!threads || threads.length === 0) return;
+
+    const currentIndex = threads.findIndex((t) => t.id === threadId);
+    const nextIndex = currentIndex + 1;
+
+    if (nextIndex < threads.length) {
+      navigate({
+        to: "/app/threads/$id",
+        params: { id: threads[nextIndex].id },
+      });
+    } else {
+      toast("No more threads");
+    }
   };
 
   const isPanelOpen = suggestionsData.hasSuggestions || mode === "reply";
@@ -106,7 +154,13 @@ export const ThreadToolbar = ({
           </motion.div>
         )}
       </AnimatePresence>
-      <ToolbarActions mode={mode} onToggleReply={handleToggleReply} />
+      <ToolbarActions
+        mode={mode}
+        isResolved={isResolved}
+        onToggleReply={handleToggleReply}
+        onResolve={handleResolve}
+        onNext={handleNext}
+      />
     </div>
   );
 };
