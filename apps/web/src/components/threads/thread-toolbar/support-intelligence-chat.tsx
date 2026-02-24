@@ -243,9 +243,15 @@ function MessageGroup({
       </div>
       <div className="flex flex-col gap-1">
         {messages.map((msg) => {
-          const toolCalls: ToolCall[] = msg.toolCalls
-            ? JSON.parse(msg.toolCalls)
-            : [];
+          let toolCalls: ToolCall[] = [];
+          if (msg.toolCalls) {
+            try {
+              const parsed = JSON.parse(msg.toolCalls);
+              toolCalls = Array.isArray(parsed) ? parsed : [];
+            } catch {
+              toolCalls = [];
+            }
+          }
           const isThinking =
             isAssistant && !msg.content && toolCalls.length === 0;
 
