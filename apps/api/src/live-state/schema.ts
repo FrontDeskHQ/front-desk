@@ -170,6 +170,8 @@ const agentChat = object("agentChat", {
   userId: reference("user.id"),
   threadId: reference("thread.id"),
   createdAt: timestamp(),
+  draft: string().nullable(),
+  draftStatus: string().default("none"),
 });
 
 const agentChatMessage = object("agentChatMessage", {
