@@ -339,8 +339,12 @@ Use the thread context to help answer questions about this support thread. Be co
                 content: accumulated,
               });
             } else if (part.type === "tool-call") {
+              const inputMeta =
+                part.toolName === "setDraft"
+                  ? `contentLength=${typeof (part.input as { content?: string })?.content === "string" ? (part.input as { content: string }).content.length : 0}`
+                  : `hasInput=${part.input != null}`;
               console.log(
-                `[agent-chat] Tool call: ${part.toolName} args=${JSON.stringify(part.input)}`,
+                `[agent-chat] Tool call: ${part.toolName} ${inputMeta}`,
               );
               toolCallsArr.push({
                 name: part.toolName,
@@ -398,6 +402,11 @@ Use the thread context to help answer questions about this support thread. Be co
         throw new Error("CHAT_NOT_FOUND");
       }
 
+      // Enforce chat ownership
+      if (chat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
       // Verify org membership
       const orgUser = Object.values(
         await db.find(schema.organizationUser, {
@@ -417,55 +426,70 @@ Use the thread context to help answer questions about this support thread. Be co
         throw new Error("NO_ACTIVE_DRAFT");
       }
 
-      // Find or create author for the current user
-      const existingAuthor = Object.values(
-        await db.find(schema.author, {
-          where: {
-            userId: req.context.session.userId,
-            organizationId: chat.organizationId,
-          },
-        }),
-      )[0];
-
-      let authorId = existingAuthor?.id;
-
-      if (!authorId) {
-        const user = await db.findOne(
-          schema.user,
-          req.context.session.userId,
+      // Use transaction to prevent concurrent double-accepts
+      await db.transaction(async ({ trx }) => {
+        // Atomically claim the draft
+        const currentChat = await trx.findOne(
+          schema.agentChat,
+          req.input.chatId,
         );
-        authorId = ulid().toLowerCase();
-        await db.insert(schema.author, {
-          id: authorId,
-          userId: req.context.session.userId,
-          metaId: null,
-          name: user?.name ?? "Unknown User",
-          organizationId: chat.organizationId,
+        if (
+          !currentChat?.draft ||
+          currentChat.draftStatus !== "active"
+        ) {
+          throw new Error("NO_ACTIVE_DRAFT");
+        }
+
+        // Find or create author for the current user
+        const existingAuthor = Object.values(
+          await trx.find(schema.author, {
+            where: {
+              userId: req.context.session.userId,
+              organizationId: chat.organizationId,
+            },
+          }),
+        )[0];
+
+        let authorId = existingAuthor?.id;
+
+        if (!authorId) {
+          const user = await trx.findOne(
+            schema.user,
+            req.context.session.userId,
+          );
+          authorId = ulid().toLowerCase();
+          await trx.insert(schema.author, {
+            id: authorId,
+            userId: req.context.session.userId,
+            metaId: null,
+            name: user?.name ?? "Unknown User",
+            organizationId: chat.organizationId,
+          });
+        }
+
+        // Convert markdown draft to tiptap JSONContent and store as message
+        const content = JSON.stringify([
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: currentChat.draft }],
+          },
+        ]);
+
+        await trx.insert(schema.message, {
+          id: ulid().toLowerCase(),
+          authorId,
+          content,
+          threadId: chat.threadId,
+          createdAt: new Date(),
+          origin: null,
+          externalMessageId: null,
         });
-      }
 
-      // Convert markdown draft to tiptap JSONContent and store as message
-      const content = JSON.stringify([
-        {
-          type: "paragraph",
-          content: [{ type: "text", text: chat.draft }],
-        },
-      ]);
-
-      await db.insert(schema.message, {
-        id: ulid().toLowerCase(),
-        authorId,
-        content,
-        threadId: chat.threadId,
-        createdAt: new Date(),
-        origin: null,
-        externalMessageId: null,
-      });
-
-      // Clear the draft
-      await db.update(schema.agentChat, chat.id, {
-        draft: null,
-        draftStatus: "accepted",
+        // Clear the draft
+        await trx.update(schema.agentChat, chat.id, {
+          draft: null,
+          draftStatus: "accepted",
+        });
       });
 
       return { success: true };
@@ -483,6 +507,11 @@ Use the thread context to help answer questions about this support thread. Be co
       const chat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
+      }
+
+      // Enforce chat ownership
+      if (chat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
       }
 
       // Verify org membership
