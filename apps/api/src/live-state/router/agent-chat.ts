@@ -1,4 +1,5 @@
 import { google } from "@ai-sdk/google";
+import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stepCountIs, streamText, tool } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -73,6 +74,7 @@ export const agentChatRoute = privateRoute
         userId: req.context.session.userId,
         threadId: req.input.threadId,
         createdAt: new Date(),
+        draft: null,
       });
 
       return agentChat;
@@ -91,6 +93,11 @@ export const agentChatRoute = privateRoute
       const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!agentChat) {
         throw new Error("CHAT_NOT_FOUND");
+      }
+
+      // Enforce chat ownership
+      if (agentChat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
       }
 
       // Verify org membership
@@ -237,6 +244,8 @@ ${threadContext}
 
 You have a tool called "searchDocumentation" that lets you search the organization's documentation. Use it when the user asks questions that might be answered by documentation, or when you need to look up product details, guides, or technical information.
 
+You also have a tool called "setDraft" that lets you draft a reply message for the support agent to send to the customer. Use it when the user asks you to draft, write, or compose a reply, or when it makes sense to propose a response to the customer. The draft will be shown to the support agent for review before sending.
+
 Use the thread context to help answer questions about this support thread. Be concise and helpful.`;
 
       console.log(systemPrompt);
@@ -294,6 +303,27 @@ Use the thread context to help answer questions about this support thread. Be co
                   }));
                 },
               }),
+              setDraft: tool({
+                description:
+                  "Draft a reply message for the support agent to send to the customer. The draft will be shown to the agent for review before sending. Use markdown formatting.",
+                inputSchema: z.object({
+                  content: z
+                    .string()
+                    .describe(
+                      "The markdown content of the draft reply message",
+                    ),
+                }),
+                execute: async ({ content }) => {
+                  console.log(
+                    `[agent-chat] Tool call: setDraft content length=${content.length}`,
+                  );
+                  await db.update(schema.agentChat, agentChat.id, {
+                    draft: content,
+                    draftStatus: "active",
+                  });
+                  return { success: true };
+                },
+              }),
             },
             stopWhen: stepCountIs(3),
           });
@@ -315,12 +345,16 @@ Use the thread context to help answer questions about this support thread. Be co
                 content: accumulated,
               });
             } else if (part.type === "tool-call") {
+              const inputMeta =
+                part.toolName === "setDraft"
+                  ? `contentLength=${typeof (part.input as { content?: string })?.content === "string" ? (part.input as { content: string }).content.length : 0}`
+                  : `hasInput=${part.input != null}`;
               console.log(
-                `[agent-chat] Tool call: ${part.toolName} args=${JSON.stringify((part as any).args ?? (part as any).input)}`,
+                `[agent-chat] Tool call: ${part.toolName} ${inputMeta}`,
               );
               toolCallsArr.push({
                 name: part.toolName,
-                args: (part as any).args ?? (part as any).input,
+                args: part.input,
                 status: "calling",
               });
               await db.update(schema.agentChatMessage, assistantMessageId, {
@@ -335,7 +369,7 @@ Use the thread context to help answer questions about this support thread. Be co
               );
               if (idx !== -1) {
                 toolCallsArr[idx].status = "complete";
-                toolCallsArr[idx].result = (part as any).result ?? (part as any).output;
+                toolCallsArr[idx].result = part.output;
               }
               await db.update(schema.agentChatMessage, assistantMessageId, {
                 toolCalls: JSON.stringify(toolCallsArr),
@@ -358,6 +392,150 @@ Use the thread context to help answer questions about this support thread. Be co
       })();
 
       return { assistantMessageId };
+    }),
+
+    acceptDraft: mutation(
+      z.object({
+        chatId: z.string(),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (!req.context?.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const chat = await db.findOne(schema.agentChat, req.input.chatId);
+      if (!chat) {
+        throw new Error("CHAT_NOT_FOUND");
+      }
+
+      // Enforce chat ownership
+      if (chat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      // Verify org membership
+      const orgUser = Object.values(
+        await db.find(schema.organizationUser, {
+          where: {
+            organizationId: chat.organizationId,
+            userId: req.context.session.userId,
+            enabled: true,
+          },
+        }),
+      )[0];
+
+      if (!orgUser) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      if (!chat.draft || chat.draftStatus !== "active") {
+        throw new Error("NO_ACTIVE_DRAFT");
+      }
+
+      // Use transaction to prevent concurrent double-accepts
+      await db.transaction(async ({ trx }) => {
+        // Atomically claim the draft
+        const currentChat = await trx.findOne(
+          schema.agentChat,
+          req.input.chatId,
+        );
+        if (
+          !currentChat?.draft ||
+          currentChat.draftStatus !== "active"
+        ) {
+          throw new Error("NO_ACTIVE_DRAFT");
+        }
+
+        // Find or create author for the current user
+        const existingAuthor = Object.values(
+          await trx.find(schema.author, {
+            where: {
+              userId: req.context.session.userId,
+              organizationId: chat.organizationId,
+            },
+          }),
+        )[0];
+
+        let authorId = existingAuthor?.id;
+
+        if (!authorId) {
+          const user = await trx.findOne(
+            schema.user,
+            req.context.session.userId,
+          );
+          authorId = ulid().toLowerCase();
+          await trx.insert(schema.author, {
+            id: authorId,
+            userId: req.context.session.userId,
+            metaId: null,
+            name: user?.name ?? "Unknown User",
+            organizationId: chat.organizationId,
+          });
+        }
+
+        // Convert markdown draft to tiptap JSONContent
+        const content = JSON.stringify(parse(currentChat.draft));
+
+        await trx.insert(schema.message, {
+          id: ulid().toLowerCase(),
+          authorId,
+          content,
+          threadId: chat.threadId,
+          createdAt: new Date(),
+          origin: null,
+          externalMessageId: null,
+        });
+
+        // Clear the draft
+        await trx.update(schema.agentChat, chat.id, {
+          draft: null,
+          draftStatus: "accepted",
+        });
+      });
+
+      return { success: true };
+    }),
+
+    dismissDraft: mutation(
+      z.object({
+        chatId: z.string(),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (!req.context?.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const chat = await db.findOne(schema.agentChat, req.input.chatId);
+      if (!chat) {
+        throw new Error("CHAT_NOT_FOUND");
+      }
+
+      // Enforce chat ownership
+      if (chat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      // Verify org membership
+      const orgUser = Object.values(
+        await db.find(schema.organizationUser, {
+          where: {
+            organizationId: chat.organizationId,
+            userId: req.context.session.userId,
+            enabled: true,
+          },
+        }),
+      )[0];
+
+      if (!orgUser) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      await db.update(schema.agentChat, chat.id, {
+        draft: null,
+        draftStatus: "dismissed",
+      });
+
+      return { success: true };
     }),
   }));
 

@@ -1,16 +1,21 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Avatar } from "@workspace/ui/components/avatar";
+import { RichText } from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import { KeybindIsolation } from "@workspace/ui/components/keybind";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
 import {
   BotMessageSquare,
+  CheckIcon,
   ChevronRightIcon,
+  PenLineIcon,
   SearchIcon,
   SendIcon,
+  XIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { z } from "zod";
 import { mutate, query } from "~/lib/live-state";
 
 type ToolCall = {
@@ -20,16 +25,20 @@ type ToolCall = {
   result?: unknown;
 };
 
-type SearchDocumentationArgs = {
-  query?: string;
-};
+const SearchDocumentationArgsSchema = z.object({
+  query: z.string().optional(),
+});
 
-type SearchDocumentationMatch = {
-  title?: string;
-  url?: string;
-  content?: string;
-  section?: string;
-};
+const SearchDocumentationMatchSchema = z.object({
+  title: z.string().optional(),
+  url: z.string().optional(),
+  content: z.string().optional(),
+  section: z.string().optional(),
+});
+
+const SetDraftArgsSchema = z.object({
+  content: z.string().optional(),
+});
 
 type SupportIntelligenceChatProps = {
   threadId: string;
@@ -44,10 +53,12 @@ type SupportIntelligenceChatProps = {
 
 const toolDisplayNames: Record<string, string> = {
   searchDocumentation: "Searched documentation",
+  setDraft: "Drafted a reply",
 };
 
 const toolIcons: Record<string, React.ReactNode> = {
   searchDocumentation: <SearchIcon className="size-3.5" />,
+  setDraft: <PenLineIcon className="size-3.5" />,
 };
 
 const renderGenericToolPayload = (label: string, payload: unknown) => {
@@ -60,37 +71,18 @@ const renderGenericToolPayload = (label: string, payload: unknown) => {
   );
 };
 
-const asRecord = (value: unknown): Record<string, unknown> | null => {
-  if (typeof value !== "object" || value == null || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-};
-
 const getSearchDocumentationArgs = (
   value: unknown,
-): SearchDocumentationArgs | null => {
-  const record = asRecord(value);
-  if (!record) return null;
-  const query = typeof record.query === "string" ? record.query : undefined;
-  return { query };
+): z.infer<typeof SearchDocumentationArgsSchema> | null => {
+  const result = SearchDocumentationArgsSchema.safeParse(value);
+  return result.success ? result.data : null;
 };
 
 const getSearchDocumentationMatches = (
   value: unknown,
-): SearchDocumentationMatch[] => {
-  if (!Array.isArray(value)) return [];
-  return value.map((item) => {
-    const record = asRecord(item);
-    if (!record) return {};
-
-    return {
-      title: typeof record.title === "string" ? record.title : undefined,
-      url: typeof record.url === "string" ? record.url : undefined,
-      content: typeof record.content === "string" ? record.content : undefined,
-      section: typeof record.section === "string" ? record.section : undefined,
-    };
-  });
+): z.infer<typeof SearchDocumentationMatchSchema>[] => {
+  const result = z.array(SearchDocumentationMatchSchema).safeParse(value);
+  return result.success ? result.data : [];
 };
 
 const renderSearchDocumentationPayload = (toolCall: ToolCall) => {
@@ -139,10 +131,28 @@ const renderSearchDocumentationPayload = (toolCall: ToolCall) => {
   );
 };
 
+const renderSetDraftPayload = (toolCall: ToolCall) => {
+  const result = SetDraftArgsSchema.safeParse(toolCall.args);
+  const content = result.success ? result.data.content ?? null : null;
+
+  return (
+    <div className="space-y-1 font-sans text-xs leading-5">
+      {content ? (
+        <div className="text-foreground-secondary line-clamp-3">{content}</div>
+      ) : (
+        <div className="text-foreground-secondary">No content</div>
+      )}
+    </div>
+  );
+};
+
 const renderToolCallPayload = (toolCall: ToolCall) => {
   switch (toolCall.name) {
     case "searchDocumentation": {
       return renderSearchDocumentationPayload(toolCall);
+    }
+    case "setDraft": {
+      return renderSetDraftPayload(toolCall);
     }
     default: {
       return (
@@ -283,6 +293,7 @@ export const SupportIntelligenceChat = ({
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const isCreatingRef = useRef(false);
 
   // Find or create agent chat session for this thread
   const agentChats = useLiveQuery(
@@ -297,9 +308,15 @@ export const SupportIntelligenceChat = ({
 
   // Auto-create chat session if none exists
   useEffect(() => {
-    if (agentChats && agentChats.length === 0 && organizationId) {
-      mutate.agentChat.create({ organizationId, threadId });
-    }
+    if (isCreatingRef.current) return;
+    if (!agentChats || agentChats.length !== 0 || !organizationId) return;
+
+    isCreatingRef.current = true;
+    mutate.agentChat
+      .create({ organizationId, threadId })
+      .finally(() => {
+        isCreatingRef.current = false;
+      });
   }, [agentChats, organizationId, threadId]);
 
   // Query messages for current chat
@@ -381,8 +398,43 @@ export const SupportIntelligenceChat = ({
     }
   };
 
+  const hasDraft = agentChat?.draftStatus === "active" && agentChat?.draft;
+
+  const handleAcceptDraft = async () => {
+    if (!agentChat) return;
+    await mutate.agentChat.acceptDraft({ chatId: agentChat.id });
+    captureThreadEvent("thread:si_draft_accepted");
+  };
+
+  const handleDismissDraft = async () => {
+    if (!agentChat) return;
+    await mutate.agentChat.dismissDraft({ chatId: agentChat.id });
+    captureThreadEvent("thread:si_draft_dismissed");
+  };
+
   return (
     <div className={cn("flex flex-col max-h-[384px]", className)}>
+      {hasDraft && (
+        <div className="border-b border-input p-4 space-y-2">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+            <PenLineIcon className="size-3.5" />
+            <span>Draft Reply</span>
+          </div>
+          <div className="text-sm max-h-32 overflow-y-auto">
+            <RichText content={agentChat.draft ?? undefined} />
+          </div>
+          <div className="flex items-center gap-2 pt-1">
+            <Button size="sm" variant="primary" onClick={handleAcceptDraft}>
+              <CheckIcon className="size-3.5 mr-1" />
+              Accept & Send
+            </Button>
+            <Button size="sm" variant="ghost" onClick={handleDismissDraft}>
+              <XIcon className="size-3.5 mr-1" />
+              Dismiss
+            </Button>
+          </div>
+        </div>
+      )}
       {messageGroups.length > 0 ? (
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
           {messageGroups.map((group, i) => (
