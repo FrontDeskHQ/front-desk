@@ -8,6 +8,7 @@ import { updateThreadStatus } from "~/actions/threads";
 import { query } from "~/lib/live-state";
 import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
 import { ReplyEditor } from "./reply-editor";
+import { SupportIntelligenceChat } from "./support-intelligence-chat";
 import { ToolbarActions } from "./toolbar-actions";
 
 type ThreadToolbarProps = {
@@ -15,7 +16,7 @@ type ThreadToolbarProps = {
   organizationId: string | undefined;
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
   currentStatus: number;
-  user: { id: string; name: string };
+  user: { id: string; name: string; image?: string | null };
   captureThreadEvent: (
     eventName: string,
     properties?: Record<string, unknown>,
@@ -55,6 +56,12 @@ export const ThreadToolbar = ({
     setMode((prev) => (prev === "reply" ? null : "reply"));
   };
 
+  const handleToggleSupportIntelligence = () => {
+    setMode((prev) =>
+      prev === "support-intelligence" ? null : "support-intelligence",
+    );
+  };
+
   const handleClose = () => {
     setMode(null);
   };
@@ -92,7 +99,10 @@ export const ThreadToolbar = ({
     }
   };
 
-  const isPanelOpen = suggestionsData.hasSuggestions || mode === "reply";
+  const isPanelOpen =
+    suggestionsData.hasSuggestions ||
+    mode === "reply" ||
+    mode === "support-intelligence";
 
   return (
     <div
@@ -105,7 +115,8 @@ export const ThreadToolbar = ({
             data-slot="thread-toolbar-panel"
             initial={{ width: 576, scale: 0.9, opacity: 0 }}
             animate={{
-              width: mode === "reply" ? 768 : 576,
+              width:
+                mode === "reply" || mode === "support-intelligence" ? 768 : 576,
               scale: 1,
               opacity: 1,
             }}
@@ -113,19 +124,20 @@ export const ThreadToolbar = ({
             transition={{ duration: 0.15, ease: "easeInOut" }}
             className="origin-bottom bg-background-tertiary rounded-md border border-input overflow-hidden"
           >
-            {(!mode || suggestionsData.hasSuggestions) && (
-              <QuickActionsPanel
-                threadId={threadId}
-                organizationId={organizationId}
-                threadLabels={threadLabels}
-                currentStatus={currentStatus}
-                user={user}
-                captureThreadEvent={captureThreadEvent}
-                showClose={mode === "reply"}
-                onClose={handleClose}
-                suggestionsData={suggestionsData}
-              />
-            )}
+            {mode !== "support-intelligence" &&
+              (!mode || suggestionsData.hasSuggestions) && (
+                <QuickActionsPanel
+                  threadId={threadId}
+                  organizationId={organizationId}
+                  threadLabels={threadLabels}
+                  currentStatus={currentStatus}
+                  user={user}
+                  captureThreadEvent={captureThreadEvent}
+                  showClose={mode === "reply"}
+                  onClose={handleClose}
+                  suggestionsData={suggestionsData}
+                />
+              )}
             <AnimatePresence initial={false}>
               {mode === "reply" && (
                 <motion.div
@@ -151,6 +163,24 @@ export const ThreadToolbar = ({
                 </motion.div>
               )}
             </AnimatePresence>
+            <AnimatePresence initial={false}>
+              {mode === "support-intelligence" && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: "auto", opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  transition={{ duration: 0.15, ease: "easeInOut" }}
+                  className="overflow-hidden bg-background-tertiary"
+                >
+                  <SupportIntelligenceChat
+                    threadId={threadId}
+                    organizationId={organizationId}
+                    user={user}
+                    captureThreadEvent={captureThreadEvent}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         )}
       </AnimatePresence>
@@ -158,6 +188,7 @@ export const ThreadToolbar = ({
         mode={mode}
         isResolved={isResolved}
         onToggleReply={handleToggleReply}
+        onToggleSupportIntelligence={handleToggleSupportIntelligence}
         onResolve={handleResolve}
         onNext={handleNext}
       />

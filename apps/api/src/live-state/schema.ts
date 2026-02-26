@@ -177,6 +177,7 @@ const agentChatMessage = object("agentChatMessage", {
   agentChatId: reference("agentChat.id"),
   role: string(),
   content: string(),
+  toolCalls: string().nullable(),
   createdAt: timestamp(),
 });
 

@@ -114,6 +114,7 @@ export const agentChatRoute = privateRoute
         agentChatId: req.input.chatId,
         role: "user",
         content: req.input.message,
+        toolCalls: null,
         createdAt: new Date(),
       });
 
@@ -124,6 +125,7 @@ export const agentChatRoute = privateRoute
         agentChatId: req.input.chatId,
         role: "assistant",
         content: "",
+        toolCalls: null,
         createdAt: new Date(),
       });
 
@@ -244,6 +246,12 @@ Use the thread context to help answer questions about this support thread. Be co
       (async () => {
         let accumulated = "";
         let chunkCount = 0;
+        const toolCallsArr: Array<{
+          name: string;
+          args: unknown;
+          status: "calling" | "complete";
+          result?: unknown;
+        }> = [];
         try {
           console.log(
             `[agent-chat] Starting streamText for chat=${req.input.chatId} assistantMsg=${assistantMessageId}`,
@@ -292,19 +300,47 @@ Use the thread context to help answer questions about this support thread. Be co
 
           console.log("[agent-chat] streamText() called, awaiting chunks...");
 
-          for await (const chunk of result.textStream) {
-            chunkCount++;
-            accumulated += chunk;
+          for await (const part of result.fullStream) {
+            if (part.type === "text-delta") {
+              chunkCount++;
+              accumulated += part.text;
 
-            if (chunkCount <= 3 || chunkCount % 10 === 0) {
+              if (chunkCount <= 3 || chunkCount % 10 === 0) {
+                console.log(
+                  `[agent-chat] Chunk #${chunkCount}: +${part.text.length} chars, total=${accumulated.length} chars`,
+                );
+              }
+
+              await db.update(schema.agentChatMessage, assistantMessageId, {
+                content: accumulated,
+              });
+            } else if (part.type === "tool-call") {
               console.log(
-                `[agent-chat] Chunk #${chunkCount}: +${chunk.length} chars, total=${accumulated.length} chars`,
+                `[agent-chat] Tool call: ${part.toolName} args=${JSON.stringify((part as any).args ?? (part as any).input)}`,
               );
+              toolCallsArr.push({
+                name: part.toolName,
+                args: (part as any).args ?? (part as any).input,
+                status: "calling",
+              });
+              await db.update(schema.agentChatMessage, assistantMessageId, {
+                toolCalls: JSON.stringify(toolCallsArr),
+              });
+            } else if (part.type === "tool-result") {
+              console.log(
+                `[agent-chat] Tool result for: ${part.toolName}`,
+              );
+              const idx = toolCallsArr.findIndex(
+                (tc) => tc.name === part.toolName && tc.status === "calling",
+              );
+              if (idx !== -1) {
+                toolCallsArr[idx].status = "complete";
+                toolCallsArr[idx].result = (part as any).result ?? (part as any).output;
+              }
+              await db.update(schema.agentChatMessage, assistantMessageId, {
+                toolCalls: JSON.stringify(toolCallsArr),
+              });
             }
-
-            await db.update(schema.agentChatMessage, assistantMessageId, {
-              content: accumulated,
-            });
           }
 
           console.log(
