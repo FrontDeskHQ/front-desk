@@ -1,4 +1,5 @@
 import { google } from "@ai-sdk/google";
+import { parse } from "@workspace/ui/lib/md-tiptap";
 import { stepCountIs, streamText, tool } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -92,6 +93,11 @@ export const agentChatRoute = privateRoute
       const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!agentChat) {
         throw new Error("CHAT_NOT_FOUND");
+      }
+
+      // Enforce chat ownership
+      if (agentChat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
       }
 
       // Verify org membership
@@ -467,13 +473,8 @@ Use the thread context to help answer questions about this support thread. Be co
           });
         }
 
-        // Convert markdown draft to tiptap JSONContent and store as message
-        const content = JSON.stringify([
-          {
-            type: "paragraph",
-            content: [{ type: "text", text: currentChat.draft }],
-          },
-        ]);
+        // Convert markdown draft to tiptap JSONContent
+        const content = JSON.stringify(parse(currentChat.draft));
 
         await trx.insert(schema.message, {
           id: ulid().toLowerCase(),

@@ -56,6 +56,7 @@
     "@wll8/express-ws": "^1.0.6",
     "@workspace/emails": "workspace:*",
     "@workspace/schemas": "workspace:*",
+    "@workspace/ui": "workspace:*",
     "@workspace/utils": "workspace:*",
     "ai": "^6.0.33",
     "better-auth": "catalog:",
