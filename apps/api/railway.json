@@ -3,7 +3,7 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "bun run build -F api...",
-    "watchPatterns": ["apps/api/**"]
+    "watchPatterns": ["apps/api/**", "packages/utils/**"]
   },
   "deploy": {
     "startCommand": "cd apps/api && bun run start",

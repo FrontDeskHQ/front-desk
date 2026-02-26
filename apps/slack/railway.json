@@ -7,6 +7,7 @@
       "apps/api/**",
       "packages/schemas/**",
       "packages/ui/**",
+      "packages/utils/**",
       "apps/slack/**"
     ]
   },

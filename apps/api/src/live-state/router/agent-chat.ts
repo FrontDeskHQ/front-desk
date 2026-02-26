@@ -1,5 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { parse } from "@workspace/ui/lib/md-tiptap";
+import { parse } from "@workspace/utils/md-tiptap";
 import { stepCountIs, streamText, tool } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
