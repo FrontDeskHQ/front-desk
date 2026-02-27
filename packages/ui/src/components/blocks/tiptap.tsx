@@ -439,6 +439,45 @@ export function RichText({ content }: { content?: JSONContent[] | string }) {
   return <EditorContent editor={editor} className="customProse" />;
 }
 
+export function EditableRichText({
+  content,
+  onUpdate,
+  className,
+}: {
+  content?: JSONContent[] | string;
+  onUpdate?: (content: JSONContent[]) => void;
+  className?: string;
+}) {
+  const editor = useEditor({
+    content: [],
+    editable: true,
+    extensions: EditorExtensions,
+    onUpdate: ({ editor: e }) => {
+      onUpdate?.(e.getJSON().content);
+    },
+  });
+
+  useLayoutEffect(() => {
+    if (!editor) return;
+    if (typeof content === "string") {
+      editor.commands.setContent(parse(content));
+    } else {
+      editor.commands.setContent(content ?? []);
+    }
+    // Only set content on mount — the editor manages its own state after that
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
+
+  return (
+    <KeybindIsolation>
+      <EditorContent
+        editor={editor}
+        className={cn("customProse", className)}
+      />
+    </KeybindIsolation>
+  );
+}
+
 export function TruncatedText({
   children,
   maxHeight = 256,
