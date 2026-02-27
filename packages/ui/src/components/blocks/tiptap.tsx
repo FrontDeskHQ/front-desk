@@ -3,7 +3,7 @@ import type { Level } from "@tiptap/extension-heading";
 import { Placeholder } from "@tiptap/extensions";
 import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { parse } from "@workspace/ui/lib/md-tiptap";
+import { parse } from "@workspace/utils/md-tiptap";
 import { EditorExtensions, KeyBinds } from "@workspace/ui/lib/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
 

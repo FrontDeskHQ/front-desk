@@ -9,8 +9,8 @@ import type {
 import { App } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
 import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse";
-import { parse } from "@workspace/ui/lib/md-tiptap";
-import { stringify } from "@workspace/ui/lib/tiptap-md";
+import { parse } from "@workspace/utils/md-tiptap";
+import { stringify } from "@workspace/utils/tiptap-md";
 import type { schema } from "api/schema";
 import { ulid } from "ulid";
 import { reflagClient } from "./lib/feature-flag";

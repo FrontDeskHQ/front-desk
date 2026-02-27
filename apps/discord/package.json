@@ -33,6 +33,7 @@
     "discord.js": "^14.22.1",
     "dotenv": "^16.5.0",
     "@workspace/schemas": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "ulid": "^3.0.0",
     "zod": "catalog:"
   }

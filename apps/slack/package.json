@@ -13,7 +13,7 @@
     "@slack/bolt": "^4.6.0",
     "@slack/oauth": "^3.0.4",
     "@slack/web-api": "^7.13.0",
-    "@workspace/ui": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "@workspace/schemas": "workspace:*",
     "api": "workspace:*",
     "bullmq": "^5.67.1",
