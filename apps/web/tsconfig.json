@@ -17,6 +17,7 @@
     "paths": {
       "~/*": ["./src/*"],
       "@workspace/ui/*": ["../../packages/ui/src/*"],
+      "@workspace/utils/*": ["../../packages/utils/src/lib/*"],
       "fumadocs-mdx:collections/*": [".source/*"]
     },
     "noEmit": true,

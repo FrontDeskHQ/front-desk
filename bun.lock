@@ -303,6 +303,7 @@
         "@tiptap/pm": "^3.4.1",
         "@tiptap/react": "^3.4.1",
         "@tiptap/starter-kit": "^3.4.1",
+        "@workspace/utils": "workspace:*",
         "class-variance-authority": "^0.7.1",
         "clsx": "^2.1.1",
         "cmdk": "^1.1.1",
