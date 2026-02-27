@@ -178,8 +178,6 @@ export function EditorInput({
     },
   });
 
-  const containerRef = useRef<HTMLDivElement>(null);
-
   // Provide handleSubmit that uses current editor content
   const wrappedHandleSubmit = () => {
     const content = editor?.getJSON().content;
@@ -209,212 +207,7 @@ export function EditorInput({
           />
           {children && <div className="flex justify-end">{children}</div>}
         </div>
-        <BubbleMenu
-          className="bg-[#1B1B1E] border rounded-sm shadow"
-          editor={editor}
-        >
-          <TooltipProvider timeout={500}>
-            <div ref={containerRef} className="flex items-center">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Toggle
-                    data-state={editor.isActive("code") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
-                  >
-                    <ALargeSmall className="size-5.5" />
-                    <ChevronDown className="size-3" />
-                  </Toggle>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  portalProps={{ container: containerRef.current }}
-                  className="bg-[#1B1B1E] border rounded-sm shadow"
-                  side="top"
-                >
-                  <DropdownMenuRadioGroup
-                    value={
-                      editor.isActive("paragraph")
-                        ? "paragraph"
-                        : editor.isActive("heading", { level: 1 })
-                          ? "heading-1"
-                          : editor.isActive("heading", { level: 2 })
-                            ? "heading-2"
-                            : editor.isActive("heading", { level: 3 })
-                              ? "heading-3"
-                              : "heading-4"
-                    }
-                    onValueChange={(value) => {
-                      if (value === "paragraph") {
-                        editor.chain().focus().setParagraph().run();
-                      } else {
-                        editor
-                          .chain()
-                          .focus()
-                          .setHeading({
-                            level: parseInt(
-                              value.replace("heading-", ""),
-                            ) as Level,
-                          })
-                          .run();
-                      }
-                    }}
-                  >
-                    <DropdownMenuRadioItem value={"paragraph"}>
-                      Regular
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value={"heading-1"}>
-                      Heading 1
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value={"heading-2"}>
-                      Heading 2
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value={"heading-3"}>
-                      Heading 3
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value={"heading-4"}>
-                      Heading 4
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Toggle
-                    onClick={() => editor.chain().focus().toggleBold().run()}
-                    data-state={editor.isActive("bold") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground"
-                  >
-                    <Bold />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent keybind="mod-b">Bold</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Toggle
-                    onClick={() => editor.chain().focus().toggleItalic().run()}
-                    data-state={editor.isActive("italic") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground"
-                  >
-                    <Italic />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent keybind="mod-i">Italic</TooltipContent>
-              </Tooltip>
-
-              <Tooltip>
-                <TooltipTrigger>
-                  <Toggle
-                    onClick={() => editor.chain().focus().toggleStrike().run()}
-                    data-state={editor.isActive("strike") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground"
-                  >
-                    <Strikethrough />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent keybind="mod-shift-s">
-                  Strikethrough
-                </TooltipContent>
-              </Tooltip>
-              {/* <Tooltip>
-              <TooltipTrigger>
-                <Toggle
-                  onClick={() => editor.chain().focus().toggleLink().run()}
-                  data-state={editor.isActive("link") ? "on" : "off"}
-                  className="hover:text-popover-foreground text-popover-foreground"
-                >
-                  <Link />
-                </Toggle>
-              </TooltipTrigger>
-              <TooltipContent keybind="mod-k">Link</TooltipContent>
-            </Tooltip> */}
-              <Tooltip>
-                <TooltipTrigger>
-                  <Toggle
-                    onClick={() =>
-                      editor.chain().focus().toggleBlockquote().run()
-                    }
-                    data-state={editor.isActive("blockquote") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground"
-                  >
-                    <Quote />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent keybind="mod-shift-b">
-                  Blockquote
-                </TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Toggle
-                    onClick={() =>
-                      editor.chain().focus().toggleCodeBlock().run()
-                    }
-                    data-state={editor.isActive("codeBlock") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground"
-                  >
-                    <SquareCode />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent keybind="mod-alt-c">Code block</TooltipContent>
-              </Tooltip>
-              <Tooltip>
-                <TooltipTrigger>
-                  <Toggle
-                    onClick={() => editor.chain().focus().toggleCode().run()}
-                    data-state={editor.isActive("code") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground"
-                  >
-                    <Code />
-                  </Toggle>
-                </TooltipTrigger>
-                <TooltipContent keybind="mod-e">Code</TooltipContent>
-              </Tooltip>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Toggle
-                    data-state={editor.isActive("code") ? "on" : "off"}
-                    className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
-                  >
-                    <List />
-                    <ChevronDown className="size-3" />
-                  </Toggle>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent
-                  portalProps={{ container: containerRef.current }}
-                  className="bg-[#1B1B1E] border rounded-sm shadow"
-                  side="top"
-                >
-                  <DropdownMenuRadioGroup
-                    value={
-                      editor.isActive("bulletList")
-                        ? "bulletList"
-                        : editor.isActive("orderedList")
-                          ? "orderedList"
-                          : undefined
-                    }
-                    onValueChange={(value) => {
-                      if (value === "bulletList") {
-                        editor.chain().focus().toggleBulletList().run();
-                      } else if (value === "orderedList") {
-                        editor.chain().focus().toggleOrderedList().run();
-                      } else {
-                        editor.chain().focus().setParagraph().run();
-                      }
-                    }}
-                  >
-                    <DropdownMenuRadioItem value={"bulletList"}>
-                      List
-                    </DropdownMenuRadioItem>
-                    <DropdownMenuRadioItem value={"orderedList"}>
-                      Numbered List
-                    </DropdownMenuRadioItem>
-                  </DropdownMenuRadioGroup>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </TooltipProvider>
-        </BubbleMenu>
+        <EditorBubbleMenu editor={editor} />
       </EditorContext.Provider>
     </KeybindIsolation>
   );
@@ -437,6 +230,259 @@ export function RichText({ content }: { content?: JSONContent[] | string }) {
   }, [content, editor]);
 
   return <EditorContent editor={editor} className="customProse" />;
+}
+
+function EditorBubbleMenu({
+  editor,
+}: {
+  editor: ReturnType<typeof useEditor>;
+}) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  if (!editor) return null;
+
+  return (
+    <BubbleMenu
+      className="bg-[#1B1B1E] border rounded-sm shadow"
+      editor={editor}
+    >
+      <TooltipProvider timeout={500}>
+        <div ref={containerRef} className="flex items-center">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Toggle
+                data-state={
+                  editor.isActive("heading") ? "on" : "off"
+                }
+                className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
+              >
+                <ALargeSmall className="size-5.5" />
+                <ChevronDown className="size-3" />
+              </Toggle>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              portalProps={{ container: containerRef.current }}
+              className="bg-[#1B1B1E] border rounded-sm shadow"
+              side="top"
+            >
+              <DropdownMenuRadioGroup
+                value={
+                  editor.isActive("paragraph")
+                    ? "paragraph"
+                    : editor.isActive("heading", { level: 1 })
+                      ? "heading-1"
+                      : editor.isActive("heading", { level: 2 })
+                        ? "heading-2"
+                        : editor.isActive("heading", { level: 3 })
+                          ? "heading-3"
+                          : editor.isActive("heading", { level: 4 })
+                            ? "heading-4"
+                            : "paragraph"
+                }
+                onValueChange={(value) => {
+                  if (value === "paragraph") {
+                    editor.chain().focus().setParagraph().run();
+                  } else {
+                    editor
+                      .chain()
+                      .focus()
+                      .setHeading({
+                        level: parseInt(
+                          value.replace("heading-", ""),
+                        ) as Level,
+                      })
+                      .run();
+                  }
+                }}
+              >
+                <DropdownMenuRadioItem value={"paragraph"}>
+                  Regular
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value={"heading-1"}>
+                  Heading 1
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value={"heading-2"}>
+                  Heading 2
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value={"heading-3"}>
+                  Heading 3
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value={"heading-4"}>
+                  Heading 4
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Tooltip>
+            <TooltipTrigger>
+              <Toggle
+                onClick={() => editor.chain().focus().toggleBold().run()}
+                data-state={editor.isActive("bold") ? "on" : "off"}
+                className="hover:text-popover-foreground text-popover-foreground"
+              >
+                <Bold />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent keybind="mod-b">Bold</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <Toggle
+                onClick={() => editor.chain().focus().toggleItalic().run()}
+                data-state={editor.isActive("italic") ? "on" : "off"}
+                className="hover:text-popover-foreground text-popover-foreground"
+              >
+                <Italic />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent keybind="mod-i">Italic</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <Toggle
+                onClick={() => editor.chain().focus().toggleStrike().run()}
+                data-state={editor.isActive("strike") ? "on" : "off"}
+                className="hover:text-popover-foreground text-popover-foreground"
+              >
+                <Strikethrough />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent keybind="mod-shift-s">
+              Strikethrough
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <Toggle
+                onClick={() =>
+                  editor.chain().focus().toggleBlockquote().run()
+                }
+                data-state={editor.isActive("blockquote") ? "on" : "off"}
+                className="hover:text-popover-foreground text-popover-foreground"
+              >
+                <Quote />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent keybind="mod-shift-b">
+              Blockquote
+            </TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <Toggle
+                onClick={() =>
+                  editor.chain().focus().toggleCodeBlock().run()
+                }
+                data-state={editor.isActive("codeBlock") ? "on" : "off"}
+                className="hover:text-popover-foreground text-popover-foreground"
+              >
+                <SquareCode />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent keybind="mod-alt-c">Code block</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger>
+              <Toggle
+                onClick={() => editor.chain().focus().toggleCode().run()}
+                data-state={editor.isActive("code") ? "on" : "off"}
+                className="hover:text-popover-foreground text-popover-foreground"
+              >
+                <Code />
+              </Toggle>
+            </TooltipTrigger>
+            <TooltipContent keybind="mod-e">Code</TooltipContent>
+          </Tooltip>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Toggle
+                data-state={
+                  editor.isActive("bulletList") || editor.isActive("orderedList")
+                    ? "on"
+                    : "off"
+                }
+                className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
+              >
+                <List />
+                <ChevronDown className="size-3" />
+              </Toggle>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              portalProps={{ container: containerRef.current }}
+              className="bg-[#1B1B1E] border rounded-sm shadow"
+              side="top"
+            >
+              <DropdownMenuRadioGroup
+                value={
+                  editor.isActive("bulletList")
+                    ? "bulletList"
+                    : editor.isActive("orderedList")
+                      ? "orderedList"
+                      : undefined
+                }
+                onValueChange={(value) => {
+                  if (value === "bulletList") {
+                    editor.chain().focus().toggleBulletList().run();
+                  } else if (value === "orderedList") {
+                    editor.chain().focus().toggleOrderedList().run();
+                  } else {
+                    editor.chain().focus().setParagraph().run();
+                  }
+                }}
+              >
+                <DropdownMenuRadioItem value={"bulletList"}>
+                  List
+                </DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value={"orderedList"}>
+                  Numbered List
+                </DropdownMenuRadioItem>
+              </DropdownMenuRadioGroup>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </TooltipProvider>
+    </BubbleMenu>
+  );
+}
+
+export function EditableRichText({
+  content,
+  onUpdate,
+  className,
+}: {
+  content?: JSONContent[] | string;
+  onUpdate?: (content: JSONContent[]) => void;
+  className?: string;
+}) {
+  const editor = useEditor({
+    content: [],
+    editable: true,
+    extensions: EditorExtensions,
+    onUpdate: ({ editor: e }) => {
+      onUpdate?.(e.getJSON().content);
+    },
+  });
+
+  useLayoutEffect(() => {
+    if (!editor) return;
+    if (typeof content === "string") {
+      editor.commands.setContent(parse(content));
+    } else {
+      editor.commands.setContent(content ?? []);
+    }
+    // Only set content on mount — the editor manages its own state after that
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editor]);
+
+  return (
+    <KeybindIsolation>
+      <EditorContent
+        editor={editor}
+        className={cn("customProse", className)}
+      />
+      <EditorBubbleMenu editor={editor} />
+    </KeybindIsolation>
+  );
 }
 
 export function TruncatedText({

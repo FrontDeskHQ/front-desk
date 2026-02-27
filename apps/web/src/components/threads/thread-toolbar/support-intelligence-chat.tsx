@@ -1,20 +1,25 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { RichText } from "@workspace/ui/components/blocks/tiptap";
+import {
+  EditableRichText,
+  type JSONContent,
+} from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import { KeybindIsolation } from "@workspace/ui/components/keybind";
 import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
+import { stringify } from "@workspace/utils/tiptap-md";
 import {
   BotMessageSquare,
   CheckIcon,
   ChevronRightIcon,
+  EyeIcon,
   PenLineIcon,
   SearchIcon,
   SendIcon,
   XIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { mutate, query } from "~/lib/live-state";
 
@@ -54,11 +59,13 @@ type SupportIntelligenceChatProps = {
 const toolDisplayNames: Record<string, string> = {
   searchDocumentation: "Searched documentation",
   setDraft: "Drafted a reply",
+  getDraft: "Read current draft",
 };
 
 const toolIcons: Record<string, React.ReactNode> = {
   searchDocumentation: <SearchIcon className="size-3.5" />,
   setDraft: <PenLineIcon className="size-3.5" />,
+  getDraft: <EyeIcon className="size-3.5" />,
 };
 
 const renderGenericToolPayload = (label: string, payload: unknown) => {
@@ -146,6 +153,29 @@ const renderSetDraftPayload = (toolCall: ToolCall) => {
   );
 };
 
+const GetDraftResultSchema = z.object({
+  hasDraft: z.boolean(),
+  content: z.string().nullable(),
+});
+
+const renderGetDraftPayload = (toolCall: ToolCall) => {
+  if (toolCall.status !== "complete") return null;
+  const result = GetDraftResultSchema.safeParse(toolCall.result);
+  if (!result.success) return null;
+
+  return (
+    <div className="space-y-1 font-sans text-xs leading-5">
+      {result.data.hasDraft ? (
+        <div className="text-foreground-secondary line-clamp-3">
+          {result.data.content}
+        </div>
+      ) : (
+        <div className="text-foreground-secondary">No draft</div>
+      )}
+    </div>
+  );
+};
+
 const renderToolCallPayload = (toolCall: ToolCall) => {
   switch (toolCall.name) {
     case "searchDocumentation": {
@@ -153,6 +183,9 @@ const renderToolCallPayload = (toolCall: ToolCall) => {
     }
     case "setDraft": {
       return renderSetDraftPayload(toolCall);
+    }
+    case "getDraft": {
+      return renderGetDraftPayload(toolCall);
     }
     default: {
       return (
@@ -282,6 +315,81 @@ function MessageGroup({
   );
 }
 
+function DraftEditor({
+  chatId,
+  draft,
+  onAccept,
+  onDismiss,
+}: {
+  chatId: string;
+  draft: string;
+  onAccept: () => void;
+  onDismiss: () => void;
+}) {
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const latestMarkdownRef = useRef<string>(draft);
+
+  const flushDraft = useCallback(() => {
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    mutate.agentChat.updateDraft({
+      chatId,
+      content: latestMarkdownRef.current,
+    });
+  }, [chatId]);
+
+  const handleUpdate = useCallback(
+    (value: JSONContent[]) => {
+      const md = stringify(value);
+      latestMarkdownRef.current = md;
+
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+      debounceRef.current = setTimeout(() => {
+        debounceRef.current = null;
+        mutate.agentChat.updateDraft({ chatId, content: md });
+      }, 500);
+    },
+    [chatId],
+  );
+
+  useEffect(() => {
+    return () => {
+      flushDraft();
+    };
+  }, [flushDraft]);
+
+  const handleAccept = useCallback(() => {
+    flushDraft();
+    onAccept();
+  }, [flushDraft, onAccept]);
+
+  return (
+    <div className="border-b border-input p-4 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+        <PenLineIcon className="size-3.5" />
+        <span>Draft Reply</span>
+      </div>
+      <div className="text-sm max-h-32 overflow-y-auto">
+        <EditableRichText content={draft} onUpdate={handleUpdate} />
+      </div>
+      <div className="flex items-center gap-2 pt-1">
+        <Button size="sm" variant="primary" onClick={handleAccept}>
+          <CheckIcon className="size-3.5 mr-1" />
+          Accept & Send
+        </Button>
+        <Button size="sm" variant="ghost" onClick={onDismiss}>
+          <XIcon className="size-3.5 mr-1" />
+          Dismiss
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export const SupportIntelligenceChat = ({
   threadId,
   organizationId,
@@ -400,40 +508,27 @@ export const SupportIntelligenceChat = ({
 
   const hasDraft = agentChat?.draftStatus === "active" && agentChat?.draft;
 
-  const handleAcceptDraft = async () => {
+  const handleAcceptDraft = useCallback(async () => {
     if (!agentChat) return;
     await mutate.agentChat.acceptDraft({ chatId: agentChat.id });
     captureThreadEvent("thread:si_draft_accepted");
-  };
+  }, [agentChat, captureThreadEvent]);
 
-  const handleDismissDraft = async () => {
+  const handleDismissDraft = useCallback(async () => {
     if (!agentChat) return;
     await mutate.agentChat.dismissDraft({ chatId: agentChat.id });
     captureThreadEvent("thread:si_draft_dismissed");
-  };
+  }, [agentChat, captureThreadEvent]);
 
   return (
     <div className={cn("flex flex-col max-h-[384px]", className)}>
-      {hasDraft && (
-        <div className="border-b border-input p-4 space-y-2">
-          <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
-            <PenLineIcon className="size-3.5" />
-            <span>Draft Reply</span>
-          </div>
-          <div className="text-sm max-h-32 overflow-y-auto">
-            <RichText content={agentChat.draft ?? undefined} />
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" variant="primary" onClick={handleAcceptDraft}>
-              <CheckIcon className="size-3.5 mr-1" />
-              Accept & Send
-            </Button>
-            <Button size="sm" variant="ghost" onClick={handleDismissDraft}>
-              <XIcon className="size-3.5 mr-1" />
-              Dismiss
-            </Button>
-          </div>
-        </div>
+      {hasDraft && agentChat && (
+        <DraftEditor
+          chatId={agentChat.id}
+          draft={agentChat.draft!}
+          onAccept={handleAcceptDraft}
+          onDismiss={handleDismissDraft}
+        />
       )}
       {messageGroups.length > 0 ? (
         <div className="flex-1 overflow-y-auto p-4 space-y-4">
