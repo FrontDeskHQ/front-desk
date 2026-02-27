@@ -358,11 +358,9 @@ function DraftEditor({
 
   useEffect(() => {
     return () => {
-      if (debounceRef.current) {
-        clearTimeout(debounceRef.current);
-      }
+      flushDraft();
     };
-  }, []);
+  }, [flushDraft]);
 
   const handleAccept = useCallback(() => {
     flushDraft();

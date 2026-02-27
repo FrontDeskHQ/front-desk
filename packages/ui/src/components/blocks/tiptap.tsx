@@ -251,7 +251,9 @@ function EditorBubbleMenu({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Toggle
-                data-state={editor.isActive("code") ? "on" : "off"}
+                data-state={
+                  editor.isActive("heading") ? "on" : "off"
+                }
                 className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
               >
                 <ALargeSmall className="size-5.5" />
@@ -273,7 +275,9 @@ function EditorBubbleMenu({
                         ? "heading-2"
                         : editor.isActive("heading", { level: 3 })
                           ? "heading-3"
-                          : "heading-4"
+                          : editor.isActive("heading", { level: 4 })
+                            ? "heading-4"
+                            : "paragraph"
                 }
                 onValueChange={(value) => {
                   if (value === "paragraph") {
@@ -392,7 +396,11 @@ function EditorBubbleMenu({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Toggle
-                data-state={editor.isActive("code") ? "on" : "off"}
+                data-state={
+                  editor.isActive("bulletList") || editor.isActive("orderedList")
+                    ? "on"
+                    : "off"
+                }
                 className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
               >
                 <List />
