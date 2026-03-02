@@ -244,7 +244,9 @@ ${threadContext}
 
 You have a tool called "searchDocumentation" that lets you search the organization's documentation. Use it when the user asks questions that might be answered by documentation, or when you need to look up product details, guides, or technical information.
 
-You also have a tool called "setDraft" that lets you draft a reply message for the support agent to send to the customer. Use it when the user asks you to draft, write, or compose a reply, or when it makes sense to propose a response to the customer. The draft will be shown to the support agent for review before sending.
+You also have a tool called "setDraft" that lets you draft a reply message for the support agent to send to the customer. Use it when the user asks you to draft, write, or compose a reply, or when it makes sense to propose a response to the customer. The draft will be shown to the support agent for review and editing before sending. If a draft already exists, setDraft will replace it.
+
+You also have a tool called "getDraft" that lets you read the current draft reply. Use it when the user asks about or references their current draft, or when you need to see the draft before making modifications. The support agent may have edited the draft manually, so always use getDraft to read the latest version before updating it with setDraft.
 
 Use the thread context to help answer questions about this support thread. Be concise and helpful.`;
 
@@ -303,9 +305,27 @@ Use the thread context to help answer questions about this support thread. Be co
                   }));
                 },
               }),
+              getDraft: tool({
+                description:
+                  "Read the current draft reply. Use this when you need to see the support agent's current draft before making changes.",
+                inputSchema: z.object({}),
+                execute: async () => {
+                  const currentChat = await db.findOne(
+                    schema.agentChat,
+                    agentChat.id,
+                  );
+                  if (
+                    currentChat?.draft &&
+                    currentChat.draftStatus === "active"
+                  ) {
+                    return { hasDraft: true, content: currentChat.draft };
+                  }
+                  return { hasDraft: false, content: null };
+                },
+              }),
               setDraft: tool({
                 description:
-                  "Draft a reply message for the support agent to send to the customer. The draft will be shown to the agent for review before sending. Use markdown formatting.",
+                  "Draft a reply message for the support agent to send to the customer. This replaces the current draft if one exists. The draft will be shown to the agent for review and editing before sending. Use markdown formatting.",
                 inputSchema: z.object({
                   content: z
                     .string()
@@ -432,6 +452,36 @@ Use the thread context to help answer questions about this support thread. Be co
         throw new Error("NO_ACTIVE_DRAFT");
       }
 
+      // TODO: Move back inside transaction once live-state syncs trx.insert to clients
+      // See: https://github.com/pedroscosta/live-state/issues/135
+      // Find or create author for the current user (outside transaction
+      // so live-state properly syncs the author record to clients)
+      const existingAuthor = Object.values(
+        await db.find(schema.author, {
+          where: {
+            userId: req.context.session.userId,
+            organizationId: chat.organizationId,
+          },
+        }),
+      )[0];
+
+      let authorId = existingAuthor?.id;
+
+      if (!authorId) {
+        const user = await db.findOne(
+          schema.user,
+          req.context.session.userId,
+        );
+        authorId = ulid().toLowerCase();
+        await db.insert(schema.author, {
+          id: authorId,
+          userId: req.context.session.userId,
+          metaId: null,
+          name: user?.name ?? "Unknown User",
+          organizationId: chat.organizationId,
+        });
+      }
+
       // Use transaction to prevent concurrent double-accepts
       await db.transaction(async ({ trx }) => {
         // Atomically claim the draft
@@ -444,33 +494,6 @@ Use the thread context to help answer questions about this support thread. Be co
           currentChat.draftStatus !== "active"
         ) {
           throw new Error("NO_ACTIVE_DRAFT");
-        }
-
-        // Find or create author for the current user
-        const existingAuthor = Object.values(
-          await trx.find(schema.author, {
-            where: {
-              userId: req.context.session.userId,
-              organizationId: chat.organizationId,
-            },
-          }),
-        )[0];
-
-        let authorId = existingAuthor?.id;
-
-        if (!authorId) {
-          const user = await trx.findOne(
-            schema.user,
-            req.context.session.userId,
-          );
-          authorId = ulid().toLowerCase();
-          await trx.insert(schema.author, {
-            id: authorId,
-            userId: req.context.session.userId,
-            metaId: null,
-            name: user?.name ?? "Unknown User",
-            organizationId: chat.organizationId,
-          });
         }
 
         // Convert markdown draft to tiptap JSONContent
@@ -533,6 +556,50 @@ Use the thread context to help answer questions about this support thread. Be co
       await db.update(schema.agentChat, chat.id, {
         draft: null,
         draftStatus: "dismissed",
+      });
+
+      return { success: true };
+    }),
+
+    updateDraft: mutation(
+      z.object({
+        chatId: z.string(),
+        content: z.string(),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (!req.context?.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const chat = await db.findOne(schema.agentChat, req.input.chatId);
+      if (!chat) {
+        throw new Error("CHAT_NOT_FOUND");
+      }
+
+      if (chat.userId !== req.context.session.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const orgUser = Object.values(
+        await db.find(schema.organizationUser, {
+          where: {
+            organizationId: chat.organizationId,
+            userId: req.context.session.userId,
+            enabled: true,
+          },
+        }),
+      )[0];
+
+      if (!orgUser) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      if (chat.draftStatus !== "active") {
+        throw new Error("NO_ACTIVE_DRAFT");
+      }
+
+      await db.update(schema.agentChat, chat.id, {
+        draft: req.input.content,
       });
 
       return { success: true };
