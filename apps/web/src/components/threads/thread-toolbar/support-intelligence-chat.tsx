@@ -140,7 +140,7 @@ const renderSearchDocumentationPayload = (toolCall: ToolCall) => {
 
 const renderSetDraftPayload = (toolCall: ToolCall) => {
   const result = SetDraftArgsSchema.safeParse(toolCall.args);
-  const content = result.success ? result.data.content ?? null : null;
+  const content = result.success ? (result.data.content ?? null) : null;
 
   return (
     <div className="space-y-1 font-sans text-xs leading-5">
@@ -387,22 +387,26 @@ function DraftEditor({
   }, [onDismiss]);
 
   return (
-    <div className="border-b border-input p-4 space-y-2">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
+    <div className="flex min-h-0 flex-1 flex-col border-b border-input p-4 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-primary shrink-0">
         <PenLineIcon className="size-3.5" />
         <span>Draft Reply</span>
       </div>
-      <div className="text-sm max-h-32 overflow-y-auto">
-        <EditableRichText content={draft} onUpdate={handleUpdate} />
+      <div className="text-sm flex-1 min-h-0 overflow-y-auto -mr-4">
+        <EditableRichText
+          content={draft}
+          onUpdate={handleUpdate}
+          className="pl-2 pr-2 py-1"
+        />
       </div>
-      <div className="flex items-center gap-2 pt-1">
-        <Button size="sm" variant="primary" onClick={handleAccept}>
-          <CheckIcon className="size-3.5 mr-1" />
-          Accept & Send
-        </Button>
+      <div className="flex shrink-0 items-center justify-end gap-2 pt-1">
         <Button size="sm" variant="ghost" onClick={handleDismiss}>
           <XIcon className="size-3.5 mr-1" />
           Dismiss
+        </Button>
+        <Button size="sm" variant="primary" onClick={handleAccept}>
+          <CheckIcon className="size-3.5 mr-1" />
+          Accept & Send
         </Button>
       </div>
     </div>
@@ -439,11 +443,9 @@ export const SupportIntelligenceChat = ({
     if (!agentChats || agentChats.length !== 0 || !organizationId) return;
 
     isCreatingRef.current = true;
-    mutate.agentChat
-      .create({ organizationId, threadId })
-      .finally(() => {
-        isCreatingRef.current = false;
-      });
+    mutate.agentChat.create({ organizationId, threadId }).finally(() => {
+      isCreatingRef.current = false;
+    });
   }, [agentChats, organizationId, threadId]);
 
   // Query messages for current chat
@@ -540,17 +542,30 @@ export const SupportIntelligenceChat = ({
   }, [agentChat, captureThreadEvent]);
 
   return (
-    <div className={cn("flex flex-col max-h-[384px]", className)}>
+    <div
+      className={cn(
+        "flex min-h-0 flex-col",
+        hasDraft ? "h-[512px] max-h-[512px]" : "max-h-[384px]",
+        className,
+      )}
+    >
       {hasDraft && agentChat && (
-        <DraftEditor
-          chatId={agentChat.id}
-          draft={agentChat.draft!}
-          onAccept={handleAcceptDraft}
-          onDismiss={handleDismissDraft}
-        />
+        <div className="flex min-h-0 basis-0 flex-[3] flex-col overflow-hidden">
+          <DraftEditor
+            chatId={agentChat.id}
+            draft={agentChat.draft!}
+            onAccept={handleAcceptDraft}
+            onDismiss={handleDismissDraft}
+          />
+        </div>
       )}
       {messageGroups.length > 0 ? (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        <div
+          className={cn(
+            "min-h-0 overflow-y-auto p-4 space-y-4",
+            hasDraft ? "flex-[2]" : "flex-1",
+          )}
+        >
           {messageGroups.map((group, i) => (
             <MessageGroup
               // biome-ignore lint/suspicious/noArrayIndexKey: it's ok
@@ -565,7 +580,7 @@ export const SupportIntelligenceChat = ({
       ) : null}
       <KeybindIsolation
         className={cn(
-          "p-3 flex gap-2",
+          "shrink-0 p-3 flex gap-2",
           messageGroups.length > 0 && "border-t border-input",
         )}
       >
