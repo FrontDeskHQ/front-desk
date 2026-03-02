@@ -64,6 +64,7 @@ export const RootSidebar = () => {
               <SidebarMenuItem>
                 <SidebarMenuButton
                   data-active={matches.at(-1)?.pathname === "/composite"}
+                  asChild
                 >
                   <Link to="/composite">
                     <span>Composite</span>

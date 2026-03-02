@@ -218,6 +218,17 @@ function Composite({
       ) {
         return;
       }
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.isContentEditable ||
+          target.closest("input, textarea, select, [contenteditable='true']"))
+      ) {
+        return;
+      }
+      if (event.altKey || event.ctrlKey || event.metaKey) {
+        return;
+      }
       handleKeyNavigationRef.current(event);
     },
     [],
@@ -302,7 +313,7 @@ interface CompositeItemProps extends useRender.ComponentProps<"button"> {
 
 const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
   (
-    { className, render, disabled = false, onFocus, onMouseMove, ...props },
+    { className, render, disabled = false, onClick, onFocus, onMouseMove, ...props },
     forwardedRef,
   ) => {
     const context = React.useContext(CompositeContext);
@@ -372,6 +383,7 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
         "data-disabled": disabled ? "true" : "false",
         role: "option",
         type: "button",
+        disabled: disabled || undefined,
         tabIndex,
         "aria-disabled": disabled ? true : undefined,
         "aria-selected": isActive,
@@ -382,6 +394,14 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
           "data-[disabled=true]:opacity-50 data-[disabled=true]:cursor-not-allowed",
           className,
         ),
+        onClick: (event: React.MouseEvent<HTMLElement>) => {
+          if (disabled) {
+            event.preventDefault();
+            event.stopPropagation();
+            return;
+          }
+          onClick?.(event as React.MouseEvent<HTMLButtonElement>);
+        },
         onFocus: (event: React.FocusEvent<HTMLElement>) => {
           onFocus?.(event as React.FocusEvent<HTMLButtonElement>);
           if (disabled || itemIndex === -1) {
