@@ -330,9 +330,15 @@ function DraftEditor({
   const latestMarkdownRef = useRef<string>(draft);
   const resolvedRef = useRef(false);
 
-  // Sync ref when draft prop changes externally (e.g., AI updates draft)
+  // Track a revision counter that increments when the draft prop changes
+  // externally (i.e. the new value differs from what the user last edited).
+  const [externalRevision, setExternalRevision] = useState(0);
+
   useEffect(() => {
-    latestMarkdownRef.current = draft;
+    if (draft !== latestMarkdownRef.current) {
+      latestMarkdownRef.current = draft;
+      setExternalRevision((r) => r + 1);
+    }
   }, [draft]);
 
   const flushDraft = useCallback(() => {
@@ -387,19 +393,19 @@ function DraftEditor({
   }, [onDismiss]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col border-b border-input p-4 space-y-2">
-      <div className="flex items-center gap-1.5 text-xs font-medium text-primary shrink-0">
+    <div className="shrink-0 border-b border-input p-4 space-y-2">
+      <div className="flex items-center gap-1.5 text-xs font-medium text-primary">
         <PenLineIcon className="size-3.5" />
         <span>Draft Reply</span>
       </div>
-      <div className="text-sm flex-1 min-h-0 overflow-y-auto -mr-4">
+      <div className="text-sm max-h-52 min-h-0 overflow-y-auto -mr-4">
         <EditableRichText
+          key={externalRevision}
           content={draft}
           onUpdate={handleUpdate}
-          className="pl-2 pr-2 py-1"
         />
       </div>
-      <div className="flex shrink-0 items-center justify-end gap-2 pt-1">
+      <div className="flex items-center justify-end gap-2">
         <Button size="sm" variant="ghost" onClick={handleDismiss}>
           <XIcon className="size-3.5 mr-1" />
           Dismiss
@@ -425,6 +431,7 @@ export const SupportIntelligenceChat = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const isCreatingRef = useRef(false);
+  const isFirstScrollRef = useRef(true);
 
   // Find or create agent chat session for this thread
   const agentChats = useLiveQuery(
@@ -495,8 +502,13 @@ export const SupportIntelligenceChat = ({
 
   // Auto-scroll on message changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({
+      behavior: isFirstScrollRef.current ? "instant" : "smooth",
+    });
+    if (isFirstScrollRef.current) {
+      isFirstScrollRef.current = false;
+    }
+  }, [messages, isFirstScrollRef]);
 
   // Focus input on mount
   useEffect(() => {
@@ -545,25 +557,23 @@ export const SupportIntelligenceChat = ({
     <div
       className={cn(
         "flex min-h-0 flex-col",
-        hasDraft ? "h-[512px] max-h-[512px]" : "max-h-[384px]",
+        hasDraft ? "max-h-[512px]" : "max-h-[384px]",
         className,
       )}
     >
       {hasDraft && agentChat && (
-        <div className="flex min-h-0 basis-0 flex-[3] flex-col overflow-hidden">
-          <DraftEditor
-            chatId={agentChat.id}
-            draft={agentChat.draft!}
-            onAccept={handleAcceptDraft}
-            onDismiss={handleDismissDraft}
-          />
-        </div>
+        <DraftEditor
+          chatId={agentChat.id}
+          draft={agentChat.draft!}
+          onAccept={handleAcceptDraft}
+          onDismiss={handleDismissDraft}
+        />
       )}
       {messageGroups.length > 0 ? (
         <div
           className={cn(
-            "min-h-0 overflow-y-auto p-4 space-y-4",
-            hasDraft ? "flex-[2]" : "flex-1",
+            "min-h-0 flex-1 overflow-y-auto p-4 space-y-4",
+            hasDraft && "max-h-[256px]",
           )}
         >
           {messageGroups.map((group, i) => (
@@ -580,7 +590,7 @@ export const SupportIntelligenceChat = ({
       ) : null}
       <KeybindIsolation
         className={cn(
-          "shrink-0 p-3 flex gap-2",
+          "shrink-0 grow-0 p-3 flex gap-2",
           messageGroups.length > 0 && "border-t border-input",
         )}
       >
