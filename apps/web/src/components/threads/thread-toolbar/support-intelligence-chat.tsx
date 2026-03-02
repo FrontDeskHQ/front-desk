@@ -328,12 +328,19 @@ function DraftEditor({
 }) {
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestMarkdownRef = useRef<string>(draft);
+  const resolvedRef = useRef(false);
+
+  // Sync ref when draft prop changes externally (e.g., AI updates draft)
+  useEffect(() => {
+    latestMarkdownRef.current = draft;
+  }, [draft]);
 
   const flushDraft = useCallback(() => {
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
+    if (resolvedRef.current) return;
     mutate.agentChat.updateDraft({
       chatId,
       content: latestMarkdownRef.current,
@@ -350,7 +357,9 @@ function DraftEditor({
       }
       debounceRef.current = setTimeout(() => {
         debounceRef.current = null;
-        mutate.agentChat.updateDraft({ chatId, content: md });
+        if (!resolvedRef.current) {
+          mutate.agentChat.updateDraft({ chatId, content: md });
+        }
       }, 500);
     },
     [chatId],
@@ -364,8 +373,18 @@ function DraftEditor({
 
   const handleAccept = useCallback(() => {
     flushDraft();
+    resolvedRef.current = true;
     onAccept();
   }, [flushDraft, onAccept]);
+
+  const handleDismiss = useCallback(() => {
+    resolvedRef.current = true;
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    onDismiss();
+  }, [onDismiss]);
 
   return (
     <div className="border-b border-input p-4 space-y-2">
@@ -381,7 +400,7 @@ function DraftEditor({
           <CheckIcon className="size-3.5 mr-1" />
           Accept & Send
         </Button>
-        <Button size="sm" variant="ghost" onClick={onDismiss}>
+        <Button size="sm" variant="ghost" onClick={handleDismiss}>
           <XIcon className="size-3.5 mr-1" />
           Dismiss
         </Button>
