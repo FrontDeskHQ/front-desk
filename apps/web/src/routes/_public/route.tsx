@@ -25,8 +25,8 @@ function RouteComponent() {
         )}
       >
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
-          <div className="flex gap-4">
-            <Link to="/" className="flex items-center gap-2">
+          <div className="flex gap-px">
+            <Link to="/" className="flex items-center gap-2 mr-4">
               <Logo>
                 <Logo.Icon />
               </Logo>
