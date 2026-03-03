@@ -5,6 +5,61 @@ import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
+async function validateDocumentationUrl(baseUrl: string): Promise<{
+  valid: boolean;
+  error?: string;
+}> {
+  // 1. Check sitemap.xml exists
+  const sitemapUrl = new URL("/sitemap.xml", baseUrl).href;
+  let sitemapText: string;
+  try {
+    const res = await fetch(sitemapUrl, {
+      headers: { "User-Agent": "FrontDesk-Crawler/1.0" },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) {
+      return { valid: false, error: `Sitemap not found at ${sitemapUrl} (HTTP ${res.status})` };
+    }
+    sitemapText = await res.text();
+  } catch {
+    return { valid: false, error: `Could not reach ${sitemapUrl}` };
+  }
+
+  // 2. Extract up to 5 URLs from sitemap
+  const locMatches = sitemapText.match(/<loc>(.*?)<\/loc>/g);
+  if (!locMatches || locMatches.length === 0) {
+    return { valid: false, error: "Sitemap contains no URLs" };
+  }
+
+  const urls = locMatches
+    .slice(0, 5)
+    .map((m) => m.replace(/<\/?loc>/g, "").trim());
+
+  // 3. Check if at least one URL has a .md or .mdx version
+  for (const url of urls) {
+    for (const ext of [".md", ".mdx"]) {
+      const mdUrl = url.replace(/\/?$/, ext);
+      try {
+        const res = await fetch(mdUrl, {
+          method: "HEAD",
+          headers: { "User-Agent": "FrontDesk-Crawler/1.0" },
+          signal: AbortSignal.timeout(5_000),
+        });
+        if (res.ok) {
+          return { valid: true };
+        }
+      } catch {
+        // continue to next
+      }
+    }
+  }
+
+  return {
+    valid: false,
+    error: `None of the first ${urls.length} sitemap URLs have a .md or .mdx version available`,
+  };
+}
+
 const DOCUMENTATION_SOURCE_NAME_MAX_LENGTH = 100;
 
 const checkFeatureFlag = async (organizationId: string) => {
@@ -39,6 +94,39 @@ export default privateRoute
     },
   })
   .withMutations(({ mutation }) => ({
+    validateDocumentationSource: mutation(
+      z.object({
+        organizationId: z.string(),
+        baseUrl: z.string().url(),
+      }),
+    ).handler(async ({ req, db }) => {
+      const { organizationId, baseUrl } = req.input;
+
+      // Authorization check
+      if (!req.context?.internalApiKey && req.context?.session?.userId) {
+        const selfOrgUser = Object.values(
+          await db.find(schema.organizationUser, {
+            where: {
+              organizationId,
+              userId: req.context.session.userId,
+              enabled: true,
+              role: "owner",
+            },
+          }),
+        )[0];
+
+        if (!selfOrgUser) {
+          throw new Error("UNAUTHORIZED");
+        }
+      } else if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      await checkFeatureFlag(organizationId);
+
+      return validateDocumentationUrl(baseUrl);
+    }),
+
     addDocumentationSource: mutation(
       z.object({
         organizationId: z.string(),

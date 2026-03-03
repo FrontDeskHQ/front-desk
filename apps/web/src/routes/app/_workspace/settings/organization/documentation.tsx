@@ -1,5 +1,5 @@
-import { useFlag } from "@reflag/react-sdk";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import { useMutation } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -14,17 +14,8 @@ import {
   AlertDialogTrigger,
 } from "@workspace/ui/components/alert-dialog";
 import { Badge } from "@workspace/ui/components/badge";
-import { Button } from "@workspace/ui/components/button";
+import { ActionButton, Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import {
@@ -35,9 +26,20 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
+import { TooltipProvider } from "@workspace/ui/components/tooltip";
+import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
-import { Loader2, Plus, RefreshCw, Trash2 } from "lucide-react";
-import { useState } from "react";
+import {
+  AlertCircle,
+  ChevronDown,
+  Loader2,
+  Plus,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
@@ -50,10 +52,10 @@ export const Route = createFileRoute(
 
 const statusVariant = (
   status: string,
-): "default" | "secondary" | "destructive" | "outline" => {
+): "default" | "success" | "secondary" | "destructive" | "outline" => {
   switch (status) {
     case "completed":
-      return "default";
+      return "success";
     case "crawling":
       return "secondary";
     case "failed":
@@ -67,9 +69,15 @@ function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const { isEnabled } = useFlag("documentation-crawler");
 
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [isAddPanelOpen, setIsAddPanelOpen] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [name, setName] = useState("");
   const [baseUrl, setBaseUrl] = useState("");
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const [validation, setValidation] = useState<{
+    status: "idle" | "validating" | "valid" | "error";
+    error?: string;
+  }>({ status: "idle" });
 
   const sources = useLiveQuery(
     query.documentationSource.where({
@@ -98,17 +106,20 @@ function RouteComponent() {
       });
     },
     onSuccess: () => {
-      setIsCreateDialogOpen(false);
+      setIsAddPanelOpen(false);
       setName("");
       setBaseUrl("");
+      setValidation({ status: "idle" });
       toast.success("Documentation source added. Crawling will begin shortly.");
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to add documentation source.",
-      );
+      setValidation({
+        status: "error",
+        error:
+          error instanceof Error
+            ? error.message
+            : "Failed to add documentation source.",
+      });
     },
   });
 
@@ -146,19 +157,46 @@ function RouteComponent() {
     },
   });
 
-  const handleAdd = () => {
-    if (
-      !currentOrg ||
-      !name.trim() ||
-      name.length > 100 ||
-      !baseUrl.trim()
-    )
+  const handleAdd = useCallback(async () => {
+    if (!currentOrg || !name.trim() || name.length > 100 || !baseUrl.trim())
       return;
-    addMutation.mutate({
-      organizationId: currentOrg.id,
-      name: name.trim(),
-      baseUrl: baseUrl.trim(),
-    });
+
+    setValidation({ status: "validating" });
+
+    try {
+      const result =
+        await fetchClient.mutate.documentationSource.validateDocumentationSource(
+          {
+            organizationId: currentOrg.id,
+            baseUrl: baseUrl.trim(),
+          },
+        );
+
+      if (!result.valid) {
+        setValidation({ status: "error", error: result.error });
+        return;
+      }
+
+      setValidation({ status: "valid" });
+      addMutation.mutate({
+        organizationId: currentOrg.id,
+        name: name.trim(),
+        baseUrl: baseUrl.trim(),
+      });
+    } catch (err) {
+      setValidation({
+        status: "error",
+        error:
+          err instanceof Error ? err.message : "Validation failed unexpectedly",
+      });
+    }
+  }, [currentOrg, name, baseUrl, addMutation]);
+
+  const handleClosePanel = () => {
+    setIsAddPanelOpen(false);
+    setName("");
+    setBaseUrl("");
+    setValidation({ status: "idle" });
   };
 
   if (!isEnabled) {
@@ -181,179 +219,292 @@ function RouteComponent() {
     <div className="p-4 flex flex-col gap-4 w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-base">Documentation</h2>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-          <DialogTrigger render={<Button />}>
-            <Plus />
-            Add source
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add documentation source</DialogTitle>
-              <DialogDescription>
-                Add a documentation site to crawl. The site must have a
-                sitemap.xml and serve markdown versions of pages.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="flex flex-col gap-4 py-4">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="doc-name">Name</Label>
-                <Input
-                  id="doc-name"
-                  placeholder="My Documentation"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  maxLength={100}
-                  aria-describedby="doc-name-hint"
-                />
-                <p
-                  id="doc-name-hint"
-                  className="text-muted-foreground text-xs"
-                >
-                  Max 100 characters
-                </p>
-              </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="doc-url">Base URL</Label>
-                <Input
-                  id="doc-url"
-                  placeholder="https://docs.example.com"
-                  value={baseUrl}
-                  onChange={(e) => setBaseUrl(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (
-                      e.key === "Enter" &&
-                      name.trim() &&
-                      name.length <= 100 &&
-                      baseUrl.trim()
-                    ) {
-                      handleAdd();
-                    }
-                  }}
-                />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsCreateDialogOpen(false)}
-                disabled={addMutation.isPending}
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleAdd}
-                disabled={
-                  !name.trim() ||
-                  name.length > 100 ||
-                  !baseUrl.trim() ||
-                  addMutation.isPending
-                }
-              >
-                {addMutation.isPending && (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                )}
-                Add
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <Button onClick={() => setIsAddPanelOpen(true)}>
+          <Plus />
+          Add source
+        </Button>
       </div>
-      <Card className="bg-[#27272A]/30">
-        <CardContent className="gap-4">
-          {filteredSources.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>URL</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Pages</TableHead>
-                  <TableHead>Chunks</TableHead>
-                  <TableHead className="w-[100px]" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredSources.map((source: any) => (
-                  <TableRow key={source.id}>
-                    <TableCell className="font-medium">
-                      {source.name}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground max-w-[200px] truncate">
-                      {source.baseUrl}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(source.status)}>
-                        {source.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {source.pageCount}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {source.chunksIndexed}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          aria-label="Recrawl"
-                          disabled={
-                            source.status === "crawling" ||
-                            recrawlMutation.isPending
+      <AnimatePresence>
+        {isAddPanelOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="overflow-hidden"
+            onAnimationComplete={() => nameInputRef.current?.focus()}
+          >
+            <Card className="bg-[#27272A]/30">
+              <CardContent>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <p className="text-sm font-medium">
+                      Add documentation source
+                    </p>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7"
+                      onClick={handleClosePanel}
+                      disabled={addMutation.isPending}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    The site must have a sitemap.xml and serve markdown versions
+                    of pages.
+                  </p>
+                  {validation.status === "error" && (
+                    <div className="flex items-start gap-2 text-sm text-red-500 dark:text-red-400 bg-red-500/5 border border-red-500/20 rounded-md p-3">
+                      <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <span>{validation.error}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-3">
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <Label htmlFor="doc-name" className="text-xs">
+                        Name
+                      </Label>
+                      <Input
+                        ref={nameInputRef}
+                        id="doc-name"
+                        placeholder="My Documentation"
+                        value={name}
+                        onChange={(e) => setName(e.target.value)}
+                        maxLength={100}
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 flex-1">
+                      <Label htmlFor="doc-url" className="text-xs">
+                        Base URL
+                      </Label>
+                      <Input
+                        id="doc-url"
+                        placeholder="https://docs.example.com"
+                        value={baseUrl}
+                        onChange={(e) => {
+                          setBaseUrl(e.target.value);
+                          if (validation.status !== "idle") {
+                            setValidation({ status: "idle" });
                           }
-                          onClick={() => recrawlMutation.mutate(source.id)}
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              aria-label="Delete documentation source"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Are you sure?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This will delete the documentation source{" "}
-                                <strong>{source.name}</strong> and all its
-                                indexed content.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                variant="destructive"
-                                disabled={deleteMutation.isPending}
-                                onClick={() =>
-                                  deleteMutation.mutate(source.id)
-                                }
-                              >
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
-                      </div>
-                    </TableCell>
+                        }}
+                        onKeyDown={(e) => {
+                          if (
+                            e.key === "Enter" &&
+                            name.trim() &&
+                            name.length <= 100 &&
+                            baseUrl.trim()
+                          ) {
+                            handleAdd();
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={handleAdd}
+                      disabled={
+                        !name.trim() ||
+                        name.length > 100 ||
+                        !baseUrl.trim() ||
+                        validation.status === "validating" ||
+                        addMutation.isPending
+                      }
+                    >
+                      {(validation.status === "validating" ||
+                        addMutation.isPending) && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
+                      {validation.status === "validating"
+                        ? "Validating..."
+                        : "Add"}
+                    </Button>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <Card className="bg-[#27272A]/30">
+        <CardContent className="gap-0 p-0">
+          <div className="p-4">
+            {filteredSources.length > 0 ? (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="w-8" />
+                    <TableHead>Name</TableHead>
+                    <TableHead>URL</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Pages</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="text-muted-foreground">
-              No documentation sources added yet.
-            </div>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {filteredSources.map((source: any) => {
+                    const isExpanded = expandedRows.has(source.id);
+                    return (
+                      <>
+                        <TableRow
+                          key={source.id}
+                          className={cn(
+                            "cursor-pointer",
+                            isExpanded && "border-b-transparent",
+                          )}
+                          onClick={() =>
+                            setExpandedRows((prev) => {
+                              const next = new Set(prev);
+                              if (next.has(source.id)) {
+                                next.delete(source.id);
+                              } else {
+                                next.add(source.id);
+                              }
+                              return next;
+                            })
+                          }
+                        >
+                          <TableCell className="w-8 pr-0">
+                            <ChevronDown
+                              className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"}`}
+                            />
+                          </TableCell>
+                          <TableCell className="font-medium">
+                            {source.name}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                            {source.baseUrl}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant={statusVariant(source.status)}>
+                              {source.status.charAt(0).toUpperCase() +
+                                source.status.slice(1)}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {source.pageCount}
+                          </TableCell>
+                        </TableRow>
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <TableRow
+                              key={`${source.id}-details`}
+                              className="hover:bg-transparent"
+                            >
+                              <TableCell colSpan={5} className="p-0">
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{
+                                    duration: 0.15,
+                                    ease: "easeOut",
+                                  }}
+                                  className="overflow-hidden"
+                                >
+                                  <div className="px-6 py-3 flex items-center justify-between border-border/50">
+                                    <div className="flex gap-6 text-sm">
+                                      <div>
+                                        <span className="text-muted-foreground">
+                                          Last crawled:{" "}
+                                        </span>
+                                        {source.lastCrawledAt
+                                          ? formatRelativeTime(
+                                              new Date(source.lastCrawledAt),
+                                            )
+                                          : "Never"}
+                                      </div>
+                                      <div>
+                                        <span className="text-muted-foreground">
+                                          Chunks:{" "}
+                                        </span>
+                                        {source.chunksIndexed}
+                                      </div>
+                                    </div>
+                                    <TooltipProvider>
+                                      <div className="flex gap-2">
+                                        <ActionButton
+                                          variant="ghost"
+                                          size="sm"
+                                          tooltip="Re-crawl this documentation source"
+                                          disabled={
+                                            source.status === "crawling" ||
+                                            recrawlMutation.isPending
+                                          }
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            recrawlMutation.mutate(source.id);
+                                          }}
+                                        >
+                                          <RefreshCw className="h-3.5 w-3.5" />
+                                          Recrawl
+                                        </ActionButton>
+                                        <AlertDialog>
+                                          <AlertDialogTrigger asChild>
+                                            <ActionButton
+                                              variant="ghost"
+                                              size="sm"
+                                              tooltip="Delete this documentation source and all indexed content"
+                                              onClick={(e) =>
+                                                e.stopPropagation()
+                                              }
+                                            >
+                                              <Trash2 className="h-3.5 w-3.5" />
+                                              Delete
+                                            </ActionButton>
+                                          </AlertDialogTrigger>
+                                          <AlertDialogContent>
+                                            <AlertDialogHeader>
+                                              <AlertDialogTitle>
+                                                Are you sure?
+                                              </AlertDialogTitle>
+                                              <AlertDialogDescription>
+                                                This will delete the
+                                                documentation source{" "}
+                                                <strong>{source.name}</strong>{" "}
+                                                and all its indexed content.
+                                              </AlertDialogDescription>
+                                            </AlertDialogHeader>
+                                            <AlertDialogFooter>
+                                              <AlertDialogCancel>
+                                                Cancel
+                                              </AlertDialogCancel>
+                                              <AlertDialogAction
+                                                variant="destructive"
+                                                disabled={
+                                                  deleteMutation.isPending
+                                                }
+                                                onClick={() =>
+                                                  deleteMutation.mutate(
+                                                    source.id,
+                                                  )
+                                                }
+                                              >
+                                                Delete
+                                              </AlertDialogAction>
+                                            </AlertDialogFooter>
+                                          </AlertDialogContent>
+                                        </AlertDialog>
+                                      </div>
+                                    </TooltipProvider>
+                                  </div>
+                                </motion.div>
+                              </TableCell>
+                            </TableRow>
+                          )}
+                        </AnimatePresence>
+                      </>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            ) : (
+              <div className="text-muted-foreground">
+                No documentation sources added yet.
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
