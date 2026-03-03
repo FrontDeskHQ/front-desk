@@ -58,7 +58,7 @@ function RouteComponent() {
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="hidden max-md:inline-flex"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               onClick={() => setMenuOpen(!menuOpen)}
             >
