@@ -111,6 +111,7 @@ export const router = createRouter({
             createdAt: new Date(),
             logoUrl: null,
             socials: null,
+            customInstructions: null,
           });
 
           await db.insert(schema.subscription, {

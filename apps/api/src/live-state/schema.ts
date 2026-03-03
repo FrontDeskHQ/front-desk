@@ -17,6 +17,7 @@ const organization = object("organization", {
   createdAt: timestamp(),
   logoUrl: string().nullable(),
   socials: string().nullable(),
+  customInstructions: string().nullable(),
 });
 
 const subscription = object("subscription", {

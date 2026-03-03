@@ -234,6 +234,9 @@ export const agentChatRoute = privateRoute
         .filter(Boolean)
         .join("\n");
 
+      // Fetch organization for custom instructions
+      const org = await db.findOne(schema.organization, agentChat.organizationId);
+
       const systemPrompt = `You are a helpful AI assistant for a customer support team. You have access to the following support thread for context.
 
 ## Thread Details
@@ -247,7 +250,7 @@ You have a tool called "searchDocumentation" that lets you search the organizati
 You also have a tool called "setDraft" that lets you draft a reply message for the support agent to send to the customer. Use it when the user asks you to draft, write, or compose a reply, or when it makes sense to propose a response to the customer. The draft will be shown to the support agent for review and editing before sending. If a draft already exists, setDraft will replace it.
 
 You also have a tool called "getDraft" that lets you read the current draft reply. Use it when the user asks about or references their current draft, or when you need to see the draft before making modifications. The support agent may have edited the draft manually, so always use getDraft to read the latest version before updating it with setDraft.
-
+${org?.customInstructions ? `\n## Custom Instructions\n${org.customInstructions}\n` : ""}
 Use the thread context to help answer questions about this support thread. Be concise and helpful.`;
 
       console.log(systemPrompt);
