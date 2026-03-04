@@ -8,12 +8,12 @@ Support Intelligence is FrontDesk's AI system that automatically analyzes your s
 
 Support Intelligence powers two main surfaces in FrontDesk:
 
-- **Inside a thread** — An inline panel with per-thread suggestions (labels, status, duplicates) and a sidebar section showing related threads.
+- **Inside a thread** — An inline panel with per-thread suggestions (labels, status, duplicates), a sidebar section showing related threads, and an AI assistant.
 - **Signals** — A dedicated feed of AI-generated suggestions (resolve, duplicate) that help you take quick action across your threads without reviewing each one individually.
 
 ## Inside a thread
 
-When viewing a thread, Support Intelligence appears in two places:
+When viewing a thread, Support Intelligence appears in three places:
 
 ### Suggestions
 
@@ -36,6 +36,30 @@ This is useful for:
 - **Identifying duplicates** — Notice when a new thread is essentially the same as an existing one
 
 The related threads section appears automatically once the intelligence pipeline has processed the thread. If no similar threads are found, the section is hidden.
+
+### Chat with Support Intelligence
+
+When viewing a thread, you can open the **Support Intelligence** chat panel from the toolbar (or press `b`). The chat assistant has access to the current thread context and can:
+
+- **Search documentation** — Query your organization's documentation to find relevant answers
+- **Draft replies** — Compose reply suggestions that you can review and edit before sending
+- **Read the current draft** — Reference and modify drafts you're working on
+
+#### Custom instructions
+
+Organization owners can configure custom instructions for the Support Intelligence agent. These instructions are included in the agent's system prompt when it assists with support threads, allowing you to:
+
+- Define tone and style (e.g., friendly, formal, casual)
+- Add escalation rules (e.g., always recommend checking the FAQ before escalating)
+- Specify product- or process-specific guidance
+
+To configure custom instructions:
+
+1. Go to **Organization Settings** → **Support Intelligence**
+2. Enter your instructions in the text area
+3. Click **Save**
+
+Custom instructions apply to the Support Intelligence chat assistant when team members use it within threads.
 
 ## Signals
 

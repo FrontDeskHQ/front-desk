@@ -1,5 +1,5 @@
-import { useFlag } from "@reflag/react-sdk";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import { getRouteApi, Link, useMatches } from "@tanstack/react-router";
 import {
   Sidebar,
@@ -19,6 +19,7 @@ import {
   ArrowLeft,
   Banknote,
   BookOpen,
+  BotMessageSquare,
   Cable,
   Code2,
   Settings,
@@ -79,6 +80,12 @@ const groups: {
         title: "Billing",
         url: "/app/settings/organization/billing",
         icon: Banknote,
+        role: "owner",
+      },
+      {
+        title: "Support Intelligence",
+        url: "/app/settings/organization/support-intelligence",
+        icon: BotMessageSquare,
         role: "owner",
       },
       {
