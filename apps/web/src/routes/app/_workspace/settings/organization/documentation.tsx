@@ -39,7 +39,7 @@ import {
   X,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useRef, useState } from "react";
+import { Fragment, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
@@ -346,9 +346,8 @@ function RouteComponent() {
                   {filteredSources.map((source: any) => {
                     const isExpanded = expandedRows.has(source.id);
                     return (
-                      <>
+                      <Fragment key={source.id}>
                         <TableRow
-                          key={source.id}
                           className={cn(
                             "cursor-pointer",
                             isExpanded && "border-b-transparent",
@@ -494,7 +493,7 @@ function RouteComponent() {
                             </TableRow>
                           )}
                         </AnimatePresence>
-                      </>
+                      </Fragment>
                     );
                   })}
                 </TableBody>

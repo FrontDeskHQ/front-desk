@@ -1,3 +1,4 @@
+import dns from "node:dns/promises";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { reflagClient } from "../../lib/feature-flag";
@@ -5,10 +6,64 @@ import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
+function isPrivateIP(ip: string): boolean {
+  // IPv4 private/reserved ranges
+  const parts = ip.split(".").map(Number);
+  if (parts.length === 4) {
+    // 10.0.0.0/8
+    if (parts[0] === 10) return true;
+    // 172.16.0.0/12
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    // 192.168.0.0/16
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    // 127.0.0.0/8 (loopback)
+    if (parts[0] === 127) return true;
+    // 169.254.0.0/16 (link-local / cloud metadata)
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    // 0.0.0.0
+    if (parts.every((p) => p === 0)) return true;
+    // 100.64.0.0/10 (RFC 6598 CGN)
+    if (parts[0] === 100 && parts[1] >= 64 && parts[1] <= 127) return true;
+  }
+  // IPv6 loopback and private
+  if (ip === "::1" || ip === "::") return true;
+  if (ip.startsWith("fc") || ip.startsWith("fd")) return true; // ULA
+  if (ip.startsWith("fe80")) return true; // link-local
+  return false;
+}
+
+async function assertPublicUrl(url: string): Promise<void> {
+  const parsed = new URL(url);
+  if (parsed.protocol !== "https:") {
+    throw new Error("Only HTTPS URLs are allowed");
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("URLs with credentials are not allowed");
+  }
+  const addresses = await dns.resolve4(parsed.hostname).catch(() => []);
+  const addresses6 = await dns.resolve6(parsed.hostname).catch(() => []);
+  const allAddresses = [...addresses, ...addresses6];
+  if (allAddresses.length === 0) {
+    throw new Error(`Could not resolve hostname: ${parsed.hostname}`);
+  }
+  for (const addr of allAddresses) {
+    if (isPrivateIP(addr)) {
+      throw new Error("URLs resolving to private or reserved IP addresses are not allowed");
+    }
+  }
+}
+
 async function validateDocumentationUrl(baseUrl: string): Promise<{
   valid: boolean;
   error?: string;
 }> {
+  // 0. SSRF protection: enforce HTTPS and block private IPs
+  try {
+    await assertPublicUrl(baseUrl);
+  } catch (err) {
+    return { valid: false, error: err instanceof Error ? err.message : "Invalid URL" };
+  }
+
   // 1. Check sitemap.xml exists
   const sitemapUrl = new URL("/sitemap.xml", baseUrl).href;
   let sitemapText: string;
@@ -35,29 +90,29 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
     .slice(0, 5)
     .map((m) => m.replace(/<\/?loc>/g, "").trim());
 
-  // 3. Check if at least one URL has a .md or .mdx version
-  for (const url of urls) {
-    for (const ext of [".md", ".mdx"]) {
+  // 3. Check if at least one URL has a .md or .mdx version (parallelized)
+  const checks = urls.flatMap((url) =>
+    [".md", ".mdx"].map(async (ext) => {
       const mdUrl = url.replace(/\/?$/, ext);
-      try {
-        const res = await fetch(mdUrl, {
-          method: "HEAD",
-          headers: { "User-Agent": "FrontDesk-Crawler/1.0" },
-          signal: AbortSignal.timeout(5_000),
-        });
-        if (res.ok) {
-          return { valid: true };
-        }
-      } catch {
-        // continue to next
-      }
-    }
-  }
+      const res = await fetch(mdUrl, {
+        method: "HEAD",
+        headers: { "User-Agent": "FrontDesk-Crawler/1.0" },
+        signal: AbortSignal.timeout(5_000),
+      });
+      if (res.ok) return true;
+      throw new Error("not found");
+    }),
+  );
 
-  return {
-    valid: false,
-    error: `None of the first ${urls.length} sitemap URLs have a .md or .mdx version available`,
-  };
+  try {
+    await Promise.any(checks);
+    return { valid: true };
+  } catch {
+    return {
+      valid: false,
+      error: `None of the first ${urls.length} sitemap URLs have a .md or .mdx version available`,
+    };
+  }
 }
 
 const DOCUMENTATION_SOURCE_NAME_MAX_LENGTH = 100;
