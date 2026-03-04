@@ -29,6 +29,9 @@ function isPrivateIP(ip: string): boolean {
   if (ip === "::1" || ip === "::") return true;
   if (ip.startsWith("fc") || ip.startsWith("fd")) return true; // ULA
   if (ip.startsWith("fe80")) return true; // link-local
+  // IPv4-mapped IPv6 (::ffff:x.x.x.x)
+  const v4Mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
+  if (v4Mapped) return isPrivateIP(v4Mapped[1]);
   return false;
 }
 

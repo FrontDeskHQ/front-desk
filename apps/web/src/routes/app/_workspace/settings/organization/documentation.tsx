@@ -19,13 +19,9 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@workspace/ui/components/table";
+  Composite,
+  CompositeItem,
+} from "@workspace/ui/components/composite";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
@@ -157,8 +153,17 @@ function RouteComponent() {
     },
   });
 
+  const isSubmitting =
+    validation.status === "validating" || addMutation.isPending;
+
   const handleAdd = useCallback(async () => {
-    if (!currentOrg || !name.trim() || name.length > 100 || !baseUrl.trim())
+    if (
+      isSubmitting ||
+      !currentOrg ||
+      !name.trim() ||
+      name.length > 100 ||
+      !baseUrl.trim()
+    )
       return;
 
     setValidation({ status: "validating" });
@@ -190,7 +195,7 @@ function RouteComponent() {
           err instanceof Error ? err.message : "Validation failed unexpectedly",
       });
     }
-  }, [currentOrg, name, baseUrl, addMutation]);
+  }, [currentOrg, name, baseUrl, addMutation, isSubmitting]);
 
   const handleClosePanel = () => {
     setIsAddPanelOpen(false);
@@ -246,7 +251,7 @@ function RouteComponent() {
                       size="icon"
                       className="h-7 w-7"
                       onClick={handleClosePanel}
-                      disabled={addMutation.isPending}
+                      disabled={isSubmitting}
                     >
                       <X className="h-4 w-4" />
                     </Button>
@@ -272,6 +277,7 @@ function RouteComponent() {
                         placeholder="My Documentation"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
+                        disabled={isSubmitting}
                         maxLength={100}
                       />
                     </div>
@@ -283,6 +289,7 @@ function RouteComponent() {
                         id="doc-url"
                         placeholder="https://docs.example.com"
                         value={baseUrl}
+                        disabled={isSubmitting}
                         onChange={(e) => {
                           setBaseUrl(e.target.value);
                           if (validation.status !== "idle") {
@@ -292,10 +299,12 @@ function RouteComponent() {
                         onKeyDown={(e) => {
                           if (
                             e.key === "Enter" &&
+                            !isSubmitting &&
                             name.trim() &&
                             name.length <= 100 &&
                             baseUrl.trim()
                           ) {
+                            e.preventDefault();
                             handleAdd();
                           }
                         }}
@@ -309,8 +318,7 @@ function RouteComponent() {
                         !name.trim() ||
                         name.length > 100 ||
                         !baseUrl.trim() ||
-                        validation.status === "validating" ||
-                        addMutation.isPending
+                        isSubmitting
                       }
                     >
                       {(validation.status === "validating" ||
@@ -332,26 +340,27 @@ function RouteComponent() {
         <CardContent className="gap-0 p-0">
           <div className="p-4">
             {filteredSources.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-8" />
-                    <TableHead>Name</TableHead>
-                    <TableHead>URL</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Pages</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+              <div className="flex flex-col gap-0">
+                <div className="grid grid-cols-[2rem_1fr_1fr_auto_4rem] items-center gap-x-4 px-3 py-2 text-xs text-muted-foreground font-medium">
+                  <span />
+                  <span>Name</span>
+                  <span>URL</span>
+                  <span>Status</span>
+                  <span>Pages</span>
+                </div>
+                <Composite className="gap-0">
                   {filteredSources.map((source: any) => {
                     const isExpanded = expandedRows.has(source.id);
                     return (
                       <Fragment key={source.id}>
-                        <TableRow
+                        <CompositeItem
                           className={cn(
-                            "cursor-pointer",
+                            "grid grid-cols-[2rem_1fr_1fr_auto_4rem] items-center gap-x-4 w-full rounded-none border-0 px-3 py-2.5 text-sm",
+                            "border-b border-border/50 last:border-b-0",
                             isExpanded && "border-b-transparent",
                           )}
+                          aria-expanded={isExpanded}
+                          aria-controls={`details-${source.id}`}
                           onClick={() =>
                             setExpandedRows((prev) => {
                               const next = new Set(prev);
@@ -364,140 +373,134 @@ function RouteComponent() {
                             })
                           }
                         >
-                          <TableCell className="w-8 pr-0">
-                            <ChevronDown
-                              className={`h-4 w-4 text-muted-foreground transition-transform ${isExpanded ? "rotate-0" : "-rotate-90"}`}
-                            />
-                          </TableCell>
-                          <TableCell className="font-medium">
+                          <ChevronDown
+                            className={cn(
+                              "h-4 w-4 text-muted-foreground transition-transform",
+                              isExpanded ? "rotate-0" : "-rotate-90",
+                            )}
+                          />
+                          <span className="font-medium truncate text-left">
                             {source.name}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground max-w-[200px] truncate">
+                          </span>
+                          <span className="text-muted-foreground truncate text-left">
                             {source.baseUrl}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={statusVariant(source.status)}>
-                              {source.status.charAt(0).toUpperCase() +
-                                source.status.slice(1)}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-muted-foreground">
+                          </span>
+                          <Badge variant={statusVariant(source.status)}>
+                            {source.status.charAt(0).toUpperCase() +
+                              source.status.slice(1)}
+                          </Badge>
+                          <span className="text-muted-foreground">
                             {source.pageCount}
-                          </TableCell>
-                        </TableRow>
+                          </span>
+                        </CompositeItem>
                         <AnimatePresence>
                           {isExpanded && (
-                            <TableRow
+                            <motion.div
                               key={`${source.id}-details`}
-                              className="hover:bg-transparent"
+                              id={`details-${source.id}`}
+                              initial={{ height: 0, opacity: 0 }}
+                              animate={{ height: "auto", opacity: 1 }}
+                              exit={{ height: 0, opacity: 0 }}
+                              transition={{
+                                duration: 0.15,
+                                ease: "easeOut",
+                              }}
+                              className="overflow-hidden border-b border-border/50"
                             >
-                              <TableCell colSpan={5} className="p-0">
-                                <motion.div
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: "auto", opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{
-                                    duration: 0.15,
-                                    ease: "easeOut",
-                                  }}
-                                  className="overflow-hidden"
-                                >
-                                  <div className="px-6 py-3 flex items-center justify-between border-border/50">
-                                    <div className="flex gap-6 text-sm">
-                                      <div>
-                                        <span className="text-muted-foreground">
-                                          Last crawled:{" "}
-                                        </span>
-                                        {source.lastCrawledAt
-                                          ? formatRelativeTime(
-                                              new Date(source.lastCrawledAt),
-                                            )
-                                          : "Never"}
-                                      </div>
-                                      <div>
-                                        <span className="text-muted-foreground">
-                                          Chunks:{" "}
-                                        </span>
-                                        {source.chunksIndexed}
-                                      </div>
-                                    </div>
-                                    <TooltipProvider>
-                                      <div className="flex gap-2">
+                              <div className="px-6 py-3 flex items-center justify-between">
+                                <div className="flex gap-6 text-sm">
+                                  <div>
+                                    <span className="text-muted-foreground">
+                                      Last crawled:{" "}
+                                    </span>
+                                    {source.lastCrawledAt
+                                      ? formatRelativeTime(
+                                          new Date(source.lastCrawledAt),
+                                        )
+                                      : "Never"}
+                                  </div>
+                                  <div>
+                                    <span className="text-muted-foreground">
+                                      Chunks:{" "}
+                                    </span>
+                                    {source.chunksIndexed}
+                                  </div>
+                                </div>
+                                <TooltipProvider>
+                                  <div className="flex gap-2">
+                                    <ActionButton
+                                      variant="ghost"
+                                      size="sm"
+                                      tooltip="Re-crawl this documentation source"
+                                      disabled={
+                                        source.status === "crawling" ||
+                                        recrawlMutation.isPending
+                                      }
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        recrawlMutation.mutate(source.id);
+                                      }}
+                                    >
+                                      <RefreshCw className="h-3.5 w-3.5" />
+                                      Recrawl
+                                    </ActionButton>
+                                    <AlertDialog>
+                                      <AlertDialogTrigger asChild>
                                         <ActionButton
                                           variant="ghost"
                                           size="sm"
-                                          tooltip="Re-crawl this documentation source"
-                                          disabled={
-                                            source.status === "crawling" ||
-                                            recrawlMutation.isPending
+                                          tooltip="Delete this documentation source and all indexed content"
+                                          onClick={(e) =>
+                                            e.stopPropagation()
                                           }
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            recrawlMutation.mutate(source.id);
-                                          }}
                                         >
-                                          <RefreshCw className="h-3.5 w-3.5" />
-                                          Recrawl
+                                          <Trash2 className="h-3.5 w-3.5" />
+                                          Delete
                                         </ActionButton>
-                                        <AlertDialog>
-                                          <AlertDialogTrigger asChild>
-                                            <ActionButton
-                                              variant="ghost"
-                                              size="sm"
-                                              tooltip="Delete this documentation source and all indexed content"
-                                              onClick={(e) =>
-                                                e.stopPropagation()
-                                              }
-                                            >
-                                              <Trash2 className="h-3.5 w-3.5" />
-                                              Delete
-                                            </ActionButton>
-                                          </AlertDialogTrigger>
-                                          <AlertDialogContent>
-                                            <AlertDialogHeader>
-                                              <AlertDialogTitle>
-                                                Are you sure?
-                                              </AlertDialogTitle>
-                                              <AlertDialogDescription>
-                                                This will delete the
-                                                documentation source{" "}
-                                                <strong>{source.name}</strong>{" "}
-                                                and all its indexed content.
-                                              </AlertDialogDescription>
-                                            </AlertDialogHeader>
-                                            <AlertDialogFooter>
-                                              <AlertDialogCancel>
-                                                Cancel
-                                              </AlertDialogCancel>
-                                              <AlertDialogAction
-                                                variant="destructive"
-                                                disabled={
-                                                  deleteMutation.isPending
-                                                }
-                                                onClick={() =>
-                                                  deleteMutation.mutate(
-                                                    source.id,
-                                                  )
-                                                }
-                                              >
-                                                Delete
-                                              </AlertDialogAction>
-                                            </AlertDialogFooter>
-                                          </AlertDialogContent>
-                                        </AlertDialog>
-                                      </div>
-                                    </TooltipProvider>
+                                      </AlertDialogTrigger>
+                                      <AlertDialogContent>
+                                        <AlertDialogHeader>
+                                          <AlertDialogTitle>
+                                            Are you sure?
+                                          </AlertDialogTitle>
+                                          <AlertDialogDescription>
+                                            This will delete the
+                                            documentation source{" "}
+                                            <strong>{source.name}</strong>{" "}
+                                            and all its indexed content.
+                                          </AlertDialogDescription>
+                                        </AlertDialogHeader>
+                                        <AlertDialogFooter>
+                                          <AlertDialogCancel>
+                                            Cancel
+                                          </AlertDialogCancel>
+                                          <AlertDialogAction
+                                            variant="destructive"
+                                            disabled={
+                                              deleteMutation.isPending
+                                            }
+                                            onClick={() =>
+                                              deleteMutation.mutate(
+                                                source.id,
+                                              )
+                                            }
+                                          >
+                                            Delete
+                                          </AlertDialogAction>
+                                        </AlertDialogFooter>
+                                      </AlertDialogContent>
+                                    </AlertDialog>
                                   </div>
-                                </motion.div>
-                              </TableCell>
-                            </TableRow>
+                                </TooltipProvider>
+                              </div>
+                            </motion.div>
                           )}
                         </AnimatePresence>
                       </Fragment>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </Composite>
+              </div>
             ) : (
               <div className="text-muted-foreground">
                 No documentation sources added yet.
