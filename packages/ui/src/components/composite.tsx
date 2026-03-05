@@ -14,6 +14,7 @@ type CompositeItemRecord = {
 
 type CompositeContextValue = {
   items: CompositeItemRecord[];
+  itemCount: number;
   activeIndex: number;
   hasFocusedItem: boolean;
   isMouseInside: boolean;
@@ -34,13 +35,17 @@ type CompositeProps = React.ComponentProps<"div"> & {
   orientation?: CompositeOrientation;
   loop?: boolean;
   defaultActiveIndex?: number;
+  itemCount?: number;
+  scrollElement?: React.RefObject<HTMLElement | null>;
 };
 
 function Composite({
   className,
   orientation = "vertical",
-  loop = true,
+  loop = false,
   defaultActiveIndex = 0,
+  itemCount,
+  scrollElement,
   onKeyDown,
   onMouseEnter,
   onMouseLeave,
@@ -48,14 +53,23 @@ function Composite({
   ...props
 }: CompositeProps) {
   const [items, setItems] = React.useState<CompositeItemRecord[]>([]);
-  const [activeIndex, setActiveIndex] = React.useState(defaultActiveIndex);
+  const [activeIndex, setActiveIndexRaw] = React.useState(defaultActiveIndex);
   const [isMouseInside, setIsMouseInside] = React.useState(false);
   const [hasFocusedItem, setHasFocusedItem] = React.useState(false);
-  const containerRef = React.useRef<HTMLDivElement | null>(null);
-  const handleKeyNavigationRef =
-    React.useRef<(event: Pick<KeyboardEvent, "key" | "preventDefault">) => void>(
-      () => {},
+
+  const setActiveIndex: React.Dispatch<React.SetStateAction<number>> =
+    React.useCallback(
+      (value) => {
+        setActiveIndexRaw(value);
+      },
+      [],
     );
+
+  const resolvedItemCount = itemCount ?? items.length;
+  const containerRef = React.useRef<HTMLDivElement | null>(null);
+  const handleKeyNavigationRef = React.useRef<
+    (event: Pick<KeyboardEvent, "key" | "preventDefault">) => void
+  >(() => {});
 
   const registerItem = React.useCallback((item: CompositeItemRecord) => {
     setItems((prev) => {
@@ -76,79 +90,91 @@ function Composite({
   }, []);
 
   React.useEffect(() => {
-    if (items.length === 0) {
+    if (resolvedItemCount === 0) {
       if (activeIndex !== -1) {
         setActiveIndex(-1);
       }
       return;
     }
 
-    const hasActive = activeIndex >= 0 && activeIndex < items.length;
-    const isActiveEnabled = hasActive && !items[activeIndex]?.disabled;
-
-    if (isActiveEnabled) {
-      return;
+    const hasActive = activeIndex >= 0 && activeIndex < resolvedItemCount;
+    if (hasActive) {
+      const mountedItem = items.find(
+        (item) => item.id === String(activeIndex),
+      );
+      if (!mountedItem || !mountedItem.disabled) {
+        return;
+      }
     }
 
-    const firstEnabledIndex = items.findIndex((item) => !item.disabled);
-    setActiveIndex(firstEnabledIndex);
-  }, [items, activeIndex]);
+    const firstEnabled = items.find((item) => !item.disabled);
+    setActiveIndex(firstEnabled ? Number(firstEnabled.id) || 0 : 0);
+  }, [items, activeIndex, resolvedItemCount]);
+
+  const scrollItemIntoView = React.useCallback(
+    (index: number) => {
+      const el = scrollElement?.current;
+      if (!el) return;
+
+      const item = items.find((i) => i.id === String(index));
+      const target = item?.ref.current;
+      if (!target) return;
+
+      const container = el.getBoundingClientRect();
+      const rect = target.getBoundingClientRect();
+
+      if (rect.top < container.top) {
+        el.scrollBy({ top: rect.top - container.top });
+      } else if (rect.bottom > container.bottom) {
+        el.scrollBy({ top: rect.bottom - container.bottom });
+      }
+    },
+    [items, scrollElement],
+  );
 
   const focusIndex = React.useCallback(
-    (index: number) => {
-      const target = items[index];
-
-      if (!target || target.disabled) {
+    (index: number, delta?: number) => {
+      if (index < 0 || index >= resolvedItemCount) {
         return;
       }
 
       setActiveIndex(index);
-      target.ref.current?.focus();
-    },
-    [items],
-  );
+      const target = items.find((item) => item.id === String(index));
+      target?.ref.current?.focus();
 
-  const getEnabledIndices = React.useCallback(
-    () =>
-      items.reduce<number[]>((result, item, index) => {
-        if (!item.disabled && item.ref.current) {
-          result.push(index);
-        }
-        return result;
-      }, []),
-    [items],
+      if (scrollElement?.current && delta) {
+        const peekIndex = Math.max(
+          0,
+          Math.min(resolvedItemCount - 1, index + delta),
+        );
+        scrollItemIntoView(peekIndex);
+      }
+    },
+    [items, resolvedItemCount, setActiveIndex, scrollElement, scrollItemIntoView],
   );
 
   const moveActive = React.useCallback(
     (delta: number) => {
-      const enabledIndices = getEnabledIndices();
-      if (enabledIndices.length === 0) {
+      if (resolvedItemCount === 0) {
         return;
       }
 
-      const currentEnabledPosition = enabledIndices.indexOf(activeIndex);
-      const startPosition =
-        currentEnabledPosition === -1
-          ? delta > 0
-            ? 0
-            : enabledIndices.length - 1
-          : currentEnabledPosition;
-
-      let nextPosition = startPosition + delta;
+      let nextIndex = activeIndex + delta;
 
       if (loop) {
-        nextPosition =
-          (nextPosition + enabledIndices.length) % enabledIndices.length;
+        nextIndex =
+          (nextIndex + resolvedItemCount) % resolvedItemCount;
       } else {
-        nextPosition = Math.max(
-          0,
-          Math.min(enabledIndices.length - 1, nextPosition),
-        );
+        nextIndex = Math.max(0, Math.min(resolvedItemCount - 1, nextIndex));
       }
 
-      focusIndex(enabledIndices[nextPosition] ?? -1);
+      if (nextIndex === activeIndex && !loop) {
+        return;
+      }
+
+      focusIndex(nextIndex, delta);
     },
-    [activeIndex, focusIndex, getEnabledIndices, loop, items.length],
+    [activeIndex, focusIndex, loop, resolvedItemCount],
   );
 
   const handleKeyNavigation = React.useCallback(
@@ -176,23 +202,16 @@ function Composite({
 
       if (event.key === "Home") {
         event.preventDefault();
-        const firstEnabledIndex = getEnabledIndices()[0];
-        if (firstEnabledIndex !== undefined) {
-          focusIndex(firstEnabledIndex);
-        }
+        focusIndex(0);
         return;
       }
 
       if (event.key === "End") {
         event.preventDefault();
-        const enabledIndices = getEnabledIndices();
-        const lastEnabledIndex = enabledIndices[enabledIndices.length - 1];
-        if (lastEnabledIndex !== undefined) {
-          focusIndex(lastEnabledIndex);
-        }
+        focusIndex(resolvedItemCount - 1);
       }
     },
-    [activeIndex, focusIndex, getEnabledIndices, items.length, moveActive, orientation],
+    [focusIndex, moveActive, orientation, resolvedItemCount],
   );
 
   const handleKeyDown = React.useCallback(
@@ -210,29 +229,26 @@ function Composite({
     handleKeyNavigationRef.current = handleKeyNavigation;
   }, [handleKeyNavigation]);
 
-  const handleWindowKeyDown = React.useCallback(
-    (event: KeyboardEvent) => {
-      if (
-        event.target instanceof Node &&
-        containerRef.current?.contains(event.target)
-      ) {
-        return;
-      }
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        (target.isContentEditable ||
-          target.closest("input, textarea, select, [contenteditable='true']"))
-      ) {
-        return;
-      }
-      if (event.altKey || event.ctrlKey || event.metaKey) {
-        return;
-      }
-      handleKeyNavigationRef.current(event);
-    },
-    [],
-  );
+  const handleWindowKeyDown = React.useCallback((event: KeyboardEvent) => {
+    if (
+      event.target instanceof Node &&
+      containerRef.current?.contains(event.target)
+    ) {
+      return;
+    }
+    const target = event.target as HTMLElement | null;
+    if (
+      target &&
+      (target.isContentEditable ||
+        target.closest("input, textarea, select, [contenteditable='true']"))
+    ) {
+      return;
+    }
+    if (event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    handleKeyNavigationRef.current(event);
+  }, []);
 
   const handleMouseEnter = React.useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -258,7 +274,10 @@ function Composite({
 
   const handleBlurCapture = React.useCallback(
     (event: React.FocusEvent<HTMLDivElement>) => {
-      if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) {
+      if (
+        event.relatedTarget instanceof Node &&
+        event.currentTarget.contains(event.relatedTarget)
+      ) {
         return;
       }
       setHasFocusedItem(false);
@@ -276,6 +295,7 @@ function Composite({
     <CompositeContext.Provider
       value={{
         items,
+        itemCount: resolvedItemCount,
         activeIndex,
         hasFocusedItem,
         isMouseInside,
@@ -309,11 +329,21 @@ function Composite({
 
 interface CompositeItemProps extends useRender.ComponentProps<"button"> {
   disabled?: boolean;
+  itemId?: string;
 }
 
 const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
   (
-    { className, render, disabled = false, onClick, onFocus, onMouseMove, ...props },
+    {
+      className,
+      render,
+      disabled = false,
+      itemId,
+      onClick,
+      onFocus,
+      onMouseMove,
+      ...props
+    },
     forwardedRef,
   ) => {
     const context = React.useContext(CompositeContext);
@@ -326,14 +356,15 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
       activeIndex,
       hasFocusedItem,
       isMouseInside,
+      itemCount,
       items,
       registerItem,
       setActiveIndex,
       unregisterItem,
-    } =
-      context;
+    } = context;
     const localRef = React.useRef<HTMLElement | null>(null);
-    const id = React.useId();
+    const autoId = React.useId();
+    const id = itemId ?? autoId;
 
     React.useEffect(() => {
       registerItem({
@@ -348,20 +379,15 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
     }, [disabled, id, registerItem, unregisterItem]);
 
     const itemIndex = React.useMemo(
-      () => items.findIndex((item) => item.id === id),
-      [items, id],
-    );
-
-    const firstEnabledIndex = React.useMemo(
-      () => items.findIndex((item) => !item.disabled),
-      [items],
+      () => (itemId != null ? Number(itemId) : items.findIndex((item) => item.id === id)),
+      [items, id, itemId],
     );
 
     const tabIndex =
       disabled || itemIndex === -1
         ? -1
         : activeIndex === -1
-          ? itemIndex === firstEnabledIndex
+          ? itemIndex === 0
             ? 0
             : -1
           : itemIndex === activeIndex
@@ -388,7 +414,7 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
         "aria-disabled": disabled ? true : undefined,
         "aria-selected": isActive,
         className: cn(
-          "inline-flex items-center justify-start rounded-md border px-3 py-2 text-sm outline-none transition-colors",
+          "outline-none transition-colors",
           "focus-visible:ring-2 focus-visible:ring-ring/50",
           "data-[active=true]:bg-accent data-[active=true]:text-accent-foreground",
           "data-[disabled=true]:opacity-50 data-[disabled=true]:cursor-not-allowed",

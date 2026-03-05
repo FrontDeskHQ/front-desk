@@ -1,6 +1,7 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import { Avatar } from "@workspace/ui/components/avatar";
 import {
   Filter,
@@ -22,6 +23,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
+import { Composite, CompositeItem } from "@workspace/ui/components/composite";
 import {
   PriorityIndicator,
   priorityText,
@@ -58,7 +60,7 @@ import {
   PackageOpen,
   Settings2,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -173,6 +175,16 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
       ),
   );
 
+  const parentRef = useRef<HTMLDivElement>(null);
+
+  const virtualizer = useVirtualizer({
+    count: threads.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 72,
+    overscan: 10,
+    getItemKey: (index) => threads[index]?.id,
+  });
+
   if (!organization) {
     return null;
   }
@@ -269,7 +281,10 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
           </Popover>
         </CardAction>
       </CardHeader>
-      <CardContent className="overflow-y-auto gap-0 items-center">
+      <CardContent
+        ref={parentRef}
+        className="overflow-y-auto gap-0 items-center"
+      >
         {!threads.length && (
           <div className="text-foreground-secondary flex flex-col items-center justify-center gap-4 m-auto">
             <PackageOpen className="size-24 stroke-[0.75]" />
@@ -294,74 +309,104 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
             )}
           </div>
         )}
-        {threads?.map((thread) => (
-          <Link
-            key={thread.id}
-            to={"/app/threads/$id"}
-            params={{ id: thread.id }}
-            className="w-full max-w-5xl flex flex-col p-3 gap-2 hover:bg-muted"
+        {threads.length > 0 && (
+          <Composite
+            className="gap-0"
+            orientation="vertical"
+            itemCount={threads.length}
+            scrollElement={parentRef}
+            style={{
+              height: `${virtualizer.getTotalSize()}px`,
+              width: "100%",
+              position: "relative",
+            }}
           >
-            <div className="flex justify-between">
-              <div className="flex items-center gap-2">
-                <Avatar
-                  variant="user"
-                  size="md"
-                  fallback={thread?.author?.name}
-                />
-                <div>{thread?.name}</div>
-              </div>
-              {/* TODO fix overflow issues with labels */}
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
-                  {thread?.labels
-                    ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
-                    .map((threadLabel) => (
-                      <LabelBadge
-                        key={threadLabel.label.id}
-                        name={threadLabel.label.name}
-                        color={threadLabel.label.color}
-                      />
-                    ))}
-                </div>
-                {thread?.assignedUserId ? (
-                  <Avatar
-                    variant="user"
-                    size="md"
-                    fallback={thread.assignedUser?.name}
-                  />
-                ) : (
-                  <CircleUser className="size-4" />
-                )}
-                <PriorityIndicator priority={thread?.priority ?? 0} />
-                <StatusIndicator status={thread?.status ?? 0} />
-              </div>
-            </div>
-            <div className="flex gap-2 justify-between md:gap-0">
-              <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-3xs sm:max-w-lg md:max-w-xl lg:max-w-2xl">
-                <span className="font-medium">
-                  {
-                    thread?.messages?.[thread?.messages?.length - 1]?.author
-                      ?.name
+            {virtualizer.getVirtualItems().map((virtualItem) => {
+              const thread = threads[virtualItem.index];
+              if (!thread) return null;
+
+              return (
+                <CompositeItem
+                  key={thread.id}
+                  itemId={String(virtualItem.index)}
+                  ref={virtualizer.measureElement}
+                  data-index={virtualItem.index}
+                  render={
+                    <Link to={"/app/threads/$id"} params={{ id: thread.id }} />
                   }
-                  :&nbsp;
-                </span>
-                <span className="truncate">
-                  {getFirstTextContent(
-                    safeParseJSON(
-                      thread?.messages?.[thread?.messages?.length - 1]
-                        ?.content ?? "",
-                    ),
-                  )}
-                </span>
-              </span>
-              <div className="text-muted-foreground">
-                {thread?.createdAt
-                  ? formatRelativeTime(thread?.createdAt as Date)
-                  : null}
-              </div>
-            </div>
-          </Link>
-        ))}
+                  className="max-w-5xl flex flex-col p-3 gap-2 mx-auto data-[active=true]:bg-muted"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    transform: `translateY(${virtualItem.start}px)`,
+                  }}
+                >
+                  <div className="flex justify-between">
+                    <div className="flex items-center gap-2">
+                      <Avatar
+                        variant="user"
+                        size="md"
+                        fallback={thread?.author?.name}
+                      />
+                      <div>{thread?.name}</div>
+                    </div>
+                    {/* TODO fix overflow issues with labels */}
+                    <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
+                        {thread?.labels
+                          ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
+                          .map((threadLabel) => (
+                            <LabelBadge
+                              key={threadLabel.label.id}
+                              name={threadLabel.label.name}
+                              color={threadLabel.label.color}
+                            />
+                          ))}
+                      </div>
+                      {thread?.assignedUserId ? (
+                        <Avatar
+                          variant="user"
+                          size="md"
+                          fallback={thread.assignedUser?.name}
+                        />
+                      ) : (
+                        <CircleUser className="size-4" />
+                      )}
+                      <PriorityIndicator priority={thread?.priority ?? 0} />
+                      <StatusIndicator status={thread?.status ?? 0} />
+                    </div>
+                  </div>
+                  <div className="flex gap-2 justify-between md:gap-0">
+                    <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-3xs sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+                      <span className="font-medium">
+                        {
+                          thread?.messages?.[thread?.messages?.length - 1]
+                            ?.author?.name
+                        }
+                        :&nbsp;
+                      </span>
+                      <span className="truncate">
+                        {getFirstTextContent(
+                          safeParseJSON(
+                            thread?.messages?.[thread?.messages?.length - 1]
+                              ?.content ?? "",
+                          ),
+                        )}
+                      </span>
+                    </span>
+                    <div className="text-muted-foreground">
+                      {thread?.createdAt
+                        ? formatRelativeTime(thread?.createdAt as Date)
+                        : null}
+                    </div>
+                  </div>
+                </CompositeItem>
+              );
+            })}
+          </Composite>
+        )}
       </CardContent>
     </>
   );
