@@ -16,12 +16,9 @@ import {
 import { Badge } from "@workspace/ui/components/badge";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
+import { Composite, CompositeItem } from "@workspace/ui/components/composite";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
-import {
-  Composite,
-  CompositeItem,
-} from "@workspace/ui/components/composite";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
@@ -243,9 +240,7 @@ function RouteComponent() {
               <CardContent>
                 <div className="flex flex-col gap-3">
                   <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">
-                      Add documentation source
-                    </p>
+                    <p className="text-sm">Add documentation source</p>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -257,8 +252,8 @@ function RouteComponent() {
                     </Button>
                   </div>
                   <p className="text-muted-foreground text-xs">
-                    The site must have a sitemap.xml and serve markdown versions
-                    of pages.
+                    The website must have a sitemap.xml and serve markdown
+                    versions of pages.
                   </p>
                   {validation.status === "error" && (
                     <div className="flex items-start gap-2 text-sm text-red-500 dark:text-red-400 bg-red-500/5 border border-red-500/20 rounded-md p-3">
@@ -340,22 +335,22 @@ function RouteComponent() {
         <CardContent className="gap-0 p-0">
           <div className="p-4">
             {filteredSources.length > 0 ? (
-              <div className="flex flex-col gap-0">
-                <div className="grid grid-cols-[2rem_1fr_1fr_auto_4rem] items-center gap-x-4 px-3 py-2 text-xs text-muted-foreground font-medium">
+              <div className="grid grid-cols-[2rem_minmax(0,1fr)_minmax(0,1fr)_minmax(7rem,auto)_5rem] gap-x-4">
+                <div className="col-span-full grid grid-cols-subgrid items-center gap-x-4 px-3 py-2.5 text-xs border-b">
                   <span />
-                  <span>Name</span>
-                  <span>URL</span>
+                  <span className="min-w-0">Name</span>
+                  <span className="min-w-0">URL</span>
                   <span>Status</span>
-                  <span>Pages</span>
+                  <span className="text-right">Pages</span>
                 </div>
-                <Composite className="gap-0">
+                <Composite className="col-span-full grid grid-cols-subgrid gap-0">
                   {filteredSources.map((source: any) => {
                     const isExpanded = expandedRows.has(source.id);
                     return (
                       <Fragment key={source.id}>
                         <CompositeItem
                           className={cn(
-                            "grid grid-cols-[2rem_1fr_1fr_auto_4rem] items-center gap-x-4 w-full rounded-none border-0 px-3 py-2.5 text-sm",
+                            "col-span-full grid grid-cols-subgrid items-center gap-x-4 w-full rounded-none border-0 px-3 py-2.5 text-sm",
                             "border-b border-border/50 last:border-b-0",
                             isExpanded && "border-b-transparent",
                           )}
@@ -379,19 +374,17 @@ function RouteComponent() {
                               isExpanded ? "rotate-0" : "-rotate-90",
                             )}
                           />
-                          <span className="font-medium truncate text-left">
+                          <span className="truncate text-left min-w-0">
                             {source.name}
                           </span>
-                          <span className="text-muted-foreground truncate text-left">
+                          <span className="truncate text-left min-w-0">
                             {source.baseUrl}
                           </span>
                           <Badge variant={statusVariant(source.status)}>
                             {source.status.charAt(0).toUpperCase() +
                               source.status.slice(1)}
                           </Badge>
-                          <span className="text-muted-foreground">
-                            {source.pageCount}
-                          </span>
+                          <span className="text-right">{source.pageCount}</span>
                         </CompositeItem>
                         <AnimatePresence>
                           {isExpanded && (
@@ -405,7 +398,7 @@ function RouteComponent() {
                                 duration: 0.15,
                                 ease: "easeOut",
                               }}
-                              className="overflow-hidden border-b border-border/50"
+                              className="col-span-full overflow-hidden border-b border-border/50"
                             >
                               <div className="px-6 py-3 flex items-center justify-between">
                                 <div className="flex gap-6 text-sm">
@@ -450,9 +443,7 @@ function RouteComponent() {
                                           variant="ghost"
                                           size="sm"
                                           tooltip="Delete this documentation source and all indexed content"
-                                          onClick={(e) =>
-                                            e.stopPropagation()
-                                          }
+                                          onClick={(e) => e.stopPropagation()}
                                         >
                                           <Trash2 className="h-3.5 w-3.5" />
                                           Delete
@@ -464,10 +455,10 @@ function RouteComponent() {
                                             Are you sure?
                                           </AlertDialogTitle>
                                           <AlertDialogDescription>
-                                            This will delete the
-                                            documentation source{" "}
-                                            <strong>{source.name}</strong>{" "}
-                                            and all its indexed content.
+                                            This will delete the documentation
+                                            source{" "}
+                                            <strong>{source.name}</strong> and
+                                            all its indexed content.
                                           </AlertDialogDescription>
                                         </AlertDialogHeader>
                                         <AlertDialogFooter>
@@ -476,13 +467,9 @@ function RouteComponent() {
                                           </AlertDialogCancel>
                                           <AlertDialogAction
                                             variant="destructive"
-                                            disabled={
-                                              deleteMutation.isPending
-                                            }
+                                            disabled={deleteMutation.isPending}
                                             onClick={() =>
-                                              deleteMutation.mutate(
-                                                source.id,
-                                              )
+                                              deleteMutation.mutate(source.id)
                                             }
                                           >
                                             Delete

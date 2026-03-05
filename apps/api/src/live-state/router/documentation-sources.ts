@@ -89,15 +89,29 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
     return { valid: false, error: "Sitemap contains no URLs" };
   }
 
+  const baseOrigin = new URL(baseUrl).origin;
   const urls = locMatches
     .slice(0, 5)
-    .map((m) => m.replace(/<\/?loc>/g, "").trim());
+    .map((m) => m.replace(/<\/?loc>/g, "").trim())
+    .filter((u) => {
+      try {
+        return new URL(u, baseOrigin).origin === baseOrigin;
+      } catch {
+        return false;
+      }
+    });
+
+  if (urls.length === 0) {
+    return { valid: false, error: "No sitemap URLs match the base domain" };
+  }
 
   // 3. Check if at least one URL has a .md or .mdx version (parallelized)
   const checks = urls.flatMap((url) =>
     [".md", ".mdx"].map(async (ext) => {
-      const mdUrl = url.replace(/\/?$/, ext);
-      const res = await fetch(mdUrl, {
+      const mdUrl = new URL(url, baseOrigin);
+      mdUrl.pathname = mdUrl.pathname.replace(/\/$/, "") + ext;
+      await assertPublicUrl(mdUrl.href);
+      const res = await fetch(mdUrl.href, {
         method: "HEAD",
         headers: { "User-Agent": "FrontDesk-Crawler/1.0" },
         signal: AbortSignal.timeout(5_000),
