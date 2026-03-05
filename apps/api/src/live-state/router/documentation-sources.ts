@@ -209,9 +209,6 @@ export default privateRoute
             DOCUMENTATION_SOURCE_NAME_MAX_LENGTH,
             `Name must be at most ${DOCUMENTATION_SOURCE_NAME_MAX_LENGTH} characters`,
           ),
-        // TODO: SSRF risk — baseUrl accepts any valid URL but is used server-side (fetch in worker)
-        // to crawl sitemap.xml and .md pages. Consider validating against internal/private IPs and
-        // restricting to public HTTPS URLs.
         baseUrl: z.string().url(),
       }),
     ).handler(async ({ req, db }) => {
@@ -240,6 +237,9 @@ export default privateRoute
       // Feature flag check
       await checkFeatureFlag(organizationId);
 
+      // SSRF protection: enforce HTTPS and block private IPs
+      await assertPublicUrl(baseUrl);
+
       const id = ulid().toLowerCase();
       const now = new Date();
 
@@ -258,7 +258,6 @@ export default privateRoute
       });
 
       try {
-        // TODO: baseUrl is passed to worker which fetches sitemap.xml and .md URLs — SSRF risk
         const jobId = await enqueueCrawlDocumentation({
           documentationSourceId: id,
           organizationId,
@@ -314,6 +313,9 @@ export default privateRoute
       // Feature flag check
       await checkFeatureFlag(source.organizationId);
 
+      // SSRF protection: re-validate stored URL before recrawl
+      await assertPublicUrl(source.baseUrl);
+
       const previousStatus = source.status;
 
       await db.update(schema.documentationSource, id, {
@@ -323,7 +325,6 @@ export default privateRoute
       });
 
       try {
-        // TODO: baseUrl from DB is passed to worker which fetches sitemap.xml and .md URLs — SSRF risk
         const jobId = await enqueueCrawlDocumentation({
           documentationSourceId: id,
           organizationId: source.organizationId,
