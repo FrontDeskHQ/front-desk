@@ -19,7 +19,7 @@ import {
   ArrowLeft,
   Banknote,
   BookOpen,
-  BotMessageSquare,
+  SparklesIcon,
   Cable,
   Code2,
   Settings,
@@ -85,7 +85,7 @@ const groups: {
       {
         title: "Support Intelligence",
         url: "/app/settings/organization/support-intelligence",
-        icon: BotMessageSquare,
+        icon: SparklesIcon,
         role: "owner",
       },
       {

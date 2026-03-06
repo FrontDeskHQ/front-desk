@@ -4,7 +4,7 @@ import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import {
   ArrowRightIcon,
-  BotMessageSquare,
+  SparklesIcon,
   CheckIcon,
   ReplyIcon,
 } from "lucide-react";
@@ -56,7 +56,7 @@ export const ToolbarActions = ({
             tooltip="Chat with Support Intelligence"
             keybind="b"
           >
-            <BotMessageSquare />
+            <SparklesIcon />
             Support Intelligence
           </ActionButton>
         </ButtonGroup>
