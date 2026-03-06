@@ -356,7 +356,6 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
       activeIndex,
       hasFocusedItem,
       isMouseInside,
-      itemCount,
       items,
       registerItem,
       setActiveIndex,

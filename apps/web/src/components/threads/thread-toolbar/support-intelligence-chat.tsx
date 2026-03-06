@@ -1,5 +1,4 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { Avatar } from "@workspace/ui/components/avatar";
 import {
   EditableRichText,
   type JSONContent,
@@ -10,7 +9,6 @@ import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
 import { stringify } from "@workspace/utils/tiptap-md";
 import {
-  BotMessageSquare,
   CheckIcon,
   ChevronRightIcon,
   EyeIcon,
@@ -206,7 +204,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCall }) {
   const displayName = toolDisplayNames[toolCall.name] ?? toolCall.name;
 
   return (
-    <div className="my-1.5">
+    <div className="my-1.5 first:mt-0">
       <button
         type="button"
         className="inline-flex items-center gap-1.5 text-sm text-foreground-secondary hover:text-foreground transition-colors"
@@ -233,12 +231,34 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCall }) {
   );
 }
 
-function ThinkingDots() {
+const thinkingTexts = [
+  "Thinking...",
+  "Analyzing thread...",
+  "Reading context...",
+  "Processing...",
+  "Considering options...",
+  "Looking into it...",
+];
+
+const brailleFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
+
+function ThinkingIndicator() {
+  const [frame, setFrame] = useState(0);
+  const [text] = useState(
+    () => thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)],
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame((f) => (f + 1) % brailleFrames.length);
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="flex items-center gap-1 px-1 py-2">
-      <span className="size-1.5 rounded-full bg-foreground-secondary animate-pulse [animation-delay:0ms]" />
-      <span className="size-1.5 rounded-full bg-foreground-secondary animate-pulse [animation-delay:200ms]" />
-      <span className="size-1.5 rounded-full bg-foreground-secondary animate-pulse [animation-delay:400ms]" />
+    <div className="flex items-center gap-1.5 py-1 text-sm text-foreground-secondary">
+      <span className="font-mono">{brailleFrames[frame]}</span>
+      <span>{text}</span>
     </div>
   );
 }
@@ -246,7 +266,6 @@ function ThinkingDots() {
 function MessageGroup({
   role,
   messages,
-  user,
 }: {
   role: string;
   messages: Array<{
@@ -254,63 +273,42 @@ function MessageGroup({
     content: string;
     toolCalls: string | null;
   }>;
-  user: { id: string; name: string; image?: string | null };
 }) {
   const isAssistant = role === "assistant";
 
   return (
     <div className="flex flex-col gap-1">
-      <div className="flex items-center gap-2 mb-0.5">
-        {isAssistant ? (
-          <>
-            <div className="size-5 rounded-full bg-primary/10 flex items-center justify-center">
-              <BotMessageSquare className="size-3 text-primary" />
-            </div>
-            <span className="text-xs font-medium text-foreground-secondary">
-              Support Intelligence
-            </span>
-          </>
-        ) : (
-          <>
-            <Avatar
-              variant="user"
-              size="md"
-              src={user.image}
-              fallback={user.name}
-            />
-            <span className="text-xs font-medium text-foreground-secondary">
-              {user.name}
-            </span>
-          </>
-        )}
-      </div>
-      <div className="flex flex-col gap-1">
-        {messages.map((msg) => {
-          let toolCalls: ToolCall[] = [];
-          if (msg.toolCalls) {
-            try {
-              const parsed = JSON.parse(msg.toolCalls);
-              toolCalls = Array.isArray(parsed) ? parsed : [];
-            } catch {
-              toolCalls = [];
-            }
+      {messages.map((msg) => {
+        let toolCalls: ToolCall[] = [];
+        if (msg.toolCalls) {
+          try {
+            const parsed = JSON.parse(msg.toolCalls);
+            toolCalls = Array.isArray(parsed) ? parsed : [];
+          } catch {
+            toolCalls = [];
           }
-          const isThinking =
-            isAssistant && !msg.content && toolCalls.length === 0;
+        }
+        const isThinking =
+          isAssistant && !msg.content && toolCalls.length === 0;
 
-          return (
-            <div key={msg.id}>
-              {isThinking && <ThinkingDots />}
-              {toolCalls.map((tc, i) => (
-                <ToolCallBlock key={`${msg.id}-tc-${i}`} toolCall={tc} />
-              ))}
-              {msg.content && (
-                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-              )}
-            </div>
-          );
-        })}
-      </div>
+        return (
+          <div
+            key={msg.id}
+            className={cn(
+              !isAssistant &&
+                "rounded-lg bg-muted/50 border border-input px-3 py-2",
+            )}
+          >
+            {isThinking && <ThinkingIndicator />}
+            {toolCalls.map((tc, i) => (
+              <ToolCallBlock key={`${msg.id}-tc-${i}`} toolCall={tc} />
+            ))}
+            {msg.content && (
+              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -582,7 +580,6 @@ export const SupportIntelligenceChat = ({
               key={`group-${i}`}
               role={group.role}
               messages={group.messages}
-              user={user}
             />
           ))}
           <div ref={messagesEndRef} />

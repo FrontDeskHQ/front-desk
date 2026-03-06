@@ -281,12 +281,9 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
           </Popover>
         </CardAction>
       </CardHeader>
-      <CardContent
-        ref={parentRef}
-        className="overflow-y-auto gap-0 items-center"
-      >
+      <CardContent className="overflow-hidden p-0 gap-0">
         {!threads.length && (
-          <div className="text-foreground-secondary flex flex-col items-center justify-center gap-4 m-auto">
+          <div className="text-foreground-secondary flex flex-col items-center justify-center gap-4 m-auto flex-1 p-4">
             <PackageOpen className="size-24 stroke-[0.75]" />
             <p className="text-lg">No threads found</p>
             {hasFilters ? (
@@ -310,18 +307,19 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
           </div>
         )}
         {threads.length > 0 && (
-          <Composite
-            className="gap-0"
-            orientation="vertical"
-            itemCount={threads.length}
-            scrollElement={parentRef}
-            style={{
-              height: `${virtualizer.getTotalSize()}px`,
-              width: "100%",
-              position: "relative",
-            }}
-          >
-            {virtualizer.getVirtualItems().map((virtualItem) => {
+          <div ref={parentRef} className="overflow-y-auto flex-1 p-4">
+            <Composite
+              className="gap-0 items-center"
+              orientation="vertical"
+              itemCount={threads.length}
+              scrollElement={parentRef}
+              style={{
+                height: `${virtualizer.getTotalSize()}px`,
+                width: "100%",
+                position: "relative",
+              }}
+            >
+              {virtualizer.getVirtualItems().map((virtualItem) => {
               const thread = threads[virtualItem.index];
               if (!thread) return null;
 
@@ -405,7 +403,8 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
                 </CompositeItem>
               );
             })}
-          </Composite>
+            </Composite>
+          </div>
         )}
       </CardContent>
     </>
