@@ -252,7 +252,7 @@ function RouteComponent() {
           </CardContent>
         </Card>
         {integration?.enabled && (
-          <SyncStatus backfill={parsedConfig?.data?.backfill} />
+          <SyncStatus backfill={parsedConfig?.data?.backfill} integrationType="discord" />
         )}
       </div>
     </>
