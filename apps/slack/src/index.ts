@@ -385,6 +385,7 @@ const backfillMessage = async (
     content: JSON.stringify(parse(messageContent)),
     createdAt: new Date(Number.parseFloat(msg.ts) * 1000),
     origin: "slack",
+    isBackfill: true,
     externalMessageId: msg.ts,
   });
 };

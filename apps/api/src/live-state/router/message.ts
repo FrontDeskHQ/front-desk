@@ -262,8 +262,10 @@ export default publicRoute
     afterInsert: ({ value }) => {
       (async () => {
         try {
+          const queuePriority = value.isBackfill ? "low" : "high";
           const jobId = await enqueueIngestThreadJob({
             threadIds: [value.threadId],
+            priority: queuePriority,
           });
 
           if (!jobId) {
