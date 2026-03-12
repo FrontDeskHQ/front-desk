@@ -724,6 +724,7 @@ const backfillMessage = async (
     content: JSON.stringify(parse(contentWithMentions)),
     createdAt: message.createdAt,
     origin: "discord",
+    isBackfill: true,
     externalMessageId: message.id,
   });
 };

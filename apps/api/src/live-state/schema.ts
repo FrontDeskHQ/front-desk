@@ -66,6 +66,7 @@ const message = object("message", {
   content: string(),
   createdAt: timestamp(),
   origin: string().nullable(),
+  isBackfill: boolean().default(false),
   externalMessageId: string().nullable(),
   markedAsAnswer: boolean().default(false),
 });

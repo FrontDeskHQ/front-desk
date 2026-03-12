@@ -11,10 +11,19 @@ export type IngestThreadJobOptions = {
   scoreThreshold?: number;
 };
 
+export type IngestThreadJobPriority = "high" | "normal" | "low";
+
 export type IngestThreadJobData = {
   threadIds: string[];
   options?: IngestThreadJobOptions;
 };
+
+const INGEST_THREAD_JOB_PRIORITY_VALUES: Record<IngestThreadJobPriority, number> =
+  {
+    high: 1,
+    normal: 10,
+    low: 100,
+  };
 
 let connection: Redis | null = null;
 let queue: Queue<IngestThreadJobData> | null = null;
@@ -71,6 +80,7 @@ const getIngestThreadQueue = (): Queue<IngestThreadJobData> | null => {
 export const enqueueIngestThreadJob = async (params: {
   threadIds: string[];
   options?: IngestThreadJobOptions;
+  priority?: IngestThreadJobPriority;
 }): Promise<string | null> => {
   const ingestThreadQueue = getIngestThreadQueue();
   if (!ingestThreadQueue) {
@@ -80,6 +90,9 @@ export const enqueueIngestThreadJob = async (params: {
   const job = await ingestThreadQueue.add("ingest-thread", {
     threadIds: params.threadIds,
     options: params.options,
+  }, {
+    priority:
+      INGEST_THREAD_JOB_PRIORITY_VALUES[params.priority ?? "normal"],
   });
 
   return job.id ?? null;
