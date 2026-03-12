@@ -1,7 +1,14 @@
+import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
+
+const docsLinks = {
+  discord: "/docs/integrations/discord",
+  slack: "/docs/integrations/slack",
+} as const;
 
 export function SyncStatus({
   backfill,
+  integrationType,
 }: {
   backfill:
     | {
@@ -12,6 +19,7 @@ export function SyncStatus({
       }
     | null
     | undefined;
+  integrationType: "discord" | "slack";
 }) {
   const isSyncing = !!backfill;
   const isDiscovering = isSyncing && backfill.channelsDiscovering > 0;
@@ -43,11 +51,31 @@ export function SyncStatus({
             {isSyncing && !isDiscovering && (
               <div className="text-muted-foreground text-xs">
                 {backfill.processed}/{backfill.total} threads synced
-                {backfill.limit !== null && ` (limit: ${backfill.limit})`}
               </div>
             )}
           </div>
         </div>
+        {isSyncing && !isDiscovering && backfill.limit !== null && (
+          <div className="mt-3 rounded-md border border-yellow-500/30 bg-yellow-500/10 px-3 py-2 text-sm text-yellow-700 dark:text-yellow-400">
+            Trial plan: importing up to {backfill.limit} threads. New threads remain unlimited.{" "}
+            <Button
+              variant="link"
+              externalLink
+              render={
+                <a
+                  href={docsLinks[integrationType]}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Learn more
+                </a>
+              }
+              className="p-0! h-auto!"
+            >
+              Learn more
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

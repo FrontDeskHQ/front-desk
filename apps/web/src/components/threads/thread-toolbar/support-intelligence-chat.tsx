@@ -295,8 +295,9 @@ function MessageGroup({
           <div
             key={msg.id}
             className={cn(
-              !isAssistant &&
-                "rounded-lg bg-muted/50 border border-input px-3 py-2",
+              isAssistant
+                ? "px-1"
+                : "rounded-lg bg-muted/50 border border-input px-3 py-2",
             )}
           >
             {isThinking && <ThinkingIndicator />}
