@@ -1063,7 +1063,7 @@ app.message(
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: { user: true } }
+    { thread: true; author: { include: { user: true } } }
   >[],
 ) => {
   for (const message of messages) {
@@ -1314,7 +1314,7 @@ const handleUpdates = async (
             externalMetadataStr: { $not: null },
           },
         })
-        .include({ thread: true, author: { user: true } })
+        .include({ thread: true, author: { include: { user: true } } })
         .get(),
     );
     store.query.message
@@ -1326,7 +1326,7 @@ const handleUpdates = async (
           externalMetadataStr: { $not: null },
         },
       })
-      .include({ thread: true, author: { user: true } })
+      .include({ thread: true, author: { include: { user: true } } })
       .subscribe(handleMessages);
 
     const updates = await store.query.update

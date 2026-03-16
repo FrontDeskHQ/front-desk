@@ -28,7 +28,7 @@ import { mutate } from "~/lib/live-state";
 interface PropertiesSectionProps {
   thread: InferLiveObject<
     typeof schema.thread,
-    { assignedUser: { user: true } }
+    { assignedUser: { include: { user: true } } }
   >;
   id: string;
   user: InferLiveObject<typeof schema.user>;

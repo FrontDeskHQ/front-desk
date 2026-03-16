@@ -83,11 +83,11 @@ export const Route = createFileRoute("/support/$slug/threads/")({
         deletedAt: { $eq: null },
       })
       .include({
-        messages: { author: true },
+        messages: { include: { author: true } },
         author: true,
         assignedUser: true,
         labels: {
-          label: true,
+          include: { label: true },
         },
       })
       .get();

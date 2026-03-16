@@ -89,7 +89,7 @@ function RouteComponent() {
     useLiveQuery(
       threadsQuery
         .include({
-          messages: { author: true },
+          messages: { include: { author: true } },
           author: true,
           assignedUser: true,
         })

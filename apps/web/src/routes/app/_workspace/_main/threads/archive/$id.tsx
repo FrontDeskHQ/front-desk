@@ -60,7 +60,7 @@ export const Route = createFileRoute(
         })
         .include({
           organization: true,
-          messages: { author: true },
+          messages: { include: { author: true } },
           assignedUser: true,
         })
         .get()
@@ -100,7 +100,7 @@ function RouteComponent() {
       })
       .include({
         organization: true,
-        messages: { author: true },
+        messages: { include: { author: true } },
         assignedUser: true,
       }),
   )?.[0];

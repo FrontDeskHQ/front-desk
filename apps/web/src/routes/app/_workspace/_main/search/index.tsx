@@ -38,11 +38,13 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
     query.message.where({ id: messageId }).include({
       author: true,
       thread: {
-        author: true,
-        labels: {
-          label: true,
+        include: {
+          author: true,
+          labels: {
+            include: { label: true },
+          },
+          assignedUser: true,
         },
-        assignedUser: true,
       },
     }),
   )?.[0];

@@ -27,7 +27,7 @@ export const DuplicateThreadMenuItem = () => {
         .first({ id: threadId })
         .include({
           author: true,
-          messages: { author: true },
+          messages: { include: { author: true } },
         })
         .get();
 

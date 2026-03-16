@@ -63,11 +63,11 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
         })
         .include({
           author: true,
-          messages: { author: true },
+          messages: { include: { author: true } },
           assignedUser: true,
-          updates: { user: true },
+          updates: { include: { user: true } },
           labels: {
-            label: true,
+            include: { label: true },
           },
         })
         .get()

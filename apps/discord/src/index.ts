@@ -883,7 +883,7 @@ client.on("messageCreate", async (message) => {
 const handleMessages = async (
   messages: InferLiveObject<
     (typeof schema)["message"],
-    { thread: true; author: { user: true } }
+    { thread: true; author: { include: { user: true } } }
   >[],
 ) => {
   for (const message of messages) {
@@ -1140,7 +1140,7 @@ setTimeout(async () => {
           discordChannelId: { $not: null },
         },
       })
-      .include({ thread: true, author: { user: true } })
+      .include({ thread: true, author: { include: { user: true } } })
       .get(),
   );
   store.query.message
@@ -1150,7 +1150,7 @@ setTimeout(async () => {
         discordChannelId: { $not: null },
       },
     })
-    .include({ thread: true, author: { user: true } })
+    .include({ thread: true, author: { include: { user: true } } })
     .subscribe(handleMessages);
 
   // Handle updates for threads linked to Discord

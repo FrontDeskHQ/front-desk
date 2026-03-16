@@ -28,24 +28,28 @@ client.load(
   store.query.organization
     .include({
       threads: {
-        messages: {
-          author: {
-            user: true,
+        include: {
+          messages: {
+            include: {
+              author: {
+                include: { user: true },
+              },
+            },
           },
-        },
-        updates: {
-          user: true,
-        },
-        labels: {
-          label: true,
-        },
-        author: {
-          user: true,
+          updates: {
+            include: { user: true },
+          },
+          labels: {
+            include: { label: true },
+          },
+          author: {
+            include: { user: true },
+          },
         },
       },
       integrations: true,
       authors: {
-        user: true,
+        include: { user: true },
       },
     })
     .buildQueryRequest(),

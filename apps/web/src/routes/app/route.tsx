@@ -75,33 +75,37 @@ function App() {
       })
       .include({
         organization: {
-          threads: {
-            messages: {
-              author: true,
+          include: {
+            threads: {
+              include: {
+                messages: {
+                  include: { author: true },
+                },
+                updates: {
+                  include: { user: true },
+                },
+                labels: {
+                  include: { label: true },
+                },
+                author: true,
+                assignedUser: true,
+              },
             },
-            updates: {
-              user: true,
+            invites: true,
+            integrations: true,
+            subscriptions: true,
+            labels: true,
+            organizationUsers: {
+              include: { user: true },
             },
-            labels: {
-              label: true,
+            authors: true,
+            suggestions: true,
+            onboardings: true,
+            documentationSources: true,
+            // TODO improve this to load only when needed
+            agentChats: {
+              include: { messages: true },
             },
-            author: true,
-            assignedUser: true,
-          },
-          invites: true,
-          integrations: true,
-          subscriptions: true,
-          labels: true,
-          organizationUsers: {
-            user: true,
-          },
-          authors: true,
-          suggestions: true,
-          onboardings: true,
-          documentationSources: true,
-          // TODO improve this to load only when needed
-          agentChats: {
-            messages: true,
           },
         },
       }),

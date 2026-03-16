@@ -15,7 +15,7 @@ const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
   const thread = useLiveQuery(
     query.thread.first({ id: result.threadId }).include({
       author: {
-        user: true,
+        include: { user: true },
       },
     }),
   );

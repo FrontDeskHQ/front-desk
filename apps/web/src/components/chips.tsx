@@ -25,7 +25,7 @@ export function BaseThreadChip({
 }: Omit<React.ComponentProps<typeof BaseButton>, "children"> & {
   thread: InferLiveObject<
     typeof schema.thread,
-    { author: { user: true }; assignedUser?: true }
+    { author: { include: { user: true } }; assignedUser?: true }
   >;
   disabled?: boolean;
 }) {
@@ -59,7 +59,7 @@ export function ThreadChip({
 }: Omit<React.ComponentProps<typeof BaseButton>, "children"> & {
   thread: InferLiveObject<
     typeof schema.thread,
-    { author: { user: true }; assignedUser: { user: true } }
+    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
   >;
   disabled?: boolean;
 }) {
