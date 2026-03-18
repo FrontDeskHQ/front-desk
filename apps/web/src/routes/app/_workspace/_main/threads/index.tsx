@@ -162,11 +162,11 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   const threads = useLiveQuery(
     threadsQuery
       .include({
-        messages: { author: true },
+        messages: { include: { author: true } },
         author: true,
         assignedUser: true,
         labels: {
-          label: true,
+          include: { label: true },
         },
       })
       .orderBy(

@@ -142,7 +142,7 @@ type UsePendingDuplicateSuggestionsProps = {
 
 type DuplicateThread = InferLiveObject<
   typeof schema.thread,
-  { author: { user: true }; assignedUser: true }
+  { author: { include: { user: true } }; assignedUser: true }
 >;
 
 export const usePendingDuplicateSuggestions = ({
@@ -196,7 +196,7 @@ export const usePendingDuplicateSuggestions = ({
   const duplicateThreads = useLiveQuery(
     query.thread
       .where({ id: { $in: duplicateThreadIds } })
-      .include({ author: { user: true }, assignedUser: true }),
+      .include({ author: { include: { user: true } }, assignedUser: true }),
   ) as DuplicateThread[] | undefined;
 
   const duplicateThread = duplicateThreads?.[0] ?? null;

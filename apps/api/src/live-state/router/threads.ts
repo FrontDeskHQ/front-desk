@@ -401,7 +401,7 @@ export default publicRoute
           include: {
             author: true,
             messages: {
-              author: true,
+              include: { author: true },
             },
           },
         }),
@@ -457,7 +457,7 @@ export default publicRoute
             organizationId,
           },
           include: {
-            author: { user: true },
+            author: { include: { user: true } },
           },
         }),
       );

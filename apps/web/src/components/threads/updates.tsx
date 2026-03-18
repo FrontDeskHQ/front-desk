@@ -35,7 +35,7 @@ export function Update({
   const duplicateThread = useLiveQuery(
     query.thread
       .first({ id: metadata?.duplicateOfThreadId })
-      .include({ author: { user: true }, assignedUser: true }),
+      .include({ author: { include: { user: true } }, assignedUser: true }),
   );
 
   const getUpdateText = () => {

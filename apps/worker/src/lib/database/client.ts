@@ -30,7 +30,7 @@ export const fetchThreadWithRelations = async (
       .include({
         messages: true,
         labels: {
-          label: true,
+          include: { label: true },
         },
       })
       .get();
@@ -63,7 +63,7 @@ export const fetchThreadsWithRelations = async (
       .include({
         messages: true,
         labels: {
-          label: true,
+          include: { label: true },
         },
       })
       .get();

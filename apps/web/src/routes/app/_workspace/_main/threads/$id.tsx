@@ -85,7 +85,7 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
         .include({
           organization: true,
           author: true,
-          messages: { author: true },
+          messages: { include: { author: true } },
           updates: true,
         })
         .get()
@@ -139,9 +139,9 @@ function RouteComponent() {
   const thread = useLiveQuery(
     query.thread.where({ id }).include({
       organization: true,
-      messages: { author: true },
+      messages: { include: { author: true } },
       assignedUser: true,
-      updates: { user: true },
+      updates: { include: { user: true } },
     }),
   )?.[0];
 

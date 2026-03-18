@@ -365,10 +365,10 @@ function RouteComponent() {
       })
       .include({
         author: {
-          user: true,
+          include: { user: true },
         },
         assignedUser: {
-          user: true,
+          include: { user: true },
         },
       }),
   );
@@ -710,7 +710,7 @@ type SignalCardProps = {
     string,
     InferLiveObject<
       typeof schema.thread,
-      { author: { user: true }; assignedUser: { user: true } }
+      { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
     >
   >;
   onAccept: (suggestion: ParsedSuggestion) => void;
@@ -825,7 +825,7 @@ type SuggestionItemProps = {
   suggestion: ParsedSuggestion;
   thread?: InferLiveObject<
     typeof schema.thread,
-    { author: { user: true }; assignedUser: { user: true } }
+    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
   > | null;
   onAccept?: () => void;
   onDismiss?: () => void;
@@ -885,7 +885,7 @@ type DuplicateSignalCardProps = {
     string,
     InferLiveObject<
       typeof schema.thread,
-      { author: { user: true }; assignedUser: { user: true } }
+      { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
     >
   >;
   onAccept: (suggestion: ParsedDuplicateSuggestion) => void;
@@ -1006,7 +1006,7 @@ type DuplicateSuggestionItemProps = {
   suggestion: ParsedDuplicateSuggestion;
   thread?: InferLiveObject<
     typeof schema.thread,
-    { author: { user: true }; assignedUser: { user: true } }
+    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
   > | null;
   onAccept?: () => void;
   onDismiss?: () => void;

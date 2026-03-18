@@ -21,7 +21,7 @@ const authorizeOrganizationUser = async (customerId: string) => {
       })
       .include({
         organization: {
-          subscriptions: true,
+          include: { subscriptions: true },
         },
       })
       .get()
