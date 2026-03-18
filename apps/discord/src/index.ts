@@ -991,39 +991,39 @@ const handleUpdates = async (
 
     if (handlingUpdates.has(update.id)) continue;
 
-    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = await fetchClient.query.integration
-      .first({
-        organizationId: update.thread?.organizationId,
-        type: "discord",
-      })
-      .get();
-
-    if (!integration || !integration.configStr) continue;
-
-    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
-
-    if (!parsedConfig) continue;
-
-    const guildId = parsedConfig.guildId;
-
-    if (!guildId) continue;
-
-    const channelId = update.thread.discordChannelId;
-
-    if (!channelId) continue;
-
-    const guild = client.guilds.cache.get(guildId);
-
-    if (!guild) continue;
-
-    const channel = guild.channels.cache.get(channelId);
-
-    if (!channel) continue;
-
     handlingUpdates.add(update.id);
 
     try {
+      // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
+      const integration = await fetchClient.query.integration
+        .first({
+          organizationId: update.thread?.organizationId,
+          type: "discord",
+        })
+        .get();
+
+      if (!integration || !integration.configStr) continue;
+
+      const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+
+      if (!parsedConfig) continue;
+
+      const guildId = parsedConfig.guildId;
+
+      if (!guildId) continue;
+
+      const channelId = update.thread.discordChannelId;
+
+      if (!channelId) continue;
+
+      const guild = client.guilds.cache.get(guildId);
+
+      if (!guild) continue;
+
+      const channel = guild.channels.cache.get(channelId);
+
+      if (!channel) continue;
+
       const updateMessage = formatUpdateMessage(update);
       const botMessage = await (channel as TextChannel).send({
         content: updateMessage,
