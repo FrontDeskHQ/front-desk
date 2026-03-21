@@ -145,8 +145,6 @@ function RouteComponent() {
     }),
   )?.[0];
 
-  console.log(JSON.stringify(thread?.messages, null, 2));
-
   const { captureThreadEvent } = useThreadAnalytics(thread);
 
   const { isEnabled: isGithubIntegrationEnabled } =
@@ -388,7 +386,9 @@ function RouteComponent() {
                                       messageId: item.id,
                                     })
                                     .catch(() => {
-                                    toast.error("Failed to mark message as answer");
+                                      toast.error(
+                                        "Failed to mark message as answer",
+                                      );
                                     });
                                 }}
                               >

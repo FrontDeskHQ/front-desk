@@ -67,8 +67,6 @@ export default publicRoute
         req.context?.user?.name ??
         req.input.userName;
 
-      console.log("actualUserName", actualUserName);
-
       if (!actualUserId || !actualUserName) {
         throw new Error("MISSING_USER_ID_OR_NAME");
       }
