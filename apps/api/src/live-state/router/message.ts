@@ -63,9 +63,11 @@ export default publicRoute
         req.input.userId;
 
       const actualUserName: string | undefined =
-        req.context?.portalSession?.session.userName ??
-        req.context?.session?.name ??
+        req.context?.portalSession?.user.name ??
+        req.context?.user?.name ??
         req.input.userName;
+
+      console.log("actualUserName", actualUserName);
 
       if (!actualUserId || !actualUserName) {
         throw new Error("MISSING_USER_ID_OR_NAME");
