@@ -4,8 +4,7 @@ import {
   EditorSubmit,
 } from "@workspace/ui/components/blocks/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
-import { ulid } from "ulid";
-import { mutate, query } from "~/lib/live-state";
+import { mutate } from "~/lib/live-state";
 
 type ReplyEditorProps = {
   organizationId: string | undefined;
@@ -30,29 +29,13 @@ export const ReplyEditor = ({
       <Editor
         onSubmit={(value) => {
           if (!organizationId) return;
-          const author = query.author.first({ userId: user.id }).get();
-          let authorId = author?.id;
 
-          if (!authorId) {
-            authorId = ulid().toLowerCase();
-
-            mutate.author.insert({
-              id: authorId,
-              userId: user.id,
-              metaId: null,
-              name: user.name,
-              organizationId: organizationId,
-            });
-          }
-
-          mutate.message.insert({
-            id: ulid().toLowerCase(),
-            authorId: authorId,
-            content: JSON.stringify(value),
+          mutate.message.create({
             threadId: threadId,
-            createdAt: new Date(),
-            origin: null,
-            externalMessageId: null,
+            content: value,
+            userId: user.id,
+            userName: user.name,
+            organizationId: organizationId,
           });
 
           captureThreadEvent("thread:message_send");
