@@ -56,6 +56,35 @@ const { client, store } = createClient<Router>({
           createdAt: new Date(),
         });
       },
+      markAsAnswer: ({ input, storage }) => {
+        const message = storage.message.where({ id: input.messageId }).get()[0];
+        if (!message) return;
+
+        const existingAnswers = storage.message
+          .where({
+            threadId: message.threadId,
+            markedAsAnswer: true,
+          })
+          .get();
+
+        const hasOtherAnswer = existingAnswers.some(
+          (existingMessage) => existingMessage.id !== input.messageId,
+        );
+        if (hasOtherAnswer) return;
+
+        if (message.markedAsAnswer) return;
+
+        storage.message.update(input.messageId, {
+          markedAsAnswer: true,
+        });
+
+        const thread = storage.thread.where({ id: message.threadId }).get()[0];
+        if (!thread) return;
+
+        storage.thread.update(thread.id, {
+          status: 2,
+        });
+      },
     },
   }),
 });
