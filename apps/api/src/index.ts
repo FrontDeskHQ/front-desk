@@ -32,7 +32,15 @@ const lsServer = server({
   router,
   storage,
   schema,
-  contextProvider: async ({ transport, headers, queryParams }) => {
+  contextProvider: async ({
+    transport,
+    headers,
+    queryParams,
+  }: {
+    transport: string;
+    headers: Record<string, string>;
+    queryParams: Record<string, string>;
+  }) => {
     if (transport === "WEBSOCKET") {
       if (queryParams.discordBotKey) {
         const botKey = queryParams.discordBotKey;
@@ -56,13 +64,22 @@ const lsServer = server({
 
       if (!queryParams.token) return;
 
-      return {
-        ...(await auth.api.verifyOneTimeToken({
-          body: {
-            token: queryParams.token,
-          },
-        })),
-      };
+      const session = await auth.api.verifyOneTimeToken({
+        body: {
+          token: queryParams.token,
+        },
+      });
+
+      if (session?.user) {
+        const orgUsers = Object.values(
+          await storage.find(schema.organizationUser, {
+            where: { userId: session.user.id, enabled: true },
+          }),
+        );
+        return { ...session, orgUsers };
+      }
+
+      return { ...session };
     }
 
     if (headers["x-discord-bot-key"]) {
@@ -100,6 +117,15 @@ const lsServer = server({
         .catch(() => null),
     ]);
 
+    if (session?.user) {
+      const orgUsers = Object.values(
+        await storage.find(schema.organizationUser, {
+          where: { userId: session.user.id, enabled: true },
+        }),
+      );
+      return { ...session, portalSession, orgUsers };
+    }
+
     return {
       ...session,
       portalSession,
@@ -124,7 +150,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          })
+          }),
         )?.[0];
 
         if (!subscription) return;
@@ -134,9 +160,9 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID
             ? "starter"
             : payload.data.product_id ===
-              process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
-            ? "pro"
-            : null;
+                process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
+              ? "pro"
+              : null;
 
         if (!plan) return;
 
@@ -154,7 +180,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          })
+          }),
         )?.[0];
         if (!subscription) return;
 
@@ -169,7 +195,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          })
+          }),
         )?.[0];
 
         if (!subscription) return;
@@ -179,9 +205,9 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID
             ? "starter"
             : payload.data.product_id ===
-              process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
-            ? "pro"
-            : null;
+                process.env.DODO_PAYMENTS_PRO_PRODUCT_ID
+              ? "pro"
+              : null;
 
         if (!plan) return;
 
@@ -199,7 +225,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          })
+          }),
         )?.[0];
         if (!subscription) return;
 
@@ -208,7 +234,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           updatedAt: new Date(),
         });
       },
-    }) as any
+    }) as any,
   );
 
 expressAdapter(app as any, lsServer, {

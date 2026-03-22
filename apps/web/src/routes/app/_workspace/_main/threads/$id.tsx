@@ -381,9 +381,15 @@ function RouteComponent() {
                                 size="icon-sm"
                                 tooltip="Mark as answer"
                                 onClick={() => {
-                                  mutate.message.markAsAnswer({
-                                    messageId: item.id,
-                                  });
+                                  mutate.message
+                                    .markAsAnswer({
+                                      messageId: item.id,
+                                    })
+                                    .catch(() => {
+                                      toast.error(
+                                        "Failed to mark message as answer",
+                                      );
+                                    });
                                 }}
                               >
                                 <Check />

@@ -1,10 +1,10 @@
 import { ulid } from "ulid";
 import z from "zod";
+import { authorize } from "../../lib/authorize";
 import { enqueueIngestThreadJob } from "../../lib/queue";
 import { searchMessages } from "../../lib/search/qdrant";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
-import { storage } from "../storage";
 
 const STATUS_RESOLVED = 2;
 
@@ -42,7 +42,7 @@ export default publicRoute
       postMutation: ({ ctx }) => !!ctx?.internalApiKey,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     create: mutation(
       z.object({
         threadId: z.string(),
@@ -52,29 +52,31 @@ export default publicRoute
         organizationId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      // Support portal session or internal API key
-      if (
-        !req.context?.portalSession?.session &&
-        !req.context?.internalApiKey
-      ) {
-        throw new Error("UNAUTHORIZED");
+      authorize(req.context, {
+        organizationId: req.input.organizationId,
+        allowPublicApiKey: true,
+      });
+
+      const actualUserId: string | undefined =
+        req.context?.portalSession?.session.userId ??
+        req.context?.session?.userId ??
+        req.input.userId;
+
+      const actualUserName: string | undefined =
+        req.context?.portalSession?.user.name ??
+        req.context?.user?.name ??
+        req.input.userName;
+
+      if (!actualUserId || !actualUserName) {
+        throw new Error("MISSING_USER_ID_OR_NAME");
       }
 
-      // For portal sessions, verify the user matches
-      if (req.context?.portalSession?.session) {
-        const sessionUserId = req.context.portalSession.session.userId;
-        if (req.input.userId && req.input.userId !== sessionUserId) {
-          throw new Error("UNAUTHORIZED");
-        }
-      }
+      const thread = await db.thread.one(req.input.threadId).get();
 
-      // Verify thread exists and belongs to the expected organization
-      const thread = await storage.findOne(schema.thread, req.input.threadId);
       if (!thread || thread.organizationId !== req.input.organizationId) {
         throw new Error("THREAD_NOT_FOUND");
       }
 
-      // Convert string content to TipTap format if needed
       const content =
         typeof req.input.content === "string"
           ? JSON.stringify([
@@ -88,38 +90,28 @@ export default publicRoute
       const messageId = ulid().toLowerCase();
 
       await db.transaction(async ({ trx }) => {
-        // Get or create author
-        const userId =
-          req.input.userId ?? req.context?.portalSession?.session.userId;
-        const userName =
-          req.input.userName ??
-          req.context?.portalSession?.session.userName ??
-          "Unknown User";
+        const existingAuthor = await trx.author
+          .first({
+            userId: actualUserId,
+            organizationId: req.input.organizationId,
+          })
+          .get();
 
-        const existingAuthor = Object.values(
-          await trx.find(schema.author, {
-            where: {
-              userId: userId,
-              organizationId: req.input.organizationId,
-            },
-          }),
-        );
-
-        let authorId = existingAuthor[0]?.id;
+        let authorId = existingAuthor?.id;
 
         if (!authorId) {
           authorId = ulid().toLowerCase();
-          await trx.insert(schema.author, {
+
+          await trx.author.insert({
             id: authorId,
-            userId: userId,
+            userId: actualUserId,
             metaId: null,
-            name: userName,
+            name: actualUserName,
             organizationId: req.input.organizationId,
           });
         }
 
-        // Create message
-        await trx.insert(schema.message, {
+        await trx.message.insert({
           id: messageId,
           authorId: authorId,
           content: content,
@@ -130,14 +122,12 @@ export default publicRoute
         });
       });
 
-      const message = Object.values(
-        await db.find(schema.message, {
-          where: { id: messageId },
-          include: {
-            author: true,
-          },
-        }),
-      )[0];
+      const message = await db.message
+        .one(messageId)
+        .include({
+          author: true,
+        })
+        .get();
 
       return message;
     }),
@@ -146,58 +136,32 @@ export default publicRoute
         messageId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      const isInternalApiKey = !!req.context?.internalApiKey;
       const callerUserId =
-        req.context?.session?.userId ??
-        req.context?.portalSession?.session.userId;
+        req.context?.portalSession?.session.userId ??
+        req.context?.session?.userId;
 
-      if (!isInternalApiKey && !callerUserId) {
+      if (!req.context?.internalApiKey && !callerUserId) {
         throw new Error("UNAUTHORIZED");
       }
 
-      const message = (
-        await db.find(schema.message, {
-          where: { id: req.input.messageId },
-        })
-      )[0];
-
+      const message = await db.message.one(req.input.messageId).get();
       if (!message) {
         throw new Error("MESSAGE_NOT_FOUND");
       }
 
-      const thread = (
-        await db.find(schema.thread, {
-          where: { id: message.threadId },
-        })
-      )[0];
-
+      const thread = await db.thread.one(message.threadId).get();
       if (!thread) {
         throw new Error("THREAD_NOT_FOUND");
       }
 
-      if (!isInternalApiKey && callerUserId) {
-        const threadAuthor = (
-          await db.find(schema.author, {
-            where: { id: thread.authorId },
-          })
-        )[0];
-
+      if (!req.context?.internalApiKey && callerUserId) {
+        const threadAuthor = await db.author.one(thread.authorId).get();
         const isThreadAuthor = threadAuthor?.userId === callerUserId;
 
-        const organizationUsers = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: thread.organizationId,
-              userId: callerUserId,
-              enabled: true,
-            },
-          }),
-        );
-
-        const isOrganizationMember = organizationUsers.length > 0;
-
-        if (!isThreadAuthor && !isOrganizationMember) {
-          throw new Error("UNAUTHORIZED");
+        if (!isThreadAuthor) {
+          authorize(req.context, {
+            organizationId: thread.organizationId,
+          });
         }
       }
 
@@ -229,14 +193,12 @@ export default publicRoute
         });
       }
 
-      const updatedMessage = Object.values(
-        await db.find(schema.message, {
-          where: { id: message.id },
-          include: {
-            author: true,
-          },
-        }),
-      )[0];
+      const updatedMessage = await db.message
+        .one(message.id)
+        .include({
+          author: true,
+        })
+        .get();
 
       return updatedMessage ?? { ...message, markedAsAnswer: true };
     }),
