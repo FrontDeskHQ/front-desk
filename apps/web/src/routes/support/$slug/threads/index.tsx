@@ -1,4 +1,4 @@
-import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -16,9 +16,7 @@ import { LabelBadge } from "@workspace/ui/components/label-badge";
 import {
   Pagination,
   PaginationContent,
-  PaginationEllipsis,
   PaginationItem,
-  PaginationLink,
   PaginationNext,
   PaginationPrevious,
 } from "@workspace/ui/components/pagination";
@@ -50,20 +48,17 @@ import {
 import {
   createStandardSchemaV1,
   parseAsInteger,
+  parseAsString,
   parseAsStringEnum,
-  useQueryState,
 } from "nuqs";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
-
-type ThreadsSearchOrderOptions = "createdAt" | "updatedAt";
 
 const DEFAULT_THREADS_PER_PAGE = 10;
 const PER_PAGE_OPTIONS = [5, 10, 20, 50];
 
 const searchParams = {
-  page: parseAsInteger.withDefault(1),
-  order: parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
+  cursor: parseAsString,
   dir: parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
   perPage: parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
 };
@@ -75,25 +70,28 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     partialOutput: true,
   }),
 
-  loader: async ({ context }) => {
+  loaderDeps: ({ search }) => ({
+    cursor: (search as Record<string, unknown>)?.cursor as string | undefined,
+    dir: ((search as Record<string, unknown>)?.dir as string) ?? "desc",
+    perPage:
+      ((search as Record<string, unknown>)?.perPage as number) ??
+      DEFAULT_THREADS_PER_PAGE,
+  }),
+
+  loader: async ({ context, deps }) => {
     const { organization } = context;
-    const threads = await fetchClient.query.thread
-      .where({
-        organizationId: organization.id,
-        deletedAt: { $eq: null },
-      })
-      .include({
-        messages: { include: { author: true } },
-        author: true,
-        assignedUser: true,
-        labels: {
-          include: { label: true },
-        },
-      })
-      .get();
+    const perPage = Math.min(Math.max(deps.perPage, 1), 50);
+
+    const result = await fetchClient.query.thread.list({
+      organizationId: organization.id,
+      cursor: deps.cursor ?? undefined,
+      limit: perPage,
+      direction: (deps.dir as "asc" | "desc") ?? "desc",
+    });
 
     return {
-      threads: threads as typeof threads,
+      threads: result.threads,
+      nextCursor: result.nextCursor,
       organizationName: organization.name,
     };
   },
@@ -112,108 +110,17 @@ export const Route = createFileRoute("/support/$slug/threads/")({
 });
 
 function RouteComponent() {
-  const { threads } = Route.useLoaderData();
+  const { threads, nextCursor } = Route.useLoaderData();
   const { organization } = Route.useRouteContext();
-  const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
+  const navigate = Route.useNavigate();
+  const { cursor, dir, perPage: rawPerPage } = Route.useSearch();
 
-  const [page, setPage] = useQueryState("page", parseAsInteger.withDefault(1));
-  const [order, setOrder] = useQueryState(
-    "order",
-    parseAsStringEnum(["createdAt", "updatedAt"]).withDefault("createdAt"),
-  );
-  const [dir, setDir] = useQueryState(
-    "dir",
-    parseAsStringEnum(["asc", "desc"]).withDefault("desc"),
-  );
-  const [_perPage, setPerPage] = useQueryState(
-    "perPage",
-    parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
-  );
   const perPage = Math.min(
-    Math.max(_perPage ?? DEFAULT_THREADS_PER_PAGE, 1),
+    Math.max(rawPerPage ?? DEFAULT_THREADS_PER_PAGE, 1),
     50,
   );
 
-  const orderByOptions: { label: string; value: ThreadsSearchOrderOptions }[] =
-    [
-      { label: "Created", value: "createdAt" },
-      { label: "Last message", value: "updatedAt" },
-    ];
-
-  const handleSortChange = (value: ThreadsSearchOrderOptions) => {
-    setOrder(value);
-  };
-
-  const handlePerPageChange = (value: unknown) => {
-    setPerPage(Number(value));
-    setPage(1);
-  };
-
-  const orderedThreads = [...(threads ?? [])].sort((a, b) => {
-    const getTimestamp = (
-      t: unknown,
-      key: ThreadsSearchOrderOptions,
-    ): number => {
-      // Narrow the unknown to the expected shape for safe property access
-      const obj = t as { updatedAt?: string | Date; createdAt?: string | Date };
-
-      if (key === "updatedAt") {
-        return obj.updatedAt
-          ? new Date(obj.updatedAt).getTime()
-          : obj.createdAt
-            ? new Date(obj.createdAt).getTime()
-            : 0;
-      }
-
-      return obj.createdAt ? new Date(obj.createdAt).getTime() : 0;
-    };
-
-    const aTs = getTimestamp(a, order);
-    const bTs = getTimestamp(b, order);
-
-    // dir: 'asc' => oldest -> newest (a - b). 'desc' => newest -> oldest (b - a)
-    if (dir === "asc") {
-      return aTs - bTs;
-    }
-
-    return bTs - aTs;
-  });
-
-  const numPages = orderedThreads
-    ? Math.max(1, Math.ceil(orderedThreads?.length / perPage))
-    : 1;
-
-  const currentPage = page ?? 1;
-
-  const startIdx = perPage * (currentPage - 1);
-  const endIdx = perPage * currentPage;
-
-  const threadsInPage = orderedThreads?.slice(startIdx, endIdx);
-
-  // Generate page numbers based on current position
-  const generatePageNumbers = () => {
-    const pages: (number | "ellipsis")[] = [];
-
-    if (numPages <= 5) {
-      // Show all pages if total pages <= 5
-      for (let i = 1; i <= numPages; i++) {
-        pages.push(i);
-      }
-    } else if (currentPage <= 3) {
-      // At the beginning: 1, 2, 3, ..., lastPageIdx
-      pages.push(1, 2, 3, "ellipsis", numPages);
-    } else if (currentPage >= numPages - 2) {
-      // At the end: 1, ..., lastPageIdx - 2, lastPageIdx - 1, lastPageIdx
-      pages.push(1, "ellipsis", numPages - 2, numPages - 1, numPages);
-    } else {
-      // In the middle: 1, ..., currentPageIdx, ..., lastPageIdx
-      pages.push(1, "ellipsis", currentPage, "ellipsis", numPages);
-    }
-
-    return pages;
-  };
-
-  const pageNumbers = generatePageNumbers();
+  const isFirstPage = !cursor;
 
   if (!organization) {
     return null;
@@ -238,33 +145,22 @@ function RouteComponent() {
                   positionerProps={{ align: "end" }}
                 >
                   <div className="flex w-full items-center gap-2">
-                    <div className="mr-auto">Order by</div>
-                    <Select
-                      value={order}
-                      onValueChange={(value) =>
-                        handleSortChange(value as ThreadsSearchOrderOptions)
-                      }
-                      items={orderByOptions}
-                    >
-                      <SelectTrigger className="w-48" data-size="sm">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {orderByOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="mr-auto">Direction</div>
                     <TooltipProvider>
                       <Tooltip>
                         <TooltipTrigger>
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() =>
-                              setDir(dir === "asc" ? "desc" : "asc")
+                            render={
+                              <Link
+                                to="/support/$slug/threads"
+                                params={{ slug: organization.slug }}
+                                search={{
+                                  dir: dir === "asc" ? "desc" : "asc",
+                                  perPage,
+                                }}
+                              />
                             }
                             className="size-8"
                           >
@@ -284,7 +180,7 @@ function RouteComponent() {
             </CardAction>
           </CardHeader>
           <CardContent className="overflow-y-auto gap-0 items-center">
-            {threadsInPage?.map((thread) => (
+            {threads?.map((thread) => (
               <Link
                 key={thread.id}
                 to={"/support/$slug/threads/$id"}
@@ -350,7 +246,11 @@ function RouteComponent() {
             </span>
             <Select
               value={perPage.toString()}
-              onValueChange={handlePerPageChange}
+              onValueChange={(value) =>
+                navigate({
+                  search: { dir, perPage: Number(value) },
+                })
+              }
             >
               <SelectTrigger className="w-20" data-size="sm">
                 <SelectValue />
@@ -368,52 +268,35 @@ function RouteComponent() {
             <PaginationContent>
               <PaginationItem>
                 <PaginationPrevious
-                  onClick={() => {
-                    if (currentPage > 1) {
-                      setPage(currentPage - 1);
-                    }
-                  }}
-                  aria-disabled={currentPage === 1}
+                  render={
+                    <Link
+                      to="/support/$slug/threads"
+                      params={{ slug: organization.slug }}
+                      search={{ dir, perPage }}
+                    />
+                  }
+                  aria-disabled={isFirstPage}
                   className={
-                    currentPage === 1 ? " pointer-events-none opacity-50" : ""
+                    isFirstPage ? "pointer-events-none opacity-50" : ""
                   }
                 />
               </PaginationItem>
-              {pageNumbers.map((pageNum, idx) => {
-                if (pageNum === "ellipsis") {
-                  return (
-                    <PaginationItem
-                      key={`ellipsis-before-${pageNumbers[idx + 1]}`}
-                    >
-                      <PaginationEllipsis />
-                    </PaginationItem>
-                  );
-                }
-
-                return (
-                  <PaginationItem key={pageNum}>
-                    <PaginationLink
-                      onClick={() => setPage(pageNum)}
-                      isActive={page === pageNum}
-                      aria-current={page === pageNum ? "page" : undefined}
-                    >
-                      {pageNum}
-                    </PaginationLink>
-                  </PaginationItem>
-                );
-              })}
               <PaginationItem>
                 <PaginationNext
-                  onClick={() => {
-                    if (currentPage < numPages) {
-                      setPage(currentPage + 1);
-                    }
-                  }}
-                  aria-disabled={currentPage === numPages}
+                  render={
+                    <Link
+                      to="/support/$slug/threads"
+                      params={{ slug: organization.slug }}
+                      search={{
+                        cursor: nextCursor ?? undefined,
+                        dir,
+                        perPage,
+                      }}
+                    />
+                  }
+                  aria-disabled={!nextCursor}
                   className={
-                    currentPage === numPages
-                      ? " pointer-events-none opacity-50"
-                      : ""
+                    !nextCursor ? "pointer-events-none opacity-50" : ""
                   }
                 />
               </PaginationItem>

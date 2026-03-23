@@ -249,7 +249,7 @@ export default publicRoute
       },
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation, query }) => ({
     create: mutation(
       z.object({
         organizationId: z.string().optional(),
@@ -408,6 +408,68 @@ export default publicRoute
       )[0];
 
       return thread;
+    }),
+    list: query(
+      z.object({
+        organizationId: z.string(),
+        status: z.number().optional(),
+        priority: z.number().optional(),
+        assignedUserId: z.string().nullable().optional(),
+        cursor: z.string().optional(),
+        limit: z.number().min(1).max(50).default(10),
+        direction: z.enum(["asc", "desc"]).default("desc"),
+      }),
+    ).handler(async ({ req, db }) => {
+      const {
+        organizationId,
+        status,
+        priority,
+        assignedUserId,
+        cursor,
+        limit,
+        direction,
+      } = req.input;
+
+      // authorize(req.context, { organizationId });
+
+      let query = db.thread.where({
+        organizationId,
+        deletedAt: null,
+      });
+
+      if (status !== undefined) {
+        query = query.where({ status });
+      }
+      if (priority !== undefined) {
+        query = query.where({ priority });
+      }
+      if (assignedUserId !== undefined) {
+        query = query.where({ assignedUserId });
+      }
+
+      if (cursor) {
+        const op = direction === "desc" ? "$lt" : "$gt";
+        query = query.where({ id: { [op]: cursor } });
+      }
+
+      const rows = await query
+        .include({
+          messages: { include: { author: true } },
+          author: true,
+          assignedUser: true,
+          labels: { include: { label: true } },
+        })
+        .orderBy("id", direction)
+        .limit(limit + 1)
+        .get();
+
+      const hasMore = rows.length > limit;
+      const threads = hasMore ? rows.slice(0, limit) : rows;
+
+      const nextCursor =
+        hasMore && threads.length > 0 ? threads[threads.length - 1].id : null;
+
+      return { threads, nextCursor };
     }),
     fetchRelatedThreads: mutation(
       z.object({
