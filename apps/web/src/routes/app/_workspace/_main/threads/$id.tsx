@@ -147,9 +147,6 @@ function RouteComponent() {
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
 
-  const { isEnabled: isGithubIntegrationEnabled } =
-    useFlag("github-integration");
-
   const { isEnabled: isNewToolbar } = useFlag("new-thread-toolbar");
 
   const organizationUsers = useLiveQuery(
