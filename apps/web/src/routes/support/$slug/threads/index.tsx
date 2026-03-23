@@ -94,9 +94,15 @@ function RouteComponent() {
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
       queryKey: ["support-threads", organization?.id, dir],
+      enabled: Boolean(organization?.id),
       queryFn: async ({ pageParam }) => {
+        const organizationId = organization?.id;
+        if (!organizationId) {
+          throw new Error("Organization is required to fetch threads");
+        }
+
         return fetchClient.query.thread.list({
-          organizationId: organization.id,
+          organizationId,
           cursor: pageParam,
           limit: PAGE_SIZE,
           direction: dir,
@@ -127,7 +133,7 @@ function RouteComponent() {
     getScrollElement: () => parentRef.current,
     estimateSize: () => 72,
     overscan: 10,
-    getItemKey: (index) => threads[index]?.id,
+    getItemKey: (index) => threads[index]?.id ?? `thread-fallback-${index}`,
   });
 
   useEffect(() => {
