@@ -47,6 +47,7 @@ import {
 } from "lucide-react";
 import {
   createStandardSchemaV1,
+  type inferParserType,
   parseAsInteger,
   parseAsString,
   parseAsStringEnum,
@@ -63,6 +64,8 @@ const searchParams = {
   perPage: parseAsInteger.withDefault(DEFAULT_THREADS_PER_PAGE),
 };
 
+type SearchParams = inferParserType<typeof searchParams>;
+
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
@@ -70,12 +73,10 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     partialOutput: true,
   }),
 
-  loaderDeps: ({ search }) => ({
-    cursor: (search as Record<string, unknown>)?.cursor as string | undefined,
-    dir: ((search as Record<string, unknown>)?.dir as string) ?? "desc",
-    perPage:
-      ((search as Record<string, unknown>)?.perPage as number) ??
-      DEFAULT_THREADS_PER_PAGE,
+  loaderDeps: ({ search }: { search: SearchParams }) => ({
+    cursor: search.cursor,
+    dir: search.dir,
+    perPage: search.perPage,
   }),
 
   loader: async ({ context, deps }) => {
@@ -86,7 +87,7 @@ export const Route = createFileRoute("/support/$slug/threads/")({
       organizationId: organization.id,
       cursor: deps.cursor ?? undefined,
       limit: perPage,
-      direction: (deps.dir as "asc" | "desc") ?? "desc",
+      direction: deps.dir,
     });
 
     return {
