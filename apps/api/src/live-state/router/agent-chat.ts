@@ -210,14 +210,25 @@ export const agentChatRoute = privateRoute
       const relatedThreadsContext: string[] = [];
       await Promise.all(
         relatedThreadSuggestions.map(async (s) => {
-          const relatedThread = await db.findOne(
-            schema.thread,
-            s.relatedEntityId!,
-          );
+          const relatedThread = Object.values(
+            await db.find(schema.thread, {
+              where: {
+                id: s.relatedEntityId!,
+                organizationId: agentChat.organizationId,
+                deletedAt: null,
+              },
+            }),
+          )[0];
           if (!relatedThread) return;
-          const score = s.resultsStr
-            ? (JSON.parse(s.resultsStr) as { score?: number }).score
-            : null;
+          let score: number | null = null;
+          try {
+            const parsed = s.resultsStr
+              ? (JSON.parse(s.resultsStr) as { score?: number })
+              : null;
+            score = parsed?.score ?? null;
+          } catch {
+            // Ignore malformed suggestion payload
+          }
           const author = relatedThread.authorId
             ? await db.findOne(schema.author, relatedThread.authorId)
             : null;
@@ -249,15 +260,21 @@ export const agentChatRoute = privateRoute
         reasoning: string | null;
       } | null = null;
       if (statusSuggestion?.resultsStr) {
+        try {
         const statusResult = JSON.parse(statusSuggestion.resultsStr) as {
           suggestedStatus?: number;
         };
-        const meta = statusSuggestion.metadataStr
-          ? (JSON.parse(statusSuggestion.metadataStr) as {
-              confidence?: number;
-              reasoning?: string;
-            })
-          : null;
+        let meta: { confidence?: number; reasoning?: string } | null = null;
+        try {
+          meta = statusSuggestion.metadataStr
+            ? (JSON.parse(statusSuggestion.metadataStr) as {
+                confidence?: number;
+                reasoning?: string;
+              })
+            : null;
+        } catch {
+          // Ignore malformed metadata
+        }
         const statusNum = statusResult.suggestedStatus;
         if (statusNum !== undefined) {
           const statusMap: Record<number, string> = {
@@ -273,6 +290,9 @@ export const agentChatRoute = privateRoute
             reasoning: meta?.reasoning ?? null,
           };
         }
+        } catch {
+          // Ignore malformed status suggestion payload
+        }
       }
 
       // Duplicate suggestion
@@ -286,17 +306,28 @@ export const agentChatRoute = privateRoute
         reason: string | null;
       } | null = null;
       if (duplicateSuggestion?.relatedEntityId) {
-        const dupThread = await db.findOne(
-          schema.thread,
-          duplicateSuggestion.relatedEntityId,
-        );
+        const dupThread = Object.values(
+          await db.find(schema.thread, {
+            where: {
+              id: duplicateSuggestion.relatedEntityId,
+              organizationId: agentChat.organizationId,
+              deletedAt: null,
+            },
+          }),
+        )[0];
         if (dupThread) {
-          const dupResults = duplicateSuggestion.resultsStr
-            ? (JSON.parse(duplicateSuggestion.resultsStr) as {
-                confidence?: string;
-                reason?: string;
-              })
-            : null;
+          let dupResults: { confidence?: string; reason?: string } | null =
+            null;
+          try {
+            dupResults = duplicateSuggestion.resultsStr
+              ? (JSON.parse(duplicateSuggestion.resultsStr) as {
+                  confidence?: string;
+                  reason?: string;
+                })
+              : null;
+          } catch {
+            // Ignore malformed duplicate suggestion payload
+          }
           suggestedDuplicate = {
             _id: dupThread.id,
             threadName: dupThread.name,
@@ -547,19 +578,26 @@ IMPORTANT: Be proactive with your tools. Do NOT ask for permission before using 
                     }
                   }
 
-                  const uniqueResults = [...threadMap.values()].slice(0, 8);
+                  const uniqueResults = [...threadMap.values()]
+                    .sort((a, b) => b.score - a.score)
+                    .slice(0, 8);
 
                   const enriched = await Promise.all(
                     uniqueResults.map(async (r) => {
                       const [thread, message] = await Promise.all([
-                        db.findOne(schema.thread, r.threadId),
+                        db
+                          .find(schema.thread, {
+                            where: {
+                              id: r.threadId,
+                              organizationId,
+                              deletedAt: null,
+                            },
+                          })
+                          .then((res) => Object.values(res)[0] ?? null),
                         db.findOne(schema.message, r.messageId),
                       ]);
 
-                      if (
-                        !thread ||
-                        thread.organizationId !== organizationId
-                      ) {
+                      if (!thread) {
                         return null;
                       }
 
@@ -613,12 +651,17 @@ IMPORTANT: Be proactive with your tools. Do NOT ask for permission before using 
                   console.log(
                     `[agent-chat] Tool call: getThread threadId="${threadId}"`,
                   );
-                  const thread = await db.findOne(schema.thread, threadId);
+                  const thread = Object.values(
+                    await db.find(schema.thread, {
+                      where: {
+                        id: threadId,
+                        organizationId,
+                        deletedAt: null,
+                      },
+                    }),
+                  )[0];
 
-                  if (
-                    !thread ||
-                    thread.organizationId !== organizationId
-                  ) {
+                  if (!thread) {
                     return { error: "Thread not found or access denied" };
                   }
 
