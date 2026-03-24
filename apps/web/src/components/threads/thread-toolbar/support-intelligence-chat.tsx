@@ -12,6 +12,8 @@ import {
   CheckIcon,
   ChevronRightIcon,
   EyeIcon,
+  FileTextIcon,
+  ListIcon,
   PenLineIcon,
   SearchIcon,
   SendIcon,
@@ -43,6 +45,61 @@ const SetDraftArgsSchema = z.object({
   content: z.string().optional(),
 });
 
+const SearchThreadsArgsSchema = z.object({
+  query: z.string().optional(),
+});
+
+const SearchThreadsResultItemSchema = z.object({
+  _id: z.string(),
+  name: z.string(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  author: z.string().optional(),
+  createdAt: z.string().optional(),
+  matchingMessageSnippet: z.string().optional(),
+});
+
+const GetThreadArgsSchema = z.object({
+  threadId: z.string().optional(),
+});
+
+const GetThreadResultSchema = z.object({
+  _id: z.string().optional(),
+  name: z.string().optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  author: z.string().optional(),
+  assignee: z.string().nullable().optional(),
+  labels: z.array(z.string()).optional(),
+  messageCount: z.number().optional(),
+  messages: z
+    .array(
+      z.object({
+        author: z.string(),
+        content: z.string(),
+        createdAt: z.string(),
+      }),
+    )
+    .optional(),
+  error: z.string().optional(),
+});
+
+const ListThreadsArgsSchema = z.object({
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  limit: z.number().optional(),
+});
+
+const ListThreadsResultItemSchema = z.object({
+  _id: z.string(),
+  name: z.string(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  author: z.string().optional(),
+  assignee: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+});
+
 type SupportIntelligenceChatProps = {
   threadId: string;
   organizationId: string | undefined;
@@ -58,12 +115,18 @@ const toolDisplayNames: Record<string, string> = {
   searchDocumentation: "Searched documentation",
   setDraft: "Drafted a reply",
   getDraft: "Read current draft",
+  searchThreads: "Searched threads",
+  getThread: "Read thread details",
+  listThreads: "Listed threads",
 };
 
 const toolIcons: Record<string, React.ReactNode> = {
   searchDocumentation: <SearchIcon className="size-3.5" />,
   setDraft: <PenLineIcon className="size-3.5" />,
   getDraft: <EyeIcon className="size-3.5" />,
+  searchThreads: <SearchIcon className="size-3.5" />,
+  getThread: <FileTextIcon className="size-3.5" />,
+  listThreads: <ListIcon className="size-3.5" />,
 };
 
 const renderGenericToolPayload = (label: string, payload: unknown) => {
@@ -174,6 +237,156 @@ const renderGetDraftPayload = (toolCall: ToolCall) => {
   );
 };
 
+const renderSearchThreadsPayload = (toolCall: ToolCall) => {
+  const args = SearchThreadsArgsSchema.safeParse(toolCall.args);
+  const results = z
+    .array(SearchThreadsResultItemSchema)
+    .safeParse(toolCall.result);
+
+  return (
+    <div className="space-y-2 font-sans text-xs leading-5">
+      <div>
+        <span className="font-semibold">Query: </span>
+        <span>
+          {args.success && args.data.query?.trim()
+            ? args.data.query
+            : "No query provided"}
+        </span>
+      </div>
+
+      {toolCall.status === "complete" ? (
+        <div className="space-y-1">
+          <div className="font-semibold">Results:</div>
+          {results.success && results.data.length > 0 ? (
+            <ul className="list-disc pl-4 space-y-1.5">
+              {results.data.map((thread, index) => (
+                <li key={`${thread._id}-${index}`}>
+                  <div className="text-foreground">{thread.name}</div>
+                  <div className="text-foreground-secondary">
+                    {[thread.status, thread.priority, thread.author]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                  {thread.matchingMessageSnippet && (
+                    <div className="text-foreground-secondary line-clamp-2 mt-0.5">
+                      {thread.matchingMessageSnippet}
+                    </div>
+                  )}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-foreground-secondary">No threads found.</div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
+const renderGetThreadPayload = (toolCall: ToolCall) => {
+  const args = GetThreadArgsSchema.safeParse(toolCall.args);
+  const result = GetThreadResultSchema.safeParse(toolCall.result);
+
+  if (toolCall.status !== "complete") {
+    return (
+      <div className="font-sans text-xs leading-5 text-foreground-secondary">
+        Loading thread
+        {args.success && args.data.threadId
+          ? ` ${args.data.threadId.slice(0, 8)}...`
+          : ""}
+      </div>
+    );
+  }
+
+  if (!result.success) return renderGenericToolPayload("Result", toolCall.result);
+
+  if (result.data.error) {
+    return (
+      <div className="font-sans text-xs leading-5 text-foreground-secondary">
+        {result.data.error}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-2 font-sans text-xs leading-5">
+      <div>
+        <span className="font-semibold">{result.data.name}</span>
+      </div>
+      <div className="text-foreground-secondary">
+        {[
+          result.data.status,
+          result.data.priority,
+          result.data.author,
+          result.data.assignee ? `Assigned: ${result.data.assignee}` : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </div>
+      {result.data.labels && result.data.labels.length > 0 && (
+        <div className="text-foreground-secondary">
+          Labels: {result.data.labels.join(", ")}
+        </div>
+      )}
+      {result.data.messageCount != null && (
+        <div className="text-foreground-secondary">
+          {result.data.messageCount} message
+          {result.data.messageCount !== 1 ? "s" : ""}
+        </div>
+      )}
+    </div>
+  );
+};
+
+const renderListThreadsPayload = (toolCall: ToolCall) => {
+  const args = ListThreadsArgsSchema.safeParse(toolCall.args);
+  const results = z
+    .array(ListThreadsResultItemSchema)
+    .safeParse(toolCall.result);
+
+  const filters = [args.success && args.data.status, args.success && args.data.priority].filter(
+    Boolean,
+  );
+
+  return (
+    <div className="space-y-2 font-sans text-xs leading-5">
+      {filters.length > 0 && (
+        <div>
+          <span className="font-semibold">Filters: </span>
+          <span>{filters.join(", ")}</span>
+        </div>
+      )}
+
+      {toolCall.status === "complete" ? (
+        <div className="space-y-1">
+          {results.success && results.data.length > 0 ? (
+            <ul className="list-disc pl-4 space-y-1.5">
+              {results.data.map((thread, index) => (
+                <li key={`${thread._id}-${index}`}>
+                  <div className="text-foreground">{thread.name}</div>
+                  <div className="text-foreground-secondary">
+                    {[
+                      thread.status,
+                      thread.priority,
+                      thread.author,
+                      thread.assignee ? `→ ${thread.assignee}` : null,
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-foreground-secondary">No threads found.</div>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 const renderToolCallPayload = (toolCall: ToolCall) => {
   switch (toolCall.name) {
     case "searchDocumentation": {
@@ -184,6 +397,15 @@ const renderToolCallPayload = (toolCall: ToolCall) => {
     }
     case "getDraft": {
       return renderGetDraftPayload(toolCall);
+    }
+    case "searchThreads": {
+      return renderSearchThreadsPayload(toolCall);
+    }
+    case "getThread": {
+      return renderGetThreadPayload(toolCall);
+    }
+    case "listThreads": {
+      return renderListThreadsPayload(toolCall);
     }
     default: {
       return (
