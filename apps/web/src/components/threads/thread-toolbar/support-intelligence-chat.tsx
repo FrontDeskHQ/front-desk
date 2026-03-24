@@ -22,6 +22,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { mutate, query } from "~/lib/live-state";
+import { AgentMessageContent } from "./agent-message-content";
 
 type ToolCall = {
   name: string;
@@ -526,9 +527,12 @@ function MessageGroup({
             {toolCalls.map((tc, i) => (
               <ToolCallBlock key={`${msg.id}-tc-${i}`} toolCall={tc} />
             ))}
-            {msg.content && (
-              <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
-            )}
+            {msg.content &&
+              (isAssistant ? (
+                <AgentMessageContent content={msg.content} />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+              ))}
           </div>
         );
       })}
