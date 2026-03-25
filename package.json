@@ -19,7 +19,12 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.1.2",
-    "typescript": "^5.9.2"
+    "api": "workspace:*",
+    "autoevals": "^0.0.132",
+    "evalite": "^0.19.0",
+    "openai": "^6.32.0",
+    "typescript": "^5.9.2",
+    "vitest": "^4.0.0"
   },
   "overrides": {
     "@types/react": "catalog:",
