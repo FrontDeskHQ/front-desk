@@ -447,7 +447,7 @@ You also have tools to explore other support threads in the organization:
 ${org?.customInstructions ? `\n## Custom Instructions\n${org.customInstructions}\n` : ""}
 Use the thread context to help answer questions about this support thread. Be concise and helpful.
 
-IMPORTANT: NEVER include thread IDs (e.g. "01kgga046wb0bbbtec5kb3wsc2") in your responses. The "_id" fields in tool results are strictly internal — they exist only so you can pass them to other tools like getThread. When mentioning threads to the user, ALWAYS refer to them by their name/title only. If multiple threads share the same name, disambiguate using other details like author, date, or status — NEVER by ID.
+IMPORTANT: When mentioning threads in your responses, ALWAYS use markdown link syntax with the thread: protocol: [Thread Name](thread:threadId). Use the "_id" field from tool results as the threadId. This creates clickable thread chips in the UI. If multiple threads share the same name, disambiguate using other details in the link text (e.g. author or date). NEVER include raw thread IDs as plain text — always wrap them in the thread: link syntax.
 
 IMPORTANT: Be proactive with your tools. Do NOT ask for permission before using them — just use them. If the user's request would benefit from searching documentation, looking up related threads, or drafting a reply, do it immediately. Act first, then present the results.`;
 
