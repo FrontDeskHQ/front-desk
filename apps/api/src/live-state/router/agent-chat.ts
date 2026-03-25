@@ -1,26 +1,20 @@
 import { google } from "@ai-sdk/google";
 import { parse } from "@workspace/utils/md-tiptap";
+import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { stepCountIs, streamText } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
-import {
-  jsonContentToPlainText,
-  safeParseJSON,
-} from "@workspace/utils/tiptap";
-import {
-  searchDocumentation,
-  searchMessages,
-} from "../../lib/search/qdrant";
+import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import {
+  type AgentChatToolImplementations,
   buildAgentChatTools,
   buildSystemPrompt,
   formatSuggestionsContext,
   formatThreadMetadata,
-  STATUS_LABELS,
   PRIORITY_LABELS,
-  type AgentChatToolImplementations,
+  STATUS_LABELS,
 } from "./agent-chat-core";
 
 export const agentChatRoute = privateRoute
@@ -199,7 +193,9 @@ export const agentChatRoute = privateRoute
           return label?.enabled ? label.name : null;
         }),
       );
-      labelNames.push(...labelResults.filter((name): name is string => name !== null));
+      labelNames.push(
+        ...labelResults.filter((name): name is string => name !== null),
+      );
 
       // Fetch active suggestions for this thread
       const allSuggestions = Object.values(
@@ -270,35 +266,35 @@ export const agentChatRoute = privateRoute
       } | null = null;
       if (statusSuggestion?.resultsStr) {
         try {
-        const statusResult = JSON.parse(statusSuggestion.resultsStr) as {
-          suggestedStatus?: number;
-        };
-        let meta: { confidence?: number; reasoning?: string } | null = null;
-        try {
-          meta = statusSuggestion.metadataStr
-            ? (JSON.parse(statusSuggestion.metadataStr) as {
-                confidence?: number;
-                reasoning?: string;
-              })
-            : null;
-        } catch {
-          // Ignore malformed metadata
-        }
-        const statusNum = statusResult.suggestedStatus;
-        if (statusNum !== undefined) {
-          const statusMap: Record<number, string> = {
-            0: "Open",
-            1: "In Progress",
-            2: "Resolved",
-            3: "Closed",
-            4: "Duplicated",
+          const statusResult = JSON.parse(statusSuggestion.resultsStr) as {
+            suggestedStatus?: number;
           };
-          suggestedStatus = {
-            status: statusMap[statusNum] ?? "Unknown",
-            confidence: meta?.confidence ?? null,
-            reasoning: meta?.reasoning ?? null,
-          };
-        }
+          let meta: { confidence?: number; reasoning?: string } | null = null;
+          try {
+            meta = statusSuggestion.metadataStr
+              ? (JSON.parse(statusSuggestion.metadataStr) as {
+                  confidence?: number;
+                  reasoning?: string;
+                })
+              : null;
+          } catch {
+            // Ignore malformed metadata
+          }
+          const statusNum = statusResult.suggestedStatus;
+          if (statusNum !== undefined) {
+            const statusMap: Record<number, string> = {
+              0: "Open",
+              1: "In Progress",
+              2: "Resolved",
+              3: "Closed",
+              4: "Duplicated",
+            };
+            suggestedStatus = {
+              status: statusMap[statusNum] ?? "Unknown",
+              confidence: meta?.confidence ?? null,
+              reasoning: meta?.reasoning ?? null,
+            };
+          }
         } catch {
           // Ignore malformed status suggestion payload
         }
@@ -372,8 +368,12 @@ export const agentChatRoute = privateRoute
 
       const threadMetadata = formatThreadMetadata({
         name: thread?.name ?? "Unknown thread",
-        author: thread?.authorId ? (authors.get(thread.authorId) ?? "Unknown") : "Unknown",
-        createdAt: thread?.createdAt ? new Date(thread.createdAt).toISOString() : "Unknown",
+        author: thread?.authorId
+          ? (authors.get(thread.authorId) ?? "Unknown")
+          : "Unknown",
+        createdAt: thread?.createdAt
+          ? new Date(thread.createdAt).toISOString()
+          : "Unknown",
         status: statusLabels[thread?.status ?? 0] ?? "Unknown",
         priority: priorityLabels[thread?.priority ?? 0] ?? "None",
         assignee: assigneeName,
@@ -382,14 +382,19 @@ export const agentChatRoute = privateRoute
       });
 
       const suggestionsContext = formatSuggestionsContext({
-        relatedThreads: relatedThreadsContext.length > 0 ? relatedThreadsContext : undefined,
+        relatedThreads:
+          relatedThreadsContext.length > 0 ? relatedThreadsContext : undefined,
         suggestedDuplicate,
         suggestedStatus,
-        suggestedLabels: suggestedLabelNames.length > 0 ? suggestedLabelNames : undefined,
+        suggestedLabels:
+          suggestedLabelNames.length > 0 ? suggestedLabelNames : undefined,
       });
 
       // Fetch organization for custom instructions
-      const org = await db.findOne(schema.organization, agentChat.organizationId);
+      const org = await db.findOne(
+        schema.organization,
+        agentChat.organizationId,
+      );
 
       const systemPrompt = buildSystemPrompt({
         threadMetadata,
@@ -397,8 +402,6 @@ export const agentChatRoute = privateRoute
         suggestionsContext,
         customInstructions: org?.customInstructions,
       });
-
-      console.log(systemPrompt);
 
       // Stream in background — don't await, let the mutation return immediately
       // so the client sees the user message + empty assistant message right away.
@@ -445,10 +448,7 @@ export const agentChatRoute = privateRoute
                 schema.agentChat,
                 agentChat.id,
               );
-              if (
-                currentChat?.draft &&
-                currentChat.draftStatus === "active"
-              ) {
+              if (currentChat?.draft && currentChat.draftStatus === "active") {
                 return { hasDraft: true, content: currentChat.draft };
               }
               return { hasDraft: false, content: null };
@@ -526,10 +526,8 @@ export const agentChatRoute = privateRoute
                   return {
                     _id: r.threadId,
                     name: thread.name,
-                    status:
-                      statusLabels[thread.status ?? 0] ?? "Unknown",
-                    priority:
-                      priorityLabels[thread.priority ?? 0] ?? "None",
+                    status: statusLabels[thread.status ?? 0] ?? "Unknown",
+                    priority: priorityLabels[thread.priority ?? 0] ?? "None",
                     author: author?.name ?? "Unknown",
                     createdAt: thread.createdAt
                       ? new Date(thread.createdAt).toISOString()
@@ -610,23 +608,16 @@ export const agentChatRoute = privateRoute
               const threadLabelNames: string[] = [];
               const labelResults = await Promise.all(
                 threadLabelsData.map(async (tl) => {
-                  const label = await db.findOne(
-                    schema.label,
-                    tl.labelId,
-                  );
+                  const label = await db.findOne(schema.label, tl.labelId);
                   return label?.enabled ? label.name : null;
                 }),
               );
               threadLabelNames.push(
-                ...labelResults.filter(
-                  (name): name is string => name !== null,
-                ),
+                ...labelResults.filter((name): name is string => name !== null),
               );
 
               const formattedMessages = messages.map((m) => {
-                let content = jsonContentToPlainText(
-                  safeParseJSON(m.content),
-                );
+                let content = jsonContentToPlainText(safeParseJSON(m.content));
                 if (content.length > 1000) {
                   content = `${content.slice(0, 1000)}...`;
                 }
@@ -640,12 +631,9 @@ export const agentChatRoute = privateRoute
               return {
                 _id: threadId,
                 name: thread.name,
-                status:
-                  statusLabels[thread.status ?? 0] ?? "Unknown",
-                priority:
-                  priorityLabels[thread.priority ?? 0] ?? "None",
-                author:
-                  authorsMap.get(thread.authorId ?? "") ?? "Unknown",
+                status: statusLabels[thread.status ?? 0] ?? "Unknown",
+                priority: priorityLabels[thread.priority ?? 0] ?? "None",
+                author: authorsMap.get(thread.authorId ?? "") ?? "Unknown",
                 assignee: threadAssignee,
                 labels: threadLabelNames,
                 createdAt: thread.createdAt
@@ -661,11 +649,7 @@ export const agentChatRoute = privateRoute
                 messages: formattedMessages,
               };
             },
-            listThreads: async ({
-              status,
-              priority,
-              limit = 10,
-            }) => {
+            listThreads: async ({ status, priority, limit = 10 }) => {
               console.log(
                 `[agent-chat] Tool call: listThreads status=${status} priority=${priority} limit=${limit}`,
               );
@@ -719,9 +703,7 @@ export const agentChatRoute = privateRoute
                     externalOrigin: string | null;
                   }) => {
                     const [author, assignee] = await Promise.all([
-                      t.authorId
-                        ? db.findOne(schema.author, t.authorId)
-                        : null,
+                      t.authorId ? db.findOne(schema.author, t.authorId) : null,
                       t.assignedUserId
                         ? db.findOne(schema.user, t.assignedUserId)
                         : null,
@@ -730,15 +712,11 @@ export const agentChatRoute = privateRoute
                     return {
                       _id: t.id,
                       name: t.name,
-                      status:
-                        statusLabels[t.status ?? 0] ?? "Unknown",
-                      priority:
-                        priorityLabels[t.priority ?? 0] ?? "None",
+                      status: statusLabels[t.status ?? 0] ?? "Unknown",
+                      priority: priorityLabels[t.priority ?? 0] ?? "None",
                       author: author?.name ?? "Unknown",
                       assignee: assignee?.name ?? null,
-                      createdAt: new Date(
-                        t.createdAt,
-                      ).toISOString(),
+                      createdAt: new Date(t.createdAt).toISOString(),
                       externalOrigin: t.externalOrigin ?? null,
                     };
                   },
@@ -793,9 +771,7 @@ export const agentChatRoute = privateRoute
                 toolCalls: JSON.stringify(toolCallsArr),
               });
             } else if (part.type === "tool-result") {
-              console.log(
-                `[agent-chat] Tool result for: ${part.toolName}`,
-              );
+              console.log(`[agent-chat] Tool result for: ${part.toolName}`);
               const idx = toolCallsArr.findIndex(
                 (tc) => tc.name === part.toolName && tc.status === "calling",
               );
@@ -880,10 +856,7 @@ export const agentChatRoute = privateRoute
       let authorId = existingAuthor?.id;
 
       if (!authorId) {
-        const user = await db.findOne(
-          schema.user,
-          req.context.session.userId,
-        );
+        const user = await db.findOne(schema.user, req.context.session.userId);
         authorId = ulid().toLowerCase();
         await db.insert(schema.author, {
           id: authorId,
@@ -901,10 +874,7 @@ export const agentChatRoute = privateRoute
           schema.agentChat,
           req.input.chatId,
         );
-        if (
-          !currentChat?.draft ||
-          currentChat.draftStatus !== "active"
-        ) {
+        if (!currentChat?.draft || currentChat.draftStatus !== "active") {
           throw new Error("NO_ACTIVE_DRAFT");
         }
 

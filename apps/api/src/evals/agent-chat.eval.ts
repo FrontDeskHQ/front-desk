@@ -1,4 +1,5 @@
 import { evalite } from "evalite";
+import { reportTrace } from "evalite/traces";
 import "../env";
 import { google } from "@ai-sdk/google";
 import { generateText, stepCountIs } from "ai";
@@ -35,10 +36,34 @@ import {
 import { createMockToolImplementations } from "./agent-chat.fixtures";
 
 // Note: traceAISDKModel requires LanguageModelV2, but @ai-sdk/google exports V3.
-// Using the model directly — tracing can be added once evalite supports V3.
+// Using reportTrace manually to capture LLM call metrics.
 const model = google("gemini-2.0-flash");
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
+
+/** Reports an evalite trace from a generateText result for the UI dashboard. */
+// biome-ignore lint/suspicious/noExplicitAny: AI SDK result type varies with tool generics
+function traceResult(
+  result: any,
+  start: number,
+  systemPrompt: string,
+  userMessage: string,
+) {
+  reportTrace({
+    start,
+    end: Date.now(),
+    input: [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: userMessage },
+    ],
+    output: result.text || "(tool calls only)",
+    usage: {
+      inputTokens: result.totalUsage.inputTokens ?? 0,
+      outputTokens: result.totalUsage.outputTokens ?? 0,
+      totalTokens: result.totalUsage.totalTokens ?? 0,
+    },
+  });
+}
 
 function buildPromptFromThread(
   thread: {
@@ -98,6 +123,7 @@ evalite("Agent Chat — Tool Selection", {
       createMockToolImplementations(input.toolOverrides),
     );
 
+    const start = Date.now();
     const result = await generateText({
       model,
       system: systemPrompt,
@@ -105,6 +131,7 @@ evalite("Agent Chat — Tool Selection", {
       tools,
       stopWhen: stepCountIs(5),
     });
+    traceResult(result, start, systemPrompt, input.userMessage);
 
     return extractToolNames(result.steps);
   },
@@ -124,6 +151,7 @@ evalite("Agent Chat — Proactive Tool Usage", {
       createMockToolImplementations(input.toolOverrides),
     );
 
+    const start = Date.now();
     const result = await generateText({
       model,
       system: systemPrompt,
@@ -131,6 +159,7 @@ evalite("Agent Chat — Proactive Tool Usage", {
       tools,
       stopWhen: stepCountIs(5),
     });
+    traceResult(result, start, systemPrompt, input.userMessage);
 
     return extractToolNames(result.steps);
   },
@@ -155,13 +184,15 @@ evalite("Agent Chat — Draft Quality", {
       }),
     );
 
-    await generateText({
+    const start = Date.now();
+    const result = await generateText({
       model,
       system: systemPrompt,
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(5),
     });
+    traceResult(result, start, systemPrompt, input.userMessage);
 
     return capturedDraft || "(no draft was created)";
   },
@@ -178,6 +209,7 @@ evalite("Agent Chat — Thread References", {
       createMockToolImplementations(input.toolOverrides),
     );
 
+    const start = Date.now();
     const result = await generateText({
       model,
       system: systemPrompt,
@@ -185,6 +217,7 @@ evalite("Agent Chat — Thread References", {
       tools,
       stopWhen: stepCountIs(5),
     });
+    traceResult(result, start, systemPrompt, input.userMessage);
 
     return result.text;
   },
