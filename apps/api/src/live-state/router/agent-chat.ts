@@ -731,11 +731,11 @@ export const agentChatRoute = privateRoute
           };
 
           const result = streamText({
-            model: google("gemini-2.0-flash"),
+            model: google("gemini-3-flash-preview"),
             system: systemPrompt,
             messages: conversationHistory,
             tools: buildAgentChatTools(toolImplementations),
-            stopWhen: stepCountIs(5),
+            stopWhen: stepCountIs(12),
           });
 
           console.log("[agent-chat] streamText() called, awaiting chunks...");
