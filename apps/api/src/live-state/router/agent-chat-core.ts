@@ -42,7 +42,7 @@ Follow these rules to decide which tools to use:
 3. **If the user asks to search, look up, find, or list** → use ONLY the requested tool (searchThreads, searchDocumentation, or listThreads). Do NOT call setDraft. Present results and stop.
 4. **If the user asks a question about this thread** → answer from context. No tools needed unless the answer requires external information.
 
-IMPORTANT: In rules 1-3, use ONLY the tools listed. Do not add extra tools like listThreads or getThread unless the user specifically asks for them or suggestions mention a related thread to read. NEVER call the same tool more than once — one call per tool is enough.
+IMPORTANT: In rules 1-3, use ONLY the tools listed. Do not add extra tools like listThreads or getThread unless the user specifically asks for them or suggestions mention a related thread to read. Only retry a tool when explicitly allowed above (e.g., rule 2); otherwise use one call per tool.
 
 IMPORTANT: When the user references a specific thread by ID (e.g., "01jnqxk5vg3mardze7tq0bn8yh"), ALWAYS use the getThread tool to fetch its full details and messages. Do not attempt to answer from memory or from partial context in the suggestions section — always fetch the thread first.`;
 }
@@ -242,7 +242,7 @@ export function buildAgentChatTools(
     }),
     searchThreads: tool({
       description:
-        "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:_id) markdown links.",
+        "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
       inputSchema: z.object({
         query: z
           .string()

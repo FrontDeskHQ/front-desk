@@ -300,8 +300,9 @@ const renderGetThreadPayload = (toolCall: ToolCall) => {
     );
   }
 
-  if (!result.success)
+  if (!result.success) {
     return renderGenericToolPayload("Result", toolCall.result);
+  }
 
   if (result.data.error) {
     return (
