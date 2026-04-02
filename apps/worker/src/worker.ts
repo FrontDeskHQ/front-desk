@@ -1,14 +1,17 @@
 import { type Job, Worker } from "bullmq";
 import Redis from "ioredis";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
+import { handleEmbedPr } from "./handlers/embed-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
+import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
 import { ensureThreadsCollection } from "./lib/qdrant/threads";
 import { executePipeline } from "./pipeline/core/orchestrator";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
 const INGEST_THREAD_QUEUE = "ingest-thread";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
+const EMBED_PR_QUEUE = "embed-pr";
 
 interface IngestThreadJobData {
   threadIds: string[];
@@ -150,6 +153,39 @@ const crawlDocWorker = new Worker(
   },
 );
 
+// Create embed-pr worker
+const embedPrWorker = new Worker(
+  EMBED_PR_QUEUE,
+  handleEmbedPr,
+  {
+    connection,
+    concurrency: 2,
+    removeOnComplete: {
+      count: 50,
+      age: 24 * 3600,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  },
+);
+
+embedPrWorker.on("completed", (job) => {
+  console.log(`✅ Embed-pr job ${job.id} has been completed`);
+});
+
+embedPrWorker.on("failed", (job, err) => {
+  console.error(
+    `❌ Embed-pr job ${job?.id} has failed:`,
+    err.message,
+  );
+  console.error(err);
+});
+
+embedPrWorker.on("error", (err) => {
+  console.error("Embed-pr worker error:", err);
+});
+
 crawlDocWorker.on("completed", (job) => {
   console.log(`✅ Crawl-documentation job ${job.id} has been completed`);
 });
@@ -175,12 +211,13 @@ const initialize = async () => {
   console.log("✅ Processors registered");
 
   // Ensure Qdrant collections exist
-  const [threadsReady, messagesReady, documentationReady] = await Promise.all([
+  const [threadsReady, messagesReady, documentationReady, prsReady] = await Promise.all([
     ensureThreadsCollection(),
     ensureMessagesCollection(),
     ensureDocumentationCollection(),
+    ensurePrsCollection(),
   ]);
-  if (!threadsReady || !messagesReady || !documentationReady) {
+  if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
     console.warn(
       "⚠️ Qdrant collection initialization failed - continuing anyway",
     );
@@ -194,7 +231,7 @@ const initialize = async () => {
 // Graceful shutdown
 const handleShutdown = async () => {
   console.log("\nShutting down workers...");
-  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close()]);
+  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close()]);
   await connection.quit();
   console.log("Workers shut down successfully");
   process.exit(0);

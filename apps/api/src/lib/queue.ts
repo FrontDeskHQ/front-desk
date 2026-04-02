@@ -145,3 +145,56 @@ export const enqueueCrawlDocumentation = async (
 
   return job.id ?? null;
 };
+
+// Embed PR Queue
+
+const EMBED_PR_QUEUE = "embed-pr";
+
+export type EmbedPrJobData = {
+  prNumber: number;
+  owner: string;
+  repo: string;
+  prUrl: string;
+  prTitle: string;
+  prBody: string;
+  commitMessages: string[];
+  organizationId: string;
+  mergedAt: string;
+};
+
+let embedPrQueue: Queue<EmbedPrJobData> | null = null;
+
+const getEmbedPrQueue = (): Queue<EmbedPrJobData> | null => {
+  if (embedPrQueue) {
+    return embedPrQueue;
+  }
+
+  connection ??= createRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  embedPrQueue = new Queue<EmbedPrJobData>(EMBED_PR_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+    },
+  });
+  return embedPrQueue;
+};
+
+export const enqueueEmbedPrJob = async (
+  data: EmbedPrJobData,
+): Promise<string | null> => {
+  const queue = getEmbedPrQueue();
+  if (!queue) {
+    return null;
+  }
+
+  const job = await queue.add("embed-pr", data, {
+    jobId: `embed-pr-${data.owner}/${data.repo}#${data.prNumber}`,
+  });
+
+  return job.id ?? null;
+};
