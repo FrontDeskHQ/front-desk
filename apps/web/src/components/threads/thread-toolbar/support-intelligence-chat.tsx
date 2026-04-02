@@ -300,7 +300,9 @@ const renderGetThreadPayload = (toolCall: ToolCall) => {
     );
   }
 
-  if (!result.success) return renderGenericToolPayload("Result", toolCall.result);
+  if (!result.success) {
+    return renderGenericToolPayload("Result", toolCall.result);
+  }
 
   if (result.data.error) {
     return (
@@ -346,9 +348,10 @@ const renderListThreadsPayload = (toolCall: ToolCall) => {
     .array(ListThreadsResultItemSchema)
     .safeParse(toolCall.result);
 
-  const filters = [args.success && args.data.status, args.success && args.data.priority].filter(
-    Boolean,
-  );
+  const filters = [
+    args.success && args.data.status,
+    args.success && args.data.priority,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-2 font-sans text-xs leading-5">

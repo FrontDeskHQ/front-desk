@@ -208,7 +208,7 @@ const DEFAULT_BILLING_DOC_RESULTS: SearchDocumentationResult[] = [
 
 const DEFAULT_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
   {
-    _id: "thread-similar-001",
+    _id: "01jnqxk5vg3mardze7tq0bn8yh",
     name: "Password reset link expired immediately",
     status: "Resolved",
     priority: "Medium",
@@ -219,7 +219,7 @@ const DEFAULT_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
     score: 0.87,
   },
   {
-    _id: "thread-similar-002",
+    _id: "01jnqxk8rp4bfcw2ax9d6e3tyn",
     name: "Cannot log in after password change",
     status: "Resolved",
     priority: "High",
@@ -233,7 +233,7 @@ const DEFAULT_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
 
 const DEFAULT_BUG_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
   {
-    _id: "thread-bug-001",
+    _id: "01jnqxkbm7wstrjp5qnv0fhxkd",
     name: "Search showing cross-workspace data",
     status: "In Progress",
     priority: "Urgent",
@@ -244,7 +244,7 @@ const DEFAULT_BUG_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
     score: 0.92,
   },
   {
-    _id: "thread-bug-002",
+    _id: "01jnqxkdqz6yanwe8cr2g4mvpf",
     name: "Data leaking between workspaces in search",
     status: "Open",
     priority: "High",
@@ -256,9 +256,34 @@ const DEFAULT_BUG_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
   },
 ];
 
+const DEFAULT_UPLOAD_BUG_THREAD_SEARCH_RESULTS: SearchThreadsResult[] = [
+  {
+    _id: "01jnqxkrvw4ghmnp2bqt8fxdya",
+    name: "File upload fails with large attachments",
+    status: "Resolved",
+    priority: "High",
+    author: "Tom Baker",
+    createdAt: "2026-03-18T10:00:00Z",
+    matchingMessageSnippet:
+      "Uploading files over 50MB causes the app to crash with a stack overflow. The chunked upload fix in v2.3.2 resolved it.",
+    score: 0.91,
+  },
+  {
+    _id: "01jnqxktwx5jknqr3csu9gyezb",
+    name: "App freezes during large CSV import",
+    status: "In Progress",
+    priority: "Medium",
+    author: "Rachel Kim",
+    createdAt: "2026-03-21T15:30:00Z",
+    matchingMessageSnippet:
+      "Importing CSV files larger than 40MB causes the browser tab to become unresponsive. Same RangeError in console.",
+    score: 0.78,
+  },
+];
+
 const DEFAULT_LIST_THREADS_RESULTS: ListThreadsResult[] = [
   {
-    _id: "thread-010",
+    _id: "01jnqxkgth9xbpej3kmn7csqra",
     name: "App crashes on iOS 18",
     status: "Open",
     priority: "Urgent",
@@ -268,7 +293,7 @@ const DEFAULT_LIST_THREADS_RESULTS: ListThreadsResult[] = [
     externalOrigin: null,
   },
   {
-    _id: "thread-011",
+    _id: "01jnqxkjwv2ydqfk4lnp8dtrsc",
     name: "Billing discrepancy for Enterprise plan",
     status: "Open",
     priority: "High",
@@ -278,7 +303,7 @@ const DEFAULT_LIST_THREADS_RESULTS: ListThreadsResult[] = [
     externalOrigin: null,
   },
   {
-    _id: "thread-012",
+    _id: "01jnqxkmzy5zergl5mpq9evstd",
     name: "Feature request: API rate limit dashboard",
     status: "Open",
     priority: "Low",
@@ -290,7 +315,7 @@ const DEFAULT_LIST_THREADS_RESULTS: ListThreadsResult[] = [
 ];
 
 const DEFAULT_GET_THREAD_RESULT: GetThreadResult = {
-  _id: "thread-similar-001",
+  _id: "01jnqxk5vg3mardze7tq0bn8yh",
   name: "Password reset link expired immediately",
   status: "Resolved",
   priority: "Medium",
@@ -329,7 +354,7 @@ const DEFAULT_GET_THREAD_RESULT: GetThreadResult = {
 };
 
 const DUPLICATE_GET_THREAD_RESULT: GetThreadResult = {
-  _id: "thread-dup-001",
+  _id: "01jnqxkq2b8afshm6nqr0fwuve",
   name: "Login page blank after deployment",
   status: "In Progress",
   priority: "Urgent",
@@ -381,6 +406,7 @@ export {
   DEFAULT_BILLING_DOC_RESULTS,
   DEFAULT_THREAD_SEARCH_RESULTS,
   DEFAULT_BUG_THREAD_SEARCH_RESULTS,
+  DEFAULT_UPLOAD_BUG_THREAD_SEARCH_RESULTS,
   DEFAULT_LIST_THREADS_RESULTS,
   DEFAULT_GET_THREAD_RESULT,
   DUPLICATE_GET_THREAD_RESULT,
