@@ -221,12 +221,10 @@ const initialize = async () => {
     ensurePrsCollection(),
   ]);
   if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
-    console.warn(
-      "⚠️ Qdrant collection initialization failed - continuing anyway",
-    );
-  } else {
-    console.log("✅ Qdrant collections ready");
+    throw new Error("Qdrant collections are not ready; refusing to start workers");
   }
+
+  console.log("✅ Qdrant collections ready");
 
   // Start workers now that collections are ready
   ingestThreadWorker.run();
