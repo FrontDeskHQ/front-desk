@@ -105,12 +105,13 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
   };
 };
 
-// Create workers for each queue
+// Create workers for each queue (autorun: false — started after collections are ready)
 const ingestThreadWorker = new Worker<IngestThreadJobData>(
   INGEST_THREAD_QUEUE,
   handleIngestThreadJob,
   {
     connection,
+    autorun: false,
     concurrency: 3, // Process up to 3 batches concurrently
     removeOnComplete: {
       count: 100,
@@ -142,6 +143,7 @@ const crawlDocWorker = new Worker(
   handleCrawlDocumentation,
   {
     connection,
+    autorun: false,
     concurrency: 2,
     removeOnComplete: {
       count: 50,
@@ -159,6 +161,7 @@ const embedPrWorker = new Worker(
   handleEmbedPr,
   {
     connection,
+    autorun: false,
     concurrency: 2,
     removeOnComplete: {
       count: 50,
@@ -224,6 +227,11 @@ const initialize = async () => {
   } else {
     console.log("✅ Qdrant collections ready");
   }
+
+  // Start workers now that collections are ready
+  ingestThreadWorker.run();
+  crawlDocWorker.run();
+  embedPrWorker.run();
 
   console.log("\nListening for jobs...");
 };

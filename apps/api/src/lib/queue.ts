@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import Redis from "ioredis";
+import { z } from "zod";
 import "../env";
 
 const INGEST_THREAD_QUEUE = "ingest-thread";
@@ -150,17 +151,19 @@ export const enqueueCrawlDocumentation = async (
 
 const EMBED_PR_QUEUE = "embed-pr";
 
-export type EmbedPrJobData = {
-  prNumber: number;
-  owner: string;
-  repo: string;
-  prUrl: string;
-  prTitle: string;
-  prBody: string;
-  commitMessages: string[];
-  organizationId: string;
-  mergedAt: string;
-};
+export const embedPrJobDataSchema = z.object({
+  prNumber: z.number(),
+  owner: z.string(),
+  repo: z.string(),
+  prUrl: z.string(),
+  prTitle: z.string(),
+  prBody: z.string(),
+  commitMessages: z.array(z.string()),
+  organizationId: z.string(),
+  mergedAt: z.string(),
+});
+
+export type EmbedPrJobData = z.infer<typeof embedPrJobDataSchema>;
 
 let embedPrQueue: Queue<EmbedPrJobData> | null = null;
 
@@ -192,8 +195,9 @@ export const enqueueEmbedPrJob = async (
     return null;
   }
 
-  const job = await queue.add("embed-pr", data, {
-    jobId: `embed-pr-${data.owner}/${data.repo}#${data.prNumber}`,
+  const payload = embedPrJobDataSchema.parse(data);
+  const job = await queue.add("embed-pr", payload, {
+    jobId: `embed-pr-${data.organizationId}:${data.owner}/${data.repo}#${data.prNumber}`,
   });
 
   return job.id ?? null;

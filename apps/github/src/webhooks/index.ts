@@ -141,6 +141,10 @@ export const setupWebhooks = () => {
                 mergedAt: pr.merged_at ?? new Date().toISOString(),
               });
 
+              if (!jobId) {
+                throw new Error("enqueueEmbedPrJob returned null — queue unavailable");
+              }
+
               console.log(
                 `[GitHub] Enqueued embed-pr job ${jobId} for ${repoFullName}#${prNumber}`,
               );

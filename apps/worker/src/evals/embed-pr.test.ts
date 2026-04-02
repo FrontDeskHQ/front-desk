@@ -370,7 +370,7 @@ const main = async (): Promise<void> => {
   console.log("-".repeat(72));
   for (const r of results) {
     const bar = "█".repeat(Math.round(r.confidence * 20)).padEnd(20, "░");
-    const icon = r.passed ? "✅" : "���";
+    const icon = r.passed ? "✅" : "❌";
     console.log(
       `  ${icon} ${r.confidence.toFixed(2)} ${bar}  ${r.name}`,
     );

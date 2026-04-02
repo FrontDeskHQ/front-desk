@@ -97,6 +97,7 @@ export const upsertPrVector = async (
 };
 
 export const deletePrVectors = async (
+  organizationId: string,
   prNumber: number,
   owner: string,
   repo: string,
@@ -106,6 +107,7 @@ export const deletePrVectors = async (
       wait: true,
       filter: {
         must: [
+          { key: "organizationId", match: { value: organizationId } },
           { key: "prNumber", match: { value: prNumber } },
           { key: "owner", match: { value: owner } },
           { key: "repo", match: { value: repo } },

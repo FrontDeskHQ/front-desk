@@ -297,7 +297,7 @@ export const handleEmbedPr = async (job: Job<EmbedPrJobData>) => {
   };
 
   const pointId = deterministicPointId(
-    `pr:${data.owner}/${data.repo}#${data.prNumber}`,
+    `pr:${data.organizationId}:${data.owner}/${data.repo}#${data.prNumber}`,
   );
 
   const stored = await upsertPrVector(pointId, embedding, payload);
