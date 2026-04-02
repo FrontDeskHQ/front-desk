@@ -21,6 +21,11 @@
     },
     "./plugins/subdomain-oauth": {
       "types": "./src/lib/plugins/subdomain-oauth.ts"
+    },
+    "./queue": {
+      "types": "./src/lib/queue.ts",
+      "import": "./dist/lib/queue.js",
+      "require": "./dist/lib/queue.js"
     }
   },
   "scripts": {

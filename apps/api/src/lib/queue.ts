@@ -1,5 +1,6 @@
 import { Queue } from "bullmq";
 import Redis from "ioredis";
+import { z } from "zod";
 import "../env";
 
 const INGEST_THREAD_QUEUE = "ingest-thread";
@@ -141,6 +142,62 @@ export const enqueueCrawlDocumentation = async (
 
   const job = await queue.add("crawl-documentation", data, {
     jobId: `crawl-${data.documentationSourceId}`,
+  });
+
+  return job.id ?? null;
+};
+
+// Embed PR Queue
+
+const EMBED_PR_QUEUE = "embed-pr";
+
+export const embedPrJobDataSchema = z.object({
+  prNumber: z.number(),
+  owner: z.string(),
+  repo: z.string(),
+  prUrl: z.string(),
+  prTitle: z.string(),
+  prBody: z.string(),
+  commitMessages: z.array(z.string()),
+  organizationId: z.string(),
+  mergedAt: z.string(),
+});
+
+export type EmbedPrJobData = z.infer<typeof embedPrJobDataSchema>;
+
+let embedPrQueue: Queue<EmbedPrJobData> | null = null;
+
+const getEmbedPrQueue = (): Queue<EmbedPrJobData> | null => {
+  if (embedPrQueue) {
+    return embedPrQueue;
+  }
+
+  connection ??= createRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  embedPrQueue = new Queue<EmbedPrJobData>(EMBED_PR_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+    },
+  });
+  return embedPrQueue;
+};
+
+export const enqueueEmbedPrJob = async (
+  data: EmbedPrJobData,
+): Promise<string | null> => {
+  const queue = getEmbedPrQueue();
+  if (!queue) {
+    return null;
+  }
+
+  const payload = embedPrJobDataSchema.parse(data);
+  const job = await queue.add("embed-pr", payload, {
+    jobId: `embed-pr-${data.organizationId}:${data.owner}/${data.repo}#${data.prNumber}`,
   });
 
   return job.id ?? null;
