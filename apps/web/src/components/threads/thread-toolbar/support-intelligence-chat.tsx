@@ -760,15 +760,36 @@ export const SupportIntelligenceChat = ({
     return groups;
   }, [messages]);
 
-  // Auto-scroll on message changes
-  useEffect(() => {
+  // Auto-scroll on message changes or draft visibility
+  const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({
       behavior: isFirstScrollRef.current ? "instant" : "smooth",
     });
     if (isFirstScrollRef.current) {
       isFirstScrollRef.current = false;
     }
-  }, [messages, isFirstScrollRef]);
+  }, []);
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, scrollToBottom]);
+
+  const hasDraft = agentChat?.draftStatus === "active" && agentChat?.draft;
+
+  useEffect(() => {
+    if (!hasDraft) return;
+    // Keep scrolling during the draft expand animation so content stays visible
+    const raf = { id: 0 };
+    const start = performance.now();
+    const tick = () => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "instant" });
+      if (performance.now() - start < 250) {
+        raf.id = requestAnimationFrame(tick);
+      }
+    };
+    raf.id = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf.id);
+  }, [hasDraft]);
 
   // Focus input on mount
   useEffect(() => {
@@ -798,8 +819,6 @@ export const SupportIntelligenceChat = ({
       handleSend();
     }
   };
-
-  const hasDraft = agentChat?.draftStatus === "active" && agentChat?.draft;
 
   const handleAcceptDraft = useCallback(async () => {
     if (!agentChat) return;
