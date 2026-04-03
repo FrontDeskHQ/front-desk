@@ -5,7 +5,6 @@ import {
 } from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import { KeybindIsolation } from "@workspace/ui/components/keybind";
-import { Spinner } from "@workspace/ui/components/spinner";
 import { cn } from "@workspace/ui/lib/utils";
 import { stringify } from "@workspace/utils/tiptap-md";
 import {
@@ -19,6 +18,7 @@ import {
   SendIcon,
   XIcon,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
 import { mutate, query } from "~/lib/live-state";
@@ -30,6 +30,28 @@ type ToolCall = {
   status: "calling" | "complete";
   result?: unknown;
 };
+
+function parseToolCalls(raw: string | null): {
+  calls: ToolCall[];
+  done: boolean;
+} {
+  if (!raw) return { calls: [], done: false };
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return { calls: parsed, done: false };
+    }
+    if (parsed && typeof parsed === "object" && "calls" in parsed) {
+      return {
+        calls: Array.isArray(parsed.calls) ? parsed.calls : [],
+        done: !!parsed.done,
+      };
+    }
+    return { calls: [], done: false };
+  } catch {
+    return { calls: [], done: false };
+  }
+}
 
 const SearchDocumentationArgsSchema = z.object({
   query: z.string().optional(),
@@ -430,7 +452,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCall }) {
   const displayName = toolDisplayNames[toolCall.name] ?? toolCall.name;
 
   return (
-    <div className="my-1.5 first:mt-0">
+    <div>
       <button
         type="button"
         className="inline-flex items-center gap-1.5 text-sm text-foreground-secondary hover:text-foreground transition-colors"
@@ -438,7 +460,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCall }) {
       >
         <span>{displayName}</span>
         {toolCall.status === "calling" ? (
-          <Spinner className="size-3 animate-spin" />
+          <BrailleSpinner className="size-3 text-foreground-secondary" />
         ) : (
           <ChevronRightIcon
             className={cn(
@@ -468,6 +490,21 @@ const thinkingTexts = [
 
 const brailleFrames = ["⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"];
 
+function BrailleSpinner({ className }: { className?: string }) {
+  const [frame, setFrame] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFrame((f) => (f + 1) % brailleFrames.length);
+    }, 80);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <span className={cn("font-mono", className)}>{brailleFrames[frame]}</span>
+  );
+}
+
 function ThinkingIndicator() {
   const [frame, setFrame] = useState(0);
   const [text] = useState(
@@ -482,7 +519,7 @@ function ThinkingIndicator() {
   }, []);
 
   return (
-    <div className="flex items-center gap-1.5 py-1 text-sm text-foreground-secondary">
+    <div className="flex items-center gap-1.5 text-sm text-foreground-secondary">
       <span className="font-mono">{brailleFrames[frame]}</span>
       <span>{text}</span>
     </div>
@@ -492,6 +529,7 @@ function ThinkingIndicator() {
 function MessageGroup({
   role,
   messages,
+  showThinking,
 }: {
   role: string;
   messages: Array<{
@@ -499,34 +537,23 @@ function MessageGroup({
     content: string;
     toolCalls: string | null;
   }>;
+  showThinking?: boolean;
 }) {
   const isAssistant = role === "assistant";
 
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col">
       {messages.map((msg) => {
-        let toolCalls: ToolCall[] = [];
-        if (msg.toolCalls) {
-          try {
-            const parsed = JSON.parse(msg.toolCalls);
-            toolCalls = Array.isArray(parsed) ? parsed : [];
-          } catch {
-            toolCalls = [];
-          }
-        }
-        const isThinking =
-          isAssistant && !msg.content && toolCalls.length === 0;
-
+        const { calls: toolCalls } = parseToolCalls(msg.toolCalls);
         return (
           <div
             key={msg.id}
             className={cn(
               isAssistant
-                ? "px-1"
+                ? "flex flex-col gap-2 px-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
                 : "rounded-lg bg-muted/50 border border-input px-3 py-2",
             )}
           >
-            {isThinking && <ThinkingIndicator />}
             {toolCalls.map((tc, i) => (
               <ToolCallBlock key={`${msg.id}-tc-${i}`} toolCall={tc} />
             ))}
@@ -539,6 +566,11 @@ function MessageGroup({
           </div>
         );
       })}
+      {showThinking && (
+        <div className="px-1 mt-2">
+          <ThinkingIndicator />
+        </div>
+      )}
     </div>
   );
 }
@@ -782,21 +814,30 @@ export const SupportIntelligenceChat = ({
   }, [agentChat, captureThreadEvent]);
 
   return (
-    <div
-      className={cn(
-        "flex min-h-0 flex-col",
-        hasDraft ? "max-h-[512px]" : "max-h-[384px]",
-        className,
-      )}
+    <motion.div
+      animate={{ maxHeight: hasDraft ? 512 : 384 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className={cn("flex min-h-0 flex-col", className)}
     >
-      {hasDraft && agentChat && (
-        <DraftEditor
-          chatId={agentChat.id}
-          draft={agentChat.draft!}
-          onAccept={handleAcceptDraft}
-          onDismiss={handleDismissDraft}
-        />
-      )}
+      <AnimatePresence initial={false}>
+        {hasDraft && agentChat && (
+          <motion.div
+            key="draft"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            className="overflow-hidden shrink-0"
+          >
+            <DraftEditor
+              chatId={agentChat.id}
+              draft={agentChat.draft!}
+              onAccept={handleAcceptDraft}
+              onDismiss={handleDismissDraft}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       {messageGroups.length > 0 ? (
         <div
           className={cn(
@@ -804,14 +845,26 @@ export const SupportIntelligenceChat = ({
             hasDraft && "max-h-[256px]",
           )}
         >
-          {messageGroups.map((group, i) => (
-            <MessageGroup
-              // biome-ignore lint/suspicious/noArrayIndexKey: it's ok
-              key={`group-${i}`}
-              role={group.role}
-              messages={group.messages}
-            />
-          ))}
+          {messageGroups.map((group, i) => {
+            const isLast = i === messageGroups.length - 1;
+            let showThinking = false;
+            if (isLast && group.role === "assistant") {
+              const lastMsg = group.messages[group.messages.length - 1];
+              if (!lastMsg?.content) {
+                const { done } = parseToolCalls(lastMsg?.toolCalls ?? null);
+                showThinking = !done;
+              }
+            }
+            return (
+              <MessageGroup
+                // biome-ignore lint/suspicious/noArrayIndexKey: it's ok
+                key={`group-${i}`}
+                role={group.role}
+                messages={group.messages}
+                showThinking={showThinking}
+              />
+            );
+          })}
           <div ref={messagesEndRef} />
         </div>
       ) : null}
@@ -840,6 +893,6 @@ export const SupportIntelligenceChat = ({
           <SendIcon className="size-4" />
         </Button>
       </KeybindIsolation>
-    </div>
+    </motion.div>
   );
 };

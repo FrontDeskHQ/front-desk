@@ -788,6 +788,11 @@ export const agentChatRoute = privateRoute
           console.log(
             `[agent-chat] Stream complete: ${chunkCount} chunks, ${accumulated.length} total chars`,
           );
+
+          // Signal stream completion
+          await db.update(schema.agentChatMessage, assistantMessageId, {
+            toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
+          });
         } catch (error) {
           console.error(
             `[agent-chat] Streaming error after ${chunkCount} chunks:`,
@@ -795,6 +800,7 @@ export const agentChatRoute = privateRoute
           );
           await db.update(schema.agentChatMessage, assistantMessageId, {
             content: accumulated || "[Error generating response]",
+            toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
           });
         }
       })();
