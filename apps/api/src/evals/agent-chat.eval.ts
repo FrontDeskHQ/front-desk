@@ -18,7 +18,7 @@ init({
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
   }) as any,
-  defaultModel: "gemini-3-flash-preview",
+  defaultModel: "gemini-2.5-flash",
 });
 import {
   toolSelectionDataset,
@@ -37,7 +37,13 @@ import { createMockToolImplementations } from "./agent-chat.fixtures";
 
 // Note: traceAISDKModel requires LanguageModelV2, but @ai-sdk/google exports V3.
 // Using reportTrace manually to capture LLM call metrics.
-const model = google("gemini-3-flash-preview");
+const model = google("gemini-2.5-flash");
+
+const lowThinking = {
+  providerOptions: {
+    google: { thinkingConfig: { thinkingBudget: 1024 } },
+  },
+} as const;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -130,6 +136,7 @@ evalite("Agent Chat — Tool Selection", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
+      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
@@ -158,6 +165,7 @@ evalite("Agent Chat — Proactive Tool Usage", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
+      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
@@ -191,6 +199,7 @@ evalite("Agent Chat — Draft Quality", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
+      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
@@ -216,6 +225,7 @@ evalite("Agent Chat — Thread References", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
+      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
