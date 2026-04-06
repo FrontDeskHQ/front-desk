@@ -1,4 +1,5 @@
 import { ulid } from "ulid";
+import { z } from "zod";
 import { fetchClient } from "../lib/database/client";
 import { searchSimilarThreads } from "../lib/qdrant/threads";
 
@@ -10,6 +11,7 @@ const OPEN_STATUSES = [0, 1]; // Open, In Progress
 export interface MatchPrToThreadsInput {
   embedding: number[];
   organizationId: string;
+  prId: number;
   prNumber: number;
   prTitle: string;
   prUrl: string;
@@ -39,19 +41,22 @@ type SuggestionRow = {
   updatedAt: Date | string;
 };
 
-interface LinkedPrResults {
-  prNumber: number;
-  prTitle: string;
-  prUrl: string;
-  repo: string;
-  confidence: number;
-  reasoning: string;
-}
+const LinkedPrResultsSchema = z.object({
+  prId: z.number().optional(),
+  prNumber: z.number(),
+  prTitle: z.string(),
+  prUrl: z.string(),
+  repo: z.string(),
+  confidence: z.number(),
+  reasoning: z.string(),
+});
+
+type LinkedPrResults = z.infer<typeof LinkedPrResultsSchema>;
 
 const parseResultsStr = (resultsStr: string | null): LinkedPrResults | null => {
   if (!resultsStr) return null;
   try {
-    return JSON.parse(resultsStr) as LinkedPrResults;
+    return LinkedPrResultsSchema.parse(JSON.parse(resultsStr));
   } catch {
     return null;
   }
@@ -63,6 +68,7 @@ const parseResultsStr = (resultsStr: string | null): LinkedPrResults | null => {
 const storeLinkedPrSuggestion = async (params: {
   threadId: string;
   organizationId: string;
+  prId: number;
   prNumber: number;
   prTitle: string;
   prUrl: string;
@@ -73,6 +79,7 @@ const storeLinkedPrSuggestion = async (params: {
   const {
     threadId,
     organizationId,
+    prId,
     prNumber,
     prTitle,
     prUrl,
@@ -105,6 +112,7 @@ const storeLinkedPrSuggestion = async (params: {
       // Update existing active suggestion with latest data
       await fetchClient.mutate.suggestion.update(existingForPr.id, {
         resultsStr: JSON.stringify({
+          prId,
           prNumber,
           prTitle,
           prUrl,
@@ -146,7 +154,7 @@ const storeLinkedPrSuggestion = async (params: {
       `Failed to store linked_pr suggestion for thread ${threadId}:`,
       error,
     );
-    return false;
+    throw error;
   }
 };
 
@@ -210,6 +218,7 @@ export const matchPrToThreads = async (
       const stored = await storeLinkedPrSuggestion({
         threadId: match.threadId,
         organizationId: input.organizationId,
+        prId: input.prId,
         prNumber: input.prNumber,
         prTitle: input.prTitle,
         prUrl: input.prUrl,
@@ -218,11 +227,12 @@ export const matchPrToThreads = async (
         reasoning: input.shortDescription,
       });
 
-      if (stored) {
-        result.suggestionsCreated++;
-        result.matchedThreadIds.push(match.threadId);
+      if (!stored) {
+        continue;
       }
 
+      result.suggestionsCreated++;
+      result.matchedThreadIds.push(match.threadId);
       matchCount++;
     }
 

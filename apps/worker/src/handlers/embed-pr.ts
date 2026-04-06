@@ -14,6 +14,7 @@ const INITIAL_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 10000;
 
 export interface EmbedPrJobData {
+  prId: number;
   prNumber: number;
   owner: string;
   repo: string;
@@ -312,6 +313,7 @@ export const handleEmbedPr = async (job: Job<EmbedPrJobData>) => {
   const matchResult = await matchPrToThreads({
     embedding,
     organizationId: data.organizationId,
+    prId: data.prId,
     prNumber: data.prNumber,
     prTitle: data.prTitle,
     prUrl: data.prUrl,

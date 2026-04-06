@@ -152,6 +152,7 @@ export const enqueueCrawlDocumentation = async (
 const EMBED_PR_QUEUE = "embed-pr";
 
 export const embedPrJobDataSchema = z.object({
+  prId: z.number(),
   prNumber: z.number(),
   owner: z.string(),
   repo: z.string(),
