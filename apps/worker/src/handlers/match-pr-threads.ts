@@ -154,7 +154,7 @@ const storeLinkedPrSuggestion = async (params: {
       `Failed to store linked_pr suggestion for thread ${threadId}:`,
       error,
     );
-    throw error;
+    return false;
   }
 };
 
