@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 import type { Job } from "bullmq";
 import z from "zod";
 import { type PrPayload, upsertPrVector } from "../lib/qdrant/pull-requests";
+import { matchPrToThreads } from "./match-pr-threads";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
@@ -307,6 +308,23 @@ export const handleEmbedPr = async (job: Job<EmbedPrJobData>) => {
 
   console.log(`✅ Embedded and stored ${prRef} in Qdrant (pointId: ${pointId})`);
 
+  // 7. Match against open threads and create suggestions
+  const matchResult = await matchPrToThreads({
+    embedding,
+    organizationId: data.organizationId,
+    prNumber: data.prNumber,
+    prTitle: data.prTitle,
+    prUrl: data.prUrl,
+    owner: data.owner,
+    repo: data.repo,
+    shortDescription: summary.shortDescription,
+    confidence: summary.confidence,
+  });
+
+  console.log(
+    `🔗 Thread matching for ${prRef}: ${matchResult.suggestionsCreated} suggestions, ${matchResult.skippedAlreadyLinked} skipped (already linked)`,
+  );
+
   return {
     prRef,
     pointId,
@@ -314,5 +332,7 @@ export const handleEmbedPr = async (job: Job<EmbedPrJobData>) => {
     keywords: summary.keywords,
     confidence: summary.confidence,
     skipped: false,
+    matchedThreadIds: matchResult.matchedThreadIds,
+    suggestionsCreated: matchResult.suggestionsCreated,
   };
 };
