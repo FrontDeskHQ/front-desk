@@ -130,6 +130,7 @@ export const setupWebhooks = () => {
               );
 
               const jobId = await enqueueEmbedPrJob({
+                prId: pr.id,
                 prNumber,
                 owner,
                 repo,
