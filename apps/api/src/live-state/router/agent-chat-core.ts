@@ -8,12 +8,13 @@ export interface AgentChatContext {
   threadContext: string;
   suggestionsContext: string;
   customInstructions?: string | null;
+  currentUserName?: string | null;
 }
 
 export function buildSystemPrompt(ctx: AgentChatContext): string {
   return `You are a helpful AI assistant for a customer support team. You have access to the following support thread for context.
 
-## Thread Details
+${ctx.currentUserName ? `You are chatting with ${ctx.currentUserName}, a support agent on this team. Address them by name when appropriate.\n\n` : ""}## Thread Details
 ${ctx.threadMetadata}
 
 ## Thread Messages

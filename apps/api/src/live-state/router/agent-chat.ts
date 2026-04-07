@@ -396,11 +396,18 @@ export const agentChatRoute = privateRoute
         agentChat.organizationId,
       );
 
+      // Fetch current user name for personalization
+      const currentUser = await db.findOne(
+        schema.user,
+        req.context.session.userId,
+      );
+
       const systemPrompt = buildSystemPrompt({
         threadMetadata,
         threadContext,
         suggestionsContext,
         customInstructions: org?.customInstructions,
+        currentUserName: currentUser?.name ?? null,
       });
 
       // Stream in background — don't await, let the mutation return immediately
