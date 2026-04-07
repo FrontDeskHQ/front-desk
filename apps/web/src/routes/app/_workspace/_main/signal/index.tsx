@@ -18,7 +18,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import type { schema } from "api/schema";
 import { useAtomValue } from "jotai/react";
-import { Activity, Check, CopySlash, X } from "lucide-react";
+import { Activity, Check, CopySlash, GitPullRequest, X } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useMemo, useState } from "react";
 import { ulid } from "ulid";
@@ -55,6 +55,26 @@ type ParsedDuplicateSuggestion = SuggestionRow & {
 type DuplicateGroup = {
   targetThreadId: string;
   suggestions: ParsedDuplicateSuggestion[];
+};
+
+type ParsedLinkedPrSuggestion = SuggestionRow & {
+  prId: number;
+  prNumber: number;
+  prTitle: string;
+  prUrl: string;
+  repo: string;
+  confidence: number;
+  reasoning: string;
+};
+
+type LinkedPrGroup = {
+  prKey: string;
+  prId: number;
+  prNumber: number;
+  prTitle: string;
+  prUrl: string;
+  repo: string;
+  suggestions: ParsedLinkedPrSuggestion[];
 };
 
 function groupSuggestions(
@@ -140,6 +160,73 @@ function groupDuplicateSuggestions(
   );
 }
 
+function groupLinkedPrSuggestions(
+  suggestions: ParsedLinkedPrSuggestion[],
+): LinkedPrGroup[] {
+  // First: group by PR identity
+  const byPr = new Map<string, ParsedLinkedPrSuggestion[]>();
+  for (const s of suggestions) {
+    const key = `${s.repo}#${s.prNumber}`;
+    const existing = byPr.get(key) ?? [];
+    existing.push(s);
+    byPr.set(key, existing);
+  }
+
+  // Second: within each PR, apply time-based grouping
+  const result: LinkedPrGroup[] = [];
+  for (const [prKey, prSuggestions] of byPr) {
+    const sorted = [...prSuggestions].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+
+    let currentGroup: ParsedLinkedPrSuggestion[] = [];
+    for (const suggestion of sorted) {
+      if (currentGroup.length === 0) {
+        currentGroup.push(suggestion);
+        continue;
+      }
+      const newestTime = new Date(currentGroup[0].createdAt).getTime();
+      const currentTime = new Date(suggestion.createdAt).getTime();
+      const daysDiff = (newestTime - currentTime) / (1000 * 60 * 60 * 24);
+
+      if (daysDiff <= 15 && currentGroup.length < 5) {
+        currentGroup.push(suggestion);
+      } else {
+        const first = currentGroup[0];
+        result.push({
+          prKey,
+          prId: first.prId,
+          prNumber: first.prNumber,
+          prTitle: first.prTitle,
+          prUrl: first.prUrl,
+          repo: first.repo,
+          suggestions: currentGroup,
+        });
+        currentGroup = [suggestion];
+      }
+    }
+    if (currentGroup.length > 0) {
+      const first = currentGroup[0];
+      result.push({
+        prKey,
+        prId: first.prId,
+        prNumber: first.prNumber,
+        prTitle: first.prTitle,
+        prUrl: first.prUrl,
+        repo: first.repo,
+        suggestions: currentGroup,
+      });
+    }
+  }
+
+  return result.sort(
+    (a, b) =>
+      new Date(b.suggestions[0].createdAt).getTime() -
+      new Date(a.suggestions[0].createdAt).getTime(),
+  );
+}
+
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
   const currentOrg = useAtomValue(activeOrganizationAtom);
@@ -152,11 +239,15 @@ function RouteComponent() {
   const [locallyAcceptedDuplicates, setLocallyAcceptedDuplicates] = useState<
     Map<string, ParsedDuplicateSuggestion>
   >(new Map());
+  const [locallyAcceptedLinkedPrs, setLocallyAcceptedLinkedPrs] = useState<
+    Map<string, ParsedLinkedPrSuggestion>
+  >(new Map());
 
   // Reset locally accepted when org changes so allThreadIds stays scoped to current tenant
   useEffect(() => {
     setLocallyAccepted(new Map());
     setLocallyAcceptedDuplicates(new Map());
+    setLocallyAcceptedLinkedPrs(new Map());
   }, [currentOrg?.id]);
 
   // Query active (pending) suggestions
@@ -198,6 +289,29 @@ function RouteComponent() {
     query.suggestion
       .where({
         type: "duplicate",
+        organizationId: currentOrg?.id,
+        active: false,
+        accepted: true,
+      })
+      .orderBy("createdAt", "desc"),
+  ) as SuggestionRow[] | undefined;
+
+  // Query active linked PR suggestions
+  const pendingLinkedPrSuggestions = useLiveQuery(
+    query.suggestion
+      .where({
+        type: "linked_pr",
+        organizationId: currentOrg?.id,
+        active: true,
+      })
+      .orderBy("createdAt", "desc"),
+  ) as SuggestionRow[] | undefined;
+
+  // Query accepted linked PR suggestions
+  const acceptedLinkedPrSuggestions = useLiveQuery(
+    query.suggestion
+      .where({
+        type: "linked_pr",
         organizationId: currentOrg?.id,
         active: false,
         accepted: true,
@@ -293,6 +407,60 @@ function RouteComponent() {
     return groupDuplicateSuggestions(nonLocallyAccepted);
   }, [resolvedAcceptedDuplicates, locallyAcceptedDuplicates]);
 
+  const parseLinkedPrSuggestions = (
+    suggestions: SuggestionRow[] | undefined,
+  ): ParsedLinkedPrSuggestion[] => {
+    if (!suggestions) return [];
+    return suggestions.flatMap((s) => {
+      if (!s.resultsStr) return [];
+      try {
+        const results = JSON.parse(s.resultsStr) as {
+          prId: number;
+          prNumber: number;
+          prTitle: string;
+          prUrl: string;
+          repo: string;
+          confidence: number;
+          reasoning: string;
+        };
+        if (!results.prId) return [];
+        return [{ ...s, ...results }];
+      } catch {
+        return [];
+      }
+    });
+  };
+
+  const resolvedPendingLinkedPrs = useMemo(
+    () => parseLinkedPrSuggestions(pendingLinkedPrSuggestions),
+    [pendingLinkedPrSuggestions],
+  );
+
+  const resolvedAcceptedLinkedPrs = useMemo(
+    () => parseLinkedPrSuggestions(acceptedLinkedPrSuggestions),
+    [acceptedLinkedPrSuggestions],
+  );
+
+  const combinedLinkedPrsForGrouping = useMemo(() => {
+    const locallyAcceptedArr = Array.from(locallyAcceptedLinkedPrs.values());
+    return [...resolvedPendingLinkedPrs, ...locallyAcceptedArr].sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    );
+  }, [resolvedPendingLinkedPrs, locallyAcceptedLinkedPrs]);
+
+  const activeLinkedPrGroups = useMemo(
+    () => groupLinkedPrSuggestions(combinedLinkedPrsForGrouping),
+    [combinedLinkedPrsForGrouping],
+  );
+
+  const acceptedLinkedPrGroups = useMemo(() => {
+    const nonLocallyAccepted = resolvedAcceptedLinkedPrs.filter(
+      (s) => !locallyAcceptedLinkedPrs.has(s.id),
+    );
+    return groupLinkedPrSuggestions(nonLocallyAccepted);
+  }, [resolvedAcceptedLinkedPrs, locallyAcceptedLinkedPrs]);
+
   // Combine pending + locally accepted for grouping (so accepted stay in their original groups)
   const combinedForGrouping = useMemo(() => {
     const locallyAcceptedArr = Array.from(locallyAccepted.values());
@@ -318,7 +486,7 @@ function RouteComponent() {
     return groupSuggestions(nonLocallyAccepted);
   }, [resolvedAcceptedSuggestions, locallyAccepted]);
 
-  // Collect all thread IDs we need (status + duplicate suggestions)
+  // Collect all thread IDs we need (status + duplicate + linked PR suggestions)
   const allThreadIds = useMemo(() => {
     // Status suggestion thread IDs
     const pending = resolvedPendingSuggestions.map((s) => s.entityId);
@@ -338,6 +506,13 @@ function RouteComponent() {
       locallyAcceptedDuplicates.values(),
     ).flatMap((s) => [s.entityId, s.targetThreadId]);
 
+    // Linked PR suggestion thread IDs
+    const linkedPrPending = resolvedPendingLinkedPrs.map((s) => s.entityId);
+    const linkedPrAccepted = resolvedAcceptedLinkedPrs.map((s) => s.entityId);
+    const linkedPrLocal = Array.from(locallyAcceptedLinkedPrs.values()).map(
+      (s) => s.entityId,
+    );
+
     return [
       ...new Set([
         ...pending,
@@ -346,6 +521,9 @@ function RouteComponent() {
         ...duplicatePending,
         ...duplicateAccepted,
         ...duplicateLocal,
+        ...linkedPrPending,
+        ...linkedPrAccepted,
+        ...linkedPrLocal,
       ]),
     ];
   }, [
@@ -355,6 +533,9 @@ function RouteComponent() {
     resolvedPendingDuplicates,
     resolvedAcceptedDuplicates,
     locallyAcceptedDuplicates,
+    resolvedPendingLinkedPrs,
+    resolvedAcceptedLinkedPrs,
+    locallyAcceptedLinkedPrs,
   ]);
 
   const threads = useLiveQuery(
@@ -587,15 +768,126 @@ function RouteComponent() {
     }
   };
 
+  const handleAcceptLinkedPr = (suggestion: ParsedLinkedPrSuggestion) => {
+    if (!currentOrg) return;
+
+    const thread = threadsMap.get(suggestion.entityId);
+    if (!thread) return;
+
+    setLocallyAcceptedLinkedPrs((prev) =>
+      new Map(prev).set(suggestion.id, suggestion),
+    );
+
+    const externalPrId = `github:${suggestion.repo}#${suggestion.prId}`;
+    const oldPrId = thread.externalPrId ?? null;
+
+    mutate.thread.update(suggestion.entityId, { externalPrId });
+
+    mutate.update.insert({
+      id: ulid().toLowerCase(),
+      threadId: suggestion.entityId,
+      type: "pr_changed",
+      createdAt: new Date(),
+      userId: user.id,
+      metadataStr: JSON.stringify({
+        oldPrId,
+        newPrId: externalPrId,
+        oldPrLabel: null,
+        newPrLabel: `${suggestion.repo}#${suggestion.prNumber}`,
+        userName: user.name,
+        source: "signal",
+      }),
+      replicatedStr: JSON.stringify({}),
+    });
+
+    mutate.suggestion.update(suggestion.id, {
+      accepted: true,
+      active: false,
+      updatedAt: new Date(),
+    });
+
+    posthog?.capture("signal:linked_pr_accept", {
+      thread_id: suggestion.entityId,
+      suggestion_id: suggestion.id,
+      pr_number: suggestion.prNumber,
+      repo: suggestion.repo,
+      organization_id: currentOrg?.id,
+    });
+  };
+
+  const handleDismissLinkedPr = (suggestion: ParsedLinkedPrSuggestion) => {
+    mutate.suggestion.update(suggestion.id, {
+      accepted: false,
+      active: false,
+      updatedAt: new Date(),
+    });
+
+    posthog?.capture("signal:linked_pr_dismiss", {
+      thread_id: suggestion.entityId,
+      suggestion_id: suggestion.id,
+      pr_number: suggestion.prNumber,
+      repo: suggestion.repo,
+      organization_id: currentOrg?.id,
+    });
+  };
+
+  const handleAcceptAllLinkedPrs = (
+    pendingInGroup: ParsedLinkedPrSuggestion[],
+  ) => {
+    posthog?.capture("signal:linked_pr_accept_all", {
+      count: pendingInGroup.length,
+      thread_ids: pendingInGroup.map((s) => s.entityId),
+      organization_id: currentOrg?.id,
+    });
+    for (const suggestion of pendingInGroup) {
+      handleAcceptLinkedPr(suggestion);
+    }
+  };
+
+  const handleDismissAllLinkedPrs = (
+    pendingInGroup: ParsedLinkedPrSuggestion[],
+  ) => {
+    posthog?.capture("signal:linked_pr_dismiss_all", {
+      count: pendingInGroup.length,
+      thread_ids: pendingInGroup.map((s) => s.entityId),
+      organization_id: currentOrg?.id,
+    });
+    for (const suggestion of pendingInGroup) {
+      handleDismissLinkedPr(suggestion);
+    }
+  };
+
+  const splitLinkedPrGroup = (
+    suggestions: ParsedLinkedPrSuggestion[],
+  ): {
+    pending: ParsedLinkedPrSuggestion[];
+    accepted: ParsedLinkedPrSuggestion[];
+  } => {
+    const pending: ParsedLinkedPrSuggestion[] = [];
+    const accepted: ParsedLinkedPrSuggestion[] = [];
+    for (const s of suggestions) {
+      if (locallyAcceptedLinkedPrs.has(s.id)) {
+        accepted.push(s);
+      } else {
+        pending.push(s);
+      }
+    }
+    return { pending, accepted };
+  };
+
   const hasActiveGroups = activeGroups.length > 0;
   const hasAcceptedGroups = acceptedGroups.length > 0;
   const hasActiveDuplicateGroups = activeDuplicateGroups.length > 0;
   const hasAcceptedDuplicateGroups = acceptedDuplicateGroups.length > 0;
+  const hasActiveLinkedPrGroups = activeLinkedPrGroups.length > 0;
+  const hasAcceptedLinkedPrGroups = acceptedLinkedPrGroups.length > 0;
   const isEmpty =
     !hasActiveGroups &&
     !hasAcceptedGroups &&
     !hasActiveDuplicateGroups &&
-    !hasAcceptedDuplicateGroups;
+    !hasAcceptedDuplicateGroups &&
+    !hasActiveLinkedPrGroups &&
+    !hasAcceptedLinkedPrGroups;
 
   return (
     <>
@@ -652,12 +944,36 @@ function RouteComponent() {
                 );
               })}
 
+              {/* Active linked PR suggestion cards */}
+              {activeLinkedPrGroups.map((group) => {
+                const { pending, accepted } = splitLinkedPrGroup(
+                  group.suggestions,
+                );
+                return (
+                  <LinkedPrSignalCard
+                    key={`pr-${group.prKey}-${group.suggestions[0].id}`}
+                    group={group}
+                    pendingSuggestions={pending}
+                    acceptedSuggestions={accepted}
+                    threadsMap={threadsMap}
+                    onAccept={handleAcceptLinkedPr}
+                    onDismiss={handleDismissLinkedPr}
+                    onAcceptAll={() => handleAcceptAllLinkedPrs(pending)}
+                    onDismissAll={() => handleDismissAllLinkedPrs(pending)}
+                  />
+                );
+              })}
+
               {/* Separator for accepted suggestions */}
-              {(hasAcceptedGroups || hasAcceptedDuplicateGroups) && (
+              {(hasAcceptedGroups ||
+                hasAcceptedDuplicateGroups ||
+                hasAcceptedLinkedPrGroups) && (
                 <div className="flex items-center gap-3 text-foreground-secondary text-sm">
                   <Separator className="flex-1" />
                   <span className="whitespace-nowrap shrink-0 text-xs">
-                    {hasActiveGroups || hasActiveDuplicateGroups
+                    {hasActiveGroups ||
+                    hasActiveDuplicateGroups ||
+                    hasActiveLinkedPrGroups
                       ? "Applied suggestions"
                       : "You're all caught up"}
                   </span>
@@ -690,6 +1006,22 @@ function RouteComponent() {
                   threadsMap={threadsMap}
                   onAccept={handleAcceptDuplicate}
                   onDismiss={handleDismissDuplicate}
+                  onAcceptAll={() => {}}
+                  onDismissAll={() => {}}
+                  isAcceptedCard
+                />
+              ))}
+
+              {/* Accepted linked PR suggestion cards */}
+              {acceptedLinkedPrGroups.map((group) => (
+                <LinkedPrSignalCard
+                  key={`pr-accepted-${group.prKey}-${group.suggestions[0].id}`}
+                  group={group}
+                  pendingSuggestions={[]}
+                  acceptedSuggestions={group.suggestions}
+                  threadsMap={threadsMap}
+                  onAccept={handleAcceptLinkedPr}
+                  onDismiss={handleDismissLinkedPr}
                   onAcceptAll={() => {}}
                   onDismissAll={() => {}}
                   isAcceptedCard
@@ -1019,6 +1351,192 @@ function DuplicateSuggestionItem({
   onDismiss,
   isAccepted = false,
 }: DuplicateSuggestionItemProps) {
+  if (!thread) return null;
+
+  return (
+    <div className="relative pl-7.5 group/nested-item flex gap-1.5">
+      <div className="absolute left-[13px] -top-[64px] w-[13px] h-19 border-[#5C5C5C] border-b border-l rounded-bl-lg" />
+      <ThreadChip
+        thread={thread}
+        render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+      />
+      {!isAccepted && onAccept && onDismiss && (
+        <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
+          <ActionButton
+            variant="ghost"
+            size="icon-sm"
+            tooltip="Apply"
+            onClick={onAccept}
+          >
+            <Check />
+          </ActionButton>
+          <ActionButton
+            variant="ghost"
+            size="icon-sm"
+            tooltip="Dismiss"
+            onClick={onDismiss}
+          >
+            <X />
+          </ActionButton>
+        </div>
+      )}
+      {isAccepted && (
+        <div className="flex items-center gap-0.5">
+          <Check className="size-4 text-foreground-secondary" />
+          <div className="text-foreground-secondary text-xs">Applied</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+type LinkedPrSignalCardProps = {
+  group: LinkedPrGroup;
+  pendingSuggestions: ParsedLinkedPrSuggestion[];
+  acceptedSuggestions: ParsedLinkedPrSuggestion[];
+  threadsMap: Map<
+    string,
+    InferLiveObject<
+      typeof schema.thread,
+      { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+    >
+  >;
+  onAccept: (suggestion: ParsedLinkedPrSuggestion) => void;
+  onDismiss: (suggestion: ParsedLinkedPrSuggestion) => void;
+  onAcceptAll: () => void;
+  onDismissAll: () => void;
+  isAcceptedCard?: boolean;
+};
+
+function LinkedPrSignalCard({
+  group,
+  pendingSuggestions,
+  acceptedSuggestions,
+  threadsMap,
+  onAccept,
+  onDismiss,
+  onAcceptAll,
+  onDismissAll,
+  isAcceptedCard = false,
+}: LinkedPrSignalCardProps) {
+  const hasPending = pendingSuggestions.length > 0;
+  const hasAccepted = acceptedSuggestions.length > 0;
+  const totalCount = pendingSuggestions.length + acceptedSuggestions.length;
+
+  return (
+    <Card className="p-4 group gap-4">
+      <TooltipProvider>
+        <CardHeader variant="transparent" className="border-0 px-0">
+          <div className="space-y-1">
+            <CardTitle>
+              <GitPullRequest className="size-4 text-foreground-secondary dark:text-foreground-secondary" />{" "}
+              Link pull request
+            </CardTitle>
+            <CardDescription>
+              {totalCount === 1
+                ? "A PR that may address this thread"
+                : "A PR that may address these threads"}
+            </CardDescription>
+          </div>
+          {hasPending && !isAcceptedCard && (
+            <CardAction side="right">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip="Apply all"
+                onClick={onAcceptAll}
+              >
+                <Check />
+              </ActionButton>
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip="Dismiss all"
+                onClick={onDismissAll}
+              >
+                <X />
+              </ActionButton>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent className="p-0 gap-2">
+          <a
+            href={group.prUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="border flex items-center w-fit max-w-full h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors"
+          >
+            <GitPullRequest className="size-3.5 shrink-0" />
+            <span className="font-medium shrink-0">
+              {group.repo}#{group.prNumber}
+            </span>
+            <span className="truncate text-foreground-secondary">
+              {group.prTitle}
+            </span>
+          </a>
+          <div className="flex flex-col gap-2 overflow-hidden -mt-1 pt-1">
+            {/* Pending suggestions */}
+            {pendingSuggestions.map((suggestion) => {
+              const thread = threadsMap.get(suggestion.entityId);
+              return (
+                <LinkedPrSuggestionItem
+                  key={suggestion.id}
+                  suggestion={suggestion}
+                  thread={thread}
+                  onAccept={() => onAccept(suggestion)}
+                  onDismiss={() => onDismiss(suggestion)}
+                />
+              );
+            })}
+
+            {/* Separator between pending and accepted */}
+            {hasPending && hasAccepted && (
+              <div className="flex items-center gap-3 text-foreground-secondary text-xs mt-2 mb-1 pl-7.5">
+                <span className="whitespace-nowrap text-xs">
+                  {acceptedSuggestions.length === 1
+                    ? "Applied suggestion"
+                    : "Applied suggestions"}
+                </span>
+                <Separator className="flex-1" />
+              </div>
+            )}
+
+            {/* Accepted suggestions */}
+            {acceptedSuggestions.map((suggestion) => {
+              const thread = threadsMap.get(suggestion.entityId);
+              return (
+                <LinkedPrSuggestionItem
+                  key={suggestion.id}
+                  suggestion={suggestion}
+                  thread={thread}
+                  isAccepted
+                />
+              );
+            })}
+          </div>
+        </CardContent>
+      </TooltipProvider>
+    </Card>
+  );
+}
+
+type LinkedPrSuggestionItemProps = {
+  suggestion: ParsedLinkedPrSuggestion;
+  thread?: InferLiveObject<
+    typeof schema.thread,
+    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+  > | null;
+  onAccept?: () => void;
+  onDismiss?: () => void;
+  isAccepted?: boolean;
+};
+
+function LinkedPrSuggestionItem({
+  thread,
+  onAccept,
+  onDismiss,
+  isAccepted = false,
+}: LinkedPrSuggestionItemProps) {
   if (!thread) return null;
 
   return (

@@ -1,6 +1,7 @@
 "use client";
 
 import { MenuItem } from "@workspace/ui/components/menu";
+import { AddPrSuggestionMenuItem } from "./add-pr-suggestion-command";
 import { DuplicateThreadMenuItem } from "./duplicate-thread-command";
 
 interface ThreadsSubmenuProps {
@@ -12,6 +13,7 @@ export const ThreadsSubmenu = ({ onOpenDialog }: ThreadsSubmenuProps) => {
     <>
       <MenuItem onClick={onOpenDialog}>Create Thread</MenuItem>
       <DuplicateThreadMenuItem />
+      <AddPrSuggestionMenuItem />
     </>
   );
 };
