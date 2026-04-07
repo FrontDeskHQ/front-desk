@@ -1,6 +1,6 @@
 "use client";
 
-import { getRouteApi } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { MenuItem } from "@workspace/ui/components/menu";
 import { useAtomValue } from "jotai/react";
 import { toast } from "sonner";
@@ -10,13 +10,9 @@ import { fetchClient } from "~/lib/live-state";
 
 export const AddPrSuggestionMenuItem = () => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const { id: threadId } = (() => {
-    try {
-      return getRouteApi("/app/_workspace/_main/threads/$id").useParams();
-    } catch {
-      return { id: null };
-    }
-  })();
+  const params = useParams({ strict: false });
+  const threadId =
+    (params as { id?: string } | undefined)?.id ?? null;
 
   const handleAddPrSuggestion = async () => {
     if (!threadId) {

@@ -136,6 +136,7 @@ const storeLinkedPrSuggestion = async (params: {
       active: true,
       accepted: false,
       resultsStr: JSON.stringify({
+        prId,
         prNumber,
         prTitle,
         prUrl,

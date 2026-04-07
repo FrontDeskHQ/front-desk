@@ -18,7 +18,7 @@ export default privateRoute.collectionRoute(schema.suggestion, {
   insert: ({ ctx }) => {
     if (ctx?.internalApiKey) return true;
 
-    const isDev = (process.env.NODE_ENV ?? "development") === "development";
+    const isDev = process.env.NODE_ENV === "development";
     if (!isDev) return false;
     if (!ctx?.session) return false;
 
