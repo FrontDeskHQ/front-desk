@@ -3,17 +3,26 @@ import { ActionButton } from "@workspace/ui/components/button";
 import { Check, GitPullRequest, X } from "lucide-react";
 import { useMemo } from "react";
 import { ulid } from "ulid";
+import { z } from "zod";
 import { mutate, query } from "~/lib/live-state";
 
-type ParsedLinkedPrSuggestion = {
+const linkedPrSuggestionSchema = z.object({
+  prId: z.number(),
+  prNumber: z.number(),
+  repo: z.string(),
+  prTitle: z.string().optional().default(""),
+  prUrl: z
+    .string()
+    .url()
+    .refine((url) => /^https?:\/\//i.test(url), {
+      message: "prUrl must use http or https scheme",
+    }),
+  confidence: z.number().optional().default(0),
+  reasoning: z.string().optional().default(""),
+});
+
+type ParsedLinkedPrSuggestion = z.infer<typeof linkedPrSuggestionSchema> & {
   id: string;
-  prId: number;
-  prNumber: number;
-  prTitle: string;
-  prUrl: string;
-  repo: string;
-  confidence: number;
-  reasoning: string;
 };
 
 interface LinkedPrSuggestionsSectionProps {
@@ -47,24 +56,11 @@ export function LinkedPrSuggestionsSection({
       .map((s): ParsedLinkedPrSuggestion | null => {
         if (!s.resultsStr) return null;
         try {
-          const data = JSON.parse(s.resultsStr);
-          if (
-            typeof data.prId !== "number" ||
-            typeof data.prNumber !== "number" ||
-            typeof data.repo !== "string"
-          ) {
-            return null;
-          }
-          return {
-            id: s.id,
-            prId: data.prId,
-            prNumber: data.prNumber,
-            prTitle: data.prTitle ?? "",
-            prUrl: data.prUrl ?? "",
-            repo: data.repo,
-            confidence: data.confidence ?? 0,
-            reasoning: data.reasoning ?? "",
-          };
+          const result = linkedPrSuggestionSchema.safeParse(
+            JSON.parse(s.resultsStr),
+          );
+          if (!result.success) return null;
+          return { id: s.id, ...result.data };
         } catch {
           return null;
         }
@@ -131,7 +127,11 @@ export function LinkedPrSuggestionsSection({
   if (parsed.length === 0) return null;
 
   const handleApplyAll = () => {
-    for (const s of parsed) handleApply(s);
+    const [best, ...rest] = parsed;
+    if (!best) return;
+
+    handleApply(best);
+    for (const suggestion of rest) handleDismiss(suggestion);
   };
   const handleDismissAll = () => {
     for (const s of parsed) handleDismiss(s);
@@ -143,7 +143,7 @@ export function LinkedPrSuggestionsSection({
         <div className="text-foreground-secondary text-xs flex items-center gap-1 grow">
           Pull Request suggestion
         </div>
-        <div className="flex gap-0.5 shrink-0 opacity-0 group-hover/pr-suggestion:opacity-100 transition-opacity duration-150 group-hover/pr-suggestion:duration-0">
+        <div className="flex gap-0.5 shrink-0 opacity-0 group-hover/pr-suggestion:opacity-100 group-focus-within/pr-suggestion:opacity-100 transition-opacity duration-150 group-hover/pr-suggestion:duration-0">
           <ActionButton
             variant="ghost"
             size="icon-sm"
