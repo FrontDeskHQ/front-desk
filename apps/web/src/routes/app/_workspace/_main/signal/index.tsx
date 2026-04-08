@@ -891,7 +891,7 @@ function RouteComponent() {
 
   return (
     <>
-      <CardHeader className="flex items-center gap-2">Signal</CardHeader>
+      <CardHeader className="flex items-center gap-2">Signals</CardHeader>
       <CardContent className="flex flex-1 min-h-0 flex-col gap-4">
         <div
           className={`flex flex-col gap-4 max-w-3xl w-full mx-auto ${isEmpty ? "flex-1 min-h-0" : ""}`}
@@ -1042,7 +1042,10 @@ type SignalCardProps = {
     string,
     InferLiveObject<
       typeof schema.thread,
-      { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+      {
+        author: { include: { user: true } };
+        assignedUser: { include: { user: true } };
+      }
     >
   >;
   onAccept: (suggestion: ParsedSuggestion) => void;
@@ -1157,7 +1160,10 @@ type SuggestionItemProps = {
   suggestion: ParsedSuggestion;
   thread?: InferLiveObject<
     typeof schema.thread,
-    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+    {
+      author: { include: { user: true } };
+      assignedUser: { include: { user: true } };
+    }
   > | null;
   onAccept?: () => void;
   onDismiss?: () => void;
@@ -1217,7 +1223,10 @@ type DuplicateSignalCardProps = {
     string,
     InferLiveObject<
       typeof schema.thread,
-      { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+      {
+        author: { include: { user: true } };
+        assignedUser: { include: { user: true } };
+      }
     >
   >;
   onAccept: (suggestion: ParsedDuplicateSuggestion) => void;
@@ -1338,7 +1347,10 @@ type DuplicateSuggestionItemProps = {
   suggestion: ParsedDuplicateSuggestion;
   thread?: InferLiveObject<
     typeof schema.thread,
-    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+    {
+      author: { include: { user: true } };
+      assignedUser: { include: { user: true } };
+    }
   > | null;
   onAccept?: () => void;
   onDismiss?: () => void;
@@ -1398,7 +1410,10 @@ type LinkedPrSignalCardProps = {
     string,
     InferLiveObject<
       typeof schema.thread,
-      { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+      {
+        author: { include: { user: true } };
+        assignedUser: { include: { user: true } };
+      }
     >
   >;
   onAccept: (suggestion: ParsedLinkedPrSuggestion) => void;
@@ -1524,7 +1539,10 @@ type LinkedPrSuggestionItemProps = {
   suggestion: ParsedLinkedPrSuggestion;
   thread?: InferLiveObject<
     typeof schema.thread,
-    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
+    {
+      author: { include: { user: true } };
+      assignedUser: { include: { user: true } };
+    }
   > | null;
   onAccept?: () => void;
   onDismiss?: () => void;
