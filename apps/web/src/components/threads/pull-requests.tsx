@@ -17,6 +17,7 @@ import { useState } from "react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
+import { LinkedPrSuggestionsSection } from "./linked-pr-suggestions-section";
 
 interface PullRequestsSectionProps {
   threadId: string;
@@ -226,6 +227,12 @@ export function PullRequestsSection({
             </ActionButton>
           )}
         </div>
+        <LinkedPrSuggestionsSection
+          threadId={threadId}
+          externalPrId={externalPrId}
+          user={user}
+          captureThreadEvent={captureThreadEvent}
+        />
       </div>
     </div>
   );
