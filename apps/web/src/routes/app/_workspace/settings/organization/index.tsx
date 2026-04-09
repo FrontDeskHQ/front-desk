@@ -401,7 +401,7 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
           ...settings.digest,
           pendingReplyThresholdMinutes: value.pendingReplyThresholdMinutes,
           time: value.digestTime,
-          slackChannelId: channelName,
+          slackChannelId: null, // TODO(AS-8): resolve channel ID via Slack API
           slackChannelName: channelName,
         },
       });
