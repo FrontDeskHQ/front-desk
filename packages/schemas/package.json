@@ -8,7 +8,8 @@
   },
   "exports": {
     "./integration/*": "./src/integration/*.ts",
-    "./external-issue": "./src/external-issue.ts"
+    "./external-issue": "./src/external-issue.ts",
+    "./organization": "./src/organization.ts"
   },
   "dependencies": {
     "zod": "catalog:"
