@@ -1,6 +1,7 @@
-import { type Job, Worker } from "bullmq";
+import { type Job, Queue, Worker } from "bullmq";
 import Redis from "ioredis";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
+import { handleDigestScan } from "./handlers/digest-scan";
 import { handleEmbedPr } from "./handlers/embed-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
@@ -12,6 +13,7 @@ import { registerDefaultProcessors } from "./pipeline/processors/registration";
 const INGEST_THREAD_QUEUE = "ingest-thread";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const EMBED_PR_QUEUE = "embed-pr";
+const DIGEST_SCAN_QUEUE = "digest-scan";
 
 interface IngestThreadJobData {
   threadIds: string[];
@@ -173,6 +175,38 @@ const embedPrWorker = new Worker(
   },
 );
 
+// Create digest-scan queue (for job scheduler) and worker
+const digestScanQueue = new Queue(DIGEST_SCAN_QUEUE, { connection });
+const digestScanWorker = new Worker(
+  DIGEST_SCAN_QUEUE,
+  handleDigestScan,
+  {
+    connection,
+    autorun: false,
+    concurrency: 1,
+    removeOnComplete: {
+      count: 50,
+      age: 24 * 3600,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  },
+);
+
+digestScanWorker.on("completed", (job) => {
+  console.log(`✅ Digest-scan job ${job.id} has been completed`);
+});
+
+digestScanWorker.on("failed", (job, err) => {
+  console.error(`❌ Digest-scan job ${job?.id} has failed:`, err.message);
+  console.error(err);
+});
+
+digestScanWorker.on("error", (err) => {
+  console.error("Digest-scan worker error:", err);
+});
+
 embedPrWorker.on("completed", (job) => {
   console.log(`✅ Embed-pr job ${job.id} has been completed`);
 });
@@ -226,10 +260,17 @@ const initialize = async () => {
 
   console.log("✅ Qdrant collections ready");
 
+  // Register digest scan scheduler (every 5 minutes)
+  await digestScanQueue.upsertJobScheduler("digest-scan", {
+    every: 300_000,
+  });
+  console.log("✅ Digest scan scheduler registered (every 5 min)");
+
   // Start workers now that collections are ready
   ingestThreadWorker.run();
   crawlDocWorker.run();
   embedPrWorker.run();
+  digestScanWorker.run();
 
   console.log("\nListening for jobs...");
 };
@@ -237,7 +278,7 @@ const initialize = async () => {
 // Graceful shutdown
 const handleShutdown = async () => {
   console.log("\nShutting down workers...");
-  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close()]);
+  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close(), digestScanWorker.close()]);
   await connection.quit();
   console.log("Workers shut down successfully");
   process.exit(0);

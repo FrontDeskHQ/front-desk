@@ -1,6 +1,7 @@
 import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
+import { deactivateDigestSignals } from "../../lib/digest-signals";
 import { enqueueIngestThreadJob } from "../../lib/queue";
 import { searchMessages } from "../../lib/search/qdrant";
 import { publicRoute } from "../factories";
@@ -191,6 +192,17 @@ export default publicRoute
             status: STATUS_RESOLVED,
           });
         });
+
+        // Deactivate digest signals since thread is now Resolved
+        deactivateDigestSignals(db, thread.id, [
+          "digest:pending_reply",
+          "digest:loop_to_close",
+        ]).catch((error) => {
+          console.error(
+            `Failed to deactivate digest signals for thread ${thread.id}:`,
+            error,
+          );
+        });
       }
 
       const updatedMessage = await db.message
@@ -221,7 +233,7 @@ export default publicRoute
     }),
   }))
   .withHooks({
-    afterInsert: ({ value }) => {
+    afterInsert: ({ value, db }) => {
       (async () => {
         try {
           const queuePriority = value.isBackfill ? "low" : "high";
@@ -234,6 +246,18 @@ export default publicRoute
             console.warn(
               `Redis queue not configured; skipping ingest-thread enqueue for thread ${value.threadId}`,
             );
+          }
+
+          // Only dismiss digest signals if the message author is the thread's assignee
+          const author = await db.findOne(schema.author, value.authorId);
+          if (author?.userId) {
+            const thread = await db.findOne(schema.thread, value.threadId);
+            if (thread?.assignedUserId === author.userId) {
+              await deactivateDigestSignals(db, value.threadId, [
+                "digest:pending_reply",
+                "digest:loop_to_close",
+              ]);
+            }
           }
         } catch (error) {
           console.error(
