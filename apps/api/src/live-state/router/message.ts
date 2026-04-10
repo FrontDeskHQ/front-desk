@@ -194,7 +194,7 @@ export default publicRoute
         });
 
         // Deactivate digest signals since thread is now Resolved
-        deactivateDigestSignals(db, thread.id, [
+        deactivateDigestSignals(db, thread.organizationId, thread.id, [
           "digest:pending_reply",
           "digest:loop_to_close",
         ]).catch((error) => {
@@ -247,21 +247,33 @@ export default publicRoute
               `Redis queue not configured; skipping ingest-thread enqueue for thread ${value.threadId}`,
             );
           }
+        } catch (error) {
+          console.error(
+            `Unhandled error in afterInsert ingest enqueue for message ${value.id}`,
+            error,
+          );
+        }
 
-          // Only dismiss digest signals if the message author is the thread's assignee
-          const author = await db.findOne(schema.author, value.authorId);
-          if (author?.userId) {
-            const thread = await db.findOne(schema.thread, value.threadId);
-            if (thread?.assignedUserId === author.userId) {
-              await deactivateDigestSignals(db, value.threadId, [
-                "digest:pending_reply",
-                "digest:loop_to_close",
-              ]);
+        // Digest signal cleanup — separate from ingest enqueue so a queue
+        // failure doesn't prevent assignee replies from clearing signals.
+        try {
+          if (!value.isBackfill) {
+            const author = await db.findOne(schema.author, value.authorId);
+            if (author?.userId) {
+              const thread = await db.findOne(schema.thread, value.threadId);
+              if (thread?.assignedUserId === author.userId) {
+                await deactivateDigestSignals(
+                  db,
+                  thread.organizationId,
+                  value.threadId,
+                  ["digest:pending_reply", "digest:loop_to_close"],
+                );
+              }
             }
           }
         } catch (error) {
           console.error(
-            `Unhandled error in afterInsert hook for message ${value.id}`,
+            `Failed to deactivate digest signals for message ${value.id}`,
             error,
           );
         }

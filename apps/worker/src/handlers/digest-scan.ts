@@ -131,6 +131,49 @@ async function scanOrganization(
     }
   }
 
+  // Preload accepted linked_pr suggestions for all candidate threads (avoids N+1)
+  const prCandidateThreadIds = threads
+    .filter((t) => t.externalPrId)
+    .map((t) => t.id);
+
+  const linkedPrMap = new Map<string, SuggestionRow>();
+  if (prCandidateThreadIds.length > 0) {
+    const linkedPrSuggestions = (await fetchClient.query.suggestion
+      .where({
+        organizationId,
+        type: SUGGESTION_TYPE_LINKED_PR,
+        entityId: { $in: prCandidateThreadIds },
+        accepted: true,
+      })
+      .get()) as SuggestionRow[];
+
+    // Key by "threadId:externalPrId" — keep the latest per key
+    for (const s of linkedPrSuggestions) {
+      const thread = threads.find((t) => t.id === s.entityId);
+      if (!thread?.externalPrId) continue;
+
+      // Match suggestion to the thread's current PR via resultsStr
+      try {
+        const results = s.resultsStr ? JSON.parse(s.resultsStr) : null;
+        const suggestionPrRef = results
+          ? `github:${results.repo}#${results.prId}`
+          : null;
+        if (suggestionPrRef !== thread.externalPrId) continue;
+      } catch {
+        continue;
+      }
+
+      const key = `${s.entityId}:${thread.externalPrId}`;
+      const existing = linkedPrMap.get(key);
+      if (
+        !existing ||
+        new Date(s.updatedAt).getTime() > new Date(existing.updatedAt).getTime()
+      ) {
+        linkedPrMap.set(key, s);
+      }
+    }
+  }
+
   let pendingReplyCreated = 0;
   let loopToCloseCreated = 0;
 
@@ -183,17 +226,9 @@ async function scanOrganization(
       thread.externalPrId &&
       !activeSignalSet.has(`${SUGGESTION_TYPE_LOOP_TO_CLOSE}:${thread.id}`)
     ) {
-      // Find the accepted linked_pr suggestion for this thread to get the link timestamp
-      const linkedPrSuggestions = (await fetchClient.query.suggestion
-        .where({
-          type: SUGGESTION_TYPE_LINKED_PR,
-          entityId: thread.id,
-          organizationId,
-          accepted: true,
-        })
-        .get()) as SuggestionRow[];
+      const key = `${thread.id}:${thread.externalPrId}`;
+      const linkedPrSuggestion = linkedPrMap.get(key);
 
-      const linkedPrSuggestion = linkedPrSuggestions[0];
       if (linkedPrSuggestion) {
         const linkedAt = new Date(linkedPrSuggestion.updatedAt).getTime();
 
@@ -207,20 +242,7 @@ async function scanOrganization(
         });
 
         if (!hasAgentReplyAfterLink) {
-          // Parse PR merge info from the linked_pr suggestion
-          let prMergedAt: string | null = null;
-          try {
-            const results = linkedPrSuggestion.resultsStr
-              ? JSON.parse(linkedPrSuggestion.resultsStr)
-              : null;
-            // Use suggestion updatedAt as proxy for merge time
-            prMergedAt = new Date(linkedPrSuggestion.updatedAt).toISOString();
-            if (results?.prId) {
-              // Store the PR reference
-            }
-          } catch {
-            prMergedAt = new Date(linkedPrSuggestion.updatedAt).toISOString();
-          }
+          const prMergedAt = new Date(linkedPrSuggestion.updatedAt).toISOString();
 
           await createDigestSignal({
             type: SUGGESTION_TYPE_LOOP_TO_CLOSE,

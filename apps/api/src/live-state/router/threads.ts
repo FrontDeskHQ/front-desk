@@ -847,7 +847,7 @@ export default publicRoute
         !CLOSED_STATUSES.includes(previousValue.status) &&
         CLOSED_STATUSES.includes(value.status)
       ) {
-        deactivateDigestSignals(db, value.id, [
+        deactivateDigestSignals(db, value.organizationId, value.id, [
           "digest:pending_reply",
           "digest:loop_to_close",
         ]).catch((error) => {

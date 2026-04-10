@@ -9,6 +9,7 @@ type DigestSignalType = "digest:pending_reply" | "digest:loop_to_close";
  */
 export async function deactivateDigestSignals(
   db: ServerDB<typeof schema>,
+  organizationId: string,
   threadId: string,
   types: DigestSignalType[],
 ): Promise<void> {
@@ -17,7 +18,7 @@ export async function deactivateDigestSignals(
   for (const type of types) {
     const suggestions = Object.values(
       await db.find(schema.suggestion, {
-        where: { type, entityId: threadId, active: true },
+        where: { organizationId, type, entityId: threadId, active: true },
       }),
     );
 
