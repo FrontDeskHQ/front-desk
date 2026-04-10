@@ -5,6 +5,7 @@ import {
 } from "@workspace/schemas/external-issue";
 import { ulid } from "ulid";
 import z from "zod";
+import { authorize } from "../../lib/authorize";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
 import { deactivateDigestSignals } from "../../lib/digest-signals";
 import { publicRoute } from "../factories";
@@ -431,7 +432,10 @@ export default publicRoute
         direction,
       } = req.input;
 
-      // authorize(req.context, { organizationId });
+      authorize(req.context, {
+        organizationId,
+        allowPublicApiKey: true,
+      });
 
       let query = db.thread.where({
         organizationId,
@@ -552,26 +556,7 @@ export default publicRoute
         throw new Error("MISSING_ORGANIZATION_ID");
       }
 
-      // Verify user has access to the organization
-      let authorized = !!req.context?.internalApiKey;
-
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        authorized = !!selfOrgUser;
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId });
 
       // Get GitHub integration config
       const integration = Object.values(
@@ -620,25 +605,7 @@ export default publicRoute
         throw new Error("MISSING_ORGANIZATION_ID");
       }
 
-      let authorized = !!req.context?.internalApiKey;
-
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        authorized = !!selfOrgUser;
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId });
 
       const integration = Object.values(
         await db.find(schema.integration, {
@@ -690,25 +657,7 @@ export default publicRoute
         throw new Error("MISSING_ORGANIZATION_ID");
       }
 
-      let authorized = !!req.context?.internalApiKey;
-
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        authorized = !!selfOrgUser;
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId });
 
       // Get GitHub integration config
       const integration = Object.values(

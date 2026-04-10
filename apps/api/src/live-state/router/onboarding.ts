@@ -1,5 +1,6 @@
 import { ulid } from "ulid";
 import { z } from "zod";
+import { authorize } from "../../lib/authorize";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -68,24 +69,7 @@ export default privateRoute
     ).handler(async ({ req, db }) => {
       const organizationId = req.input.organizationId;
 
-      // Check authorization
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId });
 
       // Check if onboarding already exists
       const existing = Object.values(
@@ -124,24 +108,7 @@ export default privateRoute
         throw new Error("ONBOARDING_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: onboarding.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId: onboarding.organizationId });
 
       const steps = JSON.parse(onboarding.stepsStr || "{}");
       steps[stepId] = { completedAt: new Date().toISOString() };
@@ -166,24 +133,7 @@ export default privateRoute
         throw new Error("ONBOARDING_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: onboarding.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId: onboarding.organizationId });
 
       await db.update(schema.onboarding, onboardingId, {
         status: "skipped",
@@ -205,24 +155,7 @@ export default privateRoute
         throw new Error("ONBOARDING_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: onboarding.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId: onboarding.organizationId });
 
       await db.update(schema.onboarding, onboardingId, {
         status: "completed",

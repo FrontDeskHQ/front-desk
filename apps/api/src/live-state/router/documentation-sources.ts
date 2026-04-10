@@ -1,6 +1,7 @@
 import dns from "node:dns/promises";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { authorize } from "../../lib/authorize";
 import { reflagClient } from "../../lib/feature-flag";
 import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -51,7 +52,9 @@ async function assertPublicUrl(url: string): Promise<void> {
   }
   for (const addr of allAddresses) {
     if (isPrivateIP(addr)) {
-      throw new Error("URLs resolving to private or reserved IP addresses are not allowed");
+      throw new Error(
+        "URLs resolving to private or reserved IP addresses are not allowed",
+      );
     }
   }
 }
@@ -64,7 +67,10 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
   try {
     await assertPublicUrl(baseUrl);
   } catch (err) {
-    return { valid: false, error: err instanceof Error ? err.message : "Invalid URL" };
+    return {
+      valid: false,
+      error: err instanceof Error ? err.message : "Invalid URL",
+    };
   }
 
   // 1. Check sitemap.xml exists
@@ -76,7 +82,10 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      return { valid: false, error: `Sitemap not found at ${sitemapUrl} (HTTP ${res.status})` };
+      return {
+        valid: false,
+        error: `Sitemap not found at ${sitemapUrl} (HTTP ${res.status})`,
+      };
     }
     sitemapText = await res.text();
   } catch {
@@ -171,28 +180,10 @@ export default privateRoute
         organizationId: z.string(),
         baseUrl: z.string().url(),
       }),
-    ).handler(async ({ req, db }) => {
+    ).handler(async ({ req }) => {
       const { organizationId, baseUrl } = req.input;
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId, role: "owner" });
 
       await checkFeatureFlag(organizationId);
 
@@ -214,25 +205,7 @@ export default privateRoute
     ).handler(async ({ req, db }) => {
       const { organizationId, name, baseUrl } = req.input;
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, { organizationId, role: "owner" });
 
       // Feature flag check
       await checkFeatureFlag(organizationId);
@@ -264,12 +237,15 @@ export default privateRoute
           baseUrl,
         });
         if (!jobId) {
-          throw new Error("Queue unavailable: crawl job could not be scheduled");
+          throw new Error(
+            "Queue unavailable: crawl job could not be scheduled",
+          );
         }
       } catch (err) {
         await db.update(schema.documentationSource, id, {
           status: "failed",
-          errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
+          errorStr:
+            err instanceof Error ? err.message : "Failed to schedule crawl",
           updatedAt: new Date(),
         });
         throw err;
@@ -290,25 +266,10 @@ export default privateRoute
         throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: source.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, {
+        organizationId: source.organizationId,
+        role: "owner",
+      });
 
       // Feature flag check
       await checkFeatureFlag(source.organizationId);
@@ -331,12 +292,15 @@ export default privateRoute
           baseUrl: source.baseUrl,
         });
         if (!jobId) {
-          throw new Error("Queue unavailable: crawl job could not be scheduled");
+          throw new Error(
+            "Queue unavailable: crawl job could not be scheduled",
+          );
         }
       } catch (err) {
         await db.update(schema.documentationSource, id, {
           status: previousStatus,
-          errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
+          errorStr:
+            err instanceof Error ? err.message : "Failed to schedule crawl",
           updatedAt: new Date(),
         });
         throw err;
@@ -357,25 +321,10 @@ export default privateRoute
         throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: source.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, {
+        organizationId: source.organizationId,
+        role: "owner",
+      });
 
       // Feature flag check
       await checkFeatureFlag(source.organizationId);

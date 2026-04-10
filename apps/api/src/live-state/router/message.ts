@@ -220,6 +220,11 @@ export default publicRoute
         organizationId: z.string(),
       }),
     ).handler(async ({ req }) => {
+      authorize(req.context, {
+        organizationId: req.input.organizationId,
+        allowPublicApiKey: true,
+      });
+
       const results = await searchMessages({
         query: req.input.query,
         organizationId: req.input.organizationId,

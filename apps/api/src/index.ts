@@ -2,13 +2,13 @@ import "./env";
 
 import "./lib/api-key";
 
+import process from "node:process";
 import { Webhooks } from "@dodopayments/express";
 import { expressAdapter, server } from "@live-state/sync/server";
 import expressWs from "@wll8/express-ws";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
-import process from "node:process";
 import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
 import { reflagClient } from "./lib/feature-flag";
@@ -121,6 +121,17 @@ const lsServer = server({
       const orgUsers = Object.values(
         await storage.find(schema.organizationUser, {
           where: { userId: session.user.id, enabled: true },
+        }),
+      );
+      return { ...session, portalSession, orgUsers };
+    }
+
+    const portalUserId =
+      portalSession?.user?.id ?? portalSession?.session?.userId;
+    if (portalUserId) {
+      const orgUsers = Object.values(
+        await storage.find(schema.organizationUser, {
+          where: { userId: portalUserId, enabled: true },
         }),
       );
       return { ...session, portalSession, orgUsers };

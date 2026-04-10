@@ -4,14 +4,12 @@ import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
+import { authorize } from "../lib/authorize";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
-import {
-  agentChatMessageRoute,
-  agentChatRoute,
-} from "./router/agent-chat";
+import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
 import documentationSourcesRoute from "./router/documentation-sources";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -143,8 +141,7 @@ export const router = createRouter({
           );
 
           if (userMemberships.length === 1) {
-            const delayMinutes =
-              Math.floor(Math.random() * 21) + 20;
+            const delayMinutes = Math.floor(Math.random() * 21) + 20;
 
             sendWelcomeEmail
               .trigger(
@@ -170,31 +167,13 @@ export const router = createRouter({
             expiresAt: z.iso.datetime().optional(),
             name: z.string().optional(),
           }),
-        ).handler(async ({ req, db }) => {
+        ).handler(async ({ req }) => {
           const organizationId = req.input.organizationId;
 
-          let authorized = !!req.context?.internalApiKey;
-
-          if (!authorized && req.context?.session?.userId) {
-            const selfOrgUser = Object.values(
-              await db.find(schema.organizationUser, {
-                where: {
-                  organizationId,
-                  userId: req.context.session.userId,
-                },
-                include: {
-                  user: true,
-                  organization: true,
-                },
-              }),
-            )[0] as any;
-
-            authorized = selfOrgUser && selfOrgUser.role === "owner";
-          }
-
-          if (!authorized) {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorize(req.context, {
+            organizationId,
+            role: "owner",
+          });
 
           const publicApiKey = await publicKeys.create({
             ownerId: organizationId,
@@ -215,29 +194,17 @@ export const router = createRouter({
           z.object({
             id: z.string(),
           }),
-        ).handler(async ({ req, db }) => {
-          if (!req.context?.session?.userId) {
-            throw new Error("UNAUTHORIZED");
-          }
-
+        ).handler(async ({ req }) => {
           const publicApiKey = await publicKeys.findById(req.input.id);
 
           if (!publicApiKey) {
             throw new Error("PUBLIC_API_KEY_NOT_FOUND");
           }
 
-          const selfOrgUser = Object.values(
-            await db.find(schema.organizationUser, {
-              where: {
-                organizationId: publicApiKey.metadata.ownerId,
-                userId: req.context.session.userId,
-              },
-            }),
-          )[0] as any;
-
-          if (!selfOrgUser || selfOrgUser.role !== "owner") {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorize(req.context, {
+            organizationId: publicApiKey.metadata.ownerId,
+            role: "owner",
+          });
 
           await publicKeys.revoke(publicApiKey.id).catch((error) => {
             console.error("Error revoking public API key", error);
@@ -252,27 +219,13 @@ export const router = createRouter({
           z.object({
             organizationId: z.string(),
           }),
-        ).handler(async ({ req, db }) => {
+        ).handler(async ({ req }) => {
           const organizationId = req.input.organizationId;
 
-          let authorized = !!req.context?.internalApiKey;
-
-          if (!authorized && req.context?.session?.userId) {
-            const selfOrgUser = Object.values(
-              await db.find(schema.organizationUser, {
-                where: {
-                  organizationId,
-                  userId: req.context.session.userId,
-                },
-              }),
-            )[0] as any;
-
-            authorized = selfOrgUser && selfOrgUser.role === "owner";
-          }
-
-          if (!authorized) {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorize(req.context, {
+            organizationId,
+            role: "owner",
+          });
 
           const apiKeys = await publicKeys.list(organizationId);
 
