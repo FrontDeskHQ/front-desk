@@ -3,12 +3,14 @@ import {
   createRelations,
   createSchema,
   id,
+  json,
   number,
   object,
   reference,
   string,
   timestamp,
 } from "@live-state/sync";
+import type { OrganizationSettings } from "@workspace/schemas/organization";
 
 const organization = object("organization", {
   id: id(),
@@ -18,6 +20,7 @@ const organization = object("organization", {
   logoUrl: string().nullable(),
   socials: string().nullable(),
   customInstructions: string().nullable(),
+  settings: json<OrganizationSettings>().nullable(),
 });
 
 const subscription = object("subscription", {
