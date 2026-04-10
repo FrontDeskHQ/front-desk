@@ -6,6 +6,7 @@ import {
 import { ulid } from "ulid";
 import z from "zod";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
+import { deactivateDigestSignals } from "../../lib/digest-signals";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -837,4 +838,24 @@ export default publicRoute
         },
       };
     }),
-  }));
+  }))
+  .withHooks({
+    afterUpdate: ({ value, previousValue, db }) => {
+      const CLOSED_STATUSES = [2, 3, 4]; // Resolved, Closed, Duplicated
+      if (
+        previousValue &&
+        !CLOSED_STATUSES.includes(previousValue.status) &&
+        CLOSED_STATUSES.includes(value.status)
+      ) {
+        deactivateDigestSignals(db, value.organizationId, value.id, [
+          "digest:pending_reply",
+          "digest:loop_to_close",
+        ]).catch((error) => {
+          console.error(
+            `Failed to deactivate digest signals for thread ${value.id}:`,
+            error,
+          );
+        });
+      }
+    },
+  });
