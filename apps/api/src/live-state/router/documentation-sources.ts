@@ -174,7 +174,7 @@ export default privateRoute
       postMutation: ({ ctx }) => !!ctx?.internalApiKey,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     validateDocumentationSource: mutation(
       z.object({
         organizationId: z.string(),

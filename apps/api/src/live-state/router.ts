@@ -53,7 +53,7 @@ export const router = createRouter({
           },
         },
       })
-      .withMutations(({ mutation }) => ({
+      .withProcedures(({ mutation }) => ({
         create: mutation(
           z.object({
             name: z.string(),
@@ -275,7 +275,7 @@ export const router = createRouter({
           },
         },
       })
-      .withMutations(({ mutation }) => ({
+      .withProcedures(({ mutation }) => ({
         inviteUser: mutation(
           z.object({
             organizationId: z.string(),
@@ -466,7 +466,7 @@ export const router = createRouter({
           },
         },
       })
-      .withMutations(({ mutation }) => ({
+      .withProcedures(({ mutation }) => ({
         accept: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
             await db.transaction(async ({ trx }) => {

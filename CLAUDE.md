@@ -111,7 +111,7 @@ Live-State provides:
 
 ### Live-State authorization
 
-- Prefer **server procedures** (`.withProcedures` / `.withMutations` handlers) for new writes and sensitive reads, and start handlers with **`authorize()`** from `apps/api/src/lib/authorize.ts` using `{ organizationId, role?: "owner", allowPublicApiKey?: true }` instead of repeating `db.find(organizationUser, …)` (see `apps/api/src/live-state/router/message.ts`).
+- Prefer **server procedures** (`.withProcedures` handlers) for new writes and sensitive reads, and start handlers with **`authorize()`** from `apps/api/src/lib/authorize.ts` using `{ organizationId, role?: "owner", allowPublicApiKey?: true }` instead of repeating `db.find(organizationUser, …)` (see `apps/api/src/live-state/router/message.ts`).
 - Keep `collectionRoute` `read` / `insert` / `update` rules only where clients or workers still need filtered sync CRUD; tighten toward procedure-only writes as call sites migrate (`docs/live-state-procedures-migration-plan.md`).
 
 ### Worker Pipeline

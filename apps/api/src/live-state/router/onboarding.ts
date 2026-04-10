@@ -61,7 +61,7 @@ export default privateRoute
       },
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     initialize: mutation(
       z.object({
         organizationId: z.string(),

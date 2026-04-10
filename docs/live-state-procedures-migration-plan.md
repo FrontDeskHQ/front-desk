@@ -24,7 +24,7 @@ This document plans migrating insert/update/read authorization and business logi
 
 ### `withMutations` vs `withProcedures`
 
-Today both appear in the codebase (`withMutations` in `router.ts`, onboarding, documentation-sources, agent-chat; `withProcedures` in `message.ts`, `threads.ts`). **Unify on `withProcedures`** for new work and when touching existing routes, unless the Live-State version pins different behavior—verify during the first migration PR and align naming project-wide.
+`@live-state/sync@0.0.7-canary-7` exposes both names as the same API; the API router **unifies on `withProcedures`** (see Phase 2). Prefer `withProcedures` for all new routes.
 
 ---
 
@@ -39,7 +39,7 @@ Today both appear in the codebase (`withMutations` in `router.ts`, onboarding, d
 | `router/threads.ts` | `create`, `list` (query), GitHub helpers, etc. Several handlers still use manual `internalApiKey` + `organizationUser` queries; `list` has commented `authorize`. `fetchRelatedThreads` has TODO for auth.                            |
 
 
-### Using `.withMutations` (candidates to rename / align to procedures)
+### Using `.withProcedures` (custom handlers on these routes)
 
 
 | Location                          | Procedures / mutations                                                                                             |
@@ -107,6 +107,14 @@ Defined inline in `router.ts` or split files:
 
 ## Suggested phases (execution order)
 
+### PR checklist (copy into PR description)
+
+- [x] **Phase 0** — Baseline (guideline + `mutate.*` inventory in this doc).
+- [x] **Phase 1** — Low-risk `authorize()` refactors; `threads.list` + `message.search` guarded.
+- [x] **Phase 2** — `withMutations` → `withProcedures` across API router; `bun run typecheck` on `api` passes.
+- [ ] **Phase 3** — High-traffic sync → procedures; lock collection writes per entity (coordinate QA).
+- [ ] **Phase 4** — Optional read-model / query migration.
+
 ### Phase 0 — Baseline
 
 - Add a short **coding guideline** in the PR template or `CLAUDE.md`: new writes go through procedures + `authorize`. *(Done: see **Live-State authorization** in `CLAUDE.md`.)*
@@ -149,9 +157,13 @@ Defined inline in `router.ts` or split files:
 - Uncomment and implement `authorize` on `threads.list` where `organizationId` is passed.
 - Add `authorize` to `message.search`.
 
+*(Done in the migration PR series.)*
+
 ### Phase 2 — Unify mutation APIs
 
 - Rename `withMutations` → `withProcedures` where supported; ensure types and client exports still match.
+
+*(Done: `router.ts`, `router/onboarding.ts`, `router/documentation-sources.ts`, `router/agent-chat.ts`; client call sites unchanged—procedure names and wire protocol are unchanged.)*
 
 ### Phase 3 — High-traffic sync migrations (coordinate with QA)
 
@@ -184,7 +196,7 @@ Order by dependency and blast radius:
 
 1. Should `**portalSession**` load `**orgUsers**` (or a single org membership) server-side so `authorize()` applies uniformly?
 2. For **worker-heavy** tables (`suggestion`, `pipelineJob`), do we prefer **one internal procedure** with batch input vs many small procedures?
-3. Confirm `**withProcedures`** and `**withMutations`** are 100% interchangeable in `@live-state/sync@0.0.7-canary-7` before mass rename.
+3. ~~Confirm `withProcedures` and `withMutations` are interchangeable in `@live-state/sync@0.0.7-canary-7`~~ **Resolved:** same builder API; Phase 2 standardizes on `withProcedures` only in app code.
 
 ---
 
