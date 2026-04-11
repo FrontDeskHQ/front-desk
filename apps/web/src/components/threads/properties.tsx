@@ -69,7 +69,7 @@ export function PropertiesSection({
               status: newStatus,
             });
 
-            mutate.update.insert({
+            mutate.update.create({
               id: ulid().toLowerCase(),
               threadId: id,
               type: "status_changed",
@@ -159,7 +159,7 @@ export function PropertiesSection({
               priority: newPriority,
             });
 
-            mutate.update.insert({
+            mutate.update.create({
               id: ulid().toLowerCase(),
               threadId: id,
               type: "priority_changed",

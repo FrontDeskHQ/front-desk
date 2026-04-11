@@ -417,7 +417,7 @@ export const Suggestions = ({
     });
 
     // Create update record
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "status_changed",
@@ -478,7 +478,7 @@ export const Suggestions = ({
     mutate.thread.update(threadId, { status: 4 });
 
     // Create update record for the duplicate link
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "marked_duplicate",

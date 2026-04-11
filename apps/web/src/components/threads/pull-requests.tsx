@@ -88,7 +88,7 @@ export function PullRequestsSection({
       externalPrId: null,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: threadId,
       type: "pr_changed",
@@ -137,7 +137,7 @@ export function PullRequestsSection({
               mutate.thread.update(threadId, {
                 externalPrId: newPrId,
               });
-              mutate.update.insert({
+              mutate.update.create({
                 id: ulid().toLowerCase(),
                 threadId: threadId,
                 type: "pr_changed",

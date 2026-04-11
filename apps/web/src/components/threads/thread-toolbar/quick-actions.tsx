@@ -273,7 +273,7 @@ export const QuickActionsPanel = ({
       status: newStatus,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "status_changed",
@@ -330,7 +330,7 @@ export const QuickActionsPanel = ({
 
     mutate.thread.update(threadId, { status: 4 });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "marked_duplicate",

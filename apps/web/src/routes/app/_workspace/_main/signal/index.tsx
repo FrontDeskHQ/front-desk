@@ -580,7 +580,7 @@ function RouteComponent() {
       status: newStatus,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: suggestion.entityId,
       type: "status_changed",
@@ -697,7 +697,7 @@ function RouteComponent() {
     mutate.thread.update(suggestion.entityId, { status: 4 });
 
     // Create update record for the duplicate link
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: suggestion.entityId,
       type: "marked_duplicate",
@@ -783,7 +783,7 @@ function RouteComponent() {
 
     mutate.thread.update(suggestion.entityId, { externalPrId });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: suggestion.entityId,
       type: "pr_changed",

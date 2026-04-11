@@ -89,11 +89,11 @@ Defined inline in `router.ts` or split files:
   - `router.ts` (API keys),
   - `threads.ts` (GitHub mutations),
   - `onboarding.ts`, `documentation-sources.ts`, and any similar blocks.
-2. **Procedure-first writes**
+2. **Procedure-first writes (all clients)**
   For each entity that still relies on sync `insert` / `update`:
   - Add explicit **mutation** procedures (naming: verb + entity, e.g. `applyLabel`, `recordTypingUpdate`) that perform `db.insert` / `db.update` inside the handler after `authorize`.
-  - Update **web** (`apps/web`) and **worker** (`apps/worker`) call sites from `mutate.<entity>.insert/update` to `mutate.<entity>.<procedure>(...)`.
-  - Then set collection `insert` / `update` to `**false`** (or internal-only) so auth is not split between collection filters and app code.
+  - Update **all client apps** (`apps/web`, `apps/worker`, `apps/discord`, `apps/slack`, `apps/github`) from `mutate.<entity>.insert/update` to `mutate.<entity>.<procedure>(...)`.
+  - Then set collection `insert` / `update` to `**false`** (or strictly internal-only where unavoidable) so auth is not split between collection filters and app code.
 3. **Procedure-first reads where filters are insufficient**
   - Replace or supplement large `read: { … }` graph filters with `**query` procedures** when you need arguments (pagination already uses `threads.list`).  
   - For pure sync subscriptions, **keep** `read` filters until the client can move to queries + local state—treat as a later phase.
@@ -112,15 +112,16 @@ Defined inline in `router.ts` or split files:
 - [x] **Phase 0** — Baseline (guideline + `mutate.*` inventory in this doc).
 - [x] **Phase 1** — Low-risk `authorize()` refactors; `threads.list` + `message.search` guarded.
 - [x] **Phase 2** — `withMutations` → `withProcedures` across API router; `bun run typecheck` on `api` passes.
-- [ ] **Phase 3** — High-traffic sync → procedures; lock collection writes per entity (coordinate QA).
+- [ ] **Phase 3** — High-traffic sync → procedures for all clients; lock collection writes per entity (coordinate QA, in progress).
 - [ ] **Phase 4** — Optional read-model / query migration.
+- [ ] **Definition of done (global)** — no `mutate.<entity>.insert/update` usage remains in client apps (`apps/web`, `apps/worker`, `apps/discord`, `apps/slack`, `apps/github`) except explicitly documented temporary exemptions with owner + removal date.
 
 ### Phase 0 — Baseline
 
 - Add a short **coding guideline** in the PR template or `CLAUDE.md`: new writes go through procedures + `authorize`. *(Done: see **Live-State authorization** in `CLAUDE.md`.)*
-- List all `mutate.*.insert|update` usages in `apps/web` and `apps/worker` (grep) and attach to the ticket. *(Inventory below; regenerate with `rg 'mutate\\.\\w+\\.(insert|update)\\(' apps/web apps/worker`.)*
+- List all `mutate.*.insert|update` usages across **all client apps** and attach to the ticket. *(Inventory below; regenerate with `rg 'mutate\\.\\w+\\.(insert|update)\\(' apps/web apps/worker apps/discord apps/slack apps/github`.)*
 
-#### `mutate.*.insert` / `mutate.*.update` inventory (web + worker)
+#### `mutate.*.insert` / `mutate.*.update` inventory (all clients)
 
 **`apps/web`** — by collection (line counts are grep hits, not runtime frequency):
 
@@ -148,6 +149,75 @@ Defined inline in `router.ts` or split files:
 | `pipelineJob` | `pipeline/core/persistence.ts` |
 | `suggestion` | `pipeline/processors/suggest-*.ts`, `handlers/digest-scan.ts`, `handlers/match-pr-threads.ts`, `lib/database/client.ts` |
 
+**`apps/discord`, `apps/slack`, `apps/github`**
+
+| App | Collections (representative) |
+| --- | --- |
+| `apps/discord` | `author`, `thread`, `message`, `update`, `integration` |
+| `apps/slack` | `author`, `thread`, `message`, `update`, `integration` |
+| `apps/github` | `thread`, `update`, `integration` |
+
+#### Explicit file backlog (must migrate to custom procedures)
+
+These files still contain `mutate.<entity>.insert/update` calls and require migration:
+
+**`apps/web`**
+
+- `apps/web/src/components/threads/thread-toolbar/quick-actions.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/integration/slack/redirect.ts`
+- `apps/web/src/components/devtools/devtools-menu/duplicate-thread-command.tsx`
+- `apps/web/src/lib/integrations/activate.ts`
+- `apps/web/src/components/threads/thread-input-area-deprecated/index.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/integration/github/index.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/integration/discord/index.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/integration/discord/redirect.ts`
+- `apps/web/src/components/threads/linked-pr-suggestions-section.tsx`
+- `apps/web/src/routes/app/_workspace/_main/signal/index.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/labels.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/integration/slack/index.tsx`
+- `apps/web/src/components/threads/thread-input-area-deprecated/support-intelligence.tsx`
+- `apps/web/src/routes/app/_workspace/settings/user/index.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/index.tsx`
+- `apps/web/src/components/threads/properties.tsx`
+- `apps/web/src/components/threads/issues.tsx`
+- `apps/web/src/routes/app/_workspace/settings/organization/team.tsx`
+- `apps/web/src/components/devtools/devtools-menu/create-thread-dialog.tsx`
+- `apps/web/src/components/threads/labels.tsx`
+- `apps/web/src/components/devtools/devtools-menu/add-pr-suggestion-command.tsx`
+- `apps/web/src/routes/app/_workspace/_main/threads/$id.tsx`
+- `apps/web/src/components/devtools/devtools-menu/create-thread-button.tsx`
+- `apps/web/src/components/threads/pull-requests.tsx`
+- `apps/web/src/routes/app/_workspace/_main/threads/archive/$id.tsx`
+
+**`apps/worker`**
+
+- `apps/worker/src/pipeline/core/persistence.ts`
+- `apps/worker/src/handlers/digest-scan.ts`
+- `apps/worker/src/handlers/crawl-documentation.ts`
+- `apps/worker/src/pipeline/processors/suggest-duplicates.ts`
+- `apps/worker/src/handlers/match-pr-threads.ts`
+- `apps/worker/src/lib/database/client.ts`
+- `apps/worker/src/pipeline/core/idempotency.ts`
+- `apps/worker/src/pipeline/processors/suggest-labels.ts`
+- `apps/worker/src/pipeline/processors/suggest-status.ts`
+
+**`apps/discord`**
+
+- `apps/discord/src/lib/utils.ts`
+- `apps/discord/src/index.ts`
+
+**`apps/slack`**
+
+- `apps/slack/src/lib/installation-store.ts`
+- `apps/slack/src/index.ts`
+- `apps/slack/src/lib/utils.ts`
+
+**`apps/github`**
+
+- `apps/github/src/webhooks/index.ts`
+- `apps/github/src/routes/setup.ts`
+
 ### Phase 1 — Low-risk auth refactors (no client rewrites)
 
 - Swap manual org checks for `authorize()` in:
@@ -169,7 +239,7 @@ Defined inline in `router.ts` or split files:
 
 Order by dependency and blast radius:
 
-1. `**update` collection** (typing / activity) → procedure(s), then lock collection writes.
+1. `**update` collection** (typing / activity) → procedure(s), then lock collection writes. *(Partially done: web/dashboard writes migrated to `update.create`; remaining integration/client call sites must migrate too.)*
 2. `**thread` / `message`** — reduce remaining `mutate.message.insert` call sites to `create` where possible; align portal + app.
 3. `**label` / `threadLabel`** — procedures for add/remove/update; update labels UI.
 4. `**suggestion**` — worker uses many inserts/updates; introduce `internal*` procedures or a single batch API to avoid dozens of round-trips; then restrict collection.
@@ -189,6 +259,7 @@ Order by dependency and blast radius:
 - `x-public-api-key` and WebSocket `publicApiKey` query param.  
 - `internalApiKey` (Discord bot, worker).  
 - Regression: Live-State sync still receives expected rows after tightening `read` (if changed).
+- Repo-wide grep gate: `rg 'mutate\\.\\w+\\.(insert|update)\\(' apps/web apps/worker apps/discord apps/slack apps/github` returns zero matches (or only explicitly approved temporary exemptions).
 
 ---
 

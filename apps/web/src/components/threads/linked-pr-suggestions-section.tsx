@@ -80,7 +80,7 @@ export function LinkedPrSuggestionsSection({
 
     mutate.thread.update(threadId, { externalPrId: newExternalPrId });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "pr_changed",
