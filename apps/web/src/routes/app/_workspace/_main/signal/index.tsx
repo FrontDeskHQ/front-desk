@@ -551,7 +551,23 @@ function RouteComponent() {
     );
   }, [loopToCloseSuggestions]);
 
-  // Map thread -> most recent accepted linked_pr suggestion, for joining into loop-to-close rows
+  // Map linkedPrId -> accepted linked_pr suggestion, for exact PR match in loop-to-close rows
+  const linkedPrByPrId = useMemo(() => {
+    const map = new Map<string, ParsedLinkedPrSuggestion>();
+    for (const s of resolvedAcceptedLinkedPrs) {
+      const key = `github:${s.repo}#${s.prId}`;
+      const existing = map.get(key);
+      if (
+        !existing ||
+        new Date(s.createdAt).getTime() > new Date(existing.createdAt).getTime()
+      ) {
+        map.set(key, s);
+      }
+    }
+    return map;
+  }, [resolvedAcceptedLinkedPrs]);
+
+  // Fallback: thread -> most recent accepted linked_pr suggestion
   const linkedPrByThreadId = useMemo(() => {
     const map = new Map<string, ParsedLinkedPrSuggestion>();
     for (const s of resolvedAcceptedLinkedPrs) {
@@ -1121,6 +1137,7 @@ function RouteComponent() {
                 <LoopToCloseSignalCard
                   suggestions={resolvedLoopToClose}
                   threadsMap={threadsMap}
+                  linkedPrByPrId={linkedPrByPrId}
                   linkedPrByThreadId={linkedPrByThreadId}
                   onDismiss={handleDismissLoopToClose}
                   onDismissAll={() =>
@@ -1195,7 +1212,9 @@ function RouteComponent() {
                   <span className="whitespace-nowrap shrink-0 text-xs">
                     {hasActiveGroups ||
                     hasActiveDuplicateGroups ||
-                    hasActiveLinkedPrGroups
+                    hasActiveLinkedPrGroups ||
+                    hasPendingReplies ||
+                    hasLoopToClose
                       ? "Applied suggestions"
                       : "You're all caught up"}
                   </span>
@@ -1891,7 +1910,7 @@ function PendingReplySignalCard({
                   <span className="text-xs text-foreground-secondary tabular-nums ml-auto">
                     {formatRelativeTime(new Date(suggestion.lastMessageAt))}
                   </span>
-                  <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
+                  <div className="flex gap-1 opacity-0 transition-opacity group-hover/nested-item:opacity-100 focus-within:opacity-100 group-hover/nested-item:duration-0">
                     <ActionButton
                       variant="ghost"
                       size="icon-sm"
@@ -1914,6 +1933,7 @@ function PendingReplySignalCard({
 type LoopToCloseSignalCardProps = {
   suggestions: ParsedLoopToCloseSuggestion[];
   threadsMap: Map<string, ThreadWithAuthor>;
+  linkedPrByPrId: Map<string, ParsedLinkedPrSuggestion>;
   linkedPrByThreadId: Map<string, ParsedLinkedPrSuggestion>;
   onDismiss: (suggestion: ParsedLoopToCloseSuggestion) => void;
   onDismissAll: () => void;
@@ -1922,6 +1942,7 @@ type LoopToCloseSignalCardProps = {
 function LoopToCloseSignalCard({
   suggestions,
   threadsMap,
+  linkedPrByPrId,
   linkedPrByThreadId,
   onDismiss,
   onDismissAll,
@@ -1959,7 +1980,9 @@ function LoopToCloseSignalCard({
             {suggestions.map((suggestion) => {
               const thread = threadsMap.get(suggestion.entityId);
               if (!thread) return null;
-              const linkedPr = linkedPrByThreadId.get(suggestion.entityId);
+              const linkedPr =
+                linkedPrByPrId.get(suggestion.linkedPrId) ??
+                linkedPrByThreadId.get(suggestion.entityId);
               return (
                 <div
                   key={suggestion.id}
@@ -2014,7 +2037,7 @@ function LoopToCloseSignalCard({
                   <span className="text-xs text-foreground-secondary whitespace-nowrap">
                     {formatRelativeTime(new Date(suggestion.prMergedAt))}
                   </span>
-                  <div className="ml-auto flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
+                  <div className="ml-auto flex gap-1 opacity-0 transition-opacity group-hover/nested-item:opacity-100 focus-within:opacity-100 group-hover/nested-item:duration-0">
                     <ActionButton
                       variant="ghost"
                       size="icon-sm"
