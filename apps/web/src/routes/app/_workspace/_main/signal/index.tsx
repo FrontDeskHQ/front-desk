@@ -16,9 +16,18 @@ import {
 } from "@workspace/ui/components/indicator";
 import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
+import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { useAtomValue } from "jotai/react";
-import { Activity, Check, CopySlash, GitPullRequest, X } from "lucide-react";
+import {
+  Activity,
+  Check,
+  CheckCheck,
+  Clock,
+  CopySlash,
+  GitPullRequest,
+  X,
+} from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useMemo, useState } from "react";
 import { ulid } from "ulid";
@@ -75,6 +84,16 @@ type LinkedPrGroup = {
   prUrl: string;
   repo: string;
   suggestions: ParsedLinkedPrSuggestion[];
+};
+
+type ParsedPendingReplySuggestion = SuggestionRow & {
+  lastMessageAt: string;
+  thresholdMinutes: number;
+};
+
+type ParsedLoopToCloseSuggestion = SuggestionRow & {
+  linkedPrId: string;
+  prMergedAt: string;
 };
 
 function groupSuggestions(
@@ -319,6 +338,28 @@ function RouteComponent() {
       .orderBy("createdAt", "desc"),
   ) as SuggestionRow[] | undefined;
 
+  // Query active "pending reply" digest signals
+  const pendingReplySuggestions = useLiveQuery(
+    query.suggestion
+      .where({
+        type: "digest:pending_reply",
+        organizationId: currentOrg?.id,
+        active: true,
+      })
+      .orderBy("createdAt", "desc"),
+  ) as SuggestionRow[] | undefined;
+
+  // Query active "loop to close" digest signals
+  const loopToCloseSuggestions = useLiveQuery(
+    query.suggestion
+      .where({
+        type: "digest:loop_to_close",
+        organizationId: currentOrg?.id,
+        active: true,
+      })
+      .orderBy("createdAt", "desc"),
+  ) as SuggestionRow[] | undefined;
+
   const parseSuggestions = (
     suggestions: SuggestionRow[] | undefined,
   ): ParsedSuggestion[] => {
@@ -441,6 +482,90 @@ function RouteComponent() {
     [acceptedLinkedPrSuggestions],
   );
 
+  const parsePendingReplySuggestions = (
+    suggestions: SuggestionRow[] | undefined,
+  ): ParsedPendingReplySuggestion[] => {
+    if (!suggestions) return [];
+    return suggestions.flatMap((s) => {
+      if (!s.resultsStr) return [];
+      try {
+        const results = JSON.parse(s.resultsStr) as {
+          lastMessageAt: string;
+          thresholdMinutes: number;
+        };
+        if (!results.lastMessageAt) return [];
+        return [
+          {
+            ...s,
+            lastMessageAt: results.lastMessageAt,
+            thresholdMinutes: results.thresholdMinutes,
+          },
+        ];
+      } catch {
+        return [];
+      }
+    });
+  };
+
+  const parseLoopToCloseSuggestions = (
+    suggestions: SuggestionRow[] | undefined,
+  ): ParsedLoopToCloseSuggestion[] => {
+    if (!suggestions) return [];
+    return suggestions.flatMap((s) => {
+      if (!s.resultsStr) return [];
+      try {
+        const results = JSON.parse(s.resultsStr) as {
+          linkedPrId: string;
+          prMergedAt: string;
+        };
+        if (!results.linkedPrId || !results.prMergedAt) return [];
+        return [
+          {
+            ...s,
+            linkedPrId: results.linkedPrId,
+            prMergedAt: results.prMergedAt,
+          },
+        ];
+      } catch {
+        return [];
+      }
+    });
+  };
+
+  // Pending reply signals sorted by wait time desc (oldest message first)
+  const resolvedPendingReplies = useMemo(() => {
+    const parsed = parsePendingReplySuggestions(pendingReplySuggestions);
+    return [...parsed].sort(
+      (a, b) =>
+        new Date(a.lastMessageAt).getTime() -
+        new Date(b.lastMessageAt).getTime(),
+    );
+  }, [pendingReplySuggestions]);
+
+  // Loop-to-close signals sorted by merge time asc (oldest unannounced fix first)
+  const resolvedLoopToClose = useMemo(() => {
+    const parsed = parseLoopToCloseSuggestions(loopToCloseSuggestions);
+    return [...parsed].sort(
+      (a, b) =>
+        new Date(a.prMergedAt).getTime() - new Date(b.prMergedAt).getTime(),
+    );
+  }, [loopToCloseSuggestions]);
+
+  // Map thread -> most recent accepted linked_pr suggestion, for joining into loop-to-close rows
+  const linkedPrByThreadId = useMemo(() => {
+    const map = new Map<string, ParsedLinkedPrSuggestion>();
+    for (const s of resolvedAcceptedLinkedPrs) {
+      const existing = map.get(s.entityId);
+      if (
+        !existing ||
+        new Date(s.createdAt).getTime() > new Date(existing.createdAt).getTime()
+      ) {
+        map.set(s.entityId, s);
+      }
+    }
+    return map;
+  }, [resolvedAcceptedLinkedPrs]);
+
   const combinedLinkedPrsForGrouping = useMemo(() => {
     const locallyAcceptedArr = Array.from(locallyAcceptedLinkedPrs.values());
     return [...resolvedPendingLinkedPrs, ...locallyAcceptedArr].sort(
@@ -513,6 +638,10 @@ function RouteComponent() {
       (s) => s.entityId,
     );
 
+    // Digest signal thread IDs
+    const pendingReplyIds = resolvedPendingReplies.map((s) => s.entityId);
+    const loopToCloseIds = resolvedLoopToClose.map((s) => s.entityId);
+
     return [
       ...new Set([
         ...pending,
@@ -524,6 +653,8 @@ function RouteComponent() {
         ...linkedPrPending,
         ...linkedPrAccepted,
         ...linkedPrLocal,
+        ...pendingReplyIds,
+        ...loopToCloseIds,
       ]),
     ];
   }, [
@@ -536,6 +667,8 @@ function RouteComponent() {
     resolvedPendingLinkedPrs,
     resolvedAcceptedLinkedPrs,
     locallyAcceptedLinkedPrs,
+    resolvedPendingReplies,
+    resolvedLoopToClose,
   ]);
 
   const threads = useLiveQuery(
@@ -857,6 +990,66 @@ function RouteComponent() {
     }
   };
 
+  const handleDismissPendingReply = (
+    suggestion: ParsedPendingReplySuggestion,
+  ) => {
+    mutate.suggestion.update(suggestion.id, {
+      accepted: false,
+      active: false,
+      updatedAt: new Date(),
+    });
+
+    posthog?.capture("signal:digest_dismiss", {
+      type: "digest:pending_reply",
+      thread_id: suggestion.entityId,
+      suggestion_id: suggestion.id,
+      organization_id: currentOrg?.id,
+    });
+  };
+
+  const handleDismissAllPendingReplies = (
+    suggestions: ParsedPendingReplySuggestion[],
+  ) => {
+    posthog?.capture("signal:digest_dismiss_all", {
+      type: "digest:pending_reply",
+      count: suggestions.length,
+      organization_id: currentOrg?.id,
+    });
+    for (const suggestion of suggestions) {
+      handleDismissPendingReply(suggestion);
+    }
+  };
+
+  const handleDismissLoopToClose = (
+    suggestion: ParsedLoopToCloseSuggestion,
+  ) => {
+    mutate.suggestion.update(suggestion.id, {
+      accepted: false,
+      active: false,
+      updatedAt: new Date(),
+    });
+
+    posthog?.capture("signal:digest_dismiss", {
+      type: "digest:loop_to_close",
+      thread_id: suggestion.entityId,
+      suggestion_id: suggestion.id,
+      organization_id: currentOrg?.id,
+    });
+  };
+
+  const handleDismissAllLoopToClose = (
+    suggestions: ParsedLoopToCloseSuggestion[],
+  ) => {
+    posthog?.capture("signal:digest_dismiss_all", {
+      type: "digest:loop_to_close",
+      count: suggestions.length,
+      organization_id: currentOrg?.id,
+    });
+    for (const suggestion of suggestions) {
+      handleDismissLoopToClose(suggestion);
+    }
+  };
+
   const splitLinkedPrGroup = (
     suggestions: ParsedLinkedPrSuggestion[],
   ): {
@@ -881,7 +1074,11 @@ function RouteComponent() {
   const hasAcceptedDuplicateGroups = acceptedDuplicateGroups.length > 0;
   const hasActiveLinkedPrGroups = activeLinkedPrGroups.length > 0;
   const hasAcceptedLinkedPrGroups = acceptedLinkedPrGroups.length > 0;
+  const hasPendingReplies = resolvedPendingReplies.length > 0;
+  const hasLoopToClose = resolvedLoopToClose.length > 0;
   const isEmpty =
+    !hasPendingReplies &&
+    !hasLoopToClose &&
     !hasActiveGroups &&
     !hasAcceptedGroups &&
     !hasActiveDuplicateGroups &&
@@ -907,6 +1104,31 @@ function RouteComponent() {
             </div>
           ) : (
             <>
+              {/* Waiting-for-reply digest card */}
+              {hasPendingReplies && (
+                <PendingReplySignalCard
+                  suggestions={resolvedPendingReplies}
+                  threadsMap={threadsMap}
+                  onDismiss={handleDismissPendingReply}
+                  onDismissAll={() =>
+                    handleDismissAllPendingReplies(resolvedPendingReplies)
+                  }
+                />
+              )}
+
+              {/* Loop-to-close digest card */}
+              {hasLoopToClose && (
+                <LoopToCloseSignalCard
+                  suggestions={resolvedLoopToClose}
+                  threadsMap={threadsMap}
+                  linkedPrByThreadId={linkedPrByThreadId}
+                  onDismiss={handleDismissLoopToClose}
+                  onDismissAll={() =>
+                    handleDismissAllLoopToClose(resolvedLoopToClose)
+                  }
+                />
+              )}
+
               {/* Active status suggestion cards */}
               {activeGroups.map((group) => {
                 const { pending, accepted } = splitGroup(group);
@@ -1591,5 +1813,223 @@ function LinkedPrSuggestionItem({
         </div>
       )}
     </div>
+  );
+}
+
+type ThreadWithAuthor = InferLiveObject<
+  typeof schema.thread,
+  {
+    author: { include: { user: true } };
+    assignedUser: { include: { user: true } };
+  }
+>;
+
+type PendingReplySignalCardProps = {
+  suggestions: ParsedPendingReplySuggestion[];
+  threadsMap: Map<string, ThreadWithAuthor>;
+  onDismiss: (suggestion: ParsedPendingReplySuggestion) => void;
+  onDismissAll: () => void;
+};
+
+function PendingReplySignalCard({
+  suggestions,
+  threadsMap,
+  onDismiss,
+  onDismissAll,
+}: PendingReplySignalCardProps) {
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const id = setInterval(() => setTick((n) => n + 1), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return (
+    <Card className="p-4 group gap-4">
+      <TooltipProvider>
+        <CardHeader variant="transparent" className="border-0 px-0">
+          <div className="space-y-1">
+            <CardTitle>
+              <Clock className="size-4 text-foreground-secondary dark:text-foreground-secondary" />{" "}
+              Waiting for reply
+            </CardTitle>
+            <CardDescription>
+              {suggestions.length === 1
+                ? "A customer is waiting on a response"
+                : "Customers waiting on a response"}
+            </CardDescription>
+          </div>
+          {suggestions.length > 0 && (
+            <CardAction side="right">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip="Dismiss all"
+                onClick={onDismissAll}
+              >
+                <X />
+              </ActionButton>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent className="p-0 gap-2">
+          <div className="flex flex-col gap-2 overflow-hidden">
+            {suggestions.map((suggestion) => {
+              const thread = threadsMap.get(suggestion.entityId);
+              if (!thread) return null;
+              return (
+                <div
+                  key={suggestion.id}
+                  className="group/nested-item flex items-center gap-2"
+                >
+                  <ThreadChip
+                    thread={thread}
+                    render={
+                      <Link to="/app/threads/$id" params={{ id: thread.id }} />
+                    }
+                  />
+                  <span className="text-xs text-foreground-secondary tabular-nums ml-auto">
+                    {formatRelativeTime(new Date(suggestion.lastMessageAt))}
+                  </span>
+                  <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
+                    <ActionButton
+                      variant="ghost"
+                      size="icon-sm"
+                      tooltip="Dismiss"
+                      onClick={() => onDismiss(suggestion)}
+                    >
+                      <X />
+                    </ActionButton>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </TooltipProvider>
+    </Card>
+  );
+}
+
+type LoopToCloseSignalCardProps = {
+  suggestions: ParsedLoopToCloseSuggestion[];
+  threadsMap: Map<string, ThreadWithAuthor>;
+  linkedPrByThreadId: Map<string, ParsedLinkedPrSuggestion>;
+  onDismiss: (suggestion: ParsedLoopToCloseSuggestion) => void;
+  onDismissAll: () => void;
+};
+
+function LoopToCloseSignalCard({
+  suggestions,
+  threadsMap,
+  linkedPrByThreadId,
+  onDismiss,
+  onDismissAll,
+}: LoopToCloseSignalCardProps) {
+  return (
+    <Card className="p-4 group gap-4">
+      <TooltipProvider>
+        <CardHeader variant="transparent" className="border-0 px-0">
+          <div className="space-y-1">
+            <CardTitle>
+              <CheckCheck className="size-4 text-foreground-secondary dark:text-foreground-secondary" />{" "}
+              Loop to close
+            </CardTitle>
+            <CardDescription>
+              {suggestions.length === 1
+                ? "A fix shipped — let the customer know"
+                : "Fixes shipped — let the customer know"}
+            </CardDescription>
+          </div>
+          {suggestions.length > 0 && (
+            <CardAction side="right">
+              <ActionButton
+                variant="ghost"
+                size="icon"
+                tooltip="Dismiss all"
+                onClick={onDismissAll}
+              >
+                <X />
+              </ActionButton>
+            </CardAction>
+          )}
+        </CardHeader>
+        <CardContent className="p-0 gap-2">
+          <div className="flex flex-col gap-2 overflow-hidden">
+            {suggestions.map((suggestion) => {
+              const thread = threadsMap.get(suggestion.entityId);
+              if (!thread) return null;
+              const linkedPr = linkedPrByThreadId.get(suggestion.entityId);
+              return (
+                <div
+                  key={suggestion.id}
+                  className="group/nested-item flex items-center gap-1.5 min-w-0"
+                >
+                  <ThreadChip
+                    thread={thread}
+                    render={
+                      <Link to="/app/threads/$id" params={{ id: thread.id }} />
+                    }
+                  />
+                  <span className="inline-flex size-6 shrink-0 items-center justify-center text-foreground-secondary -ml-0.75">
+                    {/** biome-ignore lint/a11y/noSvgWithoutTitle: aria-hidden is used */}
+                    <svg
+                      viewBox="0 0 32 10"
+                      className="h-2.5 w-6 scale-x-[-1]"
+                      aria-hidden
+                    >
+                      <path
+                        d="M0 5h28m0 0l-5-4.5m5 4.5l-5 4.5"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
+                  </span>
+                  {linkedPr ? (
+                    <a
+                      href={linkedPr.prUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="border flex items-center min-w-0 h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors"
+                    >
+                      <GitPullRequest className="size-3.5 shrink-0" />
+                      <span className="font-medium shrink-0">
+                        {linkedPr.repo}#{linkedPr.prNumber}
+                      </span>
+                      <span className="truncate text-foreground-secondary">
+                        {linkedPr.prTitle}
+                      </span>
+                    </a>
+                  ) : (
+                    <span className="border flex items-center h-6 rounded-sm gap-1.5 px-2 text-xs bg-foreground-tertiary/15">
+                      <GitPullRequest className="size-3.5 shrink-0" />
+                      <span className="font-medium truncate">
+                        {suggestion.linkedPrId}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-xs text-foreground-secondary whitespace-nowrap">
+                    {formatRelativeTime(new Date(suggestion.prMergedAt))}
+                  </span>
+                  <div className="ml-auto flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
+                    <ActionButton
+                      variant="ghost"
+                      size="icon-sm"
+                      tooltip="Dismiss"
+                      onClick={() => onDismiss(suggestion)}
+                    >
+                      <X />
+                    </ActionButton>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </TooltipProvider>
+    </Card>
   );
 }
