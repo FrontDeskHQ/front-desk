@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { useReactScanEnabled } from "../react-scan";
 import { CreateThreadDialog } from "./create-thread-dialog";
+import { SignalsSubmenu } from "./signals-submenu";
 import { ThreadsSubmenu } from "./threads-submenu";
 
 interface DevtoolsMenuProps {
@@ -47,6 +48,12 @@ export const DevtoolsMenu = ({ onHideToolbar }: DevtoolsMenuProps) => {
             <SubmenuTrigger>Threads</SubmenuTrigger>
             <SubmenuContent>
               <ThreadsSubmenu onOpenDialog={() => setIsDialogOpen(true)} />
+            </SubmenuContent>
+          </Submenu>
+          <Submenu>
+            <SubmenuTrigger>Signals</SubmenuTrigger>
+            <SubmenuContent>
+              <SignalsSubmenu />
             </SubmenuContent>
           </Submenu>
           <Submenu>
