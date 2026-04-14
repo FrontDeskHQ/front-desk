@@ -30,6 +30,7 @@ const triggerVariants = cva("", {
 export const ComboboxTrigger = ({
   className,
   variant,
+  children,
   ...props
 }: React.ComponentProps<typeof ComboboxPrimitive.Trigger> &
   VariantProps<typeof triggerVariants>) => {
@@ -38,7 +39,7 @@ export const ComboboxTrigger = ({
       className={cn(triggerVariants({ variant }), className)}
       {...props}
     >
-      <ComboboxPrimitive.Value />
+      {children ?? <ComboboxPrimitive.Value />}
       <ComboboxPrimitive.Icon className="flex">
         <ChevronsUpDown className="size-4" />
       </ComboboxPrimitive.Icon>
@@ -279,6 +280,55 @@ export const ComboboxFooter = ({
   return <ComboboxGroup className={cn("border-t", className)} {...props} />;
 };
 
+export const ComboboxChips = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Chips>) => {
+  return (
+    <ComboboxPrimitive.Chips
+      className={cn("flex flex-wrap items-center gap-0.5", className)}
+      {...props}
+    />
+  );
+};
+
+export const ComboboxValue = ({
+  children,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Value>) => {
+  return <ComboboxPrimitive.Value {...props}>{children}</ComboboxPrimitive.Value>;
+};
+
+export const ComboboxChip = ({
+  className,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.Chip>) => {
+  return (
+    <ComboboxPrimitive.Chip
+      className={cn(
+        "flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs outline-none cursor-default focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
+        className,
+      )}
+      {...props}
+    />
+  );
+};
+
+export const ComboboxChipRemove = ({
+  className,
+  children,
+  ...props
+}: React.ComponentProps<typeof ComboboxPrimitive.ChipRemove>) => {
+  return (
+    <ComboboxPrimitive.ChipRemove
+      className={cn("rounded-md p-1 text-inherit hover:bg-muted-foreground/10", className)}
+      {...props}
+    >
+      {children ?? <XIcon className="size-3.5" />}
+    </ComboboxPrimitive.ChipRemove>
+  );
+};
+
 export const ComboboxTextInput = ({
   className,
   ...props
@@ -286,7 +336,7 @@ export const ComboboxTextInput = ({
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   return (
-    <ComboboxPrimitive.Chips
+    <ComboboxChips
       className={cn(
         "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input flex flex-wrap items-center gap-0.5 h-auto min-h-9 w-full min-w-0 rounded-md border bg-transparent px-1.5 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
         "focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]",
@@ -295,23 +345,14 @@ export const ComboboxTextInput = ({
       )}
       ref={containerRef}
     >
-      <ComboboxPrimitive.Value>
+      <ComboboxValue>
         {(value: BaseItem[]) => (
           <>
             {(value ?? []).map((item) => (
-              <ComboboxPrimitive.Chip
-                key={item.value}
-                className="flex items-center gap-1 rounded-sm border px-2 py-0.5 text-xs outline-none cursor-default focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]"
-                aria-label={item.label}
-              >
+              <ComboboxChip key={item.value} aria-label={item.label}>
                 {item.label}
-                <ComboboxPrimitive.ChipRemove
-                  className="rounded-md p-1 text-inherit hover:bg-muted-foreground/10"
-                  aria-label="Remove"
-                >
-                  <XIcon className="size-3.5" />
-                </ComboboxPrimitive.ChipRemove>
-              </ComboboxPrimitive.Chip>
+                <ComboboxChipRemove aria-label="Remove" />
+              </ComboboxChip>
             ))}
             <ComboboxPrimitive.Input
               {...props}
@@ -319,7 +360,7 @@ export const ComboboxTextInput = ({
             />
           </>
         )}
-      </ComboboxPrimitive.Value>
-    </ComboboxPrimitive.Chips>
+      </ComboboxValue>
+    </ComboboxChips>
   );
 };

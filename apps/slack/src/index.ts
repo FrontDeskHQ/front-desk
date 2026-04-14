@@ -13,17 +13,17 @@ import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
 import type { schema } from "api/schema";
 import { ulid } from "ulid";
+import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
-import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
+import type { BackfillChannelResult } from "./lib/queue";
 import {
   addChannelBackfillJob,
   addThreadBackfillJob,
   closeBackfillQueue,
   initializeBackfillWorker,
 } from "./lib/queue";
-import type { BackfillChannelResult } from "./lib/queue";
 import {
   getBackfillLimit,
   safeParseIntegrationSettings,
@@ -34,6 +34,65 @@ import {
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
+  customRoutes: [
+    {
+      path: "/api/channels",
+      method: ["GET"],
+      handler: async (req, res) => {
+        try {
+          const url = new URL(req.url ?? "", "http://localhost");
+          const teamId = url.searchParams.get("team_id");
+          if (!teamId) {
+            res.writeHead(400, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "MISSING_TEAM_ID" }));
+            return;
+          }
+
+          const client = await getClientForTeam(teamId);
+          if (!client) {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "INSTALLATION_NOT_FOUND" }));
+            return;
+          }
+
+          const channels: Array<{
+            id: string;
+            name: string;
+            isPrivate: boolean;
+          }> = [];
+          let cursor: string | undefined;
+          do {
+            const result = await client.conversations.list({
+              types: "public_channel,private_channel",
+              limit: 200,
+              exclude_archived: true,
+              cursor,
+            });
+
+            for (const c of result.channels ?? []) {
+              if (!c.id || !c.name) continue;
+              channels.push({
+                id: c.id,
+                name: c.name,
+                isPrivate: !!c.is_private,
+              });
+            }
+
+            cursor = result.response_metadata?.next_cursor || undefined;
+          } while (cursor);
+
+          channels.sort((a, b) => a.name.localeCompare(b.name));
+
+          res.writeHead(200, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ channels }));
+        } catch (error) {
+          console.error("[Slack] /api/channels error:", error);
+          res.writeHead(500, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "SLACK_API_ERROR" }));
+        }
+      },
+    },
+  ],
   authorize: async ({ teamId, enterpriseId }): Promise<AuthorizeResult> => {
     try {
       const installation = await installationStore.fetchInstallation({
@@ -286,40 +345,6 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
     return new WebClient(botToken);
   } catch (error) {
     console.error(`Failed to get client for teamId: ${teamId}`, error);
-    return null;
-  }
-};
-
-/**
- * Resolve a channel name to its ID using Slack API
- */
-const resolveChannelIdByName = async (
-  client: WebClient,
-  channelName: string,
-): Promise<string | null> => {
-  try {
-    let cursor: string | undefined;
-    do {
-      const result = await client.conversations.list({
-        types: "public_channel,private_channel",
-        limit: 200,
-        cursor,
-      });
-
-      const channel = result.channels?.find((c) => c.name === channelName);
-      if (channel?.id) {
-        return channel.id;
-      }
-
-      cursor = result.response_metadata?.next_cursor;
-    } while (cursor);
-
-    return null;
-  } catch (error) {
-    console.error(
-      `[Slack] Error resolving channel ID for #${channelName}:`,
-      error,
-    );
     return null;
   }
 };
@@ -745,20 +770,21 @@ const handleIntegrationChanges = async (
       if (!settings?.teamId) continue;
       const teamId = settings.teamId;
 
-      const currentChannels = new Set(settings.selectedChannels ?? []);
+      const selectedChannels = settings.selectedChannels ?? [];
+      const currentChannelIds = new Set(selectedChannels.map((c) => c.id));
       let syncedChannels = new Set(settings.syncedChannels ?? []);
 
       // Migration: if syncedChannels is undefined, initialize from current selectedChannels
       // This prevents false trigger on first deploy with new code
       if (settings.syncedChannels === undefined) {
-        await updateSyncedChannels(integration.id, [...currentChannels]);
+        await updateSyncedChannels(integration.id, [...currentChannelIds]);
         continue;
       }
 
       // Cleanup: remove channels from syncedChannels that are no longer in selectedChannels
       // This ensures re-adding a channel later triggers a fresh backfill
-      const cleanedSynced = [...syncedChannels].filter((ch) =>
-        currentChannels.has(ch),
+      const cleanedSynced = [...syncedChannels].filter((id) =>
+        currentChannelIds.has(id),
       );
       if (cleanedSynced.length !== syncedChannels.size) {
         syncedChannels = new Set(cleanedSynced);
@@ -766,8 +792,8 @@ const handleIntegrationChanges = async (
       }
 
       // Find newly added channels (in selected but not in synced)
-      const addedChannels = [...currentChannels].filter(
-        (ch) => !syncedChannels.has(ch),
+      const addedChannels = selectedChannels.filter(
+        (c) => !syncedChannels.has(c.id),
       );
 
       if (addedChannels.length === 0) continue;
@@ -781,41 +807,30 @@ const handleIntegrationChanges = async (
           `[Slack] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
         );
         // Still mark as synced so we don't re-check on restart
-        const newSynced = [...syncedChannels, ...addedChannels];
+        const newSynced = [
+          ...syncedChannels,
+          ...addedChannels.map((c) => c.id),
+        ];
         await updateSyncedChannels(integration.id, newSynced);
         continue;
       }
 
       console.log(
-        `[Slack] Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
+        `[Slack] Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.map((c) => c.name).join(", ")}`,
       );
-
-      const slackClient = await getClientForTeam(settings.teamId);
-      if (!slackClient) {
-        console.log(
-          `[Slack] Could not get client for team ${settings.teamId}, skipping`,
-        );
-        continue;
-      }
 
       // Query plan limit
       const limit = await getBackfillLimit(integration.organizationId);
 
       // Add new channels to syncedChannels immediately (at backfill START)
       // BullMQ handles retries for in-progress jobs
-      const newSynced = [...syncedChannels, ...addedChannels];
+      const newSynced = [...syncedChannels, ...addedChannels.map((c) => c.id)];
       await updateSyncedChannels(integration.id, newSynced);
 
-      // Resolve channel IDs and initialize backfill
-      const channelsToQueue: { channelId: string; name: string }[] = [];
-      for (const channelName of addedChannels) {
-        const channelId = await resolveChannelIdByName(slackClient, channelName);
-        if (channelId) {
-          channelsToQueue.push({ channelId, name: channelName });
-        } else {
-          console.log(`    [Slack] Channel #${channelName} not found`);
-        }
-      }
+      const channelsToQueue = addedChannels.map((c) => ({
+        channelId: c.id,
+        name: c.name,
+      }));
 
       if (channelsToQueue.length === 0) continue;
 
@@ -906,7 +921,13 @@ app.message(
       integration.configStr,
     );
 
-    if (!(integrationSettings?.selectedChannels ?? []).includes(channelName)) {
+    const channelId = conversation.channel.id;
+    if (
+      !channelId ||
+      !(integrationSettings?.selectedChannels ?? []).some(
+        (c) => c.id === channelId,
+      )
+    ) {
       return;
     }
 

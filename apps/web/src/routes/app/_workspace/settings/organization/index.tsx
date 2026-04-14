@@ -29,8 +29,9 @@ import { Input } from "@workspace/ui/components/input";
 import { useAtomValue } from "jotai/react";
 import { useMemo } from "react";
 import { z } from "zod";
+import { type ChannelOption, ChannelPicker } from "~/components/channel-picker";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { mutate, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
 import { seo } from "~/utils/seo";
 
@@ -90,7 +91,7 @@ const digestFormSchema = z.object({
   digestTime: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Must be a valid time"),
-  slackChannelName: z.string().optional(),
+  slackChannel: z.object({ id: z.string(), name: z.string() }).nullable(),
 });
 
 const orgProfileSchema = z.object({
@@ -385,7 +386,13 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
       pendingReplyThresholdMinutes:
         settings.digest.pendingReplyThresholdMinutes,
       digestTime: settings.digest.time,
-      slackChannelName: settings.digest.slackChannelName ?? "",
+      slackChannel:
+        settings.digest.slackChannelId && settings.digest.slackChannelName
+          ? {
+              id: settings.digest.slackChannelId,
+              name: settings.digest.slackChannelName,
+            }
+          : null,
     } as z.infer<typeof digestFormSchema>,
     validators: {
       onSubmit: digestFormSchema,
@@ -393,16 +400,14 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
     onSubmit: ({ value }) => {
       if (!currentOrg?.id) return;
 
-      const channelName = value.slackChannelName?.trim() || null;
-
       const nextSettings = organizationSettingsSchema.parse({
         ...settings,
         digest: {
           ...settings.digest,
           pendingReplyThresholdMinutes: value.pendingReplyThresholdMinutes,
           time: value.digestTime,
-          slackChannelId: null, // TODO(AS-8): resolve channel ID via Slack API
-          slackChannelName: channelName,
+          slackChannelId: value.slackChannel?.id ?? null,
+          slackChannelName: value.slackChannel?.name ?? null,
         },
       });
 
@@ -472,21 +477,39 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
               </FormItem>
             )}
           </Field>
-          <Field name="slackChannelName">
+          <Field name="slackChannel">
             {(field) => (
               <FormItem field={field} className="flex justify-between">
                 <FormLabel>Slack channel</FormLabel>
                 <div className="flex flex-col w-full max-w-3xs">
                   <FormControl>
                     {hasSlack ? (
-                      <Input
-                        id={field.name}
-                        value={field.state.value}
-                        onChange={(e) => field.setValue(e.target.value)}
-                        placeholder="#channel-name"
-                        autoComplete="off"
+                      <ChannelPicker
+                        mode="single"
                         className="w-full max-w-3xs"
+                        placeholder="Select a channel"
                         disabled={!isUserOwner}
+                        queryKey={["slack-channels", currentOrg?.id]}
+                        fetchChannels={async () => {
+                          if (!currentOrg?.id) return [];
+                          const result =
+                            await fetchClient.mutate.integration.fetchSlackChannels(
+                              { organizationId: currentOrg.id },
+                            );
+                          return result.channels.map((c) => ({
+                            id: c.id,
+                            name: c.name,
+                            meta: { isPrivate: c.isPrivate },
+                          }));
+                        }}
+                        value={field.state.value as ChannelOption | null}
+                        onChange={(channel) =>
+                          field.setValue(
+                            channel
+                              ? { id: channel.id, name: channel.name }
+                              : null,
+                          )
+                        }
                       />
                     ) : (
                       <div className="flex items-center gap-2">
