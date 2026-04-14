@@ -6,7 +6,7 @@ export function formatRelativeTime(
 ) {
   const secondsAgo = differenceInSeconds(new Date(), date);
 
-  if (secondsAgo < (options?.minimumDifference ?? 30)) {
+  if (Math.abs(secondsAgo) < (options?.minimumDifference ?? 30)) {
     return "now";
   }
 

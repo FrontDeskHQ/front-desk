@@ -7,6 +7,10 @@ import "../env";
 const DIGEST_NOTIFY_QUEUE = "digest-notify";
 const MAX_ITEMS_PER_SECTION = 5;
 
+function escapeMrkdwn(text: string): string {
+  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 const getRedisConnection = () => {
   if (process.env.REDIS_URL) {
     return { url: process.env.REDIS_URL };
@@ -134,7 +138,7 @@ function buildBlockKitMessage(
     const capped = pendingReply.slice(0, MAX_ITEMS_PER_SECTION);
     const lines = capped.map(
       (item) =>
-        `• ${item.threadName} — ${formatRelativeTime(new Date(Date.now() - item.waitTimeMs))} (${item.customerName})`,
+        `• ${escapeMrkdwn(item.threadName)} — ${formatRelativeTime(new Date(Date.now() - item.waitTimeMs))} (${escapeMrkdwn(item.customerName)})`,
     );
 
     if (pendingReply.length > MAX_ITEMS_PER_SECTION) {
@@ -158,7 +162,7 @@ function buildBlockKitMessage(
     const capped = loopToClose.slice(0, MAX_ITEMS_PER_SECTION);
     const lines = capped.map(
       (item) =>
-        `• ${item.threadName} — fix merged ${formatRelativeTime(new Date(Date.now() - item.timeSinceMergeMs))} (${item.prDisplayName})`,
+        `• ${escapeMrkdwn(item.threadName)} — fix merged ${formatRelativeTime(new Date(Date.now() - item.timeSinceMergeMs))} (${escapeMrkdwn(item.prDisplayName)})`,
     );
 
     if (loopToClose.length > MAX_ITEMS_PER_SECTION) {

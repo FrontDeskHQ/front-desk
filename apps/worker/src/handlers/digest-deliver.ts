@@ -27,6 +27,7 @@ type ThreadRow = {
   status: number;
   createdAt: Date | string;
   deletedAt: Date | string | null;
+  externalPrId?: string | null;
 };
 
 type SuggestionRow = {
@@ -37,7 +38,17 @@ type SuggestionRow = {
   organizationId: string;
   resultsStr: string | null;
   metadataStr: string | null;
+  createdAt: Date | string;
 };
+
+function safeJsonParse(value: string | null): any {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
 
 type AuthorRow = {
   id: string;
@@ -318,7 +329,7 @@ async function enrichPendingReplySignals(
       if (!thread) return null;
 
       const author = authorMap.get(thread.authorId);
-      const results = signal.resultsStr ? JSON.parse(signal.resultsStr) : null;
+      const results = safeJsonParse(signal.resultsStr);
       const lastMessageAt = results?.lastMessageAt
         ? new Date(results.lastMessageAt).getTime()
         : new Date(signal.createdAt).getTime();
@@ -352,7 +363,7 @@ async function enrichLoopToCloseSignals(
       const thread = threadMap.get(signal.entityId);
       if (!thread) return null;
 
-      const results = signal.resultsStr ? JSON.parse(signal.resultsStr) : null;
+      const results = safeJsonParse(signal.resultsStr);
       const prMergedAt = results?.prMergedAt
         ? new Date(results.prMergedAt).getTime()
         : new Date(signal.createdAt).getTime();

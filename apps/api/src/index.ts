@@ -246,6 +246,10 @@ if (process.env.NODE_ENV !== "production") {
       return;
     }
     const jobId = await enqueueForceDigestDeliver(orgId);
+    if (!jobId) {
+      res.status(503).json({ error: "Digest queue unavailable" });
+      return;
+    }
     res.json({ jobId });
   });
 }
