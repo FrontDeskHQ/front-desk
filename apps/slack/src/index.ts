@@ -16,6 +16,7 @@ import { ulid } from "ulid";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
+import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import {
   addChannelBackfillJob,
   addThreadBackfillJob,
@@ -1302,6 +1303,9 @@ const handleUpdates = async (
     },
   });
 
+  // Initialize the digest delivery worker
+  initializeDigestWorker(getClientForTeam);
+
   setTimeout(async () => {
     // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
     await handleMessages(
@@ -1364,6 +1368,7 @@ const shutdown = async () => {
   console.log("[Slack] Shutting down...");
   await reflagClient.flush();
   await closeBackfillQueue();
+  await closeDigestWorker();
   process.exit(0);
 };
 

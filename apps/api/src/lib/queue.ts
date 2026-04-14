@@ -19,12 +19,14 @@ export type IngestThreadJobData = {
   options?: IngestThreadJobOptions;
 };
 
-const INGEST_THREAD_JOB_PRIORITY_VALUES: Record<IngestThreadJobPriority, number> =
-  {
-    high: 1,
-    normal: 10,
-    low: 100,
-  };
+const INGEST_THREAD_JOB_PRIORITY_VALUES: Record<
+  IngestThreadJobPriority,
+  number
+> = {
+  high: 1,
+  normal: 10,
+  low: 100,
+};
 
 let connection: Redis | null = null;
 let queue: Queue<IngestThreadJobData> | null = null;
@@ -88,13 +90,16 @@ export const enqueueIngestThreadJob = async (params: {
     return null;
   }
 
-  const job = await ingestThreadQueue.add("ingest-thread", {
-    threadIds: params.threadIds,
-    options: params.options,
-  }, {
-    priority:
-      INGEST_THREAD_JOB_PRIORITY_VALUES[params.priority ?? "normal"],
-  });
+  const job = await ingestThreadQueue.add(
+    "ingest-thread",
+    {
+      threadIds: params.threadIds,
+      options: params.options,
+    },
+    {
+      priority: INGEST_THREAD_JOB_PRIORITY_VALUES[params.priority ?? "normal"],
+    },
+  );
 
   return job.id ?? null;
 };
@@ -199,6 +204,47 @@ export const enqueueEmbedPrJob = async (
   const payload = embedPrJobDataSchema.parse(data);
   const job = await queue.add("embed-pr", payload, {
     jobId: `embed-pr-${data.organizationId}:${data.owner}/${data.repo}#${data.prNumber}`,
+  });
+
+  return job.id ?? null;
+};
+
+// Digest Deliver Queue (force trigger)
+
+const DIGEST_DELIVER_QUEUE = "digest-deliver";
+
+export type DigestDeliverJobData = {
+  forceOrgId?: string;
+};
+
+let digestDeliverQueue: Queue<DigestDeliverJobData> | null = null;
+
+const getDigestDeliverQueue = (): Queue<DigestDeliverJobData> | null => {
+  if (digestDeliverQueue) {
+    return digestDeliverQueue;
+  }
+
+  connection ??= createRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  digestDeliverQueue = new Queue<DigestDeliverJobData>(DIGEST_DELIVER_QUEUE, {
+    connection,
+  });
+  return digestDeliverQueue;
+};
+
+export const enqueueForceDigestDeliver = async (
+  orgId: string,
+): Promise<string | null> => {
+  const queue = getDigestDeliverQueue();
+  if (!queue) {
+    return null;
+  }
+
+  const job = await queue.add("digest-deliver-force", {
+    forceOrgId: orgId,
   });
 
   return job.id ?? null;

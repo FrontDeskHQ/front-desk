@@ -1,6 +1,7 @@
 import { type Job, Queue, Worker } from "bullmq";
 import Redis from "ioredis";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
+import { handleDigestDeliver, setDigestNotifyQueue } from "./handlers/digest-deliver";
 import { handleDigestScan } from "./handlers/digest-scan";
 import { handleEmbedPr } from "./handlers/embed-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
@@ -14,6 +15,8 @@ const INGEST_THREAD_QUEUE = "ingest-thread";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const EMBED_PR_QUEUE = "embed-pr";
 const DIGEST_SCAN_QUEUE = "digest-scan";
+const DIGEST_DELIVER_QUEUE = "digest-deliver";
+const DIGEST_NOTIFY_QUEUE = "digest-notify";
 
 interface IngestThreadJobData {
   threadIds: string[];
@@ -194,6 +197,41 @@ const digestScanWorker = new Worker(
   },
 );
 
+// Create digest-deliver queue (for job scheduler), worker, and notify queue (for Slack app)
+const digestDeliverQueue = new Queue(DIGEST_DELIVER_QUEUE, { connection });
+const digestNotifyQueue = new Queue(DIGEST_NOTIFY_QUEUE, { connection });
+setDigestNotifyQueue(digestNotifyQueue);
+
+const digestDeliverWorker = new Worker(
+  DIGEST_DELIVER_QUEUE,
+  handleDigestDeliver,
+  {
+    connection,
+    autorun: false,
+    concurrency: 1,
+    removeOnComplete: {
+      count: 50,
+      age: 24 * 3600,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  },
+);
+
+digestDeliverWorker.on("completed", (job) => {
+  console.log(`✅ Digest-deliver job ${job.id} has been completed`);
+});
+
+digestDeliverWorker.on("failed", (job, err) => {
+  console.error(`❌ Digest-deliver job ${job?.id} has failed:`, err.message);
+  console.error(err);
+});
+
+digestDeliverWorker.on("error", (err) => {
+  console.error("Digest-deliver worker error:", err);
+});
+
 digestScanWorker.on("completed", (job) => {
   console.log(`✅ Digest-scan job ${job.id} has been completed`);
 });
@@ -266,11 +304,18 @@ const initialize = async () => {
   });
   console.log("✅ Digest scan scheduler registered (every 5 min)");
 
+  // Register digest deliver scheduler (every 1 minute)
+  await digestDeliverQueue.upsertJobScheduler("digest-deliver", {
+    every: 60_000,
+  });
+  console.log("✅ Digest deliver scheduler registered (every 1 min)");
+
   // Start workers now that collections are ready
   ingestThreadWorker.run();
   crawlDocWorker.run();
   embedPrWorker.run();
   digestScanWorker.run();
+  digestDeliverWorker.run();
 
   console.log("\nListening for jobs...");
 };
@@ -278,7 +323,7 @@ const initialize = async () => {
 // Graceful shutdown
 const handleShutdown = async () => {
   console.log("\nShutting down workers...");
-  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close(), digestScanWorker.close()]);
+  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close(), digestScanWorker.close(), digestDeliverWorker.close()]);
   await connection.quit();
   console.log("Workers shut down successfully");
   process.exit(0);
