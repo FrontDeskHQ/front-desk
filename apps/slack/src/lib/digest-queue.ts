@@ -109,7 +109,7 @@ function buildBlockKitMessage(
   payload: DigestNotifyJobData["payload"],
 ): KnownBlock[] {
   const blocks: KnownBlock[] = [];
-  const { metrics, pendingReply, loopToClose, orgName, orgSlug } = payload;
+  const { metrics, pendingReply, loopToClose, orgName } = payload;
 
   blocks.push({
     type: "header",
@@ -181,7 +181,7 @@ function buildBlockKitMessage(
     type: "section",
     text: {
       type: "mrkdwn",
-      text: `→ <https://${orgSlug}.tryfrontdesk.app/app/signal|Open FrontDesk>`,
+      text: `→ <https://tryfrontdesk.app/app/signal|Open FrontDesk>`,
     },
   });
 
