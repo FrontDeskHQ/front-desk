@@ -122,11 +122,50 @@ const AddLoopToCloseMenuItem = () => {
   );
 };
 
+const ForceDigestMenuItem = () => {
+  const currentOrg = useAtomValue(activeOrganizationAtom);
+
+  const handleForce = async () => {
+    if (!currentOrg?.id) {
+      toast.error("No organization selected");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/dev/force-digest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orgId: currentOrg.id }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      toast.success(`Digest job enqueued: ${data.jobId}`);
+    } catch (err) {
+      console.error("Failed to force digest:", err);
+      toast.error("Failed to force digest");
+    }
+  };
+
+  return (
+    <MenuItem
+      onClick={handleForce}
+      aria-label="Force send the daily digest for the current organization"
+    >
+      Force send digest
+    </MenuItem>
+  );
+};
+
 export const SignalsSubmenu = () => {
   return (
     <>
       <AddPendingReplyMenuItem />
       <AddLoopToCloseMenuItem />
+      <ForceDigestMenuItem />
     </>
   );
 };

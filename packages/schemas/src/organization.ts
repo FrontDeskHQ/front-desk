@@ -5,6 +5,7 @@ const digestSettingsDefaults = {
   time: "09:00",
   slackChannelId: null,
   slackChannelName: null,
+  lastDigestSentAt: null,
 } as const;
 
 export const digestSettingsSchema = z.object({
@@ -15,6 +16,7 @@ export const digestSettingsSchema = z.object({
     .default("09:00"),
   slackChannelId: z.string().nullable().default(null),
   slackChannelName: z.string().nullable().default(null),
+  lastDigestSentAt: z.string().nullable().default(null),
 });
 
 export const organizationSettingsSchema = z.object({
