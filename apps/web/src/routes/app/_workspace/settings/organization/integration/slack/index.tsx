@@ -7,7 +7,6 @@ import {
 } from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
-import { InputWithSeparator } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
 import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
@@ -16,13 +15,14 @@ import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
+import { type ChannelOption, ChannelPicker } from "~/components/channel-picker";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { SyncStatus } from "~/components/integration-settings/sync-status";
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { activateSlack } from "~/lib/integrations/activate";
-import { mutate, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { integrationOptions } from "..";
 
@@ -206,12 +206,43 @@ function RouteComponent() {
                       Channels where support threads will be created
                     </div>
                   </div>
-                  <InputWithSeparator
-                    placeholder="support-channel, help-channel, ..."
+                  <ChannelPicker
+                    mode="multi"
                     className="w-64"
-                    value={parsedConfig?.data?.selectedChannels ?? []}
-                    onValueChange={(value) => {
-                      updateIntegration({ selectedChannels: value });
+                    placeholder="Select channels"
+                    queryKey={[
+                      "slack-channels",
+                      activeOrg?.id,
+                      parsedConfig?.data?.teamId ?? null,
+                    ]}
+                    fetchChannels={async () => {
+                      if (!activeOrg?.id) return [];
+                      const slackTeamId = parsedConfig?.data?.teamId;
+                      const result =
+                        await fetchClient.mutate.integration.fetchSlackChannels(
+                          {
+                            organizationId: activeOrg.id,
+                            ...(slackTeamId != null
+                              ? { teamId: String(slackTeamId) }
+                              : {}),
+                          },
+                        );
+                      return result.channels.map((c) => ({
+                        id: c.id,
+                        name: c.name,
+                        meta: { isPrivate: c.isPrivate },
+                      }));
+                    }}
+                    value={(parsedConfig?.data?.selectedChannels ?? []).map(
+                      (c): ChannelOption => ({ id: c.id, name: c.name }),
+                    )}
+                    onChange={(channels) => {
+                      updateIntegration({
+                        selectedChannels: channels.map((c) => ({
+                          id: c.id,
+                          name: c.name,
+                        })),
+                      });
                     }}
                   />
                 </div>
@@ -252,7 +283,10 @@ function RouteComponent() {
           </CardContent>
         </Card>
         {integration?.enabled && (
-          <SyncStatus backfill={parsedConfig?.data?.backfill} integrationType="slack" />
+          <SyncStatus
+            backfill={parsedConfig?.data?.backfill}
+            integrationType="slack"
+          />
         )}
       </div>
     </>

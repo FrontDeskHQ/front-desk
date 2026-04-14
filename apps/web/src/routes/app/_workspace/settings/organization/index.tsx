@@ -1,6 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { slackIntegrationSchema } from "@workspace/schemas/integration/slack";
 import {
   type OrganizationSettings,
   organizationSettingsSchema,
@@ -29,8 +30,9 @@ import { Input } from "@workspace/ui/components/input";
 import { useAtomValue } from "jotai/react";
 import { useMemo } from "react";
 import { z } from "zod";
+import { type ChannelOption, ChannelPicker } from "~/components/channel-picker";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { mutate, query } from "~/lib/live-state";
+import { fetchClient, mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
 import { seo } from "~/utils/seo";
 
@@ -90,7 +92,7 @@ const digestFormSchema = z.object({
   digestTime: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Must be a valid time"),
-  slackChannelName: z.string().optional(),
+  slackChannel: z.object({ id: z.string(), name: z.string() }).nullable(),
 });
 
 const orgProfileSchema = z.object({
@@ -380,12 +382,32 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
   );
   const hasSlack = !!slackIntegration?.enabled;
 
+  const slackIntegrationTeamId = useMemo(() => {
+    if (!slackIntegration?.configStr) return null;
+    try {
+      const parsed = slackIntegrationSchema.safeParse(
+        JSON.parse(slackIntegration.configStr),
+      );
+      if (!parsed.success) return null;
+      const id = parsed.data.teamId;
+      return id != null ? String(id) : null;
+    } catch {
+      return null;
+    }
+  }, [slackIntegration?.configStr]);
+
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
       pendingReplyThresholdMinutes:
         settings.digest.pendingReplyThresholdMinutes,
       digestTime: settings.digest.time,
-      slackChannelName: settings.digest.slackChannelName ?? "",
+      slackChannel:
+        settings.digest.slackChannelId || settings.digest.slackChannelName
+          ? {
+              id: settings.digest.slackChannelId ?? "",
+              name: settings.digest.slackChannelName ?? "",
+            }
+          : null,
     } as z.infer<typeof digestFormSchema>,
     validators: {
       onSubmit: digestFormSchema,
@@ -393,16 +415,35 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
     onSubmit: ({ value }) => {
       if (!currentOrg?.id) return;
 
-      const channelName = value.slackChannelName?.trim() || null;
+      const parsed = digestFormSchema.parse(value);
+      const existingDigest = settings.digest;
+
+      let slackChannelId: string | null;
+      let slackChannelName: string | null;
+      if (parsed.slackChannel === null) {
+        slackChannelId = null;
+        slackChannelName = null;
+      } else {
+        const trimmedId = parsed.slackChannel.id.trim();
+        const trimmedName = parsed.slackChannel.name.trim();
+        slackChannelId =
+          trimmedId.length > 0
+            ? trimmedId
+            : (existingDigest.slackChannelId ?? null);
+        slackChannelName =
+          trimmedName.length > 0
+            ? trimmedName
+            : (existingDigest.slackChannelName ?? null);
+      }
 
       const nextSettings = organizationSettingsSchema.parse({
         ...settings,
         digest: {
           ...settings.digest,
-          pendingReplyThresholdMinutes: value.pendingReplyThresholdMinutes,
-          time: value.digestTime,
-          slackChannelId: null, // TODO(AS-8): resolve channel ID via Slack API
-          slackChannelName: channelName,
+          pendingReplyThresholdMinutes: parsed.pendingReplyThresholdMinutes,
+          time: parsed.digestTime,
+          slackChannelId,
+          slackChannelName,
         },
       });
 
@@ -472,21 +513,48 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
               </FormItem>
             )}
           </Field>
-          <Field name="slackChannelName">
+          <Field name="slackChannel">
             {(field) => (
               <FormItem field={field} className="flex justify-between">
                 <FormLabel>Slack channel</FormLabel>
                 <div className="flex flex-col w-full max-w-3xs">
                   <FormControl>
                     {hasSlack ? (
-                      <Input
-                        id={field.name}
-                        value={field.state.value}
-                        onChange={(e) => field.setValue(e.target.value)}
-                        placeholder="#channel-name"
-                        autoComplete="off"
+                      <ChannelPicker
+                        mode="single"
                         className="w-full max-w-3xs"
+                        placeholder="Select a channel"
                         disabled={!isUserOwner}
+                        queryKey={[
+                          "slack-channels",
+                          currentOrg?.id,
+                          slackIntegrationTeamId,
+                        ]}
+                        fetchChannels={async () => {
+                          if (!currentOrg?.id) return [];
+                          const result =
+                            await fetchClient.mutate.integration.fetchSlackChannels(
+                              {
+                                organizationId: currentOrg.id,
+                                ...(slackIntegrationTeamId != null
+                                  ? { teamId: slackIntegrationTeamId }
+                                  : {}),
+                              },
+                            );
+                          return result.channels.map((c) => ({
+                            id: c.id,
+                            name: c.name,
+                            meta: { isPrivate: c.isPrivate },
+                          }));
+                        }}
+                        value={field.state.value as ChannelOption | null}
+                        onChange={(channel) =>
+                          field.setValue(
+                            channel
+                              ? { id: channel.id, name: channel.name }
+                              : null,
+                          )
+                        }
                       />
                     ) : (
                       <div className="flex items-center gap-2">
