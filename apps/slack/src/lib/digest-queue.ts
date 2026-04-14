@@ -1,7 +1,11 @@
 import type { KnownBlock, WebClient } from "@slack/web-api";
-import type { DigestNotifyJobData } from "@workspace/schemas/digest";
+import {
+  type DigestNotifyJobData,
+  digestNotifyJobDataSchema,
+} from "@workspace/schemas/digest";
 import { formatRelativeTime } from "@workspace/utils/format";
 import { type Job, Worker } from "bullmq";
+import Redis, { type RedisOptions } from "ioredis";
 import "../env";
 
 const DIGEST_NOTIFY_QUEUE = "digest-notify";
@@ -11,19 +15,28 @@ function escapeMrkdwn(text: string): string {
   return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
-const getRedisConnection = () => {
+const getRedisConnection = (): Redis => {
   if (process.env.REDIS_URL) {
-    return { url: process.env.REDIS_URL };
+    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
   }
 
-  return {
+  const redisConfig: RedisOptions = {
     host: process.env.REDIS_HOST ?? "localhost",
     port: process.env.REDIS_PORT
       ? Number.parseInt(process.env.REDIS_PORT, 10)
       : 6379,
-    password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB ? Number.parseInt(process.env.REDIS_DB, 10) : 0,
+    maxRetriesPerRequest: null,
   };
+
+  if (process.env.REDIS_PASSWORD) {
+    redisConfig.password = process.env.REDIS_PASSWORD;
+  }
+
+  if (process.env.REDIS_DB) {
+    redisConfig.db = Number.parseInt(process.env.REDIS_DB, 10);
+  }
+
+  return new Redis(redisConfig);
 };
 
 let digestWorker: Worker<DigestNotifyJobData> | null = null;
@@ -39,7 +52,13 @@ export const initializeDigestWorker = (
   digestWorker = new Worker<DigestNotifyJobData>(
     DIGEST_NOTIFY_QUEUE,
     async (job: Job<DigestNotifyJobData>) => {
-      const { orgId, teamId, channelId, payload } = job.data;
+      const parsed = digestNotifyJobDataSchema.safeParse(job.data);
+      if (!parsed.success) {
+        throw new Error(
+          `[Slack] Invalid digest-notify job payload: ${parsed.error.message}`,
+        );
+      }
+      const { orgId, teamId, channelId, payload } = parsed.data;
 
       console.log(
         `[Slack] Digest job ${job.id} received for org ${payload.orgName} (${orgId}), team ${teamId}, channel ${channelId}`,
