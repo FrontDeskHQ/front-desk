@@ -627,9 +627,10 @@ export const router = createRouter({
         fetchSlackChannels: mutation(
           z.object({
             organizationId: z.string(),
+            teamId: z.string().optional(),
           }),
         ).handler(async ({ req, db }) => {
-          const { organizationId } = req.input;
+          const { organizationId, teamId: requestedTeamId } = req.input;
 
           let authorized = !!req.context?.internalApiKey;
 
@@ -644,7 +645,7 @@ export const router = createRouter({
               }),
             )[0];
 
-            authorized = !!selfOrgUser;
+            authorized = selfOrgUser?.role === "owner";
           }
 
           if (!authorized) {
@@ -672,9 +673,16 @@ export const router = createRouter({
             throw new Error("SLACK_TEAM_ID_NOT_FOUND");
           }
 
+          if (
+            requestedTeamId !== undefined &&
+            String(teamId) !== String(requestedTeamId)
+          ) {
+            throw new Error("SLACK_TEAM_MISMATCH");
+          }
+
           return slackChannelsCache.get({
             organizationId,
-            teamId,
+            teamId: String(teamId),
           });
         }),
       })),

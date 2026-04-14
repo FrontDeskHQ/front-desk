@@ -210,12 +210,22 @@ function RouteComponent() {
                     mode="multi"
                     className="w-64"
                     placeholder="Select channels"
-                    queryKey={["slack-channels", activeOrg?.id]}
+                    queryKey={[
+                      "slack-channels",
+                      activeOrg?.id,
+                      parsedConfig?.data?.teamId ?? null,
+                    ]}
                     fetchChannels={async () => {
                       if (!activeOrg?.id) return [];
+                      const slackTeamId = parsedConfig?.data?.teamId;
                       const result =
                         await fetchClient.mutate.integration.fetchSlackChannels(
-                          { organizationId: activeOrg.id },
+                          {
+                            organizationId: activeOrg.id,
+                            ...(slackTeamId != null
+                              ? { teamId: String(slackTeamId) }
+                              : {}),
+                          },
                         );
                       return result.channels.map((c) => ({
                         id: c.id,

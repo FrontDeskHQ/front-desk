@@ -1,6 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { slackIntegrationSchema } from "@workspace/schemas/integration/slack";
 import {
   type OrganizationSettings,
   organizationSettingsSchema,
@@ -381,16 +382,30 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
   );
   const hasSlack = !!slackIntegration?.enabled;
 
+  const slackIntegrationTeamId = useMemo(() => {
+    if (!slackIntegration?.configStr) return null;
+    try {
+      const parsed = slackIntegrationSchema.safeParse(
+        JSON.parse(slackIntegration.configStr),
+      );
+      if (!parsed.success) return null;
+      const id = parsed.data.teamId;
+      return id != null ? String(id) : null;
+    } catch {
+      return null;
+    }
+  }, [slackIntegration?.configStr]);
+
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
       pendingReplyThresholdMinutes:
         settings.digest.pendingReplyThresholdMinutes,
       digestTime: settings.digest.time,
       slackChannel:
-        settings.digest.slackChannelId && settings.digest.slackChannelName
+        settings.digest.slackChannelId || settings.digest.slackChannelName
           ? {
-              id: settings.digest.slackChannelId,
-              name: settings.digest.slackChannelName,
+              id: settings.digest.slackChannelId ?? "",
+              name: settings.digest.slackChannelName ?? "",
             }
           : null,
     } as z.infer<typeof digestFormSchema>,
@@ -400,14 +415,35 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
     onSubmit: ({ value }) => {
       if (!currentOrg?.id) return;
 
+      const parsed = digestFormSchema.parse(value);
+      const existingDigest = settings.digest;
+
+      let slackChannelId: string | null;
+      let slackChannelName: string | null;
+      if (parsed.slackChannel === null) {
+        slackChannelId = null;
+        slackChannelName = null;
+      } else {
+        const trimmedId = parsed.slackChannel.id.trim();
+        const trimmedName = parsed.slackChannel.name.trim();
+        slackChannelId =
+          trimmedId.length > 0
+            ? trimmedId
+            : (existingDigest.slackChannelId ?? null);
+        slackChannelName =
+          trimmedName.length > 0
+            ? trimmedName
+            : (existingDigest.slackChannelName ?? null);
+      }
+
       const nextSettings = organizationSettingsSchema.parse({
         ...settings,
         digest: {
           ...settings.digest,
-          pendingReplyThresholdMinutes: value.pendingReplyThresholdMinutes,
-          time: value.digestTime,
-          slackChannelId: value.slackChannel?.id ?? null,
-          slackChannelName: value.slackChannel?.name ?? null,
+          pendingReplyThresholdMinutes: parsed.pendingReplyThresholdMinutes,
+          time: parsed.digestTime,
+          slackChannelId,
+          slackChannelName,
         },
       });
 
@@ -489,12 +525,21 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
                         className="w-full max-w-3xs"
                         placeholder="Select a channel"
                         disabled={!isUserOwner}
-                        queryKey={["slack-channels", currentOrg?.id]}
+                        queryKey={[
+                          "slack-channels",
+                          currentOrg?.id,
+                          slackIntegrationTeamId,
+                        ]}
                         fetchChannels={async () => {
                           if (!currentOrg?.id) return [];
                           const result =
                             await fetchClient.mutate.integration.fetchSlackChannels(
-                              { organizationId: currentOrg.id },
+                              {
+                                organizationId: currentOrg.id,
+                                ...(slackIntegrationTeamId != null
+                                  ? { teamId: slackIntegrationTeamId }
+                                  : {}),
+                              },
                             );
                           return result.channels.map((c) => ({
                             id: c.id,

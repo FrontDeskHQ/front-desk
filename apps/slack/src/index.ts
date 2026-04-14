@@ -40,6 +40,18 @@ const app = new App({
       method: ["GET"],
       handler: async (req, res) => {
         try {
+          const expectedKey = process.env.DISCORD_BOT_KEY;
+          const providedKey = req.headers["x-discord-bot-key"];
+          if (
+            !expectedKey ||
+            typeof providedKey !== "string" ||
+            providedKey !== expectedKey
+          ) {
+            res.writeHead(401, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "UNAUTHORIZED" }));
+            return;
+          }
+
           const url = new URL(req.url ?? "", "http://localhost");
           const teamId = url.searchParams.get("team_id");
           if (!teamId) {
