@@ -732,25 +732,136 @@ export const router = createRouter({
     agentChatMessage: agentChatMessageRoute,
     ...labelsRoute,
     // Internal pipeline tables (not synced to clients, used by worker)
-    pipelineIdempotencyKey: publicRoute.collectionRoute(
-      schema.pipelineIdempotencyKey,
-      {
+    pipelineIdempotencyKey: publicRoute
+      .collectionRoute(schema.pipelineIdempotencyKey, {
         read: ({ ctx }) => !!ctx?.internalApiKey,
-        insert: ({ ctx }) => !!ctx?.internalApiKey,
+        insert: () => false,
         update: {
-          preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-          postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+          preMutation: () => false,
+          postMutation: () => false,
         },
-      },
-    ),
-    pipelineJob: publicRoute.collectionRoute(schema.pipelineJob, {
-      read: ({ ctx }) => !!ctx?.internalApiKey,
-      insert: ({ ctx }) => !!ctx?.internalApiKey,
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+      })
+      .withProcedures(({ mutation }) => ({
+        upsert: mutation(
+          z.object({
+            key: z.string(),
+            hash: z.string(),
+          }),
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.internalApiKey) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const now = new Date();
+          const rows = await db.find(schema.pipelineIdempotencyKey, {
+            where: { key: req.input.key },
+          });
+          const existing = Object.values(rows)[0];
+
+          if (existing) {
+            await db.update(schema.pipelineIdempotencyKey, existing.id, {
+              hash: req.input.hash,
+              createdAt: now,
+            });
+          } else {
+            await db.insert(schema.pipelineIdempotencyKey, {
+              id: ulid().toLowerCase(),
+              key: req.input.key,
+              hash: req.input.hash,
+              createdAt: now,
+            });
+          }
+
+          return { success: true as const };
+        }),
+
+        invalidate: mutation(
+          z.object({
+            key: z.string(),
+          }),
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.internalApiKey) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const rows = await db.find(schema.pipelineIdempotencyKey, {
+            where: { key: req.input.key },
+          });
+          const existing = Object.values(rows)[0];
+
+          if (existing) {
+            await db.update(schema.pipelineIdempotencyKey, existing.id, {
+              hash: "",
+              createdAt: new Date(),
+            });
+          }
+
+          return { success: true as const };
+        }),
+      })),
+
+    pipelineJob: publicRoute
+      .collectionRoute(schema.pipelineJob, {
+        read: ({ ctx }) => !!ctx?.internalApiKey,
+        insert: () => false,
+        update: {
+          preMutation: () => false,
+          postMutation: () => false,
+        },
+      })
+      .withProcedures(({ mutation }) => ({
+        create: mutation(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+            status: z.string(),
+            metadataStr: z.string().nullable(),
+            createdAt: z.coerce.date(),
+            updatedAt: z.coerce.date(),
+          }),
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.internalApiKey) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          await db.insert(schema.pipelineJob, {
+            id: req.input.id,
+            name: req.input.name,
+            status: req.input.status,
+            metadataStr: req.input.metadataStr,
+            createdAt: req.input.createdAt,
+            updatedAt: req.input.updatedAt,
+          });
+
+          return { success: true as const };
+        }),
+
+        update: mutation(
+          z.object({
+            id: z.string(),
+            status: z.string(),
+            metadataStr: z.string().nullable(),
+            updatedAt: z.coerce.date(),
+          }),
+        ).handler(async ({ req, db }) => {
+          if (!req.context?.internalApiKey) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const job = await db.findOne(schema.pipelineJob, req.input.id);
+          if (!job) {
+            throw new Error("PIPELINE_JOB_NOT_FOUND");
+          }
+
+          await db.update(schema.pipelineJob, req.input.id, {
+            status: req.input.status,
+            metadataStr: req.input.metadataStr,
+            updatedAt: req.input.updatedAt,
+          });
+
+          return { success: true as const };
+        }),
+      })),
   },
 });
 
