@@ -15,6 +15,7 @@ import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
 import { slackChannelsCache } from "./router/slack-channels";
+import { subscriptionRoute } from "./router/subscription";
 import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
@@ -127,13 +128,14 @@ export const router = createRouter({
             customInstructions: null,
           });
 
-          await db.insert(schema.subscription, {
+          await db.subscription.insert({
             id: ulid().toLowerCase(),
             organizationId,
             customerId: dodopaymentsCustomer?.customer_id ?? null,
             subscriptionId: null,
             plan: "trial",
             status: null,
+            seats: 1,
             createdAt: new Date(),
             updatedAt: new Date(),
           });
@@ -702,27 +704,7 @@ export const router = createRouter({
         }),
       })),
     allowlist: allowlistRoute,
-    subscription: privateRoute.collectionRoute(schema.subscription, {
-      read: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          },
-        };
-      },
-      insert: () => false,
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+    subscription: subscriptionRoute,
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,
