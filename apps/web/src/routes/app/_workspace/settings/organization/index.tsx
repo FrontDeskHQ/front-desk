@@ -76,12 +76,49 @@ const reservedSlugs = [
   "legal",
 ];
 
-const timezoneItems: BaseItem[] = Intl.supportedValuesOf("timeZone").map(
-  (tz) => ({
-    value: tz,
-    label: tz.replace(/_/g, " "),
-  }),
-);
+const getTimezoneOffset = (tz: string): { label: string; minutes: number } => {
+  try {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      timeZoneName: "shortOffset",
+    }).formatToParts(new Date());
+    const raw = parts.find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+    const normalized = raw === "GMT" ? "GMT+0" : raw;
+    const match = normalized.match(/GMT([+-])(\d{1,2})(?::?(\d{2}))?/);
+    if (!match) return { label: normalized, minutes: 0 };
+    const sign = match[1] === "-" ? -1 : 1;
+    const hours = Number.parseInt(match[2], 10);
+    const mins = match[3] ? Number.parseInt(match[3], 10) : 0;
+    return { label: normalized, minutes: sign * (hours * 60 + mins) };
+  } catch {
+    return { label: "GMT+0", minutes: 0 };
+  }
+};
+
+const timezoneItems: BaseItem[] = Intl.supportedValuesOf("timeZone")
+  .map((tz) => {
+    const segments = tz.split("/");
+    const region = segments[0];
+    const city = segments[segments.length - 1].replace(/_/g, " ");
+    const { label: offset, minutes } = getTimezoneOffset(tz);
+    return {
+      value: tz,
+      label: `${city}, ${region} (${offset})`,
+      minutes,
+    };
+  })
+  .sort((a, b) => a.minutes - b.minutes || a.label.localeCompare(b.label))
+  .map(({ value, label }) => ({ value, label }));
+
+const digestTimeItems: BaseItem[] = Array.from({ length: 48 }, (_, i) => {
+  const hour24 = Math.floor(i / 2);
+  const minute = i % 2 === 0 ? 0 : 30;
+  const value = `${String(hour24).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+  const period = hour24 < 12 ? "AM" : "PM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  const label = `${hour12}:${String(minute).padStart(2, "0")} ${period}`;
+  return { value, label };
+});
 
 const digestFormSchema = z.object({
   pendingReplyThresholdMinutes: z
@@ -498,15 +535,25 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
                 <FormLabel>Daily digest time</FormLabel>
                 <div className="flex flex-col w-full max-w-3xs">
                   <FormControl>
-                    <Input
-                      id={field.name}
-                      type="time"
+                    <Combobox
+                      items={digestTimeItems}
                       value={field.state.value}
-                      onChange={(e) => field.setValue(e.target.value)}
-                      autoComplete="off"
-                      className="w-full max-w-3xs"
+                      onValueChange={(value) => {
+                        if (value) field.setValue(value);
+                      }}
                       disabled={!isUserOwner}
-                    />
+                    >
+                      <ComboboxTrigger className="w-full max-w-3xs" />
+                      <ComboboxContent className="w-(--anchor-width)">
+                        <ComboboxList>
+                          {(item: BaseItem) => (
+                            <ComboboxItem key={item.value} value={item.value}>
+                              {item.label}
+                            </ComboboxItem>
+                          )}
+                        </ComboboxList>
+                      </ComboboxContent>
+                    </Combobox>
                   </FormControl>
                   <FormMessage />
                 </div>
