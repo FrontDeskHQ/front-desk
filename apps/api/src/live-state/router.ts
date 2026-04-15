@@ -9,6 +9,7 @@ import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
+import { allowlistRoute } from "./router/allowlist";
 import documentationSourcesRoute from "./router/documentation-sources";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -700,21 +701,7 @@ export const router = createRouter({
           });
         }),
       })),
-    allowlist: privateRoute.collectionRoute(schema.allowlist, {
-      read: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.user?.email) return false;
-
-        return {
-          email: ctx.user.email.toLowerCase(),
-        };
-      },
-      insert: ({ ctx }) => !!ctx?.internalApiKey,
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+    allowlist: allowlistRoute,
     subscription: privateRoute.collectionRoute(schema.subscription, {
       read: ({ ctx }) => {
         if (ctx?.internalApiKey) return true;
