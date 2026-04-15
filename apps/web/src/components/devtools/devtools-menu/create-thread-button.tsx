@@ -182,7 +182,7 @@ export const CreateThreadButton = () => {
         const authorId = ulid().toLowerCase();
         const threadId = ulid().toLowerCase();
 
-        mutate.author.insert({
+        mutate.author.create({
           id: authorId,
           name: randomThread.author,
           userId: null,
@@ -244,7 +244,7 @@ export const CreateThreadButton = () => {
 
       const authorId = ulid().toLowerCase();
 
-      mutate.author.insert({
+      mutate.author.create({
         id: authorId,
         name: value.author,
         userId: null,

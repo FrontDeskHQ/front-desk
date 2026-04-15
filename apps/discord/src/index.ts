@@ -197,18 +197,20 @@ const getOrCreateAuthor = async (
   organizationId: string,
 ): Promise<string> => {
   let authorId = store.query.author
-    .first({ metaId: `discord:${discordUserId}` })
+    .first({
+      metaId: `discord:${discordUserId}`,
+      organizationId,
+    })
     .get()?.id;
 
   if (!authorId) {
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
+    const created = await fetchClient.mutate.author.create({
       name: displayName,
       userId: null,
       metaId: `discord:${discordUserId}`,
       organizationId,
     });
+    authorId = created.id;
   }
 
   return authorId;

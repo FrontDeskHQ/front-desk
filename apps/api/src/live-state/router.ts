@@ -10,6 +10,7 @@ import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
 import { allowlistRoute } from "./router/allowlist";
+import { authorRoute } from "./router/author";
 import documentationSourcesRoute from "./router/documentation-sources";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -457,24 +458,7 @@ export const router = createRouter({
         },
       },
     }),
-    author: publicRoute.collectionRoute(schema.author, {
-      read: () => true,
-      insert: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-
-        if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-        return true;
-        // TODO FRO-68: Figure a good way to handle this
-        // return {
-        //   userId: ctx.session.userId,
-        // };
-      },
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+    author: authorRoute,
     invite: privateRoute
       .collectionRoute(schema.invite, {
         read: ({ ctx }) => {

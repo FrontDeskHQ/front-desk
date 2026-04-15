@@ -388,14 +388,13 @@ const getOrCreateAuthor = async (
       );
     }
 
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
+    const created = await fetchClient.mutate.author.create({
       name: userName,
       userId: null,
       metaId: `slack:${slackUserId}`,
       organizationId,
     });
+    authorId = created.id;
   }
 
   return authorId;
@@ -959,14 +958,13 @@ app.message(
       .get()?.id;
 
     if (!authorId) {
-      authorId = ulid().toLowerCase();
-      await fetchClient.mutate.author.insert({
-        id: authorId,
+      const created = await fetchClient.mutate.author.create({
         name: userName,
         userId: null,
         metaId: `slack:${message.user}`,
         organizationId: integration.organizationId,
       });
+      authorId = created.id;
     }
 
     if (isFirstMessage) {

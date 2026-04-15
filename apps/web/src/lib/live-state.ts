@@ -25,6 +25,53 @@ const { client, store } = createClient<Router>({
     autoConnect: false,
   },
   optimisticMutations: defineOptimisticMutations<Router, typeof schema>({
+    author: {
+      create: ({ input, storage }) => {
+        const organizationId = input.organizationId;
+
+        if (input.userId) {
+          const existing = storage.author
+            .where({
+              userId: input.userId,
+              organizationId,
+            })
+            .get()[0];
+          if (existing) {
+            return;
+          }
+        } else if (input.metaId) {
+          const existing = storage.author
+            .where({
+              metaId: input.metaId,
+              organizationId,
+            })
+            .get()[0];
+          if (existing) {
+            return;
+          }
+        }
+
+        const id = input.id ?? ulid().toLowerCase();
+
+        storage.author.insert({
+          id,
+          name: input.name,
+          userId: input.userId ?? null,
+          metaId: input.metaId ?? null,
+          organizationId,
+        });
+      },
+      update: ({ input, storage }) => {
+        const row = storage.author.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.author.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+        });
+      },
+    },
     message: {
       create: ({ input, storage }) => {
         const author =
