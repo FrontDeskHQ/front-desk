@@ -4,7 +4,7 @@
 
 **Generic collection mutations (`mutate.<collection>.insert`, `mutate.<collection>.update`) are deprecated and must not be used** — not in the web app, not in SSR, not in `**apps/worker`**, not in `**apps/discord`**, `**apps/slack**`, or `**apps/github**`, and not in devtools or one-off scripts that talk to Live-State.
 
-- **All writes** go through **named procedures** on the router (`withMutations` / `withProcedures`), which perform authorization, validation, and any related rows in one place.
+- **All writes** go through **named procedures** on the router (`.withProcedures` only — do not use `.withMutations`), which perform authorization, validation, and any related rows in one place.
 - **There is no “internal exception”** to using raw collection mutates. If the worker or an integration needs to write data, it calls the **same procedures** as everyone else (typically with `**internalApiKey`** context so `authorize` still passes). Convenience is not a reason to bypass procedures.
 - **End state:** each collection route sets `**insert: () => false`** and `**update: false`** (or equivalent) so the deprecated APIs are **unavailable** at the protocol level, not merely discouraged.
 
@@ -18,9 +18,12 @@ This document maps **imported and inline routers** from `apps/api/src/live-state
 
 **Cross-cutting rules (every new procedure):**
 
-1. `**authorize(req.context, { organizationId, role?, allowPublicApiKey? })`** — use at the start of each handler after resolving `organizationId` from the target row (thread, label, integration, etc.). `isAuthorized` already treats `**internalApiKey`** as full access; worker and integration services use that context so the **same** procedures serve **browser sessions** and **trusted callers** without duplicating permission logic.
-2. **Optimistic updates (web only)** — extend `defineOptimisticMutations` in `apps/web/src/lib/live-state.ts` for user-visible flows. `**apps/worker`** and **integration apps** call procedures via `**fetchClient.mutate.<procedure>`** (or the client’s equivalent); they do **not** use the web optimistic layer — they need a **stable procedure API** only.
-3. **Turn off deprecated collection writes in the router** — after call sites migrate, `**insert: () => false`** and `**update: false`** (or stricter) on each collection so raw mutates cannot be invoked by any client.
+1. **Router wiring** — Register custom handlers with **`.withProcedures`** on the collection route (not `.withMutations`).
+2. `**authorize(req.context, { organizationId, role?, allowPublicApiKey? })`** — use at the start of each handler after resolving `organizationId` from the target row (thread, label, integration, etc.). `isAuthorized` already treats `**internalApiKey`** as full access; worker and integration services use that context so the **same** procedures serve **browser sessions** and **trusted callers** without duplicating permission logic.
+3. **Optimistic updates (web only)** — extend `defineOptimisticMutations` in `apps/web/src/lib/live-state.ts` for user-visible flows. `**apps/worker`** and **integration apps** call procedures via `**fetchClient.mutate.<procedure>`** (or the client’s equivalent); they do **not** use the web optimistic layer — they need a **stable procedure API** only.
+4. **Turn off deprecated collection writes in the router** — after call sites migrate, `**insert: () => false`** and `**update: false`** (or stricter) on each collection so raw mutates cannot be invoked by any client.
+5. **Web app: WebSocket `mutate` and `await` (`apps/web` only)** — The **`mutate`** client from `**~/lib/live-state`** is the browser WebSocket sync client. **Do not add new `await`s** on WebSocket **`mutate`** calls when writing new code or migrating call sites; prefer chaining the returned promise (**`.then()`** / **`.catch()`** / **`.finally()`**) and relying on **optimistic handlers** plus **pre-assigned ids** where ordering matters. **Existing** **`await mutate...`** in the repo may **stay as-is**—do not refactor files only to strip those awaits. Do **not** use the **`void`** operator on **`mutate`** calls (no **`void mutate...`**). **`await fetchClient.mutate`** remains valid in **server functions**, SSR, and **worker / integration** apps — this `await` policy applies only to the WebSocket **`mutate`** API.
+6. **Procedure `db` access (`apps/api` Live-State handlers)** — Prefer the **collection-scoped** API on **`db`**, not schema-first helpers. **Do not** use **`db.insert(schema.collection, …)`**, **`db.find(schema.collection, …)`**, **`db.findOne(schema.collection, …)`**, **`db.update(schema.collection, …)`**, and similar **`db.<low-level>(schema.*, …)`** forms in new or touched procedure code. **Do** use **`db.<collection>.insert`**, **`db.<collection>.update`**, **`db.<collection>.where`**, **`db.<collection>.first`**, **`db.<collection>.one`**, **`trx.<collection>.*`** inside transactions, etc., so reads and writes go through the typed collection entry points. Same rule inside **`db.transaction(async ({ trx }) => …)`** with **`trx.<collection>.*`**.
 
 **Naming:**
 
@@ -84,8 +87,8 @@ Until product needs UI, keep collections closed and implement only when required
 
 **Usage:**
 
-- `**apps/web`:** Devtools / deprecated — `mutate.author.insert` (`create-thread-button.tsx`, `create-thread-dialog.tsx`, `thread-input-area-deprecated/index.tsx`).
-- `**apps/discord` / `apps/slack`:** `fetchClient.mutate.author.insert` when ensuring a Discord/Slack-linked author (`discord/src/index.ts`, `slack/src/index.ts`).
+- `**apps/web`:** Devtools / deprecated — `mutate.author.create` (`create-thread-button.tsx`, `create-thread-dialog.tsx`, `thread-input-area-deprecated/index.tsx`). Follow cross-cutting rule 5 for WebSocket **`mutate`** / **`await`** / **`void`**.
+- `**apps/discord` / `apps/slack`:** `fetchClient.mutate.author.create` when ensuring a Discord/Slack-linked author (`discord/src/index.ts`, `slack/src/index.ts`).
 
 **Proposed procedures (replace `insert` / `update`):**
 
