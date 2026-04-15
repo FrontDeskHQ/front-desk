@@ -19,6 +19,20 @@ import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
+const isPostgresUniqueViolation = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+  const { code, cause } = error as { code?: string; cause?: unknown };
+  if (code === "23505") {
+    return true;
+  }
+  if (cause !== undefined && cause !== null) {
+    return isPostgresUniqueViolation(cause);
+  }
+  return false;
+};
+
 export const router = createRouter({
   schema,
   routes: {
@@ -753,24 +767,49 @@ export const router = createRouter({
           }
 
           const now = new Date();
-          const rows = await db.find(schema.pipelineIdempotencyKey, {
-            where: { key: req.input.key },
-          });
-          const existing = Object.values(rows)[0];
+          const key = req.input.key;
+          const hash = req.input.hash;
 
-          if (existing) {
-            await db.update(schema.pipelineIdempotencyKey, existing.id, {
-              hash: req.input.hash,
-              createdAt: now,
+          await db.transaction(async ({ trx }) => {
+            const rows = await trx.find(schema.pipelineIdempotencyKey, {
+              where: { key },
             });
-          } else {
-            await db.insert(schema.pipelineIdempotencyKey, {
-              id: ulid().toLowerCase(),
-              key: req.input.key,
-              hash: req.input.hash,
-              createdAt: now,
-            });
-          }
+            const existing = Object.values(rows)[0];
+
+            if (existing) {
+              await trx.update(schema.pipelineIdempotencyKey, existing.id, {
+                hash,
+                createdAt: now,
+              });
+              return;
+            }
+
+            try {
+              await trx.insert(schema.pipelineIdempotencyKey, {
+                id: ulid().toLowerCase(),
+                key,
+                hash,
+                createdAt: now,
+              });
+            } catch (error: unknown) {
+              if (!isPostgresUniqueViolation(error)) {
+                throw error;
+              }
+
+              const afterRows = await trx.find(schema.pipelineIdempotencyKey, {
+                where: { key },
+              });
+              const row = Object.values(afterRows)[0];
+              if (!row) {
+                throw error;
+              }
+
+              await trx.update(schema.pipelineIdempotencyKey, row.id, {
+                hash,
+                createdAt: now,
+              });
+            }
+          });
 
           return { success: true as const };
         }),
@@ -784,17 +823,23 @@ export const router = createRouter({
             throw new Error("UNAUTHORIZED");
           }
 
-          const rows = await db.find(schema.pipelineIdempotencyKey, {
-            where: { key: req.input.key },
-          });
-          const existing = Object.values(rows)[0];
+          const key = req.input.key;
 
-          if (existing) {
-            await db.update(schema.pipelineIdempotencyKey, existing.id, {
+          await db.transaction(async ({ trx }) => {
+            const rows = await trx.find(schema.pipelineIdempotencyKey, {
+              where: { key },
+            });
+            const existing = Object.values(rows)[0];
+
+            if (!existing) {
+              return;
+            }
+
+            await trx.update(schema.pipelineIdempotencyKey, existing.id, {
               hash: "",
               createdAt: new Date(),
             });
-          }
+          });
 
           return { success: true as const };
         }),
