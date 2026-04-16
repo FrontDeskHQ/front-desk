@@ -6,6 +6,7 @@ import {
 import { ulid } from "ulid";
 import z from "zod";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
+import { authorize } from "../../lib/authorize";
 import { deactivateDigestSignals } from "../../lib/digest-signals";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -192,6 +193,39 @@ type SuggestionRow = {
   resultsStr: string | null;
 };
 
+const threadInsertRow = z.object({
+  id: z.string(),
+  organizationId: z.string(),
+  name: z.string(),
+  authorId: z.string(),
+  createdAt: z.coerce.date(),
+  deletedAt: z.coerce.date().nullable(),
+  discordChannelId: z.string().nullable(),
+  externalIssueId: z.string().nullable(),
+  externalPrId: z.string().nullable(),
+  assignedUserId: z.string().nullable(),
+  status: z.number(),
+  priority: z.number(),
+  externalId: z.string().nullable(),
+  externalOrigin: z.string().nullable(),
+  externalMetadataStr: z.string().nullable(),
+});
+
+const threadUpdateInput = z.object({
+  id: z.string(),
+  name: z.string().optional(),
+  status: z.number().optional(),
+  priority: z.number().optional(),
+  assignedUserId: z.string().nullable().optional(),
+  deletedAt: z.coerce.date().nullable().optional(),
+  discordChannelId: z.string().nullable().optional(),
+  externalIssueId: z.string().nullable().optional(),
+  externalPrId: z.string().nullable().optional(),
+  externalId: z.string().nullable().optional(),
+  externalOrigin: z.string().nullable().optional(),
+  externalMetadataStr: z.string().nullable().optional(),
+});
+
 const parseScoreFromResultsStr = (
   resultsStr: string | null | undefined,
 ): number => {
@@ -208,49 +242,114 @@ const parseScoreFromResultsStr = (
 export default publicRoute
   .collectionRoute(schema.thread, {
     read: () => true,
-    insert: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session?.userId ?? ctx.portalSession?.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
-      postMutation: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
   .withProcedures(({ mutation, query }) => ({
+    bridge: mutation(threadInsertRow).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      await db.thread.insert({
+        id: req.input.id,
+        organizationId: req.input.organizationId,
+        name: req.input.name,
+        authorId: req.input.authorId,
+        createdAt: req.input.createdAt,
+        deletedAt: req.input.deletedAt,
+        discordChannelId: req.input.discordChannelId,
+        externalIssueId: req.input.externalIssueId,
+        externalPrId: req.input.externalPrId,
+        assignedUserId: req.input.assignedUserId,
+        status: req.input.status,
+        priority: req.input.priority,
+        externalId: req.input.externalId,
+        externalOrigin: req.input.externalOrigin,
+        externalMetadataStr: req.input.externalMetadataStr,
+      });
+
+      return await db.thread
+        .one(req.input.id)
+        .include({
+          author: true,
+          messages: { include: { author: true } },
+        })
+        .get();
+    }),
+    seed: mutation(threadInsertRow).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey && !req.context?.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      if (!req.context.internalApiKey) {
+        authorize(req.context, {
+          organizationId: req.input.organizationId,
+        });
+      }
+
+      await db.thread.insert({
+        id: req.input.id,
+        organizationId: req.input.organizationId,
+        name: req.input.name,
+        authorId: req.input.authorId,
+        createdAt: req.input.createdAt,
+        deletedAt: req.input.deletedAt,
+        discordChannelId: req.input.discordChannelId,
+        externalIssueId: req.input.externalIssueId,
+        externalPrId: req.input.externalPrId,
+        assignedUserId: req.input.assignedUserId,
+        status: req.input.status,
+        priority: req.input.priority,
+        externalId: req.input.externalId,
+        externalOrigin: req.input.externalOrigin,
+        externalMetadataStr: req.input.externalMetadataStr,
+      });
+
+      return await db.thread
+        .one(req.input.id)
+        .include({
+          author: true,
+          messages: { include: { author: true } },
+        })
+        .get();
+    }),
+    update: mutation(threadUpdateInput).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey && !req.context?.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const thread = await db.thread.one(req.input.id).get();
+      if (!thread) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      if (!req.context.internalApiKey) {
+        authorize(req.context, {
+          organizationId: thread.organizationId,
+        });
+      }
+
+      const { id, ...rest } = req.input;
+      const patch = Object.fromEntries(
+        Object.entries(rest).filter(([, value]) => value !== undefined),
+      ) as Record<string, unknown>;
+
+      if (Object.keys(patch).length > 0) {
+        await db.thread.update(id, patch);
+      }
+
+      return await db.thread
+        .one(id)
+        .include({
+          author: true,
+          messages: { include: { author: true } },
+        })
+        .get();
+    }),
     create: mutation(
       z.object({
         organizationId: z.string().optional(),
