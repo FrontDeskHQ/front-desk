@@ -25,6 +25,18 @@ const { client, store } = createClient<Router>({
     autoConnect: false,
   },
   optimisticMutations: defineOptimisticMutations<Router, typeof schema>({
+    invite: {
+      cancel: ({ input, storage }) => {
+        const row = storage.invite.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.invite.update(input.id, {
+          active: false,
+        });
+      },
+    },
     author: {
       create: ({ input, storage }) => {
         const organizationId = input.organizationId;

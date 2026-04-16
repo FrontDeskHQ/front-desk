@@ -1,17 +1,16 @@
 import { router as createRouter } from "@live-state/sync/server";
-import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
-import { addDays, addYears } from "date-fns";
+import { addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
 import { dodopayments } from "../lib/payment";
-import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
 import { allowlistRoute } from "./router/allowlist";
 import { authorRoute } from "./router/author";
 import documentationSourcesRoute from "./router/documentation-sources";
+import { inviteRoute } from "./router/invite";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
@@ -302,140 +301,40 @@ export const router = createRouter({
             }));
         }),
       })),
-    organizationUser: privateRoute
-      .collectionRoute(schema.organizationUser, {
-        read: () => true,
-        insert: () => false,
-        update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                  role: "owner",
-                },
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                  role: "owner",
-                },
-              },
-            };
-          },
-        },
-      })
-      .withMutations(({ mutation }) => ({
-        inviteUser: mutation(
-          z.object({
-            organizationId: z.string(),
-            email: z.email().array(),
-          }),
-        ).handler(async ({ req, db }) => {
-          const orgId = req.input!.organizationId;
-
-          // TODO follow https://github.com/pedroscosta/live-state/issues/74
-          const selfOrgUser = Object.values(
-            await db.find(schema.organizationUser, {
-              where: {
-                organizationId: orgId,
-                userId: req.context.session.userId,
-              },
-              include: {
-                user: true,
-                organization: true,
-              },
-            }),
-          )[0] as any;
-
-          if (!selfOrgUser || selfOrgUser.role !== "owner") {
-            throw new Error("UNAUTHORIZED");
-          }
-
-          const existingMembers = Object.values(
-            await db.find(schema.organizationUser, {
-              where: {
-                organizationId: orgId,
-              },
-              include: {
-                user: true,
-              },
-            }),
-          );
-
-          const existingInvites = Object.values(
-            await db.find(schema.invite, {
-              where: {
-                organizationId: orgId,
-                active: true,
-                expiresAt: {
-                  $gt: new Date(),
-                },
-              },
-            }),
-          );
-
-          // TODO follow https://github.com/pedroscosta/live-state/issues/74
-          const filteredEmails = Array.from(
-            new Set(req.input!.email.map((e) => e.trim().toLowerCase())),
-          ).filter(
-            (email) =>
-              !existingMembers.some(
-                (member) => (member as any).user?.email.toLowerCase() === email,
-              ) &&
-              !existingInvites.some(
-                (invite) => (invite as any).email.toLowerCase() === email,
-              ),
-          );
-
-          await Promise.allSettled(
-            filteredEmails.map(async (email) => {
-              const inviteId = ulid().toLowerCase();
-              await db.insert(schema.invite, {
-                id: inviteId,
-                organizationId: req.input!.organizationId,
-                creatorId: req.context.session.userId,
-                email,
-                createdAt: new Date(),
-                expiresAt: addDays(new Date(), 7),
-                active: true,
-              });
-
-              await resend.emails
-                .send({
-                  from: "FrontDesk <notifications@tryfrontdesk.app>",
-                  to: [email],
-                  subject: `${selfOrgUser.user.name} invited you to join ${selfOrgUser.organization.name} on FrontDesk`,
-                  react: InviteUserEmail({
-                    invitedByName: selfOrgUser.user.name,
-                    organizationName: selfOrgUser.organization.name,
-                    organizationImage: selfOrgUser.organization.logoUrl,
-                    inviteLink: `https://tryfrontdesk.app/app/invitation/${inviteId}`,
-                  }),
-                })
-                .catch((error) => {
-                  console.error("Error sending email", error);
-                });
-            }),
-          );
+    organizationUser: privateRoute.collectionRoute(schema.organizationUser, {
+      read: () => true,
+      insert: () => false,
+      update: {
+        preMutation: ({ ctx }) => {
+          if (ctx?.internalApiKey) return true;
+          if (!ctx?.session) return false;
 
           return {
-            success: true,
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+                role: "owner",
+              },
+            },
           };
-        }),
-      })),
+        },
+        postMutation: ({ ctx }) => {
+          if (ctx?.internalApiKey) return true;
+          if (!ctx?.session) return false;
+
+          return {
+            organization: {
+              organizationUsers: {
+                userId: ctx.session.userId,
+                enabled: true,
+                role: "owner",
+              },
+            },
+          };
+        },
+      },
+    }),
     user: publicRoute.collectionRoute(schema.user, {
       read: () => true,
       insert: () => false,
@@ -459,123 +358,7 @@ export const router = createRouter({
       },
     }),
     author: authorRoute,
-    invite: privateRoute
-      .collectionRoute(schema.invite, {
-        read: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            $or: [
-              {
-                organization: {
-                  organizationUsers: {
-                    userId: ctx.session.userId,
-                    enabled: true,
-                  },
-                },
-              },
-              {
-                email: ctx?.user?.email,
-              },
-            ],
-          };
-        },
-        insert: () => false,
-        update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                },
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                },
-              },
-            };
-          },
-        },
-      })
-      .withMutations(({ mutation }) => ({
-        accept: mutation(z.object({ id: z.string() })).handler(
-          async ({ req, db }) => {
-            await db.transaction(async ({ trx }) => {
-              const invite = await trx.findOne(schema.invite, req.input!.id);
-
-              if (!invite) {
-                throw new Error("INVITATION_NOT_FOUND");
-              }
-
-              if (invite.email !== req.context?.user?.email) {
-                throw new Error("INVALID_USER");
-              }
-
-              await trx.insert(schema.organizationUser, {
-                id: ulid().toLowerCase(),
-                organizationId: invite.organizationId,
-                userId: req.context.session.userId,
-                enabled: true,
-                role: "user",
-              });
-
-              await trx.update(schema.invite, req.input!.id, {
-                active: false,
-              });
-            });
-
-            if (req.context?.user?.email) {
-              try {
-                await db.insert(schema.allowlist, {
-                  id: ulid().toLowerCase(),
-                  email: req.context.user.email.toLowerCase(),
-                });
-              } catch {
-                // Silently ignore errors (e.g., duplicate email)
-              }
-            }
-
-            return {
-              success: true,
-            };
-          },
-        ),
-        decline: mutation(z.object({ id: z.string() })).handler(
-          async ({ req, db }) => {
-            const invite = await db.findOne(schema.invite, req.input!.id);
-
-            if (!invite) {
-              throw new Error("INVITATION_NOT_FOUND");
-            }
-
-            if (invite.email !== req.context?.user?.email) {
-              throw new Error("INVALID_USER");
-            }
-
-            await db.update(schema.invite, req.input!.id, {
-              active: false,
-            });
-
-            return {
-              success: true,
-            };
-          },
-        ),
-      })),
+    invite: inviteRoute,
     integration: privateRoute
       .collectionRoute(schema.integration, {
         read: () => true,
