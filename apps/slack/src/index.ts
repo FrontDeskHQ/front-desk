@@ -415,7 +415,8 @@ const backfillMessage = async (
   const authorId = await getOrCreateAuthor(client, msg.user, organizationId);
   const messageContent = msg.text || "";
 
-  await store.mutate.message.insert({
+  await store.mutate.message.sync({
+    action: "create",
     id: ulid().toLowerCase(),
     threadId,
     authorId,
@@ -489,7 +490,7 @@ const createThreadWithMessages = async (
 
   // Create the thread
   const threadId = ulid().toLowerCase();
-  await store.mutate.thread.insert({
+  await store.mutate.thread.bridge({
     id: threadId,
     organizationId,
     name: threadName,
@@ -498,6 +499,8 @@ const createThreadWithMessages = async (
     discordChannelId: null,
     authorId,
     assignedUserId: null,
+    status: 0,
+    priority: 0,
     externalId: threadTs,
     externalOrigin: "slack",
     externalMetadataStr: JSON.stringify({ channelId }),
@@ -975,7 +978,7 @@ app.message(
           ? messageText.substring(0, 100)
           : channelName) || channelName;
 
-      store.mutate.thread.insert({
+      store.mutate.thread.bridge({
         id: threadId,
         organizationId: integration.organizationId,
         name: threadName,
@@ -984,6 +987,8 @@ app.message(
         discordChannelId: null,
         authorId: authorId,
         assignedUserId: null,
+        status: 0,
+        priority: 0,
         externalId: message.ts,
         externalOrigin: "slack",
         externalMetadataStr: JSON.stringify({ channelId: message.channel }),
@@ -1080,7 +1085,8 @@ app.message(
     if (!threadId) return;
     const messageText = "text" in message ? message.text : "";
     const messageContent = messageText || "";
-    store.mutate.message.insert({
+    store.mutate.message.sync({
+      action: "create",
       id: ulid().toLowerCase(),
       threadId,
       authorId: authorId,
@@ -1151,7 +1157,9 @@ const handleMessages = async (
       });
 
       if (result.ok && result.ts) {
-        store.mutate.message.update(message.id, {
+        store.mutate.message.sync({
+          action: "update",
+          id: message.id,
           externalMessageId: result.ts,
         });
       }
