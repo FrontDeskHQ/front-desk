@@ -227,7 +227,8 @@ async function processOrganization(
       lastDigestSentAt: new Date(now).toISOString(),
     },
   };
-  await fetchClient.mutate.organization.update(org.id, {
+  await fetchClient.mutate.organization.update({
+    id: org.id,
     settings: updatedSettings,
   });
 

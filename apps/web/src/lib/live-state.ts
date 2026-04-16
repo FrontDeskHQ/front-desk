@@ -130,6 +130,25 @@ const { client, store } = createClient<Router>({
         });
       },
     },
+    organization: {
+      update: ({ input, storage }) => {
+        const row = storage.organization.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.organization.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.slug !== undefined ? { slug: input.slug } : {}),
+          ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+          ...(input.socials !== undefined ? { socials: input.socials } : {}),
+          ...(input.customInstructions !== undefined
+            ? { customInstructions: input.customInstructions }
+            : {}),
+          ...(input.settings !== undefined ? { settings: input.settings } : {}),
+        });
+      },
+    },
     user: {
       update: ({ input, storage }) => {
         const row = storage.user.where({ id: input.id }).get()[0];
