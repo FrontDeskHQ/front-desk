@@ -92,7 +92,7 @@ function RouteComponent() {
       name: string;
       baseUrl: string;
     }) => {
-      return fetchClient.mutate.documentationSource.addDocumentationSource({
+      return fetchClient.mutate.documentationSource.create({
         organizationId,
         name,
         baseUrl,
@@ -118,7 +118,7 @@ function RouteComponent() {
 
   const recrawlMutation = useMutation({
     mutationFn: async (id: string) => {
-      return fetchClient.mutate.documentationSource.recrawlDocumentationSource({
+      return fetchClient.mutate.documentationSource.recrawl({
         id,
       });
     },
@@ -134,7 +134,8 @@ function RouteComponent() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      return fetchClient.mutate.documentationSource.deleteDocumentationSource({
+      return fetchClient.mutate.documentationSource.update({
+        action: "delete",
         id,
       });
     },
@@ -167,12 +168,10 @@ function RouteComponent() {
 
     try {
       const result =
-        await fetchClient.mutate.documentationSource.validateDocumentationSource(
-          {
-            organizationId: currentOrg.id,
-            baseUrl: baseUrl.trim(),
-          },
-        );
+        await fetchClient.mutate.documentationSource.validate({
+          organizationId: currentOrg.id,
+          baseUrl: baseUrl.trim(),
+        });
 
       if (!result.valid) {
         setValidation({ status: "error", error: result.error });
