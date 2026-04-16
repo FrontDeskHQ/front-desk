@@ -46,7 +46,7 @@ export const DuplicateThreadMenuItem = () => {
       const newThreadId = ulid().toLowerCase();
       const now = new Date();
 
-      await fetchClient.mutate.thread.insert({
+      await fetchClient.mutate.thread.seed({
         id: newThreadId,
         name: thread.name,
         authorId: thread.authorId,
@@ -65,7 +65,7 @@ export const DuplicateThreadMenuItem = () => {
       });
 
       if (firstMessage) {
-        await fetchClient.mutate.message.insert({
+        await fetchClient.mutate.message.seed({
           id: ulid().toLowerCase(),
           authorId: firstMessage.authorId,
           content: firstMessage.content,
