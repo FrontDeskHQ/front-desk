@@ -238,7 +238,7 @@ async function processOrganization(
       ? JSON.parse(signal.metadataStr)
       : { digestIncludedAt: [] };
     metadata.digestIncludedAt = [...(metadata.digestIncludedAt ?? []), nowIso];
-    await fetchClient.mutate.suggestion.update(signal.id, {
+    await fetchClient.mutate.suggestion.update({ id: signal.id, 
       metadataStr: JSON.stringify(metadata),
       updatedAt: new Date(now),
     });

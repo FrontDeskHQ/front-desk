@@ -329,7 +329,7 @@ export const Suggestions = ({
     const suggestion = suggestions.find((s) => s.relatedEntityId === labelId);
     if (!suggestion) return;
 
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted,
       active: false,
       updatedAt: new Date(),
@@ -344,9 +344,12 @@ export const Suggestions = ({
     );
 
     if (existingThreadLabel) {
-      mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
+      mutate.threadLabel.update({
+        id: existingThreadLabel.id,
+        enabled: true,
+      });
     } else {
-      mutate.threadLabel.insert({
+      mutate.threadLabel.create({
         id: ulid().toLowerCase(),
         threadId: threadId,
         labelId: labelId,
@@ -373,9 +376,12 @@ export const Suggestions = ({
       );
 
       if (existingThreadLabel) {
-        mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
+        mutate.threadLabel.update({
+        id: existingThreadLabel.id,
+        enabled: true,
+      });
       } else {
-        mutate.threadLabel.insert({
+        mutate.threadLabel.create({
           id: ulid().toLowerCase(),
           threadId: threadId,
           labelId: labelId,
@@ -417,7 +423,7 @@ export const Suggestions = ({
     });
 
     // Create update record
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "status_changed",
@@ -435,7 +441,7 @@ export const Suggestions = ({
     });
 
     // Mark suggestion as accepted
-    mutate.suggestion.update(statusSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: statusSuggestion.suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -452,7 +458,7 @@ export const Suggestions = ({
   const handleDismissStatus = async () => {
     if (!statusSuggestion) return;
 
-    mutate.suggestion.update(statusSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: statusSuggestion.suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),
@@ -468,7 +474,7 @@ export const Suggestions = ({
     if (!duplicateSuggestion || !organizationId) return;
 
     // Mark suggestion as accepted
-    mutate.suggestion.update(duplicateSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: duplicateSuggestion.suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -478,7 +484,7 @@ export const Suggestions = ({
     mutate.thread.update(threadId, { status: 4 });
 
     // Create update record for the duplicate link
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "marked_duplicate",
@@ -502,7 +508,7 @@ export const Suggestions = ({
   const handleDismissDuplicate = async () => {
     if (!duplicateSuggestion) return;
 
-    mutate.suggestion.update(duplicateSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: duplicateSuggestion.suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),

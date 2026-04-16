@@ -38,7 +38,7 @@ export const assignThreadToUser = async (
     assignedUserId: newAssignedUserId,
   });
 
-  await useMutate(options).update.insert({
+  await useMutate(options).update.create({
     id: ulid().toLowerCase(),
     threadId: threadId,
     userId: userId ?? null,
@@ -81,7 +81,7 @@ export const updateThreadStatus = async (
     status: newStatus,
   });
 
-  await useMutate(options).update.insert({
+  await useMutate(options).update.create({
     id: ulid().toLowerCase(),
     threadId: threadId,
     userId: userId ?? null,
@@ -133,7 +133,7 @@ export const updateThreadPriority = async (
     priority: newPriority,
   });
 
-  await useMutate(options).update.insert({
+  await useMutate(options).update.create({
     id: ulid().toLowerCase(),
     threadId: threadId,
     userId: userId ?? null,

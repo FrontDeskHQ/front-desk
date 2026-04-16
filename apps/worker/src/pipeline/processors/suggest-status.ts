@@ -280,7 +280,7 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
 
           if (existingSuggestion) {
             // Update existing suggestion
-            await fetchClient.mutate.suggestion.update(existingSuggestion.id, {
+            await fetchClient.mutate.suggestion.update({ id: existingSuggestion.id, 
               active: existingSuggestion.active,
               accepted: existingSuggestion.accepted,
               resultsStr,
@@ -289,7 +289,7 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
             });
           } else {
             // Create new suggestion
-            await fetchClient.mutate.suggestion.insert({
+            await fetchClient.mutate.suggestion.create({
               id: ulid().toLowerCase(),
               type: SUGGESTION_TYPE_STATUS,
               entityId: threadId,
@@ -311,7 +311,7 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
           // No suggestion - deactivate any existing suggestions
           for (const existing of existingSuggestions) {
             if (existing.active) {
-              await fetchClient.mutate.suggestion.update(existing.id, {
+              await fetchClient.mutate.suggestion.update({ id: existing.id, 
                 active: false,
                 metadataStr: JSON.stringify({
                   confidence,

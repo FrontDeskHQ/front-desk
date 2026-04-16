@@ -187,7 +187,7 @@ export const QuickActionsPanel = ({
     const suggestion = suggestions.find((s) => s.relatedEntityId === labelId);
     if (!suggestion) return;
 
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted,
       active: false,
       updatedAt: new Date(),
@@ -202,9 +202,12 @@ export const QuickActionsPanel = ({
     );
 
     if (existingThreadLabel) {
-      mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
+      mutate.threadLabel.update({
+        id: existingThreadLabel.id,
+        enabled: true,
+      });
     } else {
-      mutate.threadLabel.insert({
+      mutate.threadLabel.create({
         id: ulid().toLowerCase(),
         threadId: threadId,
         labelId: labelId,
@@ -231,9 +234,12 @@ export const QuickActionsPanel = ({
       );
 
       if (existingThreadLabel) {
-        mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
+        mutate.threadLabel.update({
+        id: existingThreadLabel.id,
+        enabled: true,
+      });
       } else {
-        mutate.threadLabel.insert({
+        mutate.threadLabel.create({
           id: ulid().toLowerCase(),
           threadId: threadId,
           labelId: labelId,
@@ -273,7 +279,7 @@ export const QuickActionsPanel = ({
       status: newStatus,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "status_changed",
@@ -290,7 +296,7 @@ export const QuickActionsPanel = ({
       replicatedStr: JSON.stringify({}),
     });
 
-    mutate.suggestion.update(statusSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: statusSuggestion.suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -307,7 +313,7 @@ export const QuickActionsPanel = ({
   const handleDismissStatus = () => {
     if (!statusSuggestion) return;
 
-    mutate.suggestion.update(statusSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: statusSuggestion.suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),
@@ -322,7 +328,7 @@ export const QuickActionsPanel = ({
   const handleAcceptDuplicate = () => {
     if (!duplicateSuggestion || !organizationId) return;
 
-    mutate.suggestion.update(duplicateSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: duplicateSuggestion.suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -330,7 +336,7 @@ export const QuickActionsPanel = ({
 
     mutate.thread.update(threadId, { status: 4 });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "marked_duplicate",
@@ -354,7 +360,7 @@ export const QuickActionsPanel = ({
   const handleDismissDuplicate = () => {
     if (!duplicateSuggestion) return;
 
-    mutate.suggestion.update(duplicateSuggestion.suggestion.id, {
+    mutate.suggestion.update({ id: duplicateSuggestion.suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),

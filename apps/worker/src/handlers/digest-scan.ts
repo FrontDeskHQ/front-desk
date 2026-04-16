@@ -270,7 +270,7 @@ async function createDigestSignal(params: {
   resultsStr: string;
 }): Promise<void> {
   const now = new Date();
-  await fetchClient.mutate.suggestion.insert({
+  await fetchClient.mutate.suggestion.create({
     id: ulid().toLowerCase(),
     type: params.type,
     entityId: params.threadId,

@@ -80,7 +80,7 @@ export function LinkedPrSuggestionsSection({
 
     mutate.thread.update(threadId, { externalPrId: newExternalPrId });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId,
       type: "pr_changed",
@@ -97,7 +97,7 @@ export function LinkedPrSuggestionsSection({
       replicatedStr: JSON.stringify({}),
     });
 
-    mutate.suggestion.update(s.id, {
+    mutate.suggestion.update({ id: s.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -111,7 +111,7 @@ export function LinkedPrSuggestionsSection({
   };
 
   const handleDismiss = (s: ParsedLinkedPrSuggestion) => {
-    mutate.suggestion.update(s.id, {
+    mutate.suggestion.update({ id: s.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),

@@ -256,7 +256,7 @@ export function IssuesSection({
       externalIssueId: null,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: threadId,
       type: "issue_changed",
@@ -309,7 +309,7 @@ export function IssuesSection({
               mutate.thread.update(threadId, {
                 externalIssueId: newIssueId,
               });
-              mutate.update.insert({
+              mutate.update.create({
                 id: ulid().toLowerCase(),
                 threadId: threadId,
                 type: "issue_changed",

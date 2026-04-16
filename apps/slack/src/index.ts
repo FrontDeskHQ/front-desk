@@ -1268,7 +1268,7 @@ const handleUpdates = async (
       });
 
       if (result.ok && result.ts) {
-        await fetchClient.mutate.update.update(update.id, {
+        await fetchClient.mutate.update.update({ id: update.id, 
           replicatedStr: JSON.stringify({
             ...replicated,
             slack: result.ts,

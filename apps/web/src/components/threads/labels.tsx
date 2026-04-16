@@ -97,7 +97,7 @@ export function LabelsSection({
 
               const newLabelId = ulid().toLowerCase();
 
-              mutate.label.insert({
+              mutate.label.create({
                 id: newLabelId,
                 name: newItem,
                 color: "var(--label-color-red)",
@@ -109,7 +109,7 @@ export function LabelsSection({
 
               // TODO remove this once we have a proper transaction system
               setTimeout(() => {
-                mutate.threadLabel.insert({
+                mutate.threadLabel.create({
                   id: ulid().toLowerCase(),
                   threadId: threadId,
                   labelId: newLabelId,
@@ -149,12 +149,13 @@ export function LabelsSection({
 
                 if (existingThreadLabel) {
                   // Update existing connection
-                  mutate.threadLabel.update(existingThreadLabel.id, {
+                  mutate.threadLabel.update({
+                    id: existingThreadLabel.id,
                     enabled: true,
                   });
                 } else {
                   // Insert new connection
-                  mutate.threadLabel.insert({
+                  mutate.threadLabel.create({
                     id: ulid().toLowerCase(),
                     threadId: threadId,
                     labelId: labelId,
@@ -174,7 +175,8 @@ export function LabelsSection({
                 const label = allLabels?.find((l) => l.id === labelId);
 
                 if (existingThreadLabel) {
-                  mutate.threadLabel.update(existingThreadLabel.id, {
+                  mutate.threadLabel.update({
+                    id: existingThreadLabel.id,
                     enabled: false,
                   });
 

@@ -729,7 +729,7 @@ function RouteComponent() {
       status: newStatus,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: suggestion.entityId,
       type: "status_changed",
@@ -746,7 +746,7 @@ function RouteComponent() {
       replicatedStr: JSON.stringify({}),
     });
 
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -760,7 +760,7 @@ function RouteComponent() {
   };
 
   const handleDismiss = (suggestion: ParsedSuggestion) => {
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),
@@ -846,7 +846,7 @@ function RouteComponent() {
     mutate.thread.update(suggestion.entityId, { status: 4 });
 
     // Create update record for the duplicate link
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: suggestion.entityId,
       type: "marked_duplicate",
@@ -862,7 +862,7 @@ function RouteComponent() {
     });
 
     // Mark suggestion as accepted
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -877,7 +877,7 @@ function RouteComponent() {
   };
 
   const handleDismissDuplicate = (suggestion: ParsedDuplicateSuggestion) => {
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),
@@ -932,7 +932,7 @@ function RouteComponent() {
 
     mutate.thread.update(suggestion.entityId, { externalPrId });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: suggestion.entityId,
       type: "pr_changed",
@@ -949,7 +949,7 @@ function RouteComponent() {
       replicatedStr: JSON.stringify({}),
     });
 
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: true,
       active: false,
       updatedAt: new Date(),
@@ -965,7 +965,7 @@ function RouteComponent() {
   };
 
   const handleDismissLinkedPr = (suggestion: ParsedLinkedPrSuggestion) => {
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),
@@ -1009,7 +1009,7 @@ function RouteComponent() {
   const handleDismissPendingReply = (
     suggestion: ParsedPendingReplySuggestion,
   ) => {
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),
@@ -1039,7 +1039,7 @@ function RouteComponent() {
   const handleDismissLoopToClose = (
     suggestion: ParsedLoopToCloseSuggestion,
   ) => {
-    mutate.suggestion.update(suggestion.id, {
+    mutate.suggestion.update({ id: suggestion.id, 
       accepted: false,
       active: false,
       updatedAt: new Date(),

@@ -67,7 +67,7 @@ export const setupWebhooks = () => {
           status: newStatus,
         });
 
-        store.mutate.update.insert({
+        store.mutate.update.create({
           id: ulid().toLowerCase(),
           threadId: thread.id,
           type: "status_changed",
@@ -198,7 +198,7 @@ export const setupWebhooks = () => {
           status: newStatus,
         });
 
-        store.mutate.update.insert({
+        store.mutate.update.create({
           id: ulid().toLowerCase(),
           threadId: thread.id,
           type: "status_changed",
