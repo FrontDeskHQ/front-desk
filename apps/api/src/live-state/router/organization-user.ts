@@ -1,3 +1,4 @@
+import { ulid } from "ulid";
 import { z } from "zod";
 import { authorize } from "../../lib/authorize";
 import { privateRoute } from "../factories";
@@ -13,6 +14,46 @@ export const organizationUserRoute = privateRoute
     },
   })
   .withProcedures(({ mutation }) => ({
+    create: mutation(
+      z.object({
+        id: z.string().optional(),
+        organizationId: z.string(),
+        userId: z.string(),
+        enabled: z.boolean().optional(),
+        role: z.string().optional(),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (req.context.internalApiKey) {
+        await db.organizationUser.insert({
+          id: req.input.id ?? ulid().toLowerCase(),
+          organizationId: req.input.organizationId,
+          userId: req.input.userId,
+          enabled: req.input.enabled ?? true,
+          role: req.input.role ?? "user",
+        });
+
+        return { success: true as const };
+      }
+
+      if (!req.context.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      authorize(req.context, {
+        organizationId: req.input.organizationId,
+        role: "owner",
+      });
+
+      await db.organizationUser.insert({
+        id: req.input.id ?? ulid().toLowerCase(),
+        organizationId: req.input.organizationId,
+        userId: req.input.userId,
+        enabled: req.input.enabled ?? true,
+        role: req.input.role ?? "user",
+      });
+
+      return { success: true as const };
+    }),
     update: mutation(
       z.object({
         id: z.string(),

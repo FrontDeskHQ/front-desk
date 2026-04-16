@@ -120,7 +120,7 @@ export const router = createRouter({
             name: req.context.user?.name,
           });
 
-          const organization = await db.insert(schema.organization, {
+          const organization = await db.organization.insert({
             id: organizationId,
             name: req.input!.name,
             slug: req.input!.slug,
@@ -128,6 +128,7 @@ export const router = createRouter({
             logoUrl: null,
             socials: null,
             customInstructions: null,
+            settings: null,
           });
 
           await db.subscription.insert({
@@ -142,7 +143,7 @@ export const router = createRouter({
             updatedAt: new Date(),
           });
 
-          await db.insert(schema.organizationUser, {
+          await db.organizationUser.insert({
             id: ulid().toLowerCase(),
             organizationId,
             userId: req.context.session.userId,
