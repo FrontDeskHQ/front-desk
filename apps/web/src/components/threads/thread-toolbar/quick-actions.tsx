@@ -275,7 +275,8 @@ export const QuickActionsPanel = ({
     const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
     const newStatusLabel = statusSuggestion.label;
 
-    mutate.thread.update(threadId, {
+    mutate.thread.update({
+      id: threadId,
       status: newStatus,
     });
 
@@ -334,7 +335,10 @@ export const QuickActionsPanel = ({
       updatedAt: new Date(),
     });
 
-    mutate.thread.update(threadId, { status: 4 });
+    mutate.thread.update({
+      id: threadId,
+      status: 4,
+    });
 
     mutate.update.create({
       id: ulid().toLowerCase(),

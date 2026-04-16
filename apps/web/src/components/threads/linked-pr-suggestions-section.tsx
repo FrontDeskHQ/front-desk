@@ -78,7 +78,10 @@ export function LinkedPrSuggestionsSection({
     const newExternalPrId = `github:${s.repo}#${s.prId}`;
     const oldPrId = externalPrId ?? null;
 
-    mutate.thread.update(threadId, { externalPrId: newExternalPrId });
+    mutate.thread.update({
+      id: threadId,
+      externalPrId: newExternalPrId,
+    });
 
     mutate.update.create({
       id: ulid().toLowerCase(),

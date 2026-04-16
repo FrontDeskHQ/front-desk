@@ -200,7 +200,8 @@ export function IssuesSection({
       setOptimisticIssue(optimisticIssueData);
 
       // Link the thread to the newly created issue
-      mutate.thread.update(threadId, {
+      mutate.thread.update({
+        id: threadId,
         externalIssueId: result.issue.id,
       });
 
@@ -252,7 +253,8 @@ export function IssuesSection({
     e.stopPropagation();
     if (!externalIssueId || !linkedIssue) return;
 
-    mutate.thread.update(threadId, {
+    mutate.thread.update({
+      id: threadId,
       externalIssueId: null,
     });
 
@@ -306,7 +308,8 @@ export function IssuesSection({
               const newIssue = newIssueId
                 ? issues.find((issue) => issue.id === newIssueId)
                 : undefined;
-              mutate.thread.update(threadId, {
+              mutate.thread.update({
+                id: threadId,
                 externalIssueId: newIssueId,
               });
               mutate.update.create({

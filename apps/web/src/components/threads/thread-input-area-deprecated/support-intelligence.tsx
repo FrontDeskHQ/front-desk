@@ -418,7 +418,8 @@ export const Suggestions = ({
     const newStatusLabel = statusSuggestion.label;
 
     // Update thread status
-    mutate.thread.update(threadId, {
+    mutate.thread.update({
+      id: threadId,
       status: newStatus,
     });
 
@@ -481,7 +482,10 @@ export const Suggestions = ({
     });
 
     // Set thread status to Duplicated (4)
-    mutate.thread.update(threadId, { status: 4 });
+    mutate.thread.update({
+      id: threadId,
+      status: 4,
+    });
 
     // Create update record for the duplicate link
     mutate.update.create({
