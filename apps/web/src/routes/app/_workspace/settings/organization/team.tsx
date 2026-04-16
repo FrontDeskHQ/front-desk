@@ -105,7 +105,8 @@ function RouteComponent() {
                   value={orgUser.role}
                   items={roleOptions}
                   onValueChange={(value) => {
-                    mutate.organizationUser.update(orgUser.id, {
+                    mutate.organizationUser.update({
+                      id: orgUser.id,
                       role: value as string,
                     });
                   }}
@@ -157,7 +158,8 @@ function RouteComponent() {
                         <AlertDialogAction
                           variant="destructive"
                           onClick={() => {
-                            mutate.organizationUser.update(orgUser.id, {
+                            mutate.organizationUser.update({
+                              id: orgUser.id,
                               enabled: false,
                             });
                           }}

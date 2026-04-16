@@ -42,7 +42,7 @@ export function useOnboarding() {
   useEffect(() => {
     if (organizationId && !onboarding) {
       fetchClient.mutate.onboarding
-        .initialize({ organizationId })
+        .create({ organizationId })
         .catch(console.error);
     }
   }, [organizationId, onboarding]);

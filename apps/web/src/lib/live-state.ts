@@ -25,6 +25,52 @@ const { client, store } = createClient<Router>({
     autoConnect: false,
   },
   optimisticMutations: defineOptimisticMutations<Router, typeof schema>({
+    onboarding: {
+      completeStep: ({ input, storage }) => {
+        const row = storage.onboarding.where({ id: input.onboardingId }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        let steps: Record<string, { completedAt: string }> = {};
+        try {
+          steps = JSON.parse(row.stepsStr || "{}") as Record<
+            string,
+            { completedAt: string }
+          >;
+        } catch {
+          steps = {};
+        }
+        steps[input.stepId] = { completedAt: new Date().toISOString() };
+
+        storage.onboarding.update(input.onboardingId, {
+          stepsStr: JSON.stringify(steps),
+          updatedAt: new Date(),
+        });
+      },
+      skip: ({ input, storage }) => {
+        const row = storage.onboarding.where({ id: input.onboardingId }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.onboarding.update(input.onboardingId, {
+          status: "skipped",
+          updatedAt: new Date(),
+        });
+      },
+      complete: ({ input, storage }) => {
+        const row = storage.onboarding.where({ id: input.onboardingId }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.onboarding.update(input.onboardingId, {
+          status: "completed",
+          updatedAt: new Date(),
+        });
+      },
+    },
     invite: {
       cancel: ({ input, storage }) => {
         const row = storage.invite.where({ id: input.id }).get()[0];
@@ -81,6 +127,33 @@ const { client, store } = createClient<Router>({
 
         storage.author.update(input.id, {
           ...(input.name !== undefined ? { name: input.name } : {}),
+        });
+      },
+    },
+    user: {
+      update: ({ input, storage }) => {
+        const row = storage.user.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.user.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.email !== undefined ? { email: input.email } : {}),
+          ...(input.image !== undefined ? { image: input.image } : {}),
+        });
+      },
+    },
+    organizationUser: {
+      update: ({ input, storage }) => {
+        const row = storage.organizationUser.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.organizationUser.update(input.id, {
+          ...(input.role !== undefined ? { role: input.role } : {}),
+          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
         });
       },
     },

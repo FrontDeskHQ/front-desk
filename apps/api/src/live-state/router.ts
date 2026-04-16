@@ -14,11 +14,13 @@ import { inviteRoute } from "./router/invite";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
+import { organizationUserRoute } from "./router/organization-user";
 import { slackChannelsCache } from "./router/slack-channels";
 import { subscriptionRoute } from "./router/subscription";
 import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
+import { userRoute } from "./router/user";
 import { schema } from "./schema";
 
 const isPostgresUniqueViolation = (error: unknown): boolean => {
@@ -301,62 +303,8 @@ export const router = createRouter({
             }));
         }),
       })),
-    organizationUser: privateRoute.collectionRoute(schema.organizationUser, {
-      read: () => true,
-      insert: () => false,
-      update: {
-        preMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            organization: {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                enabled: true,
-                role: "owner",
-              },
-            },
-          };
-        },
-        postMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            organization: {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                enabled: true,
-                role: "owner",
-              },
-            },
-          };
-        },
-      },
-    }),
-    user: publicRoute.collectionRoute(schema.user, {
-      read: () => true,
-      insert: () => false,
-      update: {
-        preMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            id: ctx.session.userId,
-          };
-        },
-        postMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            id: ctx.session.userId,
-          };
-        },
-      },
-    }),
+    organizationUser: organizationUserRoute,
+    user: userRoute,
     author: authorRoute,
     invite: inviteRoute,
     integration: privateRoute
