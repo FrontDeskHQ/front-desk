@@ -1,3 +1,4 @@
+// TODO refactor with new live-state mental model
 import dns from "node:dns/promises";
 import { ulid } from "ulid";
 import { z } from "zod";

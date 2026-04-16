@@ -1,3 +1,4 @@
+// TODO refactor with new live-state mental model
 import { google } from "@ai-sdk/google";
 import { parse } from "@workspace/utils/md-tiptap";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";

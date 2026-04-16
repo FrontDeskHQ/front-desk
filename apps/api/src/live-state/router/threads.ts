@@ -1,3 +1,4 @@
+// TODO refactor with new live-state mental model
 import {
   type ExternalIssue,
   type ExternalPullRequest,
