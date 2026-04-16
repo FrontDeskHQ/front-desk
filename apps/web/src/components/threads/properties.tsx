@@ -65,11 +65,12 @@ export function PropertiesSection({
             const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
             const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
-            mutate.thread.update(id, {
+            mutate.thread.update({
+              id,
               status: newStatus,
             });
 
-            mutate.update.insert({
+            mutate.update.create({
               id: ulid().toLowerCase(),
               threadId: id,
               type: "status_changed",
@@ -155,11 +156,12 @@ export function PropertiesSection({
             const oldPriorityLabel = priorityLabels[oldPriority] ?? "Unknown";
             const newPriorityLabel = priorityLabels[newPriority] ?? "Unknown";
 
-            mutate.thread.update(id, {
+            mutate.thread.update({
+              id,
               priority: newPriority,
             });
 
-            mutate.update.insert({
+            mutate.update.create({
               id: ulid().toLowerCase(),
               threadId: id,
               type: "priority_changed",

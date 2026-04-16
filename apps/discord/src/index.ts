@@ -197,18 +197,20 @@ const getOrCreateAuthor = async (
   organizationId: string,
 ): Promise<string> => {
   let authorId = store.query.author
-    .first({ metaId: `discord:${discordUserId}` })
+    .first({
+      metaId: `discord:${discordUserId}`,
+      organizationId,
+    })
     .get()?.id;
 
   if (!authorId) {
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
+    const created = await fetchClient.mutate.author.create({
       name: displayName,
       userId: null,
       metaId: `discord:${discordUserId}`,
       organizationId,
     });
+    authorId = created.id;
   }
 
   return authorId;
@@ -597,7 +599,7 @@ const backfillThread = async (
   // Create the thread
   // Status: 0 = Open, 3 = Closed (for archived Discord threads)
   const threadId = ulid().toLowerCase();
-  store.mutate.thread.insert({
+  store.mutate.thread.bridge({
     id: threadId,
     organizationId,
     name: thread.name,
@@ -607,6 +609,7 @@ const backfillThread = async (
     authorId,
     assignedUserId: null,
     status: thread.archived ? 3 : 0,
+    priority: 0,
     externalIssueId: null,
     externalPrId: null,
     externalId: thread.id,
@@ -654,7 +657,8 @@ const backfillMessages = async (
     console.log(
       `      Updating thread status: ${thread.name} (${currentStatus} → ${expectedStatus})`,
     );
-    await fetchClient.mutate.thread.update(existingThread.id, {
+    await fetchClient.mutate.thread.update({
+      id: existingThread.id,
       status: expectedStatus,
     });
   }
@@ -717,7 +721,8 @@ const backfillMessage = async (
 
   const contentWithMentions = parseContentAsMarkdown(message);
 
-  store.mutate.message.insert({
+  store.mutate.message.sync({
+    action: "create",
     id: ulid().toLowerCase(),
     threadId,
     authorId,
@@ -771,7 +776,7 @@ client.on("messageCreate", async (message) => {
 
   if (isFirstMessage) {
     threadId = ulid().toLowerCase();
-    store.mutate.thread.insert({
+    store.mutate.thread.bridge({
       id: threadId,
       organizationId: integration.organizationId,
       name: message.channel.name,
@@ -780,6 +785,8 @@ client.on("messageCreate", async (message) => {
       discordChannelId: message.channel.id,
       authorId: authorId,
       assignedUserId: null,
+      status: 0,
+      priority: 0,
       externalIssueId: null,
       externalPrId: null,
       externalId: message.channel.id,
@@ -822,7 +829,8 @@ client.on("messageCreate", async (message) => {
 
   const contentWithMentions = parseContentAsMarkdown(message);
 
-  store.mutate.message.insert({
+  store.mutate.message.sync({
+    action: "create",
     id: ulid().toLowerCase(),
     threadId,
     authorId: authorId,
@@ -928,7 +936,9 @@ const handleMessages = async (
         username: message.author.name,
         avatarURL: message.author?.user?.image ?? undefined,
       });
-      store.mutate.message.update(message.id, {
+      store.mutate.message.sync({
+        action: "update",
+        id: message.id,
         externalMessageId: webhookMessage.id,
       });
     } catch (error) {
@@ -1028,7 +1038,7 @@ const handleUpdates = async (
       const botMessage = await (channel as TextChannel).send({
         content: updateMessage,
       });
-      await fetchClient.mutate.update.update(update.id, {
+      await fetchClient.mutate.update.update({ id: update.id, 
         replicatedStr: JSON.stringify({
           ...replicated,
           discord: botMessage.id,

@@ -60,7 +60,8 @@ function RouteComponent() {
     onSubmit: async ({ value }) => {
       if (!currentOrg?.id) return;
 
-      mutate.organization.update(currentOrg.id, {
+      mutate.organization.update({
+        id: currentOrg.id,
         customInstructions: value.customInstructions || null,
       });
     },

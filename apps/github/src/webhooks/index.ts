@@ -63,11 +63,12 @@ export const setupWebhooks = () => {
           `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
         );
 
-        store.mutate.thread.update(thread.id, {
+        store.mutate.thread.update({
+          id: thread.id,
           status: newStatus,
         });
 
-        store.mutate.update.insert({
+        store.mutate.update.create({
           id: ulid().toLowerCase(),
           threadId: thread.id,
           type: "status_changed",
@@ -194,11 +195,12 @@ export const setupWebhooks = () => {
           `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
         );
 
-        store.mutate.thread.update(thread.id, {
+        store.mutate.thread.update({
+          id: thread.id,
           status: newStatus,
         });
 
-        store.mutate.update.insert({
+        store.mutate.update.create({
           id: ulid().toLowerCase(),
           threadId: thread.id,
           type: "status_changed",

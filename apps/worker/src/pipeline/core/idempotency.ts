@@ -1,4 +1,3 @@
-import { ulid } from "ulid";
 import { fetchClient } from "../../lib/database/client";
 
 /**
@@ -46,25 +45,10 @@ export const storeIdempotencyKey = async (
   hash: string,
 ): Promise<boolean> => {
   try {
-    const existing = await fetchClient.query.pipelineIdempotencyKey
-      .first({ key })
-      .get();
-
-    const now = new Date();
-
-    if (existing) {
-      await fetchClient.mutate.pipelineIdempotencyKey.update(existing.id, {
-        hash,
-        createdAt: now,
-      });
-    } else {
-      await fetchClient.mutate.pipelineIdempotencyKey.insert({
-        id: ulid().toLowerCase(),
-        key,
-        hash,
-        createdAt: now,
-      });
-    }
+    await fetchClient.mutate.pipelineIdempotencyKey.upsert({
+      key,
+      hash,
+    });
 
     return true;
   } catch (error) {
@@ -81,16 +65,9 @@ export const invalidateIdempotencyKey = async (
   key: string,
 ): Promise<boolean> => {
   try {
-    const existing = await fetchClient.query.pipelineIdempotencyKey
-      .first({ key })
-      .get();
-
-    if (existing) {
-      await fetchClient.mutate.pipelineIdempotencyKey.update(existing.id, {
-        hash: "",
-        createdAt: new Date(),
-      });
-    }
+    await fetchClient.mutate.pipelineIdempotencyKey.invalidate({
+      key,
+    });
 
     return true;
   } catch (error) {
@@ -188,34 +165,11 @@ export const batchStoreIdempotencyKeys = async (
   }
 
   try {
-    const keys = keyHashPairs.map((p) => p.key);
-    const existingKeys = await fetchClient.query.pipelineIdempotencyKey
-      .where({ key: { $in: keys } })
-      .get();
-
-    const existingMap = new Map<string, string>();
-    for (const existing of existingKeys) {
-      existingMap.set(existing.key, existing.id);
-    }
-
-    const now = new Date();
-
     for (const { key, hash } of keyHashPairs) {
-      const existingId = existingMap.get(key);
-
-      if (existingId) {
-        await fetchClient.mutate.pipelineIdempotencyKey.update(existingId, {
-          hash,
-          createdAt: now,
-        });
-      } else {
-        await fetchClient.mutate.pipelineIdempotencyKey.insert({
-          id: ulid().toLowerCase(),
-          key,
-          hash,
-          createdAt: now,
-        });
-      }
+      await fetchClient.mutate.pipelineIdempotencyKey.upsert({
+        key,
+        hash,
+      });
     }
 
     return true;

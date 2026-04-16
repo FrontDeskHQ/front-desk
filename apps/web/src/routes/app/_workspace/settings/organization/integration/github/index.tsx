@@ -89,7 +89,8 @@ function RouteComponent() {
     const csrfToken = generateStateToken();
 
     if (integration) {
-      await fetchClient.mutate.integration.update(integration.id, {
+      await fetchClient.mutate.integration.update({
+        id: integration.id,
         enabled: false,
         updatedAt: new Date(),
         configStr: JSON.stringify({
@@ -98,7 +99,7 @@ function RouteComponent() {
         }),
       });
     } else if (activeOrg?.id) {
-      await fetchClient.mutate.integration.insert({
+      await fetchClient.mutate.integration.create({
         id: ulid().toLowerCase(),
         organizationId: activeOrg?.id,
         type: "github",
@@ -215,7 +216,9 @@ function RouteComponent() {
                     variant="ghost"
                     className="ml-auto text-red-700 dark:hover:text-red-500"
                     onClick={() => {
-                      mutate.integration.update(integration?.id, {
+                      if (!integration?.id) return;
+                      mutate.integration.update({
+                        id: integration.id,
                         enabled: false,
                         updatedAt: new Date(),
                       });

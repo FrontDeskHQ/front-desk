@@ -31,7 +31,7 @@ import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { fetchClient, mutate, query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
@@ -105,7 +105,8 @@ function RouteComponent() {
                   value={orgUser.role}
                   items={roleOptions}
                   onValueChange={(value) => {
-                    mutate.organizationUser.update(orgUser.id, {
+                    mutate.organizationUser.update({
+                      id: orgUser.id,
                       role: value as string,
                     });
                   }}
@@ -157,7 +158,8 @@ function RouteComponent() {
                         <AlertDialogAction
                           variant="destructive"
                           onClick={() => {
-                            mutate.organizationUser.update(orgUser.id, {
+                            mutate.organizationUser.update({
+                              id: orgUser.id,
                               enabled: false,
                             });
                           }}
@@ -209,9 +211,7 @@ function RouteComponent() {
                         <AlertDialogAction
                           variant="destructive"
                           onClick={() => {
-                            mutate.invite.update(invite.id, {
-                              active: false,
-                            });
+                            mutate.invite.cancel({ id: invite.id });
                           }}
                         >
                           Revoke
@@ -239,7 +239,7 @@ function RouteComponent() {
               if (!inviteValue || !currentOrg?.id) return;
 
               asyncAction(() =>
-                fetchClient.mutate.organizationUser.inviteUser({
+                mutate.invite.create({
                   organizationId: currentOrg.id,
                   email: inviteValue.split(",").map((email) => email.trim()),
                 }),

@@ -110,7 +110,7 @@ const storeLinkedPrSuggestion = async (params: {
       }
 
       // Update existing active suggestion with latest data
-      await fetchClient.mutate.suggestion.update(existingForPr.id, {
+      await fetchClient.mutate.suggestion.update({ id: existingForPr.id, 
         resultsStr: JSON.stringify({
           prId,
           prNumber,
@@ -127,7 +127,7 @@ const storeLinkedPrSuggestion = async (params: {
 
     // Insert new suggestion
     const now = new Date();
-    await fetchClient.mutate.suggestion.insert({
+    await fetchClient.mutate.suggestion.create({
       id: ulid().toLowerCase(),
       type: SUGGESTION_TYPE_LINKED_PR,
       entityId: threadId,

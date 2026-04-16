@@ -187,7 +187,7 @@ export const CreateThreadDialog = ({
         const authorId = ulid().toLowerCase();
         const threadId = ulid().toLowerCase();
 
-        mutate.author.insert({
+        mutate.author.create({
           id: authorId,
           name: randomThread.author,
           userId: null,
@@ -198,7 +198,7 @@ export const CreateThreadDialog = ({
         // Small delay to ensure author is created first
         await new Promise((resolve) => setTimeout(resolve, 100));
 
-        mutate.thread.insert({
+        mutate.thread.seed({
           id: threadId,
           name: randomThread.title,
           authorId: authorId,
@@ -220,7 +220,7 @@ export const CreateThreadDialog = ({
         await new Promise((resolve) => setTimeout(resolve, 100));
 
         // Create initial message for the thread
-        mutate.message.insert({
+        mutate.message.seed({
           id: ulid().toLowerCase(),
           authorId: authorId,
           content: JSON.stringify([
@@ -254,7 +254,7 @@ export const CreateThreadDialog = ({
 
       const authorId = ulid().toLowerCase();
 
-      mutate.author.insert({
+      mutate.author.create({
         id: authorId,
         name: value.author,
         userId: null,
@@ -265,7 +265,7 @@ export const CreateThreadDialog = ({
       // Small delay to ensure author is created first
       await new Promise((resolve) => setTimeout(resolve, 100));
 
-      mutate.thread.insert({
+      mutate.thread.seed({
         id: ulid().toLowerCase(),
         name: value.title,
         authorId: authorId,

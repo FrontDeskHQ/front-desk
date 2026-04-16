@@ -4,6 +4,7 @@ import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { stepCountIs, streamText } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { authorize } from "../../lib/authorize";
 import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
@@ -16,6 +17,8 @@ import {
   PRIORITY_LABELS,
   STATUS_LABELS,
 } from "./agent-chat-core";
+
+// TODO separate the core agent chat logic from the router
 
 export const agentChatRoute = privateRoute
   .collectionRoute(schema.agentChat, {
@@ -38,7 +41,7 @@ export const agentChatRoute = privateRoute
       postMutation: () => false,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     create: mutation(
       z.object({
         organizationId: z.string(),
@@ -49,28 +52,16 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: req.input.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
+      authorize(req.context, {
+        organizationId: req.input.organizationId,
+      });
 
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      const thread = Object.values(
-        await db.find(schema.thread, {
-          where: {
-            id: req.input.threadId,
-            organizationId: req.input.organizationId,
-          },
-        }),
-      )[0];
+      const thread = await db.thread
+        .first({
+          id: req.input.threadId,
+          organizationId: req.input.organizationId,
+        })
+        .get();
 
       if (!thread) {
         throw new Error("UNAUTHORIZED");
@@ -78,7 +69,7 @@ export const agentChatRoute = privateRoute
 
       const id = ulid().toLowerCase();
 
-      const agentChat = await db.insert(schema.agentChat, {
+      const agentChat = await db.agentChat.insert({
         id,
         organizationId: req.input.organizationId,
         userId: req.context.session.userId,
@@ -96,11 +87,8 @@ export const agentChatRoute = privateRoute
         message: z.string().min(1),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const agentChat = await db.agentChat.one(req.input.chatId).get();
 
-      const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!agentChat) {
         throw new Error("CHAT_NOT_FOUND");
       }
@@ -110,23 +98,12 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      // Verify org membership
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: agentChat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, {
+        organizationId: agentChat.organizationId,
+      });
 
       // Insert user message
-      await db.insert(schema.agentChatMessage, {
+      await db.agentChatMessage.insert({
         id: ulid().toLowerCase(),
         agentChatId: req.input.chatId,
         role: "user",
@@ -137,7 +114,7 @@ export const agentChatRoute = privateRoute
 
       // Create assistant message placeholder
       const assistantMessageId = ulid().toLowerCase();
-      await db.insert(schema.agentChatMessage, {
+      await db.agentChatMessage.insert({
         id: assistantMessageId,
         agentChatId: req.input.chatId,
         role: "assistant",
@@ -147,12 +124,10 @@ export const agentChatRoute = privateRoute
       });
 
       // Fetch thread context
-      const thread = await db.findOne(schema.thread, agentChat.threadId);
+      const thread = await db.thread.one(agentChat.threadId).get();
 
-      const threadMessages = Object.values(
-        await db.find(schema.message, {
-          where: { threadId: agentChat.threadId },
-        }),
+      const threadMessages = (
+        await db.message.where({ threadId: agentChat.threadId }).get()
       ).sort(
         (a, b) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -168,7 +143,7 @@ export const agentChatRoute = privateRoute
       const authors = new Map<string, string>();
       await Promise.all(
         allAuthorIds.map(async (authorId) => {
-          const author = await db.findOne(schema.author, authorId);
+          const author = await db.author.one(authorId).get();
           if (author) authors.set(authorId, author.name);
         }),
       );
@@ -176,20 +151,18 @@ export const agentChatRoute = privateRoute
       // Fetch assignee
       let assigneeName: string | null = null;
       if (thread?.assignedUserId) {
-        const assignee = await db.findOne(schema.user, thread.assignedUserId);
+        const assignee = await db.user.one(thread.assignedUserId).get();
         if (assignee) assigneeName = assignee.name;
       }
 
       // Fetch labels
-      const threadLabels = Object.values(
-        await db.find(schema.threadLabel, {
-          where: { threadId: agentChat.threadId, enabled: true },
-        }),
-      );
+      const threadLabels = await db.threadLabel
+        .where({ threadId: agentChat.threadId, enabled: true })
+        .get();
       const labelNames: string[] = [];
       const labelResults = await Promise.all(
         threadLabels.map(async (tl) => {
-          const label = await db.findOne(schema.label, tl.labelId);
+          const label = await db.label.one(tl.labelId).get();
           return label?.enabled ? label.name : null;
         }),
       );
@@ -198,15 +171,13 @@ export const agentChatRoute = privateRoute
       );
 
       // Fetch active suggestions for this thread
-      const allSuggestions = Object.values(
-        await db.find(schema.suggestion, {
-          where: {
-            entityId: agentChat.threadId,
-            organizationId: agentChat.organizationId,
-            active: true,
-          },
-        }),
-      );
+      const allSuggestions = await db.suggestion
+        .where({
+          entityId: agentChat.threadId,
+          organizationId: agentChat.organizationId,
+          active: true,
+        })
+        .get();
 
       // Related threads suggestions
       const relatedThreadSuggestions = allSuggestions.filter(
@@ -215,15 +186,14 @@ export const agentChatRoute = privateRoute
       const relatedThreadsContext: string[] = [];
       await Promise.all(
         relatedThreadSuggestions.map(async (s) => {
-          const relatedThread = Object.values(
-            await db.find(schema.thread, {
-              where: {
-                id: s.relatedEntityId!,
-                organizationId: agentChat.organizationId,
-                deletedAt: null,
-              },
-            }),
-          )[0];
+          if (!s.relatedEntityId) return;
+          const relatedThread = await db.thread
+            .first({
+              id: s.relatedEntityId,
+              organizationId: agentChat.organizationId,
+              deletedAt: null,
+            })
+            .get();
           if (!relatedThread) return;
           let score: number | null = null;
           try {
@@ -235,7 +205,7 @@ export const agentChatRoute = privateRoute
             // Ignore malformed suggestion payload
           }
           const author = relatedThread.authorId
-            ? await db.findOne(schema.author, relatedThread.authorId)
+            ? await db.author.one(relatedThread.authorId).get()
             : null;
           relatedThreadsContext.push(
             `- "${relatedThread.name}" (_id: ${relatedThread.id}, by ${author?.name ?? "Unknown"}${score ? `, similarity: ${Math.round(score * 100)}%` : ""})`,
@@ -250,7 +220,8 @@ export const agentChatRoute = privateRoute
       const suggestedLabelNames: string[] = [];
       await Promise.all(
         labelSuggestions.map(async (s) => {
-          const label = await db.findOne(schema.label, s.relatedEntityId!);
+          if (!s.relatedEntityId) return;
+          const label = await db.label.one(s.relatedEntityId).get();
           if (label?.enabled) suggestedLabelNames.push(label.name);
         }),
       );
@@ -311,15 +282,13 @@ export const agentChatRoute = privateRoute
         reason: string | null;
       } | null = null;
       if (duplicateSuggestion?.relatedEntityId) {
-        const dupThread = Object.values(
-          await db.find(schema.thread, {
-            where: {
-              id: duplicateSuggestion.relatedEntityId,
-              organizationId: agentChat.organizationId,
-              deletedAt: null,
-            },
-          }),
-        )[0];
+        const dupThread = await db.thread
+          .first({
+            id: duplicateSuggestion.relatedEntityId,
+            organizationId: agentChat.organizationId,
+            deletedAt: null,
+          })
+          .get();
         if (dupThread) {
           let dupResults: { confidence?: string; reason?: string } | null =
             null;
@@ -350,10 +319,8 @@ export const agentChatRoute = privateRoute
         .join("\n");
 
       // Fetch conversation history (all messages except the empty assistant one)
-      const chatMessages = Object.values(
-        await db.find(schema.agentChatMessage, {
-          where: { agentChatId: req.input.chatId },
-        }),
+      const chatMessages = (
+        await db.agentChatMessage.where({ agentChatId: req.input.chatId }).get()
       )
         .sort(
           (a, b) =>
@@ -391,16 +358,10 @@ export const agentChatRoute = privateRoute
       });
 
       // Fetch organization for custom instructions
-      const org = await db.findOne(
-        schema.organization,
-        agentChat.organizationId,
-      );
+      const org = await db.organization.one(agentChat.organizationId).get();
 
       // Fetch current user name for personalization
-      const currentUser = await db.findOne(
-        schema.user,
-        req.context.session.userId,
-      );
+      const currentUser = await db.user.one(req.context.session.userId).get();
 
       const systemPrompt = buildSystemPrompt({
         threadMetadata,
@@ -451,10 +412,7 @@ export const agentChatRoute = privateRoute
               }));
             },
             getDraft: async () => {
-              const currentChat = await db.findOne(
-                schema.agentChat,
-                agentChat.id,
-              );
+              const currentChat = await db.agentChat.one(agentChat.id).get();
               if (currentChat?.draft && currentChat.draftStatus === "active") {
                 return { hasDraft: true, content: currentChat.draft };
               }
@@ -464,7 +422,7 @@ export const agentChatRoute = privateRoute
               console.log(
                 `[agent-chat] Tool call: setDraft content length=${content.length}`,
               );
-              await db.update(schema.agentChat, agentChat.id, {
+              await db.agentChat.update(agentChat.id, {
                 draft: content,
                 draftStatus: "active",
               });
@@ -500,16 +458,14 @@ export const agentChatRoute = privateRoute
               const enriched = await Promise.all(
                 uniqueResults.map(async (r) => {
                   const [thread, message] = await Promise.all([
-                    db
-                      .find(schema.thread, {
-                        where: {
-                          id: r.threadId,
-                          organizationId,
-                          deletedAt: null,
-                        },
+                    db.thread
+                      .first({
+                        id: r.threadId,
+                        organizationId,
+                        deletedAt: null,
                       })
-                      .then((res) => Object.values(res)[0] ?? null),
-                    db.findOne(schema.message, r.messageId),
+                      .get(),
+                    db.message.one(r.messageId).get(),
                   ]);
 
                   if (!thread) {
@@ -517,7 +473,7 @@ export const agentChatRoute = privateRoute
                   }
 
                   const author = thread.authorId
-                    ? await db.findOne(schema.author, thread.authorId)
+                    ? await db.author.one(thread.authorId).get()
                     : null;
 
                   let snippet = "";
@@ -557,24 +513,20 @@ export const agentChatRoute = privateRoute
               console.log(
                 `[agent-chat] Tool call: getThread threadId="${threadId}"`,
               );
-              const thread = Object.values(
-                await db.find(schema.thread, {
-                  where: {
-                    id: threadId,
-                    organizationId,
-                    deletedAt: null,
-                  },
-                }),
-              )[0];
+              const thread = await db.thread
+                .first({
+                  id: threadId,
+                  organizationId,
+                  deletedAt: null,
+                })
+                .get();
 
               if (!thread) {
                 return { error: "Thread not found or access denied" };
               }
 
-              const allMessages = Object.values(
-                await db.find(schema.message, {
-                  where: { threadId },
-                }),
+              const allMessages = (
+                await db.message.where({ threadId }).get()
               ).sort(
                 (a, b) =>
                   new Date(a.createdAt).getTime() -
@@ -593,29 +545,24 @@ export const agentChatRoute = privateRoute
               const authorsMap = new Map<string, string>();
               await Promise.all(
                 authorIds.map(async (id) => {
-                  const author = await db.findOne(schema.author, id);
+                  const author = await db.author.one(id).get();
                   if (author) authorsMap.set(id, author.name);
                 }),
               );
 
               let threadAssignee: string | null = null;
               if (thread.assignedUserId) {
-                const assignee = await db.findOne(
-                  schema.user,
-                  thread.assignedUserId,
-                );
+                const assignee = await db.user.one(thread.assignedUserId).get();
                 if (assignee) threadAssignee = assignee.name;
               }
 
-              const threadLabelsData = Object.values(
-                await db.find(schema.threadLabel, {
-                  where: { threadId, enabled: true },
-                }),
-              );
+              const threadLabelsData = await db.threadLabel
+                .where({ threadId, enabled: true })
+                .get();
               const threadLabelNames: string[] = [];
               const labelResults = await Promise.all(
                 threadLabelsData.map(async (tl) => {
-                  const label = await db.findOne(schema.label, tl.labelId);
+                  const label = await db.label.one(tl.labelId).get();
                   return label?.enabled ? label.name : null;
                 }),
               );
@@ -710,9 +657,9 @@ export const agentChatRoute = privateRoute
                     externalOrigin: string | null;
                   }) => {
                     const [author, assignee] = await Promise.all([
-                      t.authorId ? db.findOne(schema.author, t.authorId) : null,
+                      t.authorId ? db.author.one(t.authorId).get() : null,
                       t.assignedUserId
-                        ? db.findOne(schema.user, t.assignedUserId)
+                        ? db.user.one(t.assignedUserId).get()
                         : null,
                     ]);
 
@@ -761,7 +708,7 @@ export const agentChatRoute = privateRoute
                 );
               }
 
-              await db.update(schema.agentChatMessage, assistantMessageId, {
+              await db.agentChatMessage.update(assistantMessageId, {
                 content: accumulated,
               });
             } else if (part.type === "tool-call") {
@@ -777,7 +724,7 @@ export const agentChatRoute = privateRoute
                 args: part.input,
                 status: "calling",
               });
-              await db.update(schema.agentChatMessage, assistantMessageId, {
+              await db.agentChatMessage.update(assistantMessageId, {
                 toolCalls: JSON.stringify(toolCallsArr),
               });
             } else if (part.type === "tool-result") {
@@ -789,7 +736,7 @@ export const agentChatRoute = privateRoute
                 toolCallsArr[idx].status = "complete";
                 toolCallsArr[idx].result = part.output;
               }
-              await db.update(schema.agentChatMessage, assistantMessageId, {
+              await db.agentChatMessage.update(assistantMessageId, {
                 toolCalls: JSON.stringify(toolCallsArr),
               });
             }
@@ -800,7 +747,7 @@ export const agentChatRoute = privateRoute
           );
 
           // Signal stream completion
-          await db.update(schema.agentChatMessage, assistantMessageId, {
+          await db.agentChatMessage.update(assistantMessageId, {
             toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
           });
         } catch (error) {
@@ -808,7 +755,7 @@ export const agentChatRoute = privateRoute
             `[agent-chat] Streaming error after ${chunkCount} chunks:`,
             error,
           );
-          await db.update(schema.agentChatMessage, assistantMessageId, {
+          await db.agentChatMessage.update(assistantMessageId, {
             content: accumulated || "[Error generating response]",
             toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
           });
@@ -827,7 +774,7 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      const chat = await db.findOne(schema.agentChat, req.input.chatId);
+      const chat = await db.agentChat.one(req.input.chatId).get();
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
       }
@@ -837,16 +784,17 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      // Verify org membership
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: chat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
+      authorize(req.context, {
+        organizationId: chat.organizationId,
+      });
+
+      const orgUser = await db.organizationUser
+        .first({
+          organizationId: chat.organizationId,
+          userId: req.context.session.userId,
+          enabled: true,
+        })
+        .get();
 
       if (!orgUser) {
         throw new Error("UNAUTHORIZED");
@@ -860,21 +808,19 @@ export const agentChatRoute = privateRoute
       // See: https://github.com/pedroscosta/live-state/issues/135
       // Find or create author for the current user (outside transaction
       // so live-state properly syncs the author record to clients)
-      const existingAuthor = Object.values(
-        await db.find(schema.author, {
-          where: {
-            userId: req.context.session.userId,
-            organizationId: chat.organizationId,
-          },
-        }),
-      )[0];
+      const existingAuthor = await db.author
+        .first({
+          userId: req.context.session.userId,
+          organizationId: chat.organizationId,
+        })
+        .get();
 
       let authorId = existingAuthor?.id;
 
       if (!authorId) {
-        const user = await db.findOne(schema.user, req.context.session.userId);
+        const user = await db.user.one(req.context.session.userId).get();
         authorId = ulid().toLowerCase();
-        await db.insert(schema.author, {
+        await db.author.insert({
           id: authorId,
           userId: req.context.session.userId,
           metaId: null,
@@ -886,10 +832,7 @@ export const agentChatRoute = privateRoute
       // Use transaction to prevent concurrent double-accepts
       await db.transaction(async ({ trx }) => {
         // Atomically claim the draft
-        const currentChat = await trx.findOne(
-          schema.agentChat,
-          req.input.chatId,
-        );
+        const currentChat = await trx.agentChat.one(req.input.chatId).get();
         if (!currentChat?.draft || currentChat.draftStatus !== "active") {
           throw new Error("NO_ACTIVE_DRAFT");
         }
@@ -897,7 +840,7 @@ export const agentChatRoute = privateRoute
         // Convert markdown draft to tiptap JSONContent
         const content = JSON.stringify(parse(currentChat.draft));
 
-        await trx.insert(schema.message, {
+        await trx.message.insert({
           id: ulid().toLowerCase(),
           authorId,
           content,
@@ -908,7 +851,7 @@ export const agentChatRoute = privateRoute
         });
 
         // Clear the draft
-        await trx.update(schema.agentChat, chat.id, {
+        await trx.agentChat.update(chat.id, {
           draft: null,
           draftStatus: "accepted",
         });
@@ -926,7 +869,7 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      const chat = await db.findOne(schema.agentChat, req.input.chatId);
+      const chat = await db.agentChat.one(req.input.chatId).get();
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
       }
@@ -936,22 +879,23 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      // Verify org membership
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: chat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
+      authorize(req.context, {
+        organizationId: chat.organizationId,
+      });
+
+      const orgUser = await db.organizationUser
+        .first({
+          organizationId: chat.organizationId,
+          userId: req.context.session.userId,
+          enabled: true,
+        })
+        .get();
 
       if (!orgUser) {
         throw new Error("UNAUTHORIZED");
       }
 
-      await db.update(schema.agentChat, chat.id, {
+      await db.agentChat.update(chat.id, {
         draft: null,
         draftStatus: "dismissed",
       });
@@ -969,7 +913,7 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      const chat = await db.findOne(schema.agentChat, req.input.chatId);
+      const chat = await db.agentChat.one(req.input.chatId).get();
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
       }
@@ -978,15 +922,17 @@ export const agentChatRoute = privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: chat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
+      authorize(req.context, {
+        organizationId: chat.organizationId,
+      });
+
+      const orgUser = await db.organizationUser
+        .first({
+          organizationId: chat.organizationId,
+          userId: req.context.session.userId,
+          enabled: true,
+        })
+        .get();
 
       if (!orgUser) {
         throw new Error("UNAUTHORIZED");
@@ -996,7 +942,7 @@ export const agentChatRoute = privateRoute
         throw new Error("NO_ACTIVE_DRAFT");
       }
 
-      await db.update(schema.agentChat, chat.id, {
+      await db.agentChat.update(chat.id, {
         draft: req.input.content,
       });
 

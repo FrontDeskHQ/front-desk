@@ -271,11 +271,9 @@ function RouteComponent() {
                                   tooltip="Mark as answer"
                                   onClick={async () => {
                                     try {
-                                      await fetchClient.mutate.message.markAsAnswer(
-                                        {
-                                          messageId: item.id,
-                                        },
-                                      );
+                                      await fetchClient.mutate.message.answer({
+                                        messageId: item.id,
+                                      });
                                       route.invalidate();
                                     } catch (error) {
                                       console.error(

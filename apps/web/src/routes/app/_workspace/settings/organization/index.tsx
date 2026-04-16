@@ -249,7 +249,8 @@ function OrgProfileForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
         timezone: value.orgTimezone,
       });
 
-      mutate.organization.update(currentOrg.id, {
+      mutate.organization.update({
+        id: currentOrg.id,
         name: value.orgName,
         slug: value.orgSlug,
         logoUrl,
@@ -484,7 +485,8 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
         },
       });
 
-      mutate.organization.update(currentOrg.id, {
+      mutate.organization.update({
+        id: currentOrg.id,
         settings: nextSettings,
       });
     },

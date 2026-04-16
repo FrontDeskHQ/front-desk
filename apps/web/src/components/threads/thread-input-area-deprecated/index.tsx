@@ -97,7 +97,7 @@ export const ThreadInputArea = ({
           if (!authorId) {
             authorId = ulid().toLowerCase();
 
-            mutate.author.insert({
+            mutate.author.create({
               id: authorId,
               userId: user.id,
               metaId: null,
@@ -106,7 +106,7 @@ export const ThreadInputArea = ({
             });
           }
 
-          mutate.message.insert({
+          mutate.message.seed({
             id: ulid().toLowerCase(),
             authorId: authorId,
             content: JSON.stringify(value),

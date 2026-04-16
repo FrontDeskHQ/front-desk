@@ -27,7 +27,7 @@ export const AddPrSuggestionMenuItem = () => {
 
     try {
       const now = new Date();
-      await fetchClient.mutate.suggestion.insert({
+      await fetchClient.mutate.suggestion.create({
         id: ulid().toLowerCase(),
         type: "linked_pr",
         entityId: threadId,

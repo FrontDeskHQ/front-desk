@@ -87,7 +87,8 @@ function RouteComponent() {
 
     try {
       // Set enabled to false instead of deleting
-      mutate.label.update(labelId, {
+      mutate.label.update({
+        id: labelId,
         enabled: false,
         updatedAt: new Date(),
       });
@@ -107,7 +108,7 @@ function RouteComponent() {
     try {
       const colorVar = LABEL_COLOR_VARS[selectedColorIndex];
 
-      mutate.label.insert({
+      mutate.label.create({
         id: ulid().toLowerCase(),
         name: labelName.trim() || "",
         color: colorVar,
@@ -136,7 +137,8 @@ function RouteComponent() {
     try {
       const colorVar = LABEL_COLOR_VARS[selectedColorIndex];
 
-      mutate.label.update(editingLabel.id, {
+      mutate.label.update({
+        id: editingLabel.id,
         name: labelName,
         color: colorVar,
         updatedAt: new Date(),

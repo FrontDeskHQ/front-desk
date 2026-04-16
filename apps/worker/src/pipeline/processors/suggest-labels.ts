@@ -179,13 +179,13 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
         for (const labelId of suggestedLabelIds) {
           const existing = existingByLabelId.get(labelId);
           if (existing) {
-            await fetchClient.mutate.suggestion.update(existing.id, {
+            await fetchClient.mutate.suggestion.update({ id: existing.id, 
               active: existing.active,
               accepted: existing.accepted,
               updatedAt: now,
             });
           } else {
-            await fetchClient.mutate.suggestion.insert({
+            await fetchClient.mutate.suggestion.create({
               id: ulid().toLowerCase(),
               type: SUGGESTION_TYPE_LABEL,
               entityId: threadId,

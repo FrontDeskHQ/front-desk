@@ -27,10 +27,21 @@ interface CrawlDocumentationJobData {
  */
 const updateSourceStatus = async (
   id: string,
-  updates: Record<string, unknown>,
+  updates: {
+    status?: string;
+    errorStr?: string | null;
+    pageCount?: number;
+    chunksIndexed?: number;
+    lastCrawledAt?: Date | null;
+  },
 ) => {
   try {
-    await fetchClient.mutate.documentationSource.update(id, updates);
+    await fetchClient.mutate.documentationSource.update({
+      action: "setProgress",
+      id,
+      ...updates,
+      updatedAt: new Date(),
+    });
   } catch (error) {
     console.error(`Failed to update documentation source ${id}:`, error);
   }

@@ -30,7 +30,7 @@ const AddPendingReplyMenuItem = () => {
         now.getTime() - (45 + Math.floor(Math.random() * 180)) * 60_000,
       );
 
-      await fetchClient.mutate.suggestion.insert({
+      await fetchClient.mutate.suggestion.create({
         id: ulid().toLowerCase(),
         type: "digest:pending_reply",
         entityId: threadId,
@@ -87,7 +87,7 @@ const AddLoopToCloseMenuItem = () => {
         now.getTime() - (2 + Math.floor(Math.random() * 24)) * 3600_000,
       );
 
-      await fetchClient.mutate.suggestion.insert({
+      await fetchClient.mutate.suggestion.create({
         id: ulid().toLowerCase(),
         type: "digest:loop_to_close",
         entityId: threadId,

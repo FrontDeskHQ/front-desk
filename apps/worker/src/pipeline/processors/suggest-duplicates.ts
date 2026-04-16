@@ -313,7 +313,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
 
           if (existingForDuplicate) {
             // Update existing suggestion
-            await fetchClient.mutate.suggestion.update(existingForDuplicate.id, {
+            await fetchClient.mutate.suggestion.update({ id: existingForDuplicate.id, 
               active: existingForDuplicate.active,
               accepted: existingForDuplicate.accepted,
               resultsStr: JSON.stringify({
@@ -327,7 +327,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
             // Deactivate any other duplicate suggestions for this thread
             for (const existing of existingSuggestions) {
               if (existing.active) {
-                await fetchClient.mutate.suggestion.update(existing.id, {
+                await fetchClient.mutate.suggestion.update({ id: existing.id, 
                   active: false,
                   updatedAt: now,
                 });
@@ -335,7 +335,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
             }
 
             // Insert new suggestion
-            await fetchClient.mutate.suggestion.insert({
+            await fetchClient.mutate.suggestion.create({
               id: ulid().toLowerCase(),
               type: SUGGESTION_TYPE_DUPLICATE,
               entityId: threadId,

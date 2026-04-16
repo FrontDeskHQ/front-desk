@@ -1,6 +1,7 @@
 import dns from "node:dns/promises";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { authorize } from "../../lib/authorize";
 import { reflagClient } from "../../lib/feature-flag";
 import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -144,6 +145,33 @@ const checkFeatureFlag = async (organizationId: string) => {
   }
 };
 
+const documentationUpdateInput = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("setProgress"),
+    id: z.string(),
+    status: z.string().optional(),
+    errorStr: z.string().nullable().optional(),
+    pageCount: z.number().optional(),
+    chunksIndexed: z.number().optional(),
+    lastCrawledAt: z.coerce.date().nullable().optional(),
+    updatedAt: z.coerce.date(),
+  }),
+  z.object({
+    action: z.literal("patch"),
+    id: z.string(),
+    name: z
+      .string()
+      .min(1)
+      .max(DOCUMENTATION_SOURCE_NAME_MAX_LENGTH)
+      .optional(),
+    baseUrl: z.string().url().optional(),
+  }),
+  z.object({
+    action: z.literal("delete"),
+    id: z.string(),
+  }),
+]);
+
 export default privateRoute
   .collectionRoute(schema.documentationSource, {
     read: ({ ctx }) => {
@@ -159,39 +187,26 @@ export default privateRoute
         },
       };
     },
-    insert: ({ ctx }) => !!ctx?.internalApiKey,
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
-  .withMutations(({ mutation }) => ({
-    validateDocumentationSource: mutation(
+  .withProcedures(({ mutation }) => ({
+    validate: mutation(
       z.object({
         organizationId: z.string(),
         baseUrl: z.string().url(),
       }),
-    ).handler(async ({ req, db }) => {
+    ).handler(async ({ req }) => {
       const { organizationId, baseUrl } = req.input;
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
+      if (!req.context.internalApiKey) {
+        if (!req.context.session?.userId) {
           throw new Error("UNAUTHORIZED");
         }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
+        authorize(req.context, { organizationId, role: "owner" });
       }
 
       await checkFeatureFlag(organizationId);
@@ -199,7 +214,7 @@ export default privateRoute
       return validateDocumentationUrl(baseUrl);
     }),
 
-    addDocumentationSource: mutation(
+    create: mutation(
       z.object({
         organizationId: z.string(),
         name: z
@@ -214,36 +229,21 @@ export default privateRoute
     ).handler(async ({ req, db }) => {
       const { organizationId, name, baseUrl } = req.input;
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
+      if (!req.context.internalApiKey) {
+        if (!req.context.session?.userId) {
           throw new Error("UNAUTHORIZED");
         }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
+        authorize(req.context, { organizationId, role: "owner" });
       }
 
-      // Feature flag check
       await checkFeatureFlag(organizationId);
 
-      // SSRF protection: enforce HTTPS and block private IPs
       await assertPublicUrl(baseUrl);
 
       const id = ulid().toLowerCase();
       const now = new Date();
 
-      await db.insert(schema.documentationSource, {
+      await db.documentationSource.insert({
         id,
         organizationId,
         name,
@@ -267,7 +267,7 @@ export default privateRoute
           throw new Error("Queue unavailable: crawl job could not be scheduled");
         }
       } catch (err) {
-        await db.update(schema.documentationSource, id, {
+        await db.documentationSource.update(id, {
           status: "failed",
           errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
           updatedAt: new Date(),
@@ -278,47 +278,35 @@ export default privateRoute
       return { id };
     }),
 
-    recrawlDocumentationSource: mutation(
+    recrawl: mutation(
       z.object({
         id: z.string(),
       }),
     ).handler(async ({ req, db }) => {
       const { id } = req.input;
 
-      const source = await db.findOne(schema.documentationSource, id);
+      const source = await db.documentationSource.one(id).get();
       if (!source) {
         throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: source.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
+      if (!req.context.internalApiKey) {
+        if (!req.context.session?.userId) {
           throw new Error("UNAUTHORIZED");
         }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
+        authorize(req.context, {
+          organizationId: source.organizationId,
+          role: "owner",
+        });
       }
 
-      // Feature flag check
       await checkFeatureFlag(source.organizationId);
 
-      // SSRF protection: re-validate stored URL before recrawl
       await assertPublicUrl(source.baseUrl);
 
       const previousStatus = source.status;
 
-      await db.update(schema.documentationSource, id, {
+      await db.documentationSource.update(id, {
         status: "pending",
         errorStr: null,
         updatedAt: new Date(),
@@ -334,7 +322,7 @@ export default privateRoute
           throw new Error("Queue unavailable: crawl job could not be scheduled");
         }
       } catch (err) {
-        await db.update(schema.documentationSource, id, {
+        await db.documentationSource.update(id, {
           status: previousStatus,
           errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
           updatedAt: new Date(),
@@ -345,46 +333,85 @@ export default privateRoute
       return { success: true };
     }),
 
-    deleteDocumentationSource: mutation(
-      z.object({
-        id: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const { id } = req.input;
+    update: mutation(documentationUpdateInput).handler(async ({ req, db }) => {
+      const input = req.input;
 
-      const source = await db.findOne(schema.documentationSource, id);
+      const source = await db.documentationSource.one(input.id).get();
       if (!source) {
         throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: source.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
+      if (input.action === "setProgress") {
+        if (!req.context.internalApiKey) {
           throw new Error("UNAUTHORIZED");
         }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
+
+        await db.documentationSource.update(input.id, {
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.errorStr !== undefined ? { errorStr: input.errorStr } : {}),
+          ...(input.pageCount !== undefined ? { pageCount: input.pageCount } : {}),
+          ...(input.chunksIndexed !== undefined
+            ? { chunksIndexed: input.chunksIndexed }
+            : {}),
+          ...(input.lastCrawledAt !== undefined
+            ? { lastCrawledAt: input.lastCrawledAt }
+            : {}),
+          updatedAt: input.updatedAt,
+        });
+
+        return { success: true as const };
       }
 
-      // Feature flag check
+      if (input.action === "delete") {
+        if (req.context.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+        if (!req.context.session?.userId) {
+          throw new Error("UNAUTHORIZED");
+        }
+        authorize(req.context, {
+          organizationId: source.organizationId,
+          role: "owner",
+        });
+
+        await checkFeatureFlag(source.organizationId);
+
+        await db.documentationSource.update(input.id, {
+          status: "deleted",
+          updatedAt: new Date(),
+        });
+
+        return { success: true as const };
+      }
+
+      // patch
+      if (req.context.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
+      if (!req.context.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+      authorize(req.context, {
+        organizationId: source.organizationId,
+        role: "owner",
+      });
+
+      if (input.name === undefined && input.baseUrl === undefined) {
+        throw new Error("PATCH_REQUIRES_FIELDS");
+      }
+
       await checkFeatureFlag(source.organizationId);
 
-      await db.update(schema.documentationSource, id, {
-        status: "deleted",
+      if (input.baseUrl !== undefined) {
+        await assertPublicUrl(input.baseUrl);
+      }
+
+      await db.documentationSource.update(input.id, {
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.baseUrl !== undefined ? { baseUrl: input.baseUrl } : {}),
         updatedAt: new Date(),
       });
 
-      return { success: true };
+      return { success: true as const };
     }),
   }));

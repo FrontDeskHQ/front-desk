@@ -48,7 +48,8 @@ export async function activateDiscord({
   const csrfToken = generateStateToken();
 
   if (existingIntegrationId) {
-    await fetchClient.mutate.integration.update(existingIntegrationId, {
+    await fetchClient.mutate.integration.update({
+      id: existingIntegrationId,
       enabled: false,
       updatedAt: new Date(),
       configStr: JSON.stringify({
@@ -57,7 +58,7 @@ export async function activateDiscord({
       }),
     });
   } else {
-    await fetchClient.mutate.integration.insert({
+    await fetchClient.mutate.integration.create({
       id: ulid().toLowerCase(),
       organizationId,
       type: "discord",
@@ -114,7 +115,8 @@ export async function activateSlack({
   const csrfToken = generateStateToken();
 
   if (existingIntegrationId) {
-    await fetchClient.mutate.integration.update(existingIntegrationId, {
+    await fetchClient.mutate.integration.update({
+      id: existingIntegrationId,
       enabled: false,
       updatedAt: new Date(),
       configStr: JSON.stringify({
@@ -123,7 +125,7 @@ export async function activateSlack({
       }),
     });
   } else {
-    await fetchClient.mutate.integration.insert({
+    await fetchClient.mutate.integration.create({
       id: ulid().toLowerCase(),
       organizationId,
       type: "slack",

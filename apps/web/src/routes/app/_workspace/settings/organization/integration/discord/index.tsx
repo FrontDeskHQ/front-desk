@@ -80,7 +80,8 @@ function RouteComponent() {
       enabled: boolean = true,
     ) => {
       if (integration) {
-        mutate.integration.update(integration.id, {
+        mutate.integration.update({
+          id: integration.id,
           enabled,
           updatedAt: new Date(),
           configStr: JSON.stringify({
@@ -89,7 +90,7 @@ function RouteComponent() {
           }),
         });
       } else if (activeOrg?.id) {
-        mutate.integration.insert({
+        mutate.integration.create({
           id: ulid().toLowerCase(),
           organizationId: activeOrg?.id,
           type: "discord",
@@ -238,7 +239,9 @@ function RouteComponent() {
                     variant="ghost"
                     className="ml-auto text-red-700 dark:hover:text-red-500"
                     onClick={() => {
-                      mutate.integration.update(integration?.id, {
+                      if (!integration?.id) return;
+                      mutate.integration.update({
+                        id: integration.id,
                         enabled: false,
                         updatedAt: new Date(),
                       });

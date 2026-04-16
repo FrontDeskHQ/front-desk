@@ -9,38 +9,48 @@ import { schema } from "../schema";
 
 const STATUS_RESOLVED = 2;
 
+const messageSeedInput = z.object({
+  id: z.string(),
+  threadId: z.string(),
+  authorId: z.string(),
+  content: z.string(),
+  createdAt: z.coerce.date(),
+  origin: z.string().nullable().optional(),
+  externalMessageId: z.string().nullable().optional(),
+  isBackfill: z.boolean().optional(),
+});
+
+const messageSyncCreateInput = z.object({
+  action: z.literal("create"),
+  id: z.string(),
+  threadId: z.string(),
+  authorId: z.string(),
+  content: z.string(),
+  createdAt: z.coerce.date(),
+  origin: z.string().nullable().optional(),
+  isBackfill: z.boolean().optional(),
+  externalMessageId: z.string().nullable().optional(),
+});
+
+const messageSyncUpdateInput = z.object({
+  action: z.literal("update"),
+  id: z.string(),
+  externalMessageId: z.string().nullable().optional(),
+  content: z.string().optional(),
+});
+
+const messageSyncInput = z.discriminatedUnion("action", [
+  messageSyncCreateInput,
+  messageSyncUpdateInput,
+]);
+
 export default publicRoute
   .collectionRoute(schema.message, {
     read: () => true,
-    insert: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-
-      if (ctx?.publicApiKey) {
-        return {
-          thread: {
-            organization: {
-              id: ctx.publicApiKey.ownerId,
-            },
-          },
-        };
-      }
-
-      if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-      return {
-        thread: {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session?.userId ?? ctx.portalSession?.session.userId,
-              enabled: true,
-            },
-          },
-        },
-      };
-    },
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
   .withProcedures(({ mutation }) => ({
@@ -132,7 +142,121 @@ export default publicRoute
 
       return message;
     }),
-    markAsAnswer: mutation(
+    seed: mutation(messageSeedInput).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey && !req.context?.session?.userId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const thread = await db.thread.one(req.input.threadId).get();
+      if (!thread) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      if (!req.context.internalApiKey) {
+        authorize(req.context, {
+          organizationId: thread.organizationId,
+        });
+      }
+
+      await db.message.insert({
+        id: req.input.id,
+        threadId: req.input.threadId,
+        authorId: req.input.authorId,
+        content: req.input.content,
+        createdAt: req.input.createdAt,
+        origin: req.input.origin ?? null,
+        externalMessageId: req.input.externalMessageId ?? null,
+        isBackfill: req.input.isBackfill ?? false,
+      });
+
+      return await db.message
+        .one(req.input.id)
+        .include({ author: true })
+        .get();
+    }),
+    sync: mutation(messageSyncInput).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      if (req.input.action === "create") {
+        const thread = await db.thread.one(req.input.threadId).get();
+        if (!thread) {
+          throw new Error("THREAD_NOT_FOUND");
+        }
+
+        await db.message.insert({
+          id: req.input.id,
+          threadId: req.input.threadId,
+          authorId: req.input.authorId,
+          content: req.input.content,
+          createdAt: req.input.createdAt,
+          origin: req.input.origin ?? null,
+          externalMessageId: req.input.externalMessageId ?? null,
+          isBackfill: req.input.isBackfill ?? false,
+        });
+
+        return await db.message
+          .one(req.input.id)
+          .include({ author: true })
+          .get();
+      }
+
+      const message = await db.message.one(req.input.id).get();
+      if (!message) {
+        throw new Error("MESSAGE_NOT_FOUND");
+      }
+
+      const messageThread = await db.thread.one(message.threadId).get();
+      if (!messageThread) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      await db.message.update(message.id, {
+        ...(req.input.externalMessageId !== undefined
+          ? { externalMessageId: req.input.externalMessageId }
+          : {}),
+        ...(req.input.content !== undefined ? { content: req.input.content } : {}),
+      });
+
+      return await db.message
+        .one(message.id)
+        .include({ author: true })
+        .get();
+    }),
+    update: mutation(
+      z.object({
+        id: z.string(),
+        content: z.string().optional(),
+        markedAsAnswer: z.boolean().optional(),
+        externalMessageId: z.string().nullable().optional(),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const message = await db.message.one(req.input.id).get();
+      if (!message) {
+        throw new Error("MESSAGE_NOT_FOUND");
+      }
+
+      await db.message.update(req.input.id, {
+        ...(req.input.content !== undefined ? { content: req.input.content } : {}),
+        ...(req.input.markedAsAnswer !== undefined
+          ? { markedAsAnswer: req.input.markedAsAnswer }
+          : {}),
+        ...(req.input.externalMessageId !== undefined
+          ? { externalMessageId: req.input.externalMessageId }
+          : {}),
+      });
+
+      return await db.message
+        .one(req.input.id)
+        .include({ author: true })
+        .get();
+    }),
+    answer: mutation(
       z.object({
         messageId: z.string(),
       }),
@@ -166,14 +290,12 @@ export default publicRoute
         }
       }
 
-      const existingAnswers = Object.values(
-        await db.find(schema.message, {
-          where: {
-            threadId: message.threadId,
-            markedAsAnswer: true,
-          },
-        }),
-      );
+      const existingAnswers = await db.message
+        .where({
+          threadId: message.threadId,
+          markedAsAnswer: true,
+        })
+        .get();
 
       const hasOtherAnswer = existingAnswers.some(
         (existingMessage) => existingMessage.id !== message.id,
@@ -185,15 +307,14 @@ export default publicRoute
 
       if (!message.markedAsAnswer) {
         await db.transaction(async ({ trx }) => {
-          await trx.update(schema.message, message.id, {
+          await trx.message.update(message.id, {
             markedAsAnswer: true,
           });
-          await trx.update(schema.thread, thread.id, {
+          await trx.thread.update(thread.id, {
             status: STATUS_RESOLVED,
           });
         });
 
-        // Deactivate digest signals since thread is now Resolved
         deactivateDigestSignals(db, thread.organizationId, thread.id, [
           "digest:pending_reply",
           "digest:loop_to_close",
@@ -254,13 +375,11 @@ export default publicRoute
           );
         }
 
-        // Digest signal cleanup — separate from ingest enqueue so a queue
-        // failure doesn't prevent assignee replies from clearing signals.
         try {
           if (!value.isBackfill) {
-            const author = await db.findOne(schema.author, value.authorId);
+            const author = await db.author.one(value.authorId).get();
             if (author?.userId) {
-              const thread = await db.findOne(schema.thread, value.threadId);
+              const thread = await db.thread.one(value.threadId).get();
               if (thread?.assignedUserId === author.userId) {
                 await deactivateDigestSignals(
                   db,

@@ -25,6 +25,191 @@ const { client, store } = createClient<Router>({
     autoConnect: false,
   },
   optimisticMutations: defineOptimisticMutations<Router, typeof schema>({
+    onboarding: {
+      completeStep: ({ input, storage }) => {
+        const row = storage.onboarding.where({ id: input.onboardingId }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        let steps: Record<string, { completedAt: string }> = {};
+        try {
+          steps = JSON.parse(row.stepsStr || "{}") as Record<
+            string,
+            { completedAt: string }
+          >;
+        } catch {
+          steps = {};
+        }
+        steps[input.stepId] = { completedAt: new Date().toISOString() };
+
+        storage.onboarding.update(input.onboardingId, {
+          stepsStr: JSON.stringify(steps),
+          updatedAt: new Date(),
+        });
+      },
+      skip: ({ input, storage }) => {
+        const row = storage.onboarding.where({ id: input.onboardingId }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.onboarding.update(input.onboardingId, {
+          status: "skipped",
+          updatedAt: new Date(),
+        });
+      },
+      complete: ({ input, storage }) => {
+        const row = storage.onboarding.where({ id: input.onboardingId }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.onboarding.update(input.onboardingId, {
+          status: "completed",
+          updatedAt: new Date(),
+        });
+      },
+    },
+    invite: {
+      cancel: ({ input, storage }) => {
+        const row = storage.invite.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.invite.update(input.id, {
+          active: false,
+        });
+      },
+    },
+    author: {
+      create: ({ input, storage }) => {
+        const organizationId = input.organizationId;
+
+        if (input.userId) {
+          const existing = storage.author
+            .where({
+              userId: input.userId,
+              organizationId,
+            })
+            .get()[0];
+          if (existing) {
+            return;
+          }
+        } else if (input.metaId) {
+          const existing = storage.author
+            .where({
+              metaId: input.metaId,
+              organizationId,
+            })
+            .get()[0];
+          if (existing) {
+            return;
+          }
+        }
+
+        const id = input.id ?? ulid().toLowerCase();
+
+        storage.author.insert({
+          id,
+          name: input.name,
+          userId: input.userId ?? null,
+          metaId: input.metaId ?? null,
+          organizationId,
+        });
+      },
+      update: ({ input, storage }) => {
+        const row = storage.author.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.author.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+        });
+      },
+    },
+    organization: {
+      update: ({ input, storage }) => {
+        const row = storage.organization.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.organization.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.slug !== undefined ? { slug: input.slug } : {}),
+          ...(input.logoUrl !== undefined ? { logoUrl: input.logoUrl } : {}),
+          ...(input.socials !== undefined ? { socials: input.socials } : {}),
+          ...(input.customInstructions !== undefined
+            ? { customInstructions: input.customInstructions }
+            : {}),
+          ...(input.settings !== undefined ? { settings: input.settings } : {}),
+        });
+      },
+    },
+    user: {
+      update: ({ input, storage }) => {
+        const row = storage.user.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.user.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.email !== undefined ? { email: input.email } : {}),
+          ...(input.image !== undefined ? { image: input.image } : {}),
+        });
+      },
+    },
+    organizationUser: {
+      update: ({ input, storage }) => {
+        const row = storage.organizationUser.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.organizationUser.update(input.id, {
+          ...(input.role !== undefined ? { role: input.role } : {}),
+          ...(input.enabled !== undefined ? { enabled: input.enabled } : {}),
+        });
+      },
+    },
+    thread: {
+      update: ({ input, storage }) => {
+        const row = storage.thread.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.thread.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.priority !== undefined ? { priority: input.priority } : {}),
+          ...(input.assignedUserId !== undefined
+            ? { assignedUserId: input.assignedUserId }
+            : {}),
+          ...(input.deletedAt !== undefined ? { deletedAt: input.deletedAt } : {}),
+          ...(input.discordChannelId !== undefined
+            ? { discordChannelId: input.discordChannelId }
+            : {}),
+          ...(input.externalIssueId !== undefined
+            ? { externalIssueId: input.externalIssueId }
+            : {}),
+          ...(input.externalPrId !== undefined
+            ? { externalPrId: input.externalPrId }
+            : {}),
+          ...(input.externalId !== undefined ? { externalId: input.externalId } : {}),
+          ...(input.externalOrigin !== undefined
+            ? { externalOrigin: input.externalOrigin }
+            : {}),
+          ...(input.externalMetadataStr !== undefined
+            ? { externalMetadataStr: input.externalMetadataStr }
+            : {}),
+        });
+      },
+    },
     message: {
       create: ({ input, storage }) => {
         const author =
@@ -56,7 +241,7 @@ const { client, store } = createClient<Router>({
           createdAt: new Date(),
         });
       },
-      markAsAnswer: ({ input, storage }) => {
+      answer: ({ input, storage }) => {
         const message = storage.message.where({ id: input.messageId }).get()[0];
         if (!message) return;
 

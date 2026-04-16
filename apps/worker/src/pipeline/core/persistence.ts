@@ -23,7 +23,7 @@ export const createPipelineJob = async (
     options,
   };
 
-  await fetchClient.mutate.pipelineJob.insert({
+  await fetchClient.mutate.pipelineJob.create({
     id: jobId,
     name: PIPELINE_NAME,
     status: "pending",
@@ -62,7 +62,8 @@ export const updatePipelineJobStatus = async (
       ...additionalMetadata,
     };
 
-    await fetchClient.mutate.pipelineJob.update(jobId, {
+    await fetchClient.mutate.pipelineJob.update({
+      id: jobId,
       status,
       metadataStr: JSON.stringify(updatedMetadata),
       updatedAt: new Date(),
@@ -102,7 +103,8 @@ export const completePipelineJob = async (
       summary: result.summary,
     };
 
-    await fetchClient.mutate.pipelineJob.update(jobId, {
+    await fetchClient.mutate.pipelineJob.update({
+      id: jobId,
       status: result.status,
       metadataStr: JSON.stringify(updatedMetadata),
       updatedAt: new Date(),
@@ -141,7 +143,8 @@ export const failPipelineJob = async (
       error,
     };
 
-    await fetchClient.mutate.pipelineJob.update(jobId, {
+    await fetchClient.mutate.pipelineJob.update({
+      id: jobId,
       status: "failed",
       metadataStr: JSON.stringify(updatedMetadata),
       updatedAt: new Date(),

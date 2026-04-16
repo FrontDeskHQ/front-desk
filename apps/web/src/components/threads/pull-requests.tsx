@@ -84,11 +84,12 @@ export function PullRequestsSection({
     e.stopPropagation();
     if (!externalPrId || !linkedPr) return;
 
-    mutate.thread.update(threadId, {
+    mutate.thread.update({
+      id: threadId,
       externalPrId: null,
     });
 
-    mutate.update.insert({
+    mutate.update.create({
       id: ulid().toLowerCase(),
       threadId: threadId,
       type: "pr_changed",
@@ -134,10 +135,11 @@ export function PullRequestsSection({
               const newPr = newPrId
                 ? pullRequests.find((pr) => pr.id === newPrId)
                 : undefined;
-              mutate.thread.update(threadId, {
+              mutate.thread.update({
+                id: threadId,
                 externalPrId: newPrId,
               });
-              mutate.update.insert({
+              mutate.update.create({
                 id: ulid().toLowerCase(),
                 threadId: threadId,
                 type: "pr_changed",

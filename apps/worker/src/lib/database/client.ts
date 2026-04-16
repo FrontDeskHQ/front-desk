@@ -128,7 +128,7 @@ export const storeSuggestion = async (
     const metadataStr = metadata ? JSON.stringify(metadata) : null;
 
     for (const suggestion of existingSuggestions) {
-      await fetchClient.mutate.suggestion.update(suggestion.id, {
+      await fetchClient.mutate.suggestion.update({ id: suggestion.id, 
         active: false,
         updatedAt: now,
       });
@@ -139,7 +139,7 @@ export const storeSuggestion = async (
       const resultsStr = JSON.stringify({ score: st.score });
 
       if (existing) {
-        await fetchClient.mutate.suggestion.update(existing.id, {
+        await fetchClient.mutate.suggestion.update({ id: existing.id, 
           active: true,
           accepted: existing.accepted,
           resultsStr,
@@ -147,7 +147,7 @@ export const storeSuggestion = async (
           updatedAt: now,
         });
       } else {
-        await fetchClient.mutate.suggestion.insert({
+        await fetchClient.mutate.suggestion.create({
           id: ulid().toLowerCase(),
           type: SUGGESTION_TYPE_RELATED_THREADS,
           entityId: threadId,
