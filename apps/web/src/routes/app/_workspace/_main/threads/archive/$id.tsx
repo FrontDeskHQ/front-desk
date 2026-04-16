@@ -112,7 +112,8 @@ function RouteComponent() {
   });
 
   const restoreThread = () => {
-    mutate.thread.update(id, {
+    mutate.thread.update({
+      id,
       deletedAt: null,
     });
     setShowRestoreDialog(false);

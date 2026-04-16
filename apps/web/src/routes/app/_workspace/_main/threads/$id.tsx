@@ -192,7 +192,8 @@ function RouteComponent() {
   };
 
   const deleteThread = () => {
-    mutate.thread.update(id, {
+    mutate.thread.update({
+      id,
       deletedAt: calculateDeletionDate(),
     });
     setShowDeleteDialog(false);
@@ -379,7 +380,7 @@ function RouteComponent() {
                                 tooltip="Mark as answer"
                                 onClick={() => {
                                   mutate.message
-                                    .markAsAnswer({
+                                    .answer({
                                       messageId: item.id,
                                     })
                                     .catch(() => {

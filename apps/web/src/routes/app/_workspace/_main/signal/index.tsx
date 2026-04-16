@@ -725,7 +725,8 @@ function RouteComponent() {
     const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
     const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
-    mutate.thread.update(suggestion.entityId, {
+    mutate.thread.update({
+      id: suggestion.entityId,
       status: newStatus,
     });
 
@@ -843,7 +844,10 @@ function RouteComponent() {
     );
 
     // Set thread status to Duplicated (4)
-    mutate.thread.update(suggestion.entityId, { status: 4 });
+    mutate.thread.update({
+      id: suggestion.entityId,
+      status: 4,
+    });
 
     // Create update record for the duplicate link
     mutate.update.create({
@@ -930,7 +934,10 @@ function RouteComponent() {
     const externalPrId = `github:${suggestion.repo}#${suggestion.prId}`;
     const oldPrId = thread.externalPrId ?? null;
 
-    mutate.thread.update(suggestion.entityId, { externalPrId });
+    mutate.thread.update({
+      id: suggestion.entityId,
+      externalPrId,
+    });
 
     mutate.update.create({
       id: ulid().toLowerCase(),

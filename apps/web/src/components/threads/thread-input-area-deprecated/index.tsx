@@ -106,7 +106,7 @@ export const ThreadInputArea = ({
             });
           }
 
-          mutate.message.insert({
+          mutate.message.seed({
             id: ulid().toLowerCase(),
             authorId: authorId,
             content: JSON.stringify(value),
