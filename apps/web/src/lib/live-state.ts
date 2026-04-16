@@ -176,6 +176,40 @@ const { client, store } = createClient<Router>({
         });
       },
     },
+    thread: {
+      update: ({ input, storage }) => {
+        const row = storage.thread.where({ id: input.id }).get()[0];
+        if (!row) {
+          return;
+        }
+
+        storage.thread.update(input.id, {
+          ...(input.name !== undefined ? { name: input.name } : {}),
+          ...(input.status !== undefined ? { status: input.status } : {}),
+          ...(input.priority !== undefined ? { priority: input.priority } : {}),
+          ...(input.assignedUserId !== undefined
+            ? { assignedUserId: input.assignedUserId }
+            : {}),
+          ...(input.deletedAt !== undefined ? { deletedAt: input.deletedAt } : {}),
+          ...(input.discordChannelId !== undefined
+            ? { discordChannelId: input.discordChannelId }
+            : {}),
+          ...(input.externalIssueId !== undefined
+            ? { externalIssueId: input.externalIssueId }
+            : {}),
+          ...(input.externalPrId !== undefined
+            ? { externalPrId: input.externalPrId }
+            : {}),
+          ...(input.externalId !== undefined ? { externalId: input.externalId } : {}),
+          ...(input.externalOrigin !== undefined
+            ? { externalOrigin: input.externalOrigin }
+            : {}),
+          ...(input.externalMetadataStr !== undefined
+            ? { externalMetadataStr: input.externalMetadataStr }
+            : {}),
+        });
+      },
+    },
     message: {
       create: ({ input, storage }) => {
         const author =
@@ -207,7 +241,7 @@ const { client, store } = createClient<Router>({
           createdAt: new Date(),
         });
       },
-      markAsAnswer: ({ input, storage }) => {
+      answer: ({ input, storage }) => {
         const message = storage.message.where({ id: input.messageId }).get()[0];
         if (!message) return;
 
