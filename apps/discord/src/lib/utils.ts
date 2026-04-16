@@ -25,7 +25,8 @@ export const updateBackfillStatus = async (
   } | null,
 ) => {
   const current = safeParseIntegrationSettings(configStr) ?? {};
-  await fetchClient.mutate.integration.update(integrationId, {
+  await fetchClient.mutate.integration.update({
+    id: integrationId,
     configStr: JSON.stringify({ ...current, backfill }),
   });
 };
@@ -36,7 +37,8 @@ export const updateSyncedChannels = async (
   syncedChannels: string[],
 ) => {
   const current = safeParseIntegrationSettings(configStr) ?? {};
-  await fetchClient.mutate.integration.update(integrationId, {
+  await fetchClient.mutate.integration.update({
+    id: integrationId,
     configStr: JSON.stringify({ ...current, syncedChannels }),
   });
 };

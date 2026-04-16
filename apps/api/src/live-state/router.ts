@@ -1,18 +1,18 @@
 import { router as createRouter } from "@live-state/sync/server";
 import { ulid } from "ulid";
 import { z } from "zod";
-import { privateRoute, publicRoute } from "./factories";
+import { publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
 import { allowlistRoute } from "./router/allowlist";
 import { authorRoute } from "./router/author";
 import documentationSourcesRoute from "./router/documentation-sources";
+import { integrationRoute } from "./router/integration";
 import { inviteRoute } from "./router/invite";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
 import { organizationRoute } from "./router/organization";
 import { organizationUserRoute } from "./router/organization-user";
-import { slackChannelsCache } from "./router/slack-channels";
 import { subscriptionRoute } from "./router/subscription";
 import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
@@ -42,117 +42,7 @@ export const router = createRouter({
     user: userRoute,
     author: authorRoute,
     invite: inviteRoute,
-    integration: privateRoute
-      .collectionRoute(schema.integration, {
-        read: () => true,
-        insert: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            organization: {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                enabled: true,
-                role: "owner",
-              },
-            },
-          };
-        },
-        update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                  role: "owner",
-                },
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                  role: "owner",
-                },
-              },
-            };
-          },
-        },
-      })
-      .withMutations(({ mutation }) => ({
-        fetchSlackChannels: mutation(
-          z.object({
-            organizationId: z.string(),
-            teamId: z.string().optional(),
-          }),
-        ).handler(async ({ req, db }) => {
-          const { organizationId, teamId: requestedTeamId } = req.input;
-
-          let authorized = !!req.context?.internalApiKey;
-
-          if (!authorized && req.context?.session?.userId) {
-            const selfOrgUser = Object.values(
-              await db.find(schema.organizationUser, {
-                where: {
-                  organizationId,
-                  userId: req.context.session.userId,
-                  enabled: true,
-                },
-              }),
-            )[0];
-
-            authorized = selfOrgUser?.role === "owner";
-          }
-
-          if (!authorized) {
-            throw new Error("UNAUTHORIZED");
-          }
-
-          const integration = Object.values(
-            await db.find(schema.integration, {
-              where: {
-                organizationId,
-                type: "slack",
-                enabled: true,
-              },
-            }),
-          )[0];
-
-          if (!integration || !integration.configStr) {
-            throw new Error("SLACK_INTEGRATION_NOT_CONFIGURED");
-          }
-
-          const config = JSON.parse(integration.configStr);
-          const teamId = config?.teamId;
-
-          if (!teamId) {
-            throw new Error("SLACK_TEAM_ID_NOT_FOUND");
-          }
-
-          if (
-            requestedTeamId !== undefined &&
-            String(teamId) !== String(requestedTeamId)
-          ) {
-            throw new Error("SLACK_TEAM_MISMATCH");
-          }
-
-          return slackChannelsCache.get({
-            organizationId,
-            teamId: String(teamId),
-          });
-        }),
-      })),
+    integration: integrationRoute,
     allowlist: allowlistRoute,
     subscription: subscriptionRoute,
     thread: threadsRoute,

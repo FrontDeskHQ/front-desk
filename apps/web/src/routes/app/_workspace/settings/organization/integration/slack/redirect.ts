@@ -109,7 +109,8 @@ export const Route = createFileRoute(
             // The installation object contains all the OAuth response data
             const installation = tokenData;
 
-            await fetchClient.mutate.integration.update(integration.id, {
+            await fetchClient.mutate.integration.update({
+              id: integration.id,
               enabled: true,
               updatedAt: new Date(),
               configStr: JSON.stringify({

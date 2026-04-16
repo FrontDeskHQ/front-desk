@@ -50,7 +50,8 @@ export const Route = createFileRoute(
               throw new Error("CSRF_TOKEN_MISMATCH");
             }
 
-            await fetchClient.mutate.integration.update(integration.id, {
+            await fetchClient.mutate.integration.update({
+              id: integration.id,
               enabled: true,
               updatedAt: new Date(),
               configStr: JSON.stringify({

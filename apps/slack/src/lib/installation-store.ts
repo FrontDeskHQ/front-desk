@@ -27,7 +27,8 @@ export const installationStore = {
 
     const currentConfig =
       safeParseIntegrationSettings(integration.configStr) ?? {};
-    await fetchClient.mutate.integration.update(integration.id, {
+    await fetchClient.mutate.integration.update({
+      id: integration.id,
       updatedAt: new Date(),
       configStr: JSON.stringify({
         ...currentConfig,
@@ -105,7 +106,8 @@ export const installationStore = {
     const { installation: _installation, ...configWithoutInstallation } =
       currentConfig;
 
-    await fetchClient.mutate.integration.update(integration.id, {
+    await fetchClient.mutate.integration.update({
+      id: integration.id,
       updatedAt: new Date(),
       configStr: JSON.stringify(configWithoutInstallation),
     });
