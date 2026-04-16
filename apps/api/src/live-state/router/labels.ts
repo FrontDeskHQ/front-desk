@@ -74,15 +74,9 @@ export default {
           throw new Error("LABEL_NOT_FOUND");
         }
 
-        if (!req.context.internalApiKey) {
-          if (!req.context.session?.userId) {
-            throw new Error("UNAUTHORIZED");
-          }
-
-          authorize(req.context, {
-            organizationId: row.organizationId,
-          });
-        }
+        authorize(req.context, {
+          organizationId: row.organizationId,
+        });
 
         const hasField =
           req.input.name !== undefined ||
@@ -97,8 +91,12 @@ export default {
         await db.label.update(req.input.id, {
           ...(req.input.name !== undefined ? { name: req.input.name } : {}),
           ...(req.input.color !== undefined ? { color: req.input.color } : {}),
-          ...(req.input.enabled !== undefined ? { enabled: req.input.enabled } : {}),
-          ...(req.input.updatedAt !== undefined ? { updatedAt: req.input.updatedAt } : {}),
+          ...(req.input.enabled !== undefined
+            ? { enabled: req.input.enabled }
+            : {}),
+          ...(req.input.updatedAt !== undefined
+            ? { updatedAt: req.input.updatedAt }
+            : {}),
         });
 
         return { success: true as const };

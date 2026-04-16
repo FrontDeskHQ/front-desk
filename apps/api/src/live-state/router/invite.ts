@@ -42,30 +42,19 @@ export const inviteRoute = privateRoute
         email: z.email().array(),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const orgId = req.input.organizationId;
 
-      authorize(req.context, {
+      const selfOrgUser = authorize(req.context, {
         organizationId: orgId,
         role: "owner",
       });
 
-      const selfOrgUser = await db.organizationUser
-        .first({
-          organizationId: orgId,
-          userId: req.context.session.userId,
-        })
-        .get();
-
-      if (!selfOrgUser || selfOrgUser.role !== "owner") {
+      if (!selfOrgUser) {
         throw new Error("UNAUTHORIZED");
       }
 
       const [inviter, organization] = await Promise.all([
-        db.user.one(selfOrgUser.userId).get(),
+        db.user.one(req.context.session.userId).get(),
         db.organization.one(orgId).get(),
       ]);
 
@@ -131,34 +120,79 @@ export const inviteRoute = privateRoute
       };
     }),
 
-    cancel: mutation(z.object({ id: z.string() })).handler(async ({ req, db }) => {
-      if (!req.context.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
+    cancel: mutation(z.object({ id: z.string() })).handler(
+      async ({ req, db }) => {
+        if (!req.context.session?.userId) {
+          throw new Error("UNAUTHORIZED");
+        }
 
-      const invite = await db.invite.one(req.input.id).get();
+        const invite = await db.invite.one(req.input.id).get();
 
-      if (!invite) {
-        throw new Error("INVITATION_NOT_FOUND");
-      }
+        if (!invite) {
+          throw new Error("INVITATION_NOT_FOUND");
+        }
 
-      authorize(req.context, {
-        organizationId: invite.organizationId,
-        role: "owner",
-      });
+        authorize(req.context, {
+          organizationId: invite.organizationId,
+          role: "owner",
+        });
 
-      await db.invite.update(req.input.id, {
-        active: false,
-      });
+        await db.invite.update(req.input.id, {
+          active: false,
+        });
 
-      return {
-        success: true as const,
-      };
-    }),
+        return {
+          success: true as const,
+        };
+      },
+    ),
 
-    accept: mutation(z.object({ id: z.string() })).handler(async ({ req, db }) => {
-      await db.transaction(async ({ trx }) => {
-        const invite = await trx.invite.one(req.input.id).get();
+    accept: mutation(z.object({ id: z.string() })).handler(
+      async ({ req, db }) => {
+        await db.transaction(async ({ trx }) => {
+          const invite = await trx.invite.one(req.input.id).get();
+
+          if (!invite) {
+            throw new Error("INVITATION_NOT_FOUND");
+          }
+
+          if (invite.email !== req.context?.user?.email) {
+            throw new Error("INVALID_USER");
+          }
+
+          await trx.organizationUser.insert({
+            id: ulid().toLowerCase(),
+            organizationId: invite.organizationId,
+            userId: req.context.session.userId,
+            enabled: true,
+            role: "user",
+          });
+
+          await trx.invite.update(req.input.id, {
+            active: false,
+          });
+        });
+
+        if (req.context?.user?.email) {
+          try {
+            await db.allowlist.insert({
+              id: ulid().toLowerCase(),
+              email: req.context.user.email.toLowerCase(),
+            });
+          } catch {
+            // Silently ignore errors (e.g., duplicate email)
+          }
+        }
+
+        return {
+          success: true as const,
+        };
+      },
+    ),
+
+    decline: mutation(z.object({ id: z.string() })).handler(
+      async ({ req, db }) => {
+        const invite = await db.invite.one(req.input.id).get();
 
         if (!invite) {
           throw new Error("INVITATION_NOT_FOUND");
@@ -168,52 +202,13 @@ export const inviteRoute = privateRoute
           throw new Error("INVALID_USER");
         }
 
-        await trx.organizationUser.insert({
-          id: ulid().toLowerCase(),
-          organizationId: invite.organizationId,
-          userId: req.context.session.userId,
-          enabled: true,
-          role: "user",
-        });
-
-        await trx.invite.update(req.input.id, {
+        await db.invite.update(req.input.id, {
           active: false,
         });
-      });
 
-      if (req.context?.user?.email) {
-        try {
-          await db.allowlist.insert({
-            id: ulid().toLowerCase(),
-            email: req.context.user.email.toLowerCase(),
-          });
-        } catch {
-          // Silently ignore errors (e.g., duplicate email)
-        }
-      }
-
-      return {
-        success: true as const,
-      };
-    }),
-
-    decline: mutation(z.object({ id: z.string() })).handler(async ({ req, db }) => {
-      const invite = await db.invite.one(req.input.id).get();
-
-      if (!invite) {
-        throw new Error("INVITATION_NOT_FOUND");
-      }
-
-      if (invite.email !== req.context?.user?.email) {
-        throw new Error("INVALID_USER");
-      }
-
-      await db.invite.update(req.input.id, {
-        active: false,
-      });
-
-      return {
-        success: true as const,
-      };
-    }),
+        return {
+          success: true as const,
+        };
+      },
+    ),
   }));

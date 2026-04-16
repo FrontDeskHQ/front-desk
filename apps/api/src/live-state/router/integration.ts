@@ -34,16 +34,10 @@ export const integrationRoute = privateRoute
   })
   .withProcedures(({ mutation }) => ({
     create: mutation(integrationCreateInput).handler(async ({ req, db }) => {
-      if (!req.context.internalApiKey) {
-        if (!req.context.session?.userId) {
-          throw new Error("UNAUTHORIZED");
-        }
-
-        authorize(req.context, {
-          organizationId: req.input.organizationId,
-          role: "owner",
-        });
-      }
+      authorize(req.context, {
+        organizationId: req.input.organizationId,
+        role: "owner",
+      });
 
       await db.integration.insert({
         id: req.input.id,
@@ -64,16 +58,10 @@ export const integrationRoute = privateRoute
         throw new Error("INTEGRATION_NOT_FOUND");
       }
 
-      if (!req.context.internalApiKey) {
-        if (!req.context.session?.userId) {
-          throw new Error("UNAUTHORIZED");
-        }
-
-        authorize(req.context, {
-          organizationId: row.organizationId,
-          role: "owner",
-        });
-      }
+      authorize(req.context, {
+        organizationId: row.organizationId,
+        role: "owner",
+      });
 
       const hasField =
         req.input.type !== undefined ||
@@ -88,10 +76,18 @@ export const integrationRoute = privateRoute
 
       await db.integration.update(req.input.id, {
         ...(req.input.type !== undefined ? { type: req.input.type } : {}),
-        ...(req.input.enabled !== undefined ? { enabled: req.input.enabled } : {}),
-        ...(req.input.createdAt !== undefined ? { createdAt: req.input.createdAt } : {}),
-        ...(req.input.updatedAt !== undefined ? { updatedAt: req.input.updatedAt } : {}),
-        ...(req.input.configStr !== undefined ? { configStr: req.input.configStr } : {}),
+        ...(req.input.enabled !== undefined
+          ? { enabled: req.input.enabled }
+          : {}),
+        ...(req.input.createdAt !== undefined
+          ? { createdAt: req.input.createdAt }
+          : {}),
+        ...(req.input.updatedAt !== undefined
+          ? { updatedAt: req.input.updatedAt }
+          : {}),
+        ...(req.input.configStr !== undefined
+          ? { configStr: req.input.configStr }
+          : {}),
       });
 
       return { success: true as const };
@@ -105,23 +101,10 @@ export const integrationRoute = privateRoute
     ).handler(async ({ req, db }) => {
       const { organizationId, teamId: requestedTeamId } = req.input;
 
-      let authorized = !!req.context?.internalApiKey;
-
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = await db.organizationUser
-          .first({
-            organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          })
-          .get();
-
-        authorized = selfOrgUser?.role === "owner";
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req.context, {
+        organizationId,
+        role: "owner",
+      });
 
       const integration = await db.integration
         .first({
