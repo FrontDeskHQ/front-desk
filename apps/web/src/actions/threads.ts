@@ -34,7 +34,8 @@ export const assignThreadToUser = async (
     return;
   }
 
-  await useMutate(options).thread.update(threadId, {
+  await useMutate(options).thread.update({
+    id: threadId,
     assignedUserId: newAssignedUserId,
   });
 
@@ -77,7 +78,8 @@ export const updateThreadStatus = async (
   const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
   const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
-  await useMutate(options).thread.update(threadId, {
+  await useMutate(options).thread.update({
+    id: threadId,
     status: newStatus,
   });
 
@@ -129,7 +131,8 @@ export const updateThreadPriority = async (
   const oldPriorityLabel = priorityLabels[oldPriority] ?? priorityText[oldPriority] ?? "Unknown";
   const newPriorityLabel = priorityLabels[newPriority] ?? priorityText[newPriority] ?? "Unknown";
 
-  await useMutate(options).thread.update(threadId, {
+  await useMutate(options).thread.update({
+    id: threadId,
     priority: newPriority,
   });
 
