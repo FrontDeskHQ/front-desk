@@ -18,6 +18,8 @@ import {
   STATUS_LABELS,
 } from "./agent-chat-core";
 
+// TODO separate the core agent chat logic from the router
+
 export const agentChatRoute = privateRoute
   .collectionRoute(schema.agentChat, {
     read: ({ ctx }) => {
@@ -54,18 +56,6 @@ export const agentChatRoute = privateRoute
         organizationId: req.input.organizationId,
       });
 
-      const orgUser = await db.organizationUser
-        .first({
-          organizationId: req.input.organizationId,
-          userId: req.context.session.userId,
-          enabled: true,
-        })
-        .get();
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const thread = await db.thread
         .first({
           id: req.input.threadId,
@@ -97,11 +87,8 @@ export const agentChatRoute = privateRoute
         message: z.string().min(1),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const agentChat = await db.agentChat.one(req.input.chatId).get();
+
       if (!agentChat) {
         throw new Error("CHAT_NOT_FOUND");
       }
@@ -114,18 +101,6 @@ export const agentChatRoute = privateRoute
       authorize(req.context, {
         organizationId: agentChat.organizationId,
       });
-
-      const orgUser = await db.organizationUser
-        .first({
-          organizationId: agentChat.organizationId,
-          userId: req.context.session.userId,
-          enabled: true,
-        })
-        .get();
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
 
       // Insert user message
       await db.agentChatMessage.insert({
@@ -345,9 +320,7 @@ export const agentChatRoute = privateRoute
 
       // Fetch conversation history (all messages except the empty assistant one)
       const chatMessages = (
-        await db.agentChatMessage
-          .where({ agentChatId: req.input.chatId })
-          .get()
+        await db.agentChatMessage.where({ agentChatId: req.input.chatId }).get()
       )
         .sort(
           (a, b) =>
@@ -388,9 +361,7 @@ export const agentChatRoute = privateRoute
       const org = await db.organization.one(agentChat.organizationId).get();
 
       // Fetch current user name for personalization
-      const currentUser = await db.user
-        .one(req.context.session.userId)
-        .get();
+      const currentUser = await db.user.one(req.context.session.userId).get();
 
       const systemPrompt = buildSystemPrompt({
         threadMetadata,
