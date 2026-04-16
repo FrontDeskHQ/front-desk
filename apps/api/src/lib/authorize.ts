@@ -3,25 +3,44 @@ const ROLE_HIERARCHY: Record<string, number> = {
   owner: 1,
 };
 
-export function isAuthorized(
-  ctx: {
-    internalApiKey?: unknown;
-    publicApiKey?: { ownerId: string };
-    orgUsers?: { organizationId: string; role: string }[];
+type AuthorizedContext = {
+  internalApiKey?: unknown;
+  publicApiKey?: { ownerId: string };
+  orgUsers?: { organizationId: string; role: string }[];
+};
+
+export function getOrganizationUser(
+  ctx: AuthorizedContext,
+  opts: {
+    organizationId: string;
   },
+): { organizationId: string; role: string } | null {
+  if (ctx.internalApiKey) return null;
+
+  if (ctx.publicApiKey) return null;
+
+  return (
+    ctx.orgUsers?.find((ou) => ou.organizationId === opts.organizationId) ??
+    null
+  );
+}
+
+export function isAuthorized(
+  ctx: AuthorizedContext,
   opts: {
     organizationId: string;
     role?: string;
     allowPublicApiKey?: boolean;
   },
-): boolean {
-  if (ctx.internalApiKey) return true;
+): [boolean, { organizationId: string; role: string } | null] {
+  if (ctx.internalApiKey) return [true, null];
 
   if (ctx.publicApiKey) {
-    return (
+    return [
       opts.allowPublicApiKey === true &&
-      ctx.publicApiKey.ownerId === opts.organizationId
-    );
+        ctx.publicApiKey.ownerId === opts.organizationId,
+      null,
+    ];
   }
 
   if (ctx.orgUsers) {
@@ -29,18 +48,18 @@ export function isAuthorized(
       (ou) => ou.organizationId === opts.organizationId,
     );
 
-    if (!orgUser) return false;
+    if (!orgUser) return [false, null];
 
     if (opts.role) {
       const requiredLevel = ROLE_HIERARCHY[opts.role] ?? 0;
       const userLevel = ROLE_HIERARCHY[orgUser.role] ?? 0;
-      return userLevel >= requiredLevel;
+      return [userLevel >= requiredLevel, orgUser];
     }
 
-    return true;
+    return [true, orgUser];
   }
 
-  return false;
+  return [false, null];
 }
 
 export const authorize = (
@@ -54,8 +73,10 @@ export const authorize = (
     role?: string;
     allowPublicApiKey?: boolean;
   },
-): void => {
-  if (isAuthorized(ctx, opts)) return;
+): { organizationId: string; role: string } | null => {
+  const [authorized, orgUser] = isAuthorized(ctx, opts);
+
+  if (authorized) return orgUser;
 
   throw new Error("UNAUTHORIZED");
 };
