@@ -15,9 +15,11 @@ import { query } from "~/lib/live-state";
 export function Update({
   update,
   user,
+  connectTop,
 }: {
   update: InferLiveObject<typeof schema.update, { user: true }>;
   user?: { id: string; name: string };
+  connectTop?: boolean;
 }) {
   let metadata: any = null;
   if (update.metadataStr) {
@@ -177,8 +179,11 @@ export function Update({
   };
 
   return (
-    <div className="flex gap-1.5 items-center">
-      <div className="flex items-center justify-center rounded-full border size-7 mr-0.5">
+    <div className="flex gap-2 items-center text-xs text-muted-foreground">
+      <div className="relative flex items-center justify-center size-4 shrink-0">
+        {connectTop && (
+          <span className="absolute left-1/2 -top-0.5 h-3 w-px -translate-x-1/2 -translate-y-full bg-border" />
+        )}
         {update.type === "status_changed" && (
           <StatusIndicator status={metadata?.newStatus as number} />
         )}
@@ -189,25 +194,25 @@ export function Update({
           (assignedUser ? (
             <Avatar variant="user" size="sm" fallback={assignedUser.name} />
           ) : (
-            <CircleUserIcon className="size-4" />
+            <CircleUserIcon className="size-3.5" />
           ))}
-        {update.type === "issue_changed" && <Github className="size-4" />}
-        {update.type === "pr_changed" && <Github className="size-4" />}
+        {update.type === "issue_changed" && <Github className="size-3.5" />}
+        {update.type === "pr_changed" && <Github className="size-3.5" />}
         {update.type === "github_issue_created" && (
-          <Github className="size-4" />
+          <Github className="size-3.5" />
         )}
-        {update.type === "marked_duplicate" && <CopySlash className="size-4" />}
+        {update.type === "marked_duplicate" && (
+          <CopySlash className="size-3.5" />
+        )}
       </div>
-      <span className="text-xs text-muted-foreground">
+      <span>
         <span className="text-foreground">
           {update.user?.name ?? metadata?.userName ?? "Someone"}
         </span>{" "}
         {getUpdateText()}
       </span>
-      <div className="size-0.5 rounded-full bg-muted-foreground"></div>
-      <span className="text-xs text-muted-foreground">
-        {formatRelativeTime(update.createdAt)}
-      </span>
+      <span>·</span>
+      <span>{formatRelativeTime(update.createdAt)}</span>
     </div>
   );
 }

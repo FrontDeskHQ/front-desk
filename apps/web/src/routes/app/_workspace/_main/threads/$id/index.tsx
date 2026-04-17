@@ -10,11 +10,6 @@ import {
   notFound,
   useNavigate,
 } from "@tanstack/react-router";
-import { Avatar } from "@workspace/ui/components/avatar";
-import {
-  RichText,
-  TruncatedText,
-} from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -23,15 +18,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { ActionButton, Button } from "@workspace/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Button } from "@workspace/ui/components/button";
+import { CardHeader } from "@workspace/ui/components/card";
 import {
   Dialog,
   DialogContent,
@@ -47,19 +35,12 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
-import { safeParseJSON } from "@workspace/ui/lib/tiptap";
-import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import {
-  ArrowDown,
-  Check,
-  Copy,
-  MoreHorizontalIcon,
-  Trash2,
-} from "lucide-react";
-import { useEffect, useState } from "react";
+import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
@@ -68,14 +49,16 @@ import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { RelatedThreadsSection } from "~/components/threads/related-threads-section";
 import { ThreadInputArea } from "~/components/threads/thread-input-area-deprecated";
 import { ThreadToolbar } from "~/components/threads/thread-toolbar";
-import { Update } from "~/components/threads/updates";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
+import { ThreadHeader } from "./-components/thread-header";
+import { ThreadReply } from "./-components/thread-reply";
+import { ThreadUpdates } from "./-components/thread-updates";
 
-export const Route = createFileRoute("/app/_workspace/_main/threads/$id")({
+export const Route = createFileRoute("/app/_workspace/_main/threads/$id/")({
   component: RouteComponent,
   loader: async ({ params }) => {
     const { id } = params;
@@ -177,6 +160,27 @@ function RouteComponent() {
         })),
       ].sort((a, b) => a.id.localeCompare(b.id))
     : [];
+
+  const firstItem = allItems[0];
+  const restItems = allItems.slice(1);
+
+  type ReplyGroup =
+    | { type: "updates"; key: string; items: any[] }
+    | { type: "message"; key: string; item: any };
+
+  const replyGroups: ReplyGroup[] = [];
+  for (const item of restItems) {
+    if (item.itemType === "update") {
+      const last = replyGroups[replyGroups.length - 1];
+      if (last?.type === "updates") {
+        last.items.push(item);
+        continue;
+      }
+      replyGroups.push({ type: "updates", key: item.id, items: [item] });
+    } else {
+      replyGroups.push({ type: "message", key: item.id, item });
+    }
+  }
 
   const { scrollRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
@@ -309,163 +313,65 @@ function RouteComponent() {
               </div>
             )}
           </CardHeader>
-          <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
+          <div className="flex flex-col flex-1 w-full overflow-hidden">
             <div
-              className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
+              className="flex-1 overflow-y-auto"
               ref={scrollRef}
               onScroll={disableAutoScroll}
               onTouchMove={disableAutoScroll}
             >
-              {allItems.map((item, i) => {
-                if (item.itemType === "message") {
-                  return (
-                    <TooltipProvider key={item.id}>
-                      <Card
-                        className={cn(
-                          "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border group transition-[color,box-shadow] data-[highlight=true]:border-ring data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
-                          item?.author?.userId === user.id &&
-                            "border-[#2662D9]/20",
-                          item.markedAsAnswer && "border-green-700/30",
-                        )}
-                        data-highlight={item.markedAsAnswer && highlightAnswer}
-                        id={item.markedAsAnswer ? "answer-message" : undefined}
-                      >
-                        <CardHeader
-                          size="sm"
-                          className={cn(
-                            "px-2",
-                            item?.author?.userId === user.id &&
-                              "bg-[#2662D9]/15 border-[#2662D9]/20",
-                            item.markedAsAnswer &&
-                              "bg-green-800/10 border-green-700/30",
-                          )}
-                        >
-                          <CardTitle>
-                            <Avatar
-                              variant="user"
-                              size="md"
-                              fallback={item.author.name}
-                            />
-                            <p>{item.author.name}</p>
-                            <p className="text-foreground-secondary">
-                              {formatRelativeTime(item.createdAt as Date)}
-                            </p>
-                            {item.origin === "discord" && (
-                              <>
-                                <span className="bg-muted-foreground size-0.75 rounded-full" />
-                                <p className="text-foreground-secondary">
-                                  Imported from Discord
-                                </p>
-                              </>
-                            )}
-                            {item.markedAsAnswer && (
-                              <>
-                                <span className="bg-muted-foreground size-0.75 rounded-full" />
-                                <Check className="size-3.5" />
-                                <p className="text-foreground-secondary">
-                                  Marked as answer
-                                </p>
-                              </>
-                            )}
-                          </CardTitle>
-                          {i > 0 && !answerMessage && (
-                            <CardAction
-                              side="right"
-                              className="hidden group-hover:flex"
-                            >
-                              <ActionButton
-                                variant="ghost"
-                                size="icon-sm"
-                                tooltip="Mark as answer"
-                                onClick={() => {
-                                  mutate.message
-                                    .markAsAnswer({
-                                      messageId: item.id,
-                                    })
-                                    .catch(() => {
-                                      toast.error(
-                                        "Failed to mark message as answer",
-                                      );
-                                    });
-                                }}
-                              >
-                                <Check />
-                              </ActionButton>
-                            </CardAction>
-                          )}
-                        </CardHeader>
-                        <CardContent
-                          className={cn(i === 0 && answerMessage && "border-b")}
-                        >
-                          <RichText content={safeParseJSON(item.content)} />
-                        </CardContent>
-                        {i === 0 && answerMessage && (
-                          <CardFooter className="flex-col items-start p-4 gap-2 bg-green-800/15 border-t-0">
-                            <div className="text-xs flex items-center gap-2">
-                              <Check className="size-3.5" /> Answered by{" "}
-                              {answerMessage.author.name}
-                              <p className="text-foreground-secondary">
-                                {formatRelativeTime(
-                                  answerMessage.createdAt as Date,
-                                )}
-                              </p>
-                            </div>
-                            <TruncatedText maxHeight={64} hideShowMore>
-                              <RichText
-                                content={safeParseJSON(answerMessage.content)}
-                              />
-                            </TruncatedText>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              render={
-                                <Link
-                                  to={`/app/threads/$id`}
-                                  params={{ id: thread.id }}
-                                  hash="answer-message"
-                                  onClick={() => {
-                                    setHighlightAnswer(true);
-                                  }}
-                                />
-                              }
-                              className="cursor-default"
-                            >
-                              Go to answer
-                              <ArrowDown className="size-3.5" />
-                            </Button>
-                          </CardFooter>
-                        )}
-                      </Card>
-                    </TooltipProvider>
-                  );
-                }
-
-                if (item.itemType === "update") {
-                  return <Update key={item.id} update={item} user={user} />;
-                }
-
-                return null;
-              })}
+              <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto">
+              {thread &&
+                (firstItem?.itemType === "message" ? (
+                  <ThreadHeader title={thread.name} message={firstItem} />
+                ) : (
+                  <h1 className="text-2xl font-semibold text-foreground">
+                    {thread.name}
+                  </h1>
+                ))}
+              {replyGroups.length > 0 && (
+                <>
+                  <Separator />
+                  <h2 className="text-base py-2">Replies</h2>
+                </>
+              )}
+              {replyGroups.map((group, gi) => (
+                <Fragment key={group.key}>
+                  {/* {gi > 0 && <Separator className="bg-border/50" />} */}
+                  {group.type === "updates" ? (
+                    <ThreadUpdates updates={group.items} user={user} />
+                  ) : (
+                    <ThreadReply
+                      message={group.item}
+                      canMarkAsAnswer={!answerMessage}
+                      highlight={highlightAnswer}
+                    />
+                  )}
+                </Fragment>
+              ))}
+              </div>
             </div>
-            {isNewToolbar ? (
-              <ThreadToolbar
-                threadId={id}
-                organizationId={thread?.organizationId}
-                threadLabels={threadLabels}
-                currentStatus={thread?.status ?? 0}
-                user={{ ...user, image: user.image }}
-                captureThreadEvent={captureThreadEvent}
-              />
-            ) : (
-              <ThreadInputArea
-                threadId={id}
-                organizationId={thread?.organizationId}
-                threadLabels={threadLabels}
-                currentStatus={thread?.status ?? 0}
-                user={user}
-                captureThreadEvent={captureThreadEvent}
-              />
-            )}
+            <div className="w-full max-w-5xl mx-auto px-8 pb-4">
+              {isNewToolbar ? (
+                <ThreadToolbar
+                  threadId={id}
+                  organizationId={thread?.organizationId}
+                  threadLabels={threadLabels}
+                  currentStatus={thread?.status ?? 0}
+                  user={{ ...user, image: user.image }}
+                  captureThreadEvent={captureThreadEvent}
+                />
+              ) : (
+                <ThreadInputArea
+                  threadId={id}
+                  organizationId={thread?.organizationId}
+                  threadLabels={threadLabels}
+                  currentStatus={thread?.status ?? 0}
+                  user={user}
+                  captureThreadEvent={captureThreadEvent}
+                />
+              )}
+            </div>
           </div>
         </div>
         <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">

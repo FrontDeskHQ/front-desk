@@ -340,6 +340,7 @@
         "streamdown": "^2.5.0",
         "tailwind-merge": "^3.0.1",
         "tailwindcss": "^4.0.6",
+        "tailwindcss-text-box-trim": "^1.0.4",
         "tw-animate-css": "^1.2.4",
         "unified": "^11.0.5",
         "vaul": "^1.1.2",
@@ -3594,6 +3595,8 @@
     "tailwind-merge": ["tailwind-merge@3.4.0", "", {}, "sha512-uSaO4gnW+b3Y2aWoWfFpX62vn2sR3skfhbjsEnaBI81WD1wBLlHZe5sWf0AqjksNdYTbGBEd0UasQMT3SNV15g=="],
 
     "tailwindcss": ["tailwindcss@4.1.18", "", {}, "sha512-4+Z+0yiYyEtUVCScyfHCxOYP06L5Ne+JiHhY2IjR2KWMIWhJOYZKLSGZaP5HkZ8+bY0cxfzwDE5uOmzFXyIwxw=="],
+
+    "tailwindcss-text-box-trim": ["tailwindcss-text-box-trim@1.0.4", "", {}, "sha512-gIf+UMI9+fS3NWDw/ZMZL6jvCjdyaKUQweJWE+sp+Q+/a4av/yqdgguH/KqiepYOYTswa17JL916Kpqjb8vJdw=="],
 
     "tapable": ["tapable@2.3.0", "", {}, "sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg=="],
 
