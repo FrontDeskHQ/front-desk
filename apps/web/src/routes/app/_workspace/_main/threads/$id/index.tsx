@@ -178,10 +178,10 @@ function RouteComponent() {
     }
   }
 
-  const { scrollRef, disableAutoScroll } = useAutoScroll({
+  const { scrollRef, contentRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
     content: allItems,
-    offset: 264,
+    offset: 180,
   });
 
   const copyLinkToClipboard = () => {
@@ -311,51 +311,53 @@ function RouteComponent() {
           </CardHeader>
           <div className="flex flex-col flex-1 w-full overflow-hidden">
             <div
-              className="flex-1 overflow-y-auto"
+              className="flex-1 overflow-y-auto overscroll-none"
               ref={scrollRef}
               onScroll={disableAutoScroll}
               onTouchMove={disableAutoScroll}
             >
-              <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto">
-              {thread &&
-                (firstItem?.itemType === "message" ? (
-                  <ThreadHeader title={thread.name} message={firstItem} />
-                ) : (
-                  <h1 className="text-2xl font-semibold text-foreground">
-                    {thread.name}
-                  </h1>
-                ))}
-              {replyGroups.length > 0 && (
-                <>
-                  <Separator />
-                  <h2 className="text-base py-2">Replies</h2>
-                </>
-              )}
-              {replyGroups.map((group, gi) => (
-                <Fragment key={group.key}>
-                  {/* {gi > 0 && <Separator className="bg-border/50" />} */}
-                  {group.type === "updates" ? (
-                    <ThreadUpdates updates={group.items} user={user} />
-                  ) : (
-                    <ThreadReply
-                      message={group.item}
-                      canMarkAsAnswer={!answerMessage}
-                      highlight={highlightAnswer}
-                    />
+              <div ref={contentRef}>
+                <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto">
+                  {thread &&
+                    (firstItem?.itemType === "message" ? (
+                      <ThreadHeader title={thread.name} message={firstItem} />
+                    ) : (
+                      <h1 className="text-2xl font-semibold text-foreground">
+                        {thread.name}
+                      </h1>
+                    ))}
+                  {replyGroups.length > 0 && (
+                    <>
+                      <Separator />
+                      <h2 className="text-base py-2">Replies</h2>
+                    </>
                   )}
-                </Fragment>
-              ))}
+                  {replyGroups.map((group, gi) => (
+                    <Fragment key={group.key}>
+                      {/* {gi > 0 && <Separator className="bg-border/50" />} */}
+                      {group.type === "updates" ? (
+                        <ThreadUpdates updates={group.items} user={user} />
+                      ) : (
+                        <ThreadReply
+                          message={group.item}
+                          canMarkAsAnswer={!answerMessage}
+                          highlight={highlightAnswer}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                </div>
+                <div className="sticky bottom-0 w-full max-w-5xl mx-auto px-8 pb-4">
+                  <ThreadToolbar
+                    threadId={id}
+                    organizationId={thread?.organizationId}
+                    threadLabels={threadLabels}
+                    currentStatus={thread?.status ?? 0}
+                    user={{ ...user, image: user.image }}
+                    captureThreadEvent={captureThreadEvent}
+                  />
+                </div>
               </div>
-            </div>
-            <div className="w-full max-w-5xl mx-auto px-8 pb-4">
-              <ThreadToolbar
-                threadId={id}
-                organizationId={thread?.organizationId}
-                threadLabels={threadLabels}
-                currentStatus={thread?.status ?? 0}
-                user={{ ...user, image: user.image }}
-                captureThreadEvent={captureThreadEvent}
-              />
             </div>
           </div>
         </div>

@@ -14,6 +14,7 @@ type UseAutoScrollOptions = {
 export function useAutoScroll(options: UseAutoScrollOptions = {}) {
   const { offset = 128, smooth = false, content } = options;
   const scrollRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const lastContentHeight = useRef(0);
   const userHasScrolled = useRef(false);
 
@@ -94,14 +95,17 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
     if (!element) return;
 
     const resizeObserver = new ResizeObserver(() => {
-      if (autoScrollEnabled.current) {
+      if (scrollRef.current && checkIsAtBottom(scrollRef.current)) {
         scrollToBottom(true);
       }
     });
 
     resizeObserver.observe(element);
+    if (contentRef.current) {
+      resizeObserver.observe(contentRef.current);
+    }
     return () => resizeObserver.disconnect();
-  }, [scrollToBottom]);
+  }, [scrollToBottom, checkIsAtBottom]);
 
   const disableAutoScroll = useCallback(() => {
     const atBottom = scrollRef.current
@@ -117,6 +121,7 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
 
   return {
     scrollRef,
+    contentRef,
     isAtBottom,
     scrollToBottom: () => scrollToBottom(false),
     disableAutoScroll,
