@@ -752,6 +752,15 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
+    // Server-only: migration bookkeeping managed by the boot-time runner.
+    migration: publicRoute.collectionRoute(schema.migration, {
+      read: () => false,
+      insert: () => false,
+      update: {
+        preMutation: () => false,
+        postMutation: () => false,
+      },
+    }),
   },
 });
 

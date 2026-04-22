@@ -21,6 +21,7 @@ const organization = object("organization", {
   socials: string().nullable(),
   customInstructions: string().nullable(),
   settings: json<OrganizationSettings>().nullable(),
+  shortIdCounter: number().default(0),
 });
 
 const subscription = object("subscription", {
@@ -60,6 +61,7 @@ const thread = object("thread", {
   externalId: string().nullable(),
   externalOrigin: string().nullable(),
   externalMetadataStr: string().nullable(),
+  shortId: number().nullable(),
 });
 
 const message = object("message", {
@@ -331,6 +333,11 @@ const pipelineJob = object("pipelineJob", {
   updatedAt: timestamp(),
 });
 
+const migration = object("migration", {
+  id: id(),
+  appliedAt: timestamp(),
+});
+
 export const schema = createSchema({
   // models
   organization,
@@ -353,6 +360,7 @@ export const schema = createSchema({
   documentationSource,
   agentChat,
   agentChatMessage,
+  migration,
   // relations
   organizationUserRelations,
   organizationRelations,
