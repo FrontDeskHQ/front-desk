@@ -6,7 +6,7 @@ import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { Check } from "lucide-react";
+import { Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { mutate } from "~/lib/live-state";
 
@@ -16,21 +16,50 @@ export function ThreadReply({
   message,
   canMarkAsAnswer,
   highlight,
+  asCard,
 }: {
   message: Message;
   canMarkAsAnswer: boolean;
   highlight: boolean;
+  asCard?: boolean;
 }) {
   const isAnswer = message.markedAsAnswer;
 
   return (
     <div
-      id={isAnswer ? "answer-message" : undefined}
-      data-highlight={isAnswer && highlight}
+      id={isAnswer && !asCard ? "answer-message" : undefined}
+      data-highlight={isAnswer && highlight && !asCard}
       className={cn(
         "group relative flex items-start gap-2.5 rounded-md p-2 transition-[box-shadow,background-color] duration-200 hover:duration-0 hover:bg-background-tertiary/75 data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
+        asCard &&
+          "border border-green-600/12 bg-green-500/5 hover:bg-green-500/5 p-3",
       )}
     >
+      {asCard && (
+        <div className="absolute top-2 right-2 flex items-center gap-1 text-xs text-foreground-primary/65">
+          <Check className="size-3.5" />
+          <span>Marked as answer</span>
+          <TooltipProvider>
+            <ActionButton
+              variant="ghost"
+              size="icon-sm"
+              tooltip="Go to reply"
+              onClick={() => {
+                const el = document.getElementById("answer-message");
+                if (!el) return;
+                el.scrollIntoView({ behavior: "smooth", block: "center" });
+                if (window.location.hash !== "#answer-message") {
+                  window.location.hash = "answer-message";
+                } else {
+                  window.dispatchEvent(new HashChangeEvent("hashchange"));
+                }
+              }}
+            >
+              <ChevronRight />
+            </ActionButton>
+          </TooltipProvider>
+        </div>
+      )}
       <Avatar variant="user" size="lg" fallback={message.author.name} />
       <div className="flex flex-1 flex-col gap-1 min-w-0">
         <div className="flex items-baseline gap-2">

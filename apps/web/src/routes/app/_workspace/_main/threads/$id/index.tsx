@@ -329,9 +329,18 @@ function RouteComponent() {
                   {replyGroups.length > 0 && (
                     <>
                       <Separator />
+                      {answerMessage && (
+                        <ThreadReply
+                          message={answerMessage}
+                          canMarkAsAnswer={false}
+                          highlight={false}
+                          asCard
+                        />
+                      )}
                       <h2 className="text-base py-2">Replies</h2>
                     </>
                   )}
+
                   {replyGroups.map((group, gi) => (
                     <Fragment key={group.key}>
                       {/* {gi > 0 && <Separator className="bg-border/50" />} */}
