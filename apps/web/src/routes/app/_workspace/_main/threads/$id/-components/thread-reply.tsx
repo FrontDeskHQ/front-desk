@@ -28,7 +28,7 @@ export function ThreadReply({
       id={isAnswer ? "answer-message" : undefined}
       data-highlight={isAnswer && highlight}
       className={cn(
-        "group relative flex items-start gap-2.5 rounded-md py-1 pl-2 transition-shadow data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
+        "group relative flex items-start gap-2.5 rounded-md p-2 transition-[box-shadow,background-color] duration-200 hover:duration-0 hover:bg-background-tertiary/75 data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
       )}
     >
       <Avatar variant="user" size="lg" fallback={message.author.name} />
@@ -42,7 +42,7 @@ export function ThreadReply({
         <RichText content={safeParseJSON(message.content)} />
       </div>
       {canMarkAsAnswer && (
-        <div className="absolute top-1 right-0 opacity-0 group-hover:opacity-100 group-hover:duration-0 transition-opacity duration-180">
+        <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 group-hover:duration-0 transition-opacity duration-180 rounded-md border h-6.5">
           <TooltipProvider>
             <ActionButton
               variant="ghost"
