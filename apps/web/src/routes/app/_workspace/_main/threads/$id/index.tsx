@@ -2,7 +2,6 @@
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
-import { useFlag } from "@reflag/react-sdk";
 import {
   createFileRoute,
   getRouteApi,
@@ -47,7 +46,6 @@ import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { RelatedThreadsSection } from "~/components/threads/related-threads-section";
-import { ThreadInputArea } from "~/components/threads/thread-input-area-deprecated";
 import { ThreadToolbar } from "~/components/threads/thread-toolbar";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
@@ -129,8 +127,6 @@ function RouteComponent() {
   )?.[0];
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
-
-  const { isEnabled: isNewToolbar } = useFlag("new-thread-toolbar");
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
@@ -352,25 +348,14 @@ function RouteComponent() {
               </div>
             </div>
             <div className="w-full max-w-5xl mx-auto px-8 pb-4">
-              {isNewToolbar ? (
-                <ThreadToolbar
-                  threadId={id}
-                  organizationId={thread?.organizationId}
-                  threadLabels={threadLabels}
-                  currentStatus={thread?.status ?? 0}
-                  user={{ ...user, image: user.image }}
-                  captureThreadEvent={captureThreadEvent}
-                />
-              ) : (
-                <ThreadInputArea
-                  threadId={id}
-                  organizationId={thread?.organizationId}
-                  threadLabels={threadLabels}
-                  currentStatus={thread?.status ?? 0}
-                  user={user}
-                  captureThreadEvent={captureThreadEvent}
-                />
-              )}
+              <ThreadToolbar
+                threadId={id}
+                organizationId={thread?.organizationId}
+                threadLabels={threadLabels}
+                currentStatus={thread?.status ?? 0}
+                user={{ ...user, image: user.image }}
+                captureThreadEvent={captureThreadEvent}
+              />
             </div>
           </div>
         </div>

@@ -25,7 +25,7 @@ import {
   usePendingDuplicateSuggestions,
   usePendingLabelSuggestions,
   usePendingStatusSuggestions,
-} from "~/components/threads/thread-input-area-deprecated/support-intelligence";
+} from "~/components/threads/thread-toolbar/support-intelligence";
 import { mutate, query } from "~/lib/live-state";
 
 type UseQuickActionsSuggestionsProps = {
