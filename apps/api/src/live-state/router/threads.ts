@@ -845,6 +845,13 @@ export default publicRoute
     }),
   }))
   .withHooks({
+    // TODO: Migrate this logic into a custom `create` mutation and have the
+    // integration apps (slack/discord/devtools) call that mutation instead of
+    // inserting threads via the default `store.mutate.thread.insert(...)` path.
+    // This hook runs post-commit, so shortId assignment isn't in the same
+    // transaction as the insert — a failure here leaves the thread without a
+    // shortId with no retry. A custom mutation can do the insert + shortId
+    // assignment atomically (like the `create` mutation above already does).
     afterInsert: async ({ value, db }) => {
       if (value.shortId != null) return;
       try {
