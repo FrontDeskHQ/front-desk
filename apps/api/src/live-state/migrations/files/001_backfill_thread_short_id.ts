@@ -11,15 +11,24 @@ const migration: Migration = {
         .orderBy("createdAt", "asc")
         .get();
 
-      const unnumbered = threads.filter((t) => t.shortId == null);
-      if (unnumbered.length === 0) continue;
+      // Seed from the max of counter and any existing shortIds so we never
+      // reassign a value that collides with a thread already numbered by
+      // nextThreadShortId (e.g. from an earlier partial run).
+      const maxExisting = threads.reduce(
+        (acc, t) => (t.shortId != null && t.shortId > acc ? t.shortId : acc),
+        0,
+      );
+      let n = Math.max(org.shortIdCounter ?? 0, maxExisting);
 
-      let n = org.shortIdCounter ?? 0;
+      const unnumbered = threads.filter((t) => t.shortId == null);
       for (const t of unnumbered) {
         n += 1;
         await db.thread.update(t.id, { shortId: n });
       }
-      await db.organization.update(org.id, { shortIdCounter: n });
+
+      if (n !== (org.shortIdCounter ?? 0)) {
+        await db.organization.update(org.id, { shortIdCounter: n });
+      }
     }
   },
 };
