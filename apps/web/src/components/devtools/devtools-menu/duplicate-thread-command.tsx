@@ -10,7 +10,7 @@ export const DuplicateThreadMenuItem = () => {
   const navigate = useNavigate();
   const { id: threadId } = (() => {
     try {
-      return getRouteApi("/app/_workspace/_main/threads/$id").useParams();
+      return getRouteApi("/app/_workspace/_main/threads/$id/").useParams();
     } catch {
       return { id: null };
     }
