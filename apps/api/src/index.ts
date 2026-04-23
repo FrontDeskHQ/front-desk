@@ -13,6 +13,7 @@ import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
 import { reflagClient } from "./lib/feature-flag";
 import { portalAuth } from "./lib/portal-auth";
+import { runMigrations } from "./live-state/migrations";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
@@ -27,6 +28,14 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
+
+// Ensure live-state has synced the schema (creating any new tables/columns)
+// before we run data migrations or start the server. The Server constructor
+// fires storage.init asynchronously without awaiting it, so we pre-init here
+// to guarantee tables exist by the time runMigrations runs.
+await (storage as unknown as {
+  init: (schema: unknown) => Promise<void>;
+}).init(schema);
 
 const lsServer = server({
   router,
@@ -261,6 +270,8 @@ expressAdapter(app as any, lsServer, {
 reflagClient.initialize().then(() => {
   console.log("Reflag client initialized");
 });
+
+await runMigrations(storage);
 
 app.listen(process.env.PORT || 3333, () => {
   console.log(`Server running on port ${process.env.PORT || 3333}`);

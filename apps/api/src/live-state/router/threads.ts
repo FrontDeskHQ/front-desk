@@ -10,6 +10,7 @@ import { createReadThroughCache } from "../../lib/cache/read-through.js";
 import { deactivateDigestSignals } from "../../lib/digest-signals";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
+import { nextThreadShortId } from "../../lib/thread-short-id";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
@@ -366,6 +367,8 @@ export default publicRoute
           throw new Error("MISSING_AUTHOR_INFO");
         }
 
+        const shortId = await nextThreadShortId(trx, organizationId);
+
         // Create thread
         await trx.insert(schema.thread, {
           id: threadId,
@@ -383,6 +386,7 @@ export default publicRoute
           externalId: null,
           externalOrigin: null,
           externalMetadataStr: null,
+          shortId,
         });
 
         // Create first message
@@ -841,6 +845,25 @@ export default publicRoute
     }),
   }))
   .withHooks({
+    // TODO: Migrate this logic into a custom `create` mutation and have the
+    // integration apps (slack/discord/devtools) call that mutation instead of
+    // inserting threads via the default `store.mutate.thread.insert(...)` path.
+    // This hook runs post-commit, so shortId assignment isn't in the same
+    // transaction as the insert — a failure here leaves the thread without a
+    // shortId with no retry. A custom mutation can do the insert + shortId
+    // assignment atomically (like the `create` mutation above already does).
+    afterInsert: async ({ value, db }) => {
+      if (value.shortId != null) return;
+      try {
+        const shortId = await nextThreadShortId(db, value.organizationId);
+        await db.thread.update(value.id, { shortId });
+      } catch (error) {
+        console.error(
+          `Failed to assign shortId to thread ${value.id}:`,
+          error,
+        );
+      }
+    },
     afterUpdate: ({ value, previousValue, db }) => {
       const CLOSED_STATUSES = [2, 3, 4]; // Resolved, Closed, Duplicated
       if (
