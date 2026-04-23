@@ -4,10 +4,12 @@ import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { ChevronRightIcon } from "lucide-react";
 import { fetchClient } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 type RelatedThread = {
   id: string;
   name: string;
+  shortId: number | null;
   deletedAt?: Date | null;
   author?: {
     name?: string | null;
@@ -67,7 +69,7 @@ export const SupportRelatedThreadsSection = ({
             render={
               <Link
                 to="/support/$slug/threads/$id"
-                params={{ slug, id: relatedThread.id }}
+                params={{ slug, id: buildThreadParam(relatedThread) }}
               />
             }
           >

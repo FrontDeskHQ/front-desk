@@ -4,6 +4,7 @@ import { type Components, Streamdown } from "streamdown";
 import "streamdown/styles.css";
 import { BaseThreadChip } from "~/components/chips";
 import { query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
 
@@ -24,7 +25,12 @@ function ThreadMention({ threadId }: { threadId: string }) {
     <BaseThreadChip
       thread={thread}
       className="inline-flex align-middle"
-      render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+      render={
+        <Link
+          to="/app/threads/$id"
+          params={{ id: buildThreadParam(thread) }}
+        />
+      }
     />
   );
 }

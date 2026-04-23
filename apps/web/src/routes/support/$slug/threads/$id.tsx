@@ -48,19 +48,23 @@ import { SupportRelatedThreadsSection } from "~/components/threads/support-relat
 import { Update } from "~/components/threads/updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+import { buildThreadParam, parseThreadParam } from "~/utils/thread";
 
 export const Route = createFileRoute("/support/$slug/threads/$id")({
   component: RouteComponent,
 
   loader: async ({ params, context }) => {
-    const { id } = params;
+    const parsed = parseThreadParam(params.id);
+    if (!parsed) throw notFound();
+
+    const where =
+      parsed.kind === "ulid"
+        ? { id: parsed.id, organizationId: context.organization.id }
+        : { shortId: parsed.shortId, organizationId: context.organization.id };
 
     const thread = (
       await fetchClient.query.thread
-        .where({
-          id,
-          organizationId: context.organization.id,
-        })
+        .where(where)
         .include({
           author: true,
           messages: { include: { author: true } },
@@ -103,6 +107,18 @@ function RouteComponent() {
   const route = useRouter();
   const { organization } = Route.useRouteContext();
   const { thread } = Route.useLoaderData();
+  const { id: rawParam } = Route.useParams();
+
+  useEffect(() => {
+    const canonical = buildThreadParam(thread);
+    if (rawParam !== canonical) {
+      route.navigate({
+        to: "/support/$slug/threads/$id",
+        params: { slug: organization.slug, id: canonical },
+        replace: true,
+      });
+    }
+  }, [rawParam, thread, organization.slug, route]);
 
   const { portalSession } = getRouteApi("/support/$slug").useRouteContext();
   const user = portalSession?.user;
@@ -324,7 +340,7 @@ function RouteComponent() {
                                     to="/support/$slug/threads/$id"
                                     params={{
                                       slug: organization.slug,
-                                      id: thread.id,
+                                      id: buildThreadParam(thread),
                                     }}
                                     hash="answer-message"
                                     onClick={() => {

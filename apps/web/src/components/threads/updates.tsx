@@ -11,6 +11,7 @@ import type { schema } from "api/schema";
 import { CircleUserIcon, CopySlash, Github } from "lucide-react";
 import { ThreadChip } from "~/components/chips";
 import { query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 export function Update({
   update,
@@ -163,7 +164,7 @@ export function Update({
                 <Link
                   to="/app/threads/$id"
                   params={{
-                    id: duplicateThread.id,
+                    id: buildThreadParam(duplicateThread),
                   }}
                 />
               }

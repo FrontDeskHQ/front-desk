@@ -34,6 +34,7 @@ import { ulid } from "ulid";
 import { ThreadChip } from "~/components/chips";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/signal/")({
   component: RouteComponent,
@@ -1424,7 +1425,7 @@ function SuggestionItem({
       <div className="absolute left-[13px] -top-[64px] w-[13px] h-19 border-[#5C5C5C] border-b border-l rounded-bl-lg" />
       <ThreadChip
         thread={thread}
-        render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+        render={<Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />}
       />
       {!isAccepted && onAccept && onDismiss && (
         <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
@@ -1534,7 +1535,7 @@ function DuplicateSignalCard({
             <ThreadChip
               thread={targetThread}
               render={
-                <Link to="/app/threads/$id" params={{ id: targetThread.id }} />
+                <Link to="/app/threads/$id" params={{ id: buildThreadParam(targetThread) }} />
               }
             />
           )}
@@ -1611,7 +1612,7 @@ function DuplicateSuggestionItem({
       <div className="absolute left-[13px] -top-[64px] w-[13px] h-19 border-[#5C5C5C] border-b border-l rounded-bl-lg" />
       <ThreadChip
         thread={thread}
-        render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+        render={<Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />}
       />
       {!isAccepted && onAccept && onDismiss && (
         <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
@@ -1803,7 +1804,7 @@ function LinkedPrSuggestionItem({
       <div className="absolute left-[13px] -top-[64px] w-[13px] h-19 border-[#5C5C5C] border-b border-l rounded-bl-lg" />
       <ThreadChip
         thread={thread}
-        render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+        render={<Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />}
       />
       {!isAccepted && onAccept && onDismiss && (
         <div className="flex gap-1 opacity-0 group-hover/nested-item:opacity-100 transition-opacity group-hover/nested-item:duration-0">
@@ -1904,7 +1905,7 @@ function PendingReplySignalCard({
                   <ThreadChip
                     thread={thread}
                     render={
-                      <Link to="/app/threads/$id" params={{ id: thread.id }} />
+                      <Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />
                     }
                   />
                   <span className="text-xs text-foreground-secondary tabular-nums ml-auto">
@@ -1991,7 +1992,7 @@ function LoopToCloseSignalCard({
                   <ThreadChip
                     thread={thread}
                     render={
-                      <Link to="/app/threads/$id" params={{ id: thread.id }} />
+                      <Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />
                     }
                   />
                   <span className="inline-flex size-6 shrink-0 items-center justify-center text-foreground-secondary -ml-0.75">

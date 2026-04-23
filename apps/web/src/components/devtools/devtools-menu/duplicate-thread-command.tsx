@@ -4,11 +4,14 @@ import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { MenuItem } from "@workspace/ui/components/menu";
 import { toast } from "sonner";
 import { ulid } from "ulid";
+import { getDefaultStore } from "jotai/vanilla";
+import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
+import { parseThreadParam } from "~/utils/thread";
 
 export const DuplicateThreadMenuItem = () => {
   const navigate = useNavigate();
-  const { id: threadId } = (() => {
+  const { id: rawParam } = (() => {
     try {
       return getRouteApi("/app/_workspace/_main/threads/$id/").useParams();
     } catch {
@@ -17,14 +20,31 @@ export const DuplicateThreadMenuItem = () => {
   })();
 
   const handleDuplicateThread = async () => {
-    if (!threadId) {
+    if (!rawParam) {
       toast.error("Open a thread first to duplicate it");
       return;
     }
 
+    const parsed = parseThreadParam(rawParam);
+    if (!parsed) {
+      toast.error("Invalid thread");
+      return;
+    }
+
     try {
+      let where: { id: string } | { shortId: number; organizationId: string };
+      if (parsed.kind === "ulid") {
+        where = { id: parsed.id };
+      } else {
+        const activeOrgId = getDefaultStore().get(activeOrganizationAtom)?.id;
+        if (!activeOrgId) {
+          toast.error("No active organization");
+          return;
+        }
+        where = { shortId: parsed.shortId, organizationId: activeOrgId };
+      }
       const thread = await fetchClient.query.thread
-        .first({ id: threadId })
+        .first(where)
         .include({
           author: true,
           messages: { include: { author: true } },

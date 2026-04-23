@@ -28,6 +28,7 @@ import {
 import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 type SearchResultItemProps = {
   messageId: string;
@@ -59,7 +60,7 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
     <div className="flex flex-col gap-2 relative">
       <Link
         to="/app/threads/$id"
-        params={{ id: thread.id }}
+        params={{ id: buildThreadParam(thread) }}
         className="w-full flex flex-col py-2 gap-2 rounded-md hover:underline"
       >
         <div className="flex justify-between">
@@ -95,7 +96,11 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
       </Link>
 
       {/* TODO add link directly to the message */}
-      <Link to="/app/threads/$id" params={{ id: thread.id }} className="w-full">
+      <Link
+        to="/app/threads/$id"
+        params={{ id: buildThreadParam(thread) }}
+        className="w-full"
+      >
         <Card className="relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border ml-7 group">
           <CardHeader size="sm">
             <CardTitle>

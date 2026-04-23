@@ -64,6 +64,7 @@ import { useRef, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+import { buildThreadParam } from "~/utils/thread";
 
 export type FixedFilters = {
   status?: { $not: { $in: number[] } } | { $in: number[] };
@@ -330,7 +331,10 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
                   ref={virtualizer.measureElement}
                   data-index={virtualItem.index}
                   render={
-                    <Link to={"/app/threads/$id"} params={{ id: thread.id }} />
+                    <Link
+                      to={"/app/threads/$id"}
+                      params={{ id: buildThreadParam(thread) }}
+                    />
                   }
                   className="max-w-5xl flex flex-col p-3 gap-2 mx-auto data-[active=true]:bg-muted"
                   style={{
