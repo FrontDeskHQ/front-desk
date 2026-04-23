@@ -122,17 +122,6 @@ function RouteComponent() {
   const [highlightAnswer, setHighlightAnswer] = useState(false);
 
   useEffect(() => {
-    const canonical = buildThreadParam(loadedThread);
-    if (rawParam !== canonical) {
-      navigate({
-        to: "/app/threads/$id",
-        params: { id: canonical },
-        replace: true,
-      });
-    }
-  }, [rawParam, loadedThread, navigate]);
-
-  useEffect(() => {
     const checkHash = () => {
       const hasHash = window.location.hash === "#answer-message";
       setHighlightAnswer(hasHash);
@@ -158,6 +147,18 @@ function RouteComponent() {
       updates: { include: { user: true } },
     }),
   )?.[0];
+
+  useEffect(() => {
+    const canonical = buildThreadParam(thread ?? loadedThread);
+    if (rawParam !== canonical) {
+      navigate({
+        to: "/app/threads/$id",
+        params: { id: canonical },
+        hash: (prev) => prev ?? "",
+        replace: true,
+      });
+    }
+  }, [rawParam, thread, loadedThread, navigate]);
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
 

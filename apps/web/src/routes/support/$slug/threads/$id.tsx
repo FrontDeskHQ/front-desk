@@ -115,6 +115,7 @@ function RouteComponent() {
       route.navigate({
         to: "/support/$slug/threads/$id",
         params: { slug: organization.slug, id: canonical },
+        hash: (prev) => prev ?? "",
         replace: true,
       });
     }
