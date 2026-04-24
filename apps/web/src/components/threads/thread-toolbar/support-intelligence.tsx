@@ -24,6 +24,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ulid } from "ulid";
 import { BaseThreadChip } from "~/components/chips";
 import { mutate, query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 type SuggestionRow = {
   id: string;
@@ -688,7 +689,9 @@ export const Suggestions = ({
                         <div className="flex flex-col gap-1">
                           <Link
                             to="/app/threads/$id"
-                            params={{ id: duplicateSuggestion.thread.id }}
+                            params={{
+                              id: buildThreadParam(duplicateSuggestion.thread),
+                            }}
                             className="text-sm font-medium text-foreground hover:underline"
                           >
                             {duplicateSuggestion.thread.name}

@@ -5,6 +5,7 @@ import { Button } from "@workspace/ui/components/button";
 import { ChevronRightIcon } from "lucide-react";
 import { useMemo } from "react";
 import { query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 type SimilarThreadResult = {
   threadId: string;
@@ -29,7 +30,12 @@ const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
       variant="ghost"
       className="text-foreground-secondary hover:text-foreground px-1.5 cursor-default"
       key={result.threadId}
-      render={<Link to="/app/threads/$id" params={{ id: thread.id }} />}
+      render={
+        <Link
+          to="/app/threads/$id"
+          params={{ id: buildThreadParam(thread) }}
+        />
+      }
     >
       <Avatar
         variant="user"

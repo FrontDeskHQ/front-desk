@@ -38,6 +38,7 @@ import { createStandardSchemaV1, parseAsStringEnum } from "nuqs";
 import { useEffect, useRef } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+import { buildThreadParam } from "~/utils/thread";
 
 const PAGE_SIZE = 20;
 
@@ -232,7 +233,10 @@ function RouteComponent() {
                       ref={virtualizer.measureElement}
                       data-index={virtualItem.index}
                       to={"/support/$slug/threads/$id"}
-                      params={{ slug: organization.slug, id: thread.id }}
+                      params={{
+                        slug: organization.slug,
+                        id: buildThreadParam(thread),
+                      }}
                       className="w-full flex flex-col p-3 gap-2 hover:bg-muted"
                       resetScroll={false}
                       style={{

@@ -49,20 +49,40 @@ import { RelatedThreadsSection } from "~/components/threads/related-threads-sect
 import { ThreadToolbar } from "~/components/threads/thread-toolbar";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
+import { getDefaultStore } from "jotai/vanilla";
+import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
-import { calculateDeletionDate, DAYS_UNTIL_DELETION } from "~/utils/thread";
+import {
+  buildThreadParam,
+  calculateDeletionDate,
+  DAYS_UNTIL_DELETION,
+  parseThreadParam,
+} from "~/utils/thread";
 import { ThreadHeader } from "./-components/thread-header";
 import { ThreadReply } from "./-components/thread-reply";
 import { ThreadUpdates } from "./-components/thread-updates";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id/")({
   component: RouteComponent,
-  loader: async ({ params }) => {
-    const { id } = params;
+  loader: async ({ params, context }) => {
+    const parsed = parseThreadParam(params.id);
+    if (!parsed) throw notFound();
+
+    let where: { id: string } | { shortId: number; organizationId: string };
+    if (parsed.kind === "ulid") {
+      where = { id: parsed.id };
+    } else {
+      const activeOrgId =
+        getDefaultStore().get(activeOrganizationAtom)?.id ??
+        context.organizationUsers?.[0]?.organization?.id;
+      if (!activeOrgId) throw notFound();
+      where = { shortId: parsed.shortId, organizationId: activeOrgId };
+    }
+
     const thread = (
       await fetchClient.query.thread
-        .where({ id })
+        .where(where)
         .include({
           organization: true,
           author: true,
@@ -94,7 +114,9 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/$id/")({
 
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
-  const { id } = Route.useParams();
+  const { id: rawParam } = Route.useParams();
+  const { thread: loadedThread } = Route.useLoaderData();
+  const id = loadedThread.id;
   const navigate = useNavigate();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [highlightAnswer, setHighlightAnswer] = useState(false);
@@ -125,6 +147,18 @@ function RouteComponent() {
       updates: { include: { user: true } },
     }),
   )?.[0];
+
+  useEffect(() => {
+    const canonical = buildThreadParam(thread ?? loadedThread);
+    if (rawParam !== canonical) {
+      navigate({
+        to: "/app/threads/$id",
+        params: { id: canonical },
+        hash: (prev) => prev ?? "",
+        replace: true,
+      });
+    }
+  }, [rawParam, thread, loadedThread, navigate]);
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
 

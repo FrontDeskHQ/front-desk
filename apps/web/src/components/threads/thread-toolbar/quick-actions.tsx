@@ -27,6 +27,7 @@ import {
   usePendingStatusSuggestions,
 } from "~/components/threads/thread-toolbar/support-intelligence";
 import { mutate, query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 
 type UseQuickActionsSuggestionsProps = {
   threadId: string;
@@ -558,7 +559,9 @@ export const QuickActionsPanel = ({
                             <div className="flex flex-col gap-1">
                               <Link
                                 to="/app/threads/$id"
-                                params={{ id: duplicateSuggestion.thread.id }}
+                                params={{
+                                  id: buildThreadParam(duplicateSuggestion.thread),
+                                }}
                                 className="text-sm font-medium text-foreground hover:underline"
                               >
                                 {duplicateSuggestion.thread.name}

@@ -39,7 +39,11 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
-import { DAYS_UNTIL_DELETION, getDaysUntilDeletion } from "~/utils/thread";
+import {
+  buildThreadParam,
+  DAYS_UNTIL_DELETION,
+  getDaysUntilDeletion,
+} from "~/utils/thread";
 
 export const Route = createFileRoute(
   "/app/_workspace/_main/threads/archive/$id",
@@ -120,7 +124,11 @@ function RouteComponent() {
       duration: 10000,
       action: {
         label: "See thread",
-        onClick: () => navigate({ to: "/app/threads/$id", params: { id } }),
+        onClick: () =>
+          navigate({
+            to: "/app/threads/$id",
+            params: { id: thread ? buildThreadParam(thread) : id },
+          }),
       },
       // TODO: Analyse this when working on the design system
       actionButtonStyle: {

@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { updateThreadStatus } from "~/actions/threads";
 import { query } from "~/lib/live-state";
+import { buildThreadParam } from "~/utils/thread";
 import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
 import { ReplyEditor } from "./reply-editor";
 import { SupportIntelligenceChat } from "./support-intelligence-chat";
@@ -92,7 +93,7 @@ export const ThreadToolbar = ({
     if (nextIndex < threads.length && nextIndex) {
       navigate({
         to: "/app/threads/$id",
-        params: { id: threads[nextIndex].id },
+        params: { id: buildThreadParam(threads[nextIndex]) },
       });
     } else {
       toast("No more threads");

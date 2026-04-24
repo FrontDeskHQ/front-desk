@@ -23,6 +23,7 @@ import { useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 import type { GetSupportAuthUserResponse } from "~/lib/server-funcs/get-portal-auth-user";
+import { buildThreadParam } from "~/utils/thread";
 
 type ThreadContent = JSONContent[];
 
@@ -104,7 +105,10 @@ export function CreateThreadDialog({
       resetForm();
       router.navigate({
         to: "/support/$slug/threads/$id",
-        params: { slug: organization.slug, id: thread.id },
+        params: {
+          slug: organization.slug,
+          id: buildThreadParam(thread),
+        },
       });
     } catch (err) {
       console.error("Failed to create thread:", err);
