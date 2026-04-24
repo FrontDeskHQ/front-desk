@@ -9,5 +9,6 @@ await Bun.build({
     "api",
     "api/router",
     "api/schema",
+    "api/queue",
   ],
 });
