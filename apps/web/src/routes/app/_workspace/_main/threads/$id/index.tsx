@@ -333,8 +333,8 @@ function RouteComponent() {
               onScroll={disableAutoScroll}
               onTouchMove={disableAutoScroll}
             >
-              <div ref={contentRef}>
-                <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto">
+              <div ref={contentRef} className="flex flex-col min-h-full">
+                <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto flex-1">
                   {thread &&
                     (firstItem?.itemType === "message" ? (
                       <ThreadHeader title={thread.name} message={firstItem} />
