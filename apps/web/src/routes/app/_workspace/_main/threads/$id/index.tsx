@@ -242,6 +242,10 @@ function RouteComponent() {
     (message) => message.markedAsAnswer,
   );
 
+  // TODO: distinguish "still syncing" from "genuinely not found" here.
+  // useLiveQuery currently has no status signal, so an invalid thread URL
+  // renders a blank loading state forever instead of triggering notFound().
+  // Tracked upstream: https://github.com/pedroscosta/live-state/issues/149
   if (!thread) {
     return <div className="flex size-full" />;
   }
