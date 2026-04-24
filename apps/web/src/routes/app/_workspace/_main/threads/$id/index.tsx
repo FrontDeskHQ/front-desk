@@ -9,6 +9,7 @@ import {
   notFound,
   useNavigate,
 } from "@tanstack/react-router";
+import { useAtomValue } from "jotai";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -49,9 +50,8 @@ import { RelatedThreadsSection } from "~/components/threads/related-threads-sect
 import { ThreadToolbar } from "~/components/threads/thread-toolbar";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
-import { getDefaultStore } from "jotai/vanilla";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { fetchClient, mutate, query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import {
   buildThreadParam,
@@ -65,69 +65,50 @@ import { ThreadUpdates } from "./-components/thread-updates";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id/")({
   component: RouteComponent,
-  loader: async ({ params, context }) => {
-    const parsed = parseThreadParam(params.id);
-    if (!parsed) throw notFound();
-
-    let where: { id: string } | { shortId: number; organizationId: string };
-    if (parsed.kind === "ulid") {
-      where = { id: parsed.id };
-    } else {
-      const activeOrgId =
-        getDefaultStore().get(activeOrganizationAtom)?.id ??
-        context.organizationUsers?.[0]?.organization?.id;
-      if (!activeOrgId) throw notFound();
-      where = { shortId: parsed.shortId, organizationId: activeOrgId };
-    }
-
-    const thread = (
-      await fetchClient.query.thread
-        .where(where)
-        .include({
-          organization: true,
-          author: true,
-          messages: { include: { author: true } },
-          updates: true,
-        })
-        .get()
-    )[0];
-
-    if (!thread) {
-      throw notFound();
-    }
-
-    return { thread };
-  },
-  head: ({ loaderData }) => {
-    const thread = loaderData?.thread;
-    const threadName = thread?.name ?? "Thread";
-    return {
-      meta: [
-        ...seo({
-          title: `${threadName} - Threads - FrontDesk`,
-          description: `Support thread: ${threadName}`,
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Thread - FrontDesk",
+        description: "Support thread",
+      }),
+    ],
+  }),
 });
 
 function RouteComponent() {
   const { user } = getRouteApi("/app").useRouteContext();
+  const workspaceCtx = getRouteApi("/app/_workspace").useRouteContext();
   const { id: rawParam } = Route.useParams();
-  const { thread: loadedThread } = Route.useLoaderData();
-  const id = loadedThread.id;
   const navigate = useNavigate();
+  const activeOrg = useAtomValue(activeOrganizationAtom);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [highlightAnswer, setHighlightAnswer] = useState(false);
 
-  useEffect(() => {
-    const checkHash = () => {
-      const hasHash = window.location.hash === "#answer-message";
-      setHighlightAnswer(hasHash);
+  const parsed = parseThreadParam(rawParam);
+  if (!parsed) throw notFound();
 
-      if (hasHash) {
+  // TODO: remove the organizationUsers[0] fallback once activeOrganizationAtom
+  // persists + hydrates the last used org synchronously on reload. See backlog.
+  const orgId =
+    activeOrg?.id ??
+    workspaceCtx.organizationUsers?.[0]?.organization?.id;
+  if (parsed.kind === "shortId" && !orgId) throw notFound();
+
+  const where =
+    parsed.kind === "ulid"
+      ? { id: parsed.id }
+      : { shortId: parsed.shortId, organizationId: orgId! };
+
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+    const checkHash = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      if (window.location.hash === "#answer-message") {
         setHighlightAnswer(true);
+        timeoutId = setTimeout(() => setHighlightAnswer(false), 5000);
+      } else {
+        setHighlightAnswer(false);
       }
     };
 
@@ -136,20 +117,30 @@ function RouteComponent() {
 
     return () => {
       window.removeEventListener("hashchange", checkHash);
+      if (timeoutId) clearTimeout(timeoutId);
     };
   }, []);
 
   const thread = useLiveQuery(
-    query.thread.where({ id }).include({
+    query.thread.where(where).include({
       organization: true,
+      author: true,
       messages: { include: { author: true } },
       assignedUser: true,
       updates: { include: { user: true } },
     }),
   )?.[0];
 
+  const id = thread?.id ?? "";
+
   useEffect(() => {
-    const canonical = buildThreadParam(thread ?? loadedThread);
+    if (!thread) return;
+    document.title = `${thread.name} - Threads - FrontDesk`;
+  }, [thread]);
+
+  useEffect(() => {
+    if (!thread) return;
+    const canonical = buildThreadParam(thread);
     if (rawParam !== canonical) {
       navigate({
         to: "/app/threads/$id",
@@ -158,7 +149,7 @@ function RouteComponent() {
         replace: true,
       });
     }
-  }, [rawParam, thread, loadedThread, navigate]);
+  }, [rawParam, thread, navigate]);
 
   const { captureThreadEvent } = useThreadAnalytics(thread);
 
@@ -251,21 +242,13 @@ function RouteComponent() {
     (message) => message.markedAsAnswer,
   );
 
-  useEffect(() => {
-    let timeoutId: ReturnType<typeof setTimeout> | null = null;
-
-    if (highlightAnswer) {
-      timeoutId = setTimeout(() => {
-        setHighlightAnswer(false);
-      }, 5000);
-    }
-
-    return () => {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-    };
-  }, [highlightAnswer]);
+  // TODO: distinguish "still syncing" from "genuinely not found" here.
+  // useLiveQuery currently has no status signal, so an invalid thread URL
+  // renders a blank loading state forever instead of triggering notFound().
+  // Tracked upstream: https://github.com/pedroscosta/live-state/issues/149
+  if (!thread) {
+    return <div className="flex size-full" />;
+  }
 
   return (
     <>
