@@ -159,7 +159,8 @@ function getAvatarColorClass(seed: string) {
 
 function Avatar({ className, src, alt, variant, size, fallback }: AvatarProps) {
   const fallbackText = typeof fallback === "string" ? fallback : null;
-  const fallbackCharacter = fallbackText ? getAvatarCharacter(fallbackText) : fallback;
+  const fallbackCharacter =
+    fallbackText !== null ? getAvatarCharacter(fallbackText) : fallback;
   const fallbackColorClass = getAvatarColorClass(
     fallbackText ?? alt ?? src ?? "avatar",
   );
