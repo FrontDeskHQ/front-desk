@@ -13,6 +13,7 @@ import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
 import { Route as CompositeRouteImport } from './routes/composite'
 import { Route as CommandRouteImport } from './routes/command'
 import { Route as ButtonsRouteImport } from './routes/buttons'
+import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as IndexRouteImport } from './routes/index'
 
 const StatusIndicatorRoute = StatusIndicatorRouteImport.update({
@@ -35,6 +36,11 @@ const ButtonsRoute = ButtonsRouteImport.update({
   path: '/buttons',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AvatarRoute = AvatarRouteImport.update({
+  id: '/avatar',
+  path: '/avatar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
@@ -43,6 +49,7 @@ const IndexRoute = IndexRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/avatar': typeof AvatarRoute
   '/buttons': typeof ButtonsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
@@ -50,6 +57,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/avatar': typeof AvatarRoute
   '/buttons': typeof ButtonsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
@@ -58,6 +66,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/avatar': typeof AvatarRoute
   '/buttons': typeof ButtonsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
@@ -65,12 +74,25 @@ export interface FileRoutesById {
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/buttons' | '/command' | '/composite' | '/status-indicator'
+  fullPaths:
+    | '/'
+    | '/avatar'
+    | '/buttons'
+    | '/command'
+    | '/composite'
+    | '/status-indicator'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/buttons' | '/command' | '/composite' | '/status-indicator'
+  to:
+    | '/'
+    | '/avatar'
+    | '/buttons'
+    | '/command'
+    | '/composite'
+    | '/status-indicator'
   id:
     | '__root__'
     | '/'
+    | '/avatar'
     | '/buttons'
     | '/command'
     | '/composite'
@@ -79,6 +101,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AvatarRoute: typeof AvatarRoute
   ButtonsRoute: typeof ButtonsRoute
   CommandRoute: typeof CommandRoute
   CompositeRoute: typeof CompositeRoute
@@ -115,6 +138,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ButtonsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/avatar': {
+      id: '/avatar'
+      path: '/avatar'
+      fullPath: '/avatar'
+      preLoaderRoute: typeof AvatarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -127,6 +157,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AvatarRoute: AvatarRoute,
   ButtonsRoute: ButtonsRoute,
   CommandRoute: CommandRoute,
   CompositeRoute: CompositeRoute,
