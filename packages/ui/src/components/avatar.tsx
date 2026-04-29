@@ -7,6 +7,16 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 
+const avatarColorClasses = [
+  "bg-rose-300 text-white dark:bg-rose-400 dark:text-white",
+  "bg-orange-300 text-white dark:bg-orange-400 dark:text-white",
+  "bg-amber-300 text-white dark:bg-amber-400 dark:text-white",
+  "bg-emerald-300 text-white dark:bg-emerald-400 dark:text-white",
+  "bg-cyan-300 text-white dark:bg-cyan-400 dark:text-white",
+  "bg-indigo-300 text-white dark:bg-indigo-400 dark:text-white",
+  "bg-fuchsia-300 text-white dark:bg-fuchsia-400 dark:text-white",
+];
+
 function BaseAvatar({
   className,
   ...props
@@ -84,40 +94,37 @@ const avatarVariants = cva("", {
   },
 });
 
-const avatarFallbackVariants = cva(
-  "text-black bg-white select-none size-full",
-  {
-    variants: {
-      size: {
-        sm: "text-[0.5rem]",
-        md: "text-[0.6rem]",
-        lg: "text-base",
-        xl: "text-base",
-        xxl: "text-2xl",
-      },
-      variant: {
-        user: "rounded-full",
-        org: "",
-      },
+const avatarFallbackVariants = cva("select-none size-full font-medium", {
+  variants: {
+    size: {
+      sm: "text-[0.5rem]",
+      md: "text-[0.6rem]",
+      lg: "text-base",
+      xl: "text-base",
+      xxl: "text-2xl",
     },
-    compoundVariants: [
-      {
-        variant: "org",
-        size: ["sm", "md"],
-        className: "rounded-sm",
-      },
-      {
-        variant: "org",
-        size: ["lg", "xl", "xxl"],
-        className: "rounded-md",
-      },
-    ],
-    defaultVariants: {
-      size: "md",
-      variant: "user",
+    variant: {
+      user: "rounded-full",
+      org: "",
     },
   },
-);
+  compoundVariants: [
+    {
+      variant: "org",
+      size: ["sm", "md"],
+      className: "rounded-sm",
+    },
+    {
+      variant: "org",
+      size: ["lg", "xl", "xxl"],
+      className: "rounded-md",
+    },
+  ],
+  defaultVariants: {
+    size: "md",
+    variant: "user",
+  },
+});
 
 interface AvatarProps extends VariantProps<typeof avatarVariants> {
   className?: string;
@@ -126,21 +133,47 @@ interface AvatarProps extends VariantProps<typeof avatarVariants> {
   fallback: React.ReactNode;
 }
 
-function getInitials(name: string) {
-  return name
-    .split(" ")
-    .map((n) => n[0])
-    .slice(0, 2)
-    .join("")
-    .toUpperCase();
+function getAvatarCharacter(value: string) {
+  const trimmedValue = value.trim();
+  if (!trimmedValue) {
+    return "?";
+  }
+
+  const firstCharacter = Array.from(trimmedValue)[0];
+  if (!firstCharacter) {
+    return "?";
+  }
+
+  return firstCharacter.toUpperCase();
+}
+
+function getAvatarColorClass(seed: string) {
+  let hash = 0;
+  for (const character of seed) {
+    hash = character.charCodeAt(0) + ((hash << 5) - hash);
+  }
+
+  const paletteIndex = Math.abs(hash) % avatarColorClasses.length;
+  return avatarColorClasses[paletteIndex];
 }
 
 function Avatar({ className, src, alt, variant, size, fallback }: AvatarProps) {
+  const fallbackText = typeof fallback === "string" ? fallback : null;
+  const fallbackCharacter = fallbackText ? getAvatarCharacter(fallbackText) : fallback;
+  const fallbackColorClass = getAvatarColorClass(
+    fallbackText ?? alt ?? src ?? "avatar",
+  );
+
   return (
     <BaseAvatar className={avatarVariants({ size, variant, className })}>
       <BaseAvatarImage src={src ?? undefined} alt={alt ?? undefined} />
-      <BaseAvatarFallback className={avatarFallbackVariants({ size, variant })}>
-        {typeof fallback === "string" ? getInitials(fallback) : fallback}
+      <BaseAvatarFallback
+        className={cn(
+          avatarFallbackVariants({ size, variant }),
+          fallbackColorClass,
+        )}
+      >
+        {fallbackCharacter}
       </BaseAvatarFallback>
     </BaseAvatar>
   );
