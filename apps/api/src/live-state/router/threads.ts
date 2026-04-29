@@ -436,7 +436,7 @@ export default publicRoute
         direction,
       } = req.input;
 
-      // authorize(req.context, { organizationId });
+      // authorize(req, { organizationId });
 
       let query = db.thread.where({
         organizationId,

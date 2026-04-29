@@ -54,7 +54,7 @@ export default publicRoute
         organizationId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      authorize(req.context, {
+      authorize(req, {
         organizationId: req.input.organizationId,
         allowPublicApiKey: true,
       });
@@ -161,7 +161,7 @@ export default publicRoute
         const isThreadAuthor = threadAuthor?.userId === callerUserId;
 
         if (!isThreadAuthor) {
-          authorize(req.context, {
+          authorize(req, {
             organizationId: thread.organizationId,
           });
         }

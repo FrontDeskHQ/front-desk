@@ -3,19 +3,40 @@ const ROLE_HIERARCHY: Record<string, number> = {
   owner: 1,
 };
 
-export function isAuthorized(
-  ctx: {
-    internalApiKey?: unknown;
-    publicApiKey?: { ownerId: string };
-    orgUsers?: { organizationId: string; role: string }[];
-  },
-  opts: {
-    organizationId: string;
-    role?: string;
-    allowPublicApiKey?: boolean;
-  },
-): boolean {
-  if (ctx.internalApiKey) return true;
+/** Context injected by live-state (sessions, API keys). */
+export type AuthorizationContext = {
+  internalApiKey?: unknown;
+  publicApiKey?: { ownerId: string };
+  orgUsers?: { organizationId: string; role: string }[];
+};
+
+/** Request-like shape that carries credential context (e.g. mutation/query `req`). */
+export type AuthorizeReq = {
+  context?: AuthorizationContext | null;
+};
+
+export type AuthorizeOptions = {
+  organizationId: string;
+  role?: string;
+  allowPublicApiKey?: boolean;
+  /**
+   * When `true` (default), callers with {@link AuthorizationContext.internalApiKey}
+   * are authorized without org membership checks. Set to `false` to enforce the
+   * same membership rules as regular sessions even when an internal key is present.
+   */
+  allowInternalApiKey?: boolean;
+};
+
+export const isAuthorized = (
+  ctx: AuthorizationContext,
+  opts: AuthorizeOptions,
+): boolean => {
+  if (
+    !!ctx.internalApiKey &&
+    opts.allowInternalApiKey !== false
+  ) {
+    return true;
+  }
 
   if (ctx.publicApiKey) {
     return (
@@ -41,21 +62,10 @@ export function isAuthorized(
   }
 
   return false;
-}
+};
 
-export const authorize = (
-  ctx: {
-    internalApiKey?: unknown;
-    publicApiKey?: { ownerId: string };
-    orgUsers?: { organizationId: string; role: string }[];
-  },
-  opts: {
-    organizationId: string;
-    role?: string;
-    allowPublicApiKey?: boolean;
-  },
-): void => {
-  if (isAuthorized(ctx, opts)) return;
+export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
+  if (isAuthorized(req.context ?? {}, opts)) return;
 
   throw new Error("UNAUTHORIZED");
 };

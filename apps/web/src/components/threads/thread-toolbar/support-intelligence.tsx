@@ -340,20 +340,11 @@ export const Suggestions = ({
   const handleAcceptLabel = async (labelId: string) => {
     const label = suggestedLabels?.find((l) => l.id === labelId);
 
-    const existingThreadLabel = threadLabels?.find(
-      (tl) => tl.label.id === labelId,
-    );
-
-    if (existingThreadLabel) {
-      mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
-    } else {
-      mutate.threadLabel.insert({
-        id: ulid().toLowerCase(),
-        threadId: threadId,
-        labelId: labelId,
-        enabled: true,
-      });
-    }
+    mutate.label.attachToThread({
+      threadId,
+      labelId,
+      id: ulid().toLowerCase(),
+    });
 
     updateSuggestionForLabel(labelId, true);
 
@@ -369,20 +360,11 @@ export const Suggestions = ({
     for (const label of suggestedLabels ?? []) {
       const labelId = label.id;
 
-      const existingThreadLabel = threadLabels?.find(
-        (tl) => tl.label.id === labelId,
-      );
-
-      if (existingThreadLabel) {
-        mutate.threadLabel.update(existingThreadLabel.id, { enabled: true });
-      } else {
-        mutate.threadLabel.insert({
-          id: ulid().toLowerCase(),
-          threadId: threadId,
-          labelId: labelId,
-          enabled: true,
-        });
-      }
+      mutate.label.attachToThread({
+        threadId,
+        labelId: label.id,
+        id: ulid().toLowerCase(),
+      });
 
       updateSuggestionForLabel(labelId, true);
     }
