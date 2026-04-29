@@ -44,6 +44,11 @@ const RelatedThreadResult = ({ result }: { result: SimilarThreadResult }) => {
         src={thread.author.user?.image}
       />
       <div className="grow shrink truncate">{thread.name}</div>
+      {thread.shortId != null && (
+        <span className="text-foreground-secondary text-sm tabular-nums">
+          #{thread.shortId}
+        </span>
+      )}
       <div className="flex gap-1 ml-auto">
         <ChevronRightIcon className="size-4" />
       </div>

@@ -46,7 +46,12 @@ export function BaseThreadChip({
         fallback={thread.author?.name}
         src={thread.author?.user?.image ?? undefined}
       />
-      {thread.name}
+      <span className="text-foreground-primary">{thread.name}</span>
+      {thread.shortId != null && (
+        <span className="text-foreground-secondary tabular-nums">
+          #{thread.shortId}
+        </span>
+      )}
     </BaseButton>
   );
 }
@@ -77,7 +82,14 @@ export function ThreadChip({
       />
       <HoverCardContent className="max-w-96 w-full flex flex-col gap-3">
         <div className="flex flex-col gap-1">
-          <div className="font-medium text-sm">{thread.name}</div>
+          <div className="font-medium text-sm flex items-center gap-1.5">
+            <span className="text-foreground-primary">{thread.name}</span>
+            {thread.shortId != null && (
+              <span className="text-foreground-secondary tabular-nums font-normal">
+                #{thread.shortId}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Avatar
               variant="user"

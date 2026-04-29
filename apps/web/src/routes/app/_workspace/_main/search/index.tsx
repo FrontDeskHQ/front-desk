@@ -67,6 +67,11 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
           <div className="flex items-center gap-2">
             <Avatar variant="user" size="md" fallback={thread?.author?.name} />
             <div>{thread?.name}</div>
+            {thread?.shortId != null && (
+              <span className="text-foreground-secondary text-sm tabular-nums">
+                #{thread.shortId}
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 mr-1">

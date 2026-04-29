@@ -103,20 +103,29 @@ function PlaygroundPage() {
             Threads
           </div>
           <div className="flex-1 overflow-y-auto">
-            {(threads as any[])?.map((thread: { id: string; name: string }) => (
-              <button
-                key={thread.id}
-                type="button"
-                onClick={() => handleSelectThread(thread.id)}
-                className={`w-full text-left px-4 py-2.5 text-sm border-b hover:bg-foreground-tertiary/10 transition-colors ${
-                  selectedThreadId === thread.id
-                    ? "bg-foreground-tertiary/15 font-medium"
-                    : ""
-                }`}
-              >
-                <div className="truncate">{thread.name}</div>
-              </button>
-            ))}
+            {(threads as any[])?.map(
+              (thread: { id: string; name: string; shortId: number | null }) => (
+                <button
+                  key={thread.id}
+                  type="button"
+                  onClick={() => handleSelectThread(thread.id)}
+                  className={`w-full text-left px-4 py-2.5 text-sm border-b hover:bg-foreground-tertiary/10 transition-colors ${
+                    selectedThreadId === thread.id
+                      ? "bg-foreground-tertiary/15 font-medium"
+                      : ""
+                  }`}
+                >
+                  <div className="truncate flex items-center gap-1.5">
+                    <span className="truncate">{thread.name}</span>
+                    {thread.shortId != null && (
+                      <span className="text-foreground-secondary tabular-nums font-normal shrink-0">
+                        #{thread.shortId}
+                      </span>
+                    )}
+                  </div>
+                </button>
+              ),
+            )}
             {(!threads || (threads as any[]).length === 0) && (
               <div className="px-4 py-8 text-sm text-foreground-secondary text-center">
                 No threads found

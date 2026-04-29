@@ -267,7 +267,14 @@ function RouteComponent() {
                     </BreadcrumbItem>
                     <BreadcrumbSeparator />
                     <BreadcrumbItem>
-                      <BreadcrumbPage>{thread.name}</BreadcrumbPage>
+                      <BreadcrumbPage className="flex items-center gap-1.5">
+                        <span>{thread.name}</span>
+                        {thread.shortId != null && (
+                          <span className="text-foreground-secondary tabular-nums font-normal">
+                            #{thread.shortId}
+                          </span>
+                        )}
+                      </BreadcrumbPage>
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>

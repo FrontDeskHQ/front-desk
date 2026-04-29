@@ -347,6 +347,11 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
                 >
                   <div className="flex justify-between">
                     <div className="flex items-center gap-2">
+                      {thread?.shortId != null && (
+                        <span className="text-foreground-secondary text-sm tabular-nums">
+                          #{thread.shortId}
+                        </span>
+                      )}
                       <Avatar
                         variant="user"
                         size="md"
