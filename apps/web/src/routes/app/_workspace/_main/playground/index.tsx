@@ -103,7 +103,7 @@ function PlaygroundPage() {
             Threads
           </div>
           <div className="flex-1 overflow-y-auto">
-            {(threads as any[])?.map((thread: { id: string; name: string }) => (
+            {threads?.map((thread) => (
               <button
                 key={thread.id}
                 type="button"
@@ -114,10 +114,17 @@ function PlaygroundPage() {
                     : ""
                 }`}
               >
-                <div className="truncate">{thread.name}</div>
+                <div className="truncate flex items-center gap-1.5">
+                  <span className="truncate">{thread.name}</span>
+                  {thread.shortId != null && (
+                    <span className="text-foreground-secondary tabular-nums font-normal shrink-0">
+                      #{thread.shortId}
+                    </span>
+                  )}
+                </div>
               </button>
             ))}
-            {(!threads || (threads as any[]).length === 0) && (
+            {(threads?.length ?? 0) === 0 && (
               <div className="px-4 py-8 text-sm text-foreground-secondary text-center">
                 No threads found
               </div>
