@@ -86,6 +86,79 @@ const { client, store } = createClient<Router>({
         });
       },
     },
+    label: {
+      create: ({ input, storage }) => {
+        const now = new Date();
+
+        storage.label.insert({
+          id: input.id ?? ulid().toLowerCase(),
+          organizationId: input.organizationId,
+          name: input.name,
+          color: input.color,
+          enabled: input.enabled ?? true,
+          createdAt: now,
+          updatedAt: now,
+        });
+      },
+      update: ({ input, storage }) => {
+        storage.label.update(input.labelId, {
+          name: input.name,
+          color: input.color,
+          enabled: input.enabled,
+          updatedAt: input.updatedAt ?? new Date(),
+        });
+      },
+      createAndAttachToThread: ({ input, storage }) => {
+        const labelId = input.labelId ?? ulid().toLowerCase();
+        const threadLabelId = input.threadLabelId ?? ulid().toLowerCase();
+        const now = new Date();
+
+        storage.label.insert({
+          id: labelId,
+          organizationId: input.organizationId,
+          name: input.name,
+          color: input.color,
+          enabled: true,
+          createdAt: now,
+          updatedAt: now,
+        });
+
+        storage.threadLabel.insert({
+          id: threadLabelId,
+          threadId: input.threadId,
+          labelId,
+          enabled: true,
+        });
+      },
+      attachToThread: ({ input, storage }) => {
+        const existing =
+          storage.threadLabel
+            .where({
+              threadId: input.threadId,
+              labelId: input.labelId,
+            })
+            .get()[0] ?? null;
+
+        if (existing) {
+          if (!existing.enabled) {
+            storage.threadLabel.update(existing.id, { enabled: true });
+          }
+          return;
+        }
+
+        storage.threadLabel.insert({
+          id: input.id ?? ulid().toLowerCase(),
+          threadId: input.threadId,
+          labelId: input.labelId,
+          enabled: true,
+        });
+      },
+      detachFromThread: ({ input, storage }) => {
+        storage.threadLabel.update(input.threadLabelId, {
+          enabled: false,
+        });
+      },
+    },
   }),
 });
 

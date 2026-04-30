@@ -95,27 +95,17 @@ export function LabelsSection({
               const newItem = creatableSelection.replace("create:", "");
               if (!currentOrg?.id) return;
 
-              const newLabelId = ulid().toLowerCase();
+              const labelId = ulid().toLowerCase();
+              const threadLabelId = ulid().toLowerCase();
 
-              mutate.label.insert({
-                id: newLabelId,
+              mutate.label.createAndAttachToThread({
+                organizationId: currentOrg.id,
+                threadId,
                 name: newItem,
                 color: "var(--label-color-red)",
-                createdAt: new Date(),
-                updatedAt: new Date(),
-                organizationId: currentOrg?.id,
-                enabled: true,
+                labelId,
+                threadLabelId,
               });
-
-              // TODO remove this once we have a proper transaction system
-              setTimeout(() => {
-                mutate.threadLabel.insert({
-                  id: ulid().toLowerCase(),
-                  threadId: threadId,
-                  labelId: newLabelId,
-                  enabled: true,
-                });
-              }, 100);
             } else {
               const nextLabelSet = new Set(
                 next.filter((i) => !i.startsWith("create:")),
@@ -144,23 +134,13 @@ export function LabelsSection({
 
               // Add labels
               for (const labelId of labelsToAdd) {
-                const existingThreadLabel = threadLabelMap.get(labelId);
                 const label = allLabels?.find((l) => l.id === labelId);
 
-                if (existingThreadLabel) {
-                  // Update existing connection
-                  mutate.threadLabel.update(existingThreadLabel.id, {
-                    enabled: true,
-                  });
-                } else {
-                  // Insert new connection
-                  mutate.threadLabel.insert({
-                    id: ulid().toLowerCase(),
-                    threadId: threadId,
-                    labelId: labelId,
-                    enabled: true,
-                  });
-                }
+                mutate.label.attachToThread({
+                  threadId,
+                  labelId,
+                  id: ulid().toLowerCase(),
+                });
 
                 captureThreadEvent("thread:label_add", {
                   label_id: labelId,
@@ -174,8 +154,8 @@ export function LabelsSection({
                 const label = allLabels?.find((l) => l.id === labelId);
 
                 if (existingThreadLabel) {
-                  mutate.threadLabel.update(existingThreadLabel.id, {
-                    enabled: false,
+                  mutate.label.detachFromThread({
+                    threadLabelId: existingThreadLabel.id,
                   });
 
                   captureThreadEvent("thread:label_remove", {

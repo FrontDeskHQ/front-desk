@@ -3,19 +3,50 @@ const ROLE_HIERARCHY: Record<string, number> = {
   owner: 1,
 };
 
-export function isAuthorized(
-  ctx: {
-    internalApiKey?: unknown;
-    publicApiKey?: { ownerId: string };
-    orgUsers?: { organizationId: string; role: string }[];
-  },
-  opts: {
-    organizationId: string;
-    role?: string;
-    allowPublicApiKey?: boolean;
-  },
-): boolean {
-  if (ctx.internalApiKey) return true;
+const getRoleLevel = (role: string): number | undefined => {
+  const level = ROLE_HIERARCHY[role];
+
+  if (level === undefined) {
+    console.warn(`[authorize] Unknown required role "${role}"`);
+  }
+
+  return level;
+};
+
+/** Context injected by live-state (sessions, API keys). */
+export type AuthorizationContext = {
+  internalApiKey?: unknown;
+  publicApiKey?: { ownerId: string };
+  orgUsers?: { organizationId: string; role: string }[];
+};
+
+/** Request-like shape that carries credential context (e.g. mutation/query `req`). */
+export type AuthorizeReq = {
+  context?: AuthorizationContext | null;
+};
+
+export type AuthorizeOptions = {
+  organizationId: string;
+  role?: string;
+  allowPublicApiKey?: boolean;
+  /**
+   * When `true` (default), callers with {@link AuthorizationContext.internalApiKey}
+   * are authorized without org membership checks. Set to `false` to enforce the
+   * same membership rules as regular sessions even when an internal key is present.
+   */
+  allowInternalApiKey?: boolean;
+};
+
+export const isAuthorized = (
+  ctx: AuthorizationContext,
+  opts: AuthorizeOptions,
+): boolean => {
+  if (
+    !!ctx.internalApiKey &&
+    opts.allowInternalApiKey !== false
+  ) {
+    return true;
+  }
 
   if (ctx.publicApiKey) {
     return (
@@ -32,7 +63,8 @@ export function isAuthorized(
     if (!orgUser) return false;
 
     if (opts.role) {
-      const requiredLevel = ROLE_HIERARCHY[opts.role] ?? 0;
+      const requiredLevel = getRoleLevel(opts.role);
+      if (requiredLevel === undefined) return false;
       const userLevel = ROLE_HIERARCHY[orgUser.role] ?? 0;
       return userLevel >= requiredLevel;
     }
@@ -41,21 +73,10 @@ export function isAuthorized(
   }
 
   return false;
-}
+};
 
-export const authorize = (
-  ctx: {
-    internalApiKey?: unknown;
-    publicApiKey?: { ownerId: string };
-    orgUsers?: { organizationId: string; role: string }[];
-  },
-  opts: {
-    organizationId: string;
-    role?: string;
-    allowPublicApiKey?: boolean;
-  },
-): void => {
-  if (isAuthorized(ctx, opts)) return;
+export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
+  if (isAuthorized(req.context ?? {}, opts)) return;
 
   throw new Error("UNAUTHORIZED");
 };
