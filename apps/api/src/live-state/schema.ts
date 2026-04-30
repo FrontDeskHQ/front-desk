@@ -158,8 +158,23 @@ const suggestion = object("suggestion", {
   organizationId: reference("organization.id"),
   resultsStr: string().nullable(), // JSON array of results (e.g., label IDs)
   metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)
+  urgencyScore: number().default(0),
+  dismissedAt: timestamp().nullable(),
+  actedAt: timestamp().nullable(),
   createdAt: timestamp(),
   updatedAt: timestamp(),
+});
+
+// TODO(live-state): composite index (organizationId, appliedAt desc) when supported.
+// Until then, single-column indexes plus query-side orderBy("appliedAt","desc").
+const autonomousAction = object("autonomousAction", {
+  id: id(),
+  organizationId: reference("organization.id").index(),
+  signalType: string(),
+  entityId: string(),
+  appliedAt: timestamp().index(),
+  undoneAt: timestamp().nullable(),
+  metadataStr: string().nullable(),
 });
 
 const onboarding = object("onboarding", {
@@ -213,6 +228,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   labels: many(label, "organizationId"),
   authors: many(author, "organizationId"),
   suggestions: many(suggestion, "organizationId"),
+  autonomousActions: many(autonomousAction, "organizationId"),
   onboardings: many(onboarding, "organizationId"),
   documentationSources: many(documentationSource, "organizationId"),
   agentChats: many(agentChat, "organizationId"),
@@ -275,6 +291,13 @@ const threadLabelRelations = createRelations(threadLabel, ({ one }) => ({
 const suggestionRelations = createRelations(suggestion, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
+
+const autonomousActionRelations = createRelations(
+  autonomousAction,
+  ({ one }) => ({
+    organization: one(organization, "organizationId"),
+  }),
+);
 
 const onboardingRelations = createRelations(onboarding, ({ one }) => ({
   organization: one(organization, "organizationId"),
@@ -354,6 +377,7 @@ export const schema = createSchema({
   label,
   threadLabel,
   suggestion,
+  autonomousAction,
   pipelineIdempotencyKey,
   pipelineJob,
   onboarding,
@@ -374,6 +398,7 @@ export const schema = createSchema({
   labelRelations,
   threadLabelRelations,
   suggestionRelations,
+  autonomousActionRelations,
   onboardingRelations,
   documentationSourceRelations,
   agentChatRelations,

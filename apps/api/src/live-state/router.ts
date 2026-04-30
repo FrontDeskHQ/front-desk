@@ -1,15 +1,25 @@
 // TODO refactor with new live-state mental model
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
+import {
+  autonomyLevelSchema,
+  getDefaultSignalAutonomy,
+  type SignalAutonomyMap,
+  signalAutonomyMapSchema,
+  signalTypeSchema,
+} from "@workspace/schemas/signals";
 import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
+import { authorize } from "../lib/authorize";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
+import { canDoAutonomously } from "../lib/signals";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
+import autonomousActionRoute from "./router/autonomous-action";
 import documentationSourcesRoute from "./router/documentation-sources";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -111,6 +121,17 @@ export const router = createRouter({
             logoUrl: null,
             socials: null,
             customInstructions: null,
+            settings: {
+              timezone: "UTC",
+              digest: {
+                pendingReplyThresholdMinutes: 30,
+                time: "09:00",
+                slackChannelId: null,
+                slackChannelName: null,
+                lastDigestSentAt: null,
+              },
+              signalAutonomy: getDefaultSignalAutonomy(),
+            },
           });
 
           await db.insert(schema.subscription, {
@@ -161,6 +182,54 @@ export const router = createRouter({
             success: true,
             organization,
           };
+        }),
+        setSignalAutonomy: mutation(
+          z.object({
+            organizationId: z.string(),
+            signalType: signalTypeSchema,
+            level: autonomyLevelSchema,
+          }),
+        ).handler(async ({ req, db }) => {
+          authorize(req.context, {
+            organizationId: req.input.organizationId,
+            role: "owner",
+          });
+
+          if (!canDoAutonomously(req.input.signalType, req.input.level)) {
+            if (req.input.level === "auto") {
+              throw new Error("SIGNAL_TYPE_LOCKED_FROM_AUTO");
+            }
+          }
+
+          const org = await db.organization.one(req.input.organizationId).get();
+          if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+
+          // Preserve raw settings — only touch signalAutonomy. Avoid
+          // safeParseOrgSettings here because it returns the schema defaults
+          // when the existing settings fail validation, which would silently
+          // overwrite unrelated keys we don't know about yet.
+          const rawSettings =
+            org.settings &&
+            typeof org.settings === "object" &&
+            !Array.isArray(org.settings)
+              ? (org.settings as Record<string, unknown>)
+              : {};
+          const parsedAutonomy = signalAutonomyMapSchema.safeParse(
+            rawSettings.signalAutonomy,
+          );
+          const nextAutonomy: SignalAutonomyMap = {
+            ...getDefaultSignalAutonomy(),
+            ...(parsedAutonomy.success ? parsedAutonomy.data : {}),
+            [req.input.signalType]: req.input.level,
+          };
+
+          return db.organization.update(org.id, {
+            settings: {
+              ...rawSettings,
+              signalAutonomy: nextAutonomy,
+              // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
+            } as any,
+          });
         }),
         createPublicApiKey: mutation(
           z.object({
@@ -727,6 +796,7 @@ export const router = createRouter({
     update: updateRoute,
     message: messageRoute,
     suggestion: suggestionRoute,
+    autonomousAction: autonomousActionRoute,
     onboarding: onboardingRoute,
     documentationSource: documentationSourcesRoute,
     agentChat: agentChatRoute,
