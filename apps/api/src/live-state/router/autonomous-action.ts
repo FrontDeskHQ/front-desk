@@ -46,7 +46,7 @@ export default privateRoute
         throw new Error("UNAUTHORIZED");
       }
 
-      return db.insert(schema.autonomousAction, {
+      return db.autonomousAction.insert({
         id: req.input.id ?? ulid().toLowerCase(),
         organizationId: req.input.organizationId,
         signalType: req.input.signalType,
@@ -68,20 +68,18 @@ export default privateRoute
         organizationId: req.input.organizationId,
       });
 
-      const rows = Object.values(
-        await db.find(schema.autonomousAction, {
-          where: {
-            id: req.input.id,
-            organizationId: req.input.organizationId,
-          },
-        }),
-      );
+      const rows = await db.autonomousAction
+        .where({
+          id: req.input.id,
+          organizationId: req.input.organizationId,
+        })
+        .get();
       const row = rows[0];
       if (!row) throw new Error("AUTONOMOUS_ACTION_NOT_FOUND");
 
       if (row.undoneAt) return row;
 
-      return db.update(schema.autonomousAction, row.id, {
+      return db.autonomousAction.update(row.id, {
         undoneAt: new Date(),
       });
     }),

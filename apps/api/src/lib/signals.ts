@@ -6,7 +6,7 @@ import {
   type SignalType,
 } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
-import { schema } from "../live-state/schema";
+import type { schema } from "../live-state/schema";
 
 type DB = ServerDB<typeof schema>;
 
@@ -20,16 +20,14 @@ export function canDoAutonomously(
 }
 
 export async function listPendingSignals(db: DB, organizationId: string) {
-  const rows = Object.values(
-    await db.find(schema.suggestion, {
-      where: {
-        organizationId,
-        active: true,
-        dismissedAt: null,
-        actedAt: null,
-      },
-    }),
-  );
+  const rows = await db.suggestion
+    .where({
+      organizationId,
+      active: true,
+      dismissedAt: null,
+      actedAt: null,
+    })
+    .get();
   return rows.sort((a, b) => (b.urgencyScore ?? 0) - (a.urgencyScore ?? 0));
 }
 
@@ -38,11 +36,9 @@ export async function listAutonomousActions(
   organizationId: string,
   since: Date,
 ) {
-  const rows = Object.values(
-    await db.find(schema.autonomousAction, {
-      where: { organizationId, undoneAt: null },
-    }),
-  );
+  const rows = await db.autonomousAction
+    .where({ organizationId, undoneAt: null })
+    .get();
   return rows
     .filter((r) => r.appliedAt >= since)
     .sort((a, b) => b.appliedAt.getTime() - a.appliedAt.getTime());
@@ -58,7 +54,7 @@ export async function recordAutonomousAction(
   },
 ) {
   const now = new Date();
-  return db.insert(schema.autonomousAction, {
+  return db.autonomousAction.insert({
     id: ulid().toLowerCase(),
     organizationId: input.organizationId,
     signalType: input.signalType,

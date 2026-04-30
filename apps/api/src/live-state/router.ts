@@ -223,7 +223,7 @@ export const router = createRouter({
             [req.input.signalType]: req.input.level,
           };
 
-          return db.update(schema.organization, org.id, {
+          return db.organization.update(org.id, {
             settings: {
               ...rawSettings,
               signalAutonomy: nextAutonomy,
