@@ -1,5 +1,7 @@
-import { safeParseOrgSettings } from "@workspace/schemas/organization";
-import { getDefaultSignalAutonomy } from "@workspace/schemas/signals";
+import {
+  getDefaultSignalAutonomy,
+  signalAutonomyMapSchema,
+} from "@workspace/schemas/signals";
 import type { Migration } from "../types";
 
 const migration: Migration = {
@@ -9,16 +11,29 @@ const migration: Migration = {
     const defaults = getDefaultSignalAutonomy();
 
     for (const org of orgs) {
-      const current = safeParseOrgSettings(org.settings);
-      const merged = {
-        ...current,
+      // Preserve any unrelated keys on settings — only patch signalAutonomy.
+      const rawSettings =
+        org.settings &&
+        typeof org.settings === "object" &&
+        !Array.isArray(org.settings)
+          ? (org.settings as Record<string, unknown>)
+          : {};
+      const parsedAutonomy = signalAutonomyMapSchema.safeParse(
+        rawSettings.signalAutonomy,
+      );
+
+      const next = {
+        ...rawSettings,
         signalAutonomy: {
           ...defaults,
-          ...(current.signalAutonomy ?? {}),
+          ...(parsedAutonomy.success ? parsedAutonomy.data : {}),
         },
       };
 
-      await db.organization.update(org.id, { settings: merged });
+      await db.organization.update(org.id, {
+        // biome-ignore lint/suspicious/noExplicitAny: settings JSON is opaque to migrations
+        settings: next as any,
+      });
     }
   },
 };

@@ -39,9 +39,12 @@ export default privateRoute
         metadata: autonomousActionMetadataSchema,
       }),
     ).handler(async ({ req, db }) => {
-      authorize(req.context, {
-        organizationId: req.input.organizationId,
-      });
+      // Receipts are written by the worker only — never by user sessions or
+      // public API keys, otherwise a teammate could forge "FrontDesk handled
+      // X" entries that show up in the leverage report.
+      if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
 
       return db.insert(schema.autonomousAction, {
         id: req.input.id ?? ulid().toLowerCase(),
@@ -56,14 +59,25 @@ export default privateRoute
     undo: mutation(
       z.object({
         id: z.string(),
+        organizationId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      const row = await db.autonomousAction.one(req.input.id).get();
-      if (!row) throw new Error("AUTONOMOUS_ACTION_NOT_FOUND");
-
+      // Authorize against the caller-supplied org *before* loading the row so
+      // a guessed id can't be probed across tenants.
       authorize(req.context, {
-        organizationId: row.organizationId,
+        organizationId: req.input.organizationId,
       });
+
+      const rows = Object.values(
+        await db.find(schema.autonomousAction, {
+          where: {
+            id: req.input.id,
+            organizationId: req.input.organizationId,
+          },
+        }),
+      );
+      const row = rows[0];
+      if (!row) throw new Error("AUTONOMOUS_ACTION_NOT_FOUND");
 
       if (row.undoneAt) return row;
 

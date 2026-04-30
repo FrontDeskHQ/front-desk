@@ -1,11 +1,11 @@
 // TODO refactor with new live-state mental model
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
-import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
   autonomyLevelSchema,
   getDefaultSignalAutonomy,
   type SignalAutonomyMap,
+  signalAutonomyMapSchema,
   signalTypeSchema,
 } from "@workspace/schemas/signals";
 import { addDays, addYears } from "date-fns";
@@ -204,17 +204,31 @@ export const router = createRouter({
           const org = await db.organization.one(req.input.organizationId).get();
           if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
 
-          const currentSettings = safeParseOrgSettings(org.settings);
+          // Preserve raw settings — only touch signalAutonomy. Avoid
+          // safeParseOrgSettings here because it returns the schema defaults
+          // when the existing settings fail validation, which would silently
+          // overwrite unrelated keys we don't know about yet.
+          const rawSettings =
+            org.settings &&
+            typeof org.settings === "object" &&
+            !Array.isArray(org.settings)
+              ? (org.settings as Record<string, unknown>)
+              : {};
+          const parsedAutonomy = signalAutonomyMapSchema.safeParse(
+            rawSettings.signalAutonomy,
+          );
           const nextAutonomy: SignalAutonomyMap = {
-            ...(currentSettings.signalAutonomy ?? getDefaultSignalAutonomy()),
+            ...getDefaultSignalAutonomy(),
+            ...(parsedAutonomy.success ? parsedAutonomy.data : {}),
             [req.input.signalType]: req.input.level,
           };
 
           return db.update(schema.organization, org.id, {
             settings: {
-              ...currentSettings,
+              ...rawSettings,
               signalAutonomy: nextAutonomy,
-            },
+              // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
+            } as any,
           });
         }),
         createPublicApiKey: mutation(
