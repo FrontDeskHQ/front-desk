@@ -10,7 +10,8 @@
     "./integration/*": "./src/integration/*.ts",
     "./external-issue": "./src/external-issue.ts",
     "./organization": "./src/organization.ts",
-    "./digest": "./src/digest.ts"
+    "./digest": "./src/digest.ts",
+    "./signals": "./src/signals.ts"
   },
   "dependencies": {
     "zod": "catalog:"
