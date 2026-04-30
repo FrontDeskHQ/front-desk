@@ -3,6 +3,16 @@ const ROLE_HIERARCHY: Record<string, number> = {
   owner: 1,
 };
 
+const getRoleLevel = (role: string): number | undefined => {
+  const level = ROLE_HIERARCHY[role];
+
+  if (level === undefined) {
+    console.warn(`[authorize] Unknown required role "${role}"`);
+  }
+
+  return level;
+};
+
 /** Context injected by live-state (sessions, API keys). */
 export type AuthorizationContext = {
   internalApiKey?: unknown;
@@ -53,7 +63,8 @@ export const isAuthorized = (
     if (!orgUser) return false;
 
     if (opts.role) {
-      const requiredLevel = ROLE_HIERARCHY[opts.role] ?? 0;
+      const requiredLevel = getRoleLevel(opts.role);
+      if (requiredLevel === undefined) return false;
       const userLevel = ROLE_HIERARCHY[orgUser.role] ?? 0;
       return userLevel >= requiredLevel;
     }

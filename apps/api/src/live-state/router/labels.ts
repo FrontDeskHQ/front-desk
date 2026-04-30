@@ -1,6 +1,7 @@
 import z from "zod";
 import { ulid } from "ulid";
 import type { ServerDB } from "@live-state/sync/server";
+import type { AuthorizationContext } from "../../lib/authorize";
 import { authorize } from "../../lib/authorize";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -32,6 +33,80 @@ const insertLabel = async (
   db: LabelInsertDb,
   args: Parameters<typeof buildInsertLabelRow>[0],
 ) => db.label.insert(buildInsertLabelRow(args));
+
+type RequestWithAuthorizationContext = {
+  context?: AuthorizationContext | null;
+};
+
+const getAuthorizedOrganizationIds = (
+  req: RequestWithAuthorizationContext,
+): string[] | null => {
+  const ctx = req.context ?? {};
+
+  if (ctx.internalApiKey) {
+    return null;
+  }
+
+  if (ctx.publicApiKey) {
+    return [ctx.publicApiKey.ownerId];
+  }
+
+  if (!ctx.orgUsers?.length) {
+    return [];
+  }
+
+  return [...new Set(ctx.orgUsers.map((orgUser) => orgUser.organizationId))];
+};
+
+const findLabelForAuthorizedOrganizations = async (
+  db: Pick<ServerDB<typeof schema>, "label">,
+  labelId: string,
+  organizationIds: string[] | null,
+) => {
+  if (organizationIds === null) {
+    return await db.label.one(labelId).get();
+  }
+
+  for (const organizationId of organizationIds) {
+    const label = await db.label
+      .first({
+        id: labelId,
+        organizationId,
+      })
+      .get();
+
+    if (label) {
+      return label;
+    }
+  }
+
+  return null;
+};
+
+const findThreadForAuthorizedOrganizations = async (
+  db: Pick<ServerDB<typeof schema>, "thread">,
+  threadId: string,
+  organizationIds: string[] | null,
+) => {
+  if (organizationIds === null) {
+    return await db.thread.one(threadId).get();
+  }
+
+  for (const organizationId of organizationIds) {
+    const thread = await db.thread
+      .first({
+        id: threadId,
+        organizationId,
+      })
+      .get();
+
+    if (thread) {
+      return thread;
+    }
+  }
+
+  return null;
+};
 
 export default {
   label: publicRoute.collectionRoute(schema.label, {
@@ -149,13 +224,22 @@ export default {
         id: z.string().optional(),
       }),
     ).handler(async ({ req, db }) => {
-      const label = await db.label.one(req.input.labelId).get();
+      const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
+      const label = await findLabelForAuthorizedOrganizations(
+        db,
+        req.input.labelId,
+        authorizedOrganizationIds,
+      );
 
       if (!label) {
         throw new Error("LABEL_NOT_FOUND");
       }
 
-      const thread = await db.thread.one(req.input.threadId).get();
+      const thread = await findThreadForAuthorizedOrganizations(
+        db,
+        req.input.threadId,
+        authorizedOrganizationIds,
+      );
 
       if (!thread) {
         throw new Error("THREAD_NOT_FOUND");
@@ -169,38 +253,64 @@ export default {
         organizationId: thread.organizationId,
       });
 
-      const existing = await db.threadLabel
-        .first({
-          threadId: req.input.threadId,
-          labelId: req.input.labelId,
-        })
-        .get();
+      const id = req.input.id ?? ulid().toLowerCase();
+      const threadLabelId = await db.transaction(async ({ trx }) => {
+        const existing = await trx.threadLabel
+          .first({
+            threadId: req.input.threadId,
+            labelId: req.input.labelId,
+          })
+          .get();
 
-      if (existing) {
-        if (!existing.enabled) {
-          await db.threadLabel.update(existing.id, { enabled: true });
+        if (existing) {
+          if (!existing.enabled) {
+            await trx.threadLabel.update(existing.id, { enabled: true });
+          }
+
+          return existing.id;
         }
 
-        return (
-          (await db.threadLabel
-            .one(existing.id)
-            .include({ label: true })
-            .get()) ?? existing
-        );
-      }
+        try {
+          const created = await trx.threadLabel.insert({
+            id,
+            threadId: req.input.threadId,
+            labelId: req.input.labelId,
+            enabled: true,
+          });
 
-      const id = req.input.id ?? ulid().toLowerCase();
+          return created.id;
+        } catch {
+          const concurrent = await trx.threadLabel
+            .first({
+              threadId: req.input.threadId,
+              labelId: req.input.labelId,
+            })
+            .get();
 
-      const created = await db.threadLabel.insert({
-        id,
-        threadId: req.input.threadId,
-        labelId: req.input.labelId,
-        enabled: true,
+          if (concurrent) {
+            if (!concurrent.enabled) {
+              await trx.threadLabel.update(concurrent.id, { enabled: true });
+            }
+
+            return concurrent.id;
+          }
+
+          throw new Error("THREAD_LABEL_ATTACH_FAILED");
+        }
       });
+
+      const created = await db.threadLabel
+        .one(threadLabelId)
+        .include({ label: true })
+        .get();
+
+      if (!created) {
+        throw new Error("THREAD_LABEL_ATTACH_FAILED");
+      }
 
       return {
         ...created,
-        label,
+        label: created.label ?? label,
       };
     }),
 
@@ -209,16 +319,27 @@ export default {
         threadLabelId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      const tl = await db.threadLabel.one(req.input.threadLabelId).get();
+      const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
+      const tl = await db.threadLabel
+        .one(req.input.threadLabelId)
+        .include({ thread: true, label: true })
+        .get();
 
       if (!tl) {
         throw new Error("THREAD_LABEL_NOT_FOUND");
       }
 
-      const thread = await db.thread.one(tl.threadId).get();
+      const thread = tl.thread;
 
       if (!thread) {
         throw new Error("THREAD_NOT_FOUND");
+      }
+
+      if (
+        authorizedOrganizationIds &&
+        !authorizedOrganizationIds.includes(thread.organizationId)
+      ) {
+        throw new Error("THREAD_LABEL_NOT_FOUND");
       }
 
       authorize(req, {
@@ -231,7 +352,13 @@ export default {
         (await db.threadLabel
           .one(req.input.threadLabelId)
           .include({ label: true })
-          .get()) ?? { ...tl, enabled: false };
+          .get()) ?? {
+          id: tl.id,
+          threadId: tl.threadId,
+          labelId: tl.labelId,
+          enabled: false,
+          label: tl.label,
+        };
 
       return updated;
     }),
