@@ -1,6 +1,16 @@
 {
   "version": 1,
   "skills": {
+    "analyze-logs": {
+      "source": "evlog.dev",
+      "sourceType": "well-known",
+      "computedHash": "28bd8254997b767ebba1f7f2cf4567ddb6c51b1fcdca9baf9b9cd7ee3ca51d7c"
+    },
+    "build-audit-logs": {
+      "source": "evlog.dev",
+      "sourceType": "well-known",
+      "computedHash": "10e462fd3fea48c1868fd81cf4e2fcc28bc4cc35e3351c61fdb0bb0b50adb48a"
+    },
     "copywriting": {
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
@@ -15,6 +25,11 @@
       "source": "coreyhaines31/marketingskills",
       "sourceType": "github",
       "computedHash": "ac4bc45f538c8804ddf5ffe9757ef746197f33d9fde198bbb49885a98e03100a"
+    },
+    "review-logging-patterns": {
+      "source": "evlog.dev",
+      "sourceType": "well-known",
+      "computedHash": "16ec9091a37cfce1089d137da6c4d2997d771a8eb914a952df7654afbcdd1f36"
     },
     "seo-audit": {
       "source": "coreyhaines31/marketingskills",
