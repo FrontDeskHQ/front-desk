@@ -69,6 +69,7 @@ import { buildThreadParam } from "~/utils/thread";
 export type FixedFilters = {
   status?: { $not: { $in: number[] } } | { $in: number[] };
   assignedUserId?: string;
+  id?: { $in: string[] };
 };
 
 export interface ThreadsListProps {
@@ -420,8 +421,18 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   );
 }
 
+type ThreadsSearch = {
+  signalType?: string;
+  since?: string;
+};
+
 export const Route = createFileRoute("/app/_workspace/_main/threads/")({
   component: RouteComponent,
+  validateSearch: (search: Record<string, unknown>): ThreadsSearch => ({
+    signalType:
+      typeof search.signalType === "string" ? search.signalType : undefined,
+    since: typeof search.since === "string" ? search.since : undefined,
+  }),
   head: () => {
     return {
       meta: [
@@ -435,5 +446,52 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/")({
 });
 
 function RouteComponent() {
+  const { signalType, since } = Route.useSearch();
+  if (signalType) {
+    return <SignalFilteredThreadsList signalType={signalType} since={since} />;
+  }
   return <ThreadsList />;
+}
+
+function SignalFilteredThreadsList({
+  signalType,
+  since,
+}: {
+  signalType: string;
+  since?: string;
+}) {
+  const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
+  const sinceMs = since ? new Date(since).getTime() : null;
+
+  const actions = useLiveQuery(
+    query.autonomousAction.where({
+      organizationId: currentOrg?.id,
+      signalType,
+      undoneAt: null,
+    }),
+  );
+
+  const entityIds = (actions ?? [])
+    .filter((a) =>
+      sinceMs ? new Date(a.appliedAt).getTime() >= sinceMs : true,
+    )
+    .map((a) => a.entityId);
+
+  if (!actions) return null;
+
+  if (entityIds.length === 0) {
+    return (
+      <ThreadsList
+        fixedFilters={{ id: { $in: ["__none__"] } }}
+        subTitle={`From signal: ${signalType}`}
+      />
+    );
+  }
+
+  return (
+    <ThreadsList
+      fixedFilters={{ id: { $in: entityIds } }}
+      subTitle={`From signal: ${signalType}`}
+    />
+  );
 }

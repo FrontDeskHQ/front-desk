@@ -1,4 +1,5 @@
 import { google } from "@ai-sdk/google";
+import { computeUrgency } from "@workspace/schemas/signals";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
@@ -349,6 +350,10 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
                 score: selectedDuplicate.score,
               }),
               metadataStr: null,
+              urgencyScore: computeUrgency({
+                signalType: "duplicate",
+                ageHours: 0,
+              }),
               createdAt: now,
               updatedAt: now,
             });
