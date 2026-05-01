@@ -1,5 +1,9 @@
 import type { Job } from "bullmq";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
+import {
+  computeUrgency,
+  signalTypeFromStored,
+} from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { fetchClient } from "../lib/database/client";
 
@@ -270,6 +274,7 @@ async function createDigestSignal(params: {
   resultsStr: string;
 }): Promise<void> {
   const now = new Date();
+  const normalizedType = signalTypeFromStored(params.type);
   await fetchClient.mutate.suggestion.insert({
     id: ulid().toLowerCase(),
     type: params.type,
@@ -280,6 +285,9 @@ async function createDigestSignal(params: {
     accepted: false,
     resultsStr: params.resultsStr,
     metadataStr: JSON.stringify({ digestIncludedAt: [] }),
+    urgencyScore: normalizedType
+      ? computeUrgency({ signalType: normalizedType, ageHours: 0 })
+      : 0,
     createdAt: now,
     updatedAt: now,
   });

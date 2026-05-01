@@ -1,4 +1,5 @@
 import { google } from "@ai-sdk/google";
+import { computeUrgency } from "@workspace/schemas/signals";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
@@ -299,6 +300,10 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
               accepted: false,
               resultsStr,
               metadataStr,
+              urgencyScore: computeUrgency({
+                signalType: "status",
+                ageHours: 0,
+              }),
               createdAt: now,
               updatedAt: now,
             });
