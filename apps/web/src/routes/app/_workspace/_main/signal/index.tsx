@@ -58,11 +58,8 @@ function RouteComponent() {
           />
         )}
 
-        {isNewOrg ? (
-          <NewOrgEmpty />
-        ) : (
-          <ActionList organizationId={currentOrg.id} ctx={ctx} />
-        )}
+        {isNewOrg && <NewOrgEmpty />}
+        <ActionList organizationId={currentOrg.id} ctx={ctx} />
       </CardContent>
     </>
   );

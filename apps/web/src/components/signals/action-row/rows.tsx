@@ -9,6 +9,7 @@ import { ActionButton } from "@workspace/ui/components/button";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Check, ExternalLink } from "lucide-react";
+import { z } from "zod";
 import { ThreadChip } from "~/components/chips";
 import { buildThreadParam } from "~/utils/thread";
 import { ActionRow } from "./action-row";
@@ -63,14 +64,15 @@ function OpenThreadButton({
   label: string;
 }) {
   return (
-    <Link
-      to="/app/threads/$id"
-      params={{ id: buildThreadParam(thread) }}
+    <ActionButton
+      size="sm"
+      variant="primary"
+      render={
+        <Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />
+      }
     >
-      <ActionButton size="sm" variant="primary">
-        {label}
-      </ActionButton>
-    </Link>
+      {label}
+    </ActionButton>
   );
 }
 
@@ -127,7 +129,7 @@ export function DuplicateActionRow({
         <ActionRow.Meta>{pct}% match</ActionRow.Meta>
       </ActionRow.Title>
       <ActionRow.Reason>
-        {thread ? (
+        {thread && target ? (
           <span className="inline-flex items-center gap-1.5">
             <ThreadRef thread={thread} />
             <span>is a duplicate of</span>
@@ -261,80 +263,75 @@ export function LoopToCloseActionRow({
 
 // --- Parsers ---
 
-function parseStatus(s: SuggestionRow) {
-  if (!s.resultsStr) return null;
+function safeJsonParse(raw: string): unknown {
   try {
-    const r = JSON.parse(s.resultsStr) as { suggestedStatus: number };
-    if (typeof r.suggestedStatus !== "number") return null;
-    return { ...s, suggestedStatus: r.suggestedStatus };
+    return JSON.parse(raw);
   } catch {
     return null;
   }
+}
+
+const statusResultSchema = z.object({
+  suggestedStatus: z.number().int(),
+});
+
+const duplicateResultSchema = z.object({
+  confidence: z.string(),
+  reason: z.string(),
+  score: z.number(),
+});
+
+const linkedPrResultSchema = z.object({
+  prId: z.number(),
+  prNumber: z.number(),
+  prTitle: z.string(),
+  prUrl: z.string(),
+  repo: z.string(),
+  confidence: z.number(),
+  reasoning: z.string(),
+});
+
+const pendingReplyResultSchema = z.object({
+  lastMessageAt: z.string().min(1),
+  thresholdMinutes: z.number(),
+});
+
+const loopToCloseResultSchema = z.object({
+  linkedPrId: z.string().min(1),
+  prMergedAt: z.string().min(1),
+});
+
+function parseStatus(s: SuggestionRow) {
+  if (!s.resultsStr) return null;
+  const parsed = statusResultSchema.safeParse(safeJsonParse(s.resultsStr));
+  if (!parsed.success) return null;
+  return { ...s, ...parsed.data };
 }
 
 function parseDuplicate(s: SuggestionRow) {
   if (!s.resultsStr || !s.relatedEntityId) return null;
-  try {
-    const r = JSON.parse(s.resultsStr) as {
-      confidence: string;
-      reason: string;
-      score: number;
-    };
-    return {
-      ...s,
-      targetThreadId: s.relatedEntityId,
-      confidence: r.confidence,
-      reason: r.reason,
-      score: r.score,
-    };
-  } catch {
-    return null;
-  }
+  const parsed = duplicateResultSchema.safeParse(safeJsonParse(s.resultsStr));
+  if (!parsed.success) return null;
+  return { ...s, targetThreadId: s.relatedEntityId, ...parsed.data };
 }
 
 function parseLinkedPr(s: SuggestionRow) {
   if (!s.resultsStr) return null;
-  try {
-    const r = JSON.parse(s.resultsStr) as {
-      prId: number;
-      prNumber: number;
-      prTitle: string;
-      prUrl: string;
-      repo: string;
-      confidence: number;
-      reasoning: string;
-    };
-    if (!r.prId) return null;
-    return { ...s, ...r };
-  } catch {
-    return null;
-  }
+  const parsed = linkedPrResultSchema.safeParse(safeJsonParse(s.resultsStr));
+  if (!parsed.success) return null;
+  return { ...s, ...parsed.data };
 }
 
 function parsePendingReply(s: SuggestionRow) {
   if (!s.resultsStr) return null;
-  try {
-    const r = JSON.parse(s.resultsStr) as {
-      lastMessageAt: string;
-      thresholdMinutes: number;
-    };
-    if (!r.lastMessageAt) return null;
-    return { ...s, ...r };
-  } catch {
-    return null;
-  }
+  const parsed = pendingReplyResultSchema.safeParse(safeJsonParse(s.resultsStr));
+  if (!parsed.success) return null;
+  return { ...s, ...parsed.data };
 }
 
 function parseLoopToClose(s: SuggestionRow) {
   if (!s.resultsStr) return null;
-  try {
-    const r = JSON.parse(s.resultsStr) as {
-      linkedPrId: string;
-      prMergedAt: string;
-    };
-    if (!r.linkedPrId || !r.prMergedAt) return null;
-    return { ...s, ...r };
-  } catch {
-    return null;
-  }
+  const parsed = loopToCloseResultSchema.safeParse(safeJsonParse(s.resultsStr));
+  if (!parsed.success) return null;
+  return { ...s, ...parsed.data };
 }

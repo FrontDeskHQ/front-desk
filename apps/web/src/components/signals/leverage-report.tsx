@@ -44,7 +44,7 @@ export function LeverageReport({
   );
 
   // Snapshot the visit state once at mount. The window doesn't shift mid-view.
-  const [visit] = useState(() => readSignalsVisit(userId));
+  const [visit] = useState(() => readSignalsVisit(organizationId, userId));
   const [windowStart, mode] = useMemo(() => {
     const now = Date.now();
     const previous = visit.previousVisitAt?.getTime() ?? null;
@@ -54,35 +54,40 @@ export function LeverageReport({
     return [new Date(now - 24 * 60 * 60 * 1000), "last-24h" as const];
   }, [visit]);
 
-  // After the snapshot has been on screen briefly, mark the session as having
-  // seen it (so a same-tab refresh switches to "last 24h"), and bump the
-  // persisted lastVisit so the next session's snapshot starts from now.
-  useEffect(() => {
-    const t = setTimeout(() => {
-      markSnapshotSeenThisSession(userId);
-      markVisited(userId);
-    }, 2000);
-    return () => clearTimeout(t);
-  }, [userId]);
-
   const orgDaysOld = useMemo(() => {
     if (!organizationCreatedAt) return null;
     return (Date.now() - organizationCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
   }, [organizationCreatedAt]);
 
+  const inWindow = allActions
+    ? allActions.filter(
+        (a) => new Date(a.appliedAt).getTime() >= windowStart.getTime(),
+      )
+    : [];
+
+  const isNewOrg =
+    (orgDaysOld == null || orgDaysOld < NEW_ORG_DAY_THRESHOLD) &&
+    (allActions?.length ?? 0) < NEW_ORG_ACTION_THRESHOLD;
+
+  const isRenderable = !!allActions && !isNewOrg && inWindow.length > 0;
+
+  // After the snapshot has been on screen briefly, mark the session as having
+  // seen it (so a same-tab refresh switches to "last 24h"), and bump the
+  // persisted lastVisit so the next session's snapshot starts from now.
+  // Only fire when the report is actually visible.
+  useEffect(() => {
+    if (!isRenderable) return;
+    const t = setTimeout(() => {
+      markSnapshotSeenThisSession(organizationId, userId);
+      markVisited(organizationId, userId);
+    }, 2000);
+    return () => clearTimeout(t);
+  }, [isRenderable, organizationId, userId]);
+
   if (!allActions) return <LeverageReport.Skeleton />;
 
   // Hide on truly new orgs.
-  if (
-    (orgDaysOld == null || orgDaysOld < NEW_ORG_DAY_THRESHOLD) &&
-    allActions.length < NEW_ORG_ACTION_THRESHOLD
-  ) {
-    return null;
-  }
-
-  const inWindow = allActions.filter(
-    (a) => new Date(a.appliedAt).getTime() >= windowStart.getTime(),
-  );
+  if (isNewOrg) return null;
 
   const grouped = new Map<SignalType, number>();
   for (const a of inWindow) {

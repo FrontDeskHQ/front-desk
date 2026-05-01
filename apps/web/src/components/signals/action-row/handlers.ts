@@ -97,6 +97,10 @@ export function acceptDuplicateSuggestion(
   ctx: ActorContext,
 ) {
   if (!thread) return;
+  if (suggestion.targetThreadId === suggestion.entityId) {
+    dismiss(suggestion.id);
+    return;
+  }
   mutate.thread.update(suggestion.entityId, { status: 4 });
   mutate.update.insert({
     id: ulid().toLowerCase(),

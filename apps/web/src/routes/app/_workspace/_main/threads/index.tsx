@@ -463,10 +463,13 @@ function SignalFilteredThreadsList({
   const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
   const sinceMs = since ? new Date(since).getTime() : null;
 
+  // The worker stores some signal types with a "digest:" prefix
+  // (e.g. "digest:pending_reply"); leverage report links use the normalized
+  // form. Match both so digest-backed actions resolve correctly.
   const actions = useLiveQuery(
     query.autonomousAction.where({
       organizationId: currentOrg?.id,
-      signalType,
+      signalType: { $in: [signalType, `digest:${signalType}`] },
       undoneAt: null,
     }),
   );
