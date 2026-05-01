@@ -10,12 +10,14 @@
     "./tiptap": "./src/lib/tiptap.ts",
     "./tiptap-md": "./src/lib/tiptap-md.ts",
     "./md-tiptap": "./src/lib/md-tiptap.ts",
-    "./format": "./src/lib/format.ts"
+    "./format": "./src/lib/format.ts",
+    "./logging": "./src/lib/logging.ts"
   },
   "dependencies": {
     "@tiptap/extension-heading": "^3.4.1",
-    "date-fns": "^4.1.0",
     "@tiptap/react": "^3.4.1",
+    "date-fns": "^4.1.0",
+    "evlog": "^2.14.1",
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
