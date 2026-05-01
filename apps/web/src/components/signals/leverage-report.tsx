@@ -71,14 +71,14 @@ export function LeverageReport({
 
   const isRenderable = !!allActions && !isNewOrg && inWindow.length > 0;
 
-  // After the snapshot has been on screen briefly, mark the session as having
-  // seen it (so a same-tab refresh switches to "last 24h"), and bump the
-  // persisted lastVisit so the next session's snapshot starts from now.
-  // Only fire when the report is actually visible.
+  // After a brief delay, always bump the persisted lastVisit so the next
+  // session's "since last visit" window starts from now (the user effectively
+  // saw whatever was — or wasn't — there). Only flip the session-seen flag
+  // when the report actually rendered, since that flag's only purpose is to
+  // make a same-tab refresh switch from "since-visit" to "last 24h".
   useEffect(() => {
-    if (!isRenderable) return;
     const t = setTimeout(() => {
-      markSnapshotSeenThisSession(organizationId, userId);
+      if (isRenderable) markSnapshotSeenThisSession(organizationId, userId);
       markVisited(organizationId, userId);
     }, 2000);
     return () => clearTimeout(t);

@@ -9,7 +9,6 @@ import { usePostHog } from "posthog-js/react";
 import { useMemo } from "react";
 import { ActionList } from "~/components/signals/action-list";
 import type { ActorContext } from "~/components/signals/action-row";
-import { NewOrgEmpty } from "~/components/signals/empty-states";
 import { LeverageReport } from "~/components/signals/leverage-report";
 import { activeOrganizationAtom } from "~/lib/atoms";
 
@@ -57,9 +56,11 @@ function RouteComponent() {
             posthog={posthog ?? null}
           />
         )}
-
-        {isNewOrg && <NewOrgEmpty />}
-        <ActionList organizationId={currentOrg.id} ctx={ctx} />
+        <ActionList
+          organizationId={currentOrg.id}
+          ctx={ctx}
+          isNewOrg={isNewOrg}
+        />
       </CardContent>
     </>
   );

@@ -6,6 +6,7 @@ import {
   urgencyTierFromScore,
 } from "@workspace/schemas/signals";
 import { ActionButton } from "@workspace/ui/components/button";
+import { statusValues } from "@workspace/ui/components/indicator";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Check, ExternalLink } from "lucide-react";
@@ -272,7 +273,10 @@ function safeJsonParse(raw: string): unknown {
 }
 
 const statusResultSchema = z.object({
-  suggestedStatus: z.number().int(),
+  suggestedStatus: z
+    .number()
+    .int()
+    .refine((v) => statusValues[v] != null, "Unsupported suggested status"),
 });
 
 const duplicateResultSchema = z.object({

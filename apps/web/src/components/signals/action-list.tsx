@@ -14,7 +14,10 @@ import {
   StatusActionRow,
   type SuggestionRow,
 } from "~/components/signals/action-row";
-import { CaughtUpEmpty } from "~/components/signals/empty-states";
+import {
+  CaughtUpEmpty,
+  NewOrgEmpty,
+} from "~/components/signals/empty-states";
 import { query } from "~/lib/live-state";
 
 type ThreadWithRels = InferLiveObject<
@@ -28,6 +31,7 @@ type ThreadWithRels = InferLiveObject<
 type Props = {
   organizationId: string;
   ctx: ActorContext;
+  isNewOrg?: boolean;
 };
 
 const ROW_FOR_TYPE: Record<
@@ -47,7 +51,7 @@ const ROW_FOR_TYPE: Record<
 
 const KNOWN_TYPES = Object.keys(ROW_FOR_TYPE);
 
-export function ActionList({ organizationId, ctx }: Props) {
+export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
   const rawSuggestions = useLiveQuery(
     query.suggestion.where({
       organizationId,
@@ -118,7 +122,7 @@ export function ActionList({ organizationId, ctx }: Props) {
   }
 
   if (suggestions.length === 0) {
-    return <CaughtUpEmpty />;
+    return isNewOrg ? <NewOrgEmpty /> : <CaughtUpEmpty />;
   }
 
   return (
