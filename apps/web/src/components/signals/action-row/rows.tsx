@@ -339,3 +339,19 @@ function parseLoopToClose(s: SuggestionRow) {
   if (!parsed.success) return null;
   return { ...s, ...parsed.data };
 }
+
+const PARSER_FOR_TYPE: Record<
+  string,
+  (s: SuggestionRow) => unknown | null
+> = {
+  status: parseStatus,
+  duplicate: parseDuplicate,
+  linked_pr: parseLinkedPr,
+  "digest:pending_reply": parsePendingReply,
+  "digest:loop_to_close": parseLoopToClose,
+};
+
+export function canRenderSuggestion(s: SuggestionRow): boolean {
+  const parser = PARSER_FOR_TYPE[s.type];
+  return parser ? parser(s) !== null : false;
+}

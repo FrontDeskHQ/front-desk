@@ -48,14 +48,12 @@ function RouteComponent() {
         <CardTitle>Signals</CardTitle>
       </CardHeader>
       <CardContent className="overflow-y-auto">
-        {!isNewOrg && (
-          <LeverageReport
-            organizationId={currentOrg.id}
-            organizationCreatedAt={orgCreatedAt}
-            userId={user.id}
-            posthog={posthog ?? null}
-          />
-        )}
+        <LeverageReport
+          organizationId={currentOrg.id}
+          organizationCreatedAt={orgCreatedAt}
+          userId={user.id}
+          posthog={posthog ?? null}
+        />
         <ActionList
           organizationId={currentOrg.id}
           ctx={ctx}

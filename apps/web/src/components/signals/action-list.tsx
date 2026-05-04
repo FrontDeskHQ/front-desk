@@ -7,6 +7,7 @@ import { Fragment, useMemo } from "react";
 import {
   ActionRowSkeleton,
   type ActorContext,
+  canRenderSuggestion,
   DuplicateActionRow,
   LinkedPrActionRow,
   LoopToCloseActionRow,
@@ -75,6 +76,7 @@ export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
         createdAt: new Date(s.createdAt),
         urgencyScore: s.urgencyScore ?? 0,
       }))
+      .filter(canRenderSuggestion)
       .sort((a, b) => {
         const scoreDiff = (b.urgencyScore ?? 0) - (a.urgencyScore ?? 0);
         if (scoreDiff !== 0) return scoreDiff;

@@ -15,7 +15,7 @@ import { Skeleton } from "@workspace/ui/components/skeleton";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { ChevronDown } from "lucide-react";
 import type { PostHog } from "posthog-js";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { query } from "~/lib/live-state";
 import {
   markSnapshotSeenThisSession,
@@ -43,8 +43,12 @@ export function LeverageReport({
     query.autonomousAction.where({ organizationId, undoneAt: null }),
   );
 
-  // Snapshot the visit state once at mount. The window doesn't shift mid-view.
-  const [visit] = useState(() => readSignalsVisit(organizationId, userId));
+  // Snapshot the visit state. Recomputes if the user switches workspaces or
+  // accounts without remounting; otherwise stable for the lifetime of the view.
+  const visit = useMemo(
+    () => readSignalsVisit(organizationId, userId),
+    [organizationId, userId],
+  );
   const [windowStart, mode] = useMemo(() => {
     const now = Date.now();
     const previous = visit.previousVisitAt?.getTime() ?? null;
