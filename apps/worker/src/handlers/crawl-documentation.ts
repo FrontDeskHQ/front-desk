@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import { embed } from "ai";
 import { createHash } from "node:crypto";
 import type { Job } from "bullmq";
+import { createAILogger, createLogger, log } from "@workspace/utils/logging";
 import { fetchClient } from "../lib/database/client";
 import {
   type DocumentationChunkPayload,
@@ -22,6 +23,14 @@ interface CrawlDocumentationJobData {
   baseUrl: string;
 }
 
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+};
+
 /**
  * Update the documentation source status via the API
  */
@@ -32,7 +41,10 @@ const updateSourceStatus = async (
   try {
     await fetchClient.mutate.documentationSource.update(id, updates);
   } catch (error) {
-    console.error(`Failed to update documentation source ${id}:`, error);
+    log.error(
+      "worker.crawl-documentation",
+      `Failed to update documentation source ${id}: ${formatError(error)}`,
+    );
   }
 };
 
@@ -48,7 +60,10 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
-      console.warn(`Failed to fetch sitemap from ${sitemapUrl}: ${response.status}`);
+      log.warn(
+        "worker.crawl-documentation",
+        `Failed to fetch sitemap from ${sitemapUrl}: ${response.status}`,
+      );
       return urls;
     }
 
@@ -77,7 +92,10 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
           ].map((m) => m[1]);
           urls.push(...childUrls);
         } catch {
-          console.warn(`Failed to fetch child sitemap: ${childSitemapUrl}`);
+          log.warn(
+            "worker.crawl-documentation",
+            `Failed to fetch child sitemap: ${childSitemapUrl}`,
+          );
         }
       }
     } else {
@@ -88,7 +106,10 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
       urls.push(...locs);
     }
   } catch (error) {
-    console.error(`Error fetching sitemap from ${sitemapUrl}:`, error);
+    log.error(
+      "worker.crawl-documentation",
+      `Error fetching sitemap from ${sitemapUrl}: ${formatError(error)}`,
+    );
   }
 
   return urls;
@@ -207,34 +228,6 @@ const chunkMarkdown = (markdown: string, pageUrl: string): MarkdownChunk[] => {
 };
 
 /**
- * Generate embedding for text
- */
-const generateEmbedding = async (text: string): Promise<number[] | null> => {
-  if (!text || text.trim().length === 0) return null;
-
-  try {
-    const { embedding } = await embed({
-      model: embeddingModel,
-      value: text,
-      providerOptions: {
-        google: {
-          taskType: "RETRIEVAL_DOCUMENT",
-        },
-      },
-    });
-
-    // L2 normalization
-    const norm = Math.hypot(...embedding);
-    if (!Number.isFinite(norm) || norm === 0) return embedding;
-
-    return embedding.map((value) => value / norm);
-  } catch (error) {
-    console.error("Error generating documentation embedding:", error);
-    return null;
-  }
-};
-
-/**
  * Generate a deterministic UUID from a string using SHA256
  */
 const deterministicUuid = (input: string): string => {
@@ -256,10 +249,22 @@ export const handleCrawlDocumentation = async (
   job: Job<CrawlDocumentationJobData>,
 ) => {
   const { documentationSourceId, organizationId, baseUrl } = job.data;
+  const requestLog = createLogger({
+    action: "crawl-documentation",
+    queue: "crawl-documentation",
+    jobId: String(job.id ?? "unknown"),
+    documentationSourceId,
+    organizationId,
+    baseUrl,
+  });
+  const ai = createAILogger(requestLog);
+  let status = 200;
 
-  console.log(
-    `\nCrawl-documentation job ${job.id}: Starting crawl for ${baseUrl}`,
+  log.info(
+    "worker.crawl-documentation",
+    `Job ${job.id}: starting crawl for ${baseUrl}`,
   );
+  requestLog.info(`Starting crawl for ${baseUrl}`);
 
   await updateSourceStatus(documentationSourceId, {
     status: "crawling",
@@ -280,7 +285,10 @@ export const handleCrawlDocumentation = async (
       return { success: false, error: "No pages found in sitemap" };
     }
 
-    console.log(`Found ${pageUrls.length} URLs in sitemap for ${baseUrl}`);
+    log.info(
+      "worker.crawl-documentation",
+      `Found ${pageUrls.length} URLs in sitemap for ${baseUrl}`,
+    );
 
     // 2. Delete existing vectors for this source (for re-crawl)
     const deleteOk = await deleteDocumentationVectorsBySource(documentationSourceId);
@@ -331,7 +339,11 @@ export const handleCrawlDocumentation = async (
           const embedResults = await Promise.all(
             chunkBatch.map(async (chunk, batchIdx) => {
               const chunkIndex = i + batchIdx;
-              const embedding = await generateEmbedding(chunk.text);
+              const embedding = await generateEmbeddingWithObservability(
+                chunk.text,
+                ai,
+                requestLog,
+              );
               if (!embedding) return null;
 
               const pointId = deterministicUuid(
@@ -388,7 +400,10 @@ export const handleCrawlDocumentation = async (
           Math.round(((pageIdx + pageBatch.length) / pageUrls.length) * 100),
         );
       } catch (err) {
-        console.warn(`Failed to update job progress for ${job.id}:`, err);
+        log.warn(
+          "worker.crawl-documentation",
+          `Failed to update job progress for ${job.id}: ${formatError(err)}`,
+        );
       }
     }
 
@@ -401,9 +416,16 @@ export const handleCrawlDocumentation = async (
       updatedAt: new Date(),
     });
 
-    console.log(
+    log.info(
+      "worker.crawl-documentation",
       `Crawl complete for ${baseUrl}: ${processedPages} pages, ${totalChunks} chunks`,
     );
+    requestLog.set({
+      crawl: {
+        processedPages,
+        totalChunks,
+      },
+    });
 
     return {
       success: true,
@@ -411,6 +433,7 @@ export const handleCrawlDocumentation = async (
       chunksIndexed: totalChunks,
     };
   } catch (error) {
+    status = 500;
     const errorMessage =
       error instanceof Error ? error.message : String(error);
 
@@ -420,7 +443,54 @@ export const handleCrawlDocumentation = async (
       updatedAt: new Date(),
     });
 
-    console.error(`Crawl failed for ${baseUrl}:`, error);
+    log.error(
+      "worker.crawl-documentation",
+      `Crawl failed for ${baseUrl}: ${formatError(error)}`,
+    );
+    requestLog.error(`Crawl failed for ${baseUrl}: ${formatError(error)}`);
     throw error;
+  } finally {
+    requestLog.emit({ status });
+  }
+};
+
+const generateEmbeddingWithObservability = async (
+  text: string,
+  ai: ReturnType<typeof createAILogger>,
+  requestLog: ReturnType<typeof createLogger>,
+): Promise<number[] | null> => {
+  if (!text || text.trim().length === 0) {
+    return null;
+  }
+
+  try {
+    const { embedding, usage } = await embed({
+      model: embeddingModel,
+      value: text,
+      providerOptions: {
+        google: {
+          taskType: "RETRIEVAL_DOCUMENT",
+        },
+      },
+    });
+    ai.captureEmbed({
+      usage,
+      model: EMBEDDING_MODEL,
+      dimensions: embedding.length,
+      count: 1,
+    });
+
+    const norm = Math.hypot(...embedding);
+    if (!Number.isFinite(norm) || norm === 0) {
+      requestLog.warn(`Embedding normalization failed: invalid norm (${norm})`);
+      return embedding;
+    }
+
+    return embedding.map((value) => value / norm);
+  } catch (error) {
+    requestLog.error(
+      `Error generating documentation embedding: ${formatError(error)}`,
+    );
+    return null;
   }
 };

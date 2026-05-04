@@ -1,5 +1,6 @@
 import type { Job } from "bullmq";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
+import { log } from "@workspace/utils/logging";
 import {
   computeUrgency,
   signalTypeFromStored,
@@ -53,12 +54,20 @@ type OrgRow = {
   settings: unknown;
 };
 
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+};
+
 /**
  * Digest scan handler — runs every 5 minutes.
  * Detects pending-reply and loop-to-close conditions, creates digest signals.
  */
 export const handleDigestScan = async (_job: Job) => {
-  console.log("\n🔍 Digest scan: starting");
+  log.info("worker.digest-scan", "Starting digest scan");
 
   const organizations = (await fetchClient.query.organization.get()) as OrgRow[];
 
@@ -75,12 +84,16 @@ export const handleDigestScan = async (_job: Job) => {
       totalPendingReply += result.pendingReplyCreated;
       totalLoopToClose += result.loopToCloseCreated;
     } catch (error) {
-      console.error(`Digest scan failed for org ${org.id}:`, error);
+      log.error(
+        "worker.digest-scan",
+        `Digest scan failed for org ${org.id}: ${formatError(error)}`,
+      );
     }
   }
 
-  console.log(
-    `🔍 Digest scan complete: ${totalPendingReply} pending-reply, ${totalLoopToClose} loop-to-close signals created`,
+  log.info(
+    "worker.digest-scan",
+    `Digest scan complete: ${totalPendingReply} pending-reply, ${totalLoopToClose} loop-to-close signals created`,
   );
 
   return { totalPendingReply, totalLoopToClose };

@@ -6,6 +6,7 @@ import type {
 } from "@workspace/schemas/digest";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import type { Job, Queue } from "bullmq";
+import { log } from "@workspace/utils/logging";
 import { fetchClient } from "../lib/database/client";
 
 const SUGGESTION_TYPE_PENDING_REPLY = "digest:pending_reply";
@@ -74,20 +75,29 @@ type UpdateRow = {
 
 let notifyQueue: Queue<DigestNotifyJobData> | null = null;
 
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+};
+
 export const setDigestNotifyQueue = (queue: Queue<DigestNotifyJobData>) => {
   notifyQueue = queue;
 };
 
 export const handleDigestDeliver = async (job: Job) => {
   const forceOrgId = job.data?.forceOrgId as string | undefined;
-  console.log(
+  log.info(
+    "worker.digest-deliver",
     forceOrgId
-      ? `\n📬 Digest deliver: force for org ${forceOrgId}`
-      : "\n📬 Digest deliver: starting",
+      ? `Force run for org ${forceOrgId}`
+      : "Starting digest delivery run",
   );
 
   if (!notifyQueue) {
-    console.error("Digest deliver: notify queue not initialized");
+    log.error("worker.digest-deliver", "Notify queue not initialized");
     return { sent: 0, skipped: 0 };
   }
 
@@ -108,12 +118,18 @@ export const handleDigestDeliver = async (job: Job) => {
         skipped++;
       }
     } catch (error) {
-      console.error(`Digest deliver failed for org ${org.id}:`, error);
+      log.error(
+        "worker.digest-deliver",
+        `Digest deliver failed for org ${org.id}: ${formatError(error)}`,
+      );
       skipped++;
     }
   }
 
-  console.log(`📬 Digest deliver complete: ${sent} sent, ${skipped} skipped`);
+  log.info(
+    "worker.digest-deliver",
+    `Digest deliver complete: ${sent} sent, ${skipped} skipped`,
+  );
 
   return { sent, skipped };
 };
@@ -135,13 +151,14 @@ async function processOrganization(
       : null);
 
   if (!channelRef) {
-    console.log(`${tag} skip: no slack channel configured`);
+    log.info("worker.digest-deliver", `${tag} skip: no slack channel configured`);
     return false;
   }
 
   if (!force) {
     if (!isDigestTime(settings.timezone, settings.digest.time)) {
-      console.log(
+      log.info(
+        "worker.digest-deliver",
         `${tag} skip: not digest time (configured=${settings.digest.time} ${settings.timezone})`,
       );
       return false;
@@ -150,7 +167,8 @@ async function processOrganization(
     if (
       hasAlreadySentToday(settings.digest.lastDigestSentAt, settings.timezone)
     ) {
-      console.log(
+      log.info(
+        "worker.digest-deliver",
         `${tag} skip: already sent today (lastDigestSentAt=${settings.digest.lastDigestSentAt})`,
       );
       return false;
@@ -159,11 +177,15 @@ async function processOrganization(
 
   const teamId = await getTeamIdForOrg(org.id);
   if (!teamId) {
-    console.log(`${tag} skip: no enabled Slack integration / teamId`);
+    log.info(
+      "worker.digest-deliver",
+      `${tag} skip: no enabled Slack integration / teamId`,
+    );
     return false;
   }
 
-  console.log(
+  log.info(
+    "worker.digest-deliver",
     `${tag} processing (force=${force}, channel=${channelRef}, team=${teamId})`,
   );
 
@@ -182,7 +204,8 @@ async function processOrganization(
     (s) => s.type === SUGGESTION_TYPE_LOOP_TO_CLOSE,
   );
 
-  console.log(
+  log.info(
+    "worker.digest-deliver",
     `${tag} metrics=${JSON.stringify(metrics)} pendingReply=${pendingReplySignals.length} loopToClose=${loopToCloseSignals.length}`,
   );
 
@@ -193,7 +216,10 @@ async function processOrganization(
     pendingReplySignals.length === 0 &&
     loopToCloseSignals.length === 0
   ) {
-    console.log(`${tag} skip: silent day (all metrics and signals zero)`);
+    log.info(
+      "worker.digest-deliver",
+      `${tag} skip: silent day (all metrics and signals zero)`,
+    );
     return false;
   }
 
@@ -216,7 +242,8 @@ async function processOrganization(
     channelId: channelRef,
     payload,
   });
-  console.log(
+  log.info(
+    "worker.digest-deliver",
     `${tag} enqueued digest-notify job ${notifyJob.id} (channel=${channelRef})`,
   );
 
@@ -243,7 +270,10 @@ async function processOrganization(
     });
   }
 
-  console.log(`📬 Digest enqueued for org ${org.name} (${org.id})`);
+  log.info(
+    "worker.digest-deliver",
+    `Digest enqueued for org ${org.name} (${org.id})`,
+  );
   return true;
 }
 

@@ -1,5 +1,6 @@
 import { type Job, Queue, Worker } from "bullmq";
 import Redis from "ioredis";
+import { initSharedLogger, log } from "@workspace/utils/logging";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleDigestDeliver, setDigestNotifyQueue } from "./handlers/digest-deliver";
 import { handleDigestScan } from "./handlers/digest-scan";
@@ -26,6 +27,30 @@ interface IngestThreadJobData {
     scoreThreshold?: number;
   };
 }
+
+const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return value.toLowerCase() === "true";
+};
+
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+};
+
+initSharedLogger({
+  service: "worker",
+  environment: process.env.NODE_ENV,
+  enabled: parseBooleanEnv(process.env.LOGGING_ENABLED),
+  pretty: parseBooleanEnv(process.env.LOGGING_PRETTY),
+  silent: parseBooleanEnv(process.env.LOGGING_SILENT),
+});
 
 const getRedisConnection = (): Redis => {
   if (process.env.REDIS_URL) {
@@ -71,8 +96,9 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
     throw new Error("No thread IDs provided");
   }
 
-  console.log(
-    `\n📥 Ingest-thread job ${job.id}: Processing ${threadIds.length} threads`,
+  log.info(
+    "worker.ingest-thread",
+    `Processing job ${job.id} with ${threadIds.length} threads`,
   );
 
   const concurrency =
@@ -97,7 +123,10 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
         ).toFixed(1)
       : "0";
 
-  console.log(`\n📊 Job ${job.id} complete: ${successRate}% success rate`);
+  log.info(
+    "worker.ingest-thread",
+    `Completed job ${job.id} with ${successRate}% success rate`,
+  );
 
   return {
     jobId: result.jobId,
@@ -130,16 +159,19 @@ const ingestThreadWorker = new Worker<IngestThreadJobData>(
 
 // Event handlers for ingest-thread worker
 ingestThreadWorker.on("completed", (job) => {
-  console.log(`✅ Ingest-thread job ${job.id} has been completed`);
+  log.info("worker.ingest-thread", `Job ${job.id} completed`);
 });
 
 ingestThreadWorker.on("failed", (job, err) => {
-  console.error(`❌ Ingest-thread job ${job?.id} has failed:`, err.message);
-  console.error(err);
+  log.error(
+    "worker.ingest-thread",
+    `Job ${job?.id} failed: ${err.message}`,
+  );
+  log.error("worker.ingest-thread", formatError(err));
 });
 
 ingestThreadWorker.on("error", (err) => {
-  console.error("Ingest-thread worker error:", err);
+  log.error("worker.ingest-thread", `Worker error: ${formatError(err)}`);
 });
 
 // Create crawl-documentation worker
@@ -220,70 +252,73 @@ const digestDeliverWorker = new Worker(
 );
 
 digestDeliverWorker.on("completed", (job) => {
-  console.log(`✅ Digest-deliver job ${job.id} has been completed`);
+  log.info("worker.digest-deliver", `Job ${job.id} completed`);
 });
 
 digestDeliverWorker.on("failed", (job, err) => {
-  console.error(`❌ Digest-deliver job ${job?.id} has failed:`, err.message);
-  console.error(err);
+  log.error(
+    "worker.digest-deliver",
+    `Job ${job?.id} failed: ${err.message}`,
+  );
+  log.error("worker.digest-deliver", formatError(err));
 });
 
 digestDeliverWorker.on("error", (err) => {
-  console.error("Digest-deliver worker error:", err);
+  log.error("worker.digest-deliver", `Worker error: ${formatError(err)}`);
 });
 
 digestScanWorker.on("completed", (job) => {
-  console.log(`✅ Digest-scan job ${job.id} has been completed`);
+  log.info("worker.digest-scan", `Job ${job.id} completed`);
 });
 
 digestScanWorker.on("failed", (job, err) => {
-  console.error(`❌ Digest-scan job ${job?.id} has failed:`, err.message);
-  console.error(err);
+  log.error("worker.digest-scan", `Job ${job?.id} failed: ${err.message}`);
+  log.error("worker.digest-scan", formatError(err));
 });
 
 digestScanWorker.on("error", (err) => {
-  console.error("Digest-scan worker error:", err);
+  log.error("worker.digest-scan", `Worker error: ${formatError(err)}`);
 });
 
 embedPrWorker.on("completed", (job) => {
-  console.log(`✅ Embed-pr job ${job.id} has been completed`);
+  log.info("worker.embed-pr", `Job ${job.id} completed`);
 });
 
 embedPrWorker.on("failed", (job, err) => {
-  console.error(
-    `❌ Embed-pr job ${job?.id} has failed:`,
-    err.message,
-  );
-  console.error(err);
+  log.error("worker.embed-pr", `Job ${job?.id} failed: ${err.message}`);
+  log.error("worker.embed-pr", formatError(err));
 });
 
 embedPrWorker.on("error", (err) => {
-  console.error("Embed-pr worker error:", err);
+  log.error("worker.embed-pr", `Worker error: ${formatError(err)}`);
 });
 
 crawlDocWorker.on("completed", (job) => {
-  console.log(`✅ Crawl-documentation job ${job.id} has been completed`);
+  log.info("worker.crawl-documentation", `Job ${job.id} completed`);
 });
 
 crawlDocWorker.on("failed", (job, err) => {
-  console.error(
-    `❌ Crawl-documentation job ${job?.id} has failed:`,
-    err.message,
+  log.error(
+    "worker.crawl-documentation",
+    `Job ${job?.id} failed: ${err.message}`,
   );
-  console.error(err);
+  log.error("worker.crawl-documentation", formatError(err));
 });
 
 crawlDocWorker.on("error", (err) => {
-  console.error("Crawl-documentation worker error:", err);
+  log.error(
+    "worker.crawl-documentation",
+    `Worker error: ${formatError(err)}`,
+  );
 });
 
 // Initialize and start
 const initialize = async () => {
-  console.log("Initializing worker...");
+  log.info("worker", "Initializing worker");
 
   // Register default processors
   registerDefaultProcessors();
-  console.log("✅ Processors registered");
+  log.info("worker", "Processors registered");
 
   // Ensure Qdrant collections exist
   const [threadsReady, messagesReady, documentationReady, prsReady] = await Promise.all([
@@ -296,19 +331,19 @@ const initialize = async () => {
     throw new Error("Qdrant collections are not ready; refusing to start workers");
   }
 
-  console.log("✅ Qdrant collections ready");
+  log.info("worker", "Qdrant collections ready");
 
   // Register digest scan scheduler (every 5 minutes)
   await digestScanQueue.upsertJobScheduler("digest-scan", {
     every: 300_000,
   });
-  console.log("✅ Digest scan scheduler registered (every 5 min)");
+  log.info("worker", "Digest scan scheduler registered (every 5 min)");
 
   // Register digest deliver scheduler (every 1 minute)
   await digestDeliverQueue.upsertJobScheduler("digest-deliver", {
     every: 60_000,
   });
-  console.log("✅ Digest deliver scheduler registered (every 1 min)");
+  log.info("worker", "Digest deliver scheduler registered (every 1 min)");
 
   // Start workers now that collections are ready
   ingestThreadWorker.run();
@@ -317,15 +352,15 @@ const initialize = async () => {
   digestScanWorker.run();
   digestDeliverWorker.run();
 
-  console.log("\nListening for jobs...");
+  log.info("worker", "Listening for jobs");
 };
 
 // Graceful shutdown
 const handleShutdown = async () => {
-  console.log("\nShutting down workers...");
+  log.info("worker", "Shutting down workers");
   await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close(), digestScanWorker.close(), digestDeliverWorker.close()]);
   await connection.quit();
-  console.log("Workers shut down successfully");
+  log.info("worker", "Workers shut down successfully");
   process.exit(0);
 };
 
@@ -334,6 +369,6 @@ process.on("SIGINT", handleShutdown);
 
 // Start the worker
 initialize().catch((error) => {
-  console.error("Failed to initialize worker:", error);
+  log.error("worker", `Failed to initialize worker: ${formatError(error)}`);
   process.exit(1);
 });

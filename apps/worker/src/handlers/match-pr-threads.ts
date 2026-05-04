@@ -1,6 +1,7 @@
 import { computeUrgency } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
+import { log } from "@workspace/utils/logging";
 import { fetchClient } from "../lib/database/client";
 import { searchSimilarThreads } from "../lib/qdrant/threads";
 
@@ -53,6 +54,14 @@ const LinkedPrResultsSchema = z.object({
 });
 
 type LinkedPrResults = z.infer<typeof LinkedPrResultsSchema>;
+
+const formatError = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+
+  return String(error);
+};
 
 const parseResultsStr = (resultsStr: string | null): LinkedPrResults | null => {
   if (!resultsStr) return null;
@@ -156,9 +165,9 @@ const storeLinkedPrSuggestion = async (params: {
 
     return true;
   } catch (error) {
-    console.error(
-      `Failed to store linked_pr suggestion for thread ${threadId}:`,
-      error,
+    log.error(
+      "worker.match-pr-threads",
+      `Failed to store linked_pr suggestion for thread ${threadId}: ${formatError(error)}`,
     );
     return false;
   }
@@ -213,9 +222,9 @@ export const matchPrToThreads = async (
           continue;
         }
       } catch (error) {
-        console.warn(
-          `Failed to fetch thread ${match.threadId} for PR link check, skipping:`,
-          error,
+        log.warn(
+          "worker.match-pr-threads",
+          `Failed to fetch thread ${match.threadId} for PR link check, skipping: ${formatError(error)}`,
         );
         continue;
       }
@@ -244,9 +253,9 @@ export const matchPrToThreads = async (
 
     return result;
   } catch (error) {
-    console.error(
-      `Failed to match PR ${input.owner}/${input.repo}#${input.prNumber} to threads:`,
-      error,
+    log.error(
+      "worker.match-pr-threads",
+      `Failed to match PR ${input.owner}/${input.repo}#${input.prNumber} to threads: ${formatError(error)}`,
     );
     return result;
   }
