@@ -1,3 +1,4 @@
+import { computeUrgency } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { log } from "@workspace/utils/logging";
@@ -154,6 +155,10 @@ const storeLinkedPrSuggestion = async (params: {
         reasoning,
       }),
       metadataStr: null,
+      urgencyScore: computeUrgency({
+        signalType: "linked_pr",
+        ageHours: 0,
+      }),
       createdAt: now,
       updatedAt: now,
     });

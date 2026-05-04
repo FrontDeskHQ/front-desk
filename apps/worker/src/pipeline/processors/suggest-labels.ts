@@ -1,5 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
+import { computeUrgency } from "@workspace/schemas/signals";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
@@ -195,6 +196,10 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
               accepted: false,
               resultsStr: null,
               metadataStr: null,
+              urgencyScore: computeUrgency({
+                signalType: "label",
+                ageHours: 0,
+              }),
               createdAt: now,
               updatedAt: now,
             });
