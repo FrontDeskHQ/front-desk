@@ -5,6 +5,10 @@ import {
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import {
+  parseAutonomousActionMetadata,
+  STATUS_LABELS,
+} from "@workspace/schemas/signals";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { ulid } from "ulid";
@@ -157,6 +161,84 @@ const { client, store } = createClient<Router>({
         storage.threadLabel.update(input.threadLabelId, {
           enabled: false,
         });
+      },
+    },
+    autonomousAction: {
+      undo: ({ input, storage }) => {
+        const row = storage.autonomousAction
+          .where({ id: input.id, organizationId: input.organizationId })
+          .get()[0];
+        if (!row || row.undoneAt) return;
+
+        const metadata = parseAutonomousActionMetadata(row.metadataStr);
+        if (!metadata) return;
+        const threadId = row.entityId;
+        const now = new Date();
+
+        let activityType: string | null = null;
+        let activityMetadata: Record<string, unknown> = {
+          source: "autonomous_undo",
+        };
+
+        if (metadata?.kind === "label") {
+          const tl = storage.threadLabel
+            .where({ threadId, labelId: metadata.labelId })
+            .get()[0];
+          if (tl?.enabled) {
+            storage.threadLabel.update(tl.id, { enabled: false });
+          }
+          const label = storage.label
+            .where({ id: metadata.labelId })
+            .get()[0];
+          activityType = "label_changed";
+          activityMetadata = {
+            action: "removed",
+            labelId: metadata.labelId,
+            labelName: label?.name ?? null,
+            source: "autonomous_undo",
+          };
+        } else if (metadata?.kind === "linked_pr") {
+          const thread = storage.thread.where({ id: threadId }).get()[0];
+          const oldPrId = thread?.externalPrId ?? null;
+          storage.thread.update(threadId, { externalPrId: null });
+          activityType = "pr_changed";
+          activityMetadata = {
+            oldPrId,
+            newPrId: null,
+            oldPrLabel: oldPrId ? "linked PR" : null,
+            newPrLabel: null,
+            source: "autonomous_undo",
+          };
+        } else if (metadata?.kind === "duplicate") {
+          storage.thread.update(threadId, { status: metadata.previousStatus });
+          activityType = "marked_duplicate";
+          activityMetadata = {
+            duplicateOfThreadId: metadata.relatedThreadId,
+            source: "autonomous_undo",
+          };
+        } else if (metadata?.kind === "status") {
+          storage.thread.update(threadId, { status: metadata.previousStatus });
+          activityType = "status_changed";
+          activityMetadata = {
+            newStatus: metadata.previousStatus,
+            newStatusLabel: STATUS_LABELS[metadata.previousStatus] ?? null,
+            source: "autonomous_undo",
+          };
+        }
+
+        if (activityType) {
+          storage.update.insert({
+            id: ulid().toLowerCase(),
+            threadId,
+            userId: null,
+            type: activityType,
+            createdAt: now,
+            metadataStr: JSON.stringify(activityMetadata),
+            replicatedStr: JSON.stringify({}),
+          });
+        }
+
+        storage.autonomousAction.update(row.id, { undoneAt: now });
       },
     },
   }),

@@ -1,23 +1,14 @@
 import type { ServerDB } from "@live-state/sync/server";
 import {
   type AutonomousActionMetadata,
-  type AutonomyLevel,
-  LOCKED_SIGNAL_TYPES,
   type SignalType,
 } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import type { schema } from "../live-state/schema";
 
-type DB = ServerDB<typeof schema>;
+export { canDoAutonomously } from "@workspace/schemas/signals";
 
-export function canDoAutonomously(
-  signalType: SignalType,
-  level: AutonomyLevel,
-): boolean {
-  if (level !== "auto") return false;
-  if (LOCKED_SIGNAL_TYPES.includes(signalType)) return false;
-  return true;
-}
+type DB = ServerDB<typeof schema>;
 
 export async function listPendingSignals(db: DB, organizationId: string) {
   const rows = await db.suggestion

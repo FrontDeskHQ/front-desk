@@ -26,6 +26,15 @@ export const LOCKED_SIGNAL_TYPES: readonly SignalType[] = [
 export const autonomyLevelSchema = z.enum(["off", "suggest", "auto"]);
 export type AutonomyLevel = z.infer<typeof autonomyLevelSchema>;
 
+export function canDoAutonomously(
+  signalType: SignalType,
+  level: AutonomyLevel,
+): boolean {
+  if (level !== "auto") return false;
+  if (LOCKED_SIGNAL_TYPES.includes(signalType)) return false;
+  return true;
+}
+
 export const signalAutonomyMapSchema = z.partialRecord(
   signalTypeSchema,
   autonomyLevelSchema,
@@ -170,9 +179,29 @@ export const autonomousActionMetadataSchema = z.discriminatedUnion("kind", [
     kind: z.literal("duplicate"),
     relatedThreadId: z.string(),
     score: z.number().nullable(),
+    previousStatus: z.number(),
   }),
   z.object({ kind: z.literal("status"), previousStatus: z.number() }),
 ]);
 export type AutonomousActionMetadata = z.infer<
   typeof autonomousActionMetadataSchema
 >;
+
+export function parseAutonomousActionMetadata(
+  metadataStr: string | null,
+): AutonomousActionMetadata | null {
+  if (!metadataStr) return null;
+  try {
+    return autonomousActionMetadataSchema.parse(JSON.parse(metadataStr));
+  } catch {
+    return null;
+  }
+}
+
+export const STATUS_LABELS: Record<number, string> = {
+  0: "Open",
+  1: "In progress",
+  2: "Resolved",
+  3: "Closed",
+  4: "Duplicated",
+};
