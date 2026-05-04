@@ -81,6 +81,7 @@ export default privateRoute
       if (row.undoneAt) return row;
 
       const metadata = parseAutonomousActionMetadata(row.metadataStr);
+      if (!metadata) throw new Error("AUTONOMOUS_ACTION_METADATA_INVALID");
       const threadId = row.entityId;
       const now = new Date();
 

@@ -171,6 +171,7 @@ const { client, store } = createClient<Router>({
         if (!row || row.undoneAt) return;
 
         const metadata = parseAutonomousActionMetadata(row.metadataStr);
+        if (!metadata) return;
         const threadId = row.entityId;
         const now = new Date();
 

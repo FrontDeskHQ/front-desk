@@ -191,7 +191,11 @@ export function parseAutonomousActionMetadata(
   metadataStr: string | null,
 ): AutonomousActionMetadata | null {
   if (!metadataStr) return null;
-  return autonomousActionMetadataSchema.parse(JSON.parse(metadataStr));
+  try {
+    return autonomousActionMetadataSchema.parse(JSON.parse(metadataStr));
+  } catch {
+    return null;
+  }
 }
 
 export const STATUS_LABELS: Record<number, string> = {
