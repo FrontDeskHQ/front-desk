@@ -1,5 +1,6 @@
 import {
   autonomousActionMetadataSchema,
+  parseAutonomousActionMetadata,
   signalTypeSchema,
 } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
@@ -76,11 +77,72 @@ export default privateRoute
         .get();
       const row = rows[0];
       if (!row) throw new Error("AUTONOMOUS_ACTION_NOT_FOUND");
-
       if (row.undoneAt) return row;
 
-      return db.autonomousAction.update(row.id, {
-        undoneAt: new Date(),
-      });
+      const metadata = parseAutonomousActionMetadata(row.metadataStr);
+      const threadId = row.entityId;
+      const now = new Date();
+
+      let activityType: string | null = null;
+      let activityMetadata: Record<string, unknown> = {
+        source: "autonomous_undo",
+      };
+
+      if (metadata?.kind === "label") {
+        const tls = await db.threadLabel
+          .where({ threadId, labelId: metadata.labelId })
+          .get();
+        const tl = tls[0];
+        if (tl?.enabled) {
+          await db.threadLabel.update(tl.id, { enabled: false });
+        }
+        const labels = await db.label.where({ id: metadata.labelId }).get();
+        activityType = "label_changed";
+        activityMetadata = {
+          action: "removed",
+          labelId: metadata.labelId,
+          labelName: labels[0]?.name ?? null,
+          source: "autonomous_undo",
+        };
+      } else if (metadata?.kind === "linked_pr") {
+        await db.thread.update(threadId, { externalPrId: null });
+        activityType = "pr_changed";
+        activityMetadata = {
+          oldPrId: null,
+          newPrId: null,
+          oldPrLabel: "linked PR",
+          newPrLabel: null,
+          source: "autonomous_undo",
+        };
+      } else if (metadata?.kind === "duplicate") {
+        await db.thread.update(threadId, { status: metadata.previousStatus });
+        activityType = "marked_duplicate";
+        activityMetadata = {
+          duplicateOfThreadId: metadata.relatedThreadId,
+          source: "autonomous_undo",
+        };
+      } else if (metadata?.kind === "status") {
+        await db.thread.update(threadId, { status: metadata.previousStatus });
+        activityType = "status_changed";
+        activityMetadata = {
+          newStatus: metadata.previousStatus,
+          newStatusLabel: null,
+          source: "autonomous_undo",
+        };
+      }
+
+      if (activityType) {
+        await db.update.insert({
+          id: ulid().toLowerCase(),
+          threadId,
+          userId: req.context?.session?.userId ?? null,
+          type: activityType,
+          createdAt: now,
+          metadataStr: JSON.stringify(activityMetadata),
+          replicatedStr: JSON.stringify({}),
+        });
+      }
+
+      return db.autonomousAction.update(row.id, { undoneAt: now });
     }),
   }));

@@ -8,7 +8,7 @@ import {
 } from "@workspace/ui/components/indicator";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { CircleUserIcon, CopySlash, Github } from "lucide-react";
+import { Bot, CircleUserIcon, CopySlash, Github, Tag } from "lucide-react";
 import { ThreadChip } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
@@ -41,7 +41,28 @@ export function Update({
       .include({ author: { include: { user: true } }, assignedUser: true }),
   );
 
+  const isAutonomous = metadata?.source === "autonomous";
+  const isAutonomousUndo = metadata?.source === "autonomous_undo";
+  const verbPrefix = isAutonomous
+    ? "auto-"
+    : isAutonomousUndo
+      ? "undid auto-"
+      : "";
+
   const getUpdateText = () => {
+    if (update.type === "label_changed") {
+      const action = metadata?.action === "removed" ? "removed" : "applied";
+      return (
+        <>
+          {verbPrefix}
+          {action === "applied" ? "labeled as " : "removed label "}
+          <span className="text-foreground">
+            {metadata?.labelName ?? "label"}
+          </span>
+        </>
+      );
+    }
+
     if (update.type === "assigned_changed") {
       if (user?.id && metadata?.newAssignedUserId === user.id) {
         return `self-assigned the thread`;
@@ -64,7 +85,7 @@ export function Update({
     if (update.type === "status_changed") {
       return (
         <>
-          changed status to{" "}
+          {verbPrefix}changed status to{" "}
           <span className="text-foreground">{metadata?.newStatusLabel}</span>
         </>
       );
@@ -115,7 +136,7 @@ export function Update({
       if (!metadata?.oldPrLabel && metadata?.newPrLabel) {
         return (
           <>
-            linked PR{" "}
+            {verbPrefix}linked PR{" "}
             <span className="text-foreground">{metadata.newPrLabel}</span>
           </>
         );
@@ -155,7 +176,7 @@ export function Update({
     if (update.type === "marked_duplicate") {
       return (
         <span className="inline-flex items-center gap-1">
-          marked as duplicate of{" "}
+          {verbPrefix}marked as duplicate of{" "}
           {duplicateThread ? (
             <ThreadChip
               thread={duplicateThread}
@@ -179,39 +200,56 @@ export function Update({
     }
   };
 
+  const isFrontDesk = isAutonomous || isAutonomousUndo;
+  const actorName = isFrontDesk
+    ? "FrontDesk"
+    : (update.user?.name ?? metadata?.userName ?? "Someone");
+
   return (
     <div className="flex gap-2 items-center text-xs text-muted-foreground">
       <div className="relative flex items-center justify-center size-4 shrink-0">
         {connectTop && (
           <span className="absolute left-1/2 -top-0.5 h-3 w-px -translate-x-1/2 -translate-y-full bg-border" />
         )}
-        {update.type === "status_changed" && (
-          <StatusIndicator status={metadata?.newStatus as number} />
-        )}
-        {update.type === "priority_changed" && (
-          <PriorityIndicator priority={metadata?.newPriority as number} />
-        )}
-        {update.type === "assigned_changed" &&
-          (assignedUser ? (
-            <Avatar variant="user" size="sm" fallback={assignedUser.name} />
-          ) : (
-            <CircleUserIcon className="size-3.5" />
-          ))}
-        {update.type === "issue_changed" && <Github className="size-3.5" />}
-        {update.type === "pr_changed" && <Github className="size-3.5" />}
-        {update.type === "github_issue_created" && (
-          <Github className="size-3.5" />
-        )}
-        {update.type === "marked_duplicate" && (
-          <CopySlash className="size-3.5" />
+        {isFrontDesk ? (
+          <Bot className="size-3.5" />
+        ) : (
+          <>
+            {update.type === "status_changed" && (
+              <StatusIndicator status={metadata?.newStatus as number} />
+            )}
+            {update.type === "priority_changed" && (
+              <PriorityIndicator priority={metadata?.newPriority as number} />
+            )}
+            {update.type === "assigned_changed" &&
+              (assignedUser ? (
+                <Avatar variant="user" size="sm" fallback={assignedUser.name} />
+              ) : (
+                <CircleUserIcon className="size-3.5" />
+              ))}
+            {update.type === "issue_changed" && <Github className="size-3.5" />}
+            {update.type === "pr_changed" && <Github className="size-3.5" />}
+            {update.type === "github_issue_created" && (
+              <Github className="size-3.5" />
+            )}
+            {update.type === "marked_duplicate" && (
+              <CopySlash className="size-3.5" />
+            )}
+            {update.type === "label_changed" && <Tag className="size-3.5" />}
+          </>
         )}
       </div>
       <span>
-        <span className="text-foreground">
-          {update.user?.name ?? metadata?.userName ?? "Someone"}
-        </span>{" "}
-        {getUpdateText()}
+        <span className="text-foreground">{actorName}</span> {getUpdateText()}
       </span>
+      {isFrontDesk && metadata?.signalId && (
+        <Link
+          to="/app/signal"
+          className="text-foreground underline-offset-2 hover:underline"
+        >
+          [view signal]
+        </Link>
+      )}
       <span>·</span>
       <span>{formatRelativeTime(update.createdAt)}</span>
     </div>

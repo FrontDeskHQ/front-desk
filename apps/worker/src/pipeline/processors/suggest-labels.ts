@@ -1,10 +1,11 @@
 import { google } from "@ai-sdk/google";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
-import { computeUrgency } from "@workspace/schemas/signals";
+import { canDoAutonomously, computeUrgency } from "@workspace/schemas/signals";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 import z from "zod";
+import { getOrgAutonomy } from "../../lib/autonomy";
 import { fetchClient } from "../../lib/database/client";
 import type {
   ProcessorDefinition,
@@ -174,11 +175,90 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
           allLabels,
         );
 
+        const autonomyMap = await getOrgAutonomy(organizationId);
+        const autoApply = canDoAutonomously("label", autonomyMap.label);
+
+        // Already-applied labels on this thread; we don't auto-apply duplicates.
+        const existingThreadLabels = (await fetchClient.query.threadLabel
+          .where({ threadId })
+          .get()) as { id: string; labelId: string; enabled: boolean }[];
+        const appliedLabelIds = new Set(
+          existingThreadLabels
+            .filter((tl) => tl.enabled)
+            .map((tl) => tl.labelId),
+        );
+
         const now = new Date();
         const filteredSuggestedLabelIds: string[] = [];
 
         for (const labelId of suggestedLabelIds) {
           const existing = existingByLabelId.get(labelId);
+
+          if (autoApply && !appliedLabelIds.has(labelId)) {
+            const label = allLabels.find((l) => l.id === labelId);
+            const suggestionId = existing?.id ?? ulid().toLowerCase();
+
+            await fetchClient.mutate.threadLabel.insert({
+              id: ulid().toLowerCase(),
+              threadId,
+              labelId,
+              enabled: true,
+            });
+
+            await fetchClient.mutate.update.insert({
+              id: ulid().toLowerCase(),
+              threadId,
+              userId: null,
+              type: "label_changed",
+              createdAt: now,
+              metadataStr: JSON.stringify({
+                action: "added",
+                labelId,
+                labelName: label?.name ?? null,
+                source: "autonomous",
+                signalType: "label",
+                signalId: suggestionId,
+              }),
+              replicatedStr: JSON.stringify({}),
+            });
+
+            await fetchClient.mutate.autonomousAction.record({
+              organizationId,
+              signalType: "label",
+              entityId: threadId,
+              metadata: { kind: "label", labelId },
+            });
+
+            if (existing) {
+              await fetchClient.mutate.suggestion.update(existing.id, {
+                active: false,
+                accepted: true,
+                actedAt: now,
+                updatedAt: now,
+              });
+            } else {
+              await fetchClient.mutate.suggestion.insert({
+                id: suggestionId,
+                type: SUGGESTION_TYPE_LABEL,
+                entityId: threadId,
+                relatedEntityId: labelId,
+                organizationId,
+                active: false,
+                accepted: true,
+                resultsStr: null,
+                metadataStr: null,
+                urgencyScore: computeUrgency({
+                  signalType: "label",
+                  ageHours: 0,
+                }),
+                actedAt: now,
+                createdAt: now,
+                updatedAt: now,
+              });
+            }
+            continue;
+          }
+
           if (existing) {
             await fetchClient.mutate.suggestion.update(existing.id, {
               active: existing.active,
