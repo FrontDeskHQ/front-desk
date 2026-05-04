@@ -204,6 +204,7 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
               labelId,
               enabled: true,
             });
+            appliedLabelIds.add(labelId);
 
             await fetchClient.mutate.update.insert({
               id: ulid().toLowerCase(),

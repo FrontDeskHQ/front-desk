@@ -2,6 +2,7 @@ import {
   autonomousActionMetadataSchema,
   parseAutonomousActionMetadata,
   signalTypeSchema,
+  STATUS_LABELS,
 } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import z from "zod";
@@ -105,12 +106,14 @@ export default privateRoute
           source: "autonomous_undo",
         };
       } else if (metadata?.kind === "linked_pr") {
+        const threads = await db.thread.where({ id: threadId }).get();
+        const oldPrId = threads[0]?.externalPrId ?? null;
         await db.thread.update(threadId, { externalPrId: null });
         activityType = "pr_changed";
         activityMetadata = {
-          oldPrId: null,
+          oldPrId,
           newPrId: null,
-          oldPrLabel: "linked PR",
+          oldPrLabel: oldPrId ? "linked PR" : null,
           newPrLabel: null,
           source: "autonomous_undo",
         };
@@ -126,7 +129,7 @@ export default privateRoute
         activityType = "status_changed";
         activityMetadata = {
           newStatus: metadata.previousStatus,
-          newStatusLabel: null,
+          newStatusLabel: STATUS_LABELS[metadata.previousStatus] ?? null,
           source: "autonomous_undo",
         };
       }

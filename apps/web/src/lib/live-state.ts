@@ -5,7 +5,10 @@ import {
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { parseAutonomousActionMetadata } from "@workspace/schemas/signals";
+import {
+  parseAutonomousActionMetadata,
+  STATUS_LABELS,
+} from "@workspace/schemas/signals";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { ulid } from "ulid";
@@ -194,12 +197,14 @@ const { client, store } = createClient<Router>({
             source: "autonomous_undo",
           };
         } else if (metadata?.kind === "linked_pr") {
+          const thread = storage.thread.where({ id: threadId }).get()[0];
+          const oldPrId = thread?.externalPrId ?? null;
           storage.thread.update(threadId, { externalPrId: null });
           activityType = "pr_changed";
           activityMetadata = {
-            oldPrId: null,
+            oldPrId,
             newPrId: null,
-            oldPrLabel: "linked PR",
+            oldPrLabel: oldPrId ? "linked PR" : null,
             newPrLabel: null,
             source: "autonomous_undo",
           };
@@ -215,7 +220,7 @@ const { client, store } = createClient<Router>({
           activityType = "status_changed";
           activityMetadata = {
             newStatus: metadata.previousStatus,
-            newStatusLabel: null,
+            newStatusLabel: STATUS_LABELS[metadata.previousStatus] ?? null,
             source: "autonomous_undo",
           };
         }

@@ -191,9 +191,13 @@ export function parseAutonomousActionMetadata(
   metadataStr: string | null,
 ): AutonomousActionMetadata | null {
   if (!metadataStr) return null;
-  try {
-    return autonomousActionMetadataSchema.parse(JSON.parse(metadataStr));
-  } catch {
-    return null;
-  }
+  return autonomousActionMetadataSchema.parse(JSON.parse(metadataStr));
 }
+
+export const STATUS_LABELS: Record<number, string> = {
+  0: "Open",
+  1: "In progress",
+  2: "Resolved",
+  3: "Closed",
+  4: "Duplicated",
+};
