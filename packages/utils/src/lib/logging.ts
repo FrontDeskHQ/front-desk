@@ -1,5 +1,7 @@
 import { initLogger, type LoggerConfig } from "evlog";
 import { createAxiomDrain, type AxiomConfig } from "evlog/axiom";
+export { createLogger, createRequestLogger, log } from "evlog";
+export { createAILogger, createEvlogIntegration } from "evlog/ai";
 
 type EnvMap = Record<string, string | undefined>;
 
