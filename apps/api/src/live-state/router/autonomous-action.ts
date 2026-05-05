@@ -1,6 +1,8 @@
 import {
+  type AutonomousActionMetadata,
   autonomousActionMetadataSchema,
   parseAutonomousActionMetadata,
+  type SignalType,
   signalTypeSchema,
   STATUS_LABELS,
 } from "@workspace/schemas/signals";
@@ -148,5 +150,75 @@ export default privateRoute
       }
 
       return db.autonomousAction.update(row.id, { undoneAt: now });
+    }),
+    seedFake: mutation(
+      z.object({
+        organizationId: z.string(),
+        count: z.number().min(1).max(50).default(8),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("DEV_ONLY");
+      }
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const types: SignalType[] = [
+        "label",
+        "duplicate",
+        "linked_pr",
+        "status",
+        "pending_reply",
+      ];
+      const now = Date.now();
+      const rows = [];
+      for (let i = 0; i < req.input.count; i++) {
+        const signalType = types[Math.floor(Math.random() * types.length)]!;
+        const appliedAt = new Date(
+          now - Math.floor(Math.random() * 24 * 60 * 60 * 1000),
+        );
+        const metadata: AutonomousActionMetadata | null =
+          signalType === "label"
+            ? { kind: "label", labelId: `fake-label-${ulid().toLowerCase()}` }
+            : signalType === "linked_pr"
+              ? { kind: "linked_pr", prId: `fake-pr-${ulid().toLowerCase()}` }
+              : signalType === "duplicate"
+                ? {
+                    kind: "duplicate",
+                    relatedThreadId: `fake-thread-${ulid().toLowerCase()}`,
+                    score: Math.random(),
+                    previousStatus: 0,
+                  }
+                : signalType === "status"
+                  ? { kind: "status", previousStatus: 0 }
+                  : null;
+        const row = await db.autonomousAction.insert({
+          id: ulid().toLowerCase(),
+          organizationId: req.input.organizationId,
+          signalType,
+          entityId: `fake-${ulid().toLowerCase()}`,
+          appliedAt,
+          undoneAt: null,
+          metadataStr: metadata ? JSON.stringify(metadata) : null,
+        });
+        rows.push(row);
+      }
+      return { inserted: rows.length };
+    }),
+    clearFake: mutation(
+      z.object({ organizationId: z.string() }),
+    ).handler(async ({ req, db }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("DEV_ONLY");
+      }
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const now = new Date();
+      const rows = await db.autonomousAction
+        .where({ organizationId: req.input.organizationId, undoneAt: null })
+        .get();
+      for (const row of rows) {
+        await db.autonomousAction.update(row.id, { undoneAt: now });
+      }
+      return { cleared: rows.length };
     }),
   }));

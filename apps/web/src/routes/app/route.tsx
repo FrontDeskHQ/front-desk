@@ -106,6 +106,7 @@ function App() {
             agentChats: {
               include: { messages: true },
             },
+            autonomousActions: true,
           },
         },
       }),
