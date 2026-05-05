@@ -137,14 +137,14 @@ Only proceed to documentation after explicit confirmation.
 
 ## Output Artifact (Required)
 
-After user approval, write a new markdown file in `docs/features/`.
+After user approval, write a new markdown file in `COMPANY/features/`.
 
 ### File naming
 
 Use:
 
-- `docs/features/<feature-slug>.md`
-- If file exists, use `docs/features/<feature-slug>-v2.md` (increment as needed).
+- `COMPANY/features/<feature-slug>.md`
+- If file exists, use `COMPANY/features/<feature-slug>-v2.md` (increment as needed).
 
 ### Spec structure
 

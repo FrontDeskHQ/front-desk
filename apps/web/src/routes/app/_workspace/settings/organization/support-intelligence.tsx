@@ -252,27 +252,32 @@ function AutomationCard({
                     defaultValue={[current]}
                     value={[current]}
                     onValueChange={(v) => {
-                      const next = v[0];
+                      const next = v[0] as AutonomyLevel | undefined;
                       if (!next) return;
-                      handleChange(t, next as AutonomyLevel);
+                      if (next === "auto" && locked) return;
+                      handleChange(t, next);
                     }}
                     disabled={!isUserOwner}
                   >
                     {AUTONOMY_LEVELS.map((lvl) => {
-                      const disabled =
-                        !isUserOwner || (lvl === "auto" && locked);
+                      const lockedAuto = lvl === "auto" && locked;
                       const item = (
                         <ToggleGroupItem
                           key={lvl}
                           value={lvl}
-                          disabled={disabled}
+                          // aria-disabled (not disabled) on the locked auto
+                          // toggle so it still fires pointer events and the
+                          // tooltip can open. Base UI Tooltip won't show on a
+                          // truly-disabled element.
+                          disabled={!isUserOwner && !lockedAuto}
+                          aria-disabled={lockedAuto || undefined}
                           aria-label={`${AUTONOMY_SIGNAL_LABEL[t]} ${lvl}`}
-                          className="capitalize px-3 flex-none min-w-fit"
+                          className="capitalize px-3 flex-none min-w-fit aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                         >
                           {lvl}
                         </ToggleGroupItem>
                       );
-                      if (lvl === "auto" && locked) {
+                      if (lockedAuto) {
                         return (
                           <Tooltip key={lvl}>
                             <TooltipTrigger render={item} />

@@ -100,7 +100,7 @@ function RouteComponent() {
         <div className="border rounded-md p-4 grid grid-cols-[120px_1fr] border-dashed gap-4 items-center">
           <div className="text-foreground-secondary text-sm">Disabled group</div>
           <div>
-            <ToggleGroup disabled value={["center"]}>
+            <ToggleGroup disabled defaultValue={["center"]}>
               <ToggleGroupItem value="left" className="px-4">Left</ToggleGroupItem>
               <ToggleGroupItem value="center" className="px-4">Center</ToggleGroupItem>
               <ToggleGroupItem value="right" className="px-4">Right</ToggleGroupItem>
