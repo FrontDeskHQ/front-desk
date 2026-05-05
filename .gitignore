@@ -28,6 +28,5 @@ yarn-error.log*
 .qdrant-data
 .redis-data
 
-# company mental model (local only)
-COMPANY.md
-COMPANY_BACKLOG.md
+# company mental model & internal docs (local only, not for public repo)
+COMPANY/
