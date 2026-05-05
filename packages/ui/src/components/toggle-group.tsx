@@ -1,73 +1,70 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as ToggleGroupPrimitive from "@radix-ui/react-toggle-group"
-import { type VariantProps } from "class-variance-authority"
+import { Toggle as BaseToggle } from "@base-ui/react/toggle";
+import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
+import { cn } from "@workspace/ui/lib/utils";
+import * as React from "react";
 
-import { cn } from "@workspace/ui/lib/utils"
-import { toggleVariants } from "@workspace/ui/components/toggle"
+type ToggleGroupSize = "sm" | "default" | "lg";
 
-const ToggleGroupContext = React.createContext<
-  VariantProps<typeof toggleVariants>
->({
+const ToggleGroupContext = React.createContext<{
+  size: ToggleGroupSize;
+}>({
   size: "default",
-  variant: "default",
-})
+});
+
+const sizeClasses: Record<ToggleGroupSize, string> = {
+  sm: "h-8",
+  default: "h-9",
+  lg: "h-10",
+};
 
 function ToggleGroup({
   className,
-  variant,
-  size,
+  size = "default",
   children,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Root> &
-  VariantProps<typeof toggleVariants>) {
+}: React.ComponentProps<typeof BaseToggleGroup> & {
+  size?: ToggleGroupSize;
+}) {
   return (
-    <ToggleGroupPrimitive.Root
-      data-slot="toggle-group"
-      data-variant={variant}
-      data-size={size}
-      className={cn(
-        "group/toggle-group flex w-fit items-center rounded-md data-[variant=outline]:shadow-xs",
-        className
-      )}
-      {...props}
-    >
-      <ToggleGroupContext.Provider value={{ variant, size }}>
+    <ToggleGroupContext.Provider value={{ size }}>
+      <BaseToggleGroup
+        data-slot="toggle-group"
+        data-size={size}
+        className={cn(
+          "bg-muted text-muted-foreground border-input inline-flex w-fit items-center justify-center rounded-md border",
+          sizeClasses[size],
+          className,
+        )}
+        {...props}
+      >
         {children}
-      </ToggleGroupContext.Provider>
-    </ToggleGroupPrimitive.Root>
-  )
+      </BaseToggleGroup>
+    </ToggleGroupContext.Provider>
+  );
 }
 
 function ToggleGroupItem({
   className,
   children,
-  variant,
-  size,
   ...props
-}: React.ComponentProps<typeof ToggleGroupPrimitive.Item> &
-  VariantProps<typeof toggleVariants>) {
-  const context = React.useContext(ToggleGroupContext)
+}: React.ComponentProps<typeof BaseToggle>) {
+  const { size } = React.useContext(ToggleGroupContext);
 
   return (
-    <ToggleGroupPrimitive.Item
+    <BaseToggle
       data-slot="toggle-group-item"
-      data-variant={context.variant || variant}
-      data-size={context.size || size}
+      data-size={size}
       className={cn(
-        toggleVariants({
-          variant: context.variant || variant,
-          size: context.size || size,
-        }),
-        "min-w-0 flex-1 shrink-0 rounded-none shadow-none first:rounded-l-md last:rounded-r-md focus:z-10 focus-visible:z-10 data-[variant=outline]:border-l-0 data-[variant=outline]:first:border-l",
-        className
+        "data-[pressed]:bg-background-primary data-[pressed]:border-input data-[pressed]:text-foreground-primary hover:text-foreground-primary focus-visible:ring-ring/50 focus-visible:outline-ring dark:data-[pressed]:bg-input/30 text-foreground-secondary disabled:text-foreground-secondary/80 relative inline-flex h-full flex-1 items-center justify-center gap-1.5 border border-transparent px-3 py-1 text-sm whitespace-nowrap focus-visible:z-10 focus-visible:ring-[3px] focus-visible:outline-1 disabled:pointer-events-none disabled:opacity-50 rounded-md not-first:-ml-0.5 data-[pressed]:z-10 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        className,
       )}
       {...props}
     >
       {children}
-    </ToggleGroupPrimitive.Item>
-  )
+    </BaseToggle>
+  );
 }
 
-export { ToggleGroup, ToggleGroupItem }
+export { ToggleGroup, ToggleGroupItem };

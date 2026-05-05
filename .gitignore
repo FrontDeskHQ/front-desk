@@ -27,3 +27,6 @@ yarn-error.log*
 .postgres-data
 .qdrant-data
 .redis-data
+
+# company mental model & internal docs (local only, not for public repo)
+COMPANY/

@@ -6,7 +6,6 @@ import {
   type AutonomyLevel,
   getDefaultSignalAutonomy,
   LOCKED_SIGNAL_TYPES,
-  SIGNAL_LABEL,
   type SignalType,
 } from "@workspace/schemas/signals";
 import { Button } from "@workspace/ui/components/button";
@@ -157,6 +156,21 @@ const HIDDEN_SIGNAL_TYPES: readonly SignalType[] = [
 
 const AUTONOMY_LEVELS: AutonomyLevel[] = ["off", "suggest", "auto"];
 
+// Mode-neutral labels for the autonomy settings (the per-signal SIGNAL_LABEL
+// values read as "Suggested ..." which is misleading next to off/auto toggles).
+const AUTONOMY_SIGNAL_LABEL: Record<SignalType, string> = {
+  churn_risk: "Churn risk",
+  pending_reply: "Pending replies",
+  duplicate: "Duplicate threads",
+  loop_to_close: "Closing the loop",
+  linked_pr: "PR linking",
+  status: "Status changes",
+  kb_gap: "Knowledge gaps",
+  trending_issue: "Trending issues",
+  suggested_reply: "Reply drafting",
+  label: "Thread labeling",
+};
+
 function AutomationCard({
   organizationId,
   settings,
@@ -225,40 +239,45 @@ function AutomationCard({
           <div
             className="grid items-center gap-y-2 gap-x-4 text-sm"
             style={{ gridTemplateColumns: "1fr auto" }}
-            role="table"
-            aria-label="Signal autonomy"
           >
             {visibleTypes.map((t) => {
               const locked = LOCKED_SIGNAL_TYPES.includes(t);
               const current = valueFor(t);
               return (
                 <div key={t} className="contents">
-                  <div className="text-foreground">{SIGNAL_LABEL[t]}</div>
+                  <div className="text-foreground">
+                    {AUTONOMY_SIGNAL_LABEL[t]}
+                  </div>
                   <ToggleGroup
-                    type="single"
-                    variant="outline"
-                    value={current}
+                    defaultValue={[current]}
+                    value={[current]}
                     onValueChange={(v) => {
-                      if (!v) return;
-                      handleChange(t, v as AutonomyLevel);
+                      const next = v[0] as AutonomyLevel | undefined;
+                      if (!next) return;
+                      if (next === "auto" && locked) return;
+                      handleChange(t, next);
                     }}
                     disabled={!isUserOwner}
                   >
                     {AUTONOMY_LEVELS.map((lvl) => {
-                      const disabled =
-                        !isUserOwner || (lvl === "auto" && locked);
+                      const lockedAuto = lvl === "auto" && locked;
                       const item = (
                         <ToggleGroupItem
                           key={lvl}
                           value={lvl}
-                          disabled={disabled}
-                          aria-label={`${SIGNAL_LABEL[t]} ${lvl}`}
-                          className="capitalize px-4 flex-none min-w-fit"
+                          // aria-disabled (not disabled) on the locked auto
+                          // toggle so it still fires pointer events and the
+                          // tooltip can open. Base UI Tooltip won't show on a
+                          // truly-disabled element.
+                          disabled={!isUserOwner && !lockedAuto}
+                          aria-disabled={lockedAuto || undefined}
+                          aria-label={`${AUTONOMY_SIGNAL_LABEL[t]} ${lvl}`}
+                          className="capitalize px-3 flex-none min-w-fit aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                         >
                           {lvl}
                         </ToggleGroupItem>
                       );
-                      if (lvl === "auto" && locked) {
+                      if (lockedAuto) {
                         return (
                           <Tooltip key={lvl}>
                             <TooltipTrigger render={item} />

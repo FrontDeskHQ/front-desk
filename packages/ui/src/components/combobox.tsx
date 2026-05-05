@@ -1,7 +1,7 @@
 import {
   Combobox as ComboboxPrimitive,
   type ComboboxRootProps,
-} from "@base-ui-components/react/combobox";
+} from "@base-ui/react/combobox";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronsUpDown, PlusIcon, XIcon } from "lucide-react";
