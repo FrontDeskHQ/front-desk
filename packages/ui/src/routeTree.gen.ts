@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ToggleGroupRouteImport } from './routes/toggle-group'
 import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
 import { Route as CompositeRouteImport } from './routes/composite'
 import { Route as CommandRouteImport } from './routes/command'
@@ -16,6 +17,11 @@ import { Route as ButtonsRouteImport } from './routes/buttons'
 import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as IndexRouteImport } from './routes/index'
 
+const ToggleGroupRoute = ToggleGroupRouteImport.update({
+  id: '/toggle-group',
+  path: '/toggle-group',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const StatusIndicatorRoute = StatusIndicatorRouteImport.update({
   id: '/status-indicator',
   path: '/status-indicator',
@@ -54,6 +60,7 @@ export interface FileRoutesByFullPath {
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
   '/status-indicator': typeof StatusIndicatorRoute
+  '/toggle-group': typeof ToggleGroupRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByTo {
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
   '/status-indicator': typeof StatusIndicatorRoute
+  '/toggle-group': typeof ToggleGroupRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -71,6 +79,7 @@ export interface FileRoutesById {
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
   '/status-indicator': typeof StatusIndicatorRoute
+  '/toggle-group': typeof ToggleGroupRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -81,6 +90,7 @@ export interface FileRouteTypes {
     | '/command'
     | '/composite'
     | '/status-indicator'
+    | '/toggle-group'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -89,6 +99,7 @@ export interface FileRouteTypes {
     | '/command'
     | '/composite'
     | '/status-indicator'
+    | '/toggle-group'
   id:
     | '__root__'
     | '/'
@@ -97,6 +108,7 @@ export interface FileRouteTypes {
     | '/command'
     | '/composite'
     | '/status-indicator'
+    | '/toggle-group'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -106,10 +118,18 @@ export interface RootRouteChildren {
   CommandRoute: typeof CommandRoute
   CompositeRoute: typeof CompositeRoute
   StatusIndicatorRoute: typeof StatusIndicatorRoute
+  ToggleGroupRoute: typeof ToggleGroupRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/toggle-group': {
+      id: '/toggle-group'
+      path: '/toggle-group'
+      fullPath: '/toggle-group'
+      preLoaderRoute: typeof ToggleGroupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/status-indicator': {
       id: '/status-indicator'
       path: '/status-indicator'
@@ -162,6 +182,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommandRoute: CommandRoute,
   CompositeRoute: CompositeRoute,
   StatusIndicatorRoute: StatusIndicatorRoute,
+  ToggleGroupRoute: ToggleGroupRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

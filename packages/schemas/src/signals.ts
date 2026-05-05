@@ -3,7 +3,6 @@ import { z } from "zod";
 export const SIGNAL_TYPES = [
   "label",
   "duplicate",
-  "duplicate_merge",
   "linked_pr",
   "pending_reply",
   "loop_to_close",
@@ -18,7 +17,6 @@ export const signalTypeSchema = z.enum(SIGNAL_TYPES);
 export type SignalType = z.infer<typeof signalTypeSchema>;
 
 export const LOCKED_SIGNAL_TYPES: readonly SignalType[] = [
-  "duplicate_merge",
   "suggested_reply",
   "loop_to_close",
 ] as const;
@@ -100,7 +98,6 @@ export const SIGNAL_SEVERITY: Record<SignalType, number> = {
   status: 35,
   kb_gap: 30,
   trending_issue: 30,
-  duplicate_merge: 0,
   suggested_reply: 0,
   label: 20,
 };
@@ -115,7 +112,6 @@ export const SIGNAL_LABEL: Record<SignalType, string> = {
   status: "Suggested status",
   kb_gap: "Knowledge gap",
   trending_issue: "Trending issue",
-  duplicate_merge: "Suggested merge",
   suggested_reply: "Suggested reply",
   label: "Suggested label",
 };
@@ -130,7 +126,6 @@ export const SIGNAL_REPORT_VERB: Record<SignalType, string> = {
   status: "Updated status on",
   kb_gap: "Spotted KB gaps for",
   trending_issue: "Spotted trending issues for",
-  duplicate_merge: "Merged duplicates of",
   suggested_reply: "Drafted replies for",
   label: "Auto-labeled",
 };

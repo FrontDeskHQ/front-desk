@@ -27,3 +27,7 @@ yarn-error.log*
 .postgres-data
 .qdrant-data
 .redis-data
+
+# company mental model (local only)
+COMPANY.md
+COMPANY_BACKLOG.md
