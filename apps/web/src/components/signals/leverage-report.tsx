@@ -63,11 +63,37 @@ export function LeverageReport({
     return (Date.now() - organizationCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
   }, [organizationCreatedAt]);
 
-  const inWindow = allActions
-    ? allActions.filter(
-        (a) => new Date(a.appliedAt).getTime() >= windowStart.getTime(),
-      )
-    : [];
+  // "Since visit" uses previousVisitAt; if the user comes back soon, that window
+  // can be seconds wide and show nothing even when recent history exists. Fall
+  // back to last 24h in that case only.
+  const { inWindow, reportWindowStart, effectiveHeadingMode } = useMemo(() => {
+      const now = Date.now();
+      const last24hStart = new Date(now - 24 * 60 * 60 * 1000);
+      const filterFromStart = (start: Date) =>
+        allActions
+          ? allActions.filter(
+              (a) => new Date(a.appliedAt).getTime() >= start.getTime(),
+            )
+          : [];
+
+      const primary = filterFromStart(windowStart);
+      if (
+        primary.length === 0 &&
+        (allActions?.length ?? 0) > 0 &&
+        mode === "since-visit"
+      ) {
+        return {
+          inWindow: filterFromStart(last24hStart),
+          reportWindowStart: last24hStart,
+          effectiveHeadingMode: "last-24h" as const,
+        };
+      }
+      return {
+        inWindow: primary,
+        reportWindowStart: windowStart,
+        effectiveHeadingMode: mode,
+      };
+    }, [allActions, windowStart, mode]);
 
   const isNewOrg =
     (orgDaysOld == null || orgDaysOld < NEW_ORG_DAY_THRESHOLD) &&
@@ -102,7 +128,7 @@ export function LeverageReport({
 
   const total = inWindow.length;
   const heading =
-    mode === "since-visit" && visit.previousVisitAt
+    effectiveHeadingMode === "since-visit" && visit.previousVisitAt
       ? `Since your last visit · ${formatRelativeTime(visit.previousVisitAt)}`
       : "Last 24 hours";
 
@@ -142,7 +168,7 @@ export function LeverageReport({
                 to="/app/threads"
                 search={{
                   signalType: type,
-                  since: windowStart.toISOString(),
+                  since: reportWindowStart.toISOString(),
                 }}
                 onClick={() =>
                   posthog?.capture("signal:report_link_clicked", {
