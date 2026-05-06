@@ -18,6 +18,12 @@ import {
 const NEW_ORG_DAY_THRESHOLD = 3;
 const NEW_ORG_ACTION_THRESHOLD = 5;
 const MAX_NAMED_TILES = 5;
+// "Since your last visit" reads as broken when the gap is minutes wide
+// (quick reload / tab flip). Below this, last-24h is the more useful framing.
+const SINCE_VISIT_MIN_MS = 60 * 60 * 1000;
+// Beyond this, since-visit aggregates get stale and tile counts balloon;
+// fall back to last-24h for actionable recency.
+const SINCE_VISIT_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Tile caption per signal type. Past-action noun phrase, plural-aware downstream
 // is unnecessary because tiles always show >0 actions in aggregate.
@@ -60,7 +66,12 @@ export function LeverageReport({
   const [windowStart, mode] = useMemo(() => {
     const now = Date.now();
     const previous = visit.previousVisitAt?.getTime() ?? null;
-    if (previous && !visit.seenThisSession) {
+    if (
+      previous != null &&
+      now - previous >= SINCE_VISIT_MIN_MS &&
+      now - previous <= SINCE_VISIT_MAX_MS &&
+      !visit.seenThisSession
+    ) {
       return [new Date(previous), "since-visit" as const];
     }
     return [new Date(now - 24 * 60 * 60 * 1000), "last-24h" as const];
