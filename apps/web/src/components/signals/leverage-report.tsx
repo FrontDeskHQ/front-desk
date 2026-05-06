@@ -254,7 +254,7 @@ function tileSpan(total: number, index: number): string {
   }
   if (total === 4) {
     if (index < 2) return "col-span-2 row-span-2";
-    return "col-span-3 row-span-1";
+    return "col-span-2 row-span-1";
   }
   if (total === 5) {
     if (index === 0) return "col-span-2 row-span-2";
