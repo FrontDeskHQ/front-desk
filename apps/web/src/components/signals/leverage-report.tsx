@@ -1,19 +1,11 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import {
-  SIGNAL_REPORT_VERB,
-  signalTypeFromStored,
   type SignalType,
+  signalTypeFromStored,
 } from "@workspace/schemas/signals";
-import { Card, CardContent, CardHeader } from "@workspace/ui/components/card";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@workspace/ui/components/collapsible";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { formatRelativeTime } from "@workspace/ui/lib/utils";
-import { ChevronDown } from "lucide-react";
+import { cn } from "@workspace/ui/lib/utils";
 import type { PostHog } from "posthog-js";
 import { useEffect, useMemo } from "react";
 import { query } from "~/lib/live-state";
@@ -25,11 +17,34 @@ import {
 
 const NEW_ORG_DAY_THRESHOLD = 3;
 const NEW_ORG_ACTION_THRESHOLD = 5;
+const MAX_NAMED_TILES = 5;
+// "Since your last visit" reads as broken when the gap is minutes wide
+// (quick reload / tab flip). Below this, last-24h is the more useful framing.
+const SINCE_VISIT_MIN_MS = 60 * 60 * 1000;
+// Beyond this, since-visit aggregates get stale and tile counts balloon;
+// fall back to last-24h for actionable recency.
+const SINCE_VISIT_MAX_MS = 7 * 24 * 60 * 60 * 1000;
+
+// Tile caption per signal type. Past-action noun phrase, plural-aware downstream
+// is unnecessary because tiles always show >0 actions in aggregate.
+const TILE_CAPTION: Record<SignalType, string> = {
+  label: "Threads labeled",
+  duplicate: "Duplicates linked",
+  linked_pr: "PRs linked",
+  pending_reply: "Reply nudges",
+  loop_to_close: "Loops closed",
+  suggested_reply: "Drafts ready",
+  status: "Status updates",
+  churn_risk: "Churn risks flagged",
+  kb_gap: "KB gaps spotted",
+  trending_issue: "Trends spotted",
+};
 
 type Props = {
   organizationId: string;
   organizationCreatedAt: Date | null;
   userId: string;
+  userName: string;
   posthog: PostHog | null;
 };
 
@@ -37,14 +52,13 @@ export function LeverageReport({
   organizationId,
   organizationCreatedAt,
   userId,
+  userName,
   posthog,
 }: Props) {
   const allActions = useLiveQuery(
     query.autonomousAction.where({ organizationId, undoneAt: null }),
   );
 
-  // Snapshot the visit state. Recomputes if the user switches workspaces or
-  // accounts without remounting; otherwise stable for the lifetime of the view.
   const visit = useMemo(
     () => readSignalsVisit(organizationId, userId),
     [organizationId, userId],
@@ -52,7 +66,12 @@ export function LeverageReport({
   const [windowStart, mode] = useMemo(() => {
     const now = Date.now();
     const previous = visit.previousVisitAt?.getTime() ?? null;
-    if (previous && !visit.seenThisSession) {
+    if (
+      previous != null &&
+      now - previous >= SINCE_VISIT_MIN_MS &&
+      now - previous <= SINCE_VISIT_MAX_MS &&
+      !visit.seenThisSession
+    ) {
       return [new Date(previous), "since-visit" as const];
     }
     return [new Date(now - 24 * 60 * 60 * 1000), "last-24h" as const];
@@ -60,40 +79,42 @@ export function LeverageReport({
 
   const orgDaysOld = useMemo(() => {
     if (!organizationCreatedAt) return null;
-    return (Date.now() - organizationCreatedAt.getTime()) / (1000 * 60 * 60 * 24);
+    return (
+      (Date.now() - organizationCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
+    );
   }, [organizationCreatedAt]);
 
-  // "Since visit" uses previousVisitAt; if the user comes back soon, that window
-  // can be seconds wide and show nothing even when recent history exists. Fall
-  // back to last 24h in that case only.
+  // "Since visit" uses previousVisitAt; if the user comes back soon, that
+  // window can be seconds wide and show nothing even when recent history
+  // exists. Fall back to last 24h in that case only.
   const { inWindow, reportWindowStart, effectiveHeadingMode } = useMemo(() => {
-      const now = Date.now();
-      const last24hStart = new Date(now - 24 * 60 * 60 * 1000);
-      const filterFromStart = (start: Date) =>
-        allActions
-          ? allActions.filter(
-              (a) => new Date(a.appliedAt).getTime() >= start.getTime(),
-            )
-          : [];
+    const now = Date.now();
+    const last24hStart = new Date(now - 24 * 60 * 60 * 1000);
+    const filterFromStart = (start: Date) =>
+      allActions
+        ? allActions.filter(
+            (a) => new Date(a.appliedAt).getTime() >= start.getTime(),
+          )
+        : [];
 
-      const primary = filterFromStart(windowStart);
-      if (
-        primary.length === 0 &&
-        (allActions?.length ?? 0) > 0 &&
-        mode === "since-visit"
-      ) {
-        return {
-          inWindow: filterFromStart(last24hStart),
-          reportWindowStart: last24hStart,
-          effectiveHeadingMode: "last-24h" as const,
-        };
-      }
+    const primary = filterFromStart(windowStart);
+    if (
+      primary.length === 0 &&
+      (allActions?.length ?? 0) > 0 &&
+      mode === "since-visit"
+    ) {
       return {
-        inWindow: primary,
-        reportWindowStart: windowStart,
-        effectiveHeadingMode: mode,
+        inWindow: filterFromStart(last24hStart),
+        reportWindowStart: last24hStart,
+        effectiveHeadingMode: "last-24h" as const,
       };
-    }, [allActions, windowStart, mode]);
+    }
+    return {
+      inWindow: primary,
+      reportWindowStart: windowStart,
+      effectiveHeadingMode: mode,
+    };
+  }, [allActions, windowStart, mode]);
 
   const isNewOrg =
     (orgDaysOld == null || orgDaysOld < NEW_ORG_DAY_THRESHOLD) &&
@@ -101,11 +122,6 @@ export function LeverageReport({
 
   const isRenderable = !!allActions && !isNewOrg && inWindow.length > 0;
 
-  // After a brief delay, always bump the persisted lastVisit so the next
-  // session's "since last visit" window starts from now (the user effectively
-  // saw whatever was — or wasn't — there). Only flip the session-seen flag
-  // when the report actually rendered, since that flag's only purpose is to
-  // make a same-tab refresh switch from "since-visit" to "last 24h".
   useEffect(() => {
     const t = setTimeout(() => {
       if (isRenderable) markSnapshotSeenThisSession(organizationId, userId);
@@ -115,8 +131,6 @@ export function LeverageReport({
   }, [isRenderable, organizationId, userId]);
 
   if (!allActions) return <LeverageReport.Skeleton />;
-
-  // Hide on truly new orgs.
   if (isNewOrg) return null;
 
   const grouped = new Map<SignalType, number>();
@@ -126,86 +140,155 @@ export function LeverageReport({
     grouped.set(t, (grouped.get(t) ?? 0) + 1);
   }
 
-  const total = inWindow.length;
-  const heading =
-    effectiveHeadingMode === "since-visit" && visit.previousVisitAt
-      ? `Since your last visit · ${formatRelativeTime(visit.previousVisitAt)}`
-      : "Last 24 hours";
+  if (inWindow.length === 0) return null;
 
-  if (total === 0) {
-    // Hide the whole card when there's nothing to show in the window
-    // (avoids "FrontDesk handled 0 things" on quiet stretches).
-    return null;
-  }
+  const sorted = [...grouped.entries()].sort((a, b) => b[1] - a[1]);
+  const named = sorted.slice(0, MAX_NAMED_TILES);
+  const overflow = sorted.slice(MAX_NAMED_TILES);
+  const otherCount = overflow.reduce((sum, [, c]) => sum + c, 0);
+
+  type Tile =
+    | { kind: "named"; type: SignalType; count: number }
+    | { kind: "other"; count: number };
+
+  const tiles: Tile[] = named.map(([type, count]) => ({
+    kind: "named" as const,
+    type,
+    count,
+  }));
+  if (otherCount > 0) tiles.push({ kind: "other", count: otherCount });
+
+  const greeting = greetingFor(new Date());
+  const firstName = userName.trim().split(/\s+/)[0] ?? userName;
+  const windowPhrase =
+    effectiveHeadingMode === "since-visit"
+      ? "since your last visit"
+      : "in the last 24 hours";
 
   return (
-    <Collapsible defaultOpen>
-      <Card>
-        <CardHeader size="sm">
-          <CollapsibleTrigger
-            onClick={() =>
-              posthog?.capture("signal:report_expanded", {
-                organization_id: organizationId,
-              })
-            }
-            className="flex w-full items-center justify-between gap-2 text-left"
-          >
-            <div className="flex flex-col gap-0.5">
-              <div className="text-foreground-secondary text-xs">{heading}</div>
-              <div className="text-foreground-primary text-sm font-medium">
-                FrontDesk handled {total} {total === 1 ? "thing" : "things"} for
-                you
+    <div className="flex w-full max-w-4xl mx-auto flex-col gap-4">
+      <div className="flex flex-col gap-1 px-1">
+        <div className="text-foreground-primary text-base font-medium">
+          {greeting}, {firstName}.
+        </div>
+        <div className="text-foreground-primary text-sm">
+          Here's what FrontDesk handled {windowPhrase}.
+        </div>
+      </div>
+      <div
+        className={cn(
+          "grid grid-cols-6 grid-rows-2 gap-2 auto-rows-fr",
+          "min-h-[180px]",
+        )}
+      >
+        {tiles.map((tile, i) => {
+          const span = tileSpan(tiles.length, i);
+          const isHero = span.includes("row-span-2");
+          const key = tile.kind === "named" ? tile.type : "other";
+          const caption =
+            tile.kind === "named" ? TILE_CAPTION[tile.type] : "Other actions";
+          const tileBody = (
+            <div
+              className={cn(
+                "flex h-full w-full flex-col justify-between rounded-lg border border-border bg-card transition-colors hover:bg-accent",
+                isHero ? "p-4" : "p-3",
+              )}
+            >
+              <div
+                className={cn(
+                  "text-foreground-primary font-semibold leading-none",
+                  isHero ? "text-5xl" : "text-3xl",
+                )}
+              >
+                {tile.count}
+              </div>
+              <div
+                className={cn(
+                  "text-foreground-secondary",
+                  isHero ? "text-base" : "text-xs",
+                )}
+              >
+                {caption}
               </div>
             </div>
-            <ChevronDown className="size-4 text-foreground-secondary transition-transform [[data-state=open]_&]:rotate-180" />
-          </CollapsibleTrigger>
-        </CardHeader>
-        <CollapsibleContent>
-          <CardContent className="flex flex-col gap-1.5 pt-0 pb-3 text-sm">
-            {[...grouped.entries()].map(([type, count]) => (
-              <Link
-                key={type}
-                to="/app/threads"
-                search={{
-                  signalType: type,
-                  since: reportWindowStart.toISOString(),
-                }}
-                onClick={() =>
-                  posthog?.capture("signal:report_link_clicked", {
-                    signal_type: type,
-                    count,
-                    organization_id: organizationId,
-                  })
-                }
-                className="flex items-center justify-between rounded px-2 py-1 text-foreground-secondary hover:bg-accent hover:text-foreground-primary"
-              >
-                <span>
-                  · {SIGNAL_REPORT_VERB[type]} {count}{" "}
-                  {count === 1 ? "thread" : "threads"}
-                </span>
-                <span className="text-foreground-secondary">→</span>
-              </Link>
-            ))}
-          </CardContent>
-        </CollapsibleContent>
-      </Card>
-    </Collapsible>
+          );
+
+          if (tile.kind === "other") {
+            return (
+              <div key={key} className={span}>
+                {tileBody}
+              </div>
+            );
+          }
+
+          return (
+            <Link
+              key={key}
+              to="/app/threads"
+              search={{
+                signalType: tile.type,
+                since: reportWindowStart.toISOString(),
+              }}
+              onClick={() =>
+                posthog?.capture("signal:report_link_clicked", {
+                  signal_type: tile.type,
+                  count: tile.count,
+                  organization_id: organizationId,
+                })
+              }
+              className={cn(span, "block")}
+            >
+              {tileBody}
+            </Link>
+          );
+        })}
+      </div>
+    </div>
   );
+}
+
+function greetingFor(date: Date): string {
+  const h = date.getHours();
+  if (h < 5) return "Working late";
+  if (h < 12) return "Good morning";
+  if (h < 18) return "Good afternoon";
+  return "Good evening";
+}
+
+// 6-col x 2-row bento (12 cells). Tile sizes scale with rank (sorted by count).
+function tileSpan(total: number, index: number): string {
+  if (total === 1) return "col-span-6 row-span-2";
+  if (total === 2) return "col-span-3 row-span-2";
+  if (total === 3) {
+    if (index === 0) return "col-span-3 row-span-2";
+    return "col-span-3 row-span-1";
+  }
+  if (total === 4) {
+    if (index < 2) return "col-span-2 row-span-2";
+    return "col-span-2 row-span-1";
+  }
+  if (total === 5) {
+    if (index === 0) return "col-span-2 row-span-2";
+    return "col-span-2 row-span-1";
+  }
+  // total === 6
+  return "col-span-2 row-span-1";
 }
 
 LeverageReport.Skeleton = function LeverageReportSkeleton() {
   return (
-    <Card>
-      <CardHeader size="sm">
-        <Skeleton className="h-3 w-32" />
-        <Skeleton className="mt-1.5 h-4 w-64" />
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2 pt-0 pb-3">
-        <Skeleton className="h-3 w-48" />
-        <Skeleton className="h-3 w-40" />
-        <Skeleton className="h-3 w-44" />
-        <Skeleton className="h-3 w-36" />
-      </CardContent>
-    </Card>
+    <div className="flex w-full max-w-4xl mx-auto flex-col gap-3">
+      <div className="px-1">
+        <Skeleton className="h-4 w-48" />
+        <Skeleton className="mt-1.5 h-3 w-72" />
+      </div>
+      <div className="grid grid-cols-6 grid-rows-2 gap-2 auto-rows-fr min-h-[180px]">
+        <Skeleton className="col-span-2 row-span-2" />
+        <Skeleton className="col-span-2 row-span-1" />
+        <Skeleton className="col-span-2 row-span-1" />
+        <Skeleton className="col-span-2 row-span-1" />
+        <Skeleton className="col-span-2 row-span-1" />
+      </div>
+    </div>
   );
 };

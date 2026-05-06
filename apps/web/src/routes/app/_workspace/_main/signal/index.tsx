@@ -47,11 +47,12 @@ function RouteComponent() {
       <CardHeader>
         <CardTitle>Signals</CardTitle>
       </CardHeader>
-      <CardContent className="overflow-y-auto">
+      <CardContent className="flex flex-col gap-8 overflow-y-auto pt-6">
         <LeverageReport
           organizationId={currentOrg.id}
           organizationCreatedAt={orgCreatedAt}
           userId={user.id}
+          userName={user.name}
           posthog={posthog ?? null}
         />
         <ActionList
