@@ -4,20 +4,28 @@ import {
   type SignalType,
   signalTypeFromStored,
 } from "@workspace/schemas/signals";
+import { Avatar } from "@workspace/ui/components/avatar";
+import { ActionButton } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
-import { cn } from "@workspace/ui/lib/utils";
+import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import { ArrowRight, X } from "lucide-react";
+import { LayoutGroup, motion } from "motion/react";
 import type { PostHog } from "posthog-js";
-import { useEffect, useMemo } from "react";
+import { type CSSProperties, useEffect, useMemo, useState } from "react";
 import { query } from "~/lib/live-state";
 import {
   markSnapshotSeenThisSession,
   markVisited,
   readSignalsVisit,
 } from "~/lib/signals-visit";
+import { buildThreadParam } from "~/utils/thread";
+
+const TILE_TRANSITION = { duration: 0.275, ease: "easeInOut" } as const;
 
 const NEW_ORG_DAY_THRESHOLD = 3;
 const NEW_ORG_ACTION_THRESHOLD = 5;
 const MAX_NAMED_TILES = 5;
+const EXPANDED_LIST_LIMIT = 50;
 // "Since your last visit" reads as broken when the gap is minutes wide
 // (quick reload / tab flip). Below this, last-24h is the more useful framing.
 const SINCE_VISIT_MIN_MS = 60 * 60 * 1000;
@@ -38,6 +46,13 @@ const TILE_CAPTION: Record<SignalType, string> = {
   churn_risk: "Churn risks flagged",
   kb_gap: "KB gaps spotted",
   trending_issue: "Trends spotted",
+};
+
+type Action = {
+  id: string;
+  signalType: string;
+  entityId: string;
+  appliedAt: Date;
 };
 
 type Props = {
@@ -130,6 +145,8 @@ export function LeverageReport({
     return () => clearTimeout(t);
   }, [isRenderable, organizationId, userId]);
 
+  const [expandedKey, setExpandedKey] = useState<string | null>(null);
+
   if (!allActions) return <LeverageReport.Skeleton />;
   if (isNewOrg) return null;
 
@@ -146,6 +163,7 @@ export function LeverageReport({
   const named = sorted.slice(0, MAX_NAMED_TILES);
   const overflow = sorted.slice(MAX_NAMED_TILES);
   const otherCount = overflow.reduce((sum, [, c]) => sum + c, 0);
+  const overflowTypes = new Set(overflow.map(([t]) => t));
 
   type Tile =
     | { kind: "named"; type: SignalType; count: number }
@@ -165,6 +183,25 @@ export function LeverageReport({
       ? "since your last visit"
       : "in the last 24 hours";
 
+  const actionsForExpanded = (key: string): Action[] => {
+    const matches = inWindow.filter((a) => {
+      const t = signalTypeFromStored(a.signalType);
+      if (key === "other") {
+        return !t || overflowTypes.has(t);
+      }
+      return t === key;
+    });
+    return matches
+      .map((a) => ({
+        id: a.id,
+        signalType: a.signalType,
+        entityId: a.entityId,
+        appliedAt: new Date(a.appliedAt),
+      }))
+      .sort((a, b) => b.appliedAt.getTime() - a.appliedAt.getTime())
+      .slice(0, EXPANDED_LIST_LIMIT);
+  };
+
   return (
     <div className="flex w-full max-w-4xl mx-auto flex-col gap-4">
       <div className="flex flex-col gap-1 px-1">
@@ -175,74 +212,318 @@ export function LeverageReport({
           Here's what FrontDesk handled {windowPhrase}.
         </div>
       </div>
-      <div
+      <LayoutGroup>
+        <motion.div
+          layout
+          style={containerGridStyle(tiles.length, expandedKey)}
+          className="grid gap-2"
+          transition={TILE_TRANSITION}
+        >
+          {tiles.map((tile, i) => {
+            const key = tile.kind === "named" ? tile.type : "other";
+            const isExpanded = expandedKey === key;
+            const caption =
+              tile.kind === "named" ? TILE_CAPTION[tile.type] : "Other actions";
+            const isHero =
+              !expandedKey && tileSpan(tiles.length, i).includes("row-span-2");
+
+            return (
+              <motion.div
+                key={key}
+                layout
+                layoutId={`tile-${key}`}
+                transition={TILE_TRANSITION}
+                style={tileGridStyle(tiles.length, i, expandedKey, key)}
+                className="min-w-0"
+              >
+                {isExpanded ? (
+                  <ExpandedTile
+                    caption={caption}
+                    count={tile.count}
+                    actions={actionsForExpanded(key)}
+                    organizationId={organizationId}
+                    reportWindowStart={reportWindowStart}
+                    onClose={() => setExpandedKey(null)}
+                    onViewAll={() => {
+                      if (tile.kind === "named") {
+                        posthog?.capture("signal:report_link_clicked", {
+                          signal_type: tile.type,
+                          count: tile.count,
+                          organization_id: organizationId,
+                        });
+                      }
+                    }}
+                    navTarget={tile.kind === "named" ? tile.type : null}
+                  />
+                ) : (
+                  <CompactTile
+                    caption={caption}
+                    count={tile.count}
+                    isHero={isHero}
+                    isCompactRow={!!expandedKey}
+                    onClick={() => {
+                      setExpandedKey(key);
+                      if (tile.kind === "named") {
+                        posthog?.capture("signal:report_tile_expanded", {
+                          signal_type: tile.type,
+                          count: tile.count,
+                          organization_id: organizationId,
+                        });
+                      }
+                    }}
+                  />
+                )}
+              </motion.div>
+            );
+          })}
+        </motion.div>
+      </LayoutGroup>
+    </div>
+  );
+}
+
+function CompactTile({
+  caption,
+  count,
+  isHero,
+  isCompactRow,
+  onClick,
+}: {
+  caption: string;
+  count: number;
+  isHero: boolean;
+  isCompactRow: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex h-full w-full flex-col justify-between rounded-lg border border-border bg-card text-left transition-colors hover:bg-accent",
+        isCompactRow ? "p-2.5" : isHero ? "p-4" : "p-3",
+      )}
+    >
+      <motion.div
+        layout="position"
         className={cn(
-          "grid grid-cols-6 grid-rows-2 gap-2 auto-rows-fr",
-          "min-h-[180px]",
+          "text-foreground-primary font-semibold leading-none",
+          isCompactRow ? "text-2xl" : isHero ? "text-5xl" : "text-3xl",
         )}
       >
-        {tiles.map((tile, i) => {
-          const span = tileSpan(tiles.length, i);
-          const isHero = span.includes("row-span-2");
-          const key = tile.kind === "named" ? tile.type : "other";
-          const caption =
-            tile.kind === "named" ? TILE_CAPTION[tile.type] : "Other actions";
-          const tileBody = (
-            <div
-              className={cn(
-                "flex h-full w-full flex-col justify-between rounded-lg border border-border bg-card transition-colors hover:bg-accent",
-                isHero ? "p-4" : "p-3",
-              )}
-            >
-              <div
-                className={cn(
-                  "text-foreground-primary font-semibold leading-none",
-                  isHero ? "text-5xl" : "text-3xl",
-                )}
-              >
-                {tile.count}
-              </div>
-              <div
-                className={cn(
-                  "text-foreground-secondary",
-                  isHero ? "text-base" : "text-xs",
-                )}
-              >
-                {caption}
-              </div>
-            </div>
-          );
+        {count}
+      </motion.div>
+      <motion.div
+        layout="position"
+        className={cn(
+          "text-foreground-secondary truncate",
+          isCompactRow ? "text-[11px]" : isHero ? "text-base" : "text-xs",
+        )}
+      >
+        {caption}
+      </motion.div>
+    </button>
+  );
+}
 
-          if (tile.kind === "other") {
-            return (
-              <div key={key} className={span}>
-                {tileBody}
-              </div>
-            );
-          }
+function containerGridStyle(
+  total: number,
+  expandedKey: string | null,
+): CSSProperties {
+  if (expandedKey == null) {
+    return {
+      gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
+      gridTemplateRows: "repeat(2, minmax(90px, 1fr))",
+    };
+  }
+  const otherCount = Math.max(1, total - 1);
+  return {
+    gridTemplateColumns: `repeat(${otherCount}, minmax(0, 1fr))`,
+    gridTemplateRows:
+      total > 1 ? "minmax(420px, auto) 80px" : "minmax(420px, auto)",
+  };
+}
 
-          return (
+function tileGridStyle(
+  total: number,
+  index: number,
+  expandedKey: string | null,
+  key: string,
+): CSSProperties {
+  if (expandedKey != null) {
+    if (key === expandedKey) {
+      return { gridColumn: "1 / -1", gridRow: "1" };
+    }
+    return { gridRow: "2" };
+  }
+  return tileSpanStyle(total, index);
+}
+
+function tileSpanStyle(total: number, index: number): CSSProperties {
+  if (total === 1) return { gridColumn: "span 6", gridRow: "span 2" };
+  if (total === 2) return { gridColumn: "span 3", gridRow: "span 2" };
+  if (total === 3) {
+    if (index === 0) return { gridColumn: "span 3", gridRow: "span 2" };
+    return { gridColumn: "span 3", gridRow: "span 1" };
+  }
+  if (total === 4) {
+    if (index < 2) return { gridColumn: "span 2", gridRow: "span 2" };
+    return { gridColumn: "span 2", gridRow: "span 1" };
+  }
+  if (total === 5) {
+    if (index === 0) return { gridColumn: "span 2", gridRow: "span 2" };
+    return { gridColumn: "span 2", gridRow: "span 1" };
+  }
+  return { gridColumn: "span 2", gridRow: "span 1" };
+}
+
+function ExpandedTile({
+  caption,
+  count,
+  actions,
+  organizationId,
+  reportWindowStart,
+  onClose,
+  onViewAll,
+  navTarget,
+}: {
+  caption: string;
+  count: number;
+  actions: Action[];
+  organizationId: string;
+  reportWindowStart: Date;
+  onClose: () => void;
+  onViewAll: () => void;
+  navTarget: SignalType | null;
+}) {
+  const threadIds = useMemo(
+    () => Array.from(new Set(actions.map((a) => a.entityId))),
+    [actions],
+  );
+  const threads = useLiveQuery(
+    query.thread
+      .where({
+        id: { $in: threadIds },
+        organizationId,
+      })
+      .include({ author: { include: { user: true } } }),
+  );
+  type ThreadInfo = {
+    id: string;
+    name: string;
+    shortId: number | null;
+    authorName: string | null;
+    authorImage: string | null;
+  };
+  const threadById = useMemo(() => {
+    const m = new Map<string, ThreadInfo>();
+    for (const t of threads ?? []) {
+      m.set(t.id, {
+        id: t.id,
+        name: t.name,
+        shortId: t.shortId,
+        authorName: t.author?.name ?? t.author?.user?.name ?? null,
+        authorImage: t.author?.user?.image ?? null,
+      });
+    }
+    return m;
+  }, [threads]);
+
+  return (
+    <div className="flex h-full w-full flex-col rounded-lg border border-border bg-card">
+      <div className="flex items-center justify-between gap-3 px-4 py-3">
+        <motion.div
+          layout="position"
+          className="flex min-w-0 items-baseline gap-2"
+        >
+          <div className="text-foreground-primary text-lg font-semibold leading-none">
+            {count}
+          </div>
+          <div className="truncate text-foreground-secondary text-sm">
+            {caption}
+          </div>
+        </motion.div>
+        <div className="flex shrink-0 items-center gap-2">
+          {/* {navTarget ? (
             <Link
-              key={key}
               to="/app/threads"
               search={{
-                signalType: tile.type,
+                signalType: navTarget,
                 since: reportWindowStart.toISOString(),
               }}
-              onClick={() =>
-                posthog?.capture("signal:report_link_clicked", {
-                  signal_type: tile.type,
-                  count: tile.count,
-                  organization_id: organizationId,
-                })
-              }
-              className={cn(span, "block")}
+              onClick={onViewAll}
+              className="inline-flex items-center gap-1 text-foreground-secondary text-xs transition-colors hover:text-foreground-primary"
             >
-              {tileBody}
+              View all
+              <ArrowRight className="size-3" />
             </Link>
-          );
-        })}
+          ) : null} */}
+          <ActionButton
+            size="sm"
+            variant="ghost"
+            tooltip="Close"
+            onClick={onClose}
+          >
+            <X className="size-3.5" />
+          </ActionButton>
+        </div>
       </div>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.2, delay: 0.15 }}
+        className="flex-1 overflow-y-auto border-t border-border"
+      >
+        {actions.length === 0 ? (
+          <div className="flex h-full items-center justify-center p-6 text-foreground-secondary text-sm">
+            No actions to show.
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {actions.map((action) => {
+              const thread = threadById.get(action.entityId);
+              const idParam = thread
+                ? buildThreadParam(thread)
+                : action.entityId;
+              return (
+                <li key={action.id}>
+                  <Link
+                    to="/app/threads/$id"
+                    params={{ id: idParam }}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-accent"
+                  >
+                    <div className="flex min-w-0 items-center gap-2">
+                      <Avatar
+                        variant="user"
+                        size="md"
+                        src={thread?.authorImage}
+                        alt={thread?.authorName ?? undefined}
+                        fallback={thread?.authorName ?? "?"}
+                      />
+                      <span className="truncate text-foreground-primary text-sm">
+                        {thread?.name ?? "Untitled thread"}
+                      </span>
+                      {thread?.shortId != null ? (
+                        <span className="shrink-0 text-foreground-secondary text-xs tabular-nums">
+                          #{thread.shortId}
+                        </span>
+                      ) : null}
+                    </div>
+                    <span className="shrink-0 text-foreground-secondary text-xs">
+                      {formatRelativeTime(action.appliedAt)}
+                    </span>
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {count > actions.length ? (
+          <div className="px-4 py-2 text-foreground-secondary text-xs">
+            Showing {actions.length} of {count}.
+          </div>
+        ) : null}
+      </motion.div>
     </div>
   );
 }
