@@ -9,6 +9,7 @@ import {
   log,
 } from "@workspace/utils/logging";
 import z from "zod";
+import { AI_PRICING } from "../lib/ai-pricing";
 import { type PrPayload, upsertPrVector } from "../lib/qdrant/pull-requests";
 import { matchPrToThreads } from "./match-pr-threads";
 
@@ -139,14 +140,7 @@ export const summarizePr = async (
   requestLog?: ReturnType<typeof createLogger>,
 ): Promise<z.infer<typeof prSummarySchema>> => {
   const localRequestLog = requestLog ?? createLogger({ action: "summarize-pr" });
-  const localAi =
-    ai ??
-    createAILogger(localRequestLog, {
-      cost: {
-        "claude-sonnet-4.6": { input: 3, output: 15 },
-        "anthropic/claude-sonnet-4.6": { input: 3, output: 15 },
-      },
-    });
+  const localAi = ai ?? createAILogger(localRequestLog, { cost: AI_PRICING });
 
   const prompt = `
 You are analyzing a merged pull request to determine what user-facing issue it fixes or what change it introduces. Your output will be used to match this PR against open support threads.
@@ -288,12 +282,7 @@ export const handleEmbedPr = async (job: Job<EmbedPrJobData>) => {
     prRef,
     organizationId: data.organizationId,
   });
-  const ai = createAILogger(requestLog, {
-    cost: {
-      "claude-sonnet-4.6": { input: 3, output: 15 },
-      "anthropic/claude-sonnet-4.6": { input: 3, output: 15 },
-    },
-  });
+  const ai = createAILogger(requestLog, { cost: AI_PRICING });
   let status = 200;
 
   try {

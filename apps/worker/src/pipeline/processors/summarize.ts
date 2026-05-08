@@ -1,9 +1,11 @@
 import { google } from "@ai-sdk/google";
 import type { InferLiveObject } from "@live-state/sync";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import type { schema } from "api/schema";
 import { createHash } from "node:crypto";
 import z from "zod";
+import { AI_PRICING } from "../../lib/ai-pricing";
 import type { ParsedSummary } from "../../types";
 import type {
   ProcessorDefinition,
@@ -96,6 +98,7 @@ export const summarizeThread = async (
     typeof schema.thread,
     { messages: true; labels: { label: true } }
   >,
+  ai?: ReturnType<typeof createAILogger>,
 ): Promise<ParsedSummary> => {
   console.log(`Summarizing thread ${thread.id}`);
   const firstMessage = thread.messages?.sort((a, b) =>
@@ -162,8 +165,9 @@ Think: "If another user has the exact same underlying problem with different wor
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
+      const baseModel = google("gemini-3-flash-preview");
       const { output } = await generateText({
-        model: google("gemini-3-flash-preview"),
+        model: ai ? ai.wrap(baseModel) : baseModel,
         output: Output.object({ schema: summarySchema }),
         prompt,
       });
@@ -253,11 +257,21 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
     context: ProcessorExecuteContext,
   ): Promise<ProcessorResult<SummarizeOutput>> {
     const { thread, threadId } = context;
+    const requestLog = createLogger({
+      action: "pipeline.summarize",
+      processor: "summarize",
+      threadId,
+      organizationId: thread.organizationId,
+      jobId: context.context.jobId,
+    });
+    const ai = createAILogger(requestLog, { cost: AI_PRICING });
+    let status = 200;
 
     try {
-      const summary = await summarizeThread(thread);
+      const summary = await summarizeThread(thread, ai);
 
       if (!summary || !summary.title || summary.title.trim().length === 0) {
+        status = 500;
         return {
           threadId,
           success: false,
@@ -271,15 +285,21 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
         data: { summary },
       };
     } catch (error) {
+      status = 500;
       console.error(
         `Summarize processor failed for thread ${threadId}:`,
         error,
+      );
+      requestLog.error(
+        `Summarize failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
       );
       return {
         threadId,
         success: false,
         error: error instanceof Error ? error.message : String(error),
       };
+    } finally {
+      requestLog.emit({ status });
     }
   },
 };
