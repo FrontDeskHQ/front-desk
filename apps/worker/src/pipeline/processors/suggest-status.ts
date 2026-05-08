@@ -1,10 +1,12 @@
 import { google } from "@ai-sdk/google";
 import { computeUrgency } from "@workspace/schemas/signals";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 import z from "zod";
+import { AI_PRICING } from "../../lib/ai-pricing";
 import { fetchClient } from "../../lib/database/client";
 import type {
   ProcessorDefinition,
@@ -98,6 +100,7 @@ REASONING FORMAT:
 const generateStatusSuggestion = async (
   thread: ProcessorExecuteContext["thread"],
   currentStatus: number,
+  ai?: ReturnType<typeof createAILogger>,
 ): Promise<{
   suggestedStatus: number | null;
   confidence: number;
@@ -139,8 +142,9 @@ const generateStatusSuggestion = async (
     .map(([status, label]) => `- ${label} (${status})`)
     .join("\n");
 
+  const baseModel = google("gemini-3-flash-preview");
   const { output: aiResult } = await generateText({
-    model: google("gemini-3-flash-preview"),
+    model: ai ? ai.wrap(baseModel) : baseModel,
     output: Output.object({
       schema: z.object({
         suggestedStatus: z
@@ -249,6 +253,15 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
       const { thread, threadId } = context;
       const organizationId = thread.organizationId;
       const currentStatus = thread.status ?? 0;
+      const requestLog = createLogger({
+        action: "pipeline.suggest-status",
+        processor: "suggest-status",
+        threadId,
+        organizationId,
+        jobId: context.context.jobId,
+      });
+      const ai = createAILogger(requestLog, { cost: AI_PRICING });
+      let status = 200;
 
       try {
         console.log(
@@ -256,7 +269,7 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
         );
 
         const { suggestedStatus, confidence, reasoning } =
-          await generateStatusSuggestion(thread, currentStatus);
+          await generateStatusSuggestion(thread, currentStatus, ai);
 
         // Get existing status suggestion for this thread
         const existingSuggestions = (await fetchClient.query.suggestion
@@ -345,15 +358,21 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
           },
         };
       } catch (error) {
+        status = 500;
         console.error(
           `Suggest-status processor failed for thread ${threadId}:`,
           error,
+        );
+        requestLog.error(
+          `Suggest-status failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
         );
         return {
           threadId,
           success: false,
           error: error instanceof Error ? error.message : String(error),
         };
+      } finally {
+        requestLog.emit({ status });
       }
     },
   };

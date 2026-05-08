@@ -1,10 +1,12 @@
 import { google } from "@ai-sdk/google";
 import { computeUrgency } from "@workspace/schemas/signals";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 import z from "zod";
+import { AI_PRICING } from "../../lib/ai-pricing";
 import { fetchClient } from "../../lib/database/client";
 import type {
   ProcessorDefinition,
@@ -98,7 +100,8 @@ const evaluateDuplicates = async (
     title: string;
     shortDescription: string;
     score: number;
-  }>
+  }>,
+  ai?: ReturnType<typeof createAILogger>,
 ): Promise<DuplicateEvaluation[]> => {
   if (candidates.length === 0) {
     return [];
@@ -111,8 +114,9 @@ const evaluateDuplicates = async (
     )
     .join("\n\n");
 
+  const baseModel = google("gemini-3-flash-preview");
   const { output: aiResult } = await generateText({
-    model: google("gemini-3-flash-preview"),
+    model: ai ? ai.wrap(baseModel) : baseModel,
     output: Output.object({
       schema: evaluationSchema,
     }),
@@ -179,6 +183,15 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
     ): Promise<ProcessorResult<SuggestDuplicatesOutput>> {
       const { context: jobContext, thread, threadId } = context;
       const organizationId = thread.organizationId;
+      const requestLog = createLogger({
+        action: "pipeline.suggest-duplicates",
+        processor: "suggest-duplicates",
+        threadId,
+        organizationId,
+        jobId: jobContext.jobId,
+      });
+      const ai = createAILogger(requestLog, { cost: AI_PRICING });
+      let status = 200;
 
       try {
         console.log(`Suggesting duplicates for thread ${threadId}`);
@@ -256,7 +269,8 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
         // Evaluate duplicates using LLM
         const evaluations = await evaluateDuplicates(
           currentThreadData,
-          candidateData
+          candidateData,
+          ai
         );
 
         // Find the best duplicate: high confidence only, then by similarity score
@@ -375,15 +389,21 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
           },
         };
       } catch (error) {
+        status = 500;
         console.error(
           `Suggest-duplicates processor failed for thread ${threadId}:`,
           error
+        );
+        requestLog.error(
+          `Suggest-duplicates failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
         );
         return {
           threadId,
           success: false,
           error: error instanceof Error ? error.message : String(error),
         };
+      } finally {
+        requestLog.emit({ status });
       }
     },
   };

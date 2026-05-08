@@ -1,10 +1,12 @@
 import { google } from "@ai-sdk/google";
-import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { canDoAutonomously, computeUrgency } from "@workspace/schemas/signals";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
+import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { generateText, Output } from "ai";
 import { createHash } from "node:crypto";
 import { ulid } from "ulid";
 import z from "zod";
+import { AI_PRICING } from "../../lib/ai-pricing";
 import { getOrgAutonomy } from "../../lib/autonomy";
 import { fetchClient } from "../../lib/database/client";
 import type {
@@ -48,6 +50,7 @@ const computeSha256 = (data: string): string => {
 const generateLabelSuggestions = async (
   thread: ProcessorExecuteContext["thread"],
   labels: Label[],
+  ai?: ReturnType<typeof createAILogger>,
 ): Promise<string[]> => {
   const enabledLabels = labels.filter((l) => l.enabled);
 
@@ -73,8 +76,9 @@ const generateLabelSuggestions = async (
     name: l.name,
   }));
 
+  const baseModel = google("gemini-3-flash-preview");
   const { output: aiResult } = await generateText({
-    model: google("gemini-3-flash-preview"),
+    model: ai ? ai.wrap(baseModel) : baseModel,
     output: Output.object({
       schema: z.object({
         labelIds: z
@@ -134,6 +138,15 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
     ): Promise<ProcessorResult<SuggestLabelsOutput>> {
       const { thread, threadId } = context;
       const organizationId = thread.organizationId;
+      const requestLog = createLogger({
+        action: "pipeline.suggest-labels",
+        processor: "suggest-labels",
+        threadId,
+        organizationId,
+        jobId: context.context.jobId,
+      });
+      const ai = createAILogger(requestLog, { cost: AI_PRICING });
+      let status = 200;
 
       try {
         console.log(`Suggesting labels for thread ${threadId}`);
@@ -173,6 +186,7 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
         const suggestedLabelIds = await generateLabelSuggestions(
           thread,
           allLabels,
+          ai,
         );
 
         const autonomyMap = await getOrgAutonomy(organizationId);
@@ -301,15 +315,21 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
           data: { labelIds: filteredSuggestedLabelIds, cached: false },
         };
       } catch (error) {
+        status = 500;
         console.error(
           `Suggest-labels processor failed for thread ${threadId}:`,
           error,
+        );
+        requestLog.error(
+          `Suggest-labels failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
         );
         return {
           threadId,
           success: false,
           error: error instanceof Error ? error.message : String(error),
         };
+      } finally {
+        requestLog.emit({ status });
       }
     },
   };

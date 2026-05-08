@@ -1,6 +1,8 @@
 import { google } from "@ai-sdk/google";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { embed } from "ai";
 import { createHash } from "node:crypto";
+import { AI_PRICING } from "../../lib/ai-pricing";
 import {
   type ThreadPayload,
   upsertThreadVector,
@@ -36,13 +38,16 @@ const createSummaryText = (summary: ParsedSummary): string => {
 /**
  * Generate embedding vector from text
  */
-const generateEmbedding = async (text: string): Promise<number[] | null> => {
+const generateEmbedding = async (
+  text: string,
+  ai?: ReturnType<typeof createAILogger>,
+): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
 
   try {
-    const { embedding } = await embed({
+    const { embedding, usage } = await embed({
       model: embeddingModel,
       value: text,
       providerOptions: {
@@ -50,6 +55,12 @@ const generateEmbedding = async (text: string): Promise<number[] | null> => {
           taskType: "SEMANTIC_SIMILARITY",
         },
       },
+    });
+    ai?.captureEmbed({
+      usage,
+      model: EMBEDDING_MODEL,
+      dimensions: embedding.length,
+      count: 1,
     });
 
     // Normalize the embedding vector
@@ -141,6 +152,15 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
     context: ProcessorExecuteContext,
   ): Promise<ProcessorResult<EmbedOutput>> {
     const { context: jobContext, thread, threadId } = context;
+    const requestLog = createLogger({
+      action: "pipeline.embed",
+      processor: "embed",
+      threadId,
+      organizationId: thread.organizationId,
+      jobId: jobContext.jobId,
+    });
+    const ai = createAILogger(requestLog, { cost: AI_PRICING });
+    let status = 200;
 
     const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
       "summarize",
@@ -148,6 +168,8 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
     );
 
     if (!summarizeOutput) {
+      status = 500;
+      requestLog.emit({ status });
       return {
         threadId,
         success: false,
@@ -162,7 +184,7 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
 
       const summaryText = createSummaryText(summary);
 
-      const embedding = await generateEmbedding(summaryText);
+      const embedding = await generateEmbedding(summaryText, ai);
 
       if (!embedding) {
         return {
@@ -207,12 +229,18 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
         },
       };
     } catch (error) {
+      status = 500;
       console.error(`Embed processor failed for thread ${threadId}:`, error);
+      requestLog.error(
+        `Embed failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+      );
       return {
         threadId,
         success: false,
         error: error instanceof Error ? error.message : String(error),
       };
+    } finally {
+      requestLog.emit({ status });
     }
   },
 };

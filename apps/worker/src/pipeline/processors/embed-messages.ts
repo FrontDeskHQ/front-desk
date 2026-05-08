@@ -1,8 +1,10 @@
 import { google } from "@ai-sdk/google";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
 import { createHash } from "node:crypto";
 import { ULIDtoUUID } from "ulid-uuid-converter";
+import { AI_PRICING } from "../../lib/ai-pricing";
 import {
   deleteStaleMessageVectors,
   type MessagePayload,
@@ -35,13 +37,14 @@ const computeSha256 = (data: string): string => {
  */
 const generateMessageEmbedding = async (
   text: string,
+  ai?: ReturnType<typeof createAILogger>,
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
 
   try {
-    const { embedding } = await embed({
+    const { embedding, usage } = await embed({
       model: embeddingModel,
       value: text,
       providerOptions: {
@@ -49,6 +52,12 @@ const generateMessageEmbedding = async (
           taskType: "RETRIEVAL_DOCUMENT",
         },
       },
+    });
+    ai?.captureEmbed({
+      usage,
+      model: EMBEDDING_MODEL,
+      dimensions: embedding.length,
+      count: 1,
     });
 
     const norm = Math.hypot(...embedding);
@@ -93,8 +102,19 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
     ): Promise<ProcessorResult<EmbedMessagesOutput>> {
       const { thread, threadId } = context;
       const messages = thread.messages ?? [];
+      const requestLog = createLogger({
+        action: "pipeline.embed-messages",
+        processor: "embed-messages",
+        threadId,
+        organizationId: thread.organizationId,
+        jobId: context.context.jobId,
+        messageCount: messages.length,
+      });
+      const ai = createAILogger(requestLog, { cost: AI_PRICING });
+      let status = 200;
 
       if (messages.length === 0) {
+        requestLog.emit({ status });
         return {
           threadId,
           success: true,
@@ -155,7 +175,7 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
 
           const batchResults = await Promise.all(
             batch.map(async ({ message, plainText, index }) => {
-              const embedding = await generateMessageEmbedding(plainText);
+              const embedding = await generateMessageEmbedding(plainText, ai);
               if (!embedding) return null;
               const qdrantPointId = ULIDtoUUID(message.id.toUpperCase(), {
                 nullOnInvalidInput: true,
@@ -227,15 +247,21 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
           },
         };
       } catch (error) {
+        status = 500;
         console.error(
           `Embed-messages processor failed for thread ${threadId}:`,
           error,
+        );
+        requestLog.error(
+          `Embed-messages failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
         );
         return {
           threadId,
           success: false,
           error: error instanceof Error ? error.message : String(error),
         };
+      } finally {
+        requestLog.emit({ status });
       }
     },
   };

@@ -3,6 +3,7 @@ import { embed } from "ai";
 import { createHash } from "node:crypto";
 import type { Job } from "bullmq";
 import { createAILogger, createLogger, log } from "@workspace/utils/logging";
+import { AI_PRICING } from "../lib/ai-pricing";
 import { fetchClient } from "../lib/database/client";
 import {
   type DocumentationChunkPayload,
@@ -257,7 +258,7 @@ export const handleCrawlDocumentation = async (
     organizationId,
     baseUrl,
   });
-  const ai = createAILogger(requestLog);
+  const ai = createAILogger(requestLog, { cost: AI_PRICING });
   let status = 200;
 
   log.info(
