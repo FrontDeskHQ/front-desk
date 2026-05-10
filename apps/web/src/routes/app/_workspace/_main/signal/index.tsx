@@ -9,7 +9,8 @@ import { usePostHog } from "posthog-js/react";
 import { useMemo } from "react";
 import { ActionList } from "~/components/signals/action-list";
 import type { ActorContext } from "~/components/signals/action-row";
-import { LeverageReport } from "~/components/signals/leverage-report";
+import { Greeting } from "~/components/signals/greeting";
+// import { LeverageReport } from "~/components/signals/leverage-report";
 import { activeOrganizationAtom } from "~/lib/atoms";
 
 export const Route = createFileRoute("/app/_workspace/_main/signal/")({
@@ -47,14 +48,15 @@ function RouteComponent() {
       <CardHeader>
         <CardTitle>Signals</CardTitle>
       </CardHeader>
-      <CardContent className="flex flex-col gap-8 overflow-y-auto pt-6">
-        <LeverageReport
+      <CardContent className="flex flex-col gap-4 overflow-y-auto py-10!">
+        <Greeting userName={user.name} />
+        {/* <LeverageReport
           organizationId={currentOrg.id}
           organizationCreatedAt={orgCreatedAt}
           userId={user.id}
           userName={user.name}
           posthog={posthog ?? null}
-        />
+        /> */}
         <ActionList
           organizationId={currentOrg.id}
           ctx={ctx}

@@ -7,7 +7,6 @@ import {
 } from "@workspace/schemas/signals";
 import { ActionButton } from "@workspace/ui/components/button";
 import { statusValues } from "@workspace/ui/components/indicator";
-import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Check, ExternalLink } from "lucide-react";
 import { z } from "zod";
@@ -48,11 +47,17 @@ function TitleLabel({ type }: { type: SignalType }) {
   return <span>{SIGNAL_LABEL[type]}</span>;
 }
 
-function ThreadRef({ thread }: { thread: ThreadWithRels | undefined }) {
+function ThreadRef({
+  thread,
+  variant,
+}: {
+  thread: ThreadWithRels | undefined;
+  variant?: "chip" | "unstyled";
+}) {
   if (!thread) return null;
   return (
     <Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }}>
-      <ThreadChip thread={thread} />
+      <ThreadChip thread={thread} variant={variant} />
     </Link>
   );
 }
@@ -87,15 +92,17 @@ export function StatusActionRow({
   const thread = threadsMap.get(suggestion.entityId);
   return (
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
-      <ActionRow.Title>
-        <TitleLabel type="status" />
-        <ActionRow.Meta>
-          {formatRelativeTime(suggestion.createdAt)}
-        </ActionRow.Meta>
-      </ActionRow.Title>
-      <ActionRow.Reason>
-        <ThreadRef thread={thread} />
-      </ActionRow.Reason>
+      <ActionRow.Header>
+        <ActionRow.Title>
+          <ThreadRef thread={thread} variant="unstyled" />
+        </ActionRow.Title>
+        <ActionRow.Reason>
+          <TitleLabel type="status" />
+        </ActionRow.Reason>
+        <ActionRow.Dismiss
+          onClick={() => dismissStatusSuggestion(suggestion, ctx)}
+        />
+      </ActionRow.Header>
       <ActionRow.Actions>
         <ActionButton
           size="sm"
@@ -106,9 +113,6 @@ export function StatusActionRow({
           <Check className="size-3.5" /> Apply
         </ActionButton>
       </ActionRow.Actions>
-      <ActionRow.Dismiss
-        onClick={() => dismissStatusSuggestion(suggestion, ctx)}
-      />
     </ActionRow.Root>
   );
 }
@@ -125,21 +129,25 @@ export function DuplicateActionRow({
   const pct = Math.round(parsed.score * 100);
   return (
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
-      <ActionRow.Title>
-        <TitleLabel type="duplicate" />
-        <ActionRow.Meta>{pct}% match</ActionRow.Meta>
-      </ActionRow.Title>
-      <ActionRow.Reason>
-        {thread && target ? (
-          <span className="inline-flex items-center gap-1.5">
-            <ThreadRef thread={thread} />
-            <span>is a duplicate of</span>
-            <ThreadRef thread={target} />
-          </span>
-        ) : (
-          parsed.reason
-        )}
-      </ActionRow.Reason>
+      <ActionRow.Header>
+        <ActionRow.Title>
+          <ThreadRef thread={thread} variant="unstyled" />
+        </ActionRow.Title>
+        <ActionRow.Reason>
+          {target ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span>is a duplicate of</span>
+              <ThreadRef thread={target} />
+            </span>
+          ) : (
+            parsed.reason
+          )}
+        </ActionRow.Reason>
+        <ActionRow.Dismiss
+          label="Skip"
+          onClick={() => dismissDuplicateSuggestion(parsed, ctx)}
+        />
+      </ActionRow.Header>
       <ActionRow.Actions>
         <ActionButton
           size="sm"
@@ -150,10 +158,6 @@ export function DuplicateActionRow({
           Link
         </ActionButton>
       </ActionRow.Actions>
-      <ActionRow.Dismiss
-        label="Skip"
-        onClick={() => dismissDuplicateSuggestion(parsed, ctx)}
-      />
     </ActionRow.Root>
   );
 }
@@ -168,23 +172,28 @@ export function LinkedPrActionRow({
   const thread = threadsMap.get(suggestion.entityId);
   return (
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
-      <ActionRow.Title>
-        <TitleLabel type="linked_pr" />
-        <ActionRow.Meta>
-          <a
-            href={parsed.prUrl}
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 hover:underline"
-          >
-            {parsed.repo}#{parsed.prNumber}
-            <ExternalLink className="size-3" />
-          </a>
-        </ActionRow.Meta>
-      </ActionRow.Title>
-      <ActionRow.Reason>
-        <ThreadRef thread={thread} />
-      </ActionRow.Reason>
+      <ActionRow.Header>
+        <ActionRow.Title>
+          <ThreadRef thread={thread} variant="unstyled" />
+        </ActionRow.Title>
+        <ActionRow.Reason>
+          <span className="inline-flex items-center gap-1.5">
+            <TitleLabel type="linked_pr" />
+            <a
+              href={parsed.prUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1 hover:underline"
+            >
+              {parsed.repo}#{parsed.prNumber}
+              <ExternalLink className="size-3" />
+            </a>
+          </span>
+        </ActionRow.Reason>
+        <ActionRow.Dismiss
+          onClick={() => dismissLinkedPrSuggestion(parsed, ctx)}
+        />
+      </ActionRow.Header>
       <ActionRow.Actions>
         <ActionButton
           size="sm"
@@ -195,9 +204,6 @@ export function LinkedPrActionRow({
           Link PR
         </ActionButton>
       </ActionRow.Actions>
-      <ActionRow.Dismiss
-        onClick={() => dismissLinkedPrSuggestion(parsed, ctx)}
-      />
     </ActionRow.Root>
   );
 }
@@ -212,23 +218,22 @@ export function PendingReplyActionRow({
   const thread = threadsMap.get(suggestion.entityId);
   return (
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
-      <ActionRow.Title>
-        <TitleLabel type="pending_reply" />
-        <ActionRow.Meta>
-          {formatRelativeTime(new Date(parsed.lastMessageAt))}
-        </ActionRow.Meta>
-      </ActionRow.Title>
-      <ActionRow.Reason>
-        <ThreadRef thread={thread} />
-      </ActionRow.Reason>
+      <ActionRow.Header>
+        <ActionRow.Title>
+          <ThreadRef thread={thread} variant="unstyled" />
+        </ActionRow.Title>
+        <ActionRow.Reason>
+          <TitleLabel type="pending_reply" />
+        </ActionRow.Reason>
+        <ActionRow.Dismiss
+          onClick={() =>
+            dismissDigestSuggestion(suggestion, "digest:pending_reply", ctx)
+          }
+        />
+      </ActionRow.Header>
       <ActionRow.Actions>
         {thread && <OpenThreadButton thread={thread} label="Open" />}
       </ActionRow.Actions>
-      <ActionRow.Dismiss
-        onClick={() =>
-          dismissDigestSuggestion(suggestion, "digest:pending_reply", ctx)
-        }
-      />
     </ActionRow.Root>
   );
 }
@@ -243,21 +248,22 @@ export function LoopToCloseActionRow({
   const thread = threadsMap.get(suggestion.entityId);
   return (
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
-      <ActionRow.Title>
-        <TitleLabel type="loop_to_close" />
-        <ActionRow.Meta>PR shipped</ActionRow.Meta>
-      </ActionRow.Title>
-      <ActionRow.Reason>
-        <ThreadRef thread={thread} />
-      </ActionRow.Reason>
+      <ActionRow.Header>
+        <ActionRow.Title>
+          <ThreadRef thread={thread} variant="unstyled" />
+        </ActionRow.Title>
+        <ActionRow.Reason>
+          <TitleLabel type="loop_to_close" />
+        </ActionRow.Reason>
+        <ActionRow.Dismiss
+          onClick={() =>
+            dismissDigestSuggestion(suggestion, "digest:loop_to_close", ctx)
+          }
+        />
+      </ActionRow.Header>
       <ActionRow.Actions>
         {thread && <OpenThreadButton thread={thread} label="Notify" />}
       </ActionRow.Actions>
-      <ActionRow.Dismiss
-        onClick={() =>
-          dismissDigestSuggestion(suggestion, "digest:loop_to_close", ctx)
-        }
-      />
     </ActionRow.Root>
   );
 }
