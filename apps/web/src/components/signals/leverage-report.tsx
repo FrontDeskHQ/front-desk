@@ -1,3 +1,21 @@
+import type { PostHog } from "posthog-js";
+import { LeverageReportMock } from "./leverage-report.mock";
+
+type Props = {
+  organizationId: string;
+  organizationCreatedAt: Date | null;
+  userId: string;
+  userName: string;
+  posthog: PostHog | null;
+};
+
+export function LeverageReport(_props: Props) {
+  return <LeverageReportMock />;
+}
+
+/*
+Original implementation (commented out while animating with mock data):
+
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import {
@@ -5,13 +23,13 @@ import {
   signalTypeFromStored,
 } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
-import { ActionButton } from "@workspace/ui/components/button";
+import { buttonVariants } from "@workspace/ui/components/button";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { ArrowRight, X } from "lucide-react";
-import { LayoutGroup, motion } from "motion/react";
+import { Maximize2, X } from "lucide-react";
+import { motion } from "motion/react";
 import type { PostHog } from "posthog-js";
-import { type CSSProperties, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { query } from "~/lib/live-state";
 import {
   markSnapshotSeenThisSession,
@@ -212,35 +230,109 @@ export function LeverageReport({
           Here's what FrontDesk handled {windowPhrase}.
         </div>
       </div>
-      <LayoutGroup>
-        <motion.div
-          layout
-          style={containerGridStyle(tiles.length, expandedKey)}
-          className="grid gap-2"
-          transition={TILE_TRANSITION}
-        >
-          {tiles.map((tile, i) => {
-            const key = tile.kind === "named" ? tile.type : "other";
-            const isExpanded = expandedKey === key;
-            const caption =
-              tile.kind === "named" ? TILE_CAPTION[tile.type] : "Other actions";
-            const isHero =
-              !expandedKey && tileSpan(tiles.length, i).includes("row-span-2");
+      <motion.div
+        initial={false}
+        animate={{ height: expandedKey ? 488 : 188 }}
+        className="overflow-hidden"
+      >
+        <div className="relative h-[488px] w-full">
+          <div
+            className="grid h-[188px] gap-2 grid-cols-6 grid-rows-2"
+            style={{ gridAutoRows: "minmax(90px, 1fr)" }}
+          >
+            {tiles.map((tile, i) => {
+              const key = tile.kind === "named" ? tile.type : "other";
+              const caption =
+                tile.kind === "named"
+                  ? TILE_CAPTION[tile.type]
+                  : "Other actions";
+              const isHero = tileSpan(tiles.length, i).includes("row-span-2");
 
-            return (
-              <motion.div
-                key={key}
-                layout
-                layoutId={`tile-${key}`}
-                transition={TILE_TRANSITION}
-                style={tileGridStyle(tiles.length, i, expandedKey, key)}
-                className="min-w-0"
-              >
-                {isExpanded ? (
+              const onClick = () => {
+                setExpandedKey(key);
+                if (tile.kind === "named") {
+                  posthog?.capture("signal:report_tile_expanded", {
+                    signal_type: tile.type,
+                    count: tile.count,
+                    organization_id: organizationId,
+                  });
+                }
+              };
+
+              return (
+                <div
+                  key={key}
+                  className={cn("min-w-0 relative", tileSpan(tiles.length, i))}
+                >
+                  <motion.button
+                    type="button"
+                    layoutId={`leverage-report-tile-${key}`}
+                    className={cn(
+                      "absolute inset-0 flex justify-between bg-background-tertiary p-3",
+                      tileSpan(tiles.length, i),
+                    )}
+                    style={{
+                      borderRadius: 8,
+                      boxShadow: "inset 0 0 0 1px var(--border)",
+                    }}
+                    onClick={onClick}
+                  >
+                    <div className="flex flex-col justify-between h-full">
+                      <motion.div
+                        layoutId={`leverage-report-tile-count-${key}`}
+                        className={cn(
+                          "text-foreground-primary font-semibold leading-none text-left",
+                          isHero ? "text-5xl" : "text-3xl",
+                        )}
+                      >
+                        {tile.count}
+                      </motion.div>
+                      <motion.div
+                        layoutId={`leverage-report-tile-caption-${key}`}
+                        className={cn(
+                          "text-foreground-secondary truncate text-sm text-left",
+                        )}
+                      >
+                        {caption}
+                      </motion.div>
+                    </div>
+                  </motion.button>
+                  <motion.button
+                    layoutId={`leverage-report-tile-tr-button-${key}`}
+                    type="button"
+                    className={cn(
+                      buttonVariants({ variant: "ghost", size: "icon-sm" }),
+                      "absolute top-3 right-3",
+                    )}
+                    onClick={onClick}
+                  >
+                    <Maximize2 className="size-3.5" />
+                  </motion.button>
+                </div>
+              );
+            })}
+          </div>
+
+          {expandedKey
+            ? (() => {
+                const tile = tiles.find(
+                  (t) =>
+                    (t.kind === "named" ? t.type : "other") === expandedKey,
+                );
+
+                if (!tile) return null;
+
+                const caption =
+                  tile.kind === "named"
+                    ? TILE_CAPTION[tile.type]
+                    : "Other actions";
+
+                return (
                   <ExpandedTile
+                    tileKey={expandedKey}
                     caption={caption}
                     count={tile.count}
-                    actions={actionsForExpanded(key)}
+                    actions={actionsForExpanded(expandedKey)}
                     organizationId={organizationId}
                     reportWindowStart={reportWindowStart}
                     onClose={() => setExpandedKey(null)}
@@ -255,138 +347,24 @@ export function LeverageReport({
                     }}
                     navTarget={tile.kind === "named" ? tile.type : null}
                   />
-                ) : (
-                  <CompactTile
-                    caption={caption}
-                    count={tile.count}
-                    isHero={isHero}
-                    isCompactRow={!!expandedKey}
-                    onClick={() => {
-                      setExpandedKey(key);
-                      if (tile.kind === "named") {
-                        posthog?.capture("signal:report_tile_expanded", {
-                          signal_type: tile.type,
-                          count: tile.count,
-                          organization_id: organizationId,
-                        });
-                      }
-                    }}
-                  />
-                )}
-              </motion.div>
-            );
-          })}
-        </motion.div>
-      </LayoutGroup>
+                );
+              })()
+            : null}
+        </div>
+      </motion.div>
     </div>
   );
 }
 
-function CompactTile({
-  caption,
-  count,
-  isHero,
-  isCompactRow,
-  onClick,
-}: {
-  caption: string;
-  count: number;
-  isHero: boolean;
-  isCompactRow: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex h-full w-full flex-col justify-between rounded-lg border border-border bg-card text-left transition-colors hover:bg-accent",
-        isCompactRow ? "p-2.5" : isHero ? "p-4" : "p-3",
-      )}
-    >
-      <motion.div
-        layout="position"
-        className={cn(
-          "text-foreground-primary font-semibold leading-none",
-          isCompactRow ? "text-2xl" : isHero ? "text-5xl" : "text-3xl",
-        )}
-      >
-        {count}
-      </motion.div>
-      <motion.div
-        layout="position"
-        className={cn(
-          "text-foreground-secondary truncate",
-          isCompactRow ? "text-[11px]" : isHero ? "text-base" : "text-xs",
-        )}
-      >
-        {caption}
-      </motion.div>
-    </button>
-  );
-}
-
-function containerGridStyle(
-  total: number,
-  expandedKey: string | null,
-): CSSProperties {
-  if (expandedKey == null) {
-    return {
-      gridTemplateColumns: "repeat(6, minmax(0, 1fr))",
-      gridTemplateRows: "repeat(2, minmax(90px, 1fr))",
-    };
-  }
-  const otherCount = Math.max(1, total - 1);
-  return {
-    gridTemplateColumns: `repeat(${otherCount}, minmax(0, 1fr))`,
-    gridTemplateRows:
-      total > 1 ? "minmax(420px, auto) 80px" : "minmax(420px, auto)",
-  };
-}
-
-function tileGridStyle(
-  total: number,
-  index: number,
-  expandedKey: string | null,
-  key: string,
-): CSSProperties {
-  if (expandedKey != null) {
-    if (key === expandedKey) {
-      return { gridColumn: "1 / -1", gridRow: "1" };
-    }
-    return { gridRow: "2" };
-  }
-  return tileSpanStyle(total, index);
-}
-
-function tileSpanStyle(total: number, index: number): CSSProperties {
-  if (total === 1) return { gridColumn: "span 6", gridRow: "span 2" };
-  if (total === 2) return { gridColumn: "span 3", gridRow: "span 2" };
-  if (total === 3) {
-    if (index === 0) return { gridColumn: "span 3", gridRow: "span 2" };
-    return { gridColumn: "span 3", gridRow: "span 1" };
-  }
-  if (total === 4) {
-    if (index < 2) return { gridColumn: "span 2", gridRow: "span 2" };
-    return { gridColumn: "span 2", gridRow: "span 1" };
-  }
-  if (total === 5) {
-    if (index === 0) return { gridColumn: "span 2", gridRow: "span 2" };
-    return { gridColumn: "span 2", gridRow: "span 1" };
-  }
-  return { gridColumn: "span 2", gridRow: "span 1" };
-}
-
 function ExpandedTile({
+  tileKey,
   caption,
   count,
   actions,
   organizationId,
-  reportWindowStart,
   onClose,
-  onViewAll,
-  navTarget,
 }: {
+  tileKey: string;
   caption: string;
   count: number;
   actions: Action[];
@@ -430,101 +408,111 @@ function ExpandedTile({
   }, [threads]);
 
   return (
-    <div className="flex h-full w-full flex-col rounded-lg border border-border bg-card">
-      <div className="flex items-center justify-between gap-3 px-4 py-3">
-        <motion.div
-          layout="position"
-          className="flex min-w-0 items-baseline gap-2"
-        >
-          <div className="text-foreground-primary text-lg font-semibold leading-none">
-            {count}
-          </div>
-          <div className="truncate text-foreground-secondary text-sm">
-            {caption}
-          </div>
-        </motion.div>
-        <div className="flex shrink-0 items-center gap-2">
-          {/* {navTarget ? (
-            <Link
-              to="/app/threads"
-              search={{
-                signalType: navTarget,
-                since: reportWindowStart.toISOString(),
-              }}
-              onClick={onViewAll}
-              className="inline-flex items-center gap-1 text-foreground-secondary text-xs transition-colors hover:text-foreground-primary"
-            >
-              View all
-              <ArrowRight className="size-3" />
-            </Link>
-          ) : null} */}
-          <ActionButton
-            size="sm"
-            variant="ghost"
-            tooltip="Close"
-            onClick={onClose}
-          >
-            <X className="size-3.5" />
-          </ActionButton>
-        </div>
-      </div>
+    <>
       <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.2, delay: 0.15 }}
-        className="flex-1 overflow-y-auto border-t border-border"
+        id={`leverage-report-tile-${tileKey}`}
+        layoutId={`leverage-report-tile-${tileKey}`}
+        style={{
+          borderRadius: 8,
+          boxShadow:
+            "inset 0 0 0 1px var(--border), 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1)",
+        }}
+        className="absolute inset-0 overflow-hidden bg-background-tertiary"
       >
-        {actions.length === 0 ? (
-          <div className="flex h-full items-center justify-center p-6 text-foreground-secondary text-sm">
-            No actions to show.
+        <div className="flex h-full w-full flex-col">
+          <div className="flex items-center justify-between gap-3 p-3">
+            <div className="flex min-w-0 items-baseline gap-2">
+              <motion.div
+                layoutId={`tile-count-${tileKey}`}
+                style={{ fontSize: "1.125rem" }}
+                className="text-foreground-primary font-semibold leading-none"
+              >
+                {count}
+              </motion.div>
+              <motion.div
+                initial={{ opacity: 0, filter: "blur(4px)" }}
+                animate={{
+                  opacity: 1,
+                  filter: "blur(0px)",
+                  transition: { duration: 0.15, delay: 0.2 },
+                }}
+                className="truncate text-foreground-secondary text-sm"
+              >
+                {caption}
+              </motion.div>
+            </div>
+            <div className="flex shrink-0 items-center gap-2"></div>
           </div>
-        ) : (
-          <ul className="divide-y divide-border">
-            {actions.map((action) => {
-              const thread = threadById.get(action.entityId);
-              const idParam = thread
-                ? buildThreadParam(thread)
-                : action.entityId;
-              return (
-                <li key={action.id}>
-                  <Link
-                    to="/app/threads/$id"
-                    params={{ id: idParam }}
-                    className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-accent"
-                  >
-                    <div className="flex min-w-0 items-center gap-2">
-                      <Avatar
-                        variant="user"
-                        size="md"
-                        src={thread?.authorImage}
-                        alt={thread?.authorName ?? undefined}
-                        fallback={thread?.authorName ?? "?"}
-                      />
-                      <span className="truncate text-foreground-primary text-sm">
-                        {thread?.name ?? "Untitled thread"}
-                      </span>
-                      {thread?.shortId != null ? (
-                        <span className="shrink-0 text-foreground-secondary text-xs tabular-nums">
-                          #{thread.shortId}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.2, delay: 0.15 }}
+            className="flex-1 overflow-y-auto border-t border-border"
+          >
+            {actions.length === 0 ? (
+              <div className="flex h-full items-center justify-center p-6 text-foreground-secondary text-sm">
+                No actions to show.
+              </div>
+            ) : (
+              <ul className="divide-y divide-border">
+                {actions.map((action) => {
+                  const thread = threadById.get(action.entityId);
+                  const idParam = thread
+                    ? buildThreadParam(thread)
+                    : action.entityId;
+                  return (
+                    <li key={action.id}>
+                      <Link
+                        to="/app/threads/$id"
+                        params={{ id: idParam }}
+                        className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-accent"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <Avatar
+                            variant="user"
+                            size="md"
+                            src={thread?.authorImage}
+                            alt={thread?.authorName ?? undefined}
+                            fallback={thread?.authorName ?? "?"}
+                          />
+                          <span className="truncate text-foreground-primary text-sm">
+                            {thread?.name ?? "Untitled thread"}
+                          </span>
+                          {thread?.shortId != null ? (
+                            <span className="shrink-0 text-foreground-secondary text-xs tabular-nums">
+                              #{thread.shortId}
+                            </span>
+                          ) : null}
+                        </div>
+                        <span className="shrink-0 text-foreground-secondary text-xs">
+                          {formatRelativeTime(action.appliedAt)}
                         </span>
-                      ) : null}
-                    </div>
-                    <span className="shrink-0 text-foreground-secondary text-xs">
-                      {formatRelativeTime(action.appliedAt)}
-                    </span>
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-        {count > actions.length ? (
-          <div className="px-4 py-2 text-foreground-secondary text-xs">
-            Showing {actions.length} of {count}.
-          </div>
-        ) : null}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+            {count > actions.length ? (
+              <div className="px-4 py-2 text-foreground-secondary text-xs">
+                Showing {actions.length} of {count}.
+              </div>
+            ) : null}
+          </motion.div>
+        </div>
       </motion.div>
-    </div>
+      <motion.button
+        layoutId={`leverage-report-tile-tr-button-${tileKey}`}
+        type="button"
+        onClick={onClose}
+        className={cn(
+          buttonVariants({ variant: "ghost", size: "icon-sm" }),
+          "absolute top-3 right-3",
+        )}
+      >
+        <X className="size-3.5" />
+      </motion.button>
+    </>
   );
 }
 
@@ -573,3 +561,4 @@ LeverageReport.Skeleton = function LeverageReportSkeleton() {
     </div>
   );
 };
+*/
