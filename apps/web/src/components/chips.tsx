@@ -155,7 +155,7 @@ export function ThreadChip({
                 <>
                   <Avatar
                     variant="user"
-                    size="sm"
+                    size="md"
                     fallback={thread.assignedUser?.name}
                     src={thread.assignedUser?.image ?? undefined}
                   />
