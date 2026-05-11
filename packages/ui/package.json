@@ -91,6 +91,7 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "^5.0.4",
+    "colorjs.io": "^0.6.1",
     "jsdom": "^27.0.0",
     "typescript": "^5.9.3",
     "vite": "^7.1.7",

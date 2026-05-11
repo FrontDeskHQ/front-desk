@@ -13,7 +13,8 @@ import { Route as ToggleGroupRouteImport } from './routes/toggle-group'
 import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
 import { Route as CompositeRouteImport } from './routes/composite'
 import { Route as CommandRouteImport } from './routes/command'
-import { Route as ButtonsRouteImport } from './routes/buttons'
+import { Route as ColorsRouteImport } from './routes/colors'
+import { Route as ButtonRouteImport } from './routes/button'
 import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as IndexRouteImport } from './routes/index'
 
@@ -37,9 +38,14 @@ const CommandRoute = CommandRouteImport.update({
   path: '/command',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ButtonsRoute = ButtonsRouteImport.update({
-  id: '/buttons',
-  path: '/buttons',
+const ColorsRoute = ColorsRouteImport.update({
+  id: '/colors',
+  path: '/colors',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ButtonRoute = ButtonRouteImport.update({
+  id: '/button',
+  path: '/button',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AvatarRoute = AvatarRouteImport.update({
@@ -56,7 +62,8 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/avatar': typeof AvatarRoute
-  '/buttons': typeof ButtonsRoute
+  '/button': typeof ButtonRoute
+  '/colors': typeof ColorsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
   '/status-indicator': typeof StatusIndicatorRoute
@@ -65,7 +72,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/avatar': typeof AvatarRoute
-  '/buttons': typeof ButtonsRoute
+  '/button': typeof ButtonRoute
+  '/colors': typeof ColorsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
   '/status-indicator': typeof StatusIndicatorRoute
@@ -75,7 +83,8 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/avatar': typeof AvatarRoute
-  '/buttons': typeof ButtonsRoute
+  '/button': typeof ButtonRoute
+  '/colors': typeof ColorsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
   '/status-indicator': typeof StatusIndicatorRoute
@@ -86,7 +95,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/avatar'
-    | '/buttons'
+    | '/button'
+    | '/colors'
     | '/command'
     | '/composite'
     | '/status-indicator'
@@ -95,7 +105,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/avatar'
-    | '/buttons'
+    | '/button'
+    | '/colors'
     | '/command'
     | '/composite'
     | '/status-indicator'
@@ -104,7 +115,8 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/avatar'
-    | '/buttons'
+    | '/button'
+    | '/colors'
     | '/command'
     | '/composite'
     | '/status-indicator'
@@ -114,7 +126,8 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AvatarRoute: typeof AvatarRoute
-  ButtonsRoute: typeof ButtonsRoute
+  ButtonRoute: typeof ButtonRoute
+  ColorsRoute: typeof ColorsRoute
   CommandRoute: typeof CommandRoute
   CompositeRoute: typeof CompositeRoute
   StatusIndicatorRoute: typeof StatusIndicatorRoute
@@ -151,11 +164,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommandRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/buttons': {
-      id: '/buttons'
-      path: '/buttons'
-      fullPath: '/buttons'
-      preLoaderRoute: typeof ButtonsRouteImport
+    '/colors': {
+      id: '/colors'
+      path: '/colors'
+      fullPath: '/colors'
+      preLoaderRoute: typeof ColorsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/button': {
+      id: '/button'
+      path: '/button'
+      fullPath: '/button'
+      preLoaderRoute: typeof ButtonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/avatar': {
@@ -178,7 +198,8 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AvatarRoute: AvatarRoute,
-  ButtonsRoute: ButtonsRoute,
+  ButtonRoute: ButtonRoute,
+  ColorsRoute: ColorsRoute,
   CommandRoute: CommandRoute,
   CompositeRoute: CompositeRoute,
   StatusIndicatorRoute: StatusIndicatorRoute,
