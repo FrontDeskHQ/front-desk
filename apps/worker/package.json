@@ -7,7 +7,8 @@
     "dev": "bun run --watch src/worker.ts",
     "start": "bun run src/worker.ts",
     "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
-    "eval:similarity": "bun run src/evals/thread-similarity.eval.ts"
+    "eval:similarity": "bun run src/evals/thread-similarity.eval.ts",
+    "eval:match-pr-llm": "bun run src/evals/match-pr-threads-llm.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.13",
