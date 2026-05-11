@@ -11,6 +11,7 @@ import {
   timestamp,
 } from "@live-state/sync";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
+import type { SuggestedActions } from "@workspace/schemas/signals";
 
 const organization = object("organization", {
   id: id(),
@@ -158,6 +159,9 @@ const suggestion = object("suggestion", {
   organizationId: reference("organization.id"),
   resultsStr: string().nullable(), // JSON array of results (e.g., label IDs)
   metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)
+  summary: string().nullable(), // AI-generated one-line summary; null for deterministic signals (UI renders those)
+  reasoning: string().nullable(), // AI-generated reasoning (null for deterministic signals)
+  suggestedActions: json<SuggestedActions>().nullable(), // Actions the agent can take (REPLY_SUGGESTION, ...)
   urgencyScore: number().default(0),
   dismissedAt: timestamp().nullable(),
   actedAt: timestamp().nullable(),

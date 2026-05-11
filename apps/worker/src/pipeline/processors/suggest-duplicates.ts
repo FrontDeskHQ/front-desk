@@ -313,6 +313,8 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
             currentThreadId: threadId,
           });
 
+          const reasoning = selectedDuplicate.reason;
+
           // Check for existing suggestion
           const existingSuggestions = (await fetchClient.query.suggestion
             .where({
@@ -336,6 +338,7 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
                 reason: selectedDuplicate.reason,
                 score: selectedDuplicate.score,
               }),
+              reasoning,
               updatedAt: now,
             });
           } else {
@@ -364,6 +367,9 @@ export const suggestDuplicatesProcessor: ProcessorDefinition<SuggestDuplicatesOu
                 score: selectedDuplicate.score,
               }),
               metadataStr: null,
+              summary: null,
+              reasoning,
+              suggestedActions: null,
               urgencyScore: computeUrgency({
                 signalType: "duplicate",
                 ageHours: 0,
