@@ -15,34 +15,52 @@ import {
 import { Separator } from "@workspace/ui/components/separator";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
+import { cva, type VariantProps } from "class-variance-authority";
 import { CircleUser } from "lucide-react";
+
+const threadChipVariants = cva(
+  "flex items-center w-fit gap-1.5 cursor-default",
+  {
+    variants: {
+      variant: {
+        chip: "text-xs border h-6 rounded-sm px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors",
+        unstyled: "text-sm",
+      },
+      disabled: {
+        true: "opacity-50 pointer-events-none",
+        false: "",
+      },
+    },
+    defaultVariants: {
+      variant: "chip",
+      disabled: false,
+    },
+  },
+);
 
 export function BaseThreadChip({
   thread,
-  disabled,
+  disabled = false,
   className,
+  variant,
   ...props
-}: Omit<React.ComponentProps<typeof BaseButton>, "children"> & {
-  thread: InferLiveObject<
-    typeof schema.thread,
-    { author: { include: { user: true } }; assignedUser?: true }
-  >;
-  disabled?: boolean;
-}) {
+}: Omit<React.ComponentProps<typeof BaseButton>, "children"> &
+  VariantProps<typeof threadChipVariants> & {
+    thread: InferLiveObject<
+      typeof schema.thread,
+      { author: { include: { user: true } }; assignedUser?: true }
+    >;
+  }) {
   return (
     <BaseButton
       type="button"
-      className={cn(
-        "border flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors cursor-default",
-        disabled && "opacity-50 pointer-events-none",
-        className,
-      )}
-      disabled={disabled}
+      className={cn(threadChipVariants({ variant, disabled }), className)}
+      disabled={disabled ?? false}
       {...props}
     >
       <Avatar
         variant="user"
-        size="sm"
+        size={variant === "unstyled" ? "md" : "sm"}
         fallback={thread.author?.name}
         src={thread.author?.user?.image ?? undefined}
       />
@@ -60,14 +78,18 @@ export function ThreadChip({
   thread,
   disabled,
   className,
+  variant,
   ...props
-}: Omit<React.ComponentProps<typeof BaseButton>, "children"> & {
-  thread: InferLiveObject<
-    typeof schema.thread,
-    { author: { include: { user: true } }; assignedUser: { include: { user: true } } }
-  >;
-  disabled?: boolean;
-}) {
+}: Omit<React.ComponentProps<typeof BaseButton>, "children"> &
+  VariantProps<typeof threadChipVariants> & {
+    thread: InferLiveObject<
+      typeof schema.thread,
+      {
+        author: { include: { user: true } };
+        assignedUser: { include: { user: true } };
+      }
+    >;
+  }) {
   return (
     <HoverCard>
       <HoverCardTrigger
@@ -76,6 +98,7 @@ export function ThreadChip({
             thread={thread}
             disabled={disabled}
             className={className}
+            variant={variant}
             {...props}
           />
         }

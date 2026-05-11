@@ -1,9 +1,7 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
-import { Card } from "@workspace/ui/components/card";
-import { Separator } from "@workspace/ui/components/separator";
 import type { schema } from "api/schema";
-import { Fragment, useMemo } from "react";
+import { useMemo } from "react";
 import {
   ActionRowSkeleton,
   type ActorContext,
@@ -15,10 +13,7 @@ import {
   StatusActionRow,
   type SuggestionRow,
 } from "~/components/signals/action-row";
-import {
-  CaughtUpEmpty,
-  NewOrgEmpty,
-} from "~/components/signals/empty-states";
+import { CaughtUpEmpty, NewOrgEmpty } from "~/components/signals/empty-states";
 import { query } from "~/lib/live-state";
 
 type ThreadWithRels = InferLiveObject<
@@ -113,13 +108,11 @@ export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
 
   if (!rawSuggestions) {
     return (
-      <Card className="w-full max-w-4xl mx-auto">
+      <div className="flex w-full max-w-4xl mx-auto flex-col gap-2">
         <ActionRowSkeleton />
-        <Separator />
         <ActionRowSkeleton />
-        <Separator />
         <ActionRowSkeleton />
-      </Card>
+      </div>
     );
   }
 
@@ -129,23 +122,27 @@ export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
 
   return (
     <div className="flex w-full max-w-4xl mx-auto flex-col gap-3">
-      <div className="text-foreground-primary px-1">
-        {suggestions.length}{" "}
-        {suggestions.length === 1 ? "thing needs" : "things need"} your
-        attention
+      <div className="text-foreground-primary text-lg px-1">
+        {suggestions.length === 1 ? "Here's" : "Here are"} {suggestions.length}{" "}
+        {suggestions.length === 1
+          ? "thing that requires"
+          : "things that require"}{" "}
+        your attention
       </div>
-      <Card className="overflow-hidden">
-        {suggestions.map((s, i) => {
+      <div className="flex flex-col gap-4">
+        {suggestions.map((s) => {
           const RowComponent = ROW_FOR_TYPE[s.type];
           if (!RowComponent) return null;
           return (
-            <Fragment key={s.id}>
-              {i > 0 && <Separator />}
-              <RowComponent suggestion={s} threadsMap={threadsMap} ctx={ctx} />
-            </Fragment>
+            <RowComponent
+              key={s.id}
+              suggestion={s}
+              threadsMap={threadsMap}
+              ctx={ctx}
+            />
           );
         })}
-      </Card>
+      </div>
     </div>
   );
 }

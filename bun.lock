@@ -179,6 +179,7 @@
         "@workspace/ui": "workspace:*",
         "api": "workspace:*",
         "better-auth": "catalog:",
+        "class-variance-authority": "^0.7.1",
         "date-fns": "^4.1.0",
         "dodopayments": "^2.4.1",
         "fast-xml-parser": "^5.3.1",
