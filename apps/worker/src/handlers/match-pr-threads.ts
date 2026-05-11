@@ -61,11 +61,13 @@ const matchEvaluationSchema = z.object({
       confidence: z.enum(["high", "medium", "low"]),
       reason: z
         .string()
+        .min(1)
         .describe(
           "One sentence explaining why this PR matches (or doesn't match) the thread.",
         ),
       summary: z
         .string()
+        .min(1)
         .describe(
           "One short markdown line, written as a statement to the support agent that resolution has shipped. MUST contain a markdown link to the PR in the form [<repo>#<prNumber>](<prUrl>). Frame it as 'a fix has shipped' / 'the requested feature has been addressed' — not as speculation. Examples: 'A fix for the reported login failure has shipped in [owner/repo#123](https://github.com/owner/repo/pull/123).' or 'The requested CSV export filter has been addressed by [owner/repo#456](https://github.com/owner/repo/pull/456).' Keep it under ~200 characters.",
         ),
@@ -185,11 +187,13 @@ const ensurePrLinkInSummary = (
   reasoning: string,
 ): string => {
   const trimmed = summary.trim();
-  if (trimmed && trimmed.includes(prUrl)) {
+  const prLink = `[${repo}#${prNumber}](${prUrl})`;
+  // Only accept the LLM summary if it embeds the PR as a proper markdown
+  // link — a bare URL counts as a miss and falls back to the deterministic line
+  if (trimmed.includes(prLink)) {
     return trimmed;
   }
-  // LLM omitted the link (or returned empty) — fall back to a deterministic line
-  return `[${repo}#${prNumber}](${prUrl}) — ${reasoning}`;
+  return `${prLink} — ${reasoning}`;
 };
 
 const storeLinkedPrSuggestion = async (params: {
@@ -399,9 +403,15 @@ export const matchPrToThreads = async (
       return result;
     }
 
-    // Pick best matches by similarity score, restricted to high-confidence positive evaluations
+    // Dedupe LLM evaluations by threadId so a model that emits the same
+    // candidate twice can't inflate confirmed/store/skip counters.
     const candidateByThreadId = new Map(candidates.map((c) => [c.threadId, c]));
-    const confirmed = evaluations
+    const uniqueEvaluations = Array.from(
+      new Map(evaluations.map((e) => [e.threadId, e])).values(),
+    );
+
+    // Pick best matches by similarity score, restricted to high-confidence positive evaluations
+    const confirmed = uniqueEvaluations
       .filter((e) => e.matches && e.confidence === "high")
       .map((e) => ({ evaluation: e, candidate: candidateByThreadId.get(e.threadId) }))
       .filter((x): x is { evaluation: MatchEvaluation; candidate: ThreadCandidate } =>
@@ -410,7 +420,7 @@ export const matchPrToThreads = async (
       .sort((a, b) => b.candidate.score - a.candidate.score)
       .slice(0, MAX_MATCHES);
 
-    result.skippedLowConfidence = candidates.length - confirmed.length;
+    result.skippedLowConfidence = uniqueEvaluations.length - confirmed.length;
 
     for (const { evaluation, candidate } of confirmed) {
       const stored = await storeLinkedPrSuggestion({
