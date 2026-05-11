@@ -134,7 +134,7 @@ export function DuplicateActionRow({
           <ThreadRef thread={thread} variant="unstyled" />
         </ActionRow.Title>
         <ActionRow.Reason>
-          {target ? (
+          {thread && target ? (
             <span className="inline-flex items-center gap-1.5">
               <span>is a duplicate of</span>
               <ThreadRef thread={target} />

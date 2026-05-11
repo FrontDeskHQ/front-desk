@@ -4,7 +4,8 @@ type Props = {
 
 export function Greeting({ userName }: Props) {
   const greeting = greetingFor(new Date());
-  const firstName = userName.trim().split(/\s+/)[0] ?? userName;
+  const trimmed = userName.trim();
+  const firstName = trimmed ? trimmed.split(/\s+/)[0] : "there";
 
   return (
     <div className="flex w-full max-w-4xl mx-auto flex-col px-1">
