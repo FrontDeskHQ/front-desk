@@ -262,6 +262,9 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
                 accepted: true,
                 resultsStr: null,
                 metadataStr: null,
+                summary: null,
+                reasoning: null,
+                suggestedActions: null,
                 urgencyScore: computeUrgency({
                   signalType: "label",
                   ageHours: 0,
@@ -291,6 +294,9 @@ export const suggestLabelsProcessor: ProcessorDefinition<SuggestLabelsOutput> =
               accepted: false,
               resultsStr: null,
               metadataStr: null,
+              summary: null,
+              reasoning: null,
+              suggestedActions: null,
               urgencyScore: computeUrgency({
                 signalType: "label",
                 ageHours: 0,

@@ -299,6 +299,7 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
               accepted: existingSuggestion.accepted,
               resultsStr,
               metadataStr,
+              reasoning,
               updatedAt: now,
             });
           } else {
@@ -313,6 +314,9 @@ export const suggestStatusProcessor: ProcessorDefinition<SuggestStatusOutput> =
               accepted: false,
               resultsStr,
               metadataStr,
+              summary: null,
+              reasoning,
+              suggestedActions: null,
               urgencyScore: computeUrgency({
                 signalType: "status",
                 ageHours: 0,

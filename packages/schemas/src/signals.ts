@@ -193,6 +193,30 @@ export function parseAutonomousActionMetadata(
   }
 }
 
+export const SUGGESTED_ACTION_KINDS = ["REPLY_SUGGESTION"] as const;
+export const suggestedActionKindSchema = z.enum(SUGGESTED_ACTION_KINDS);
+export type SuggestedActionKind = z.infer<typeof suggestedActionKindSchema>;
+
+export const replySuggestionActionSchema = z.object({
+  kind: z.literal("REPLY_SUGGESTION"),
+  draftContent: z.string(),
+});
+export type ReplySuggestionAction = z.infer<typeof replySuggestionActionSchema>;
+
+export const suggestedActionSchema = z.discriminatedUnion("kind", [
+  replySuggestionActionSchema,
+]);
+export type SuggestedAction = z.infer<typeof suggestedActionSchema>;
+
+export const suggestedActionsSchema = z.array(suggestedActionSchema);
+export type SuggestedActions = z.infer<typeof suggestedActionsSchema>;
+
+export function parseSuggestedActions(input: unknown): SuggestedActions {
+  if (input == null) return [];
+  const result = suggestedActionsSchema.safeParse(input);
+  return result.success ? result.data : [];
+}
+
 export const STATUS_LABELS: Record<number, string> = {
   0: "Open",
   1: "In progress",

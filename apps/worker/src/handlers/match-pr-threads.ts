@@ -155,6 +155,9 @@ const storeLinkedPrSuggestion = async (params: {
         reasoning,
       }),
       metadataStr: null,
+      summary: null,
+      reasoning: null,
+      suggestedActions: null,
       urgencyScore: computeUrgency({
         signalType: "linked_pr",
         ageHours: 0,

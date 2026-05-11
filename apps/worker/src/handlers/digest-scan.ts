@@ -298,6 +298,9 @@ async function createDigestSignal(params: {
     accepted: false,
     resultsStr: params.resultsStr,
     metadataStr: JSON.stringify({ digestIncludedAt: [] }),
+    summary: null,
+    reasoning: null,
+    suggestedActions: null,
     urgencyScore: normalizedType
       ? computeUrgency({ signalType: normalizedType, ageHours: 0 })
       : 0,
