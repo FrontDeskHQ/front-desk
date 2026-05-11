@@ -391,13 +391,14 @@ export const handleEmbedPr = async (job: Job<EmbedPrJobData>) => {
 
     log.info(
       "worker.embed-pr",
-      `🔗 Thread matching for ${prRef}: ${matchResult.suggestionsCreated} suggestions, ${matchResult.skippedAlreadyLinked} skipped (already linked)`,
+      `🔗 Thread matching for ${prRef}: ${matchResult.suggestionsCreated} suggestions, ${matchResult.skippedAlreadyLinked} skipped (already linked), ${matchResult.skippedLowConfidence} skipped (low LLM confidence)`,
     );
     requestLog.set({
       pr: {
         pointId,
         suggestionsCreated: matchResult.suggestionsCreated,
         skippedAlreadyLinked: matchResult.skippedAlreadyLinked,
+        skippedLowConfidence: matchResult.skippedLowConfidence,
       },
     });
 
