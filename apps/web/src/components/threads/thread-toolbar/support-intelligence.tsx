@@ -22,7 +22,7 @@ import type { schema } from "api/schema";
 import { Check, ChevronDown, CircleUser, X, Zap } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ulid } from "ulid";
-import { BaseThreadChip } from "~/components/chips";
+import { ThreadChip } from "~/components/chips";
 import { mutate, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
@@ -657,7 +657,7 @@ export const Suggestions = ({
               <div className="flex gap-2 items-center flex-wrap group">
                 <HoverCardTrigger
                   render={
-                    <BaseThreadChip
+                    <ThreadChip
                       thread={duplicateSuggestion.thread}
                       className="border-dashed bg-transparent border-input dark:hover:bg-foreground-tertiary/15"
                       onClick={handleAcceptDuplicate}

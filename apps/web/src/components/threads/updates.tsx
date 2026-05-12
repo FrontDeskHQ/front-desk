@@ -9,7 +9,7 @@ import {
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Bot, CircleUserIcon, CopySlash, Github, Tag } from "lucide-react";
-import { ThreadChip } from "~/components/chips";
+import { ThreadChipWithSummary } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
@@ -38,7 +38,10 @@ export function Update({
   const duplicateThread = useLiveQuery(
     query.thread
       .first({ id: metadata?.duplicateOfThreadId })
-      .include({ author: { include: { user: true } }, assignedUser: true }),
+      .include({
+        author: { include: { user: true } },
+        assignedUser: { include: { user: true } },
+      }),
   );
 
   const isAutonomous = metadata?.source === "autonomous";
@@ -178,7 +181,7 @@ export function Update({
         <span className="inline-flex items-center gap-1">
           {verbPrefix}marked as duplicate of{" "}
           {duplicateThread ? (
-            <ThreadChip
+            <ThreadChipWithSummary
               thread={duplicateThread}
               className="mx-0.5"
               render={

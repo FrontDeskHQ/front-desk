@@ -5,12 +5,13 @@ import {
   type SignalType,
   urgencyTierFromScore,
 } from "@workspace/schemas/signals";
+import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
 import { statusValues } from "@workspace/ui/components/indicator";
 import type { schema } from "api/schema";
 import { Check, ExternalLink } from "lucide-react";
 import { z } from "zod";
-import { ThreadChip } from "~/components/chips";
+import { ThreadSummaryHoverCard } from "~/components/chips";
 import { buildThreadParam } from "~/utils/thread";
 import { ActionRow } from "./action-row";
 import {
@@ -47,18 +48,29 @@ function TitleLabel({ type }: { type: SignalType }) {
   return <span>{SIGNAL_LABEL[type]}</span>;
 }
 
-function ThreadRef({
-  thread,
-  variant,
-}: {
-  thread: ThreadWithRels | undefined;
-  variant?: "chip" | "unstyled";
-}) {
+function ThreadRef({ thread }: { thread: ThreadWithRels | undefined }) {
   if (!thread) return null;
   return (
-    <Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }}>
-      <ThreadChip thread={thread} variant={variant} />
-    </Link>
+    <ThreadSummaryHoverCard thread={thread}>
+      <Link
+        to="/app/threads/$id"
+        params={{ id: buildThreadParam(thread) }}
+        className="inline-flex items-center w-fit gap-1.5 text-sm"
+      >
+        <Avatar
+          variant="user"
+          size="md"
+          fallback={thread.author?.name}
+          src={thread.author?.user?.image ?? undefined}
+        />
+        <span className="text-foreground-primary">{thread.name}</span>
+        {thread.shortId != null && (
+          <span className="text-foreground-secondary tabular-nums">
+            #{thread.shortId}
+          </span>
+        )}
+      </Link>
+    </ThreadSummaryHoverCard>
   );
 }
 
@@ -94,7 +106,7 @@ export function StatusActionRow({
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
       <ActionRow.Header>
         <ActionRow.Title>
-          <ThreadRef thread={thread} variant="unstyled" />
+          <ThreadRef thread={thread} />
         </ActionRow.Title>
         <ActionRow.Reason>
           <TitleLabel type="status" />
@@ -131,7 +143,7 @@ export function DuplicateActionRow({
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
       <ActionRow.Header>
         <ActionRow.Title>
-          <ThreadRef thread={thread} variant="unstyled" />
+          <ThreadRef thread={thread} />
         </ActionRow.Title>
         <ActionRow.Reason>
           {thread && target ? (
@@ -174,7 +186,7 @@ export function LinkedPrActionRow({
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
       <ActionRow.Header>
         <ActionRow.Title>
-          <ThreadRef thread={thread} variant="unstyled" />
+          <ThreadRef thread={thread} />
         </ActionRow.Title>
         <ActionRow.Reason>
           <span className="inline-flex items-center gap-1.5">
@@ -220,7 +232,7 @@ export function PendingReplyActionRow({
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
       <ActionRow.Header>
         <ActionRow.Title>
-          <ThreadRef thread={thread} variant="unstyled" />
+          <ThreadRef thread={thread} />
         </ActionRow.Title>
         <ActionRow.Reason>
           <TitleLabel type="pending_reply" />
@@ -250,7 +262,7 @@ export function LoopToCloseActionRow({
     <ActionRow.Root tier={tierFor(suggestion.urgencyScore)}>
       <ActionRow.Header>
         <ActionRow.Title>
-          <ThreadRef thread={thread} variant="unstyled" />
+          <ThreadRef thread={thread} />
         </ActionRow.Title>
         <ActionRow.Reason>
           <TitleLabel type="loop_to_close" />

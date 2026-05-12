@@ -4,7 +4,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useMemo } from "react";
 import { type Components, Streamdown } from "streamdown";
 import "streamdown/styles.css";
-import { ThreadChip } from "~/components/chips";
+import { ThreadChipWithSummary } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
@@ -134,7 +134,7 @@ function ThreadMention({ threadId }: { threadId: string }) {
   }
 
   return (
-    <ThreadChip
+    <ThreadChipWithSummary
       thread={thread}
       className="inline-flex mb-0 -translate-y-0.5"
       render={

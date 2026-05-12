@@ -20,7 +20,7 @@ import { Check, ChevronDown, CircleUser, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ulid } from "ulid";
-import { BaseThreadChip } from "~/components/chips";
+import { ThreadChip } from "~/components/chips";
 import {
   usePendingDuplicateSuggestions,
   usePendingLabelSuggestions,
@@ -527,7 +527,7 @@ export const QuickActionsPanel = ({
                   <div className="flex gap-2 items-center flex-wrap group">
                     <HoverCardTrigger
                       render={
-                        <BaseThreadChip
+                        <ThreadChip
                           thread={duplicateSuggestion.thread}
                           className="border-dashed bg-transparent border-input dark:hover:bg-foreground-tertiary/15"
                           onClick={handleAcceptDuplicate}
