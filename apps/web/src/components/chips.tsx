@@ -137,8 +137,8 @@ export function ThreadSummaryCard({
                 <Avatar
                   variant="user"
                   size="md"
-                  fallback={thread.assignedUser?.name}
-                  src={thread.assignedUser?.image ?? undefined}
+                  fallback={thread.author?.name}
+                  src={thread.author?.user?.image ?? undefined}
                 />
                 <span className="text-sm">{thread.assignedUser?.name}</span>
               </>
