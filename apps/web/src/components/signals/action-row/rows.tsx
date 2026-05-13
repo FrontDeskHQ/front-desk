@@ -12,13 +12,14 @@ import type { schema } from "api/schema";
 import { Check, ExternalLink } from "lucide-react";
 import { z } from "zod";
 import { ThreadSummaryHoverCard } from "~/components/chips";
+import { RichMarkdown } from "~/components/markdown/rich-markdown";
 import { buildThreadParam } from "~/utils/thread";
 import { ActionRow } from "./action-row";
 import {
-  type ActorContext,
   acceptDuplicateSuggestion,
   acceptLinkedPrSuggestion,
   acceptStatusSuggestion,
+  type ActorContext,
   dismissDigestSuggestion,
   dismissDuplicateSuggestion,
   dismissLinkedPrSuggestion,
@@ -265,7 +266,11 @@ export function LoopToCloseActionRow({
           <ThreadRef thread={thread} />
         </ActionRow.Title>
         <ActionRow.Reason>
-          <TitleLabel type="loop_to_close" />
+          {suggestion.summary ? (
+            <RichMarkdown content={suggestion.summary} preset="inline" />
+          ) : (
+            <TitleLabel type="loop_to_close" />
+          )}
         </ActionRow.Reason>
         <ActionRow.Dismiss
           onClick={() =>
@@ -346,7 +351,9 @@ function parseLinkedPr(s: SuggestionRow) {
 
 function parsePendingReply(s: SuggestionRow) {
   if (!s.resultsStr) return null;
-  const parsed = pendingReplyResultSchema.safeParse(safeJsonParse(s.resultsStr));
+  const parsed = pendingReplyResultSchema.safeParse(
+    safeJsonParse(s.resultsStr),
+  );
   if (!parsed.success) return null;
   return { ...s, ...parsed.data };
 }
@@ -358,10 +365,7 @@ function parseLoopToClose(s: SuggestionRow) {
   return { ...s, ...parsed.data };
 }
 
-const PARSER_FOR_TYPE: Record<
-  string,
-  (s: SuggestionRow) => unknown | null
-> = {
+const PARSER_FOR_TYPE: Record<string, (s: SuggestionRow) => unknown | null> = {
   status: parseStatus,
   duplicate: parseDuplicate,
   linked_pr: parseLinkedPr,

@@ -68,6 +68,7 @@ export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
         relatedEntityId: s.relatedEntityId,
         resultsStr: s.resultsStr,
         metadataStr: s.metadataStr,
+        summary: s.summary,
         createdAt: new Date(s.createdAt),
         urgencyScore: s.urgencyScore ?? 0,
       }))
