@@ -1,26 +1,35 @@
 "use client";
 
-import { useParams } from "@tanstack/react-router";
-import { MenuItem } from "@workspace/ui/components/menu";
+import { MenuItem, MenuSeparator } from "@workspace/ui/components/menu";
 import { useAtomValue } from "jotai/react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
+import { AddPrSuggestionMenuItem } from "./add-pr-suggestion-command";
+import {
+  resolveThreadUlid,
+  useThreadRouteRawParam,
+} from "./thread-route-for-devtools";
 
 const AddPendingReplyMenuItem = () => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const params = useParams({ strict: false });
-  const threadId = (params as { id?: string } | undefined)?.id ?? null;
+  const rawThreadParam = useThreadRouteRawParam();
 
   const handleAdd = async () => {
-    if (!threadId) {
+    if (!rawThreadParam) {
       toast.error("Open a thread first");
       return;
     }
 
     if (!currentOrg?.id) {
       toast.error("No organization selected");
+      return;
+    }
+
+    const threadId = await resolveThreadUlid(rawThreadParam);
+    if (!threadId) {
+      toast.error("Could not resolve thread");
       return;
     }
 
@@ -67,17 +76,22 @@ const AddPendingReplyMenuItem = () => {
 
 const AddLoopToCloseMenuItem = () => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const params = useParams({ strict: false });
-  const threadId = (params as { id?: string } | undefined)?.id ?? null;
+  const rawThreadParam = useThreadRouteRawParam();
 
   const handleAdd = async () => {
-    if (!threadId) {
+    if (!rawThreadParam) {
       toast.error("Open a thread first");
       return;
     }
 
     if (!currentOrg?.id) {
       toast.error("No organization selected");
+      return;
+    }
+
+    const threadId = await resolveThreadUlid(rawThreadParam);
+    if (!threadId) {
+      toast.error("Could not resolve thread");
       return;
     }
 
@@ -224,8 +238,10 @@ const ClearLeverageActionsMenuItem = () => {
 export const SignalsSubmenu = () => {
   return (
     <>
+      <AddPrSuggestionMenuItem />
       <AddPendingReplyMenuItem />
       <AddLoopToCloseMenuItem />
+      <MenuSeparator />
       <SeedLeverageActionsMenuItem />
       <ClearLeverageActionsMenuItem />
       <ForceDigestMenuItem />

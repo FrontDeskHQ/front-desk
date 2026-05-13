@@ -1,21 +1,22 @@
 "use client";
 
-import { useParams } from "@tanstack/react-router";
 import { MenuItem } from "@workspace/ui/components/menu";
 import { useAtomValue } from "jotai/react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
+import {
+  resolveThreadUlid,
+  useThreadRouteRawParam,
+} from "./thread-route-for-devtools";
 
 export const AddPrSuggestionMenuItem = () => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const params = useParams({ strict: false });
-  const threadId =
-    (params as { id?: string } | undefined)?.id ?? null;
+  const rawThreadParam = useThreadRouteRawParam();
 
   const handleAddPrSuggestion = async () => {
-    if (!threadId) {
+    if (!rawThreadParam) {
       toast.error("Open a thread first to add a PR suggestion");
       return;
     }
@@ -24,6 +25,20 @@ export const AddPrSuggestionMenuItem = () => {
       toast.error("No organization selected");
       return;
     }
+
+    const threadId = await resolveThreadUlid(rawThreadParam);
+    if (!threadId) {
+      toast.error("Could not resolve thread");
+      return;
+    }
+
+    const repo = "acme/app";
+    const prNumber = 142;
+    const prUrl = `https://github.com/${repo}/pull/${prNumber}`;
+    const prLink = `[${repo}#${prNumber}](${prUrl})`;
+    const reasoning =
+      "The merged PR adds the missing webhook retry behavior the user reported as broken.";
+    const summary = `Support for the missing webhook retry behavior has shipped in ${prLink}.`;
 
     try {
       const now = new Date();
@@ -46,6 +61,8 @@ export const AddPrSuggestionMenuItem = () => {
             "PR addresses session timeout issues mentioned in this thread",
         }),
         metadataStr: null,
+        summary,
+        reasoning,
         createdAt: now,
         updatedAt: now,
       });
