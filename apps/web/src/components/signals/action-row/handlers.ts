@@ -19,6 +19,7 @@ export type SuggestionRow = {
   relatedEntityId: string | null;
   resultsStr: string | null;
   metadataStr: string | null;
+  summary: string | null;
   createdAt: Date;
   urgencyScore: number;
 };
