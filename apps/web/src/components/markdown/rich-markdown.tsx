@@ -1,14 +1,29 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@workspace/ui/lib/utils";
-import { useMemo } from "react";
+import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type Components, Streamdown } from "streamdown";
 import "streamdown/styles.css";
-import { ThreadChipWithSummary } from "~/components/chips";
+import { PrChip, ThreadChipWithSummary } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
 const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
+
+const GITHUB_PR_URL_REGEX =
+  /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pulls?\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
+
+function parseGithubPrUrl(href: string | undefined) {
+  if (!href) return null;
+  const match = href.match(GITHUB_PR_URL_REGEX);
+  if (!match) return null;
+  return {
+    owner: match[1],
+    repo: match[2],
+    number: Number(match[3]),
+    url: href,
+  };
+}
 
 export type RichMarkdownPreset = "default" | "minimal" | "full" | "inline";
 
@@ -117,6 +132,41 @@ type RichMarkdownProps = {
   components?: Components;
 };
 
+function PrChipInline(props: {
+  owner: string;
+  repo: string;
+  number: number;
+  url: string;
+}) {
+  const ref = useRef<HTMLSpanElement>(null);
+  const [hasLeadingSpace, setHasLeadingSpace] = useState(false);
+  const [hasTrailingSpace, setHasTrailingSpace] = useState(false);
+
+  useLayoutEffect(() => {
+    const prev = ref.current?.previousSibling;
+    setHasLeadingSpace(
+      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? ""),
+    );
+    const next = ref.current?.nextSibling;
+    setHasTrailingSpace(
+      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? ""),
+    );
+  });
+
+  return (
+    <span ref={ref} className="contents">
+      <PrChip
+        {...props}
+        className={cn(
+          "inline-flex mb-0 translate-y-0.5",
+          hasLeadingSpace && "ml-px",
+          hasTrailingSpace && "mr-px",
+        )}
+      />
+    </span>
+  );
+}
+
 function ThreadMention({ threadId }: { threadId: string }) {
   const thread = useLiveQuery(
     query.thread.first({ id: threadId }).include({
@@ -129,18 +179,42 @@ function ThreadMention({ threadId }: { threadId: string }) {
     }),
   );
 
+  const ref = useRef<HTMLSpanElement>(null);
+  const [hasLeadingSpace, setHasLeadingSpace] = useState(false);
+  const [hasTrailingSpace, setHasTrailingSpace] = useState(false);
+
+  useLayoutEffect(() => {
+    const prev = ref.current?.previousSibling;
+    setHasLeadingSpace(
+      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? ""),
+    );
+    const next = ref.current?.nextSibling;
+    setHasTrailingSpace(
+      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? ""),
+    );
+  });
+
   if (!thread || !!thread.deletedAt) {
     return null;
   }
 
   return (
-    <ThreadChipWithSummary
-      thread={thread}
-      className="inline-flex mb-0 -translate-y-0.5"
-      render={
-        <Link to="/app/threads/$id" params={{ id: buildThreadParam(thread) }} />
-      }
-    />
+    <span ref={ref} className="contents">
+      <ThreadChipWithSummary
+        thread={thread}
+        className={cn(
+          "inline-flex mb-0 -translate-y-0.5",
+          hasLeadingSpace && "ml-px",
+          hasTrailingSpace && "mr-px",
+        )}
+        render={
+          <Link
+            to="/app/threads/$id"
+            params={{ id: buildThreadParam(thread) }}
+          />
+        }
+      />
+    </span>
   );
 }
 
@@ -202,6 +276,10 @@ export const RichMarkdown = ({
         ) {
           const threadId = href.slice(THREAD_LINK_PROXY_PREFIX.length);
           return <ThreadMention threadId={threadId} />;
+        }
+        const pr = parseGithubPrUrl(href);
+        if (pr) {
+          return <PrChipInline {...pr} />;
         }
         return (
           <a href={href} target="_blank" rel="noreferrer" {...props}>

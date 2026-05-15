@@ -16,7 +16,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { cva, type VariantProps } from "class-variance-authority";
-import { CircleUser } from "lucide-react";
+import { CircleUser, GitPullRequest } from "lucide-react";
 
 const threadChipVariants = cva(
   "flex items-center w-fit gap-1.5 cursor-default text-xs border h-6 rounded-sm px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors",
@@ -78,11 +78,7 @@ export function ThreadChip({
   );
 }
 
-export function ThreadSummaryCard({
-  thread,
-}: {
-  thread: ThreadSummaryThread;
-}) {
+export function ThreadSummaryCard({ thread }: { thread: ThreadSummaryThread }) {
   return (
     <>
       <div className="flex flex-col gap-1">
@@ -172,6 +168,49 @@ export function ThreadSummaryHoverCard({
         <ThreadSummaryCard thread={thread} />
       </HoverCardContent>
     </HoverCard>
+  );
+}
+
+// TODO: fetch live PR data (title + state) via
+// fetchClient.mutate.thread.fetchGithubPullRequests and surface it in a hover
+// card, mirroring ThreadChipWithSummary.
+export function PrChip({
+  owner,
+  repo,
+  number,
+  url,
+  disabled = false,
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof BaseButton>, "children" | "render"> &
+  VariantProps<typeof threadChipVariants> & {
+    owner: string;
+    repo: string;
+    number: number;
+    url: string;
+  }) {
+  return (
+    <BaseButton
+      type="button"
+      className={cn(threadChipVariants({ disabled }), className)}
+      disabled={disabled ?? false}
+      render={
+        // biome-ignore lint/a11y/useAnchorContent: Content is provided via children
+        <a
+          href={url}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={`Pull request ${owner}/${repo}#${number} (opens in new tab)`}
+        />
+      }
+      {...props}
+    >
+      <GitPullRequest className="size-3.5 text-foreground-secondary shrink-0" />
+      <span className="text-foreground-primary">
+        {owner}/{repo}
+      </span>
+      <span className="text-foreground-secondary tabular-nums">#{number}</span>
+    </BaseButton>
   );
 }
 
