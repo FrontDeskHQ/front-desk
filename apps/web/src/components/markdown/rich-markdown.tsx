@@ -4,6 +4,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type Components, Streamdown } from "streamdown";
 import "streamdown/styles.css";
+import { z } from "zod";
 import { PrChip, ThreadChipWithSummary } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
@@ -13,16 +14,25 @@ const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
 const GITHUB_PR_URL_REGEX =
   /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pulls?\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
 
+const GithubPrSchema = z.object({
+  owner: z.string().min(1),
+  repo: z.string().min(1),
+  number: z.number().int().positive(),
+  url: z.string().url(),
+});
+
 function parseGithubPrUrl(href: string | undefined) {
   if (!href) return null;
   const match = href.match(GITHUB_PR_URL_REGEX);
   if (!match) return null;
-  return {
+  const parseResult = GithubPrSchema.safeParse({
     owner: match[1],
     repo: match[2],
     number: Number(match[3]),
     url: href,
-  };
+  });
+  if (!parseResult.success) return null;
+  return parseResult.data;
 }
 
 export type RichMarkdownPreset = "default" | "minimal" | "full" | "inline";
