@@ -63,6 +63,19 @@ This references a real thread using markdown protocol:
 The mention should render as the thread chip component.`;
 };
 
+const PR_MENTION_CONTENT = `## Pull request link example
+
+A fix for the reported SSO 401 errors has shipped in [vercel/next.js#12345](https://github.com/vercel/next.js/pull/12345).
+
+Other shapes that should also render as chips:
+
+- Trailing path: [files view](https://github.com/vercel/next.js/pull/12345/files)
+- Anchor: [discussion](https://github.com/vercel/next.js/pull/12345#discussion_r123)
+- \`/pulls/\` variant: [pulls form](https://github.com/vercel/next.js/pulls/67890)
+- \`www.\` host: [www host](https://www.github.com/vercel/next.js/pull/999)
+
+Non-PR GitHub links should stay as plain links: [repo home](https://github.com/vercel/next.js) and [an issue](https://github.com/vercel/next.js/issues/1).`;
+
 const buildInlineContent = (threadId: string | null) => {
   if (!threadId) {
     return "Inline preset sample with no thread mention available yet, **bold**, _italic_, and `code`.";
@@ -128,6 +141,14 @@ const VARIANTS: PlaygroundVariant[] = [
     mode: "static",
   },
   {
+    id: "pr-mention",
+    title: "PR link example",
+    description:
+      "Renders GitHub PR URLs as inline chips across canonical, /pulls/, www, anchor and trailing-path shapes.",
+    preset: "default",
+    mode: "static",
+  },
+  {
     id: "streaming-remend",
     title: "Streaming (parse incomplete on)",
     description:
@@ -189,6 +210,7 @@ function VariantCard({
 }) {
   const baseContent = (() => {
     if (variant.id === "thread-mention") return threadMentionContent;
+    if (variant.id === "pr-mention") return PR_MENTION_CONTENT;
     if (variant.id === "inline-static") return inlineContent;
     return SAMPLE_CONTENT;
   })();
