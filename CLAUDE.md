@@ -142,3 +142,17 @@ Copy `apps/api/.env.local.example` to `apps/api/.env.local` and configure:
 - `QDRANT_URL` - Vector database (hybrid search + thread similarity)
 - `GOOGLE_GENERATIVE_AI_API_KEY` - Gemini API for embeddings
 - Auth provider credentials (Google OAuth, etc.)
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in Linear (team `FRO`); skills interact via the Linear MCP server. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical names used as-is (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
