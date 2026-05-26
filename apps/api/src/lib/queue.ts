@@ -3,6 +3,9 @@ import Redis from "ioredis";
 import { z } from "zod";
 import "../env";
 
+// TEMP: Worker service stopped on Railway — re-enable when worker is back.
+const WORKER_JOBS_DISABLED = true;
+
 const INGEST_THREAD_QUEUE = "ingest-thread";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 
@@ -19,14 +22,14 @@ export type IngestThreadJobData = {
   options?: IngestThreadJobOptions;
 };
 
-const INGEST_THREAD_JOB_PRIORITY_VALUES: Record<
+/* const INGEST_THREAD_JOB_PRIORITY_VALUES: Record<
   IngestThreadJobPriority,
   number
 > = {
   high: 1,
   normal: 10,
   low: 100,
-};
+}; */
 
 let connection: Redis | null = null;
 let queue: Queue<IngestThreadJobData> | null = null;
@@ -85,12 +88,16 @@ export const enqueueIngestThreadJob = async (params: {
   options?: IngestThreadJobOptions;
   priority?: IngestThreadJobPriority;
 }): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
   const ingestThreadQueue = getIngestThreadQueue();
   if (!ingestThreadQueue) {
     return null;
   }
 
-  const job = await ingestThreadQueue.add(
+  /* const job = await ingestThreadQueue.add(
     "ingest-thread",
     {
       threadIds: params.threadIds,
@@ -101,7 +108,9 @@ export const enqueueIngestThreadJob = async (params: {
     },
   );
 
-  return job.id ?? null;
+  return job.id ?? null; */
+
+  return null;
 };
 
 // Crawl Documentation Queue
@@ -140,16 +149,22 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
 export const enqueueCrawlDocumentation = async (
   data: CrawlDocumentationJobData,
 ): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
   const queue = getCrawlDocQueue();
   if (!queue) {
     return null;
   }
 
-  const job = await queue.add("crawl-documentation", data, {
+  /* const job = await queue.add("crawl-documentation", data, {
     jobId: `crawl-${data.documentationSourceId}`,
   });
 
-  return job.id ?? null;
+  return job.id ?? null; */
+
+  return null;
 };
 
 // Embed PR Queue
@@ -196,17 +211,23 @@ const getEmbedPrQueue = (): Queue<EmbedPrJobData> | null => {
 export const enqueueEmbedPrJob = async (
   data: EmbedPrJobData,
 ): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
   const queue = getEmbedPrQueue();
   if (!queue) {
     return null;
   }
 
-  const payload = embedPrJobDataSchema.parse(data);
+  /* const payload = embedPrJobDataSchema.parse(data);
   const job = await queue.add("embed-pr", payload, {
     jobId: `embed-pr-${data.organizationId}:${data.owner}/${data.repo}#${data.prNumber}`,
   });
 
-  return job.id ?? null;
+  return job.id ?? null; */
+
+  return null;
 };
 
 // Digest Deliver Queue (force trigger)
@@ -238,14 +259,20 @@ const getDigestDeliverQueue = (): Queue<DigestDeliverJobData> | null => {
 export const enqueueForceDigestDeliver = async (
   orgId: string,
 ): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
   const queue = getDigestDeliverQueue();
   if (!queue) {
     return null;
   }
 
-  const job = await queue.add("digest-deliver-force", {
+  /* const job = await queue.add("digest-deliver-force", {
     forceOrgId: orgId,
   });
 
-  return job.id ?? null;
+  return job.id ?? null; */
+
+  return null;
 };
