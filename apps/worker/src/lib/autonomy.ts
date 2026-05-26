@@ -1,8 +1,8 @@
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
+  type ActionKind,
   type AutonomyLevel,
-  getDefaultSignalAutonomy,
-  type SignalType,
+  getDefaultActionAutonomy,
 } from "@workspace/schemas/signals";
 import { fetchClient } from "./database/client";
 
@@ -11,13 +11,13 @@ type OrgRow = {
   settings: unknown;
 };
 
-export async function getOrgAutonomy(
+export async function getOrgActionAutonomy(
   organizationId: string,
-): Promise<Record<SignalType, AutonomyLevel>> {
+): Promise<Record<ActionKind, AutonomyLevel>> {
   const rows = (await fetchClient.query.organization
     .where({ id: organizationId })
     .get()) as OrgRow[];
   const org = rows[0];
   const parsed = safeParseOrgSettings(org?.settings);
-  return { ...getDefaultSignalAutonomy(), ...(parsed.signalAutonomy ?? {}) };
+  return { ...getDefaultActionAutonomy(), ...(parsed.actionAutonomy ?? {}) };
 }

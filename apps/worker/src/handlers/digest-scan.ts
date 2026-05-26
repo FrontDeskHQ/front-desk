@@ -1,10 +1,6 @@
-import type { Job } from "bullmq";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import { log } from "@workspace/utils/logging";
-import {
-  computeUrgency,
-  signalTypeFromStored,
-} from "@workspace/schemas/signals";
+import type { Job } from "bullmq";
 import { ulid } from "ulid";
 import { fetchClient } from "../lib/database/client";
 
@@ -69,7 +65,8 @@ const formatError = (error: unknown): string => {
 export const handleDigestScan = async (_job: Job) => {
   log.info("worker.digest-scan", "Starting digest scan");
 
-  const organizations = (await fetchClient.query.organization.get()) as OrgRow[];
+  const organizations =
+    (await fetchClient.query.organization.get()) as OrgRow[];
 
   let totalPendingReply = 0;
   let totalLoopToClose = 0;
@@ -121,7 +118,9 @@ async function scanOrganization(
   const existingSignals = (await fetchClient.query.suggestion
     .where({
       organizationId,
-      type: { $in: [SUGGESTION_TYPE_PENDING_REPLY, SUGGESTION_TYPE_LOOP_TO_CLOSE] },
+      type: {
+        $in: [SUGGESTION_TYPE_PENDING_REPLY, SUGGESTION_TYPE_LOOP_TO_CLOSE],
+      },
       active: true,
     })
     .get()) as SuggestionRow[];
@@ -221,7 +220,8 @@ async function scanOrganization(
 
       // External author (userId is null) and past threshold
       if (lastAuthor && !lastAuthor.userId) {
-        const messageAge = Date.now() - new Date(lastMessage.createdAt).getTime();
+        const messageAge =
+          Date.now() - new Date(lastMessage.createdAt).getTime();
         if (messageAge > thresholdMs) {
           await createDigestSignal({
             type: SUGGESTION_TYPE_PENDING_REPLY,
@@ -252,14 +252,13 @@ async function scanOrganization(
         // Check if any internal author posted after the PR was linked
         const hasAgentReplyAfterLink = thread.messages.some((m) => {
           const author = authorMap.get(m.authorId);
-          return (
-            author?.userId &&
-            new Date(m.createdAt).getTime() > linkedAt
-          );
+          return author?.userId && new Date(m.createdAt).getTime() > linkedAt;
         });
 
         if (!hasAgentReplyAfterLink) {
-          const prMergedAt = new Date(linkedPrSuggestion.updatedAt).toISOString();
+          const prMergedAt = new Date(
+            linkedPrSuggestion.updatedAt,
+          ).toISOString();
 
           await createDigestSignal({
             type: SUGGESTION_TYPE_LOOP_TO_CLOSE,
@@ -287,7 +286,6 @@ async function createDigestSignal(params: {
   resultsStr: string;
 }): Promise<void> {
   const now = new Date();
-  const normalizedType = signalTypeFromStored(params.type);
   await fetchClient.mutate.suggestion.insert({
     id: ulid().toLowerCase(),
     type: params.type,
@@ -301,9 +299,7 @@ async function createDigestSignal(params: {
     summary: null,
     reasoning: null,
     suggestedActions: null,
-    urgencyScore: normalizedType
-      ? computeUrgency({ signalType: normalizedType, ageHours: 0 })
-      : 0,
+    urgencyScore: 0,
     createdAt: now,
     updatedAt: now,
   });

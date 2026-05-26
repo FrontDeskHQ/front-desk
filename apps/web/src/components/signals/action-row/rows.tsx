@@ -1,10 +1,5 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { Link } from "@tanstack/react-router";
-import {
-  SIGNAL_LABEL,
-  type SignalType,
-  urgencyTierFromScore,
-} from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
 import { statusValues } from "@workspace/ui/components/indicator";
@@ -14,12 +9,12 @@ import { z } from "zod";
 import { ThreadSummaryHoverCard } from "~/components/chips";
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
 import { buildThreadParam } from "~/utils/thread";
-import { ActionRow } from "./action-row";
+import { ActionRow, type UrgencyTier } from "./action-row";
 import {
+  type ActorContext,
   acceptDuplicateSuggestion,
   acceptLinkedPrSuggestion,
   acceptStatusSuggestion,
-  type ActorContext,
   dismissDigestSuggestion,
   dismissDuplicateSuggestion,
   dismissLinkedPrSuggestion,
@@ -41,11 +36,41 @@ export type SignalRowProps = {
   ctx: ActorContext;
 };
 
-function tierFor(score: number) {
-  return urgencyTierFromScore(score);
+// Local copies of the legacy `urgencyTierFromScore` + `SIGNAL_LABEL` surface —
+// the signals overhaul deletes both from @workspace/schemas/signals. Issue 10
+// rewrites this whole feed surface against the new ThreadRead schema.
+type LegacySignalType =
+  | "label"
+  | "duplicate"
+  | "linked_pr"
+  | "pending_reply"
+  | "loop_to_close"
+  | "suggested_reply"
+  | "status"
+  | "churn_risk"
+  | "kb_gap"
+  | "trending_issue";
+
+const SIGNAL_LABEL: Record<LegacySignalType, string> = {
+  churn_risk: "Churn risk",
+  pending_reply: "Awaiting your reply",
+  duplicate: "Likely duplicate",
+  loop_to_close: "Notify customer",
+  linked_pr: "Matching PR",
+  status: "Suggested status",
+  kb_gap: "Knowledge gap",
+  trending_issue: "Trending issue",
+  suggested_reply: "Suggested reply",
+  label: "Suggested label",
+};
+
+function tierFor(score: number): UrgencyTier {
+  if (score >= 80) return "red";
+  if (score >= 50) return "orange";
+  return "yellow";
 }
 
-function TitleLabel({ type }: { type: SignalType }) {
+function TitleLabel({ type }: { type: LegacySignalType }) {
   return <span>{SIGNAL_LABEL[type]}</span>;
 }
 

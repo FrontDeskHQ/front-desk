@@ -1,10 +1,5 @@
 import { google } from "@ai-sdk/google";
-import { computeUrgency } from "@workspace/schemas/signals";
-import {
-  createAILogger,
-  createLogger,
-  log,
-} from "@workspace/utils/logging";
+import { createAILogger, createLogger, log } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -291,10 +286,7 @@ const storeLinkedPrSuggestion = async (params: {
       summary,
       reasoning,
       suggestedActions: null,
-      urgencyScore: computeUrgency({
-        signalType: "linked_pr",
-        ageHours: 0,
-      }),
+      urgencyScore: 0,
       createdAt: now,
       updatedAt: now,
     });
@@ -413,9 +405,13 @@ export const matchPrToThreads = async (
     // Pick best matches by similarity score, restricted to high-confidence positive evaluations
     const confirmed = uniqueEvaluations
       .filter((e) => e.matches && e.confidence === "high")
-      .map((e) => ({ evaluation: e, candidate: candidateByThreadId.get(e.threadId) }))
-      .filter((x): x is { evaluation: MatchEvaluation; candidate: ThreadCandidate } =>
-        Boolean(x.candidate),
+      .map((e) => ({
+        evaluation: e,
+        candidate: candidateByThreadId.get(e.threadId),
+      }))
+      .filter(
+        (x): x is { evaluation: MatchEvaluation; candidate: ThreadCandidate } =>
+          Boolean(x.candidate),
       )
       .sort((a, b) => b.candidate.score - a.candidate.score)
       .slice(0, MAX_MATCHES);

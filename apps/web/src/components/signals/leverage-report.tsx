@@ -1,9 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
-import {
-  type SignalType,
-  signalTypeFromStored,
-} from "@workspace/schemas/signals";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import type { PostHog } from "posthog-js";
@@ -25,20 +21,17 @@ const SINCE_VISIT_MIN_MS = 60 * 60 * 1000;
 // fall back to last-24h for actionable recency.
 const SINCE_VISIT_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 
-// Tile caption per signal type. Past-action noun phrase, plural-aware downstream
-// is unnecessary because tiles always show >0 actions in aggregate.
-const TILE_CAPTION: Record<SignalType, string> = {
-  label: "Threads labeled",
-  duplicate: "Duplicates linked",
-  linked_pr: "PRs linked",
-  pending_reply: "Reply nudges",
-  loop_to_close: "Loops closed",
-  suggested_reply: "Drafts ready",
-  status: "Status updates",
-  churn_risk: "Churn risks flagged",
-  kb_gap: "KB gaps spotted",
-  trending_issue: "Trends spotted",
+// Tile caption per autonomous-action kind. Mirrors the discriminator on
+// `autonomousActionMetadataSchema` (the receipt metadata kind), not the legacy
+// SIGNAL_TYPES string.
+type ReceiptKind = "apply_label" | "set_status" | "mark_duplicate" | "link_pr";
+const TILE_CAPTION: Record<ReceiptKind, string> = {
+  apply_label: "Threads labeled",
+  set_status: "Status updates",
+  mark_duplicate: "Duplicates linked",
+  link_pr: "PRs linked",
 };
+const RECEIPT_KINDS: ReadonlySet<string> = new Set(Object.keys(TILE_CAPTION));
 
 type Props = {
   organizationId: string;
@@ -133,11 +126,11 @@ export function LeverageReport({
   if (!allActions) return <LeverageReport.Skeleton />;
   if (isNewOrg) return null;
 
-  const grouped = new Map<SignalType, number>();
+  const grouped = new Map<ReceiptKind, number>();
   for (const a of inWindow) {
-    const t = signalTypeFromStored(a.signalType);
-    if (!t) continue;
-    grouped.set(t, (grouped.get(t) ?? 0) + 1);
+    if (!RECEIPT_KINDS.has(a.signalType)) continue;
+    const k = a.signalType as ReceiptKind;
+    grouped.set(k, (grouped.get(k) ?? 0) + 1);
   }
 
   if (inWindow.length === 0) return null;
@@ -148,7 +141,7 @@ export function LeverageReport({
   const otherCount = overflow.reduce((sum, [, c]) => sum + c, 0);
 
   type Tile =
-    | { kind: "named"; type: SignalType; count: number }
+    | { kind: "named"; type: ReceiptKind; count: number }
     | { kind: "other"; count: number };
 
   const tiles: Tile[] = named.map(([type, count]) => ({

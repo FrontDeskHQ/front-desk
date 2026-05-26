@@ -1,8 +1,12 @@
-import type { UrgencyTier } from "@workspace/schemas/signals";
 import { ActionButton } from "@workspace/ui/components/button";
 import { PriorityIndicator } from "@workspace/ui/components/indicator";
 import { X } from "lucide-react";
 import { createContext, type ReactNode, use } from "react";
+
+// Local urgency tier — the legacy `UrgencyTier` schema export is gone in the
+// signals overhaul; issue 10 rewrites this surface against the new ThreadRead
+// urgencyScore (0..100) directly.
+export type UrgencyTier = "red" | "orange" | "yellow";
 
 type ActionRowContextValue = {
   tier: UrgencyTier;

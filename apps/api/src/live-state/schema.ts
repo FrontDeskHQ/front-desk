@@ -11,7 +11,6 @@ import {
   timestamp,
 } from "@live-state/sync";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
-import type { SuggestedActions } from "@workspace/schemas/signals";
 
 const organization = object("organization", {
   id: id(),
@@ -161,7 +160,7 @@ const suggestion = object("suggestion", {
   metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)
   summary: string().nullable(), // AI-generated one-line summary; null for deterministic signals (UI renders those)
   reasoning: string().nullable(), // AI-generated reasoning (null for deterministic signals)
-  suggestedActions: json<SuggestedActions>().nullable(), // Actions the agent can take (REPLY_SUGGESTION, ...)
+  suggestedActions: json<unknown>().nullable(), // legacy v1 column; dropped in issue 02
   urgencyScore: number().default(0),
   dismissedAt: timestamp().nullable(),
   actedAt: timestamp().nullable(),
@@ -307,15 +306,12 @@ const onboardingRelations = createRelations(onboarding, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
 
-const agentChatRelations = createRelations(
-  agentChat,
-  ({ one, many }) => ({
-    organization: one(organization, "organizationId"),
-    user: one(user, "userId"),
-    thread: one(thread, "threadId"),
-    messages: many(agentChatMessage, "agentChatId"),
-  }),
-);
+const agentChatRelations = createRelations(agentChat, ({ one, many }) => ({
+  organization: one(organization, "organizationId"),
+  user: one(user, "userId"),
+  thread: one(thread, "threadId"),
+  messages: many(agentChatMessage, "agentChatId"),
+}));
 
 const agentChatMessageRelations = createRelations(
   agentChatMessage,

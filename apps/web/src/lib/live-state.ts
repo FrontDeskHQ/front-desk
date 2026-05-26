@@ -180,16 +180,14 @@ const { client, store } = createClient<Router>({
           source: "autonomous_undo",
         };
 
-        if (metadata?.kind === "label") {
+        if (metadata?.kind === "apply_label") {
           const tl = storage.threadLabel
             .where({ threadId, labelId: metadata.labelId })
             .get()[0];
           if (tl?.enabled) {
             storage.threadLabel.update(tl.id, { enabled: false });
           }
-          const label = storage.label
-            .where({ id: metadata.labelId })
-            .get()[0];
+          const label = storage.label.where({ id: metadata.labelId }).get()[0];
           activityType = "label_changed";
           activityMetadata = {
             action: "removed",
@@ -197,7 +195,7 @@ const { client, store } = createClient<Router>({
             labelName: label?.name ?? null,
             source: "autonomous_undo",
           };
-        } else if (metadata?.kind === "linked_pr") {
+        } else if (metadata?.kind === "link_pr") {
           const thread = storage.thread.where({ id: threadId }).get()[0];
           const oldPrId = thread?.externalPrId ?? null;
           storage.thread.update(threadId, { externalPrId: null });
@@ -209,14 +207,14 @@ const { client, store } = createClient<Router>({
             newPrLabel: null,
             source: "autonomous_undo",
           };
-        } else if (metadata?.kind === "duplicate") {
+        } else if (metadata?.kind === "mark_duplicate") {
           storage.thread.update(threadId, { status: metadata.previousStatus });
           activityType = "marked_duplicate";
           activityMetadata = {
             duplicateOfThreadId: metadata.relatedThreadId,
             source: "autonomous_undo",
           };
-        } else if (metadata?.kind === "status") {
+        } else if (metadata?.kind === "set_status") {
           storage.thread.update(threadId, { status: metadata.previousStatus });
           activityType = "status_changed";
           activityMetadata = {
