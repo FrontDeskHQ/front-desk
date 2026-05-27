@@ -183,6 +183,23 @@ export function parseAutonomousActionMetadata(
   }
 }
 
+// --- Trigger / queue --------------------------------------------------------
+
+export const threadReadKindSchema = z.enum([
+  "message",
+  "pr_matched",
+  "sla",
+  "supersede",
+  "manual",
+]);
+export type ThreadReadKind = z.infer<typeof threadReadKindSchema>;
+
+export const threadReadJobDataSchema = z.object({
+  threadId: z.string(),
+  kind: threadReadKindSchema,
+});
+export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
+
 // --- Status labels (kept) -------------------------------------------------
 
 export const STATUS_LABELS: Record<number, string> = {

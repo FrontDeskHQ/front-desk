@@ -2,7 +2,7 @@
 import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
-import { enqueueIngestThreadJob } from "../../lib/queue";
+import { enqueueThreadRead } from "../../lib/queue";
 import { searchMessages } from "../../lib/search/qdrant";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -226,20 +226,23 @@ export default publicRoute
     afterInsert: ({ value, db }) => {
       (async () => {
         try {
+          // TODO(issue-06): when the author is outbound (teammate or Agent),
+          // dispatch kind:"supersede" instead so the worker handler can null
+          // thread.agentRead without invoking synthesis.
           const queuePriority = value.isBackfill ? "low" : "high";
-          const jobId = await enqueueIngestThreadJob({
-            threadIds: [value.threadId],
+          const jobId = await enqueueThreadRead(value.threadId, {
+            kind: "message",
             priority: queuePriority,
           });
 
           if (!jobId) {
             console.warn(
-              `Redis queue not configured; skipping ingest-thread enqueue for thread ${value.threadId}`,
+              `Redis queue not configured; skipping thread-read enqueue for thread ${value.threadId}`,
             );
           }
         } catch (error) {
           console.error(
-            `Unhandled error in afterInsert ingest enqueue for message ${value.id}`,
+            `Unhandled error in afterInsert thread-read enqueue for message ${value.id}`,
             error,
           );
         }

@@ -6,7 +6,7 @@ import type {
   PipelineExecutionResult,
 } from "./types";
 
-const PIPELINE_NAME = "ingest-thread";
+const PIPELINE_NAME = "thread-pipeline";
 
 /**
  * Create a new pipeline job record with status "pending"
