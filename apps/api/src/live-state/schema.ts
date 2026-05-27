@@ -11,7 +11,11 @@ import {
   timestamp,
 } from "@live-state/sync";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
-import type { InlineSuggestion, ThreadRead } from "@workspace/schemas/signals";
+import type {
+  InlineSuggestion,
+  SynthesisCandidates,
+  ThreadRead,
+} from "@workspace/schemas/signals";
 
 const organization = object("organization", {
   id: id(),
@@ -65,6 +69,7 @@ const thread = object("thread", {
   shortId: number().nullable(),
   agentRead: json<ThreadRead | null>().nullable(),
   inlineSuggestions: json<InlineSuggestion[]>().default([]),
+  synthesisCandidates: json<SynthesisCandidates>().default({}),
 });
 
 const message = object("message", {

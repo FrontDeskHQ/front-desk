@@ -30,7 +30,11 @@ The page (formerly `/signals`) where thread reads and pattern signals surface fo
 
 ### Candidate
 
-The output of a single generator (label classifier, duplicate search, status inferer, draft writer) for one thread: an action plus confidence and provenance. Ephemeral — not persisted. Consumed by the synthesis stage (which folds them into a thread read) or, for `suggest`-mode metadata candidates, written directly as an inline suggestion.
+The output of a single [generator](#generator) for one thread: an action plus confidence and provenance. Inline-track candidates (label classifier, status inferer) are consumed directly as [inline suggestions](#inline-suggestion). Synthesis-track candidates (duplicate, draft, link_pr, close) are persisted per-generator on `thread.synthesisCandidates` so [synthesis](#synthesis) sees a complete bag even when individual generators skip on unchanged inputs.
+
+### Generator
+
+A unit that produces zero or one [candidate](#candidate) for a thread. Each generator owns its own input dependencies and decides independently whether its prior output is still valid. Generators are individually evaluable; synthesis-track generators are persisted, inline-track generators write directly to `thread.inlineSuggestions`.
 
 ### Synthesis
 

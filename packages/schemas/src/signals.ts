@@ -121,6 +121,21 @@ export type InlineSuggestion = z.infer<typeof inlineSuggestionSchema>;
 export const inlineSuggestionsSchema = z.array(inlineSuggestionSchema);
 export type InlineSuggestions = z.infer<typeof inlineSuggestionsSchema>;
 
+// --- SynthesisCandidates --------------------------------------------------
+
+export type SynthesisCandidateSlot<A extends Action> = {
+  candidate: A | null;
+  hash: string;
+  computedAt: string;
+};
+
+export type SynthesisCandidates = {
+  duplicate?: SynthesisCandidateSlot<MarkDuplicateAction>;
+  draft?: SynthesisCandidateSlot<ReplyAction>;
+  link_pr?: SynthesisCandidateSlot<LinkPrAction>;
+  close?: SynthesisCandidateSlot<CloseAction>;
+};
+
 // --- Autonomy -------------------------------------------------------------
 
 export const autonomyLevelSchema = z.enum(["off", "suggest", "auto"]);
