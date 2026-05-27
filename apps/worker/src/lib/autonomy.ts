@@ -21,3 +21,17 @@ export async function getOrgActionAutonomy(
   const parsed = safeParseOrgSettings(org?.settings);
   return { ...getDefaultActionAutonomy(), ...(parsed.actionAutonomy ?? {}) };
 }
+
+export async function getLabelAutonomyMode(
+  organizationId: string,
+): Promise<AutonomyLevel> {
+  const map = await getOrgActionAutonomy(organizationId);
+  return map.apply_label;
+}
+
+export async function getStatusAutonomyMode(
+  organizationId: string,
+): Promise<AutonomyLevel> {
+  const map = await getOrgActionAutonomy(organizationId);
+  return map.set_status;
+}

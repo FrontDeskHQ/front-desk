@@ -9,11 +9,21 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(summarizeProcessor);
   processorRegistry.register(embedProcessor);
   processorRegistry.register(embedMessagesProcessor);
-  // TODO(signals-overhaul, issue 05/06): inline-track generators (label,
-  // status) and synthesis-track (duplicate, draft, link_pr, close) will be
-  // registered here once the new pipeline lands. The legacy find-similar
-  // processor (which wrote to the dropped suggestion table) was removed in
-  // issue 02.
+
+  // --- Inline-track generators (issues 05B–05C) ---------------------------
+  // Each generator issue adds its own `processorRegistry.register(...)` call
+  // here for the inline-track processors: label, status.
+
+  // --- Synthesis-track generators (issues 05D–05G) ------------------------
+  // Each generator issue adds its own `processorRegistry.register(...)` call
+  // here for the synthesis-track processors: duplicate, draft, link_pr,
+  // close. Each generator handles its own idempotency; no manual override is
+  // required. Ordering is resolved by `resolveExecutionOrder()` from each
+  // processor's `dependencies` (these run after summarize/embed).
+
+  // --- Synthesize (issue 06) ----------------------------------------------
+  // The synthesis stage consumes thread.synthesisCandidates and writes
+  // thread.agentRead.
 
   console.log(
     `  Registered ${processorRegistry.getNames().length} processors:`,
