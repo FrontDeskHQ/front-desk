@@ -198,150 +198,23 @@ export const agentChatRoute = privateRoute
         ...labelResults.filter((name): name is string => name !== null),
       );
 
-      // Fetch active suggestions for this thread
-      const allSuggestions = Object.values(
-        await db.find(schema.suggestion, {
-          where: {
-            entityId: agentChat.threadId,
-            organizationId: agentChat.organizationId,
-            active: true,
-          },
-        }),
-      );
-
-      // Related threads suggestions
-      const relatedThreadSuggestions = allSuggestions.filter(
-        (s) => s.type === "related_threads" && s.relatedEntityId,
-      );
+      // TODO(signals-overhaul issue 06+): rebuild Agent-chat context from
+      // thread.agentRead and thread.inlineSuggestions. The suggestion table was
+      // dropped in issue 02, so no related-threads / label / status / duplicate
+      // suggestions feed the system prompt for now.
       const relatedThreadsContext: string[] = [];
-      await Promise.all(
-        relatedThreadSuggestions.map(async (s) => {
-          const relatedThread = Object.values(
-            await db.find(schema.thread, {
-              where: {
-                id: s.relatedEntityId!,
-                organizationId: agentChat.organizationId,
-                deletedAt: null,
-              },
-            }),
-          )[0];
-          if (!relatedThread) return;
-          let score: number | null = null;
-          try {
-            const parsed = s.resultsStr
-              ? (JSON.parse(s.resultsStr) as { score?: number })
-              : null;
-            score = parsed?.score ?? null;
-          } catch {
-            // Ignore malformed suggestion payload
-          }
-          const author = relatedThread.authorId
-            ? await db.findOne(schema.author, relatedThread.authorId)
-            : null;
-          relatedThreadsContext.push(
-            `- "${relatedThread.name}" (_id: ${relatedThread.id}, by ${author?.name ?? "Unknown"}${score ? `, similarity: ${Math.round(score * 100)}%` : ""})`,
-          );
-        }),
-      );
-
-      // Label suggestions
-      const labelSuggestions = allSuggestions.filter(
-        (s) => s.type === "label" && s.relatedEntityId,
-      );
       const suggestedLabelNames: string[] = [];
-      await Promise.all(
-        labelSuggestions.map(async (s) => {
-          const label = await db.findOne(schema.label, s.relatedEntityId!);
-          if (label?.enabled) suggestedLabelNames.push(label.name);
-        }),
-      );
-
-      // Status suggestion
-      const statusSuggestion = allSuggestions.find(
-        (s) => s.type === "status" && s.resultsStr,
-      );
-      let suggestedStatus: {
+      const suggestedStatus: {
         status: string;
         confidence: number | null;
         reasoning: string | null;
       } | null = null;
-      if (statusSuggestion?.resultsStr) {
-        try {
-          const statusResult = JSON.parse(statusSuggestion.resultsStr) as {
-            suggestedStatus?: number;
-          };
-          let meta: { confidence?: number; reasoning?: string } | null = null;
-          try {
-            meta = statusSuggestion.metadataStr
-              ? (JSON.parse(statusSuggestion.metadataStr) as {
-                  confidence?: number;
-                  reasoning?: string;
-                })
-              : null;
-          } catch {
-            // Ignore malformed metadata
-          }
-          const statusNum = statusResult.suggestedStatus;
-          if (statusNum !== undefined) {
-            const statusMap: Record<number, string> = {
-              0: "Open",
-              1: "In Progress",
-              2: "Resolved",
-              3: "Closed",
-              4: "Duplicated",
-            };
-            suggestedStatus = {
-              status: statusMap[statusNum] ?? "Unknown",
-              confidence: meta?.confidence ?? null,
-              reasoning: meta?.reasoning ?? null,
-            };
-          }
-        } catch {
-          // Ignore malformed status suggestion payload
-        }
-      }
-
-      // Duplicate suggestion
-      const duplicateSuggestion = allSuggestions.find(
-        (s) => s.type === "duplicate" && s.relatedEntityId,
-      );
-      let suggestedDuplicate: {
+      const suggestedDuplicate: {
         _id: string;
         threadName: string;
         confidence: string | null;
         reason: string | null;
       } | null = null;
-      if (duplicateSuggestion?.relatedEntityId) {
-        const dupThread = Object.values(
-          await db.find(schema.thread, {
-            where: {
-              id: duplicateSuggestion.relatedEntityId,
-              organizationId: agentChat.organizationId,
-              deletedAt: null,
-            },
-          }),
-        )[0];
-        if (dupThread) {
-          let dupResults: { confidence?: string; reason?: string } | null =
-            null;
-          try {
-            dupResults = duplicateSuggestion.resultsStr
-              ? (JSON.parse(duplicateSuggestion.resultsStr) as {
-                  confidence?: string;
-                  reason?: string;
-                })
-              : null;
-          } catch {
-            // Ignore malformed duplicate suggestion payload
-          }
-          suggestedDuplicate = {
-            _id: dupThread.id,
-            threadName: dupThread.name,
-            confidence: dupResults?.confidence ?? null,
-            reason: dupResults?.reason ?? null,
-          };
-        }
-      }
 
       const statusLabels = STATUS_LABELS;
       const priorityLabels = PRIORITY_LABELS;

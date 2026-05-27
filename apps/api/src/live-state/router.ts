@@ -25,7 +25,6 @@ import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
 import { slackChannelsCache } from "./router/slack-channels";
-import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
@@ -796,7 +795,6 @@ export const router = createRouter({
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,
-    suggestion: suggestionRoute,
     autonomousAction: autonomousActionRoute,
     onboarding: onboardingRoute,
     documentationSource: documentationSourcesRoute,

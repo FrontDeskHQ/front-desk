@@ -1,6 +1,5 @@
 import { embedProcessor } from "./embed";
 import { embedMessagesProcessor } from "./embed-messages";
-import { findSimilarProcessor } from "./find-similar";
 import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
 
@@ -10,10 +9,11 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(summarizeProcessor);
   processorRegistry.register(embedProcessor);
   processorRegistry.register(embedMessagesProcessor);
-  processorRegistry.register(findSimilarProcessor);
   // TODO(signals-overhaul, issue 05/06): inline-track generators (label,
   // status) and synthesis-track (duplicate, draft, link_pr, close) will be
-  // registered here once the new pipeline lands.
+  // registered here once the new pipeline lands. The legacy find-similar
+  // processor (which wrote to the dropped suggestion table) was removed in
+  // issue 02.
 
   console.log(
     `  Registered ${processorRegistry.getNames().length} processors:`,

@@ -182,18 +182,10 @@ export const QuickActionsPanel = ({
     setIsCollapsed(newState);
   };
 
-  const updateSuggestionForLabel = (labelId: string, accepted: boolean) => {
-    if (!organizationId || !suggestions) return;
-
-    const suggestion = suggestions.find((s) => s.relatedEntityId === labelId);
-    if (!suggestion) return;
-
-    mutate.suggestion.update(suggestion.id, {
-      accepted,
-      active: false,
-      updatedAt: new Date(),
-    });
-  };
+  // TODO(signals-overhaul issue 10): rewrite against thread.inlineSuggestions.
+  // The suggestion table was dropped in issue 02; this is a no-op until the
+  // inline-suggestion mutations land.
+  const updateSuggestionForLabel = (_labelId: string, _accepted: boolean) => {};
 
   const handleAcceptLabel = (labelId: string) => {
     const label = suggestedLabels?.find((l) => l.id === labelId);
@@ -273,12 +265,7 @@ export const QuickActionsPanel = ({
       replicatedStr: JSON.stringify({}),
     });
 
-    mutate.suggestion.update(statusSuggestion.suggestion.id, {
-      accepted: true,
-      active: false,
-      updatedAt: new Date(),
-    });
-
+    // TODO(signals-overhaul issue 10): record acceptance on inlineSuggestions.
     captureThreadEvent("support_intelligence:status_accepted", {
       old_status: oldStatus,
       new_status: newStatus,
@@ -290,12 +277,7 @@ export const QuickActionsPanel = ({
   const handleDismissStatus = () => {
     if (!statusSuggestion) return;
 
-    mutate.suggestion.update(statusSuggestion.suggestion.id, {
-      accepted: false,
-      active: false,
-      updatedAt: new Date(),
-    });
-
+    // TODO(signals-overhaul issue 10): record dismissal on inlineSuggestions.
     captureThreadEvent("support_intelligence:status_dismissed", {
       suggested_status: statusSuggestion.suggestedStatus,
       suggested_status_label: statusSuggestion.label,
@@ -305,12 +287,8 @@ export const QuickActionsPanel = ({
   const handleAcceptDuplicate = () => {
     if (!duplicateSuggestion || !organizationId) return;
 
-    mutate.suggestion.update(duplicateSuggestion.suggestion.id, {
-      accepted: true,
-      active: false,
-      updatedAt: new Date(),
-    });
-
+    // TODO(signals-overhaul issue 10): record acceptance on inlineSuggestions
+    // (duplicate handling will move into the synthesis-track in issue 06).
     mutate.thread.update(threadId, { status: 4 });
 
     mutate.update.insert({
@@ -337,12 +315,7 @@ export const QuickActionsPanel = ({
   const handleDismissDuplicate = () => {
     if (!duplicateSuggestion) return;
 
-    mutate.suggestion.update(duplicateSuggestion.suggestion.id, {
-      accepted: false,
-      active: false,
-      updatedAt: new Date(),
-    });
-
+    // TODO(signals-overhaul issue 10): record dismissal on inlineSuggestions.
     captureThreadEvent("support_intelligence:duplicate_dismissed", {
       duplicate_thread_id: duplicateSuggestion.duplicateThreadId,
       confidence: duplicateSuggestion.confidence,

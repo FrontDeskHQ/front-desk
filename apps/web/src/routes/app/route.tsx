@@ -99,7 +99,6 @@ function App() {
               include: { user: true },
             },
             authors: true,
-            suggestions: true,
             onboardings: true,
             documentationSources: true,
             // TODO improve this to load only when needed

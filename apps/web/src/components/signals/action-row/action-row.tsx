@@ -1,3 +1,7 @@
+// TODO(signals-overhaul issue 10): revisit when rewriting the feed against
+// thread.agentRead. These primitives don't touch the dropped suggestion table,
+// but they exist to render the old signal cards; the rewrite may replace them.
+
 import { ActionButton } from "@workspace/ui/components/button";
 import { PriorityIndicator } from "@workspace/ui/components/indicator";
 import { X } from "lucide-react";

@@ -7,19 +7,12 @@ import {
 import { ulid } from "ulid";
 import z from "zod";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
-import { deactivateDigestSignals } from "../../lib/digest-signals";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
-const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
-
-type SimilarThreadResult = {
-  threadId: string;
-  score: number;
-};
 
 type FetchIssuesInput = {
   organizationId: string;
@@ -187,25 +180,6 @@ const pullRequestsCache = createReadThroughCache<
       input.repos.map((r) => r.fullName).sort(),
     )}:${input.installationId}`,
 });
-
-type SuggestionRow = {
-  id: string;
-  relatedEntityId: string | null;
-  resultsStr: string | null;
-};
-
-const parseScoreFromResultsStr = (
-  resultsStr: string | null | undefined,
-): number => {
-  if (!resultsStr) return 0;
-
-  try {
-    const parsed = JSON.parse(resultsStr);
-    return parsed.score ?? 0;
-  } catch {
-    return 0;
-  }
-};
 
 export default publicRoute
   .collectionRoute(schema.thread, {
@@ -477,73 +451,16 @@ export default publicRoute
 
       return { threads, nextCursor };
     }),
+    // TODO(signals-overhaul issue 10): rewrite against thread.agentRead /
+    // thread.inlineSuggestions (or replace with a new related-threads source).
+    // The suggestion table backing this was dropped in issue 02; returns [] now.
     fetchRelatedThreads: mutation(
       z.object({
         threadId: z.string(),
         organizationId: z.string(),
       }),
-    ).handler(async ({ req, db }) => {
-      // TODO: Add proper authorization
-      const { threadId, organizationId } = req.input;
-
-      const thread = await db.findOne(schema.thread, threadId);
-      if (!thread || thread.organizationId !== organizationId) {
-        throw new Error("THREAD_NOT_FOUND");
-      }
-
-      const suggestions = Object.values(
-        await db.find(schema.suggestion, {
-          where: {
-            type: SUGGESTION_TYPE_RELATED_THREADS,
-            entityId: threadId,
-            organizationId,
-            active: true,
-          },
-        }),
-      ) as SuggestionRow[];
-
-      const results: SimilarThreadResult[] = suggestions
-        .filter(
-          (s): s is SuggestionRow & { relatedEntityId: string } =>
-            !!s.relatedEntityId,
-        )
-        .map((s) => ({
-          threadId: s.relatedEntityId,
-          score: parseScoreFromResultsStr(s.resultsStr),
-        }))
-        .sort((a, b) => b.score - a.score);
-
-      if (results.length === 0) {
-        return [];
-      }
-
-      const resultThreadIds = results.map((result) => result.threadId);
-      const relatedThreads = Object.values(
-        await db.find(schema.thread, {
-          where: {
-            id: { $in: resultThreadIds },
-            organizationId,
-          },
-          include: {
-            author: { include: { user: true } },
-          },
-        }),
-      );
-
-      const threadById = new Map(
-        relatedThreads.map((relatedThread) => [
-          relatedThread.id,
-          relatedThread,
-        ]),
-      );
-      const orderedThreads = resultThreadIds
-        .map((id) => threadById.get(id))
-        .filter(
-          (relatedThread): relatedThread is (typeof relatedThreads)[number] =>
-            !!relatedThread && !relatedThread.deletedAt,
-        );
-
-      return orderedThreads;
+    ).handler(async () => {
+      return [];
     }),
     fetchGithubIssues: mutation(
       z.object({
@@ -862,24 +779,6 @@ export default publicRoute
           `Failed to assign shortId to thread ${value.id}:`,
           error,
         );
-      }
-    },
-    afterUpdate: ({ value, previousValue, db }) => {
-      const CLOSED_STATUSES = [2, 3, 4]; // Resolved, Closed, Duplicated
-      if (
-        previousValue &&
-        !CLOSED_STATUSES.includes(previousValue.status) &&
-        CLOSED_STATUSES.includes(value.status)
-      ) {
-        deactivateDigestSignals(db, value.organizationId, value.id, [
-          "digest:pending_reply",
-          "digest:loop_to_close",
-        ]).catch((error) => {
-          console.error(
-            `Failed to deactivate digest signals for thread ${value.id}:`,
-            error,
-          );
-        });
       }
     },
   });
