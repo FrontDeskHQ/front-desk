@@ -21,10 +21,11 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(labelClassifierProcessor);
   processorRegistry.register(statusInfererProcessor);
 
-  // --- Synthesis-track generators (issues 05D–05G) ------------------------
-  // Each generator issue adds its own `processorRegistry.register(...)` call
-  // here for the synthesis-track processors: duplicate, draft, link_pr,
-  // close. Each generator handles its own idempotency; no manual override is
+  // --- Synthesis-track hint processors + generators (issues 05D–05G) ------
+  // Hint processors (duplicate, related_docs) emit evidence to thread.hints.
+  // Each issue adds its own `processorRegistry.register(...)` call here for
+  // synthesis-track processors: duplicate, draft, link_pr, close. Each handles
+  // its own idempotency; no manual override is
   // required. Ordering is resolved by `resolveExecutionOrder()` from each
   // processor's `dependencies` (these run after summarize/embed).
   processorRegistry.register(duplicateProcessor);

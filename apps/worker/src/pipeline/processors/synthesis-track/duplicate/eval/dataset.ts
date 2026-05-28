@@ -6,8 +6,7 @@ import type {
 // NOTE: `searchSimilarThreads` already excludes the current thread and applies
 // score_threshold at the Qdrant layer. These fixtures represent the *post-
 // filter* result list — the picker's job is only to choose the single top
-// candidate above its own threshold (a defense-in-depth check) and shape the
-// action.
+// hit above its own threshold (a defense-in-depth check) and shape evidence.
 
 const payload = (id: string): ThreadPayload => ({
   threadId: id,
@@ -35,7 +34,7 @@ const r = (threadId: string, score: number): SimilarThreadResult => ({
 export type DuplicateTestCase = {
   name: string;
   input: { results: SimilarThreadResult[]; threshold: number };
-  expected: { expectedCandidateThreadId: string | null };
+  expected: { expectedThreadId: string | null };
 };
 
 const T = 0.85;
@@ -45,12 +44,12 @@ export const duplicateDataset: DuplicateTestCase[] = [
   {
     name: "single high-score duplicate at top (0.95)",
     input: { results: [r("dup_a", 0.95)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
   {
     name: "single high-score duplicate at threshold boundary (0.85)",
     input: { results: [r("dup_a", 0.85)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
   {
     name: "top duplicate above threshold, others below",
@@ -58,29 +57,29 @@ export const duplicateDataset: DuplicateTestCase[] = [
       results: [r("dup_a", 0.92), r("other_b", 0.6), r("other_c", 0.4)],
       threshold: T,
     },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
   {
     name: "duplicate at 0.99 (very high confidence)",
     input: { results: [r("dup_a", 0.99)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
   {
     name: "duplicate at 0.87 (just above threshold)",
     input: { results: [r("dup_a", 0.87)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
 
   // --- Top result plausible but below threshold ------------------------
   {
     name: "top result at 0.84 (just below threshold) -> null",
     input: { results: [r("near_a", 0.84)], threshold: T },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
   {
     name: "top result at 0.80 -> null",
     input: { results: [r("near_a", 0.8)], threshold: T },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
   {
     name: "all results below threshold -> null",
@@ -88,24 +87,24 @@ export const duplicateDataset: DuplicateTestCase[] = [
       results: [r("near_a", 0.82), r("near_b", 0.75), r("near_c", 0.71)],
       threshold: T,
     },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
   {
     name: "result at 0.7 (Qdrant default) but above duplicate threshold -> null",
     input: { results: [r("near_a", 0.7)], threshold: T },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
   {
     name: "single result barely missing threshold (0.849)",
     input: { results: [r("near_a", 0.849)], threshold: T },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
 
   // --- Multiple high-score candidates -> pick the highest, single emit -
   {
     name: "two above threshold, pick higher",
     input: { results: [r("dup_a", 0.88), r("dup_b", 0.93)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_b" },
+    expected: { expectedThreadId: "dup_b" },
   },
   {
     name: "three above threshold, pick highest",
@@ -113,7 +112,7 @@ export const duplicateDataset: DuplicateTestCase[] = [
       results: [r("dup_a", 0.86), r("dup_b", 0.91), r("dup_c", 0.97)],
       threshold: T,
     },
-    expected: { expectedCandidateThreadId: "dup_c" },
+    expected: { expectedThreadId: "dup_c" },
   },
   {
     name: "results not pre-sorted, pick highest",
@@ -121,31 +120,31 @@ export const duplicateDataset: DuplicateTestCase[] = [
       results: [r("dup_a", 0.97), r("dup_b", 0.89), r("dup_c", 0.92)],
       threshold: T,
     },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
 
   // --- Empty results ---------------------------------------------------
   {
     name: "empty results -> null",
     input: { results: [], threshold: T },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
   {
     name: "empty results with high threshold -> null",
     input: { results: [], threshold: 0.99 },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
 
   // --- Edges -----------------------------------------------------------
   {
     name: "tied top scores -> picks first encountered tied value",
     input: { results: [r("dup_a", 0.9), r("dup_b", 0.9)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
   {
     name: "one above, one below threshold",
     input: { results: [r("dup_a", 0.86), r("near_b", 0.8)], threshold: T },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
   {
     name: "mixed scores with above-threshold not first",
@@ -153,16 +152,16 @@ export const duplicateDataset: DuplicateTestCase[] = [
       results: [r("near_a", 0.7), r("dup_b", 0.88), r("near_c", 0.6)],
       threshold: T,
     },
-    expected: { expectedCandidateThreadId: "dup_b" },
+    expected: { expectedThreadId: "dup_b" },
   },
   {
     name: "high threshold filters out otherwise-good match",
     input: { results: [r("dup_a", 0.9)], threshold: 0.95 },
-    expected: { expectedCandidateThreadId: null },
+    expected: { expectedThreadId: null },
   },
   {
     name: "lower custom threshold accepts mid-score match",
     input: { results: [r("dup_a", 0.78)], threshold: 0.75 },
-    expected: { expectedCandidateThreadId: "dup_a" },
+    expected: { expectedThreadId: "dup_a" },
   },
 ];

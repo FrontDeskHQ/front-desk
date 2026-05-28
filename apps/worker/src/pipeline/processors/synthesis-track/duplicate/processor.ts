@@ -10,7 +10,7 @@ import type {
   ProcessorResult,
 } from "../../../core/types";
 import type { SummarizeOutput } from "../../summarize";
-import { findDuplicateCandidate } from "./find";
+import { pickDuplicateEvidence } from "./find";
 
 export const DUPLICATE_THRESHOLD = 0.85;
 
@@ -89,21 +89,9 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           limit: 5,
         });
 
-        const picked = findDuplicateCandidate(results, {
+        const evidence = pickDuplicateEvidence(results, {
           threshold: DUPLICATE_THRESHOLD,
         });
-
-        const bestMatch = picked
-          ? results.find((r) => r.threadId === picked.targetThreadId)
-          : undefined;
-        const evidence: DuplicateEvidence | null = picked
-          ? {
-              threadId: picked.targetThreadId,
-              score: picked.score,
-              title: bestMatch?.payload.title ?? "",
-              shortDescription: bestMatch?.payload.shortDescription,
-            }
-          : null;
 
         await writeHintSlot(threadId, "duplicate", evidence, hash);
 

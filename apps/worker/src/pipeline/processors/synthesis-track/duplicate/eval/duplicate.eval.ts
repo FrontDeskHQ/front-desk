@@ -1,10 +1,14 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
-import { findDuplicateCandidate } from "../find";
+import { pickDuplicateEvidence } from "../find";
 import { duplicateDataset } from "./dataset";
-import { duplicateMatchAccuracy, thresholdCalibration } from "./scorers";
+import {
+  duplicateEvidenceRetrieval,
+  duplicateEvidenceScore,
+  thresholdCalibration,
+} from "./scorers";
 
-evalite("Duplicate Generator", {
+evalite("Duplicate Hint", {
   data: () =>
     duplicateDataset.map((c) => ({
       input: c.input,
@@ -12,7 +16,7 @@ evalite("Duplicate Generator", {
     })),
   task: async (input) => {
     const start = Date.now();
-    const result = findDuplicateCandidate(input.results, {
+    const result = pickDuplicateEvidence(input.results, {
       threshold: input.threshold,
     });
     reportTrace({
@@ -30,5 +34,9 @@ evalite("Duplicate Generator", {
     });
     return result;
   },
-  scorers: [duplicateMatchAccuracy, thresholdCalibration],
+  scorers: [
+    duplicateEvidenceRetrieval,
+    duplicateEvidenceScore,
+    thresholdCalibration,
+  ],
 });
