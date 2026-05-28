@@ -1,13 +1,13 @@
-import type { InferLiveObject } from "@live-state/sync";
+import type { InferLiveCollection } from "@live-state/sync";
 import type { schema } from "api/schema";
 import type { SimilarThreadResult } from "./lib/qdrant/threads";
 
 /**
  * Thread type with messages and labels included
  */
-export type Thread = InferLiveObject<
+export type Thread = InferLiveCollection<
   typeof schema.thread,
-  { messages: true; labels: { label: true } }
+  { messages: true; labels: { include: { label: true } } }
 >;
 
 /**

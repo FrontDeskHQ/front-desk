@@ -6,7 +6,9 @@
   "scripts": {
     "dev": "bun run --watch src/worker.ts",
     "start": "bun run src/worker.ts",
-    "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts"
+    "typecheck": "tsc --noEmit",
+    "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
+    "eval:labels": "evalite src/pipeline/processors/inline-track/label/eval/label.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.13",
@@ -23,7 +25,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "dotenv": "^16.6.1"
   },
   "peerDependencies": {
     "typescript": "^5"
