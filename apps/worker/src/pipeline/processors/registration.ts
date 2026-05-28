@@ -4,6 +4,7 @@ import { labelClassifierProcessor } from "./inline-track/label/processor";
 import { statusInfererProcessor } from "./inline-track/status/processor";
 import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
+import { duplicateProcessor } from "./synthesis-track/duplicate/processor";
 
 export const registerDefaultProcessors = (): void => {
   console.log("Registering default processors...");
@@ -24,6 +25,7 @@ export const registerDefaultProcessors = (): void => {
   // close. Each generator handles its own idempotency; no manual override is
   // required. Ordering is resolved by `resolveExecutionOrder()` from each
   // processor's `dependencies` (these run after summarize/embed).
+  processorRegistry.register(duplicateProcessor);
 
   // --- Synthesize (issue 06) ----------------------------------------------
   // The synthesis stage consumes thread.synthesisCandidates and writes

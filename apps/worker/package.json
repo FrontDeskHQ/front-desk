@@ -9,7 +9,8 @@
     "typecheck": "tsc --noEmit",
     "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
     "eval:labels": "evalite src/pipeline/processors/inline-track/label/eval/label.eval.ts",
-    "eval:status": "evalite src/pipeline/processors/inline-track/status/eval/status.eval.ts"
+    "eval:status": "evalite src/pipeline/processors/inline-track/status/eval/status.eval.ts",
+    "eval:duplicate": "evalite src/pipeline/processors/synthesis-track/duplicate/eval/duplicate.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.13",
