@@ -6,6 +6,7 @@ import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
 import { draftProcessor } from "./synthesis-track/draft/processor";
 import { duplicateProcessor } from "./synthesis-track/duplicate/processor";
+import { relatedDocsProcessor } from "./synthesis-track/related_docs/processor";
 
 export const registerDefaultProcessors = (): void => {
   console.log("Registering default processors...");
@@ -27,6 +28,7 @@ export const registerDefaultProcessors = (): void => {
   // required. Ordering is resolved by `resolveExecutionOrder()` from each
   // processor's `dependencies` (these run after summarize/embed).
   processorRegistry.register(duplicateProcessor);
+  processorRegistry.register(relatedDocsProcessor);
   processorRegistry.register(draftProcessor);
 
   // --- Synthesize (issue 06) ----------------------------------------------
