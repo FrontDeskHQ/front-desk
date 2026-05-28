@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
-import type { MarkDuplicateAction } from "@workspace/schemas/signals";
+import type { DuplicateEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 import { searchSimilarThreads } from "../../../../lib/qdrant/threads";
-import { writeSynthesisCandidateSlot } from "../../../../lib/synthesis-candidates";
+import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -15,7 +15,7 @@ import { findDuplicateCandidate } from "./find";
 export const DUPLICATE_THRESHOLD = 0.85;
 
 export type DuplicateProcessorOutput = {
-  candidate: MarkDuplicateAction | null;
+  evidence: DuplicateEvidence | null;
 };
 
 const summaryHashInput = (summary: ParsedSummary): string =>
@@ -93,19 +93,24 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           threshold: DUPLICATE_THRESHOLD,
         });
 
-        const candidate: MarkDuplicateAction | null = picked
-          ? { kind: "mark_duplicate", targetThreadId: picked.targetThreadId }
+        const bestMatch = picked
+          ? results.find((r) => r.threadId === picked.targetThreadId)
+          : undefined;
+        const evidence: DuplicateEvidence | null = picked
+          ? {
+              threadId: picked.targetThreadId,
+              score: picked.score,
+              title: bestMatch?.payload.title ?? "",
+              shortDescription: bestMatch?.payload.shortDescription,
+            }
           : null;
 
-        await writeSynthesisCandidateSlot(threadId, "duplicate", {
-          candidate,
-          hash,
-        });
+        await writeHintSlot(threadId, "duplicate", evidence, hash);
 
         return {
           threadId,
           success: true,
-          data: { candidate },
+          data: { evidence },
         };
       } catch (error) {
         status = 500;

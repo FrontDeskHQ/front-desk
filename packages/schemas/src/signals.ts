@@ -121,20 +121,42 @@ export type InlineSuggestion = z.infer<typeof inlineSuggestionSchema>;
 export const inlineSuggestionsSchema = z.array(inlineSuggestionSchema);
 export type InlineSuggestions = z.infer<typeof inlineSuggestionsSchema>;
 
-// --- SynthesisCandidates --------------------------------------------------
+// --- Read hints (evidence bag) --------------------------------------------
 
-export type SynthesisCandidateSlot<A extends Action> = {
-  candidate: A | null;
+export const duplicateEvidenceSchema = z.object({
+  threadId: z.string(),
+  score: z.number().min(0).max(1),
+  title: z.string(),
+  shortDescription: z.string().optional(),
+});
+export type DuplicateEvidence = z.infer<typeof duplicateEvidenceSchema>;
+
+export const relatedDocEvidenceItemSchema = z.object({
+  docId: z.string(),
+  title: z.string(),
+  url: z.string().optional(),
+  score: z.number().min(0).max(1),
+});
+export type RelatedDocEvidenceItem = z.infer<typeof relatedDocEvidenceItemSchema>;
+
+export const relatedDocsEvidenceSchema = z.object({
+  docs: z.array(relatedDocEvidenceItemSchema),
+});
+export type RelatedDocsEvidence = z.infer<typeof relatedDocsEvidenceSchema>;
+
+export type HintSlot<E> = {
+  evidence: E | null;
   hash: string;
   computedAt: string;
 };
 
-export type SynthesisCandidates = {
-  duplicate?: SynthesisCandidateSlot<MarkDuplicateAction>;
-  draft?: SynthesisCandidateSlot<ReplyAction>;
-  link_pr?: SynthesisCandidateSlot<LinkPrAction>;
-  close?: SynthesisCandidateSlot<CloseAction>;
+export type Hints = {
+  duplicate?: HintSlot<DuplicateEvidence>;
+  related_docs?: HintSlot<RelatedDocsEvidence>;
 };
+
+export const HINT_KINDS = ["duplicate", "related_docs"] as const;
+export type HintKind = (typeof HINT_KINDS)[number];
 
 // --- Autonomy -------------------------------------------------------------
 

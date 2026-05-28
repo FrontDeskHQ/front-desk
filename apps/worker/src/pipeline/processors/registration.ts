@@ -30,8 +30,7 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(draftProcessor);
 
   // --- Synthesize (issue 06) ----------------------------------------------
-  // The synthesis stage consumes thread.synthesisCandidates and writes
-  // thread.agentRead.
+  // The synthesis stage consumes thread.hints and writes thread.agentRead.
 
   console.log(
     `  Registered ${processorRegistry.getNames().length} processors:`,

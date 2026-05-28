@@ -3,7 +3,6 @@ import type { ReplyAction } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { fetchClient } from "../../../../lib/database/client";
-import { writeSynthesisCandidateSlot } from "../../../../lib/synthesis-candidates";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -128,22 +127,15 @@ export const draftProcessor: ProcessorDefinition<DraftProcessorOutput> = {
 
     try {
       const ordered = sortedMessages(thread.messages);
-      const hash = computeDraftHash(thread);
 
-      const writeNull = async () => {
-        await writeSynthesisCandidateSlot(threadId, "draft", {
-          candidate: null,
-          hash,
-        });
-        return {
-          threadId,
-          success: true as const,
-          data: { candidate: null },
-        };
-      };
+      const writeNull = () => ({
+        threadId,
+        success: true as const,
+        data: { candidate: null },
+      });
 
       if (ordered.length === 0) {
-        return await writeNull();
+        return writeNull();
       }
 
       // Determine the role of the most recent message. If the support team
@@ -155,11 +147,11 @@ export const draftProcessor: ProcessorDefinition<DraftProcessorOutput> = {
       );
       const latest = windowed[windowed.length - 1];
       if (!latest) {
-        return await writeNull();
+        return writeNull();
       }
       const latestRole = roleByAuthorId.get(latest.authorId) ?? "unknown";
       if (latestRole === "agent") {
-        return await writeNull();
+        return writeNull();
       }
 
       const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
@@ -187,11 +179,6 @@ export const draftProcessor: ProcessorDefinition<DraftProcessorOutput> = {
       const candidate: ReplyAction | null = draftMarkdown
         ? { kind: "reply", draftMarkdown }
         : null;
-
-      await writeSynthesisCandidateSlot(threadId, "draft", {
-        candidate,
-        hash,
-      });
 
       return {
         threadId,
