@@ -1,6 +1,7 @@
 import { embedProcessor } from "./embed";
 import { embedMessagesProcessor } from "./embed-messages";
 import { labelClassifierProcessor } from "./inline-track/label/processor";
+import { statusInfererProcessor } from "./inline-track/status/processor";
 import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
 
@@ -15,6 +16,7 @@ export const registerDefaultProcessors = (): void => {
   // Each generator issue adds its own `processorRegistry.register(...)` call
   // here for the inline-track processors: label, status.
   processorRegistry.register(labelClassifierProcessor);
+  processorRegistry.register(statusInfererProcessor);
 
   // --- Synthesis-track generators (issues 05D–05G) ------------------------
   // Each generator issue adds its own `processorRegistry.register(...)` call
