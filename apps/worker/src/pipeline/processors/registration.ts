@@ -4,9 +4,9 @@ import { labelClassifierProcessor } from "./inline-track/label/processor";
 import { statusInfererProcessor } from "./inline-track/status/processor";
 import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
-import { draftProcessor } from "./synthesis-track/draft/processor";
 import { duplicateProcessor } from "./synthesis-track/duplicate/processor";
 import { relatedDocsProcessor } from "./synthesis-track/related_docs/processor";
+import { synthesisProcessor } from "./synthesis-track/synthesis/processor";
 
 export const registerDefaultProcessors = (): void => {
   console.log("Registering default processors...");
@@ -21,19 +21,15 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(labelClassifierProcessor);
   processorRegistry.register(statusInfererProcessor);
 
-  // --- Synthesis-track hint processors + generators (issues 05D–05G) ------
+  // --- Synthesis-track hint processors + synthesis agent --------------------
   // Hint processors (duplicate, related_docs) emit evidence to thread.hints.
-  // Each issue adds its own `processorRegistry.register(...)` call here for
-  // synthesis-track processors: duplicate, draft, link_pr, close. Each handles
-  // its own idempotency; no manual override is
+  // Synthesis reads the hint bag + thread state and emits a raw action set.
+  // Each processor handles its own idempotency; no manual override is
   // required. Ordering is resolved by `resolveExecutionOrder()` from each
   // processor's `dependencies` (these run after summarize/embed).
   processorRegistry.register(duplicateProcessor);
   processorRegistry.register(relatedDocsProcessor);
-  processorRegistry.register(draftProcessor);
-
-  // --- Synthesize (issue 06) ----------------------------------------------
-  // The synthesis stage consumes thread.hints and writes thread.agentRead.
+  processorRegistry.register(synthesisProcessor);
 
   console.log(
     `  Registered ${processorRegistry.getNames().length} processors:`,

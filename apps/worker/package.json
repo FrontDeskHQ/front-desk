@@ -12,7 +12,8 @@
     "eval:status": "evalite src/pipeline/processors/inline-track/status/eval/status.eval.ts",
     "eval:duplicate": "evalite src/pipeline/processors/synthesis-track/duplicate/eval/duplicate.eval.ts",
     "eval:related-docs": "evalite src/pipeline/processors/synthesis-track/related_docs/eval/related-docs.eval.ts",
-    "eval:draft": "evalite src/pipeline/processors/synthesis-track/draft/eval/draft.eval.ts"
+    "eval:synthesis": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis.eval.ts",
+    "eval:synthesis-agent": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.13",
