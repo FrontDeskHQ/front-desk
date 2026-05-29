@@ -10,7 +10,7 @@ Umbrella term for items the Agent puts in the feed for human attention. Today on
 
 ### Thread read
 
-The Agent's synthesis output for a single thread: a summary, reasoning, a ranked primary action (possibly compound), and optional secondary actions. Produced by the synthesis LLM call. At most one active per thread; re-reads replace. Stored on `thread.agentRead`.
+The Agent's synthesis output for a single thread: a summary, reasoning, a ranked primary action (possibly compound), and optional pick-one alternatives. Composed by [synthesis](#synthesis) and persisted by the [autonomy helper](#autonomy-stage) after `off` actions are dropped and `auto` actions executed. At most one active per thread; re-reads replace. Stored on `thread.agentRead`.
 
 A thread read exists only when the Agent has a **substantive next move** (reply, mark duplicate, close, link PR, etc.). Pure metadata enrichments (label, status) are not thread reads — see [Inline suggestion](#inline-suggestion).
 
@@ -28,17 +28,33 @@ A cross-thread observation produced by a periodic cron scan. Three kinds today: 
 
 The page (formerly `/signals`) where thread reads and pattern signals surface for human attention. Shows "you're all caught up" when empty. Inline suggestions do not appear here.
 
-### Candidate
+### Entry processor
 
-The output of a single [generator](#generator) for one thread: an action plus confidence and provenance. Inline-track candidates (label classifier, status inferer) are consumed directly as [inline suggestions](#inline-suggestion). Synthesis-track candidates (duplicate, draft, link_pr, close) are persisted per-generator on `thread.synthesisCandidates` so [synthesis](#synthesis) sees a complete bag even when individual generators skip on unchanged inputs.
+A [processor](#processor) that prepares raw thread data for everything downstream — summarisation, embedding, message extraction. Its output is *processor-facing*, never user-facing. Both the [inline track](#inline-suggestion) and the [synthesis track](#read-hint) consume entry-processor output.
 
-### Generator
+### Read hint
 
-A unit that produces zero or one [candidate](#candidate) for a thread. Each generator owns its own input dependencies and decides independently whether its prior output is still valid. Generators are individually evaluable; synthesis-track generators are persisted, inline-track generators write directly to `thread.inlineSuggestions`.
+Evidence about a thread, computed eagerly by a [hint processor](#hint-processor) and read by [synthesis](#synthesis). A hint is *evidence, not an action*: "thread #482 looks like a duplicate, score 0.91", "these three docs are relevant". Synthesis — not the hint processor — decides whether that evidence becomes an action. Hints provide **breadth** (always-on detectors that surface leads); synthesis tools provide **depth** (on-demand investigation of a lead). Persisted per-processor so synthesis sees a complete bag even when individual hint processors skip on unchanged inputs.
+
+### Hint processor
+
+A [processor](#processor) that produces zero or one [read hint](#read-hint) for a thread. The two hints today are *duplicate* and *related-docs*. A hint processor only gathers and scores evidence; it never proposes a concrete action. Each owns its own input dependencies and skips when its prior hint is still valid.
+
+### Processor
+
+A unit of work in the pipeline with declared dependencies, run in dependency order. "Entry", "hint", and "synthesis" are *conceptual categories* of processor, not different code shapes — they all share one definition. The [inline track](#inline-suggestion) classifiers (label, status) are also processors but are a self-contained fast path: cheap, no LLM gate, calling the [autonomy helper](#autonomy-stage) after their LLM step before writing chips.
+
+### Trigger
+
+The cause of a pipeline run, and an *orthogonal* input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes the matched PR), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: *what detectors found* (hints) and *why I am running, with what* (trigger). The trigger kind also drives which hints are invalidated and recomputed.
 
 ### Synthesis
 
-The single LLM call that turns candidates + thread context into a thread read. Owns routing: decides whether a thread warrants a read at all, what the primary action is, and what rides as secondaries. When synthesis decides there is no substantive read, eligible candidates may still surface as inline suggestions.
+The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](#trigger) context + thread state into a [thread read](#thread-read). It uses tools to investigate leads in depth, then emits a raw, unfiltered set of actions — one primary (possibly compound) and optional pick-one alternatives. Synthesis owns *all* substantive action decisions; it does not see or emit [inline-suggestion](#inline-suggestion) actions (label, status). It does not persist the [thread read](#thread-read) itself — after the agent returns, the synthesis processor calls the [autonomy helper](#autonomy-stage) to apply policy and persist.
+
+### Autonomy stage
+
+A deterministic, no-LLM helper (not a pipeline processor) that action-emitting processors call immediately after their LLM step. Per action kind it applies the org's setting (`off` → drop, `suggest` → leave for human, `auto` → execute now + write an [autonomous-action](#autonomous-action) receipt), then persists the surface (`thread.agentRead` or `thread.inlineSuggestions`). [Synthesis](#synthesis) calls it over the raw action set; [inline track](#inline-suggestion) processors call it over label/status proposals. Auto-mode fires the synthesis primary only; alternatives are never auto-executed.
 
 ### Autonomous action
 

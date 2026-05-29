@@ -163,6 +163,34 @@ const { client, store } = createClient<Router>({
         });
       },
     },
+    thread: {
+      acceptRead: ({ input, storage }) => {
+        storage.thread.update(input.threadId, { agentRead: null });
+      },
+      dismissRead: ({ input, storage }) => {
+        storage.thread.update(input.threadId, { agentRead: null });
+      },
+      acceptInlineSuggestion: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+        const suggestions = thread.inlineSuggestions ?? [];
+        storage.thread.update(input.threadId, {
+          inlineSuggestions: suggestions.filter(
+            (suggestion) => suggestion.id !== input.suggestionId,
+          ),
+        });
+      },
+      dismissInlineSuggestion: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+        const suggestions = thread.inlineSuggestions ?? [];
+        storage.thread.update(input.threadId, {
+          inlineSuggestions: suggestions.filter(
+            (suggestion) => suggestion.id !== input.suggestionId,
+          ),
+        });
+      },
+    },
     autonomousAction: {
       undo: ({ input, storage }) => {
         const row = storage.autonomousAction

@@ -7,6 +7,18 @@ import {
 import { ulid } from "ulid";
 import z from "zod";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
+import {
+  acceptInlineSuggestionInputSchema,
+  acceptReadInputSchema,
+  dismissInlineSuggestionInputSchema,
+  dismissReadInputSchema,
+  executeAutonomousBundleInputSchema,
+  runAcceptInlineSuggestion,
+  runAcceptRead,
+  runDismissInlineSuggestion,
+  runDismissRead,
+  runExecuteAutonomousBundle,
+} from "../../lib/signals/thread-procedures.js";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 import { nextThreadShortId } from "../../lib/thread-short-id";
@@ -760,6 +772,31 @@ export default publicRoute
         },
       };
     }),
+    executeAutonomousBundle: mutation(executeAutonomousBundleInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runExecuteAutonomousBundle(db, req.input);
+      },
+    ),
+    acceptRead: mutation(acceptReadInputSchema).handler(async ({ req, db }) => {
+      return runAcceptRead(req, db, req.input);
+    }),
+    dismissRead: mutation(dismissReadInputSchema).handler(async ({ req, db }) => {
+      return runDismissRead(req, db, req.input);
+    }),
+    acceptInlineSuggestion: mutation(acceptInlineSuggestionInputSchema).handler(
+      async ({ req, db }) => {
+        return runAcceptInlineSuggestion(req, db, req.input);
+      },
+    ),
+    dismissInlineSuggestion: mutation(dismissInlineSuggestionInputSchema).handler(
+      async ({ req, db }) => {
+        return runDismissInlineSuggestion(req, db, req.input);
+      },
+    ),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the

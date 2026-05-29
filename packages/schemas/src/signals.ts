@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+const stableHash = (value: string): string => {
+  let hash = 2166136261;
+  for (let i = 0; i < value.length; i++) {
+    hash ^= value.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+};
+
 // --- Action vocabulary ----------------------------------------------------
 
 // Synthesis-track actions: composed by the synthesis LLM into a ThreadRead.
@@ -97,6 +106,19 @@ export const threadReadSchema = z.object({
   dismissedAt: z.string().optional(),
 });
 export type ThreadRead = z.infer<typeof threadReadSchema>;
+
+/** Stable fingerprint for stale-read guards (web + API). */
+export const fingerprintAgentRead = (read: ThreadRead): string => {
+  const payload = {
+    summary: read.summary,
+    reasoning: read.reasoning,
+    primary: read.primary,
+    alternatives: read.alternatives ?? [],
+    urgencyScore: read.urgencyScore,
+    sourceInputMessageId: read.sourceInputMessageId,
+  };
+  return stableHash(JSON.stringify(payload));
+};
 
 // --- InlineSuggestion -----------------------------------------------------
 

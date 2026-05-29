@@ -1,8 +1,10 @@
 # 0004 — Persist synthesis-track candidates on the thread
 
-**Status:** Accepted
+**Status:** Superseded by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md)
 **Date:** 2026-05-26
 **References:** [ADR 0002](./0002-two-track-candidate-pipeline.md)
+
+> **Superseded (2026-05-28).** The per-thread, per-processor skip+rehydrate *mechanism* described here is retained, but it now persists *evidence* (`thread.hints`), not concrete `Action` candidates (`thread.synthesisCandidates`). See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
 
 ## Context
 

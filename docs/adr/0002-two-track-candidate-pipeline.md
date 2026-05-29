@@ -1,7 +1,9 @@
 # 0002 — Two-track candidate pipeline
 
-**Status:** Accepted
+**Status:** Accepted (synthesis-track internals amended by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md))
 **Date:** 2026-05-25
+
+> **Amended (2026-05-28).** The inline/synthesis *track split* below still holds. The synthesis track's internals do not: candidate generators that emit concrete `Action`s + a single composing LLM call are replaced by evidence-emitting hint processors + a tool-using synthesis agent. See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
 
 ## Context
 
