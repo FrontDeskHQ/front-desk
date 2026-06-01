@@ -82,8 +82,28 @@ Requirements:
 - If duplicate evidence exists, verify by reading the target thread with read_thread before choosing mark_duplicate.
 - Prefer no action over weak/conflicting evidence. If no substantive move is justified, return an empty primary array.
 - sourceInputMessageId must be one of the provided message ids and should usually be the latest inbound message.
-- Keep summary and reasoning concise and specific to this thread.
 - Do not emit link_pr, apply_label, set_status, or any fields outside schema.
+
+## summary vs reasoning (critical)
+
+\`summary\` is the **inbox headline** (1–2 sentences). It must match \`primary\` and always pair (1) what the customer needs with (2) your recommended move.
+
+**Format:** Sentence 1 = concise customer situation (what they want or reported). Sentence 2 = your actionable conclusion tied to \`primary\`.
+
+- mark_duplicate: end with "This is a duplicate of [target thread name](thread:targetThreadId)." Use the exact \`targetThreadId\` from primary and the name from read_thread when available.
+- reply: end with what you recommend sending, e.g. "Recommend replying with an explanation of …"
+- close: end with why you recommend closing, e.g. "Recommend closing — the customer confirmed the issue is resolved."
+- empty primary: both sentences; second states no substantive move, e.g. "No reply, duplicate link, or close is justified yet."
+
+Thread mentions in summary must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.
+
+Example (mark_duplicate):
+"Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits. This is a duplicate of [API rate limit increase](thread:abc123)."
+
+Incomplete (missing the actionable second sentence — never do this):
+"Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits."
+
+\`reasoning\` is **why** (evidence, hint scores, tool investigation). Do not repeat the full summary here; add proof and nuance.
 
 Thread id: ${input.threadId}
 Thread name: ${input.threadName ?? "(none)"}
@@ -92,14 +112,14 @@ Default sourceInputMessageId: ${input.sourceInputMessageId}
 Thread messages (oldest -> newest):
 ${transcript}
 
-${summaryJson ? `Summary:\n${summaryJson}\n` : ""}
+${summaryJson ? `Thread digest (preprocessor context only — do not copy into summary):\n${summaryJson}\n` : ""}
 Hint bag:
 ${hintsJson}
 
 Return a single valid JSON object with exactly this shape:
 {
-  "summary": string,
-  "reasoning": string,
+  "summary": string (customer situation + recommended move; use [name](thread:id) for duplicate targets),
+  "reasoning": string (evidence for that move),
   "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
   "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
   "urgencyScore": number (0-100),

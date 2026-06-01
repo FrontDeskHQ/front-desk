@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
+import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
 import { readHintBag } from "../../../../lib/read-hints";
 import type { ParsedSummary } from "../../../../types";
 import type {
@@ -37,6 +38,7 @@ const summaryHashInput = (summary: ParsedSummary): string =>
 
 export type SynthesisProcessorOutput = {
   rawActionSet: ThreadRead | null;
+  agentRead: ThreadRead | null;
 };
 
 export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> = {
@@ -100,10 +102,11 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
       const latestMessage = messages[messages.length - 1];
 
       if (!latestMessage) {
+        await applySynthesisAutonomy(threadId, thread.organizationId, null);
         return {
           threadId,
           success: true,
-          data: { rawActionSet: null },
+          data: { rawActionSet: null, agentRead: null },
         };
       }
 
@@ -146,10 +149,16 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         fallbackSourceInputMessageId: latestMessage.id,
       });
 
+      const agentRead = await applySynthesisAutonomy(
+        threadId,
+        thread.organizationId,
+        rawActionSet,
+      );
+
       return {
         threadId,
         success: true,
-        data: { rawActionSet },
+        data: { rawActionSet, agentRead },
       };
     } catch (error) {
       status = 500;
