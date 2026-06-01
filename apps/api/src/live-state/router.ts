@@ -189,7 +189,7 @@ export const router = createRouter({
             level: autonomyLevelSchema,
           }),
         ).handler(async ({ req, db }) => {
-          authorize(req.context, {
+          authorize(req, {
             organizationId: req.input.organizationId,
             role: "owner",
           });

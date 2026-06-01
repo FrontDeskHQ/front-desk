@@ -68,7 +68,7 @@ export default privateRoute
     ).handler(async ({ req, db }) => {
       // Authorize against the caller-supplied org *before* loading the row so
       // a guessed id can't be probed across tenants.
-      authorize(req.context, {
+      authorize(req, {
         organizationId: req.input.organizationId,
       });
 
