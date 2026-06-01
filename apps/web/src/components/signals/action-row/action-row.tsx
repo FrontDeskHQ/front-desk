@@ -21,7 +21,7 @@ function useActionRow(): ActionRowContextValue {
 function Root({ tier, children }: { tier: UrgencyTier; children: ReactNode }) {
   return (
     <ActionRowContext.Provider value={{ tier }}>
-      <div className="bg-background-secondary flex flex-col overflow-clip rounded-md border">
+      <div className="bg-background-tertiary flex flex-col overflow-clip rounded-md border">
         {children}
       </div>
     </ActionRowContext.Provider>
@@ -30,7 +30,7 @@ function Root({ tier, children }: { tier: UrgencyTier; children: ReactNode }) {
 
 function Header({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex flex-col gap-2 border-b px-3 py-3">
+    <div className="bg-background-secondary relative flex flex-col gap-2 border-b px-3 py-3 rounded-md">
       {children}
     </div>
   );
@@ -82,7 +82,7 @@ function Reason({ children }: { children: ReactNode }) {
 
 function Actions({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-end gap-2 px-3 py-2 bg-background-tertiary">
+    <div className="flex items-center justify-end gap-2 px-3 py-2">
       {children}
     </div>
   );
@@ -124,15 +124,15 @@ export const ActionRow = {
 
 export function ActionRowSkeleton() {
   return (
-    <div className="bg-background-secondary flex flex-col overflow-clip rounded-md border">
-      <div className="flex flex-col gap-2 border-b px-3 py-3">
+    <div className="bg-background-tertiary flex flex-col overflow-clip rounded-md border">
+      <div className="flex flex-col gap-2 border-b px-3 py-3 rounded-md bg-background-secondary">
         <div className="flex items-center gap-2">
           <span className="h-[11px] w-[14px] shrink-0 animate-pulse rounded bg-accent" />
           <div className="h-3 w-32 animate-pulse rounded bg-accent" />
         </div>
         <div className="h-3 w-48 animate-pulse rounded bg-accent" />
       </div>
-      <div className="bg-background-tertiary flex justify-end px-3 py-2">
+      <div className="flex justify-end px-3 py-2">
         <div className="h-6 w-20 animate-pulse rounded bg-accent" />
       </div>
     </div>
