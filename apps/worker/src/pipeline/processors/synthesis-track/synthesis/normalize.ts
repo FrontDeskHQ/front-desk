@@ -47,6 +47,7 @@ export const normalizeSynthesisRawActionSet = ({
     sourceInputMessageId: messageIds.has(output.sourceInputMessageId)
       ? output.sourceInputMessageId
       : fallbackSourceInputMessageId,
+    createdAt: new Date().toISOString(),
     primary,
     alternatives,
   };

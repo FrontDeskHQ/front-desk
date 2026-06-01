@@ -69,6 +69,15 @@ export const ACTION_KINDS = [
 export const actionKindSchema = z.enum(ACTION_KINDS);
 export type ActionKind = z.infer<typeof actionKindSchema>;
 
+export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
+  reply: "Send reply",
+  mark_duplicate: "Mark duplicate",
+  link_pr: "Link pull request",
+  close: "Close thread",
+  apply_label: "Apply label",
+  set_status: "Set status",
+};
+
 // --- Reversibility + track partition --------------------------------------
 
 export const REVERSIBLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
@@ -103,6 +112,8 @@ export const threadReadSchema = z.object({
   alternatives: z.array(actionSchema).optional(),
   urgencyScore: z.number().min(0).max(100),
   sourceInputMessageId: z.string(),
+  /** ISO timestamp when synthesis produced this read. */
+  createdAt: z.string().optional(),
   dismissedAt: z.string().optional(),
 });
 export type ThreadRead = z.infer<typeof threadReadSchema>;
@@ -118,6 +129,13 @@ export const fingerprintAgentRead = (read: ThreadRead): string => {
     sourceInputMessageId: read.sourceInputMessageId,
   };
   return stableHash(JSON.stringify(payload));
+};
+
+export type UrgencyTier = "red" | "orange" | "yellow";
+export const urgencyTierFromScore = (score: number): UrgencyTier => {
+  if (score >= 80) return "red";
+  if (score >= 50) return "orange";
+  return "yellow";
 };
 
 // --- InlineSuggestion -----------------------------------------------------
