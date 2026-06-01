@@ -10,9 +10,14 @@ import {
 } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@workspace/ui/components/hover-card";
 import type { schema } from "api/schema";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
-import { ExternalLink } from "lucide-react";
+import { Brain } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { ThreadSummaryHoverCard } from "~/components/chips";
@@ -37,7 +42,6 @@ export type ThreadWithRelations = InferLiveObject<
 
 type Props = {
   thread: ThreadWithRelations & { agentRead: ThreadRead };
-  relatedThreads: Map<string, ThreadWithRelations>;
   ctx: ActorContext;
 };
 
@@ -80,55 +84,34 @@ function inlineSuggestionLabel(suggestion: InlineSuggestion): string {
   return `Apply label (${suggestion.action.labelId})`;
 }
 
-function ActionSummary({
-  action,
-  relatedThreads,
-}: {
-  action: Action;
-  relatedThreads: Map<string, ThreadWithRelations>;
-}) {
-  if (action.kind === "mark_duplicate") {
-    const targetThread = relatedThreads.get(action.targetThreadId);
-    if (targetThread) {
-      return (
-        <span className="inline-flex items-center gap-1.5">
-          <span>Mark duplicate of</span>
-          <ThreadRef thread={targetThread} />
-        </span>
-      );
-    }
-    return <span>Mark duplicate of thread {action.targetThreadId}</span>;
-  }
+function AgentReadReasoningTrigger({ reasoning }: { reasoning: string }) {
+  const trimmed = reasoning.trim();
+  if (!trimmed) return null;
 
-  if (action.kind === "link_pr") {
-    return (
-      // biome-ignore lint/a11y/useAnchorContent: Content is provided via children
-      <a
-        href={action.prUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="inline-flex items-center gap-1 hover:underline"
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        render={
+          <ActionButton
+            size="sm"
+            variant="ghost"
+            tooltip="Agent reasoning"
+            aria-label="View agent reasoning"
+          />
+        }
       >
-        <span>Link pull request</span>
-        <ExternalLink className="size-3.5" />
-      </a>
-    );
-  }
-
-  if (action.kind === "reply") {
-    return (
-      <span>
-        Send reply:{" "}
+        <Brain className="size-3.5" />
+      </HoverCardTrigger>
+      <HoverCardContent className="max-w-96 w-full flex flex-col gap-2">
+        <p className="text-xs font-medium text-foreground-primary">Reasoning</p>
         <RichMarkdown
-          content={action.draftMarkdown}
+          content={trimmed}
           preset="inline"
-          className="inline text-sm"
+          className="text-xs text-foreground-secondary"
         />
-      </span>
-    );
-  }
-
-  return <span>{ACTION_KIND_LABEL[action.kind]}</span>;
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 function formatErrorMessage(error: unknown): string {
@@ -138,7 +121,7 @@ function formatErrorMessage(error: unknown): string {
   return "Could not apply this signal. Please try again.";
 }
 
-export function ThreadReadCard({ thread, relatedThreads, ctx }: Props) {
+export function ThreadReadCard({ thread, ctx }: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const read = thread.agentRead;
   const inlineSuggestions = (thread.inlineSuggestions ?? []).filter(
@@ -240,18 +223,6 @@ export function ThreadReadCard({ thread, relatedThreads, ctx }: Props) {
             className="font-medium text-foreground-primary"
           />
         </ActionRow.Reason>
-        <div className="pl-6 text-xs text-foreground-secondary">
-          <RichMarkdown content={read.reasoning} preset="inline" />
-        </div>
-        <div className="pl-6 flex flex-col gap-1 text-sm text-foreground-primary">
-          {read.primary.map((action, index) => (
-            <ActionSummary
-              key={`${thread.id}:primary:${action.kind}:${index}`}
-              action={action}
-              relatedThreads={relatedThreads}
-            />
-          ))}
-        </div>
         {inlineSuggestions.length > 0 && (
           <div className="pl-6 mt-2 flex flex-col gap-2">
             {inlineSuggestions.map((suggestion) => (
@@ -284,10 +255,13 @@ export function ThreadReadCard({ thread, relatedThreads, ctx }: Props) {
             ))}
           </div>
         )}
-        <ActionRow.Dismiss
-          onClick={handleDismissRead}
-          label="Dismiss read"
-        />
+        <ActionRow.TopActions>
+          <AgentReadReasoningTrigger reasoning={read.reasoning} />
+          <ActionRow.Dismiss
+            onClick={handleDismissRead}
+            label="Dismiss read"
+          />
+        </ActionRow.TopActions>
       </ActionRow.Header>
       <ActionRow.Actions>
         {(read.alternatives ?? []).map((alternative, index) => (

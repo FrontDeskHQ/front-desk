@@ -53,8 +53,8 @@ function Tag() {
 
 function Title({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 pr-8 text-sm text-foreground-primary">
-      <Tag />
+    <div className="flex items-center gap-2 pr-16 text-sm text-foreground-primary">
+      {/* <Tag /> */}
       {children}
     </div>
   );
@@ -70,10 +70,10 @@ function Meta({ children }: { children: ReactNode }) {
 
 function Reason({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-1.5 text-foreground-primary text-sm">
+    <div className="flex items-start gap-1.5 text-foreground-primary text-sm">
       <span
         aria-hidden
-        className="ml-[6px] -mt-2 h-3 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-foreground-tertiary/75"
+        className="ml-[6px] -mt-1.25 h-4 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-foreground-tertiary/75"
       />
       {children}
     </div>
@@ -88,6 +88,14 @@ function Actions({ children }: { children: ReactNode }) {
   );
 }
 
+function TopActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="absolute top-2 right-2 flex items-center gap-0.5">
+      {children}
+    </div>
+  );
+}
+
 function Dismiss({
   onClick,
   label = "Dismiss",
@@ -96,11 +104,9 @@ function Dismiss({
   label?: string;
 }) {
   return (
-    <div className="absolute top-2 right-2">
-      <ActionButton size="sm" variant="ghost" tooltip={label} onClick={onClick}>
-        <X className="size-3.5" />
-      </ActionButton>
-    </div>
+    <ActionButton size="sm" variant="ghost" tooltip={label} onClick={onClick}>
+      <X className="size-3.5" />
+    </ActionButton>
   );
 }
 
@@ -112,6 +118,7 @@ export const ActionRow = {
   Meta,
   Reason,
   Actions,
+  TopActions,
   Dismiss,
 };
 
