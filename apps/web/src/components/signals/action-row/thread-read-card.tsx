@@ -6,6 +6,7 @@ import {
   type Action,
   type InlineSuggestion,
   type ThreadRead,
+  sanitizeAgentReadReasoning,
   urgencyTierFromScore,
 } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
@@ -85,7 +86,7 @@ function inlineSuggestionLabel(suggestion: InlineSuggestion): string {
 }
 
 function AgentReadReasoningTrigger({ reasoning }: { reasoning: string }) {
-  const trimmed = reasoning.trim();
+  const trimmed = sanitizeAgentReadReasoning(reasoning);
   if (!trimmed) return null;
 
   return (

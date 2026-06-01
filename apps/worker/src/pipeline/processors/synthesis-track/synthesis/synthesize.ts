@@ -103,7 +103,12 @@ Example (mark_duplicate):
 Incomplete (missing the actionable second sentence — never do this):
 "Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits."
 
-\`reasoning\` is **why** (evidence, hint scores, tool investigation). Do not repeat the full summary here; add proof and nuance.
+\`reasoning\` is **why** in plain language for a human agent reviewing the inbox. Use 2–4 short sentences grounded in the conversation and what you verified. Do not repeat the full summary.
+
+**Never put in \`reasoning\` (user-facing copy):**
+- Internal pipeline terms (hint bag, hints JSON, tool names, tool calls, messageId, preprocessor/thread digest, synthesis agent)
+- Confidence or similarity numbers (percentages, 0–1 scores, "confidence: …", urgency scores)
+- Raw identifiers (thread ids, message ids, UUIDs, doc ids) — refer to other threads by **name** only. Thread markdown links belong in \`summary\` only, not in \`reasoning\`.
 
 Thread id: ${input.threadId}
 Thread name: ${input.threadName ?? "(none)"}
@@ -119,7 +124,7 @@ ${hintsJson}
 Return a single valid JSON object with exactly this shape:
 {
   "summary": string (customer situation + recommended move; use [name](thread:id) for duplicate targets),
-  "reasoning": string (evidence for that move),
+  "reasoning": string (user-facing evidence; no internal terms, scores, or raw ids),
   "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
   "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
   "urgencyScore": number (0-100),

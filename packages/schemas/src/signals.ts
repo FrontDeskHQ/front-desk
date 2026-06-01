@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+export { sanitizeAgentReadReasoning } from "./sanitize-agent-read-reasoning";
+
 const stableHash = (value: string): string => {
   let hash = 2166136261;
   for (let i = 0; i < value.length; i++) {

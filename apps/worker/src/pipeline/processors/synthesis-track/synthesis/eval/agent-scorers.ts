@@ -1,5 +1,6 @@
-import type { SynthesisRawActionSet } from "../synthesize";
+import { sanitizeAgentReadReasoning } from "@workspace/schemas/signals";
 import { createScorer } from "evalite";
+import type { SynthesisRawActionSet } from "../synthesize";
 import type { SynthesisAgentEvalCase, SynthesisAgentEvalInput } from "./agent-dataset";
 
 type In = SynthesisAgentEvalInput;
@@ -211,6 +212,41 @@ export const replyFactualityGuard = createScorer<In, Out, Expected>({
         unsupportedUrls,
         forbiddenHits,
       },
+    };
+  },
+});
+
+const INTERNAL_REASONING_RE =
+  /\b(?:hint\s+bag|hintbag|tool\s+calls?|read_thread|search_documentation|messageId\s*=)\b/i;
+const CONFIDENCE_IN_REASONING_RE =
+  /\b(?:confidence|similarity|hint score|urgency score)\s*[:=]?\s*(?:\d{1,3}(?:\.\d+)?%?|0?\.\d+)\b/i;
+const RAW_ID_IN_REASONING_RE =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b|\(thread:[^)]+\)/i;
+
+export const reasoningUserSafe = createScorer<In, Out, Expected>({
+  name: "Reasoning User Safe",
+  description:
+    "Reasoning must not leak internal agent terms, confidence scores, or raw ids.",
+  scorer: ({ output }) => {
+    const reasoning = sanitizeAgentReadReasoning(output.raw.reasoning);
+    if (!reasoning.trim()) {
+      return { score: 0, metadata: { reason: "empty_after_sanitize" } };
+    }
+
+    const violations: string[] = [];
+    if (INTERNAL_REASONING_RE.test(reasoning)) {
+      violations.push("internal_terms");
+    }
+    if (CONFIDENCE_IN_REASONING_RE.test(reasoning)) {
+      violations.push("confidence_scores");
+    }
+    if (RAW_ID_IN_REASONING_RE.test(reasoning)) {
+      violations.push("raw_ids");
+    }
+
+    return {
+      score: violations.length === 0 ? 1 : 0,
+      metadata: { violations, reasoningPreview: reasoning.slice(0, 200) },
     };
   },
 });

@@ -9,6 +9,7 @@ import {
   forbiddenPrimaryKinds,
   minimumToolCalls,
   nonEmptyPrimaryWhenExpected,
+  reasoningUserSafe,
   replyFactualityGuard,
   replySubstance,
   requiredPrimaryKinds,
@@ -112,5 +113,6 @@ evalite("Synthesis Agent (Model In Loop)", {
     replySubstance,
     replyFactualityGuard,
     minimumToolCalls,
+    reasoningUserSafe,
   ],
 });

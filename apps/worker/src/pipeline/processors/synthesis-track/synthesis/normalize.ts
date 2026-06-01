@@ -1,5 +1,8 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
-import { threadReadSchema } from "@workspace/schemas/signals";
+import {
+  sanitizeAgentReadReasoning,
+  threadReadSchema,
+} from "@workspace/schemas/signals";
 import type { SynthesisRawActionSet } from "./synthesize";
 
 const allowedKinds = new Set(["reply", "mark_duplicate", "close"]);
@@ -42,7 +45,7 @@ export const normalizeSynthesisRawActionSet = ({
 
   const rawActionSet: ThreadRead = {
     summary: output.summary.trim(),
-    reasoning: output.reasoning.trim(),
+    reasoning: sanitizeAgentReadReasoning(output.reasoning),
     urgencyScore: output.urgencyScore,
     sourceInputMessageId: messageIds.has(output.sourceInputMessageId)
       ? output.sourceInputMessageId
