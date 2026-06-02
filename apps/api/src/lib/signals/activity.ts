@@ -1,5 +1,6 @@
 import { STATUS_LABELS } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
+import { schema } from "../../live-state/schema";
 import type { ExecutionContext } from "./types";
 
 type ActivitySource = "agent_read" | "inline_suggestion" | "autonomous";
@@ -14,7 +15,9 @@ export const insertThreadActivity = async (
 ): Promise<void> => {
   if (ctx.actorUserId === null) return;
 
-  await ctx.db.update.insert({
+  // schema collection is `update`; ServerDB also exposes deprecated `db.update()`
+  // — use db.insert(schema.update, …) so we hit the collection insert path.
+  await ctx.db.insert(schema.update, {
     id: ulid().toLowerCase(),
     threadId: ctx.threadId,
     userId: ctx.actorUserId,

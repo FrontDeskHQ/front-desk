@@ -159,6 +159,14 @@ export const runAcceptRead = async (
   const nextRead = nextAgentReadAfterExecution(thread.agentRead, result);
   await persistAgentRead(db, input.threadId, nextRead);
 
+  if (result.failed) {
+    const message =
+      result.failed.error instanceof Error
+        ? result.failed.error.message
+        : String(result.failed.error);
+    throw new Error(`ACTION_FAILED:${result.failed.action.kind}:${message}`);
+  }
+
   return result;
 };
 

@@ -9,8 +9,8 @@ export type SignalExecutionDb = Pick<
   | "author"
   | "threadLabel"
   | "label"
-  | "update"
   | "autonomousAction"
+  | "insert"
 >;
 
 export type ExecutionContext = {

@@ -138,7 +138,7 @@ export default privateRoute
       }
 
       if (activityType) {
-        await db.update.insert({
+        await db.insert(schema.update, {
           id: ulid().toLowerCase(),
           threadId,
           userId: req.context?.session?.userId ?? null,
