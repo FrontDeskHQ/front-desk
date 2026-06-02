@@ -3,6 +3,10 @@ import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
+import {
+  resolveMessageRoles,
+  threadHasTeamReply,
+} from "../../../../lib/message-roles";
 import { readHintBag } from "../../../../lib/read-hints";
 import type { ParsedSummary } from "../../../../types";
 import type {
@@ -116,6 +120,12 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         threadId,
       );
 
+      const messageRoles = await resolveMessageRoles(
+        messages.map((message) => message.authorId),
+        thread.authorId,
+      );
+      const hasTeamReply = threadHasTeamReply(messages, messageRoles);
+
       const tools = createSynthesisTools({
         organizationId: thread.organizationId,
         currentThreadId: threadId,
@@ -138,6 +148,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           })),
           summary: summarize?.summary ?? null,
           hints,
+          hasTeamReply,
         },
         tools,
         ai,
@@ -147,6 +158,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         output,
         messageIds: new Set(messages.map((message) => message.id)),
         fallbackSourceInputMessageId: latestMessage.id,
+        hasTeamReply,
       });
 
       const agentRead = await applySynthesisAutonomy(

@@ -6,6 +6,7 @@ import {
 } from "@workspace/schemas/external-issue";
 import { ulid } from "ulid";
 import z from "zod";
+import { authorize } from "../../lib/authorize";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
 import {
   acceptInlineSuggestionInputSchema,
@@ -254,11 +255,16 @@ export default publicRoute
         userName: z.string().optional(), // For portal sessions
       }),
     ).handler(async ({ req, db }) => {
-      // Support internal API key, public API key, or portal session
+      const hasInternalKey = !!req.context?.internalApiKey;
+      const hasPublicKey = !!req.context?.publicApiKey;
+      const hasPortalSession = !!req.context?.portalSession?.session;
+      const hasWorkspaceSession = !!req.context?.session?.userId;
+
       if (
-        !req.context?.internalApiKey &&
-        !req.context?.publicApiKey &&
-        !req.context?.portalSession?.session
+        !hasInternalKey &&
+        !hasPublicKey &&
+        !hasPortalSession &&
+        !hasWorkspaceSession
       ) {
         throw new Error("UNAUTHORIZED");
       }
@@ -269,6 +275,13 @@ export default publicRoute
 
       if (!organizationId) {
         throw new Error("MISSING_ORGANIZATION_ID");
+      }
+
+      if (hasWorkspaceSession && !hasInternalKey && !hasPublicKey && !hasPortalSession) {
+        authorize(req, { organizationId });
+        if (!req.input.author) {
+          throw new Error("MISSING_AUTHOR_INFO");
+        }
       }
 
       // For portal sessions, verify the user matches

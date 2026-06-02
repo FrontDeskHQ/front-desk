@@ -22,6 +22,7 @@ evalite("Synthesis Normalize", {
       output: input.output,
       messageIds: new Set(input.messageIds),
       fallbackSourceInputMessageId: input.fallbackSourceInputMessageId,
+      hasTeamReply: input.hasTeamReply,
     });
     reportTrace({
       start,

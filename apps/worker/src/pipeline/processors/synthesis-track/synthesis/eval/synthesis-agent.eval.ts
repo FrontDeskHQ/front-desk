@@ -14,6 +14,7 @@ import {
   replySubstance,
   requiredPrimaryKinds,
   sourceInputMessageValidity,
+  unrepliedThreadReplyCoupling,
 } from "./agent-scorers";
 
 type SynthesisTools = ReturnType<typeof createSynthesisTools>;
@@ -114,5 +115,6 @@ evalite("Synthesis Agent (Model In Loop)", {
     replyFactualityGuard,
     minimumToolCalls,
     reasoningUserSafe,
+    unrepliedThreadReplyCoupling,
   ],
 });

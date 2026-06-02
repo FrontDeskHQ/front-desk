@@ -58,7 +58,13 @@ const mkThread = (id: string, name: string) => ({
   messages: [],
 });
 
-export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
+type SynthesisAgentEvalCaseInput = Omit<SynthesizeThreadReadInput, "hasTeamReply"> & {
+  hasTeamReply?: boolean;
+};
+
+const synthesisAgentDatasetCases: Array<
+  Omit<SynthesisAgentEvalCase, "input"> & { input: SynthesisAgentEvalCaseInput }
+> = [
   {
     name: "duplicate strong signal should mark duplicate and inspect thread",
     input: {
@@ -120,9 +126,9 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
       },
     },
     expected: {
-      mustIncludePrimaryKinds: ["mark_duplicate"],
+      mustIncludePrimaryKinds: ["mark_duplicate", "reply"],
       mustExcludePrimaryKinds: ["close"],
-      requiresReplyDraft: false,
+      requiresReplyDraft: true,
       minToolCalls: { read_thread: 1 },
     },
   },
@@ -237,9 +243,9 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
     },
     toolFixtures: { threads: { t4: mkThread("t4", "Need enterprise pricing") } },
     expected: {
-      mustIncludePrimaryKinds: ["close"],
+      mustIncludePrimaryKinds: ["close", "reply"],
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      requiresReplyDraft: false,
+      requiresReplyDraft: true,
     },
   },
   {
@@ -273,8 +279,8 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
     },
     toolFixtures: { threads: { t5: mkThread("t5", "Resolved now") } },
     expected: {
-      mustIncludePrimaryKinds: ["close"],
-      requiresReplyDraft: false,
+      mustIncludePrimaryKinds: ["close", "reply"],
+      requiresReplyDraft: true,
       mustExcludePrimaryKinds: ["mark_duplicate"],
     },
   },
@@ -595,8 +601,8 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
     },
     toolFixtures: { threads: { t14: mkThread("t14", "asdf") } },
     expected: {
-      mustIncludePrimaryKinds: ["close"],
-      requiresReplyDraft: false,
+      mustIncludePrimaryKinds: ["close", "reply"],
+      requiresReplyDraft: true,
     },
   },
   {
@@ -645,9 +651,9 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
       },
     },
     expected: {
-      mustIncludePrimaryKinds: ["mark_duplicate"],
+      mustIncludePrimaryKinds: ["mark_duplicate", "reply"],
       mustExcludePrimaryKinds: ["close"],
-      requiresReplyDraft: false,
+      requiresReplyDraft: true,
       minToolCalls: { read_thread: 1 },
     },
   },
@@ -686,3 +692,12 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] = [
     },
   },
 ];
+
+export const synthesisAgentDataset: SynthesisAgentEvalCase[] =
+  synthesisAgentDatasetCases.map((testCase) => ({
+    ...testCase,
+    input: {
+      ...testCase.input,
+      hasTeamReply: testCase.input.hasTeamReply ?? false,
+    },
+  }));

@@ -3,7 +3,10 @@ import { STATUS_LABELS } from "@workspace/schemas/signals";
 import { createHash } from "node:crypto";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getStatusAutonomyMode } from "../../../../lib/autonomy";
-import { fetchClient } from "../../../../lib/database/client";
+import {
+  resolveMessageRoles,
+  type MessageRole,
+} from "../../../../lib/message-roles";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
 import type {
   ProcessorDefinition,
@@ -42,35 +45,6 @@ const sortedMessages = (
   messages: ProcessorExecuteContext["thread"]["messages"],
 ): NonNullable<ProcessorExecuteContext["thread"]["messages"]> =>
   [...(messages ?? [])].sort((a, b) => a.id.localeCompare(b.id));
-
-type MessageRole = "customer" | "agent" | "unknown";
-
-// Resolves each message's role:
-//   customer = author of the thread
-//   agent    = author linked to a teammate (author.userId is set)
-//   unknown  = anything else (external author with no teammate link)
-async function resolveMessageRoles(
-  authorIds: string[],
-  threadAuthorId: string | null | undefined,
-): Promise<Map<string, MessageRole>> {
-  const unique = [...new Set(authorIds.filter(Boolean))];
-  const rows = await Promise.all(
-    unique.map(
-      (id) =>
-        fetchClient.query.author.where({ id }).get() as Promise<
-          Array<{ id: string; userId: string | null }>
-        >,
-    ),
-  );
-  const map = new Map<string, MessageRole>();
-  for (const [row] of rows) {
-    if (!row) continue;
-    if (row.id === threadAuthorId) map.set(row.id, "customer");
-    else if (row.userId) map.set(row.id, "agent");
-    else map.set(row.id, "unknown");
-  }
-  return map;
-}
 
 export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
   {

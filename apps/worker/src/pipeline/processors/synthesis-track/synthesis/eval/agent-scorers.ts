@@ -223,6 +223,42 @@ const CONFIDENCE_IN_REASONING_RE =
 const RAW_ID_IN_REASONING_RE =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b|\(thread:[^)]+\)/i;
 
+export const unrepliedThreadReplyCoupling = createScorer<In, Out, Expected>({
+  name: "Unreplied Thread Reply Coupling",
+  description:
+    "When the team has not replied yet, non-reply primary actions must include a reply and alternatives must be reply-only.",
+  scorer: ({ input, output }) => {
+    if (input.synthesisInput.hasTeamReply) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+
+    const primaryKinds = output.raw.primary.map((action) => action.kind);
+    const hasNonReply = primaryKinds.some((kind) => kind !== "reply");
+    const hasReply = primaryKinds.includes("reply");
+    if (hasNonReply && !hasReply) {
+      return {
+        score: 0,
+        metadata: { reason: "primary_non_reply_without_reply", primaryKinds },
+      };
+    }
+
+    const nonReplyAlternatives = (output.raw.alternatives ?? []).filter(
+      (action) => action.kind !== "reply",
+    );
+    if (nonReplyAlternatives.length > 0) {
+      return {
+        score: 0,
+        metadata: {
+          reason: "non_reply_alternative",
+          kinds: nonReplyAlternatives.map((action) => action.kind),
+        },
+      };
+    }
+
+    return { score: 1, metadata: { primaryKinds } };
+  },
+});
+
 export const reasoningUserSafe = createScorer<In, Out, Expected>({
   name: "Reasoning User Safe",
   description:

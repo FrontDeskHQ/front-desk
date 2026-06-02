@@ -6,6 +6,7 @@ export type SynthesisEvalCase = {
     output: SynthesisRawActionSet;
     messageIds: string[];
     fallbackSourceInputMessageId: string;
+    hasTeamReply: boolean;
   };
   expected: {
     shouldBeNull: boolean;
@@ -29,6 +30,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       },
       messageIds: ["m1", "m2"],
       fallbackSourceInputMessageId: "m2",
+      hasTeamReply: true,
     },
     expected: {
       shouldBeNull: true,
@@ -57,6 +59,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       },
       messageIds: ["m1", "m2", "m3"],
       fallbackSourceInputMessageId: "m3",
+      hasTeamReply: true,
     },
     expected: {
       shouldBeNull: false,
@@ -78,6 +81,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       },
       messageIds: ["m7", "m8"],
       fallbackSourceInputMessageId: "m8",
+      hasTeamReply: true,
     },
     expected: {
       shouldBeNull: false,
@@ -99,6 +103,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       },
       messageIds: ["m1"],
       fallbackSourceInputMessageId: "m1",
+      hasTeamReply: true,
     },
     expected: {
       shouldBeNull: true,
@@ -120,12 +125,63 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       },
       messageIds: ["m1"],
       fallbackSourceInputMessageId: "m1",
+      hasTeamReply: true,
     },
     expected: {
       shouldBeNull: true,
       primaryKinds: [],
       alternativesKinds: [],
       sourceInputMessageId: null,
+    },
+  },
+  {
+    name: "unreplied mark_duplicate without reply becomes null",
+    input: {
+      output: {
+        summary: "Duplicate without acknowledgment",
+        reasoning: "Should be rejected by normalize.",
+        primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
+        alternatives: [{ kind: "close" }],
+        urgencyScore: 50,
+        sourceInputMessageId: "m1",
+      },
+      messageIds: ["m1"],
+      fallbackSourceInputMessageId: "m1",
+      hasTeamReply: false,
+    },
+    expected: {
+      shouldBeNull: true,
+      primaryKinds: [],
+      alternativesKinds: [],
+      sourceInputMessageId: null,
+    },
+  },
+  {
+    name: "unreplied mark_duplicate with reply strips close alternative",
+    input: {
+      output: {
+        summary: "Link duplicate and acknowledge customer",
+        reasoning: "Bundled reply is valid.",
+        primary: [
+          { kind: "mark_duplicate", targetThreadId: "t-123" },
+          {
+            kind: "reply",
+            draftMarkdown: "Thanks for reporting this — it matches an existing thread we are tracking.",
+          },
+        ],
+        alternatives: [{ kind: "close" }],
+        urgencyScore: 60,
+        sourceInputMessageId: "m1",
+      },
+      messageIds: ["m1"],
+      fallbackSourceInputMessageId: "m1",
+      hasTeamReply: false,
+    },
+    expected: {
+      shouldBeNull: false,
+      primaryKinds: ["mark_duplicate", "reply"],
+      alternativesKinds: [],
+      sourceInputMessageId: "m1",
     },
   },
   {
@@ -147,6 +203,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       },
       messageIds: ["m4", "m5"],
       fallbackSourceInputMessageId: "m5",
+      hasTeamReply: true,
     },
     expected: {
       shouldBeNull: false,

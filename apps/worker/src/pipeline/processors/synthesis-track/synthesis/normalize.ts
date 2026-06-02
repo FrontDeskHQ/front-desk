@@ -24,24 +24,43 @@ const normalizeAction = (action: Action): Action | null => {
   return { kind: "close" };
 };
 
+const orderPrimaryForExecution = (actions: Action[]): Action[] => {
+  const reply = actions.find((action) => action.kind === "reply");
+  const nonReply = actions.filter((action) => action.kind !== "reply");
+  if (!reply) return actions;
+  return [...nonReply, reply];
+};
+
 export const normalizeSynthesisRawActionSet = ({
   output,
   messageIds,
   fallbackSourceInputMessageId,
+  hasTeamReply,
 }: {
   output: SynthesisRawActionSet;
   messageIds: Set<string>;
   fallbackSourceInputMessageId: string;
+  hasTeamReply: boolean;
 }): ThreadRead | null => {
-  const primary = output.primary
+  let primary = output.primary
     .map((action) => normalizeAction(action as Action))
     .filter((action): action is Action => action !== null);
 
   if (primary.length === 0) return null;
 
-  const alternatives = (output.alternatives ?? [])
+  let alternatives = (output.alternatives ?? [])
     .map((action) => normalizeAction(action as Action))
     .filter((action): action is Action => action !== null);
+
+  if (!hasTeamReply) {
+    alternatives = alternatives.filter((action) => action.kind === "reply");
+    const primaryHasNonReply = primary.some((action) => action.kind !== "reply");
+    const primaryHasReply = primary.some((action) => action.kind === "reply");
+    if (primaryHasNonReply && !primaryHasReply) {
+      return null;
+    }
+    primary = orderPrimaryForExecution(primary);
+  }
 
   const rawActionSet: ThreadRead = {
     summary: output.summary.trim(),

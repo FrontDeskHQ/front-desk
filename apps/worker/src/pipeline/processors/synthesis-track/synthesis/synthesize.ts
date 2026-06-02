@@ -36,6 +36,8 @@ export type SynthesizeThreadReadInput = {
     authorId: string;
     createdAt: string;
   }>;
+  /** True when a teammate has already posted on this thread. */
+  hasTeamReply: boolean;
   summary: ParsedSummary | null;
   hints: Hints;
   sourceInputMessageId: string;
@@ -84,18 +86,34 @@ Requirements:
 - sourceInputMessageId must be one of the provided message ids and should usually be the latest inbound message.
 - Do not emit link_pr, apply_label, set_status, or any fields outside schema.
 
+## Unreplied threads (support has not messaged yet)
+
+hasTeamReply: ${input.hasTeamReply}
+
+When hasTeamReply is false, the customer has written but no teammate has replied on this thread yet.
+
+- **Primary:** If you include mark_duplicate or close, you must also include a reply in the same primary array. Order reversibles first: \`[mark_duplicate, reply]\` or \`[close, reply]\`. The reply should briefly acknowledge the customer (thank them, explain the duplicate link, or confirm closure) — never leave them without a first response.
+- **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone mark_duplicate or close in alternatives — the human would execute those without replying.
+- **Reply-only primary** is fine when that is the best move (no bundling required).
+- **Empty primary** is still allowed when no substantive move is justified.
+
+When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close or mark_duplicate).
+
 ## summary vs reasoning (critical)
 
-\`summary\` is the **inbox headline** (1–2 sentences). It must match \`primary\` and always pair (1) what the customer needs with (2) your recommended move.
+\`summary\` is the **inbox headline** (1–2 sentences). It must match \`primary\` and always pair (1) what the customer needs with (2) the next move in direct, imperative language.
 
-**Format:** Sentence 1 = concise customer situation (what they want or reported). Sentence 2 = your actionable conclusion tied to \`primary\`.
+**Format:** Sentence 1 = concise customer situation (what they want or reported). Sentence 2 = imperative instruction tied to \`primary\` (what the human should do). Never prefix with "Recommend" or "We recommend".
 
 - mark_duplicate: end with "This is a duplicate of [target thread name](thread:targetThreadId)." Use the exact \`targetThreadId\` from primary and the name from read_thread when available.
-- reply: end with what you recommend sending, e.g. "Recommend replying with an explanation of …"
-- close: end with why you recommend closing, e.g. "Recommend closing — the customer confirmed the issue is resolved."
+- reply: end with a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
+- close: end with a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
 - empty primary: both sentences; second states no substantive move, e.g. "No reply, duplicate link, or close is justified yet."
 
 Thread mentions in summary must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.
+
+Example (reply):
+"Customer is interested in upgrading to the enterprise plan and is asking for pricing details for 50+ users and additional features. Reply to acknowledge the request and inform them that a specialist will provide the details."
 
 Example (mark_duplicate):
 "Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits. This is a duplicate of [API rate limit increase](thread:abc123)."
@@ -123,7 +141,7 @@ ${hintsJson}
 
 Return a single valid JSON object with exactly this shape:
 {
-  "summary": string (customer situation + recommended move; use [name](thread:id) for duplicate targets),
+  "summary": string (customer situation + imperative next move; use [name](thread:id) for duplicate targets),
   "reasoning": string (user-facing evidence; no internal terms, scores, or raw ids),
   "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
   "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
