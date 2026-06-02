@@ -5,7 +5,9 @@ import {
   STATUS_LABELS,
   type Action,
   type InlineSuggestion,
+  type ReplyAction,
   type ThreadRead,
+  fingerprintAgentRead,
   sanitizeAgentReadReasoning,
   urgencyTierFromScore,
 } from "@workspace/schemas/signals";
@@ -19,7 +21,7 @@ import {
 import type { schema } from "api/schema";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { Brain } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ThreadSummaryHoverCard } from "~/components/chips";
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
@@ -32,6 +34,7 @@ import {
   dismissThreadRead,
   type ActorContext,
 } from "./handlers";
+import { SignalReplyDraftEditor } from "./signal-reply-draft-editor";
 
 export type ThreadWithRelations = InferLiveObject<
   typeof schema.thread,
@@ -75,6 +78,25 @@ function bundleLabel(actions: Action[]): string {
   if (actions.length === 0) return "Apply";
   if (actions.length === 1) return ACTION_KIND_LABEL[actions[0].kind];
   return `Run primary (${actions.length} actions)`;
+}
+
+function primaryReplyAction(primary: Action[]): ReplyAction | undefined {
+  return primary.find((action): action is ReplyAction => action.kind === "reply");
+}
+
+function primaryIncludesReply(primary: Action[]): boolean {
+  return primaryReplyAction(primary) != null;
+}
+
+function primaryReplyDraftMarkdown(primary: Action[]): string {
+  return primaryReplyAction(primary)?.draftMarkdown ?? "";
+}
+
+function primarySendLabel(primary: Action[]): string {
+  if (primary.length === 1 && primary[0]?.kind === "reply") {
+    return ACTION_KIND_LABEL.reply;
+  }
+  return "Send";
 }
 
 function inlineSuggestionLabel(suggestion: InlineSuggestion): string {
@@ -124,12 +146,25 @@ function formatErrorMessage(error: unknown): string {
 
 export function ThreadReadCard({ thread, ctx }: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
+  const [replyEditorOpen, setReplyEditorOpen] = useState(false);
   const read = thread.agentRead;
+  const readFingerprint = fingerprintAgentRead(read);
+  const primaryNeedsReplyEditor = primaryIncludesReply(read.primary);
+  const [replyDraft, setReplyDraft] = useState(() =>
+    primaryReplyDraftMarkdown(read.primary),
+  );
+  const [replyEditorRevision, setReplyEditorRevision] = useState(0);
   const inlineSuggestions = (thread.inlineSuggestions ?? []).filter(
     (suggestion) => !suggestion.dismissedAt,
   );
 
-  const handleAcceptPrimary = async () => {
+  useEffect(() => {
+    setReplyEditorOpen(false);
+    setReplyDraft(primaryReplyDraftMarkdown(read.primary));
+    setReplyEditorRevision((revision) => revision + 1);
+  }, [readFingerprint, read.primary]);
+
+  const handleAcceptPrimary = async (replyDraft?: string) => {
     setBusyKey("primary");
     try {
       await acceptThreadRead({
@@ -137,12 +172,34 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         read,
         selection: "primary",
         ctx,
+        replyDraft,
       });
+      setReplyEditorOpen(false);
     } catch (error) {
       toast.error(formatErrorMessage(error));
     } finally {
       setBusyKey(null);
     }
+  };
+
+  const handlePrimaryClick = () => {
+    if (primaryNeedsReplyEditor) {
+      setReplyEditorOpen(true);
+      return;
+    }
+    void handleAcceptPrimary();
+  };
+
+  const handleCancelReplyEditor = () => {
+    setReplyEditorOpen(false);
+    setReplyDraft(primaryReplyDraftMarkdown(read.primary));
+    setReplyEditorRevision((revision) => revision + 1);
+  };
+
+  const handleSendReply = () => {
+    const trimmed = replyDraft.trim();
+    if (trimmed.length === 0) return;
+    void handleAcceptPrimary(trimmed);
   };
 
   const handleAcceptAlternative = async (alternativeIndex: number) => {
@@ -221,7 +278,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
           <RichMarkdown
             content={read.summary}
             preset="inline"
-            className="font-medium text-foreground-primary"
+            className="text-foreground-primary"
           />
         </ActionRow.Reason>
         {inlineSuggestions.length > 0 && (
@@ -264,6 +321,12 @@ export function ThreadReadCard({ thread, ctx }: Props) {
           />
         </ActionRow.TopActions>
       </ActionRow.Header>
+      <SignalReplyDraftEditor
+        open={replyEditorOpen}
+        draft={replyDraft}
+        contentKey={`${readFingerprint}:${replyEditorRevision}`}
+        onDraftChange={setReplyDraft}
+      />
       <ActionRow.Actions>
         {(read.alternatives ?? []).map((alternative, index) => (
           <ActionButton
@@ -276,14 +339,35 @@ export function ThreadReadCard({ thread, ctx }: Props) {
             {ACTION_KIND_LABEL[alternative.kind]}
           </ActionButton>
         ))}
-        <ActionButton
-          size="sm"
-          variant="primary"
-          onClick={handleAcceptPrimary}
-          disabled={busyKey !== null}
-        >
-          {bundleLabel(read.primary)}
-        </ActionButton>
+        {replyEditorOpen ? (
+          <>
+            <ActionButton
+              size="sm"
+              variant="ghost"
+              onClick={handleCancelReplyEditor}
+              disabled={busyKey !== null}
+            >
+              Cancel
+            </ActionButton>
+            <ActionButton
+              size="sm"
+              variant="primary"
+              onClick={handleSendReply}
+              disabled={busyKey !== null || replyDraft.trim().length === 0}
+            >
+              {primarySendLabel(read.primary)}
+            </ActionButton>
+          </>
+        ) : (
+          <ActionButton
+            size="sm"
+            variant="primary"
+            onClick={handlePrimaryClick}
+            disabled={busyKey !== null}
+          >
+            {bundleLabel(read.primary)}
+          </ActionButton>
+        )}
       </ActionRow.Actions>
     </ActionRow.Root>
   );
