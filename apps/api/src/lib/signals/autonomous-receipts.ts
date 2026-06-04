@@ -4,9 +4,7 @@ import {
   isReversible,
 } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
-import {
-  getCompensateSnapshot,
-} from "./compensate-snapshots";
+import { getCompensateSnapshot } from "./compensate-snapshots";
 import type { ExecutionContext } from "./types";
 
 const buildMetadata = (
@@ -14,6 +12,14 @@ const buildMetadata = (
   ctx: ExecutionContext,
 ): AutonomousActionMetadata | null => {
   if (action.kind === "apply_label") {
+    // Only record a receipt when the label was actually applied. The handler
+    // skips writing a snapshot when the label was already enabled (a no-op), so
+    // a missing snapshot means undo would otherwise remove a pre-existing label.
+    const snapshot = getCompensateSnapshot<{
+      threadLabelId: string;
+      hadEnabled: boolean;
+    }>(ctx, `apply_label:${action.labelId}`);
+    if (!snapshot) return null;
     return { kind: "apply_label", labelId: action.labelId };
   }
 

@@ -1,7 +1,4 @@
-import {
-  type Action,
-  isReversible,
-} from "@workspace/schemas/signals";
+import { type Action, isReversible } from "@workspace/schemas/signals";
 import type {
   ActionHandlerRegistry,
   ExecutionContext,
@@ -79,6 +76,19 @@ const runSequential = async (
   };
 };
 
+/**
+ * Validates bundle-wide preconditions before any side effect runs, so a partial
+ * failure mid-bundle can't leave a compound read half-applied (e.g. a paired
+ * close/duplicate persisting without the reply it was coupled with).
+ */
+const assertBundleApplicable = (bundle: Action[]): void => {
+  for (const action of bundle) {
+    if (action.kind === "reply" && action.draftMarkdown.trim().length === 0) {
+      throw new Error("REPLY_DRAFT_EMPTY");
+    }
+  }
+};
+
 export const executeBundle = async (
   bundle: Action[],
   registry: ActionHandlerRegistry,
@@ -87,6 +97,8 @@ export const executeBundle = async (
   if (bundle.length === 0) {
     return { succeeded: [], failed: null, rolledBack: [] };
   }
+
+  assertBundleApplicable(bundle);
 
   const { reversibles, nonReversibles } = partitionBundle(bundle);
 

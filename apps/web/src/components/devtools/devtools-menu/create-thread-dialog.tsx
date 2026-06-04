@@ -27,8 +27,8 @@ import { z } from "zod";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 
-const devtoolsAuthorId = (name: string) =>
-  `devtools-${name.trim().toLowerCase().replace(/\s+/g, "-")}`;
+const devtoolsAuthorId = (organizationId: string, name: string) =>
+  `devtools-${organizationId}-${name.trim().toLowerCase().replace(/\s+/g, "-")}`;
 
 const createDevThread = async ({
   organizationId,
@@ -46,7 +46,7 @@ const createDevThread = async ({
     title,
     message,
     author: {
-      id: devtoolsAuthorId(authorName),
+      id: devtoolsAuthorId(organizationId, authorName),
       name: authorName,
     },
   });

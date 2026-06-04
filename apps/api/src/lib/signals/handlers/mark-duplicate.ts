@@ -14,6 +14,10 @@ const snapshotKey = (action: MarkDuplicateAction) =>
 
 export const markDuplicateHandler: ActionHandler<MarkDuplicateAction> = {
   async apply(action, ctx) {
+    if (action.targetThreadId === ctx.threadId) {
+      throw new Error("CANNOT_MARK_DUPLICATE_OF_SELF");
+    }
+
     const thread = await ctx.db.thread.one(ctx.threadId).get();
     if (!thread || thread.organizationId !== ctx.organizationId) {
       throw new Error("THREAD_NOT_FOUND");

@@ -8,7 +8,8 @@ import {
 import { insertThreadActivity } from "../activity";
 import type { ActionHandler } from "../types";
 
-const snapshotKey = (action: ApplyLabelAction) => `apply_label:${action.labelId}`;
+const snapshotKey = (action: ApplyLabelAction) =>
+  `apply_label:${action.labelId}`;
 
 export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
   async apply(action, ctx) {
@@ -70,15 +71,11 @@ export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
     }>(ctx, snapshotKey(action));
     if (!snapshot) return;
 
-    if (snapshot.hadEnabled) {
-      await ctx.db.threadLabel.update(snapshot.threadLabelId, {
-        enabled: false,
-      });
-    } else {
-      await ctx.db.threadLabel.update(snapshot.threadLabelId, {
-        enabled: false,
-      });
-    }
+    // A snapshot only exists when the label was newly enabled by this action
+    // (the handler returns early on a no-op), so compensation always disables it.
+    await ctx.db.threadLabel.update(snapshot.threadLabelId, {
+      enabled: false,
+    });
 
     clearCompensateSnapshot(ctx, snapshotKey(action));
   },

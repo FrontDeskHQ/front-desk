@@ -35,13 +35,21 @@ export default privateRoute
   })
   .withProcedures(({ mutation }) => ({
     record: mutation(
-      z.object({
-        id: z.string().optional(),
-        organizationId: z.string(),
-        actionKind: actionKindSchema,
-        entityId: z.string(),
-        metadata: autonomousActionMetadataSchema,
-      }),
+      z
+        .object({
+          id: z.string().optional(),
+          organizationId: z.string(),
+          actionKind: actionKindSchema,
+          entityId: z.string(),
+          metadata: autonomousActionMetadataSchema,
+        })
+        // `signalType` is persisted from `actionKind` but `undo` branches on
+        // `metadata.kind`; keep the two in sync so a row can't be counted as one
+        // action and undone as another.
+        .refine((input) => input.actionKind === input.metadata.kind, {
+          path: ["actionKind"],
+          message: "actionKind must match metadata.kind",
+        }),
     ).handler(async ({ req, db }) => {
       // Receipts are written by the worker only — never by user sessions or
       // public API keys, otherwise a teammate could forge "FrontDesk handled
