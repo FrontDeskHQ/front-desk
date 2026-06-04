@@ -47,15 +47,26 @@ const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
   const trimmed = text.trim();
   const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   const candidate = (fencedMatch?.[1] ?? trimmed).trim();
-  const parsed = JSON.parse(candidate);
-  return synthesisRawActionSetSchema.parse(parsed);
+  try {
+    const parsed = JSON.parse(candidate);
+    return synthesisRawActionSetSchema.parse(parsed);
+  } catch (error) {
+    console.error("Failed to parse synthesis output", {
+      error,
+      rawText: text.slice(0, 500),
+      candidate: candidate.slice(0, 500),
+    });
+    throw new Error(
+      `Synthesis output parsing failed: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
+  }
 };
 
 export const synthesizeThreadRead = async (
   input: SynthesizeThreadReadInput,
-  tools: ReturnType<
-    typeof import("./tools").createSynthesisTools
-  >,
+  tools: ReturnType<typeof import("./tools").createSynthesisTools>,
   ai?: ReturnType<typeof createAILogger>,
 ): Promise<SynthesisRawActionSet> => {
   const transcript =
@@ -69,7 +80,9 @@ export const synthesizeThreadRead = async (
       : "(none)";
 
   const hintsJson = JSON.stringify(input.hints ?? {}, null, 2);
-  const summaryJson = input.summary ? JSON.stringify(input.summary, null, 2) : "";
+  const summaryJson = input.summary
+    ? JSON.stringify(input.summary, null, 2)
+    : "";
 
   const prompt = `You are the synthesis agent for a customer support thread.
 

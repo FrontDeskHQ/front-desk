@@ -1,10 +1,10 @@
 import type { MarkDuplicateAction } from "@workspace/schemas/signals";
+import { insertThreadActivity } from "../activity";
 import {
   clearCompensateSnapshot,
   getCompensateSnapshot,
   setCompensateSnapshot,
 } from "../compensate-snapshots";
-import { insertThreadActivity } from "../activity";
 import type { ActionHandler } from "../types";
 
 const STATUS_DUPLICATED = 4;
@@ -29,7 +29,12 @@ export const markDuplicateHandler: ActionHandler<MarkDuplicateAction> = {
     }
 
     const previousStatus = thread.status ?? 0;
-    setCompensateSnapshot(ctx, snapshotKey(action), { previousStatus });
+    // First-write-wins: a repeated mark_duplicate for the same target earlier in
+    // the bundle has already moved the status to DUPLICATED, so re-snapshotting
+    // would capture that intermediate value and corrupt rollback.
+    if (getCompensateSnapshot(ctx, snapshotKey(action)) === undefined) {
+      setCompensateSnapshot(ctx, snapshotKey(action), { previousStatus });
+    }
 
     await ctx.db.thread.update(ctx.threadId, { status: STATUS_DUPLICATED });
 

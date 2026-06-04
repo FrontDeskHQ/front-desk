@@ -1,10 +1,10 @@
 import type { SetStatusAction } from "@workspace/schemas/signals";
+import { insertThreadActivity, statusActivityMetadata } from "../activity";
 import {
   clearCompensateSnapshot,
   getCompensateSnapshot,
   setCompensateSnapshot,
 } from "../compensate-snapshots";
-import { insertThreadActivity, statusActivityMetadata } from "../activity";
 import type { ActionHandler } from "../types";
 
 const snapshotKey = (action: SetStatusAction) => `set_status:${action.status}`;
@@ -19,7 +19,12 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
     const previousStatus = thread.status ?? 0;
     if (previousStatus === action.status) return;
 
-    setCompensateSnapshot(ctx, snapshotKey(action), { previousStatus });
+    // First-write-wins: a repeated status earlier in the same bundle must not
+    // overwrite the snapshot, or rollback would restore the intermediate
+    // status instead of the original.
+    if (getCompensateSnapshot(ctx, snapshotKey(action)) === undefined) {
+      setCompensateSnapshot(ctx, snapshotKey(action), { previousStatus });
+    }
 
     await ctx.db.thread.update(ctx.threadId, { status: action.status });
 
