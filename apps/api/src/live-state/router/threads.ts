@@ -6,20 +6,30 @@ import {
 } from "@workspace/schemas/external-issue";
 import { ulid } from "ulid";
 import z from "zod";
+import { authorize } from "../../lib/authorize";
 import { createReadThroughCache } from "../../lib/cache/read-through.js";
-import { deactivateDigestSignals } from "../../lib/digest-signals";
+import {
+  acceptInlineSuggestionInputSchema,
+  acceptReadInputSchema,
+  dismissInlineSuggestionInputSchema,
+  dismissReadInputSchema,
+  executeAutonomousBundleInputSchema,
+  runAcceptInlineSuggestion,
+  runAcceptRead,
+  runDismissInlineSuggestion,
+  runDismissRead,
+  runExecuteAutonomousBundle,
+  runUpsertInlineSuggestion,
+  runWriteHintSlot,
+  upsertInlineSuggestionInputSchema,
+  writeHintSlotInputSchema,
+} from "../../lib/signals/thread-procedures.js";
+import { nextThreadShortId } from "../../lib/thread-short-id";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
-import { nextThreadShortId } from "../../lib/thread-short-id";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
-const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
-
-type SimilarThreadResult = {
-  threadId: string;
-  score: number;
-};
 
 type FetchIssuesInput = {
   organizationId: string;
@@ -188,25 +198,6 @@ const pullRequestsCache = createReadThroughCache<
     )}:${input.installationId}`,
 });
 
-type SuggestionRow = {
-  id: string;
-  relatedEntityId: string | null;
-  resultsStr: string | null;
-};
-
-const parseScoreFromResultsStr = (
-  resultsStr: string | null | undefined,
-): number => {
-  if (!resultsStr) return 0;
-
-  try {
-    const parsed = JSON.parse(resultsStr);
-    return parsed.score ?? 0;
-  } catch {
-    return 0;
-  }
-};
-
 export default publicRoute
   .collectionRoute(schema.thread, {
     read: () => true,
@@ -268,11 +259,16 @@ export default publicRoute
         userName: z.string().optional(), // For portal sessions
       }),
     ).handler(async ({ req, db }) => {
-      // Support internal API key, public API key, or portal session
+      const hasInternalKey = !!req.context?.internalApiKey;
+      const hasPublicKey = !!req.context?.publicApiKey;
+      const hasPortalSession = !!req.context?.portalSession?.session;
+      const hasWorkspaceSession = !!req.context?.session?.userId;
+
       if (
-        !req.context?.internalApiKey &&
-        !req.context?.publicApiKey &&
-        !req.context?.portalSession?.session
+        !hasInternalKey &&
+        !hasPublicKey &&
+        !hasPortalSession &&
+        !hasWorkspaceSession
       ) {
         throw new Error("UNAUTHORIZED");
       }
@@ -283,6 +279,18 @@ export default publicRoute
 
       if (!organizationId) {
         throw new Error("MISSING_ORGANIZATION_ID");
+      }
+
+      if (
+        hasWorkspaceSession &&
+        !hasInternalKey &&
+        !hasPublicKey &&
+        !hasPortalSession
+      ) {
+        authorize(req, { organizationId });
+        if (!req.input.author) {
+          throw new Error("MISSING_AUTHOR_INFO");
+        }
       }
 
       // For portal sessions, verify the user matches
@@ -307,7 +315,7 @@ export default publicRoute
       const threadId = ulid().toLowerCase();
 
       await db.transaction(async ({ trx }) => {
-        let authorId: string;
+        let authorId: string | undefined;
 
         // Determine author based on context
         if (req.input.userId || req.context?.portalSession?.session) {
@@ -473,77 +481,22 @@ export default publicRoute
       const threads = hasMore ? rows.slice(0, limit) : rows;
 
       const nextCursor =
-        hasMore && threads.length > 0 ? threads[threads.length - 1].id : null;
+        hasMore && threads.length > 0
+          ? (threads[threads.length - 1]?.id ?? null)
+          : null;
 
       return { threads, nextCursor };
     }),
+    // TODO(signals-overhaul issue 10): rewrite against thread.agentRead /
+    // thread.inlineSuggestions (or replace with a new related-threads source).
+    // The suggestion table backing this was dropped in issue 02; returns [] now.
     fetchRelatedThreads: mutation(
       z.object({
         threadId: z.string(),
         organizationId: z.string(),
       }),
-    ).handler(async ({ req, db }) => {
-      // TODO: Add proper authorization
-      const { threadId, organizationId } = req.input;
-
-      const thread = await db.findOne(schema.thread, threadId);
-      if (!thread || thread.organizationId !== organizationId) {
-        throw new Error("THREAD_NOT_FOUND");
-      }
-
-      const suggestions = Object.values(
-        await db.find(schema.suggestion, {
-          where: {
-            type: SUGGESTION_TYPE_RELATED_THREADS,
-            entityId: threadId,
-            organizationId,
-            active: true,
-          },
-        }),
-      ) as SuggestionRow[];
-
-      const results: SimilarThreadResult[] = suggestions
-        .filter(
-          (s): s is SuggestionRow & { relatedEntityId: string } =>
-            !!s.relatedEntityId,
-        )
-        .map((s) => ({
-          threadId: s.relatedEntityId,
-          score: parseScoreFromResultsStr(s.resultsStr),
-        }))
-        .sort((a, b) => b.score - a.score);
-
-      if (results.length === 0) {
-        return [];
-      }
-
-      const resultThreadIds = results.map((result) => result.threadId);
-      const relatedThreads = Object.values(
-        await db.find(schema.thread, {
-          where: {
-            id: { $in: resultThreadIds },
-            organizationId,
-          },
-          include: {
-            author: { include: { user: true } },
-          },
-        }),
-      );
-
-      const threadById = new Map(
-        relatedThreads.map((relatedThread) => [
-          relatedThread.id,
-          relatedThread,
-        ]),
-      );
-      const orderedThreads = resultThreadIds
-        .map((id) => threadById.get(id))
-        .filter(
-          (relatedThread): relatedThread is (typeof relatedThreads)[number] =>
-            !!relatedThread && !relatedThread.deletedAt,
-        );
-
-      return orderedThreads;
+    ).handler(async () => {
+      return [];
     }),
     fetchGithubIssues: mutation(
       z.object({
@@ -843,6 +796,49 @@ export default publicRoute
         },
       };
     }),
+    executeAutonomousBundle: mutation(
+      executeAutonomousBundleInputSchema,
+    ).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runExecuteAutonomousBundle(db, req.input);
+    }),
+    acceptRead: mutation(acceptReadInputSchema).handler(async ({ req, db }) => {
+      return runAcceptRead(req, db, req.input);
+    }),
+    dismissRead: mutation(dismissReadInputSchema).handler(
+      async ({ req, db }) => {
+        return runDismissRead(req, db, req.input);
+      },
+    ),
+    acceptInlineSuggestion: mutation(acceptInlineSuggestionInputSchema).handler(
+      async ({ req, db }) => {
+        return runAcceptInlineSuggestion(req, db, req.input);
+      },
+    ),
+    dismissInlineSuggestion: mutation(
+      dismissInlineSuggestionInputSchema,
+    ).handler(async ({ req, db }) => {
+      return runDismissInlineSuggestion(req, db, req.input);
+    }),
+    upsertInlineSuggestion: mutation(upsertInlineSuggestionInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+        return runUpsertInlineSuggestion(db, req.input);
+      },
+    ),
+    writeHintSlot: mutation(writeHintSlotInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+        return runWriteHintSlot(db, req.input);
+      },
+    ),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the
@@ -858,28 +854,7 @@ export default publicRoute
         const shortId = await nextThreadShortId(db, value.organizationId);
         await db.thread.update(value.id, { shortId });
       } catch (error) {
-        console.error(
-          `Failed to assign shortId to thread ${value.id}:`,
-          error,
-        );
-      }
-    },
-    afterUpdate: ({ value, previousValue, db }) => {
-      const CLOSED_STATUSES = [2, 3, 4]; // Resolved, Closed, Duplicated
-      if (
-        previousValue &&
-        !CLOSED_STATUSES.includes(previousValue.status) &&
-        CLOSED_STATUSES.includes(value.status)
-      ) {
-        deactivateDigestSignals(db, value.organizationId, value.id, [
-          "digest:pending_reply",
-          "digest:loop_to_close",
-        ]).catch((error) => {
-          console.error(
-            `Failed to deactivate digest signals for thread ${value.id}:`,
-            error,
-          );
-        });
+        console.error(`Failed to assign shortId to thread ${value.id}:`, error);
       }
     },
   });

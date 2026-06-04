@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { signalAutonomyMapSchema } from "./signals";
+import { actionAutonomyMapSchema } from "./signals";
 
 const digestSettingsDefaults = {
   pendingReplyThresholdMinutes: 30,
@@ -23,7 +23,7 @@ export const digestSettingsSchema = z.object({
 export const organizationSettingsSchema = z.object({
   timezone: z.string().default("UTC"),
   digest: digestSettingsSchema.default(digestSettingsDefaults),
-  signalAutonomy: signalAutonomyMapSchema.optional(),
+  actionAutonomy: actionAutonomyMapSchema.optional(),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;

@@ -3,10 +3,10 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
+  type ActionKind,
   type AutonomyLevel,
-  getDefaultSignalAutonomy,
-  LOCKED_SIGNAL_TYPES,
-  type SignalType,
+  getDefaultActionAutonomy,
+  REVERSIBLE_ACTIONS,
 } from "@workspace/schemas/signals";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
@@ -147,28 +147,19 @@ function RouteComponent() {
   );
 }
 
-// Pattern signals (M3) are intentionally hidden until their detectors ship.
-const HIDDEN_SIGNAL_TYPES: readonly SignalType[] = [
-  "churn_risk",
-  "kb_gap",
-  "trending_issue",
-];
+const HIDDEN_ACTION_KINDS: ReadonlySet<ActionKind> = new Set();
 
 const AUTONOMY_LEVELS: AutonomyLevel[] = ["off", "suggest", "auto"];
 
-// Mode-neutral labels for the autonomy settings (the per-signal SIGNAL_LABEL
-// values read as "Suggested ..." which is misleading next to off/auto toggles).
-const AUTONOMY_SIGNAL_LABEL: Record<SignalType, string> = {
-  churn_risk: "Churn risk",
-  pending_reply: "Pending replies",
-  duplicate: "Duplicate threads",
-  loop_to_close: "Closing the loop",
-  linked_pr: "PR linking",
-  status: "Status changes",
-  kb_gap: "Knowledge gaps",
-  trending_issue: "Trending issues",
-  suggested_reply: "Reply drafting",
-  label: "Thread labeling",
+// Mode-neutral labels for the autonomy settings, keyed on the new Action
+// vocabulary (synthesis-track + inline-track).
+const AUTONOMY_ACTION_LABEL: Record<ActionKind, string> = {
+  reply: "Reply drafting",
+  mark_duplicate: "Duplicate threads",
+  link_pr: "PR linking",
+  close: "Closing threads",
+  apply_label: "Thread labeling",
+  set_status: "Status changes",
 };
 
 function AutomationCard({
@@ -182,26 +173,26 @@ function AutomationCard({
 }) {
   const initial = useMemo(() => {
     const parsed = safeParseOrgSettings(settings);
-    return { ...getDefaultSignalAutonomy(), ...(parsed.signalAutonomy ?? {}) };
+    return { ...getDefaultActionAutonomy(), ...(parsed.actionAutonomy ?? {}) };
   }, [settings]);
 
   const [pending, setPending] = useState<
-    Partial<Record<SignalType, AutonomyLevel>>
+    Partial<Record<ActionKind, AutonomyLevel>>
   >({});
 
-  const visibleTypes = (Object.keys(initial) as SignalType[]).filter(
-    (t) => !HIDDEN_SIGNAL_TYPES.includes(t),
+  const visibleTypes = (Object.keys(initial) as ActionKind[]).filter(
+    (k) => !HIDDEN_ACTION_KINDS.has(k),
   );
 
   const dirty = Object.keys(pending).length > 0;
 
-  const handleChange = (signalType: SignalType, level: AutonomyLevel) => {
+  const handleChange = (actionKind: ActionKind, level: AutonomyLevel) => {
     setPending((prev) => {
       const next = { ...prev };
-      if (initial[signalType] === level) {
-        delete next[signalType];
+      if (initial[actionKind] === level) {
+        delete next[actionKind];
       } else {
-        next[signalType] = level;
+        next[actionKind] = level;
       }
       return next;
     });
@@ -209,20 +200,20 @@ function AutomationCard({
 
   const handleSave = () => {
     if (!organizationId) return;
-    for (const [signalType, level] of Object.entries(pending) as [
-      SignalType,
+    for (const [actionKind, level] of Object.entries(pending) as [
+      ActionKind,
       AutonomyLevel,
     ][]) {
-      mutate.organization.setSignalAutonomy({
+      mutate.organization.setActionAutonomy({
         organizationId,
-        signalType,
+        actionKind,
         level,
       });
     }
     setPending({});
   };
 
-  const valueFor = (t: SignalType): AutonomyLevel => pending[t] ?? initial[t];
+  const valueFor = (k: ActionKind): AutonomyLevel => pending[k] ?? initial[k];
 
   return (
     <div className="flex flex-col gap-4 w-full">
@@ -241,12 +232,12 @@ function AutomationCard({
             style={{ gridTemplateColumns: "1fr auto" }}
           >
             {visibleTypes.map((t) => {
-              const locked = LOCKED_SIGNAL_TYPES.includes(t);
+              const locked = !REVERSIBLE_ACTIONS.has(t);
               const current = valueFor(t);
               return (
                 <div key={t} className="contents">
                   <div className="text-foreground">
-                    {AUTONOMY_SIGNAL_LABEL[t]}
+                    {AUTONOMY_ACTION_LABEL[t]}
                   </div>
                   <ToggleGroup
                     defaultValue={[current]}
@@ -271,7 +262,7 @@ function AutomationCard({
                           // truly-disabled element.
                           disabled={!isUserOwner && !lockedAuto}
                           aria-disabled={lockedAuto || undefined}
-                          aria-label={`${AUTONOMY_SIGNAL_LABEL[t]} ${lvl}`}
+                          aria-label={`${AUTONOMY_ACTION_LABEL[t]} ${lvl}`}
                           className="capitalize px-3 flex-none min-w-fit aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                         >
                           {lvl}

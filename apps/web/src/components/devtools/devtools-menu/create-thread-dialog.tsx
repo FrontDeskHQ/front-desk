@@ -22,10 +22,35 @@ import {
   TabsTrigger,
 } from "@workspace/ui/components/tabs";
 import { useAtomValue } from "jotai/react";
-import { ulid } from "ulid";
+import { toast } from "sonner";
 import { z } from "zod";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { mutate } from "~/lib/live-state";
+import { fetchClient } from "~/lib/live-state";
+
+const devtoolsAuthorId = (organizationId: string, name: string) =>
+  `devtools-${organizationId}-${name.trim().toLowerCase().replace(/\s+/g, "-")}`;
+
+const createDevThread = async ({
+  organizationId,
+  title,
+  authorName,
+  message,
+}: {
+  organizationId: string;
+  title: string;
+  authorName: string;
+  message: string;
+}) => {
+  await fetchClient.mutate.thread.create({
+    organizationId,
+    title,
+    message,
+    author: {
+      id: devtoolsAuthorId(organizationId, authorName),
+      name: authorName,
+    },
+  });
+};
 
 const SAMPLE_THREADS = [
   {
@@ -180,64 +205,29 @@ export const CreateThreadDialog = ({
     onSubmit: async ({ value }) => {
       if (!currentOrg?.id) return;
 
-      // Generate random threads
-      for (let i = 0; i < value.count; i++) {
-        const randomThread =
-          SAMPLE_THREADS[Math.floor(Math.random() * SAMPLE_THREADS.length)];
-        const authorId = ulid().toLowerCase();
-        const threadId = ulid().toLowerCase();
+      try {
+        for (let i = 0; i < value.count; i++) {
+          const randomThread =
+            SAMPLE_THREADS[Math.floor(Math.random() * SAMPLE_THREADS.length)]!;
+          await createDevThread({
+            organizationId: currentOrg.id,
+            title: randomThread.title,
+            authorName: randomThread.author,
+            message: randomThread.message,
+          });
+        }
 
-        mutate.author.insert({
-          id: authorId,
-          name: randomThread.author,
-          userId: null,
-          metaId: null,
-          organizationId: currentOrg.id,
-        });
-
-        // Small delay to ensure author is created first
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        mutate.thread.insert({
-          id: threadId,
-          name: randomThread.title,
-          authorId: authorId,
-          organizationId: currentOrg.id,
-          createdAt: new Date(),
-          deletedAt: null,
-          discordChannelId: null,
-          externalId: null,
-          externalOrigin: null,
-          externalMetadataStr: null,
-          externalIssueId: null,
-          externalPrId: null,
-          assignedUserId: null,
-          status: 0,
-          priority: 0,
-        });
-
-        // Small delay to ensure thread is created first
-        await new Promise((resolve) => setTimeout(resolve, 100));
-
-        // Create initial message for the thread
-        mutate.message.insert({
-          id: ulid().toLowerCase(),
-          authorId: authorId,
-          content: JSON.stringify([
-            {
-              type: "paragraph",
-              content: [{ type: "text", text: randomThread.message }],
-            },
-          ]),
-          threadId: threadId,
-          createdAt: new Date(),
-          origin: null,
-          externalMessageId: null,
-        });
+        toast.success(
+          value.count === 1
+            ? "Created 1 thread"
+            : `Created ${value.count} threads`,
+        );
+        randomForm.reset();
+        onOpenChange(false);
+      } catch (err) {
+        console.error("Failed to create threads:", err);
+        toast.error("Failed to create threads");
       }
-
-      randomForm.reset();
-      onOpenChange(false);
     },
   });
 
@@ -252,39 +242,21 @@ export const CreateThreadDialog = ({
     onSubmit: async ({ value }) => {
       if (!currentOrg?.id) return;
 
-      const authorId = ulid().toLowerCase();
+      try {
+        await createDevThread({
+          organizationId: currentOrg.id,
+          title: value.title,
+          authorName: value.author,
+          message: "Thread created from devtools.",
+        });
 
-      mutate.author.insert({
-        id: authorId,
-        name: value.author,
-        userId: null,
-        metaId: null,
-        organizationId: currentOrg.id,
-      });
-
-      // Small delay to ensure author is created first
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      mutate.thread.insert({
-        id: ulid().toLowerCase(),
-        name: value.title,
-        authorId: authorId,
-        organizationId: currentOrg.id,
-        createdAt: new Date(),
-        deletedAt: null,
-        discordChannelId: null,
-        externalId: null,
-        externalOrigin: null,
-        externalMetadataStr: null,
-        externalIssueId: null,
-        externalPrId: null,
-        assignedUserId: null,
-        status: 0,
-        priority: 0,
-      });
-
-      singleForm.reset();
-      onOpenChange(false);
+        toast.success("Created thread");
+        singleForm.reset();
+        onOpenChange(false);
+      } catch (err) {
+        console.error("Failed to create thread:", err);
+        toast.error("Failed to create thread");
+      }
     },
   });
 

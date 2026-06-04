@@ -1,32 +1,9 @@
 import { formatGitHubId } from "@workspace/schemas/external-issue";
 import { statusValues } from "@workspace/ui/components/indicator";
-import { enqueueEmbedPrJob } from "api/queue";
 import { ulid } from "ulid";
-import { app, getOctokit } from "../lib/github";
+import { app } from "../lib/github";
 import { store } from "../lib/live-state";
 import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
-
-/**
- * Look up the organizationId for a GitHub App installation
- * by matching the installationId stored in integration config.
- */
-const findOrganizationByInstallationId = (
-  installationId: number,
-): string | null => {
-  const integrations = store.query.integration.get();
-  for (const integration of integrations) {
-    if (integration.type !== "github" || !integration.configStr) continue;
-    try {
-      const config = JSON.parse(integration.configStr);
-      if (config.installationId === installationId) {
-        return integration.organizationId;
-      }
-    } catch {
-      continue;
-    }
-  }
-  return null;
-};
 
 export const setupWebhooks = () => {
   app.webhooks.on("issues.closed", async ({ payload }) => {
@@ -107,61 +84,9 @@ export const setupWebhooks = () => {
         }: ${repoFullName}#${prNumber}`
       );
 
-      // Enqueue PR embedding job for merged, non-draft PRs
-      if (merged && !pr.draft) {
-        const installationId = payload.installation?.id;
-        if (installationId) {
-          const organizationId =
-            findOrganizationByInstallationId(installationId);
-          if (organizationId) {
-            try {
-              const octokit = await getOctokit(installationId);
-              const { data: commits } = await octokit.request(
-                "GET /repos/{owner}/{repo}/pulls/{pull_number}/commits",
-                {
-                  owner,
-                  repo,
-                  pull_number: prNumber,
-                  per_page: 100,
-                },
-              );
-              const commitMessages = commits.map(
-                (c) => c.commit.message,
-              );
-
-              const jobId = await enqueueEmbedPrJob({
-                prId: pr.id,
-                prNumber,
-                owner,
-                repo,
-                prUrl: pr.html_url,
-                prTitle: pr.title,
-                prBody: pr.body ?? "",
-                commitMessages,
-                organizationId,
-                mergedAt: pr.merged_at ?? new Date().toISOString(),
-              });
-
-              if (!jobId) {
-                throw new Error("enqueueEmbedPrJob returned null — queue unavailable");
-              }
-
-              console.log(
-                `[GitHub] Enqueued embed-pr job ${jobId} for ${repoFullName}#${prNumber}`,
-              );
-            } catch (embedError) {
-              console.error(
-                `[GitHub] Failed to enqueue embed-pr job for ${repoFullName}#${prNumber}:`,
-                embedError,
-              );
-            }
-          } else {
-            console.warn(
-              `[GitHub] No organization found for installation ${installationId}, skipping PR embedding`,
-            );
-          }
-        }
-      }
+      // TODO(signals-overhaul issue 06): re-enqueue PR-matched synthesis via
+      // enqueueThreadRead({ kind: "pr_matched" }) here. The legacy embed-pr +
+      // match-pr-threads worker pipeline was dropped in issue 02.
 
       // Update linked thread statuses
       const prId = formatGitHubId(

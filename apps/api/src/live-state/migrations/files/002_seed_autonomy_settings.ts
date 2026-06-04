@@ -1,6 +1,6 @@
 import {
-  getDefaultSignalAutonomy,
-  signalAutonomyMapSchema,
+  actionAutonomyMapSchema,
+  getDefaultActionAutonomy,
 } from "@workspace/schemas/signals";
 import type { Migration } from "../types";
 
@@ -8,23 +8,25 @@ const migration: Migration = {
   name: "002_seed_autonomy_settings",
   up: async ({ db }) => {
     const orgs = await db.organization.where({}).get();
-    const defaults = getDefaultSignalAutonomy();
+    const defaults = getDefaultActionAutonomy();
 
     for (const org of orgs) {
-      // Preserve any unrelated keys on settings — only patch signalAutonomy.
+      // Preserve any unrelated keys on settings — only patch actionAutonomy.
+      // Drop the legacy `signalAutonomy` key if present (pre-launch cleanup).
       const rawSettings =
         org.settings &&
         typeof org.settings === "object" &&
         !Array.isArray(org.settings)
           ? (org.settings as Record<string, unknown>)
           : {};
-      const parsedAutonomy = signalAutonomyMapSchema.safeParse(
-        rawSettings.signalAutonomy,
+      const { signalAutonomy: _legacy, ...rest } = rawSettings;
+      const parsedAutonomy = actionAutonomyMapSchema.safeParse(
+        rest.actionAutonomy,
       );
 
       const next = {
-        ...rawSettings,
-        signalAutonomy: {
+        ...rest,
+        actionAutonomy: {
           ...defaults,
           ...(parsedAutonomy.success ? parsedAutonomy.data : {}),
         },

@@ -2,11 +2,12 @@
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
 import {
+  type ActionAutonomyMap,
+  actionAutonomyMapSchema,
+  actionKindSchema,
   autonomyLevelSchema,
-  getDefaultSignalAutonomy,
-  type SignalAutonomyMap,
-  signalAutonomyMapSchema,
-  signalTypeSchema,
+  getDefaultActionAutonomy,
+  REVERSIBLE_ACTIONS,
 } from "@workspace/schemas/signals";
 import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
@@ -15,7 +16,6 @@ import { publicKeys } from "../lib/api-key";
 import { authorize } from "../lib/authorize";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
-import { canDoAutonomously } from "../lib/signals";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
@@ -25,7 +25,6 @@ import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
 import { slackChannelsCache } from "./router/slack-channels";
-import suggestionRoute from "./router/suggestions";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
@@ -130,7 +129,7 @@ export const router = createRouter({
                 slackChannelName: null,
                 lastDigestSentAt: null,
               },
-              signalAutonomy: getDefaultSignalAutonomy(),
+              actionAutonomy: getDefaultActionAutonomy(),
             },
           });
 
@@ -183,28 +182,29 @@ export const router = createRouter({
             organization,
           };
         }),
-        setSignalAutonomy: mutation(
+        setActionAutonomy: mutation(
           z.object({
             organizationId: z.string(),
-            signalType: signalTypeSchema,
+            actionKind: actionKindSchema,
             level: autonomyLevelSchema,
           }),
         ).handler(async ({ req, db }) => {
-          authorize(req.context, {
+          authorize(req, {
             organizationId: req.input.organizationId,
             role: "owner",
           });
 
-          if (!canDoAutonomously(req.input.signalType, req.input.level)) {
-            if (req.input.level === "auto") {
-              throw new Error("SIGNAL_TYPE_LOCKED_FROM_AUTO");
-            }
+          if (
+            req.input.level === "auto" &&
+            !REVERSIBLE_ACTIONS.has(req.input.actionKind)
+          ) {
+            throw new Error("ACTION_KIND_LOCKED_FROM_AUTO");
           }
 
           const org = await db.organization.one(req.input.organizationId).get();
           if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
 
-          // Preserve raw settings — only touch signalAutonomy. Avoid
+          // Preserve raw settings — only touch actionAutonomy. Avoid
           // safeParseOrgSettings here because it returns the schema defaults
           // when the existing settings fail validation, which would silently
           // overwrite unrelated keys we don't know about yet.
@@ -214,19 +214,19 @@ export const router = createRouter({
             !Array.isArray(org.settings)
               ? (org.settings as Record<string, unknown>)
               : {};
-          const parsedAutonomy = signalAutonomyMapSchema.safeParse(
-            rawSettings.signalAutonomy,
+          const parsedAutonomy = actionAutonomyMapSchema.safeParse(
+            rawSettings.actionAutonomy,
           );
-          const nextAutonomy: SignalAutonomyMap = {
-            ...getDefaultSignalAutonomy(),
+          const nextAutonomy: ActionAutonomyMap = {
+            ...getDefaultActionAutonomy(),
             ...(parsedAutonomy.success ? parsedAutonomy.data : {}),
-            [req.input.signalType]: req.input.level,
+            [req.input.actionKind]: req.input.level,
           };
 
           return db.organization.update(org.id, {
             settings: {
               ...rawSettings,
-              signalAutonomy: nextAutonomy,
+              actionAutonomy: nextAutonomy,
               // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
             } as any,
           });
@@ -795,7 +795,6 @@ export const router = createRouter({
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,
-    suggestion: suggestionRoute,
     autonomousAction: autonomousActionRoute,
     onboarding: onboardingRoute,
     documentationSource: documentationSourcesRoute,

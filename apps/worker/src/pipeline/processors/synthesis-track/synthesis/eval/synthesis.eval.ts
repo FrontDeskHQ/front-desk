@@ -1,0 +1,46 @@
+import type { ThreadRead } from "@workspace/schemas/signals";
+import { evalite } from "evalite";
+import { reportTrace } from "evalite/traces";
+import { normalizeSynthesisRawActionSet } from "../normalize";
+import { synthesisDataset } from "./dataset";
+import {
+  alternativesKindsAlignment,
+  nullityAlignment,
+  primaryKindsAlignment,
+  sourceInputMessageSelection,
+} from "./scorers";
+
+evalite("Synthesis Normalize", {
+  data: () =>
+    synthesisDataset.map((testCase) => ({
+      input: testCase.input,
+      expected: testCase.expected,
+    })),
+  task: async (input) => {
+    const start = Date.now();
+    const result = normalizeSynthesisRawActionSet({
+      output: input.output,
+      messageIds: new Set(input.messageIds),
+      fallbackSourceInputMessageId: input.fallbackSourceInputMessageId,
+      hasTeamReply: input.hasTeamReply,
+    });
+    reportTrace({
+      start,
+      end: Date.now(),
+      input: [
+        {
+          role: "user",
+          content: JSON.stringify(input, null, 2),
+        },
+      ],
+      output: JSON.stringify(result),
+    });
+    return result as ThreadRead | null;
+  },
+  scorers: [
+    nullityAlignment,
+    primaryKindsAlignment,
+    alternativesKindsAlignment,
+    sourceInputMessageSelection,
+  ],
+});

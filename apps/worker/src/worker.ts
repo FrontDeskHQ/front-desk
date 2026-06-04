@@ -1,10 +1,8 @@
-import { type Job, Queue, Worker } from "bullmq";
+import { type Job, Worker } from "bullmq";
 import Redis from "ioredis";
+import type { ThreadReadJobData } from "@workspace/schemas/signals";
 import { initSharedLogger, log } from "@workspace/utils/logging";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
-import { handleDigestDeliver, setDigestNotifyQueue } from "./handlers/digest-deliver";
-import { handleDigestScan } from "./handlers/digest-scan";
-import { handleEmbedPr } from "./handlers/embed-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
@@ -12,21 +10,8 @@ import { ensureThreadsCollection } from "./lib/qdrant/threads";
 import { executePipeline } from "./pipeline/core/orchestrator";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
-const INGEST_THREAD_QUEUE = "ingest-thread";
+const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
-const EMBED_PR_QUEUE = "embed-pr";
-const DIGEST_SCAN_QUEUE = "digest-scan";
-const DIGEST_DELIVER_QUEUE = "digest-deliver";
-const DIGEST_NOTIFY_QUEUE = "digest-notify";
-
-interface IngestThreadJobData {
-  threadIds: string[];
-  options?: {
-    concurrency?: number;
-    similarThreadsLimit?: number;
-    scoreThreshold?: number;
-  };
-}
 
 const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -86,34 +71,24 @@ const getRedisConnection = (): Redis => {
 const connection = getRedisConnection();
 
 /**
- * Handler for ingest-thread jobs
- * Processes a batch of thread IDs through the ingestion pipeline
+ * Handler for thread-pipeline jobs
+ * Runs the full thread pipeline for a single thread. TODO(issue-06): branch on
+ * job.data.kind === "supersede" to null thread.agentRead without invoking the
+ * synthesis processor.
  */
-const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
-  const { threadIds, options } = job.data;
+const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
+  const { threadId, kind } = job.data;
 
-  if (!threadIds || threadIds.length === 0) {
-    throw new Error("No thread IDs provided");
+  if (!threadId) {
+    throw new Error("No threadId provided");
   }
 
   log.info(
-    "worker.ingest-thread",
-    `Processing job ${job.id} with ${threadIds.length} threads`,
+    "worker.thread-pipeline",
+    `Processing job ${job.id} (thread=${threadId}, kind=${kind})`,
   );
 
-  const concurrency =
-    options?.concurrency && options.concurrency > 0
-      ? options.concurrency
-      : undefined;
-
-  const result = await executePipeline(
-    { threadIds },
-    {
-      concurrency,
-      similarThreadsLimit: options?.similarThreadsLimit,
-      scoreThreshold: options?.scoreThreshold,
-    },
-  );
+  const result = await executePipeline({ threadIds: [threadId] });
 
   const successRate =
     result.summary.totalThreads > 0
@@ -124,14 +99,15 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
       : "0";
 
   log.info(
-    "worker.ingest-thread",
+    "worker.thread-pipeline",
     `Completed job ${job.id} with ${successRate}% success rate`,
   );
 
   return {
     jobId: result.jobId,
     bullmqJobId: job.id,
-    threadIds,
+    threadId,
+    kind,
     summary: result.summary,
     successRate: `${successRate}%`,
     status: result.status,
@@ -140,13 +116,13 @@ const handleIngestThreadJob = async (job: Job<IngestThreadJobData>) => {
 };
 
 // Create workers for each queue (autorun: false — started after collections are ready)
-const ingestThreadWorker = new Worker<IngestThreadJobData>(
-  INGEST_THREAD_QUEUE,
-  handleIngestThreadJob,
+const threadPipelineWorker = new Worker<ThreadReadJobData>(
+  THREAD_PIPELINE_QUEUE,
+  handleThreadReadJob,
   {
     connection,
     autorun: false,
-    concurrency: 3, // Process up to 3 batches concurrently
+    concurrency: 3, // Process up to 3 threads concurrently
     removeOnComplete: {
       count: 100,
       age: 24 * 3600, // 24 hours
@@ -157,21 +133,21 @@ const ingestThreadWorker = new Worker<IngestThreadJobData>(
   },
 );
 
-// Event handlers for ingest-thread worker
-ingestThreadWorker.on("completed", (job) => {
-  log.info("worker.ingest-thread", `Job ${job.id} completed`);
+// Event handlers for thread-pipeline worker
+threadPipelineWorker.on("completed", (job) => {
+  log.info("worker.thread-pipeline", `Job ${job.id} completed`);
 });
 
-ingestThreadWorker.on("failed", (job, err) => {
+threadPipelineWorker.on("failed", (job, err) => {
   log.error(
-    "worker.ingest-thread",
+    "worker.thread-pipeline",
     `Job ${job?.id} failed: ${err.message}`,
   );
-  log.error("worker.ingest-thread", formatError(err));
+  log.error("worker.thread-pipeline", formatError(err));
 });
 
-ingestThreadWorker.on("error", (err) => {
-  log.error("worker.ingest-thread", `Worker error: ${formatError(err)}`);
+threadPipelineWorker.on("error", (err) => {
+  log.error("worker.thread-pipeline", `Worker error: ${formatError(err)}`);
 });
 
 // Create crawl-documentation worker
@@ -191,107 +167,6 @@ const crawlDocWorker = new Worker(
     },
   },
 );
-
-// Create embed-pr worker
-const embedPrWorker = new Worker(
-  EMBED_PR_QUEUE,
-  handleEmbedPr,
-  {
-    connection,
-    autorun: false,
-    concurrency: 2,
-    removeOnComplete: {
-      count: 50,
-      age: 24 * 3600,
-    },
-    removeOnFail: {
-      count: 500,
-    },
-  },
-);
-
-// Create digest-scan queue (for job scheduler) and worker
-const digestScanQueue = new Queue(DIGEST_SCAN_QUEUE, { connection });
-const digestScanWorker = new Worker(
-  DIGEST_SCAN_QUEUE,
-  handleDigestScan,
-  {
-    connection,
-    autorun: false,
-    concurrency: 1,
-    removeOnComplete: {
-      count: 50,
-      age: 24 * 3600,
-    },
-    removeOnFail: {
-      count: 500,
-    },
-  },
-);
-
-// Create digest-deliver queue (for job scheduler), worker, and notify queue (for Slack app)
-const digestDeliverQueue = new Queue(DIGEST_DELIVER_QUEUE, { connection });
-const digestNotifyQueue = new Queue(DIGEST_NOTIFY_QUEUE, { connection });
-setDigestNotifyQueue(digestNotifyQueue);
-
-const digestDeliverWorker = new Worker(
-  DIGEST_DELIVER_QUEUE,
-  handleDigestDeliver,
-  {
-    connection,
-    autorun: false,
-    concurrency: 1,
-    removeOnComplete: {
-      count: 50,
-      age: 24 * 3600,
-    },
-    removeOnFail: {
-      count: 500,
-    },
-  },
-);
-
-digestDeliverWorker.on("completed", (job) => {
-  log.info("worker.digest-deliver", `Job ${job.id} completed`);
-});
-
-digestDeliverWorker.on("failed", (job, err) => {
-  log.error(
-    "worker.digest-deliver",
-    `Job ${job?.id} failed: ${err.message}`,
-  );
-  log.error("worker.digest-deliver", formatError(err));
-});
-
-digestDeliverWorker.on("error", (err) => {
-  log.error("worker.digest-deliver", `Worker error: ${formatError(err)}`);
-});
-
-digestScanWorker.on("completed", (job) => {
-  log.info("worker.digest-scan", `Job ${job.id} completed`);
-});
-
-digestScanWorker.on("failed", (job, err) => {
-  log.error("worker.digest-scan", `Job ${job?.id} failed: ${err.message}`);
-  log.error("worker.digest-scan", formatError(err));
-});
-
-digestScanWorker.on("error", (err) => {
-  log.error("worker.digest-scan", `Worker error: ${formatError(err)}`);
-});
-
-embedPrWorker.on("completed", (job) => {
-  log.info("worker.embed-pr", `Job ${job.id} completed`);
-});
-
-embedPrWorker.on("failed", (job, err) => {
-  log.error("worker.embed-pr", `Job ${job?.id} failed: ${err.message}`);
-  log.error("worker.embed-pr", formatError(err));
-});
-
-embedPrWorker.on("error", (err) => {
-  log.error("worker.embed-pr", `Worker error: ${formatError(err)}`);
-});
 
 crawlDocWorker.on("completed", (job) => {
   log.info("worker.crawl-documentation", `Job ${job.id} completed`);
@@ -333,24 +208,9 @@ const initialize = async () => {
 
   log.info("worker", "Qdrant collections ready");
 
-  // Register digest scan scheduler (every 5 minutes)
-  await digestScanQueue.upsertJobScheduler("digest-scan", {
-    every: 300_000,
-  });
-  log.info("worker", "Digest scan scheduler registered (every 5 min)");
-
-  // Register digest deliver scheduler (every 1 minute)
-  await digestDeliverQueue.upsertJobScheduler("digest-deliver", {
-    every: 60_000,
-  });
-  log.info("worker", "Digest deliver scheduler registered (every 1 min)");
-
   // Start workers now that collections are ready
-  ingestThreadWorker.run();
+  threadPipelineWorker.run();
   crawlDocWorker.run();
-  embedPrWorker.run();
-  digestScanWorker.run();
-  digestDeliverWorker.run();
 
   log.info("worker", "Listening for jobs");
 };
@@ -358,7 +218,7 @@ const initialize = async () => {
 // Graceful shutdown
 const handleShutdown = async () => {
   log.info("worker", "Shutting down workers");
-  await Promise.all([ingestThreadWorker.close(), crawlDocWorker.close(), embedPrWorker.close(), digestScanWorker.close(), digestDeliverWorker.close()]);
+  await Promise.all([threadPipelineWorker.close(), crawlDocWorker.close()]);
   await connection.quit();
   log.info("worker", "Workers shut down successfully");
   process.exit(0);

@@ -246,23 +246,6 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
     }) as any,
   );
 
-if (process.env.NODE_ENV !== "production") {
-  const { enqueueForceDigestDeliver } = await import("./lib/queue");
-  app.post("/api/dev/force-digest", async (req, res) => {
-    const { orgId } = req.body;
-    if (!orgId) {
-      res.status(400).json({ error: "orgId required" });
-      return;
-    }
-    const jobId = await enqueueForceDigestDeliver(orgId);
-    if (!jobId) {
-      res.status(503).json({ error: "Digest queue unavailable" });
-      return;
-    }
-    res.json({ jobId });
-  });
-}
-
 expressAdapter(app as any, lsServer, {
   basePath: "/api/ls",
 });

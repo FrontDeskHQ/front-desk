@@ -1,11 +1,7 @@
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
-import { ulid } from "ulid";
 import type { Thread } from "../../types";
-import type { SimilarThreadResult } from "../qdrant/threads";
-
-const SUGGESTION_TYPE_RELATED_THREADS = "related_threads";
 
 /**
  * Fetch client for database operations
@@ -78,94 +74,3 @@ export const fetchThreadsWithRelations = async (
   return threads;
 };
 
-type SuggestionRow = {
-  id: string;
-  type: string;
-  entityId: string;
-  relatedEntityId: string | null;
-  active: boolean;
-  accepted: boolean;
-  organizationId: string;
-  resultsStr: string | null;
-  metadataStr: string | null;
-  createdAt: Date | string;
-  updatedAt: Date | string;
-};
-
-interface SuggestionData {
-  threadId: string;
-  organizationId: string;
-  similarThreads: SimilarThreadResult[];
-  metadata?: Record<string, unknown>;
-}
-
-/**
- * Store or update related threads suggestions.
- * Creates one suggestion row per related thread using relatedEntityId.
- */
-export const storeSuggestion = async (
-  data: SuggestionData,
-): Promise<boolean> => {
-  const { threadId, organizationId, similarThreads, metadata } = data;
-
-  try {
-    const existingSuggestions = (await fetchClient.query.suggestion
-      .where({
-        type: SUGGESTION_TYPE_RELATED_THREADS,
-        entityId: threadId,
-        organizationId,
-      })
-      .get()) as SuggestionRow[];
-
-    const existingByRelatedId = new Map<string, SuggestionRow>();
-    for (const s of existingSuggestions) {
-      if (s.relatedEntityId) {
-        existingByRelatedId.set(s.relatedEntityId, s);
-      }
-    }
-
-    const now = new Date();
-    const metadataStr = metadata ? JSON.stringify(metadata) : null;
-
-    for (const suggestion of existingSuggestions) {
-      await fetchClient.mutate.suggestion.update(suggestion.id, {
-        active: false,
-        updatedAt: now,
-      });
-    }
-
-    for (const st of similarThreads) {
-      const existing = existingByRelatedId.get(st.threadId);
-      const resultsStr = JSON.stringify({ score: st.score });
-
-      if (existing) {
-        await fetchClient.mutate.suggestion.update(existing.id, {
-          active: true,
-          accepted: existing.accepted,
-          resultsStr,
-          metadataStr,
-          updatedAt: now,
-        });
-      } else {
-        await fetchClient.mutate.suggestion.insert({
-          id: ulid().toLowerCase(),
-          type: SUGGESTION_TYPE_RELATED_THREADS,
-          entityId: threadId,
-          relatedEntityId: st.threadId,
-          organizationId,
-          active: true,
-          accepted: false,
-          resultsStr,
-          metadataStr,
-          createdAt: now,
-          updatedAt: now,
-        });
-      }
-    }
-
-    return true;
-  } catch (error) {
-    console.error(`Failed to store suggestion for thread ${threadId}:`, error);
-    return false;
-  }
-};

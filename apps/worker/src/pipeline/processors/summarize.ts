@@ -96,7 +96,7 @@ export const summarySchema = z.object({
 export const summarizeThread = async (
   thread: InferLiveObject<
     typeof schema.thread,
-    { messages: true; labels: { label: true } }
+    { messages: true; labels: { include: { label: true } } }
   >,
   ai?: ReturnType<typeof createAILogger>,
 ): Promise<ParsedSummary> => {

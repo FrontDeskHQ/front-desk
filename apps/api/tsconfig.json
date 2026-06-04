@@ -20,5 +20,6 @@
     "src",
     "tests",
     "trigger.config.ts"
-  ]
+  ],
+  "exclude": ["src/**/*.test.ts"]
 }

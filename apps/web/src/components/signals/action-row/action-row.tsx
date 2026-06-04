@@ -21,7 +21,7 @@ function useActionRow(): ActionRowContextValue {
 function Root({ tier, children }: { tier: UrgencyTier; children: ReactNode }) {
   return (
     <ActionRowContext.Provider value={{ tier }}>
-      <div className="bg-background-secondary flex flex-col overflow-clip rounded-md border">
+      <div className="bg-background-tertiary flex flex-col overflow-clip rounded-md border">
         {children}
       </div>
     </ActionRowContext.Provider>
@@ -30,7 +30,7 @@ function Root({ tier, children }: { tier: UrgencyTier; children: ReactNode }) {
 
 function Header({ children }: { children: ReactNode }) {
   return (
-    <div className="relative flex flex-col gap-2 border-b px-3 py-3">
+    <div className="bg-background-secondary relative flex flex-col gap-2 border-b px-3 py-3 rounded-md">
       {children}
     </div>
   );
@@ -53,8 +53,8 @@ function Tag() {
 
 function Title({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-2 pr-8 text-sm text-foreground-primary">
-      <Tag />
+    <div className="flex items-center gap-2 pr-16 text-sm text-foreground-primary">
+      {/* <Tag /> */}
       {children}
     </div>
   );
@@ -70,10 +70,10 @@ function Meta({ children }: { children: ReactNode }) {
 
 function Reason({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center gap-1.5 text-foreground-primary text-sm">
+    <div className="flex items-start gap-1.5 text-foreground-primary text-sm">
       <span
         aria-hidden
-        className="ml-[6px] -mt-2 h-3 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-foreground-tertiary/75"
+        className="ml-[6px] -mt-1.25 h-4 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-foreground-tertiary/75"
       />
       {children}
     </div>
@@ -82,7 +82,15 @@ function Reason({ children }: { children: ReactNode }) {
 
 function Actions({ children }: { children: ReactNode }) {
   return (
-    <div className="flex items-center justify-end gap-2 px-3 py-2 bg-background-tertiary">
+    <div className="flex items-center justify-end gap-2 px-3 py-2">
+      {children}
+    </div>
+  );
+}
+
+function TopActions({ children }: { children: ReactNode }) {
+  return (
+    <div className="absolute top-2 right-2 flex items-center gap-0.5">
       {children}
     </div>
   );
@@ -96,11 +104,9 @@ function Dismiss({
   label?: string;
 }) {
   return (
-    <div className="absolute top-2 right-2">
-      <ActionButton size="sm" variant="ghost" tooltip={label} onClick={onClick}>
-        <X className="size-3.5" />
-      </ActionButton>
-    </div>
+    <ActionButton size="sm" variant="ghost" tooltip={label} onClick={onClick}>
+      <X className="size-3.5" />
+    </ActionButton>
   );
 }
 
@@ -112,20 +118,21 @@ export const ActionRow = {
   Meta,
   Reason,
   Actions,
+  TopActions,
   Dismiss,
 };
 
 export function ActionRowSkeleton() {
   return (
-    <div className="bg-background-secondary flex flex-col overflow-clip rounded-md border">
-      <div className="flex flex-col gap-2 border-b px-3 py-3">
+    <div className="bg-background-tertiary flex flex-col overflow-clip rounded-md border">
+      <div className="flex flex-col gap-2 border-b px-3 py-3 rounded-md bg-background-secondary">
         <div className="flex items-center gap-2">
           <span className="h-[11px] w-[14px] shrink-0 animate-pulse rounded bg-accent" />
           <div className="h-3 w-32 animate-pulse rounded bg-accent" />
         </div>
         <div className="h-3 w-48 animate-pulse rounded bg-accent" />
       </div>
-      <div className="bg-background-tertiary flex justify-end px-3 py-2">
+      <div className="flex justify-end px-3 py-2">
         <div className="h-6 w-20 animate-pulse rounded bg-accent" />
       </div>
     </div>

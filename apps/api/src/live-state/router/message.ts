@@ -2,8 +2,7 @@
 import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
-import { deactivateDigestSignals } from "../../lib/digest-signals";
-import { enqueueIngestThreadJob } from "../../lib/queue";
+import { enqueueThreadRead } from "../../lib/queue";
 import { searchMessages } from "../../lib/search/qdrant";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -194,16 +193,6 @@ export default publicRoute
           });
         });
 
-        // Deactivate digest signals since thread is now Resolved
-        deactivateDigestSignals(db, thread.organizationId, thread.id, [
-          "digest:pending_reply",
-          "digest:loop_to_close",
-        ]).catch((error) => {
-          console.error(
-            `Failed to deactivate digest signals for thread ${thread.id}:`,
-            error,
-          );
-        });
       }
 
       const updatedMessage = await db.message
@@ -237,47 +226,27 @@ export default publicRoute
     afterInsert: ({ value, db }) => {
       (async () => {
         try {
+          // TODO(issue-06): when the author is outbound (teammate or Agent),
+          // dispatch kind:"supersede" instead so the worker handler can null
+          // thread.agentRead without invoking synthesis.
           const queuePriority = value.isBackfill ? "low" : "high";
-          const jobId = await enqueueIngestThreadJob({
-            threadIds: [value.threadId],
+          const jobId = await enqueueThreadRead(value.threadId, {
+            kind: "message",
             priority: queuePriority,
           });
 
           if (!jobId) {
             console.warn(
-              `Redis queue not configured; skipping ingest-thread enqueue for thread ${value.threadId}`,
+              `Redis queue not configured; skipping thread-read enqueue for thread ${value.threadId}`,
             );
           }
         } catch (error) {
           console.error(
-            `Unhandled error in afterInsert ingest enqueue for message ${value.id}`,
+            `Unhandled error in afterInsert thread-read enqueue for message ${value.id}`,
             error,
           );
         }
 
-        // Digest signal cleanup — separate from ingest enqueue so a queue
-        // failure doesn't prevent assignee replies from clearing signals.
-        try {
-          if (!value.isBackfill) {
-            const author = await db.findOne(schema.author, value.authorId);
-            if (author?.userId) {
-              const thread = await db.findOne(schema.thread, value.threadId);
-              if (thread?.assignedUserId === author.userId) {
-                await deactivateDigestSignals(
-                  db,
-                  thread.organizationId,
-                  value.threadId,
-                  ["digest:pending_reply", "digest:loop_to_close"],
-                );
-              }
-            }
-          }
-        } catch (error) {
-          console.error(
-            `Failed to deactivate digest signals for message ${value.id}`,
-            error,
-          );
-        }
       })();
     },
   });

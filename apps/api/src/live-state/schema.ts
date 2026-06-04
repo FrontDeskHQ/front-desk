@@ -11,7 +11,11 @@ import {
   timestamp,
 } from "@live-state/sync";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
-import type { SuggestedActions } from "@workspace/schemas/signals";
+import type {
+  Hints,
+  InlineSuggestion,
+  ThreadRead,
+} from "@workspace/schemas/signals";
 
 const organization = object("organization", {
   id: id(),
@@ -63,6 +67,9 @@ const thread = object("thread", {
   externalOrigin: string().nullable(),
   externalMetadataStr: string().nullable(),
   shortId: number().nullable(),
+  agentRead: json<ThreadRead | null>().nullable(),
+  inlineSuggestions: json<InlineSuggestion[]>().default([]),
+  hints: json<Hints>().default({}),
 });
 
 const message = object("message", {
@@ -149,26 +156,6 @@ const threadLabel = object("threadLabel", {
   enabled: boolean().default(true),
 });
 
-const suggestion = object("suggestion", {
-  id: id(),
-  type: string(), // "label", "priority", etc. - for future extensibility
-  entityId: string(), // thread ID, user ID, etc. - the entity being suggested for
-  relatedEntityId: string().nullable(), //  thread ID, user ID, etc. - the entity being related to, e.g. the related thread ID
-  active: boolean().default(true),
-  accepted: boolean().default(false),
-  organizationId: reference("organization.id"),
-  resultsStr: string().nullable(), // JSON array of results (e.g., label IDs)
-  metadataStr: string().nullable(), // Flexible JSON metadata (hash, version, etc.)
-  summary: string().nullable(), // AI-generated one-line summary; null for deterministic signals (UI renders those)
-  reasoning: string().nullable(), // AI-generated reasoning (null for deterministic signals)
-  suggestedActions: json<SuggestedActions>().nullable(), // Actions the agent can take (REPLY_SUGGESTION, ...)
-  urgencyScore: number().default(0),
-  dismissedAt: timestamp().nullable(),
-  actedAt: timestamp().nullable(),
-  createdAt: timestamp(),
-  updatedAt: timestamp(),
-});
-
 // TODO(live-state): composite index (organizationId, appliedAt desc) when supported.
 // Until then, single-column indexes plus query-side orderBy("appliedAt","desc").
 const autonomousAction = object("autonomousAction", {
@@ -231,7 +218,6 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   subscriptions: many(subscription, "organizationId"),
   labels: many(label, "organizationId"),
   authors: many(author, "organizationId"),
-  suggestions: many(suggestion, "organizationId"),
   autonomousActions: many(autonomousAction, "organizationId"),
   onboardings: many(onboarding, "organizationId"),
   documentationSources: many(documentationSource, "organizationId"),
@@ -292,10 +278,6 @@ const threadLabelRelations = createRelations(threadLabel, ({ one }) => ({
   label: one(label, "labelId"),
 }));
 
-const suggestionRelations = createRelations(suggestion, ({ one }) => ({
-  organization: one(organization, "organizationId"),
-}));
-
 const autonomousActionRelations = createRelations(
   autonomousAction,
   ({ one }) => ({
@@ -307,15 +289,12 @@ const onboardingRelations = createRelations(onboarding, ({ one }) => ({
   organization: one(organization, "organizationId"),
 }));
 
-const agentChatRelations = createRelations(
-  agentChat,
-  ({ one, many }) => ({
-    organization: one(organization, "organizationId"),
-    user: one(user, "userId"),
-    thread: one(thread, "threadId"),
-    messages: many(agentChatMessage, "agentChatId"),
-  }),
-);
+const agentChatRelations = createRelations(agentChat, ({ one, many }) => ({
+  organization: one(organization, "organizationId"),
+  user: one(user, "userId"),
+  thread: one(thread, "threadId"),
+  messages: many(agentChatMessage, "agentChatId"),
+}));
 
 const agentChatMessageRelations = createRelations(
   agentChatMessage,
@@ -380,7 +359,6 @@ export const schema = createSchema({
   allowlist,
   label,
   threadLabel,
-  suggestion,
   autonomousAction,
   pipelineIdempotencyKey,
   pipelineJob,
@@ -401,7 +379,6 @@ export const schema = createSchema({
   updateRelations,
   labelRelations,
   threadLabelRelations,
-  suggestionRelations,
   autonomousActionRelations,
   onboardingRelations,
   documentationSourceRelations,

@@ -5,10 +5,15 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/worker.ts",
-    "start": "bun run src/worker.ts",
+    "start": "NODE_ENV=production bun run src/worker.ts",
+    "typecheck": "tsc --noEmit",
     "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
-    "eval:similarity": "bun run src/evals/thread-similarity.eval.ts",
-    "eval:match-pr-llm": "bun run src/evals/match-pr-threads-llm.eval.ts"
+    "eval:labels": "evalite src/pipeline/processors/inline-track/label/eval/label.eval.ts",
+    "eval:status": "evalite src/pipeline/processors/inline-track/status/eval/status.eval.ts",
+    "eval:duplicate": "evalite src/pipeline/processors/synthesis-track/duplicate/eval/duplicate.eval.ts",
+    "eval:related-docs": "evalite src/pipeline/processors/synthesis-track/related_docs/eval/related-docs.eval.ts",
+    "eval:synthesis": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis.eval.ts",
+    "eval:synthesis-agent": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3.0.13",
@@ -25,7 +30,8 @@
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "dotenv": "^16.6.1"
   },
   "peerDependencies": {
     "typescript": "^5"

@@ -75,9 +75,9 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
 
     if (isSitemapIndex) {
       // Extract child sitemap URLs
-      const sitemapLocs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].map(
-        (m) => m[1],
-      );
+      const sitemapLocs = [
+        ...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g),
+      ].flatMap((m) => m[1] ?? []);
 
       // Fetch each child sitemap (one level deep)
       for (const childSitemapUrl of sitemapLocs) {
@@ -90,7 +90,7 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
           const childXml = await childResponse.text();
           const childUrls = [
             ...childXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g),
-          ].map((m) => m[1]);
+          ].flatMap((m) => m[1] ?? []);
           urls.push(...childUrls);
         } catch {
           log.warn(
@@ -101,8 +101,8 @@ const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
       }
     } else {
       // Regular sitemap — extract <loc> URLs
-      const locs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].map(
-        (m) => m[1],
+      const locs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
+        (m) => m[1] ?? [],
       );
       urls.push(...locs);
     }
@@ -204,8 +204,8 @@ const chunkMarkdown = (markdown: string, pageUrl: string): MarkdownChunk[] => {
       flushChunk();
       currentChunk = "";
 
-      const level = headingMatch[1].length;
-      const heading = headingMatch[2].trim();
+      const level = (headingMatch[1] ?? "").length;
+      const heading = (headingMatch[2] ?? "").trim();
 
       // Set page title from first h1
       if (level === 1 && !pageTitle) {
