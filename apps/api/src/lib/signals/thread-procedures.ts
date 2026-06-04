@@ -1,23 +1,30 @@
-import {
-  type InlineSuggestion,
-  type ThreadRead,
-  actionSchema,
-} from "@workspace/schemas/signals";
 import type { ServerDB } from "@live-state/sync/server";
+import {
+  actionSchema,
+  duplicateHintSlotSchema,
+  type InlineSuggestion,
+  inlineSuggestionSchema,
+  relatedDocsHintSlotSchema,
+  type ThreadRead,
+} from "@workspace/schemas/signals";
 import { z } from "zod";
-import { authorize } from "../authorize";
+import { schema } from "../../live-state/schema";
 import type { AuthorizeReq } from "../authorize";
+import { authorize } from "../authorize";
 import {
   assertReadFingerprint,
   nextAgentReadAfterExecution,
-  resolveBundleFromSelection,
   type ReadSelection,
+  resolveBundleFromSelection,
 } from "./agent-read";
 import { recordAutonomousReceipts } from "./autonomous-receipts";
 import { executeBundle } from "./execute-bundle";
 import { createActionHandlerRegistry } from "./handlers/registry";
-import type { ExecutionContext, ExecutionResult, SignalExecutionDb } from "./types";
-import type { schema } from "../../live-state/schema";
+import type {
+  ExecutionContext,
+  ExecutionResult,
+  SignalExecutionDb,
+} from "./types";
 
 const readSelectionSchema = z.union([
   z.literal("primary"),
@@ -249,4 +256,78 @@ export const runDismissInlineSuggestion = async (
   });
 
   return { dismissed: true };
+};
+
+// --- Worker write-back procedures -----------------------------------------
+//
+// Inline-track and synthesis-track processors that share a thread run in the
+// same parallel pipeline turn, so two of them can read-modify-write the same
+// JSON column (`inlineSuggestions` / `hints`) concurrently. Doing the
+// read-modify-write here, inside a single `db.transaction`, keeps the read
+// immediately adjacent to the write in one round trip instead of two HTTP hops
+// from the worker — shrinking the lost-update window to the transaction body.
+// (Fully eliminating it would need a DB-side JSON merge or row lock.)
+
+type TransactionalDb = Pick<ServerDB<typeof schema>, "transaction">;
+
+export const upsertInlineSuggestionInputSchema = z.object({
+  threadId: z.string(),
+  suggestion: inlineSuggestionSchema,
+});
+
+export const runUpsertInlineSuggestion = async (
+  db: TransactionalDb,
+  input: z.infer<typeof upsertInlineSuggestionInputSchema>,
+): Promise<{ upserted: true }> => {
+  await db.transaction(async ({ trx }) => {
+    const thread = await trx.findOne(schema.thread, input.threadId);
+    if (!thread) {
+      throw new Error("THREAD_NOT_FOUND");
+    }
+
+    const current = thread.inlineSuggestions ?? [];
+    const idx = current.findIndex((s) => s.id === input.suggestion.id);
+    const next =
+      idx >= 0
+        ? current.map((s, i) => (i === idx ? input.suggestion : s))
+        : [...current, input.suggestion];
+
+    await trx.update(schema.thread, input.threadId, {
+      inlineSuggestions: next,
+    });
+  });
+
+  return { upserted: true };
+};
+
+export const writeHintSlotInputSchema = z.discriminatedUnion("kind", [
+  z.object({
+    threadId: z.string(),
+    kind: z.literal("duplicate"),
+    slot: duplicateHintSlotSchema,
+  }),
+  z.object({
+    threadId: z.string(),
+    kind: z.literal("related_docs"),
+    slot: relatedDocsHintSlotSchema,
+  }),
+]);
+
+export const runWriteHintSlot = async (
+  db: TransactionalDb,
+  input: z.infer<typeof writeHintSlotInputSchema>,
+): Promise<{ written: true }> => {
+  await db.transaction(async ({ trx }) => {
+    const thread = await trx.findOne(schema.thread, input.threadId);
+    if (!thread) {
+      throw new Error("THREAD_NOT_FOUND");
+    }
+
+    const current = thread.hints ?? {};
+    await trx.update(schema.thread, input.threadId, {
+      hints: { ...current, [input.kind]: input.slot },
+    });
+  });
+
+  return { written: true };
 };

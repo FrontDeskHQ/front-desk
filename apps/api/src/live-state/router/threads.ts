@@ -19,10 +19,14 @@ import {
   runDismissInlineSuggestion,
   runDismissRead,
   runExecuteAutonomousBundle,
+  runUpsertInlineSuggestion,
+  runWriteHintSlot,
+  upsertInlineSuggestionInputSchema,
+  writeHintSlotInputSchema,
 } from "../../lib/signals/thread-procedures.js";
+import { nextThreadShortId } from "../../lib/thread-short-id";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
-import { nextThreadShortId } from "../../lib/thread-short-id";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
@@ -277,7 +281,12 @@ export default publicRoute
         throw new Error("MISSING_ORGANIZATION_ID");
       }
 
-      if (hasWorkspaceSession && !hasInternalKey && !hasPublicKey && !hasPortalSession) {
+      if (
+        hasWorkspaceSession &&
+        !hasInternalKey &&
+        !hasPublicKey &&
+        !hasPortalSession
+      ) {
         authorize(req, { organizationId });
         if (!req.input.author) {
           throw new Error("MISSING_AUTHOR_INFO");
@@ -785,29 +794,47 @@ export default publicRoute
         },
       };
     }),
-    executeAutonomousBundle: mutation(executeAutonomousBundleInputSchema).handler(
-      async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+    executeAutonomousBundle: mutation(
+      executeAutonomousBundleInputSchema,
+    ).handler(async ({ req, db }) => {
+      if (!req.context?.internalApiKey) {
+        throw new Error("UNAUTHORIZED");
+      }
 
-        return runExecuteAutonomousBundle(db, req.input);
-      },
-    ),
+      return runExecuteAutonomousBundle(db, req.input);
+    }),
     acceptRead: mutation(acceptReadInputSchema).handler(async ({ req, db }) => {
       return runAcceptRead(req, db, req.input);
     }),
-    dismissRead: mutation(dismissReadInputSchema).handler(async ({ req, db }) => {
-      return runDismissRead(req, db, req.input);
-    }),
+    dismissRead: mutation(dismissReadInputSchema).handler(
+      async ({ req, db }) => {
+        return runDismissRead(req, db, req.input);
+      },
+    ),
     acceptInlineSuggestion: mutation(acceptInlineSuggestionInputSchema).handler(
       async ({ req, db }) => {
         return runAcceptInlineSuggestion(req, db, req.input);
       },
     ),
-    dismissInlineSuggestion: mutation(dismissInlineSuggestionInputSchema).handler(
+    dismissInlineSuggestion: mutation(
+      dismissInlineSuggestionInputSchema,
+    ).handler(async ({ req, db }) => {
+      return runDismissInlineSuggestion(req, db, req.input);
+    }),
+    upsertInlineSuggestion: mutation(upsertInlineSuggestionInputSchema).handler(
       async ({ req, db }) => {
-        return runDismissInlineSuggestion(req, db, req.input);
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+        return runUpsertInlineSuggestion(db, req.input);
+      },
+    ),
+    writeHintSlot: mutation(writeHintSlotInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+        return runWriteHintSlot(db, req.input);
       },
     ),
   }))
@@ -825,10 +852,7 @@ export default publicRoute
         const shortId = await nextThreadShortId(db, value.organizationId);
         await db.thread.update(value.id, { shortId });
       } catch (error) {
-        console.error(
-          `Failed to assign shortId to thread ${value.id}:`,
-          error,
-        );
+        console.error(`Failed to assign shortId to thread ${value.id}:`, error);
       }
     },
   });

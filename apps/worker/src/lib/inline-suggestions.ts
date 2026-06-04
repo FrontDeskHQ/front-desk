@@ -1,20 +1,18 @@
 import type { InlineSuggestion } from "@workspace/schemas/signals";
 import { fetchClient } from "./database/client";
 
+/**
+ * Upserts an inline suggestion by id. The read-modify-write runs server-side
+ * inside a transaction (see `runUpsertInlineSuggestion`) so concurrent
+ * inline-track processors writing the same thread don't clobber each other's
+ * suggestions via last-writer-wins.
+ */
 export async function appendOrReplaceInlineSuggestion(
   threadId: string,
   suggestion: InlineSuggestion,
 ): Promise<void> {
-  const rows = (await fetchClient.query.thread
-    .where({ id: threadId })
-    .get()) as Array<{ inlineSuggestions: InlineSuggestion[] | null }>;
-  const current = rows[0]?.inlineSuggestions ?? [];
-  const idx = current.findIndex((s) => s.id === suggestion.id);
-  const next =
-    idx >= 0
-      ? current.map((s, i) => (i === idx ? suggestion : s))
-      : [...current, suggestion];
-  await fetchClient.mutate.thread.update(threadId, {
-    inlineSuggestions: next,
+  await fetchClient.mutate.thread.upsertInlineSuggestion({
+    threadId,
+    suggestion,
   });
 }

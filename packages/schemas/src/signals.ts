@@ -179,7 +179,9 @@ export const relatedDocEvidenceItemSchema = z.object({
   url: z.string().optional(),
   score: z.number().min(0).max(1),
 });
-export type RelatedDocEvidenceItem = z.infer<typeof relatedDocEvidenceItemSchema>;
+export type RelatedDocEvidenceItem = z.infer<
+  typeof relatedDocEvidenceItemSchema
+>;
 
 export const relatedDocsEvidenceSchema = z.object({
   docs: z.array(relatedDocEvidenceItemSchema),
@@ -199,6 +201,19 @@ export type Hints = {
 
 export const HINT_KINDS = ["duplicate", "related_docs"] as const;
 export type HintKind = (typeof HINT_KINDS)[number];
+export const hintKindSchema = z.enum(HINT_KINDS);
+
+const hintSlotSchema = <E extends z.ZodTypeAny>(evidence: E) =>
+  z.object({
+    evidence: evidence.nullable(),
+    hash: z.string(),
+    computedAt: z.string(),
+  });
+
+export const duplicateHintSlotSchema = hintSlotSchema(duplicateEvidenceSchema);
+export const relatedDocsHintSlotSchema = hintSlotSchema(
+  relatedDocsEvidenceSchema,
+);
 
 // --- Autonomy -------------------------------------------------------------
 
