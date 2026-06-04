@@ -315,7 +315,7 @@ export default publicRoute
       const threadId = ulid().toLowerCase();
 
       await db.transaction(async ({ trx }) => {
-        let authorId: string;
+        let authorId: string | undefined;
 
         // Determine author based on context
         if (req.input.userId || req.context?.portalSession?.session) {
@@ -481,7 +481,9 @@ export default publicRoute
       const threads = hasMore ? rows.slice(0, limit) : rows;
 
       const nextCursor =
-        hasMore && threads.length > 0 ? threads[threads.length - 1].id : null;
+        hasMore && threads.length > 0
+          ? (threads[threads.length - 1]?.id ?? null)
+          : null;
 
       return { threads, nextCursor };
     }),

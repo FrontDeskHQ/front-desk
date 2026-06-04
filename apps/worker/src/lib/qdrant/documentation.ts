@@ -77,7 +77,7 @@ export const upsertDocumentationChunksBatch = async (
       wait: true,
       points: points.map((point) => ({
         id: point.id,
-        vector: point.vector as unknown as Record<string, unknown>,
+        vector: point.vector,
         payload: point.payload as unknown as Record<string, unknown>,
       })),
     });

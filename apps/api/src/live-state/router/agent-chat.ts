@@ -656,12 +656,12 @@ export const agentChatRoute = privateRoute
               });
             } else if (part.type === "tool-result") {
               console.log(`[agent-chat] Tool result for: ${part.toolName}`);
-              const idx = toolCallsArr.findIndex(
+              const toolCall = toolCallsArr.find(
                 (tc) => tc.name === part.toolName && tc.status === "calling",
               );
-              if (idx !== -1) {
-                toolCallsArr[idx].status = "complete";
-                toolCallsArr[idx].result = part.output;
+              if (toolCall) {
+                toolCall.status = "complete";
+                toolCall.result = part.output;
               }
               await db.update(schema.agentChatMessage, assistantMessageId, {
                 toolCalls: JSON.stringify(toolCallsArr),

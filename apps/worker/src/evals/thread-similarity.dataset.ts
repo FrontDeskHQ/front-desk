@@ -5,7 +5,7 @@ export const TEST_ORGANIZATION_ID = "eval_thread_similarity_org";
 
 type Thread = InferLiveObject<
   typeof schema.thread,
-  { messages: true; labels: { label: true } }
+  { messages: true; labels: { include: { label: true } } }
 >;
 
 export interface FakeThreadData {
@@ -1222,6 +1222,10 @@ export const convertToThread = (data: FakeThreadData): Thread => {
     externalId: null,
     externalOrigin: null,
     externalMetadataStr: null,
+    shortId: null,
+    agentRead: null,
+    inlineSuggestions: [],
+    hints: {},
     messages: data.messages.map((content, index) => ({
       id: `msg_${data.id}_${index}`,
       threadId: data.id,
@@ -1229,6 +1233,7 @@ export const convertToThread = (data: FakeThreadData): Thread => {
       content,
       createdAt: new Date(createdAt.getTime() + index * 1000),
       origin: null,
+      isBackfill: false,
       externalMessageId: null,
       markedAsAnswer: false,
     })),

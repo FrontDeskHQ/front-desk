@@ -1,4 +1,4 @@
-import { tool } from "ai";
+import { tool, type Tool } from "ai";
 import z from "zod";
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
@@ -18,6 +18,9 @@ import {
 } from "./agent-scorers";
 
 type SynthesisTools = ReturnType<typeof createSynthesisTools>;
+
+type ToolOutput<T> = T extends Tool<infer _I, infer O> ? O : never;
+type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
 
 const createMockTools = (
   fixtures: SynthesisAgentEvalInput["toolFixtures"],
@@ -39,11 +42,26 @@ const createMockTools = (
     read_thread: tool({
       description: "Read a thread from mocked fixtures.",
       inputSchema: z.object({ threadId: z.string() }),
-      execute: async ({ threadId }) => {
+      execute: async ({ threadId }): Promise<ReadThreadOutput> => {
         counters.read_thread++;
         const thread = fixtures.threads[threadId];
         if (!thread) return { found: false, reason: "not_found" };
-        return { found: true, thread };
+        return {
+          found: true,
+          thread: {
+            id: thread.id,
+            name: thread.name ?? "",
+            status: thread.status,
+            priority: thread.priority,
+            createdAt: new Date(thread.createdAt),
+            messages: thread.messages.map((message) => ({
+              id: message.id,
+              authorId: message.authorId,
+              content: message.content,
+              createdAt: new Date(message.createdAt),
+            })),
+          },
+        };
       },
     }),
     search_documentation: tool({
