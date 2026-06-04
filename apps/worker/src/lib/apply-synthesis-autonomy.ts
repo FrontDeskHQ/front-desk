@@ -1,13 +1,12 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
-import {
-  nextAgentReadAfterExecution,
-  persistAgentRead,
-} from "./agent-read";
+import { nextAgentReadAfterExecution, persistAgentRead } from "./agent-read";
 import { getOrgActionAutonomy } from "./autonomy";
 import { fetchClient } from "./database/client";
 
-const keepForRead = (action: Action, autonomy: Awaited<ReturnType<typeof getOrgActionAutonomy>>) =>
-  autonomy[action.kind] !== "off";
+const keepForRead = (
+  action: Action,
+  autonomy: Awaited<ReturnType<typeof getOrgActionAutonomy>>,
+) => autonomy[action.kind] !== "off";
 
 /**
  * Applies org action-autonomy policy to a synthesis raw action set, optionally
@@ -44,7 +43,9 @@ export const applySynthesisAutonomy = async (
     alternatives,
   };
 
-  const autoActions = primary.filter((action) => autonomy[action.kind] === "auto");
+  const autoActions = primary.filter(
+    (action) => autonomy[action.kind] === "auto",
+  );
   const suggestPrimary = primary.filter(
     (action) => autonomy[action.kind] === "suggest",
   );
@@ -68,6 +69,11 @@ export const applySynthesisAutonomy = async (
         finalPrimary = [...afterAuto.primary, ...suggestPrimary];
       }
     } catch (error) {
+      // TODO(idempotency): On an RPC/transport error we don't know whether the
+      // server actually executed the bundle, so re-suggesting `autoActions` here
+      // can replay non-idempotent actions (e.g. a duplicate reply) if it did.
+      // Give execution idempotency keys so a retry/re-suggest is a safe no-op
+      // when the original call already succeeded.
       console.error(
         `Autonomous bundle failed for thread ${threadId}; keeping auto actions in read:`,
         error,

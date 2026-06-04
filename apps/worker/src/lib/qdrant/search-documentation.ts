@@ -93,6 +93,9 @@ export async function searchDocumentation(options: {
       };
     });
   } catch (error) {
+    // TODO: This swallows embedding/query failures and returns [], which is
+    // indistinguishable from a genuine no-results. Revisit to surface failures
+    // (explicit Result type or propagated error) so callers can tell them apart.
     console.error("Failed to search documentation in Qdrant:", error);
     return [];
   }
