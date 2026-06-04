@@ -6,6 +6,9 @@ import type {
 } from "@workspace/schemas/signals";
 import "../env";
 
+// TEMP: Worker service stopped on Railway — re-enable when worker is back.
+const WORKER_JOBS_DISABLED = true;
+
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const THREAD_READ_JOB_NAME = "thread-read";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
@@ -86,6 +89,10 @@ export const enqueueThreadRead = async (
   threadId: string,
   opts: { kind: ThreadReadKind } & EnqueueThreadReadOptions,
 ): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
   const q = getThreadPipelineQueue();
   if (!q) {
     return null;
@@ -155,6 +162,10 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
 export const enqueueCrawlDocumentation = async (
   data: CrawlDocumentationJobData,
 ): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
   const queue = getCrawlDocQueue();
   if (!queue) {
     return null;
