@@ -6,8 +6,9 @@ import type {
 } from "@workspace/schemas/signals";
 import "../env";
 
-// TEMP: Worker service stopped on Railway — re-enable when worker is back.
-const WORKER_JOBS_DISABLED = true;
+// TEMP: Worker service stopped on Railway — re-enable in prod when worker is
+// back. Always enabled in development so the pipeline can run locally.
+const WORKER_JOBS_DISABLED = process.env.NODE_ENV === "production";
 
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const THREAD_READ_JOB_NAME = "thread-read";

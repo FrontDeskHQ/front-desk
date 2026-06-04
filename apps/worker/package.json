@@ -5,7 +5,7 @@
   "private": true,
   "scripts": {
     "dev": "bun run --watch src/worker.ts",
-    "start": "bun run src/worker.ts",
+    "start": "NODE_ENV=production bun run src/worker.ts",
     "typecheck": "tsc --noEmit",
     "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
     "eval:labels": "evalite src/pipeline/processors/inline-track/label/eval/label.eval.ts",
