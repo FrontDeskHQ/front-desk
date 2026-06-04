@@ -1,5 +1,5 @@
-import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { createHash } from "node:crypto";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getLabelAutonomyMode } from "../../../../lib/autonomy";
 import { fetchClient } from "../../../../lib/database/client";
@@ -138,7 +138,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         //     → executeBundle([{kind:"apply_label", labelId}], handlers, ctx)
         //       and write the autonomousAction receipt; do not emit a suggestion.
         // Until then, both "suggest" and "auto" emit an inline suggestion.
-        await appendOrReplaceInlineSuggestion(threadId, {
+        await appendOrReplaceInlineSuggestion(threadId, thread.organizationId, {
           id: `label:${threadId}`,
           action: { kind: "apply_label", labelId },
           confidence,

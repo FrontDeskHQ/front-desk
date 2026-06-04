@@ -88,7 +88,13 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
         const evidence: RelatedDocsEvidence | null =
           toRelatedDocsEvidence(hits);
 
-        await writeHintSlot(threadId, "related_docs", evidence, hash);
+        await writeHintSlot(
+          threadId,
+          thread.organizationId,
+          "related_docs",
+          evidence,
+          hash,
+        );
 
         return {
           threadId,

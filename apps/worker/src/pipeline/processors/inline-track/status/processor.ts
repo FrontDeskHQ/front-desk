@@ -1,13 +1,13 @@
-import { createAILogger, createLogger } from "@workspace/utils/logging";
-import { STATUS_LABELS } from "@workspace/schemas/signals";
 import { createHash } from "node:crypto";
+import { STATUS_LABELS } from "@workspace/schemas/signals";
+import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getStatusAutonomyMode } from "../../../../lib/autonomy";
-import {
-  resolveMessageRoles,
-  type MessageRole,
-} from "../../../../lib/message-roles";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
+import {
+  type MessageRole,
+  resolveMessageRoles,
+} from "../../../../lib/message-roles";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -149,7 +149,7 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         //     → executeBundle([{kind:"set_status", status: inferred}], handlers, ctx)
         //       and write the autonomousAction receipt; do not emit a suggestion.
         // Until then, both "suggest" and "auto" emit an inline suggestion.
-        await appendOrReplaceInlineSuggestion(threadId, {
+        await appendOrReplaceInlineSuggestion(threadId, thread.organizationId, {
           id: `status:${threadId}`,
           action: { kind: "set_status", status: inferred },
           confidence,

@@ -27,6 +27,7 @@ export async function readHintBag(threadId: string): Promise<Hints> {
  */
 export async function writeHintSlot<K extends HintKind>(
   threadId: string,
+  organizationId: string,
   kind: K,
   evidence: SlotEvidenceMap[K] | null,
   hash: string,
@@ -41,6 +42,7 @@ export async function writeHintSlot<K extends HintKind>(
     };
     await fetchClient.mutate.thread.writeHintSlot({
       threadId,
+      organizationId,
       kind: "duplicate",
       slot,
     });
@@ -52,6 +54,7 @@ export async function writeHintSlot<K extends HintKind>(
     };
     await fetchClient.mutate.thread.writeHintSlot({
       threadId,
+      organizationId,
       kind: "related_docs",
       slot,
     });

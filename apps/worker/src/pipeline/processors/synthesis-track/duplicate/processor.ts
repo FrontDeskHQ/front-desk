@@ -93,7 +93,13 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           threshold: DUPLICATE_THRESHOLD,
         });
 
-        await writeHintSlot(threadId, "duplicate", evidence, hash);
+        await writeHintSlot(
+          threadId,
+          thread.organizationId,
+          "duplicate",
+          evidence,
+          hash,
+        );
 
         return {
           threadId,

@@ -133,6 +133,67 @@ export const fingerprintAgentRead = (read: ThreadRead): string => {
   return stableHash(JSON.stringify(payload));
 };
 
+export type ActionExecutionResult = {
+  succeeded: Action[];
+  failed: { action: Action; error: unknown } | null;
+  rolledBack: Action[];
+};
+
+/**
+ * True when `succeeded` refers to the same primary entry as `candidate`. Reply
+ * drafts are edited at execution time (the human tweaks `draftMarkdown` before
+ * accepting), so a succeeded reply won't deep-equal the stored read entry —
+ * match replies by kind, everything else by value.
+ */
+const matchesReadEntry = (candidate: Action, succeeded: Action): boolean => {
+  if (candidate.kind !== succeeded.kind) return false;
+  if (candidate.kind === "reply") return true;
+  return JSON.stringify(candidate) === JSON.stringify(succeeded);
+};
+
+/**
+ * Computes the agent read to persist after a (possibly partial) execution.
+ * Shared by API (human accept) and worker (autonomous) so post-execution state
+ * can't drift between the two call paths.
+ *
+ * Returns null when nothing actionable remains; otherwise the read trimmed of
+ * already-succeeded actions so a retry can't replay them (which would duplicate
+ * non-idempotent side effects like replies).
+ */
+export const nextAgentReadAfterExecution = (
+  read: ThreadRead,
+  result: ActionExecutionResult,
+): ThreadRead | null => {
+  if (!result.failed) {
+    return null;
+  }
+
+  if (result.rolledBack.length > 0 && result.succeeded.length === 0) {
+    return read;
+  }
+
+  // Consume one matching primary entry per success so duplicate entries aren't
+  // all dropped for a single succeeded action.
+  const remainingPrimary = [...read.primary];
+  for (const succeeded of result.succeeded) {
+    const idx = remainingPrimary.findIndex((action) =>
+      matchesReadEntry(action, succeeded),
+    );
+    if (idx >= 0) {
+      remainingPrimary.splice(idx, 1);
+    }
+  }
+
+  if (remainingPrimary.length === 0) {
+    return null;
+  }
+
+  return {
+    ...read,
+    primary: remainingPrimary,
+  };
+};
+
 export type UrgencyTier = "red" | "orange" | "yellow";
 export const urgencyTierFromScore = (score: number): UrgencyTier => {
   if (score >= 80) return "red";

@@ -54,8 +54,15 @@ const runSequential = async (
             }
           }
         }
+        // Reversibles that were applied but not rolled back (compensation
+        // failed, or no compensator exists) still took effect, so report them
+        // as succeeded — otherwise the retry read keeps them and replays their
+        // side effects.
+        const stillApplied = appliedReversibles.filter(
+          (applied) => !rolledBack.includes(applied),
+        );
         return {
-          succeeded: [],
+          succeeded: stillApplied,
           failed: { action, error },
           rolledBack,
         };

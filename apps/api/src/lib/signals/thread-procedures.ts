@@ -272,6 +272,7 @@ type TransactionalDb = Pick<ServerDB<typeof schema>, "transaction">;
 
 export const upsertInlineSuggestionInputSchema = z.object({
   threadId: z.string(),
+  organizationId: z.string(),
   suggestion: inlineSuggestionSchema,
 });
 
@@ -281,7 +282,7 @@ export const runUpsertInlineSuggestion = async (
 ): Promise<{ upserted: true }> => {
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, input.threadId);
-    if (!thread) {
+    if (!thread || thread.organizationId !== input.organizationId) {
       throw new Error("THREAD_NOT_FOUND");
     }
 
@@ -303,11 +304,13 @@ export const runUpsertInlineSuggestion = async (
 export const writeHintSlotInputSchema = z.discriminatedUnion("kind", [
   z.object({
     threadId: z.string(),
+    organizationId: z.string(),
     kind: z.literal("duplicate"),
     slot: duplicateHintSlotSchema,
   }),
   z.object({
     threadId: z.string(),
+    organizationId: z.string(),
     kind: z.literal("related_docs"),
     slot: relatedDocsHintSlotSchema,
   }),
@@ -319,7 +322,7 @@ export const runWriteHintSlot = async (
 ): Promise<{ written: true }> => {
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, input.threadId);
-    if (!thread) {
+    if (!thread || thread.organizationId !== input.organizationId) {
       throw new Error("THREAD_NOT_FOUND");
     }
 

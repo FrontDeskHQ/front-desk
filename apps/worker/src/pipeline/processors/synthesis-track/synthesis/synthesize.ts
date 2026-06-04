@@ -53,8 +53,8 @@ const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
   } catch (error) {
     console.error("Failed to parse synthesis output", {
       error,
-      rawText: text.slice(0, 500),
-      candidate: candidate.slice(0, 500),
+      rawTextLength: text.length,
+      candidateLength: candidate.length,
     });
     throw new Error(
       `Synthesis output parsing failed: ${
