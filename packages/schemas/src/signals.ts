@@ -80,6 +80,20 @@ export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
   set_status: "Set status",
 };
 
+/**
+ * Short verb phrases used to compose compound-bundle button copy, e.g.
+ * "Reply and close" or "Reply and do 2 actions". Lower-cased so they read
+ * naturally mid-sentence; the leading verb is capitalized at render time.
+ */
+export const ACTION_KIND_VERB: Record<ActionKind, string> = {
+  reply: "reply",
+  mark_duplicate: "mark duplicate",
+  link_pr: "link PR",
+  close: "close",
+  apply_label: "apply label",
+  set_status: "set status",
+};
+
 // --- Reversibility + track partition --------------------------------------
 
 export const REVERSIBLE_ACTIONS: ReadonlySet<ActionKind> = new Set([

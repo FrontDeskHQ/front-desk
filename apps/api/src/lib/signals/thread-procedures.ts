@@ -29,6 +29,9 @@ import type {
 const readSelectionSchema = z.union([
   z.literal("primary"),
   z.object({ alternativeIndex: z.number().int().min(0) }),
+  z.object({
+    primaryActionIndices: z.array(z.number().int().min(0)).min(1),
+  }),
 ]);
 
 export const executeAutonomousBundleInputSchema = z.object({

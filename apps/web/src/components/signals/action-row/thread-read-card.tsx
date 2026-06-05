@@ -2,37 +2,39 @@ import type { InferLiveObject } from "@live-state/sync";
 import { Link } from "@tanstack/react-router";
 import {
   ACTION_KIND_LABEL,
-  STATUS_LABELS,
+  ACTION_KIND_VERB,
   type Action,
+  fingerprintAgentRead,
   type InlineSuggestion,
   type ReplyAction,
-  type ThreadRead,
-  fingerprintAgentRead,
+  STATUS_LABELS,
   sanitizeAgentReadReasoning,
+  type ThreadRead,
   urgencyTierFromScore,
 } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
+import { Checkbox } from "@workspace/ui/components/checkbox";
 import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
 } from "@workspace/ui/components/hover-card";
-import type { schema } from "api/schema";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
+import type { schema } from "api/schema";
 import { Brain } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ThreadSummaryHoverCard } from "~/components/chips";
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
 import { buildThreadParam } from "~/utils/thread";
 import { ActionRow } from "./action-row";
 import {
+  type ActorContext,
   acceptInlineSuggestion,
   acceptThreadRead,
   dismissInlineSuggestion,
   dismissThreadRead,
-  type ActorContext,
 } from "./handlers";
 import { SignalReplyDraftEditor } from "./signal-reply-draft-editor";
 
@@ -74,34 +76,155 @@ function ThreadRef({ thread }: { thread: ThreadWithRelations }) {
   );
 }
 
-function bundleLabel(actions: Action[]): string {
-  if (actions.length === 0) return "Apply";
-  if (actions.length === 1) return ACTION_KIND_LABEL[actions[0].kind];
-  return `Run primary (${actions.length} actions)`;
-}
+type SelectedAction = { action: Action; index: number };
 
 function primaryReplyAction(primary: Action[]): ReplyAction | undefined {
-  return primary.find((action): action is ReplyAction => action.kind === "reply");
-}
-
-function primaryIncludesReply(primary: Action[]): boolean {
-  return primaryReplyAction(primary) != null;
+  return primary.find(
+    (action): action is ReplyAction => action.kind === "reply",
+  );
 }
 
 function primaryReplyDraftMarkdown(primary: Action[]): string {
   return primaryReplyAction(primary)?.draftMarkdown ?? "";
 }
 
-function primarySendLabel(primary: Action[]): string {
-  if (primary.length === 1 && primary[0]?.kind === "reply") {
-    return ACTION_KIND_LABEL.reply;
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+/**
+ * Selected bundle actions in display order: reply always leads, the rest keep
+ * their original bundle order.
+ */
+function orderReplyFirst(
+  primary: Action[],
+  selected: ReadonlySet<number>,
+): SelectedAction[] {
+  return primary
+    .map((action, index): SelectedAction => ({ action, index }))
+    .filter(({ index }) => selected.has(index))
+    .sort((a, b) => {
+      const aReply = a.action.kind === "reply" ? 0 : 1;
+      const bReply = b.action.kind === "reply" ? 0 : 1;
+      if (aReply !== bReply) return aReply - bReply;
+      return a.index - b.index;
+    });
+}
+
+/**
+ * Compose the compound-action button copy from the current selection, e.g.
+ * "Reply and close", "Reply and do 2 actions", or — once the reply editor is
+ * open — "Send and close". The leading verb becomes "Send" while editing.
+ */
+function compoundButtonLabel(
+  ordered: SelectedAction[],
+  replyEditorOpen: boolean,
+): string {
+  if (ordered.length === 0) return "Select an action";
+
+  const verbAt = (entry: SelectedAction, position: number): string => {
+    if (entry.action.kind === "reply" && replyEditorOpen) {
+      return position === 0 ? "Send" : "send";
+    }
+    return ACTION_KIND_VERB[entry.action.kind];
+  };
+
+  const first = capitalize(verbAt(ordered[0], 0));
+  if (ordered.length === 1) return first;
+  if (ordered.length === 2) return `${first} and ${verbAt(ordered[1], 1)}`;
+  return `${first} and do ${ordered.length - 1} actions`;
+}
+
+type CompoundActionButtonProps = {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  /** The full bundle to offer for selection, or null for a single action. */
+  actions: Action[] | null;
+  selectedIndices: ReadonlySet<number>;
+  lockedIndex: number;
+  disableToggles: boolean;
+  onToggle: (index: number) => void;
+};
+
+function CompoundActionButton({
+  label,
+  disabled,
+  onClick,
+  actions,
+  selectedIndices,
+  lockedIndex,
+  disableToggles,
+  onToggle,
+}: CompoundActionButtonProps) {
+  const fieldId = useId();
+
+  if (!actions) {
+    return (
+      <ActionButton
+        size="sm"
+        variant="primary"
+        onClick={onClick}
+        disabled={disabled}
+      >
+        {label}
+      </ActionButton>
+    );
   }
-  return "Send";
+
+  return (
+    <HoverCard>
+      <HoverCardTrigger
+        render={
+          <ActionButton
+            size="sm"
+            variant="primary"
+            onClick={onClick}
+            disabled={disabled}
+          />
+        }
+      >
+        {label}
+      </HoverCardTrigger>
+      <HoverCardContent
+        align="end"
+        className="flex w-60 flex-col gap-0.5 p-1.5"
+      >
+        <p className="px-1.5 py-1 text-xs text-foreground-secondary">
+          Actions in this bundle
+        </p>
+        {actions.map((action, index) => {
+          const locked = index === lockedIndex;
+          const checkboxId = `${fieldId}-${index}`;
+          return (
+            <div
+              key={`${action.kind}:${index}`}
+              className="flex items-center gap-2 rounded-sm px-1.5 py-1 hover:bg-accent has-disabled:opacity-60"
+            >
+              <Checkbox
+                id={checkboxId}
+                checked={selectedIndices.has(index)}
+                disabled={locked || disableToggles}
+                onCheckedChange={() => onToggle(index)}
+              />
+              <label
+                htmlFor={checkboxId}
+                className="flex-1 cursor-pointer select-none text-sm text-foreground-primary has-disabled:cursor-default"
+              >
+                {ACTION_KIND_LABEL[action.kind]}
+              </label>
+            </div>
+          );
+        })}
+      </HoverCardContent>
+    </HoverCard>
+  );
 }
 
 function inlineSuggestionLabel(suggestion: InlineSuggestion): string {
   if (suggestion.action.kind === "set_status") {
-    const status = STATUS_LABELS[suggestion.action.status] ?? suggestion.action.status;
+    const status =
+      STATUS_LABELS[suggestion.action.status] ?? suggestion.action.status;
     return `Set status: ${status}`;
   }
   return `Apply label (${suggestion.action.labelId})`;
@@ -149,7 +272,13 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   const [replyEditorOpen, setReplyEditorOpen] = useState(false);
   const read = thread.agentRead;
   const readFingerprint = fingerprintAgentRead(read);
-  const primaryNeedsReplyEditor = primaryIncludesReply(read.primary);
+  const replyIndex = read.primary.findIndex(
+    (action) => action.kind === "reply",
+  );
+  const isCompound = read.primary.length > 1;
+  const [selectedIndices, setSelectedIndices] = useState<Set<number>>(
+    () => new Set(read.primary.map((_, index) => index)),
+  );
   const [replyDraft, setReplyDraft] = useState(() =>
     primaryReplyDraftMarkdown(read.primary),
   );
@@ -160,19 +289,29 @@ export function ThreadReadCard({ thread, ctx }: Props) {
 
   useEffect(() => {
     setReplyEditorOpen(false);
+    setSelectedIndices(new Set(read.primary.map((_, index) => index)));
     setReplyDraft(primaryReplyDraftMarkdown(read.primary));
     setReplyEditorRevision((revision) => revision + 1);
   }, [readFingerprint, read.primary]);
 
-  const handleAcceptPrimary = async (replyDraft?: string) => {
+  const orderedSelected = useMemo(
+    () => orderReplyFirst(read.primary, selectedIndices),
+    [read.primary, selectedIndices],
+  );
+  const selectionIncludesReply =
+    replyIndex >= 0 && selectedIndices.has(replyIndex);
+
+  const handleAcceptSelected = async (replyDraftValue?: string) => {
+    const indices = [...selectedIndices].sort((a, b) => a - b);
+    if (indices.length === 0) return;
     setBusyKey("primary");
     try {
       await acceptThreadRead({
         threadId: thread.id,
         read,
-        selection: "primary",
+        selection: { primaryActionIndices: indices },
         ctx,
-        replyDraft,
+        replyDraft: replyDraftValue,
       });
       setReplyEditorOpen(false);
     } catch (error) {
@@ -183,11 +322,11 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   };
 
   const handlePrimaryClick = () => {
-    if (primaryNeedsReplyEditor) {
+    if (selectionIncludesReply) {
       setReplyEditorOpen(true);
       return;
     }
-    void handleAcceptPrimary();
+    void handleAcceptSelected();
   };
 
   const handleCancelReplyEditor = () => {
@@ -199,7 +338,18 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   const handleSendReply = () => {
     const trimmed = replyDraft.trim();
     if (trimmed.length === 0) return;
-    void handleAcceptPrimary(trimmed);
+    void handleAcceptSelected(trimmed);
+  };
+
+  const toggleAction = (index: number) => {
+    // Reply stays locked-in while its editor is expanded.
+    if (replyEditorOpen && index === replyIndex) return;
+    setSelectedIndices((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   };
 
   const handleAcceptAlternative = async (alternativeIndex: number) => {
@@ -315,10 +465,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         )}
         <ActionRow.TopActions>
           <AgentReadReasoningTrigger reasoning={read.reasoning} />
-          <ActionRow.Dismiss
-            onClick={handleDismissRead}
-            label="Dismiss read"
-          />
+          <ActionRow.Dismiss onClick={handleDismissRead} label="Dismiss read" />
         </ActionRow.TopActions>
       </ActionRow.Header>
       <SignalReplyDraftEditor
@@ -339,34 +486,31 @@ export function ThreadReadCard({ thread, ctx }: Props) {
             {ACTION_KIND_LABEL[alternative.kind]}
           </ActionButton>
         ))}
-        {replyEditorOpen ? (
-          <>
-            <ActionButton
-              size="sm"
-              variant="ghost"
-              onClick={handleCancelReplyEditor}
-              disabled={busyKey !== null}
-            >
-              Cancel
-            </ActionButton>
-            <ActionButton
-              size="sm"
-              variant="primary"
-              onClick={handleSendReply}
-              disabled={busyKey !== null || replyDraft.trim().length === 0}
-            >
-              {primarySendLabel(read.primary)}
-            </ActionButton>
-          </>
-        ) : (
+        {replyEditorOpen && (
           <ActionButton
             size="sm"
-            variant="primary"
-            onClick={handlePrimaryClick}
+            variant="ghost"
+            onClick={handleCancelReplyEditor}
             disabled={busyKey !== null}
           >
-            {bundleLabel(read.primary)}
+            Cancel
           </ActionButton>
+        )}
+        {read.primary.length > 0 && (
+          <CompoundActionButton
+            label={compoundButtonLabel(orderedSelected, replyEditorOpen)}
+            disabled={
+              busyKey !== null ||
+              orderedSelected.length === 0 ||
+              (replyEditorOpen && replyDraft.trim().length === 0)
+            }
+            onClick={replyEditorOpen ? handleSendReply : handlePrimaryClick}
+            actions={isCompound ? read.primary : null}
+            selectedIndices={selectedIndices}
+            lockedIndex={replyEditorOpen ? replyIndex : -1}
+            disableToggles={busyKey !== null}
+            onToggle={toggleAction}
+          />
         )}
       </ActionRow.Actions>
     </ActionRow.Root>
