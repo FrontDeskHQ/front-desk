@@ -45,7 +45,12 @@ export const resolveBundleFromSelection = (
     if (selection.primaryActionIndices.length === 0) {
       throw new Error("INVALID_SELECTION");
     }
-    bundle = selection.primaryActionIndices.map((index) => {
+    // Normalize so duplicate or reordered indices can't replay or reorder a
+    // primary action's side effects.
+    const normalizedIndices = [...new Set(selection.primaryActionIndices)].sort(
+      (a, b) => a - b,
+    );
+    bundle = normalizedIndices.map((index) => {
       const action = read.primary[index];
       if (!action) {
         throw new Error("INVALID_SELECTION");
@@ -61,4 +66,21 @@ export const resolveBundleFromSelection = (
       draftMarkdown: replyDraft ?? action.draftMarkdown,
     };
   });
+};
+
+/**
+ * Primary actions the human left unselected in a subset bundle. These must
+ * survive a fully-successful execution of the selected subset rather than being
+ * cleared along with the rest of the read. Empty for full-primary or
+ * alternative selections, where no primary action is intentionally retained.
+ */
+export const deselectedPrimaryActions = (
+  read: ThreadRead,
+  selection: ReadSelection,
+): Action[] => {
+  if (selection === "primary" || "alternativeIndex" in selection) {
+    return [];
+  }
+  const selected = new Set(selection.primaryActionIndices);
+  return read.primary.filter((_, index) => !selected.has(index));
 };

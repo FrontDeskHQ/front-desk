@@ -20,7 +20,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@workspace/ui/components/hover-card";
-import { formatRelativeTime } from "@workspace/ui/lib/utils";
+import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Brain } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
@@ -137,7 +137,14 @@ function compoundButtonLabel(
 
 type CompoundActionButtonProps = {
   label: string;
+  /** Hard-disabled (e.g. busy executing): blocks the trigger entirely. */
   disabled: boolean;
+  /**
+   * Execution is invalid right now (nothing selected, or empty reply). The
+   * click is gated, but for a compound bundle the selector stays reachable so
+   * the user can re-select an action and recover.
+   */
+  executeDisabled: boolean;
   onClick: () => void;
   /** The full bundle to offer for selection, or null for a single action. */
   actions: Action[] | null;
@@ -150,6 +157,7 @@ type CompoundActionButtonProps = {
 function CompoundActionButton({
   label,
   disabled,
+  executeDisabled,
   onClick,
   actions,
   selectedIndices,
@@ -165,7 +173,7 @@ function CompoundActionButton({
         size="sm"
         variant="primary"
         onClick={onClick}
-        disabled={disabled}
+        disabled={disabled || executeDisabled}
       >
         {label}
       </ActionButton>
@@ -179,8 +187,10 @@ function CompoundActionButton({
           <ActionButton
             size="sm"
             variant="primary"
-            onClick={onClick}
+            onClick={executeDisabled ? undefined : onClick}
             disabled={disabled}
+            aria-disabled={executeDisabled || undefined}
+            className={cn(executeDisabled && "opacity-60")}
           />
         }
       >
@@ -499,8 +509,8 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         {read.primary.length > 0 && (
           <CompoundActionButton
             label={compoundButtonLabel(orderedSelected, replyEditorOpen)}
-            disabled={
-              busyKey !== null ||
+            disabled={busyKey !== null}
+            executeDisabled={
               orderedSelected.length === 0 ||
               (replyEditorOpen && replyDraft.trim().length === 0)
             }
