@@ -326,7 +326,9 @@
   @apply bg-muted relative p-2 font-mono font-light rounded-sm mt-2;
 }
 
-.customProse a {
+/* Chips (thread/PR links) render their own anchor; exclude them from link
+   styling so they keep their native chip appearance. */
+.customProse a:not([data-tiptap-link-chip] a) {
   @apply text-primary border-b border-primary cursor-pointer;
 }
 

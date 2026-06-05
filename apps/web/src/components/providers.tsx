@@ -2,6 +2,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import type { PostHogConfig } from "posthog-js";
 import { PostHogProvider as PostHogProviderComponent } from "posthog-js/react";
 import type * as React from "react";
+import { TiptapLinkRenderer } from "~/components/markdown/tiptap-link-renderer";
 
 const posthogOptions: Partial<PostHogConfig> = {
   api_host: import.meta.env.VITE_POSTHOG_HOST,
@@ -37,7 +38,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         enableColorScheme
         forcedTheme="dark"
       >
-        {children}
+        <TiptapLinkRenderer>{children}</TiptapLinkRenderer>
       </NextThemesProvider>
     </PosthogProvider>
   );

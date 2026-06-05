@@ -1,15 +1,20 @@
 import DefaultHeading from "@tiptap/extension-heading";
 import { type Editor, Extension, type JSONContent } from "@tiptap/react";
 import { StarterKit as DefaultStarterKit } from "@tiptap/starter-kit";
+import { LinkExtension } from "../components/blocks/tiptap-link";
 
 export const StarterKit = DefaultStarterKit.configure({
   heading: false,
   trailingNode: false,
+  // Replaced by LinkExtension below, which renders links through a host-app
+  // provided renderer (thread chips, GitHub PR chips, …).
+  link: false,
 });
 
 export const EditorExtensions = [
   StarterKit,
   DefaultHeading.configure({ levels: [1, 2, 3, 4] }),
+  LinkExtension,
 ];
 
 export const KeyBinds = Extension.create<{

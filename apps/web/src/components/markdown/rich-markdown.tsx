@@ -21,7 +21,7 @@ const GithubPrSchema = z.object({
   url: z.string().url(),
 });
 
-function parseGithubPrUrl(href: string | undefined) {
+export function parseGithubPrUrl(href: string | undefined) {
   if (!href) return null;
   const match = href.match(GITHUB_PR_URL_REGEX);
   if (!match) return null;
@@ -142,7 +142,7 @@ type RichMarkdownProps = {
   components?: Components;
 };
 
-function PrChipInline(props: {
+export function PrChipInline(props: {
   owner: string;
   repo: string;
   number: number;
@@ -177,9 +177,9 @@ function PrChipInline(props: {
   );
 }
 
-function ThreadMention({ threadId }: { threadId: string }) {
+export function ThreadMention({ where }: { where: Record<string, unknown> }) {
   const thread = useLiveQuery(
-    query.thread.first({ id: threadId }).include({
+    query.thread.first(where).include({
       author: {
         include: { user: true },
       },
@@ -285,7 +285,7 @@ export const RichMarkdown = ({
           href?.startsWith(THREAD_LINK_PROXY_PREFIX)
         ) {
           const threadId = href.slice(THREAD_LINK_PROXY_PREFIX.length);
-          return <ThreadMention threadId={threadId} />;
+          return <ThreadMention where={{ id: threadId }} />;
         }
         const pr = parseGithubPrUrl(href);
         if (pr) {
