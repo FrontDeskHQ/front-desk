@@ -1,7 +1,7 @@
 import {
   ACTION_KIND_LABEL,
-  fingerprintAgentRead,
   type Action,
+  fingerprintAgentRead,
   type InlineSuggestion,
   type ThreadRead,
 } from "@workspace/schemas/signals";
@@ -13,7 +13,33 @@ export type ActorContext = {
   posthog: { capture: (e: string, p?: Record<string, unknown>) => void } | null;
 };
 
-type ReadSelection = "primary" | { alternativeIndex: number };
+type ReadSelection =
+  | "primary"
+  | { alternativeIndex: number }
+  | { primaryActionIndices: number[] };
+
+const resolveSelectedActions = (
+  read: ThreadRead,
+  selection: ReadSelection,
+): Action[] => {
+  if (selection === "primary") return read.primary;
+  if ("alternativeIndex" in selection) {
+    const alternative = read.alternatives?.[selection.alternativeIndex];
+    return alternative ? [alternative] : [];
+  }
+  return selection.primaryActionIndices
+    .map((index) => read.primary[index])
+    .filter((action): action is Action => action != null);
+};
+
+const formatSelection = (selection?: ReadSelection): string | undefined => {
+  if (selection === undefined) return undefined;
+  if (selection === "primary") return "primary";
+  if ("alternativeIndex" in selection) {
+    return `alternative:${selection.alternativeIndex}`;
+  }
+  return `primary:${selection.primaryActionIndices.join(",")}`;
+};
 
 const summarizeActionKinds = (actions: Action[]): string[] =>
   actions.map((action) => ACTION_KIND_LABEL[action.kind]);
@@ -35,12 +61,7 @@ const captureReadEvent = (
     alternative_action_kinds: (payload.read.alternatives ?? []).map(
       (action) => action.kind,
     ),
-    selection:
-      payload.selection === undefined
-        ? undefined
-        : payload.selection === "primary"
-          ? "primary"
-          : `alternative:${payload.selection.alternativeIndex}`,
+    selection: formatSelection(payload.selection),
   });
 };
 
@@ -60,12 +81,7 @@ export async function acceptThreadRead(input: {
     replyDraft: input.replyDraft,
   });
 
-  const selectedActions =
-    input.selection === "primary"
-      ? input.read.primary
-      : input.read.alternatives?.[input.selection.alternativeIndex]
-        ? [input.read.alternatives[input.selection.alternativeIndex]]
-        : [];
+  const selectedActions = resolveSelectedActions(input.read, input.selection);
 
   captureReadEvent(input.ctx, "signal:read_accept", {
     threadId: input.threadId,

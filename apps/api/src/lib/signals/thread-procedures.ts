@@ -13,6 +13,7 @@ import type { AuthorizeReq } from "../authorize";
 import { authorize } from "../authorize";
 import {
   assertReadFingerprint,
+  deselectedPrimaryActions,
   nextAgentReadAfterExecution,
   type ReadSelection,
   resolveBundleFromSelection,
@@ -29,6 +30,9 @@ import type {
 const readSelectionSchema = z.union([
   z.literal("primary"),
   z.object({ alternativeIndex: z.number().int().min(0) }),
+  z.object({
+    primaryActionIndices: z.array(z.number().int().min(0)).min(1),
+  }),
 ]);
 
 export const executeAutonomousBundleInputSchema = z.object({
@@ -148,9 +152,10 @@ export const runAcceptRead = async (
 
   assertReadFingerprint(thread.agentRead, input.readFingerprint);
 
+  const selection = input.selection as ReadSelection;
   const bundle = resolveBundleFromSelection(
     thread.agentRead,
-    input.selection as ReadSelection,
+    selection,
     input.replyDraft,
   );
 
@@ -163,7 +168,18 @@ export const runAcceptRead = async (
   });
 
   const result = await executeBundle(bundle, registry, ctx);
-  const nextRead = nextAgentReadAfterExecution(thread.agentRead, result);
+  let nextRead = nextAgentReadAfterExecution(thread.agentRead, result);
+
+  // A successful subset selection only consumes the chosen primary actions;
+  // preserve the ones the human deselected instead of clearing the read with
+  // them. (Partial failures already retain the unconsumed primary entries.)
+  if (!result.failed) {
+    const deselected = deselectedPrimaryActions(thread.agentRead, selection);
+    if (deselected.length > 0) {
+      nextRead = { ...thread.agentRead, primary: deselected };
+    }
+  }
+
   await persistAgentRead(db, input.threadId, nextRead);
 
   if (result.failed) {
