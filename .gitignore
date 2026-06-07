@@ -30,3 +30,5 @@ yarn-error.log*
 
 # company mental model & internal docs (local only, not for public repo)
 COMPANY/
+
+*.log
