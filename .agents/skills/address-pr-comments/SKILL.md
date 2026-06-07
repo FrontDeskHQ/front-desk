@@ -13,9 +13,13 @@ You are a code review assistant. Your goal is to systematically process unresolv
 1. Fetch unresolved PR comments
 2. Categorize comments (AI-actionable vs needs-human)
 3. Implement actionable suggestions
-4. Resolve implemented comments
+4. Reply to every comment, then resolve it (always)
 5. Report on remaining items
 ```
+
+**Always reply and resolve what you act on.** For every comment you implement a fix for or determine you cannot address, post a reply explaining what you did and then resolve the thread. When a reply describes a fix that landed in a commit, include that commit's hash in the reply.
+
+**Leave human-decision comments untouched.** Do not reply to or resolve comments that need a human decision — flag them in the report only.
 
 ---
 
@@ -104,12 +108,38 @@ rg "pattern from diff_hunk" path/to/file.ts
 
 ---
 
-## Step 4: Resolve Comments
+## Step 4: Commit Fixes
 
-After implementing a change, resolve the comment thread:
+Before replying to comments, commit any code changes so each fix has a concrete commit hash to reference. Commit per logical fix (or a single summary commit if the changes are tightly related):
 
 ```bash
-# Get the thread ID for a comment
+git add -A
+git commit -m "address review feedback
+
+- [list of changes made]
+"
+
+# Capture the hash that landed the fix
+git rev-parse --short HEAD
+```
+
+Comments that need a human decision or could not be addressed won't have a commit — that's fine, you'll still reply and resolve them in Step 5.
+
+---
+
+## Step 5: Reply and Resolve Comments
+
+For every comment you **acted on** (implemented or could not address): post a reply describing the outcome, then resolve the thread. Never resolve a thread without a reply.
+
+Skip comments that need a human decision entirely — do not reply, do not resolve.
+
+What each reply should say:
+- **Implemented:** what you changed and the short commit hash that landed it (e.g. `Fixed in abc1234.`).
+- **Could not address:** the reason (e.g. code no longer exists). Reply, then resolve.
+- **Needs human decision:** no reply, no resolve — flag in the report only.
+
+```bash
+# Get the thread ID (and its first comment ID, for replies) for each thread
 gh api graphql -f query='
   query($owner: String!, $repo: String!, $pr: Int!) {
     repository(owner: $owner, name: $repo) {
@@ -122,6 +152,7 @@ gh api graphql -f query='
             line
             comments(first: 1) {
               nodes {
+                databaseId
                 body
               }
             }
@@ -132,7 +163,11 @@ gh api graphql -f query='
   }
 ' -f owner="{owner}" -f repo="{repo}" -F pr={pr_number}
 
-# Resolve a thread
+# Reply to the comment thread (use the first comment's databaseId)
+gh api repos/{owner}/{repo}/pulls/{pr_number}/comments/{comment_database_id}/replies \
+  -f body="Fixed in {commit_hash}. {short description of the change}"
+
+# Resolve the thread
 gh api graphql -f query='
   mutation($threadId: ID!) {
     resolveReviewThread(input: {threadId: $threadId}) {
@@ -142,20 +177,6 @@ gh api graphql -f query='
     }
   }
 ' -f threadId="{thread_id}"
-```
-
----
-
-## Step 5: Create Summary Commit
-
-After addressing all actionable comments, create a commit:
-
-```bash
-git add -A
-git commit -m "address review feedback
-
-- [list of changes made]
-"
 ```
 
 ---
@@ -185,17 +206,19 @@ Provide a summary to the user:
 
 ### Comment references deleted code
 - Note in summary as "Could Not Address"
-- Do not resolve the comment
+- Reply explaining the code no longer exists, then resolve the thread
 
 ### Ambiguous suggestion
 - If the suggestion could be interpreted multiple ways, flag as "Needs Human Decision"
+- Do not reply or resolve — surface it in the report only
 
 ### Conflicting comments
 - If two comments suggest different approaches, flag both as "Needs Human Decision"
+- Do not reply or resolve either — surface them in the report only
 
-### Failed to resolve via API
+### Failed to reply or resolve via API
 - Report the error but continue with other comments
-- User can manually resolve in GitHub UI
+- User can manually reply/resolve in GitHub UI
 
 ---
 
