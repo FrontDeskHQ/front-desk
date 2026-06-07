@@ -154,6 +154,18 @@ export const RootSidebar = () => {
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
+                  <SidebarMenuItem>
+                    <SidebarMenuButton
+                      data-active={
+                        matches.at(-1)?.pathname === "/segmented-control"
+                      }
+                      asChild
+                    >
+                      <Link to="/segmented-control">
+                        <span>Segmented Control</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
                 </SidebarMenu>
               </SidebarGroupContent>
             </CollapsibleContent>

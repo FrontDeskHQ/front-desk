@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ToggleGroupRouteImport } from './routes/toggle-group'
 import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
+import { Route as SegmentedControlRouteImport } from './routes/segmented-control'
 import { Route as CompositeRouteImport } from './routes/composite'
 import { Route as CommandRouteImport } from './routes/command'
 import { Route as ColorsRouteImport } from './routes/colors'
@@ -26,6 +27,11 @@ const ToggleGroupRoute = ToggleGroupRouteImport.update({
 const StatusIndicatorRoute = StatusIndicatorRouteImport.update({
   id: '/status-indicator',
   path: '/status-indicator',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SegmentedControlRoute = SegmentedControlRouteImport.update({
+  id: '/segmented-control',
+  path: '/segmented-control',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CompositeRoute = CompositeRouteImport.update({
@@ -66,6 +72,7 @@ export interface FileRoutesByFullPath {
   '/colors': typeof ColorsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
+  '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
   '/toggle-group': typeof ToggleGroupRoute
 }
@@ -76,6 +83,7 @@ export interface FileRoutesByTo {
   '/colors': typeof ColorsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
+  '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
   '/toggle-group': typeof ToggleGroupRoute
 }
@@ -87,6 +95,7 @@ export interface FileRoutesById {
   '/colors': typeof ColorsRoute
   '/command': typeof CommandRoute
   '/composite': typeof CompositeRoute
+  '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
   '/toggle-group': typeof ToggleGroupRoute
 }
@@ -99,6 +108,7 @@ export interface FileRouteTypes {
     | '/colors'
     | '/command'
     | '/composite'
+    | '/segmented-control'
     | '/status-indicator'
     | '/toggle-group'
   fileRoutesByTo: FileRoutesByTo
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/colors'
     | '/command'
     | '/composite'
+    | '/segmented-control'
     | '/status-indicator'
     | '/toggle-group'
   id:
@@ -119,6 +130,7 @@ export interface FileRouteTypes {
     | '/colors'
     | '/command'
     | '/composite'
+    | '/segmented-control'
     | '/status-indicator'
     | '/toggle-group'
   fileRoutesById: FileRoutesById
@@ -130,6 +142,7 @@ export interface RootRouteChildren {
   ColorsRoute: typeof ColorsRoute
   CommandRoute: typeof CommandRoute
   CompositeRoute: typeof CompositeRoute
+  SegmentedControlRoute: typeof SegmentedControlRoute
   StatusIndicatorRoute: typeof StatusIndicatorRoute
   ToggleGroupRoute: typeof ToggleGroupRoute
 }
@@ -148,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/status-indicator'
       fullPath: '/status-indicator'
       preLoaderRoute: typeof StatusIndicatorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/segmented-control': {
+      id: '/segmented-control'
+      path: '/segmented-control'
+      fullPath: '/segmented-control'
+      preLoaderRoute: typeof SegmentedControlRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/composite': {
@@ -202,6 +222,7 @@ const rootRouteChildren: RootRouteChildren = {
   ColorsRoute: ColorsRoute,
   CommandRoute: CommandRoute,
   CompositeRoute: CompositeRoute,
+  SegmentedControlRoute: SegmentedControlRoute,
   StatusIndicatorRoute: StatusIndicatorRoute,
   ToggleGroupRoute: ToggleGroupRoute,
 }

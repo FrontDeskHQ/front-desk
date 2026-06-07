@@ -17,11 +17,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@workspace/ui/components/form";
-import { Textarea } from "@workspace/ui/components/textarea";
 import {
-  ToggleGroup,
-  ToggleGroupItem,
-} from "@workspace/ui/components/toggle-group";
+  SegmentedControl,
+  SegmentedControlItem,
+} from "@workspace/ui/components/segmented-control";
+import { Textarea } from "@workspace/ui/components/textarea";
 import {
   Tooltip,
   TooltipContent,
@@ -239,34 +239,31 @@ function AutomationCard({
                   <div className="text-foreground">
                     {AUTONOMY_ACTION_LABEL[t]}
                   </div>
-                  <ToggleGroup
-                    defaultValue={[current]}
-                    value={[current]}
-                    onValueChange={(v) => {
-                      const next = v[0] as AutonomyLevel | undefined;
-                      if (!next) return;
+                  <SegmentedControl
+                    value={current}
+                    onValueChange={(next) => {
                       if (next === "auto" && locked) return;
-                      handleChange(t, next);
+                      handleChange(t, next as AutonomyLevel);
                     }}
                     disabled={!isUserOwner}
                   >
                     {AUTONOMY_LEVELS.map((lvl) => {
                       const lockedAuto = lvl === "auto" && locked;
                       const item = (
-                        <ToggleGroupItem
+                        <SegmentedControlItem
                           key={lvl}
                           value={lvl}
                           // aria-disabled (not disabled) on the locked auto
-                          // toggle so it still fires pointer events and the
+                          // segment so it still fires pointer events and the
                           // tooltip can open. Base UI Tooltip won't show on a
                           // truly-disabled element.
                           disabled={!isUserOwner && !lockedAuto}
                           aria-disabled={lockedAuto || undefined}
                           aria-label={`${AUTONOMY_ACTION_LABEL[t]} ${lvl}`}
-                          className="capitalize px-3 flex-none min-w-fit aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+                          className="capitalize aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                         >
                           {lvl}
-                        </ToggleGroupItem>
+                        </SegmentedControlItem>
                       );
                       if (lockedAuto) {
                         return (
@@ -281,7 +278,7 @@ function AutomationCard({
                       }
                       return item;
                     })}
-                  </ToggleGroup>
+                  </SegmentedControl>
                 </div>
               );
             })}
