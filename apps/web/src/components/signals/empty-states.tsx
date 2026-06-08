@@ -2,7 +2,7 @@ function SignalsIllustration({ className }: { className?: string }) {
   return (
     <svg
       width="160"
-      height="160"
+      height="103"
       viewBox="0 0 134 86"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"

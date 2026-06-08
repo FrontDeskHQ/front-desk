@@ -53,14 +53,11 @@ export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
 
   if (!threads) {
     return (
-      <>
-        <Greeting userName={userName} />
-        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
-          <ActionRowSkeleton />
-          <ActionRowSkeleton />
-          <ActionRowSkeleton />
-        </div>
-      </>
+      <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
+        <ActionRowSkeleton />
+        <ActionRowSkeleton />
+        <ActionRowSkeleton />
+      </div>
     );
   }
 
