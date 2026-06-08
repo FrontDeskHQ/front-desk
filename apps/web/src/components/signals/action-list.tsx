@@ -7,15 +7,17 @@ import {
   type ThreadWithRelations,
 } from "~/components/signals/action-row";
 import { CaughtUpEmpty, NewOrgEmpty } from "~/components/signals/empty-states";
+import { Greeting } from "~/components/signals/greeting";
 import { query } from "~/lib/live-state";
 
 type Props = {
   organizationId: string;
   ctx: ActorContext;
   isNewOrg?: boolean;
+  userName: string;
 };
 
-export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
+export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
   const threads = useLiveQuery(
     query.thread
       .where({
@@ -51,11 +53,14 @@ export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
 
   if (!threads) {
     return (
-      <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
-        <ActionRowSkeleton />
-        <ActionRowSkeleton />
-        <ActionRowSkeleton />
-      </div>
+      <>
+        <Greeting userName={userName} />
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
+          <ActionRowSkeleton />
+          <ActionRowSkeleton />
+          <ActionRowSkeleton />
+        </div>
+      </>
     );
   }
 
@@ -65,6 +70,7 @@ export function ActionList({ organizationId, ctx, isNewOrg }: Props) {
 
   return (
     <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
+      <Greeting userName={userName} />
       <div className="px-1 text-lg text-foreground-primary">
         {feedThreads.length === 1 ? "Here's" : "Here are"} {feedThreads.length}{" "}
         {feedThreads.length === 1

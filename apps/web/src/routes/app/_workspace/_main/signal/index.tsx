@@ -9,7 +9,6 @@ import { usePostHog } from "posthog-js/react";
 import { useMemo } from "react";
 import { ActionList } from "~/components/signals/action-list";
 import type { ActorContext } from "~/components/signals/action-row";
-import { Greeting } from "~/components/signals/greeting";
 // import { LeverageReport } from "~/components/signals/leverage-report";
 import { activeOrganizationAtom } from "~/lib/atoms";
 
@@ -49,7 +48,6 @@ function RouteComponent() {
         <CardTitle>Signals</CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 overflow-y-auto py-10!">
-        <Greeting userName={user.name} />
         {/* <LeverageReport
           organizationId={currentOrg.id}
           organizationCreatedAt={orgCreatedAt}
@@ -61,6 +59,7 @@ function RouteComponent() {
           organizationId={currentOrg.id}
           ctx={ctx}
           isNewOrg={isNewOrg}
+          userName={user.name}
         />
       </CardContent>
     </>
