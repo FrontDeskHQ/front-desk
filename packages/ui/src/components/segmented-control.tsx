@@ -4,6 +4,7 @@ import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import { motion, useReducedMotion } from "motion/react";
 import * as React from "react";
 
 type SegmentedControlSize = "sm" | "md" | "lg";
@@ -11,7 +12,10 @@ type SegmentedControlSize = "sm" | "md" | "lg";
 const SegmentedControlContext = React.createContext<{
   size: SegmentedControlSize;
   selectedValue?: string;
-}>({ size: "md" });
+  // Shared layoutId so the highlight animates between segments; unique per
+  // control instance so multiple controls on a page don't fight over it.
+  layoutId: string;
+}>({ size: "md", layoutId: "segmented-control" });
 
 const segmentedControlVariants = cva(
   "inline-flex w-fit items-center justify-center gap-0.5 rounded-md border bg-muted p-0.5 text-muted-foreground data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
@@ -28,7 +32,7 @@ const segmentedControlVariants = cva(
 const segmentedControlItemVariants = cva(
   // Segments size to their content by default. Add `flex-1` on items for an
   // equal-width control.
-  "relative inline-flex items-center justify-center gap-1.5 rounded-sm whitespace-nowrap text-foreground-secondary transition-colors outline-none select-none hover:text-foreground-primary focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[pressed]:bg-background-primary data-[pressed]:text-foreground-primary data-[pressed]:shadow-sm dark:data-[pressed]:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "relative inline-flex items-center justify-center gap-1.5 rounded-sm whitespace-nowrap text-foreground-secondary transition-colors outline-none select-none hover:text-foreground-primary focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[pressed]:text-foreground-primary [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
     variants: {
       size: {
@@ -85,10 +89,11 @@ function SegmentedControl({
   ...props
 }: SegmentedControlProps) {
   const [current, setCurrent] = useControllableValue(value, defaultValue);
+  const layoutId = React.useId();
 
   return (
     <SegmentedControlContext.Provider
-      value={{ size: size ?? "md", selectedValue: current }}
+      value={{ size: size ?? "md", selectedValue: current, layoutId }}
     >
       <BaseToggleGroup
         data-slot="segmented-control"
@@ -117,9 +122,11 @@ function SegmentedControlItem({
   value: itemValue,
   ...props
 }: SegmentedControlItemProps) {
-  const { size, selectedValue } = React.useContext(SegmentedControlContext);
-  const isSelected =
-    itemValue !== undefined && itemValue === selectedValue;
+  const { size, selectedValue, layoutId } = React.useContext(
+    SegmentedControlContext,
+  );
+  const isSelected = itemValue !== undefined && itemValue === selectedValue;
+  const shouldReduceMotion = useReducedMotion();
 
   return (
     <BaseToggle
@@ -130,7 +137,24 @@ function SegmentedControlItem({
       value={itemValue}
       {...props}
     >
-      {children}
+      {isSelected && (
+        <motion.span
+          layoutId={layoutId}
+          aria-hidden
+          className="absolute inset-0 z-0 rounded-sm bg-background-primary shadow-sm dark:bg-input/50"
+          // The highlight is already on screen and moving between segments, so
+          // a subtle spring (low bounce) reads as native. Snap instantly when
+          // the user prefers reduced motion.
+          transition={
+            shouldReduceMotion
+              ? { duration: 0 }
+              : { type: "spring", duration: 0.25, bounce: 0.15 }
+          }
+        />
+      )}
+      <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
+        {children}
+      </span>
     </BaseToggle>
   );
 }
