@@ -60,6 +60,10 @@ A deterministic, no-LLM helper (not a pipeline processor) that action-emitting p
 
 A receipt of work the Agent performed without human approval. Stored in `autonomousAction`. Carries an undo affordance when the action is reversible by construction.
 
+### Thread
+
+The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record *where it came from* (Discord channel, Slack message, portal) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).
+
 ### External issue
 
 An issue in an external developer system (today only GitHub) that FrontDesk **mirrors** read-only. GitHub is authoritative; our copy is a downstream replica updated only from inbound webhooks/backfill, never written canonically from our side. Identified provider-agnostically as `provider:owner/repo#number` (see `formatGitHubId`). A [thread](#thread) may **link** to an external issue; the link is a reference, not ownership.
