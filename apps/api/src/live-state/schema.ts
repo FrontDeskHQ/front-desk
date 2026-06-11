@@ -58,6 +58,7 @@ const thread = object("thread", {
   deletedAt: timestamp().nullable(),
   /** @deprecated use externalId and externalOrigin instead */
   discordChannelId: string().nullable(),
+  // Link to a mirrored externalEntity by its externalKey (`provider:owner/repo#number`).
   externalIssueId: string().nullable(),
   externalPrId: string().nullable(),
   status: number().default(0),
@@ -210,6 +211,46 @@ const documentationSource = object("documentationSource", {
   updatedAt: timestamp(),
 });
 
+/**
+ * A read-only mirror of an issue or pull request from an external developer
+ * system (today only GitHub). The external system is authoritative; rows here
+ * are only ever written from inbound webhooks/backfill/drift reconciliation,
+ * never canonically from our side. See docs/adr/0007-mirror-external-issues-prs.md.
+ *
+ * Synced to clients so the UI can display and search issue/PR data reactively.
+ */
+// TODO(live-state): composite index (organizationId, externalKey) when supported.
+// Until then, externalKey single-column index plus query-side organizationId filter.
+const externalEntity = object("externalEntity", {
+  id: id(),
+  organizationId: reference("organization.id"),
+  provider: string(),
+  /** Provider-agnostic key: `provider:owner/repo#number` (see formatGitHubId). */
+  externalKey: string().index(),
+  /** "issue" | "pull_request" */
+  type: string(),
+  number: number(),
+  repoFullName: string(),
+  url: string(),
+  title: string(),
+  body: string().nullable(),
+  state: string(),
+  authorLogin: string().nullable(),
+  assignees: json<string[]>().default([]),
+  labels: json<string[]>().default([]),
+  externalCreatedAt: timestamp(),
+  externalUpdatedAt: timestamp(),
+  closedAt: timestamp().nullable(),
+  // PR-only facets, null for issues.
+  merged: boolean().nullable(),
+  mergedAt: timestamp().nullable(),
+  draft: boolean().nullable(),
+  headRef: string().nullable(),
+  baseRef: string().nullable(),
+  lastSyncedAt: timestamp(),
+  deletedAt: timestamp().nullable(),
+});
+
 const organizationRelations = createRelations(organization, ({ many }) => ({
   organizationUsers: many(organizationUser, "organizationId"),
   threads: many(thread, "organizationId"),
@@ -222,6 +263,7 @@ const organizationRelations = createRelations(organization, ({ many }) => ({
   onboardings: many(onboarding, "organizationId"),
   documentationSources: many(documentationSource, "organizationId"),
   agentChats: many(agentChat, "organizationId"),
+  externalEntities: many(externalEntity, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -310,6 +352,10 @@ const documentationSourceRelations = createRelations(
   }),
 );
 
+const externalEntityRelations = createRelations(externalEntity, ({ one }) => ({
+  organization: one(organization, "organizationId"),
+}));
+
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
   id: id(),
@@ -366,6 +412,7 @@ export const schema = createSchema({
   documentationSource,
   agentChat,
   agentChatMessage,
+  externalEntity,
   migration,
   // relations
   organizationUserRelations,
@@ -384,4 +431,5 @@ export const schema = createSchema({
   documentationSourceRelations,
   agentChatRelations,
   agentChatMessageRelations,
+  externalEntityRelations,
 });

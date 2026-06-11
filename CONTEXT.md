@@ -59,3 +59,26 @@ A deterministic, no-LLM helper (not a pipeline processor) that action-emitting p
 ### Autonomous action
 
 A receipt of work the Agent performed without human approval. Stored in `autonomousAction`. Carries an undo affordance when the action is reversible by construction.
+
+### Thread
+
+The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record *where it came from* (Discord channel, Slack message, portal) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).
+
+### External issue
+
+An issue in an external developer system (today only GitHub) that FrontDesk **mirrors** read-only. GitHub is authoritative; our copy is a downstream replica updated only from inbound webhooks/backfill, never written canonically from our side. Identified provider-agnostically as `provider:owner/repo#number` (see `formatGitHubId`). A [thread](#thread) may **link** to an external issue; the link is a reference, not ownership.
+_Avoid_: "GitHub issue" (we are provider-agnostic), "ticket".
+
+### External pull request
+
+A pull request in an external developer system that FrontDesk mirrors under the same read-mirror rules as an [external issue](#external-issue). Distinct from an external issue because it carries PR-only facets (merge state, draft, branches). A thread may link to one.
+_Avoid_: "PR" alone when ambiguous, "merge request".
+
+### Mirror
+
+FrontDesk's local, read-only replica of authoritative external data ([external issues](#external-issue) and [external pull requests](#external-pull-request)). The external system is the source of truth; the mirror is only ever updated *from* it (webhooks + backfill + drift reconciliation), never written canonically from our side. Actions taken in FrontDesk go out to the external system and round-trip back into the mirror. Used as a verb ("we mirror the repo's issues") and a noun ("the mirror").
+_Avoid_: "cache" (implies disposable/expiry; the mirror is durable and queried as primary), "sync copy".
+
+### Flagged ambiguities
+
+**"External" is overloaded.** On a thread, `externalId` / `externalOrigin` mean *where the thread itself originated* (Discord channel, Slack message). This is **not** the same as a linked [external issue](#external-issue) / [external pull request](#external-pull-request), which is a separate developer-system entity the thread points to. When the origin is meant, say "thread origin"; when the linked entity is meant, say "external issue / pull request".
