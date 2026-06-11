@@ -792,6 +792,28 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
+    // Read-only mirror of external issues/PRs. Written only by the integration
+    // (internal API key); org members read their own org's entities.
+    externalEntity: privateRoute.collectionRoute(schema.externalEntity, {
+      read: ({ ctx }) => {
+        if (ctx?.internalApiKey) return true;
+        if (!ctx?.session) return false;
+
+        return {
+          organization: {
+            organizationUsers: {
+              userId: ctx.session.userId,
+              enabled: true,
+            },
+          },
+        };
+      },
+      insert: ({ ctx }) => !!ctx?.internalApiKey,
+      update: {
+        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      },
+    }),
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,
