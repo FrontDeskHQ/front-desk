@@ -242,9 +242,9 @@ const externalEntity = object("externalEntity", {
   externalUpdatedAt: timestamp(),
   closedAt: timestamp().nullable(),
   // PR-only facets, null for issues.
-  merged: boolean().default(false),
+  merged: boolean().nullable(),
   mergedAt: timestamp().nullable(),
-  draft: boolean().default(false),
+  draft: boolean().nullable(),
   headRef: string().nullable(),
   baseRef: string().nullable(),
   lastSyncedAt: timestamp(),
