@@ -31,7 +31,6 @@ type ExternalEntityFields = {
   draft: boolean | null;
   headRef: string | null;
   baseRef: string | null;
-  deletedAt: Date | null;
 };
 
 /**
@@ -70,31 +69,17 @@ const installationIdOf = (payload: unknown): number | undefined =>
   (payload as { installation?: { id?: number } | null }).installation?.id;
 
 /**
- * Insert or update the org-scoped mirror row for an issue/PR. Keyed by
- * `(organizationId, externalKey)` on the query side until live-state supports
- * composite indexes. Always refreshes `lastSyncedAt`.
+ * Insert or update the org-scoped mirror row for an issue/PR via the custom
+ * `externalEntity.upsert` procedure, which owns the
+ * `(organizationId, externalKey)` identity and `lastSyncedAt` bookkeeping.
  */
 const upsertExternalEntity = async (
   organizationId: string,
   fields: ExternalEntityFields
 ) => {
-  const existing = await fetchClient.query.externalEntity
-    .first({ organizationId, externalKey: fields.externalKey })
-    .get();
-
-  if (existing) {
-    await fetchClient.mutate.externalEntity.update(existing.id, {
-      ...fields,
-      lastSyncedAt: new Date(),
-    });
-    return;
-  }
-
-  await fetchClient.mutate.externalEntity.insert({
-    id: ulid().toLowerCase(),
+  await fetchClient.mutate.externalEntity.upsert({
     organizationId,
     ...fields,
-    lastSyncedAt: new Date(),
   });
 };
 
@@ -193,7 +178,6 @@ const buildIssueFields = (
     draft: null,
     headRef: null,
     baseRef: null,
-    deletedAt: null,
   };
 };
 
@@ -226,7 +210,6 @@ const buildPullRequestFields = (
     draft: pr.draft ?? false,
     headRef: pr.head.ref,
     baseRef: pr.base.ref,
-    deletedAt: null,
   };
 };
 
@@ -249,7 +232,11 @@ export const setupWebhooks = () => {
       const fields = buildIssueFields(payload);
 
       if (action === "deleted" || action === "transferred") {
-        fields.deletedAt = new Date();
+        await fetchClient.mutate.externalEntity.softDelete({
+          organizationId,
+          externalKey: fields.externalKey,
+        });
+        return;
       }
 
       await upsertExternalEntity(organizationId, fields);

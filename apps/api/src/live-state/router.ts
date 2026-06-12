@@ -21,6 +21,7 @@ import { privateRoute, publicRoute } from "./factories";
 import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
 import autonomousActionRoute from "./router/autonomous-action";
 import documentationSourcesRoute from "./router/documentation-sources";
+import externalEntityRoute from "./router/external-entity";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
@@ -792,28 +793,9 @@ export const router = createRouter({
         postMutation: ({ ctx }) => !!ctx?.internalApiKey,
       },
     }),
-    // Read-only mirror of external issues/PRs. Written only by the integration
-    // (internal API key); org members read their own org's entities.
-    externalEntity: privateRoute.collectionRoute(schema.externalEntity, {
-      read: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
-      insert: ({ ctx }) => !!ctx?.internalApiKey,
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+    // Mirror of external issues/PRs. Default mutators are disabled; writes go
+    // through the route's custom `upsert` / `softDelete` procedures.
+    externalEntity: externalEntityRoute,
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,
