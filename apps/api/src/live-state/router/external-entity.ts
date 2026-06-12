@@ -65,6 +65,9 @@ export default privateRoute
      * Insert or update the mirror row identified by
      * `(organizationId, externalKey)`. Refreshes `lastSyncedAt` and clears any
      * previous `deletedAt` (a live event means the entity exists again).
+     *
+     * The find-then-insert/update runs inside a transaction so concurrent
+     * events for the same entity don't race into duplicate rows.
      */
     upsert: mutation(externalEntityFields).handler(async ({ req, db }) => {
       if (!req.context?.internalApiKey) {
@@ -74,29 +77,31 @@ export default privateRoute
       const { organizationId, externalKey } = req.input;
       const now = new Date();
 
-      const existing = Object.values(
-        await db.find(schema.externalEntity, {
-          where: { organizationId, externalKey },
-        }),
-      )[0];
+      return db.transaction(async ({ trx }) => {
+        const existing = Object.values(
+          await trx.find(schema.externalEntity, {
+            where: { organizationId, externalKey },
+          }),
+        )[0];
 
-      if (existing) {
-        await db.externalEntity.update(existing.id, {
+        if (existing) {
+          await trx.update(schema.externalEntity, existing.id, {
+            ...req.input,
+            lastSyncedAt: now,
+            deletedAt: null,
+          });
+          return existing.id;
+        }
+
+        const id = ulid().toLowerCase();
+        await trx.insert(schema.externalEntity, {
+          id,
           ...req.input,
           lastSyncedAt: now,
           deletedAt: null,
         });
-        return existing.id;
-      }
-
-      const id = ulid().toLowerCase();
-      await db.insert(schema.externalEntity, {
-        id,
-        ...req.input,
-        lastSyncedAt: now,
-        deletedAt: null,
+        return id;
       });
-      return id;
     }),
 
     /**
@@ -115,19 +120,21 @@ export default privateRoute
 
       const { organizationId, externalKey } = req.input;
 
-      const existing = Object.values(
-        await db.find(schema.externalEntity, {
-          where: { organizationId, externalKey },
-        }),
-      )[0];
+      return db.transaction(async ({ trx }) => {
+        const existing = Object.values(
+          await trx.find(schema.externalEntity, {
+            where: { organizationId, externalKey },
+          }),
+        )[0];
 
-      if (!existing) return null;
+        if (!existing) return null;
 
-      const now = new Date();
-      await db.externalEntity.update(existing.id, {
-        deletedAt: now,
-        lastSyncedAt: now,
+        const now = new Date();
+        await trx.update(schema.externalEntity, existing.id, {
+          deletedAt: now,
+          lastSyncedAt: now,
+        });
+        return existing.id;
       });
-      return existing.id;
     }),
   }));
