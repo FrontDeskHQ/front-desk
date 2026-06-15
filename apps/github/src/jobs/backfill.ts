@@ -14,17 +14,23 @@ import {
 
 const PER_PAGE = 100;
 
+type BackfillTally = { upserted: number; failed: number };
+
 /**
  * Page every issue in the repo and upsert it into the mirror. The issues
  * endpoint returns PRs too (they're issues under the hood); those are skipped
  * here and handled by `backfillPullRequests`, which has the PR-only facets.
+ *
+ * A single failing upsert is logged and skipped rather than thrown: otherwise it
+ * would kill the job and force a retry to restart paging from page 1, and a
+ * persistently bad item would block the whole repo forever.
  */
 const backfillIssues = async (
   octokit: Awaited<ReturnType<typeof getOctokit>>,
   data: BackfillJobData,
   repo: RepoRef
-): Promise<number> => {
-  let count = 0;
+): Promise<BackfillTally> => {
+  const tally: BackfillTally = { upserted: 0, failed: 0 };
 
   const iterator = octokit.paginate.iterator(
     "GET /repos/{owner}/{repo}/issues",
@@ -39,28 +45,36 @@ const backfillIssues = async (
   for await (const { data: page } of iterator) {
     for (const issue of page) {
       if (issue.pull_request) continue;
-      await upsertExternalEntity(
-        data.organizationId,
-        buildIssueFields(issue, repo)
-      );
-      count++;
+      try {
+        await upsertExternalEntity(
+          data.organizationId,
+          buildIssueFields(issue, repo)
+        );
+        tally.upserted++;
+      } catch (error) {
+        tally.failed++;
+        console.error(
+          `[GitHub] Failed to upsert issue ${repo.fullName}#${issue.number}:`,
+          error
+        );
+      }
     }
   }
 
-  return count;
+  return tally;
 };
 
 /**
  * Page every pull request in the repo and upsert it into the mirror. The list
  * endpoint omits the `merged` boolean; `buildPullRequestFields` derives it from
- * `merged_at`.
+ * `merged_at`. Per-item failures are logged and skipped (see `backfillIssues`).
  */
 const backfillPullRequests = async (
   octokit: Awaited<ReturnType<typeof getOctokit>>,
   data: BackfillJobData,
   repo: RepoRef
-): Promise<number> => {
-  let count = 0;
+): Promise<BackfillTally> => {
+  const tally: BackfillTally = { upserted: 0, failed: 0 };
 
   const iterator = octokit.paginate.iterator(
     "GET /repos/{owner}/{repo}/pulls",
@@ -74,15 +88,23 @@ const backfillPullRequests = async (
 
   for await (const { data: page } of iterator) {
     for (const pr of page) {
-      await upsertExternalEntity(
-        data.organizationId,
-        buildPullRequestFields(pr, repo)
-      );
-      count++;
+      try {
+        await upsertExternalEntity(
+          data.organizationId,
+          buildPullRequestFields(pr, repo)
+        );
+        tally.upserted++;
+      } catch (error) {
+        tally.failed++;
+        console.error(
+          `[GitHub] Failed to upsert PR ${repo.fullName}#${pr.number}:`,
+          error
+        );
+      }
     }
   }
 
-  return count;
+  return tally;
 };
 
 /**
@@ -109,7 +131,9 @@ export const handleBackfillJob = async (job: Job<BackfillJobData>) => {
   const pullRequests = await backfillPullRequests(octokit, data, repo);
 
   console.log(
-    `[GitHub] Backfilled ${data.fullName}: ${issues} issues, ${pullRequests} PRs`
+    `[GitHub] Backfilled ${data.fullName}: ${issues.upserted} issues ` +
+      `(${issues.failed} failed), ${pullRequests.upserted} PRs ` +
+      `(${pullRequests.failed} failed)`
   );
 
   return { repoFullName: data.fullName, issues, pullRequests };

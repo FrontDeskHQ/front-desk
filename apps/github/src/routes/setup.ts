@@ -58,17 +58,13 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
 
       const octokit = await getOctokit(installationId);
 
-      const { data: reposData } = await octokit.request(
+      // Paginate so installations with >100 repos are fully captured.
+      const installationRepos = await octokit.paginate(
         "GET /installation/repositories",
-        {
-          per_page: 100,
-          headers: {
-            "X-GitHub-Api-Version": "2022-11-28",
-          },
-        }
+        { per_page: 100 }
       );
 
-      const repos = reposData.repositories.map((repo) => ({
+      const repos = installationRepos.map((repo) => ({
         fullName: repo.full_name,
         owner: repo.owner.login,
         name: repo.name,
@@ -85,8 +81,10 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
       });
 
       // Mirror each in-scope repo's full issue/PR history. Idempotent and
-      // coalesced per repo, so re-running setup is safe.
-      await Promise.all(
+      // coalesced per repo, so re-running setup is safe. The integration config
+      // is already persisted at this point, so a failed enqueue (e.g. transient
+      // Redis outage) must not fail the setup redirect — log and move on.
+      const enqueueResults = await Promise.allSettled(
         repos.map((repo) =>
           enqueueRepoBackfill({
             organizationId: orgId,
@@ -97,6 +95,15 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
           })
         )
       );
+
+      for (const [index, result] of enqueueResults.entries()) {
+        if (result.status === "rejected") {
+          console.error(
+            `[GitHub] Failed to enqueue backfill for ${repos[index]?.fullName}:`,
+            result.reason
+          );
+        }
+      }
 
       set.redirect = `${getBaseUrl()}/app/settings/organization/integration/github`;
     } catch (error) {

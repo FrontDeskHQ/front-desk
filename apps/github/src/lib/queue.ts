@@ -73,10 +73,14 @@ const getQueue = (): Queue<BackfillJobData> => {
  * `(organizationId, fullName)` so re-connecting or re-adding the same repo
  * coalesces onto one pending job rather than piling up duplicates — the
  * processor itself is also idempotent (upsert-by-externalKey).
+ *
+ * BullMQ reserves `:` as a Redis key separator and rejects it in custom job
+ * ids, so the parts are joined with `_` (and `fullName`'s `/` is replaced too).
  */
 export const enqueueRepoBackfill = async (data: BackfillJobData) => {
+  const jobId = `backfill_${data.organizationId}_${data.fullName.replace("/", "_")}`;
   await getQueue().add(BACKFILL_JOB_NAME, data, {
-    jobId: `backfill:${data.organizationId}:${data.fullName}`,
+    jobId,
     attempts: 3,
     backoff: { type: "exponential", delay: 10_000 },
     removeOnComplete: { count: 50, age: 24 * 3600 },
