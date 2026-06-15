@@ -2,6 +2,7 @@ import Elysia from "elysia";
 import { z } from "zod";
 import { getOctokit } from "../lib/github";
 import { fetchClient } from "../lib/live-state";
+import { enqueueRepoBackfill } from "../lib/queue";
 import { getBaseUrl } from "../utils";
 
 const setupQuerySchema = z.object({
@@ -82,6 +83,20 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
           repos,
         }),
       });
+
+      // Mirror each in-scope repo's full issue/PR history. Idempotent and
+      // coalesced per repo, so re-running setup is safe.
+      await Promise.all(
+        repos.map((repo) =>
+          enqueueRepoBackfill({
+            organizationId: orgId,
+            installationId,
+            owner: repo.owner,
+            repo: repo.name,
+            fullName: repo.fullName,
+          })
+        )
+      );
 
       set.redirect = `${getBaseUrl()}/app/settings/organization/integration/github`;
     } catch (error) {

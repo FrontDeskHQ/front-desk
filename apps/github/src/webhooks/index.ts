@@ -1,37 +1,14 @@
-import type { EmitterWebhookEvent } from "@octokit/webhooks";
-import { formatGitHubId } from "@workspace/schemas/external-issue";
 import { statusValues } from "@workspace/ui/components/indicator";
 import { ulid } from "ulid";
+import {
+  buildIssueFields,
+  buildPullRequestFields,
+  type ExternalEntityFields,
+  upsertExternalEntity,
+} from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
 import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
-
-/**
- * Shape of an externalEntity mirror row, minus the columns the upsert helper
- * fills in itself (`id`, `organizationId`, `lastSyncedAt`).
- */
-type ExternalEntityFields = {
-  provider: string;
-  externalKey: string;
-  type: "issue" | "pull_request";
-  number: number;
-  repoFullName: string;
-  url: string;
-  title: string;
-  body: string | null;
-  state: string;
-  authorLogin: string | null;
-  assignees: string[];
-  labels: string[];
-  externalCreatedAt: Date;
-  externalUpdatedAt: Date;
-  closedAt: Date | null;
-  merged: boolean | null;
-  mergedAt: Date | null;
-  draft: boolean | null;
-  headRef: string | null;
-  baseRef: string | null;
-};
 
 /**
  * Resolve the FrontDesk organization that owns a GitHub installation by
@@ -67,21 +44,6 @@ const resolveOrganizationId = (
  */
 const installationIdOf = (payload: unknown): number | undefined =>
   (payload as { installation?: { id?: number } | null }).installation?.id;
-
-/**
- * Insert or update the org-scoped mirror row for an issue/PR via the custom
- * `externalEntity.upsert` procedure, which owns the
- * `(organizationId, externalKey)` identity and `lastSyncedAt` bookkeeping.
- */
-const upsertExternalEntity = async (
-  organizationId: string,
-  fields: ExternalEntityFields
-) => {
-  await fetchClient.mutate.externalEntity.upsert({
-    organizationId,
-    ...fields,
-  });
-};
 
 /**
  * Reaction to the mirror moving into a closed/merged state: resolve any
@@ -149,69 +111,18 @@ const resolveLinkedThreads = (
   }
 };
 
-const buildIssueFields = (
-  payload: EmitterWebhookEvent<"issues">["payload"]
-): ExternalEntityFields => {
-  const { issue, repository } = payload;
-  return {
-    provider: "github",
-    externalKey: formatGitHubId(issue.id, repository.owner.login, repository.name),
-    type: "issue",
-    number: issue.number,
-    repoFullName: repository.full_name,
-    url: issue.html_url,
-    title: issue.title,
-    body: issue.body ?? null,
-    state: issue.state ?? "open",
-    authorLogin: issue.user?.login ?? null,
-    assignees: (issue.assignees ?? [])
-      .map((a) => a?.login)
-      .filter((login): login is string => Boolean(login)),
-    labels: (issue.labels ?? [])
-      .map((l) => (typeof l === "string" ? l : l?.name))
-      .filter((name): name is string => Boolean(name)),
-    externalCreatedAt: new Date(issue.created_at),
-    externalUpdatedAt: new Date(issue.updated_at),
-    closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
-    merged: null,
-    mergedAt: null,
-    draft: null,
-    headRef: null,
-    baseRef: null,
-  };
-};
-
-const buildPullRequestFields = (
-  payload: EmitterWebhookEvent<"pull_request">["payload"]
-): ExternalEntityFields => {
-  const { pull_request: pr, repository } = payload;
-  return {
-    provider: "github",
-    externalKey: formatGitHubId(pr.id, repository.owner.login, repository.name),
-    type: "pull_request",
-    number: pr.number,
-    repoFullName: repository.full_name,
-    url: pr.html_url,
-    title: pr.title,
-    body: pr.body ?? null,
-    state: pr.state,
-    authorLogin: pr.user?.login ?? null,
-    assignees: (pr.assignees ?? [])
-      .map((a) => a?.login)
-      .filter((login): login is string => Boolean(login)),
-    labels: (pr.labels ?? [])
-      .map((l) => l?.name)
-      .filter((name): name is string => Boolean(name)),
-    externalCreatedAt: new Date(pr.created_at),
-    externalUpdatedAt: new Date(pr.updated_at),
-    closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
-    merged: pr.merged ?? false,
-    mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
-    draft: pr.draft ?? false,
-    headRef: pr.head.ref,
-    baseRef: pr.base.ref,
-  };
-};
+/**
+ * Build a `RepoRef` from a webhook `repository` payload.
+ */
+const repoRefFromWebhook = (repository: {
+  owner: { login: string };
+  name: string;
+  full_name: string;
+}) => ({
+  owner: repository.owner.login,
+  name: repository.name,
+  fullName: repository.full_name,
+});
 
 export const setupWebhooks = () => {
   // Keep the mirror current on every issue-mutating event. `deleted` and
@@ -229,7 +140,10 @@ export const setupWebhooks = () => {
         return;
       }
 
-      const fields = buildIssueFields(payload);
+      const fields = buildIssueFields(
+        payload.issue,
+        repoRefFromWebhook(payload.repository)
+      );
 
       if (action === "deleted" || action === "transferred") {
         await fetchClient.mutate.externalEntity.softDelete({
@@ -266,7 +180,10 @@ export const setupWebhooks = () => {
         return;
       }
 
-      const fields = buildPullRequestFields(payload);
+      const fields = buildPullRequestFields(
+        payload.pull_request,
+        repoRefFromWebhook(payload.repository)
+      );
 
       await upsertExternalEntity(organizationId, fields);
 
