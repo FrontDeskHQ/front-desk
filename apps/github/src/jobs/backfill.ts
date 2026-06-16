@@ -14,7 +14,17 @@ import {
 
 const PER_PAGE = 100;
 
+/**
+ * Abort the whole job after this many consecutive upsert failures. Isolated bad
+ * items are tolerated (logged + skipped), but a run of back-to-back failures
+ * signals a systemic problem (auth, network, DB) — throwing lets BullMQ retry
+ * the entire job with backoff instead of silently reporting success.
+ */
+const MAX_CONSECUTIVE_FAILURES = 10;
+
 type BackfillTally = { upserted: number; failed: number };
+
+class SystemicBackfillError extends Error {}
 
 /**
  * Page every issue in the repo and upsert it into the mirror. The issues
@@ -23,7 +33,8 @@ type BackfillTally = { upserted: number; failed: number };
  *
  * A single failing upsert is logged and skipped rather than thrown: otherwise it
  * would kill the job and force a retry to restart paging from page 1, and a
- * persistently bad item would block the whole repo forever.
+ * persistently bad item would block the whole repo forever. A run of
+ * `MAX_CONSECUTIVE_FAILURES` does abort, so a systemic outage retries the job.
  */
 const backfillIssues = async (
   octokit: Awaited<ReturnType<typeof getOctokit>>,
@@ -31,6 +42,7 @@ const backfillIssues = async (
   repo: RepoRef
 ): Promise<BackfillTally> => {
   const tally: BackfillTally = { upserted: 0, failed: 0 };
+  let consecutiveFailures = 0;
 
   const iterator = octokit.paginate.iterator(
     "GET /repos/{owner}/{repo}/issues",
@@ -51,12 +63,19 @@ const backfillIssues = async (
           buildIssueFields(issue, repo)
         );
         tally.upserted++;
+        consecutiveFailures = 0;
       } catch (error) {
         tally.failed++;
+        consecutiveFailures++;
         console.error(
           `[GitHub] Failed to upsert issue ${repo.fullName}#${issue.number}:`,
           error
         );
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          throw new SystemicBackfillError(
+            `Aborting ${repo.fullName} issue backfill after ${consecutiveFailures} consecutive upsert failures`
+          );
+        }
       }
     }
   }
@@ -67,7 +86,8 @@ const backfillIssues = async (
 /**
  * Page every pull request in the repo and upsert it into the mirror. The list
  * endpoint omits the `merged` boolean; `buildPullRequestFields` derives it from
- * `merged_at`. Per-item failures are logged and skipped (see `backfillIssues`).
+ * `merged_at`. Per-item failures are logged and skipped, and a run of
+ * `MAX_CONSECUTIVE_FAILURES` aborts the job (see `backfillIssues`).
  */
 const backfillPullRequests = async (
   octokit: Awaited<ReturnType<typeof getOctokit>>,
@@ -75,6 +95,7 @@ const backfillPullRequests = async (
   repo: RepoRef
 ): Promise<BackfillTally> => {
   const tally: BackfillTally = { upserted: 0, failed: 0 };
+  let consecutiveFailures = 0;
 
   const iterator = octokit.paginate.iterator(
     "GET /repos/{owner}/{repo}/pulls",
@@ -94,12 +115,19 @@ const backfillPullRequests = async (
           buildPullRequestFields(pr, repo)
         );
         tally.upserted++;
+        consecutiveFailures = 0;
       } catch (error) {
         tally.failed++;
+        consecutiveFailures++;
         console.error(
           `[GitHub] Failed to upsert PR ${repo.fullName}#${pr.number}:`,
           error
         );
+        if (consecutiveFailures >= MAX_CONSECUTIVE_FAILURES) {
+          throw new SystemicBackfillError(
+            `Aborting ${repo.fullName} PR backfill after ${consecutiveFailures} consecutive upsert failures`
+          );
+        }
       }
     }
   }
