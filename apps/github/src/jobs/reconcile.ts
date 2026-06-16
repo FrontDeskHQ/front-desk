@@ -41,6 +41,24 @@ class SystemicReconcileError extends Error {}
 type GithubRepoConfig = { fullName: string; owner: string; name: string };
 
 /**
+ * Guard against malformed repo entries in a (potentially hand-edited or legacy)
+ * integration config: all three fields must be non-empty strings to build a
+ * usable reconcile job.
+ */
+const isValidRepoConfig = (repo: unknown): repo is GithubRepoConfig => {
+  if (typeof repo !== "object" || repo === null) return false;
+  const { fullName, owner, name } = repo as Record<string, unknown>;
+  return (
+    typeof fullName === "string" &&
+    fullName.length > 0 &&
+    typeof owner === "string" &&
+    owner.length > 0 &&
+    typeof name === "string" &&
+    name.length > 0
+  );
+};
+
+/**
  * Re-page one endpoint's worth of entities and reconcile them against the
  * mirror snapshot. For each upstream item we record its key in `seen` (so the
  * deletion pass can tell what still exists) and upsert it only when GitHub's
@@ -235,8 +253,19 @@ export const handleReconcileDispatch = async () => {
     const { installationId, repos } = config;
     if (!installationId || !repos?.length) continue;
 
+    // The config is built from octokit data in setup.ts, but it's untrusted at
+    // read time (hand-edited/legacy rows). Drop malformed entries so they don't
+    // produce broken jobs that just fail-and-retry forever.
+    const validRepos = repos.filter(isValidRepoConfig);
+    if (validRepos.length < repos.length) {
+      console.error(
+        `[GitHub] Skipping ${repos.length - validRepos.length} malformed repo entr(y/ies) for integration ${integration.id}`
+      );
+    }
+    if (!validRepos.length) continue;
+
     const results = await Promise.allSettled(
-      repos.map((repo) =>
+      validRepos.map((repo) =>
         enqueueRepoReconcile({
           organizationId: integration.organizationId,
           installationId,
@@ -250,7 +279,7 @@ export const handleReconcileDispatch = async () => {
     for (const [index, result] of results.entries()) {
       if (result.status === "rejected") {
         console.error(
-          `[GitHub] Failed to enqueue reconcile for ${repos[index]?.fullName}:`,
+          `[GitHub] Failed to enqueue reconcile for ${validRepos[index]?.fullName}:`,
           result.reason
         );
       } else {
