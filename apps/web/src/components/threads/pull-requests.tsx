@@ -1,6 +1,4 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { useQuery } from "@tanstack/react-query";
-import type { ExternalPullRequest } from "@workspace/schemas/external-issue";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
   Combobox,
@@ -16,7 +14,8 @@ import { GitPullRequest, X } from "lucide-react";
 import { useState } from "react";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { fetchClient, mutate, query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
+import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
 import { LinkedPrSuggestionsSection } from "./linked-pr-suggestions-section";
 
 interface PullRequestsSectionProps {
@@ -45,40 +44,30 @@ export function PullRequestsSection({
     }),
   );
 
-  const { data: allPullRequests, refetch: refetchPullRequests } = useQuery({
-    queryKey: [
-      "github-pull-requests",
-      currentOrg?.id,
-      githubIntegration?.enabled,
-      githubIntegration?.configStr,
-    ],
-    queryFn: () => {
-      if (!currentOrg) return { pullRequests: [], count: 0 };
+  // Reactive mirror of the org's pull requests, synced via Live-State. Replaces
+  // the on-demand `thread.fetchGithubPullRequests` fetch.
+  const pullRequests =
+    useLiveQuery(
+      query.externalEntity.where({
+        organizationId: currentOrg?.id,
+        type: "pull_request",
+        deletedAt: null,
+      }),
+    ) ?? [];
 
-      if (!githubIntegration?.enabled || !githubIntegration?.configStr) {
-        return { pullRequests: [], count: 0 };
-      }
+  // The link list only offers open PRs; the linked PR itself resolves from the
+  // full mirror so an already-linked closed/merged PR still displays.
+  const openPullRequests = pullRequests.filter((pr) => pr.state === "open");
 
-      return fetchClient.mutate.thread.fetchGithubPullRequests({
-        organizationId: currentOrg.id,
-        state: "open",
-      });
-    },
-    enabled: !!currentOrg && !!githubIntegration?.enabled,
-  });
-
-  const pullRequests = (allPullRequests?.pullRequests ??
-    []) as ExternalPullRequest[];
-
-  const comboboxItems = pullRequests.map((pr) => ({
-    value: pr.id ?? "",
-    label: `${pr.repository.fullName}#${pr.number} ${pr.title}`,
+  const comboboxItems = openPullRequests.map((pr) => ({
+    value: pr.externalKey,
+    label: `${pr.repoFullName}#${pr.number} ${pr.title}`,
     pr,
   }));
 
   type PRItem = (typeof comboboxItems)[number];
 
-  const linkedPr = pullRequests.find((pr) => pr.id === externalPrId);
+  const linkedPr = pullRequests.find((pr) => pr.externalKey === externalPrId);
 
   const handleUnlinkPr = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -97,7 +86,7 @@ export function PullRequestsSection({
       metadataStr: JSON.stringify({
         oldPrId: externalPrId,
         newPrId: null,
-        oldPrLabel: `${linkedPr.repository.fullName}#${linkedPr.number}`,
+        oldPrLabel: `${linkedPr.repoFullName}#${linkedPr.number}`,
         newPrLabel: null,
         userName: user.name,
       }),
@@ -107,7 +96,7 @@ export function PullRequestsSection({
     captureThreadEvent("thread:pr_unlink", {
       old_pr_id: externalPrId,
       old_pr_number: linkedPr.number,
-      repository: linkedPr.repository.fullName,
+      repository: linkedPr.repoFullName,
     });
   };
 
@@ -120,19 +109,21 @@ export function PullRequestsSection({
         <div className="flex gap-1 items-center group w-full max-w-52">
           <Combobox
             items={comboboxItems}
-            value={linkedPr?.id ?? ""}
-            onOpenChange={(open) => {
-              if (open) {
-                refetchPullRequests();
-              }
+            value={linkedPr?.externalKey ?? ""}
+            filter={(item, q) => {
+              const it = item as { pr?: MirrorEntity };
+              if (!it.pr) return true;
+              return entityMatchesQuery(it.pr, q);
             }}
             onValueChange={(value) => {
               const oldPrId = externalPrId ?? null;
-              const oldPr = pullRequests.find((pr) => pr.id === oldPrId);
+              const oldPr = pullRequests.find(
+                (pr) => pr.externalKey === oldPrId,
+              );
               // If clicking the same PR, unlink it
               const newPrId = oldPrId === value ? null : value || null;
               const newPr = newPrId
-                ? pullRequests.find((pr) => pr.id === newPrId)
+                ? pullRequests.find((pr) => pr.externalKey === newPrId)
                 : undefined;
               mutate.thread.update(threadId, {
                 externalPrId: newPrId,
@@ -147,10 +138,10 @@ export function PullRequestsSection({
                   oldPrId,
                   newPrId,
                   oldPrLabel: oldPr
-                    ? `${oldPr.repository.fullName}#${oldPr.number}`
+                    ? `${oldPr.repoFullName}#${oldPr.number}`
                     : null,
                   newPrLabel: newPr
-                    ? `${newPr.repository.fullName}#${newPr.number}`
+                    ? `${newPr.repoFullName}#${newPr.number}`
                     : null,
                   userName: user.name,
                 }),
@@ -164,8 +155,7 @@ export function PullRequestsSection({
                   new_pr_id: newPrId,
                   old_pr_number: oldPr?.number,
                   new_pr_number: newPr?.number,
-                  repository:
-                    newPr?.repository.fullName ?? oldPr?.repository.fullName,
+                  repository: newPr?.repoFullName ?? oldPr?.repoFullName,
                 },
               );
             }}

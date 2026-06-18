@@ -14,6 +14,7 @@ import {
 import { useState } from "react";
 import { useReactScanEnabled } from "../react-scan";
 import { CreateThreadDialog } from "./create-thread-dialog";
+import { GithubSubmenu } from "./github-submenu";
 import { SignalsSubmenu } from "./signals-submenu";
 import { ThreadsSubmenu } from "./threads-submenu";
 
@@ -54,6 +55,12 @@ export const DevtoolsMenu = ({ onHideToolbar }: DevtoolsMenuProps) => {
             <SubmenuTrigger>Signals</SubmenuTrigger>
             <SubmenuContent>
               <SignalsSubmenu />
+            </SubmenuContent>
+          </Submenu>
+          <Submenu>
+            <SubmenuTrigger>GitHub</SubmenuTrigger>
+            <SubmenuContent>
+              <GithubSubmenu />
             </SubmenuContent>
           </Submenu>
           <Submenu>

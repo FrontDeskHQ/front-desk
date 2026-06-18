@@ -1,13 +1,8 @@
 // TODO refactor with new live-state mental model
-import {
-  type ExternalIssue,
-  type ExternalPullRequest,
-  formatGitHubId,
-} from "@workspace/schemas/external-issue";
+import { formatGitHubId } from "@workspace/schemas/external-issue";
 import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
-import { createReadThroughCache } from "../../lib/cache/read-through.js";
 import {
   acceptInlineSuggestionInputSchema,
   acceptReadInputSchema,
@@ -30,173 +25,6 @@ import { schema } from "../schema";
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
-
-type FetchIssuesInput = {
-  organizationId: string;
-  state: string;
-  repos: Array<{ owner: string; name: string; fullName: string }>;
-  installationId: number;
-};
-
-type FetchPRsInput = {
-  organizationId: string;
-  state: string;
-  repos: Array<{ owner: string; name: string; fullName: string }>;
-  installationId: number;
-};
-
-// Helper function to fetch issues from GitHub
-const fetchIssuesFromGitHub = async (
-  input: FetchIssuesInput,
-): Promise<{ issues: ExternalIssue[]; count: number }> => {
-  const allIssues: ExternalIssue[] = [];
-
-  const results = await Promise.allSettled(
-    input.repos.map(async (repo) => {
-      const url = new URL("/api/issues", GITHUB_SERVER_URL);
-      url.searchParams.set("installation_id", input.installationId.toString());
-      url.searchParams.set("owner", repo.owner);
-      url.searchParams.set("repo", repo.name);
-      url.searchParams.set("state", input.state);
-
-      const response = await fetch(url.toString());
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch issues for ${repo.fullName}: ${response.statusText}`,
-        );
-      }
-
-      const data = (await response.json()) as {
-        issues: Array<{
-          id: number;
-          number: number;
-          title: string;
-          body: string;
-          state: string;
-          html_url: string;
-        }>;
-      };
-
-      return data.issues.map((issue) => ({
-        id: formatGitHubId(issue.id, repo.owner, repo.name),
-        number: issue.number,
-        title: issue.title,
-        body: issue.body,
-        state: issue.state,
-        url: issue.html_url,
-        repository: {
-          owner: repo.owner,
-          name: repo.name,
-          fullName: repo.fullName,
-        },
-      }));
-    }),
-  );
-
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      allIssues.push(...result.value);
-    } else {
-      console.error(`Error fetching issues:`, result.reason);
-    }
-  }
-
-  return { issues: allIssues, count: allIssues.length };
-};
-
-// Helper function to fetch pull requests from GitHub
-const fetchPRsFromGitHub = async (
-  input: FetchPRsInput,
-): Promise<{ pullRequests: ExternalPullRequest[]; count: number }> => {
-  const allPullRequests: ExternalPullRequest[] = [];
-
-  const results = await Promise.allSettled(
-    input.repos.map(async (repo) => {
-      const url = new URL("/api/pull-requests", GITHUB_SERVER_URL);
-      url.searchParams.set("installation_id", input.installationId.toString());
-      url.searchParams.set("owner", repo.owner);
-      url.searchParams.set("repo", repo.name);
-      url.searchParams.set("state", input.state);
-
-      const response = await fetch(url.toString());
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch pull requests for ${repo.fullName}: ${response.statusText}`,
-        );
-      }
-
-      const data = (await response.json()) as {
-        pullRequests: Array<{
-          id: number;
-          number: number;
-          title: string;
-          body: string;
-          state: string;
-          html_url: string;
-        }>;
-      };
-
-      return data.pullRequests.map((pr) => ({
-        id: formatGitHubId(pr.id, repo.owner, repo.name),
-        number: pr.number,
-        title: pr.title,
-        body: pr.body,
-        state: pr.state,
-        url: pr.html_url,
-        repository: {
-          owner: repo.owner,
-          name: repo.name,
-          fullName: repo.fullName,
-        },
-      }));
-    }),
-  );
-
-  for (const result of results) {
-    if (result.status === "fulfilled") {
-      allPullRequests.push(...result.value);
-    } else {
-      console.error(`Error fetching pull requests:`, result.reason);
-    }
-  }
-
-  return {
-    pullRequests: allPullRequests,
-    count: allPullRequests.length,
-  };
-};
-
-// Create cache instances for issues and PRs
-// Cache for 5 minutes with 1 minute stale-while-revalidate window
-const issuesCache = createReadThroughCache<
-  FetchIssuesInput,
-  { issues: ExternalIssue[]; count: number }
->({
-  namespace: "github-issues",
-  fetch: fetchIssuesFromGitHub,
-  ttl: 300000, // 5 minutes
-  swr: 30000, // 30 seconds stale-while-revalidate
-  keyGenerator: (input) =>
-    `${input.organizationId}:${input.state}:${JSON.stringify(
-      input.repos.map((r) => r.fullName).sort(),
-    )}:${input.installationId}`,
-});
-
-const pullRequestsCache = createReadThroughCache<
-  FetchPRsInput,
-  { pullRequests: ExternalPullRequest[]; count: number }
->({
-  namespace: "github-pull-requests",
-  fetch: fetchPRsFromGitHub,
-  ttl: 300000, // 5 minutes
-  swr: 30000, // 30 seconds stale-while-revalidate
-  keyGenerator: (input) =>
-    `${input.organizationId}:${input.state}:${JSON.stringify(
-      input.repos.map((r) => r.fullName).sort(),
-    )}:${input.installationId}`,
-});
 
 export default publicRoute
   .collectionRoute(schema.thread, {
@@ -498,139 +326,35 @@ export default publicRoute
     ).handler(async () => {
       return [];
     }),
+    /**
+     * @deprecated The web client now reads issues reactively from the
+     * org-scoped `externalEntity` mirror (synced via Live-State). This on-demand
+     * fetch is retired and stubbed to an empty result; the procedure surface is
+     * kept so the Router type stays stable until all consumers are confirmed
+     * migrated (FRO-185).
+     */
     fetchGithubIssues: mutation(
       z.object({
         organizationId: z.string(),
         state: z.enum(["open", "closed", "all"]).optional().default("open"),
       }),
-    ).handler(async ({ req, db }) => {
-      const organizationId = req.input.organizationId;
-
-      if (!organizationId) {
-        throw new Error("MISSING_ORGANIZATION_ID");
-      }
-
-      // Verify user has access to the organization
-      let authorized = !!req.context?.internalApiKey;
-
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        authorized = !!selfOrgUser;
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      // Get GitHub integration config
-      const integration = Object.values(
-        await db.find(schema.integration, {
-          where: {
-            organizationId,
-            type: "github",
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!integration || !integration.configStr) {
-        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
-      }
-
-      const config = JSON.parse(integration.configStr);
-      const { repos, installationId } = config;
-
-      if (!repos || repos.length === 0) {
-        throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
-      }
-
-      if (!installationId) {
-        throw new Error("GITHUB_INSTALLATION_NOT_CONFIGURED");
-      }
-
-      const result = await issuesCache.get({
-        organizationId,
-        state: req.input.state,
-        repos,
-        installationId,
-      });
-
-      return result;
+    ).handler(async () => {
+      return { issues: [], count: 0 };
     }),
+    /**
+     * @deprecated The web client now reads pull requests reactively from the
+     * org-scoped `externalEntity` mirror (synced via Live-State). This on-demand
+     * fetch is retired and stubbed to an empty result; the procedure surface is
+     * kept so the Router type stays stable until all consumers are confirmed
+     * migrated (FRO-185).
+     */
     fetchGithubPullRequests: mutation(
       z.object({
         organizationId: z.string(),
         state: z.enum(["open", "closed", "all"]).optional().default("open"),
       }),
-    ).handler(async ({ req, db }) => {
-      const organizationId = req.input.organizationId;
-
-      if (!organizationId) {
-        throw new Error("MISSING_ORGANIZATION_ID");
-      }
-
-      let authorized = !!req.context?.internalApiKey;
-
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        authorized = !!selfOrgUser;
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      const integration = Object.values(
-        await db.find(schema.integration, {
-          where: {
-            organizationId,
-            type: "github",
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!integration || !integration.configStr) {
-        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
-      }
-
-      const config = JSON.parse(integration.configStr);
-      const { repos, installationId } = config;
-
-      if (!repos || repos.length === 0) {
-        throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
-      }
-
-      if (!installationId) {
-        throw new Error("GITHUB_INSTALLATION_NOT_CONFIGURED");
-      }
-
-      const result = await pullRequestsCache.get({
-        organizationId,
-        state: req.input.state,
-        repos,
-        installationId,
-      });
-
-      return result;
+    ).handler(async () => {
+      return { pullRequests: [], count: 0 };
     }),
     createGithubIssue: mutation(
       z.object({
@@ -764,21 +488,8 @@ export default publicRoute
         replicatedStr: null,
       });
 
-      // Invalidate issues cache for "open" state since new issues are always open
-      await issuesCache.invalidate({
-        organizationId,
-        state: "open",
-        repos,
-        installationId,
-      });
-
-      // Also invalidate "all" state cache
-      await issuesCache.invalidate({
-        organizationId,
-        state: "all",
-        repos,
-        installationId,
-      });
+      // The created issue propagates into the `externalEntity` mirror via the
+      // GitHub webhook upsert, which syncs reactively to the web client.
 
       return {
         issue: {

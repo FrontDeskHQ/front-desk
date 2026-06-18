@@ -106,6 +106,7 @@ function App() {
               include: { messages: true },
             },
             autonomousActions: true,
+            externalEntities: true,
           },
         },
       }),
