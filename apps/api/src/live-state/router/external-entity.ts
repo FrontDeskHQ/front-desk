@@ -15,6 +15,19 @@ import { schema } from "../schema";
  * entities; only the integration (internal API key) writes.
  */
 
+const githubBackfillConfigSchema = z.object({
+  installationId: z.number().int().positive().optional(),
+  repos: z
+    .array(
+      z.object({
+        owner: z.string().min(1),
+        name: z.string().min(1),
+        fullName: z.string().min(1),
+      }),
+    )
+    .default([]),
+});
+
 const externalEntityFields = z.object({
   organizationId: z.string(),
   provider: z.string(),
@@ -184,12 +197,18 @@ export default privateRoute
         throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
       }
 
-      const config = JSON.parse(integration.configStr) as {
-        installationId?: number;
-        repos?: Array<{ owner: string; name: string; fullName: string }>;
-      };
-      const { repos, installationId } = config;
-      if (!repos || repos.length === 0) {
+      let rawConfig: unknown;
+      try {
+        rawConfig = JSON.parse(integration.configStr);
+      } catch {
+        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      }
+      const parsedConfig = githubBackfillConfigSchema.safeParse(rawConfig);
+      if (!parsedConfig.success) {
+        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      }
+      const { repos, installationId } = parsedConfig.data;
+      if (repos.length === 0) {
         throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
       }
       if (!installationId) {
@@ -209,7 +228,8 @@ export default privateRoute
       );
 
       const enqueued = results.filter(
-        (result) => result.status === "fulfilled",
+        (result): result is PromiseFulfilledResult<string> =>
+          result.status === "fulfilled" && result.value !== null,
       ).length;
 
       return { enqueued, repos: repos.length };

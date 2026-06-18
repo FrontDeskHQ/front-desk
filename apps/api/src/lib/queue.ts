@@ -232,7 +232,10 @@ export const enqueueGithubBackfill = async (
     return null;
   }
 
-  const jobId = `backfill_${data.organizationId}_${data.fullName.replace("/", "_")}`;
+  // Escape existing underscores before swapping the `/` separator so the jobId
+  // stays injective (e.g. `a_b/c` and `a/b_c` map to distinct ids).
+  const safeFullName = data.fullName.replaceAll("_", "__").replace("/", "_");
+  const jobId = `backfill_${data.organizationId}_${safeFullName}`;
   const job = await queue.add(GITHUB_BACKFILL_JOB_NAME, data, {
     jobId,
     attempts: 3,
