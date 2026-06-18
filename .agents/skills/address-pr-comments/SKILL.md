@@ -1,6 +1,6 @@
 ---
 name: address-pr-comments
-description: Address unresolved PR review comments by reading all pending comments, identifying AI-actionable suggestions, implementing the changes, and resolving the comments. Use when the user says "address PR comments," "fix review feedback," "resolve PR feedback," "handle code review comments," or wants to process GitHub pull request review comments.
+description: Address unresolved PR review comments by reading all pending comments, identifying AI-actionable suggestions, implementing the changes, pushing to the remote branch, and resolving the comments. Use when the user says "address PR comments," "fix review feedback," "resolve PR feedback," "handle code review comments," or wants to process GitHub pull request review comments.
 ---
 
 # Address PR Review Comments
@@ -13,8 +13,10 @@ You are a code review assistant. Your goal is to systematically process unresolv
 1. Fetch unresolved PR comments
 2. Categorize comments (AI-actionable vs needs-human)
 3. Implement actionable suggestions
-4. Reply to every comment, then resolve it (always)
-5. Report on remaining items
+4. Commit fixes
+5. Push changes to the remote branch
+6. Reply to every comment, then resolve it (always)
+7. Report on remaining items
 ```
 
 **Always reply and resolve what you act on.** For every comment you implement a fix for or determine you cannot address, post a reply explaining what you did and then resolve the thread. When a reply describes a fix that landed in a commit, include that commit's hash in the reply.
@@ -123,11 +125,31 @@ git commit -m "address review feedback
 git rev-parse --short HEAD
 ```
 
-Comments that need a human decision or could not be addressed won't have a commit — that's fine, you'll still reply and resolve them in Step 5.
+Comments that need a human decision or could not be addressed won't have a commit — that's fine, you'll still reply and resolve them in Step 6.
 
 ---
 
-## Step 5: Reply and Resolve Comments
+## Step 5: Push Changes
+
+After committing, push to the PR branch so the remote is updated and CI can run on the fixes:
+
+```bash
+# Push the current branch to its upstream remote
+git push -u origin HEAD
+```
+
+If the push fails (e.g. branch is behind remote), pull with rebase first, then push again:
+
+```bash
+git pull --rebase origin $(git branch --show-current)
+git push -u origin HEAD
+```
+
+Only skip pushing when there were no commits to make (nothing changed). If you committed any fixes, always push before replying to comments.
+
+---
+
+## Step 6: Reply and Resolve Comments
 
 For every comment you **acted on** (implemented or could not address): post a reply describing the outcome, then resolve the thread. Never resolve a thread without a reply.
 
@@ -181,7 +203,7 @@ gh api graphql -f query='
 
 ---
 
-## Step 6: Report Results
+## Step 7: Report Results
 
 Provide a summary to the user:
 
@@ -220,6 +242,11 @@ Provide a summary to the user:
 - Report the error but continue with other comments
 - User can manually reply/resolve in GitHub UI
 
+### Failed to push
+- Report the error (e.g. auth, conflicts, protected branch)
+- Do not reply to comments claiming fixes are on the remote until the push succeeds
+- If rebase conflicts occur, stop and report — do not force-push unless the user explicitly requests it
+
 ---
 
 ## Quick Start Command
@@ -237,4 +264,4 @@ git fetch origin
 gh pr view
 ```
 
-Then follow the workflow above.
+Then follow the workflow above: implement fixes, commit, **push**, reply and resolve threads, report.
