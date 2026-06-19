@@ -1,0 +1,10 @@
+import { defineConfig } from "tsdown";
+
+export default defineConfig({
+  entry: ["./src/index.ts"],
+  target: "node20.18",
+  clean: true,
+  dts: false,
+  platform: "node",
+  banner: "#!/usr/bin/env node",
+});
