@@ -20,6 +20,8 @@ import type { schema } from "api/schema";
 import { cva, type VariantProps } from "class-variance-authority";
 import {
   ArrowRight,
+  CircleCheck,
+  CircleDot,
   CircleUser,
   GitMerge,
   GitPullRequest,
@@ -338,6 +340,170 @@ function PrChipButton({
     >
       {children}
     </BaseButton>
+  );
+}
+
+type IssueState = "open" | "closed";
+
+const issueStateConfig: Record<
+  IssueState,
+  { label: string; icon: typeof CircleDot; className: string }
+> = {
+  open: {
+    label: "Open",
+    icon: CircleDot,
+    className: "text-green-600 dark:text-green-500",
+  },
+  closed: {
+    label: "Closed",
+    icon: CircleCheck,
+    className: "text-purple-600 dark:text-purple-500",
+  },
+};
+
+const getIssueState = (
+  entity: Pick<MirrorEntity, "state">,
+): IssueState => (entity.state === "closed" ? "closed" : "open");
+
+function IssueStateIndicator({ state }: { state: IssueState }) {
+  const { label, icon: Icon, className } = issueStateConfig[state];
+  return (
+    <Icon className={cn("size-3.5 shrink-0", className)} aria-label={label} />
+  );
+}
+
+function IssueSummaryCard({ entity }: { entity: MirrorEntity }) {
+  const issueState = getIssueState(entity);
+  const { label } = issueStateConfig[issueState];
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1.5">
+          <IssueStateIndicator state={issueState} />
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="font-medium text-sm text-foreground-primary truncate">
+              {entity.title}
+            </span>
+            <span className="text-sm text-foreground-secondary tabular-nums shrink-0">
+              #{entity.number}
+            </span>
+          </div>
+          <span className="text-sm text-foreground-secondary shrink-0">
+            {label}
+          </span>
+        </div>
+      </div>
+      <Separator />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Repository</div>
+          <span className="text-sm truncate">{entity.repoFullName}</span>
+        </div>
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Author</div>
+          <span className="text-sm truncate">
+            {entity.authorLogin ?? "Unknown"}
+          </span>
+        </div>
+      </div>
+      {entity.labels.length > 0 ? (
+        <>
+          <Separator />
+          <div className="flex flex-wrap gap-1">
+            {entity.labels.map((labelName) => (
+              <span
+                key={labelName}
+                className="rounded-sm bg-foreground-tertiary/15 px-1.5 py-0.5 text-xs text-foreground-secondary"
+              >
+                {labelName}
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function IssueSummaryHoverCard({
+  entity,
+  children,
+  ...props
+}: Omit<React.ComponentProps<typeof HoverCard>, "children"> & {
+  entity: MirrorEntity;
+  children: React.ReactElement;
+}) {
+  return (
+    <HoverCard {...props}>
+      <HoverCardTrigger render={children} />
+      <HoverCardContent className="max-w-96 w-full flex flex-col gap-3">
+        <IssueSummaryCard entity={entity} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+export function IssueChip({
+  owner,
+  repo,
+  number,
+  url,
+  disabled = false,
+  className,
+  ...props
+}: Omit<React.ComponentProps<typeof BaseButton>, "children" | "render"> &
+  VariantProps<typeof threadChipVariants> & {
+    owner: string;
+    repo: string;
+    number: number;
+    url: string;
+  }) {
+  const entity = useMirrorEntityByRef({
+    type: "issue",
+    repoFullName: `${owner}/${repo}`,
+    number,
+  });
+
+  if (entity) {
+    const issueState = getIssueState(entity);
+    const { label } = issueStateConfig[issueState];
+
+    const chip = (
+      <PrChipButton
+        url={entity.url}
+        ariaLabel={`Issue ${entity.repoFullName}#${entity.number}: ${entity.title} (${label}, opens in new tab)`}
+        disabled={disabled}
+        className={className}
+        {...props}
+      >
+        <IssueStateIndicator state={issueState} />
+        <span className="text-foreground-primary truncate max-w-48">
+          {entity.title}
+        </span>
+        <span className="text-foreground-secondary tabular-nums shrink-0">
+          #{entity.number}
+        </span>
+      </PrChipButton>
+    );
+
+    return <IssueSummaryHoverCard entity={entity}>{chip}</IssueSummaryHoverCard>;
+  }
+
+  return (
+    <PrChipButton
+      url={url}
+      ariaLabel={`Issue ${owner}/${repo}#${number} (opens in new tab)`}
+      disabled={disabled}
+      className={className}
+      {...props}
+    >
+      <CircleDot className="size-3.5 text-foreground-secondary shrink-0" />
+      <span className="text-foreground-primary">
+        {owner}/{repo}
+      </span>
+      <span className="text-foreground-secondary tabular-nums">#{number}</span>
+    </PrChipButton>
   );
 }
 
