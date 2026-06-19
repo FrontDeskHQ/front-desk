@@ -1,3 +1,5 @@
+"use client";
+
 import { Button as BaseButton } from "@base-ui/react";
 import type { InferLiveObject } from "@live-state/sync";
 import { Avatar } from "@workspace/ui/components/avatar";
@@ -16,7 +18,20 @@ import { Separator } from "@workspace/ui/components/separator";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { cva, type VariantProps } from "class-variance-authority";
-import { CircleUser, GitPullRequest } from "lucide-react";
+import {
+  ArrowRight,
+  CircleUser,
+  GitMerge,
+  GitPullRequest,
+  GitPullRequestClosed,
+  GitPullRequestDraft,
+} from "lucide-react";
+import {
+  getPullRequestState,
+  type MirrorEntity,
+  type PullRequestState,
+  useMirrorEntityByRef,
+} from "~/components/threads/external-entities";
 
 const threadChipVariants = cva(
   "flex items-center w-fit gap-1.5 cursor-default text-xs border h-6 rounded-sm px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors",
@@ -171,9 +186,161 @@ export function ThreadSummaryHoverCard({
   );
 }
 
-// TODO: surface live PR data (title + state) in a hover card by reading the
-// org-scoped `externalEntity` mirror via useLiveQuery, mirroring
-// ThreadChipWithSummary.
+const pullRequestStateConfig: Record<
+  PullRequestState,
+  { label: string; icon: typeof GitPullRequest; className: string }
+> = {
+  open: {
+    label: "Open",
+    icon: GitPullRequest,
+    className: "text-green-600 dark:text-green-500",
+  },
+  closed: {
+    label: "Closed",
+    icon: GitPullRequestClosed,
+    className: "text-red-600 dark:text-red-500",
+  },
+  merged: {
+    label: "Merged",
+    icon: GitMerge,
+    className: "text-purple-600 dark:text-purple-500",
+  },
+  draft: {
+    label: "Draft",
+    icon: GitPullRequestDraft,
+    className: "text-foreground-secondary",
+  },
+};
+
+function PrStateIndicator({ state }: { state: PullRequestState }) {
+  const { label, icon: Icon, className } = pullRequestStateConfig[state];
+  return (
+    <Icon className={cn("size-3.5 shrink-0", className)} aria-label={label} />
+  );
+}
+
+function PrSummaryCard({ entity }: { entity: MirrorEntity }) {
+  const prState = getPullRequestState(entity);
+  const { label } = pullRequestStateConfig[prState];
+
+  return (
+    <>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center gap-1.5">
+          <PrStateIndicator state={prState} />
+          <div className="flex min-w-0 flex-1 items-center gap-1.5">
+            <span className="font-medium text-sm text-foreground-primary truncate">
+              {entity.title}
+            </span>
+            <span className="text-sm text-foreground-secondary tabular-nums shrink-0">
+              #{entity.number}
+            </span>
+          </div>
+          <span className="text-sm text-foreground-secondary shrink-0">
+            {label}
+          </span>
+        </div>
+        {entity.headRef || entity.baseRef ? (
+          <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground font-mono">
+            {entity.headRef ? (
+              <span className="truncate">{entity.headRef}</span>
+            ) : null}
+            {entity.headRef && entity.baseRef ? (
+              <ArrowRight
+                className="size-3.5 shrink-0 text-foreground-secondary"
+                aria-hidden="true"
+              />
+            ) : null}
+            {entity.baseRef ? (
+              <span className="truncate">{entity.baseRef}</span>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
+      <Separator />
+      <div className="grid grid-cols-2 gap-3">
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Repository</div>
+          <span className="text-sm truncate">{entity.repoFullName}</span>
+        </div>
+        <div className="flex flex-col gap-1 min-w-0">
+          <div className="text-xs text-muted-foreground">Author</div>
+          <span className="text-sm truncate">
+            {entity.authorLogin ?? "Unknown"}
+          </span>
+        </div>
+      </div>
+      {entity.labels.length > 0 ? (
+        <>
+          <Separator />
+          <div className="flex flex-wrap gap-1">
+            {entity.labels.map((labelName) => (
+              <span
+                key={labelName}
+                className="rounded-sm bg-foreground-tertiary/15 px-1.5 py-0.5 text-xs text-foreground-secondary"
+              >
+                {labelName}
+              </span>
+            ))}
+          </div>
+        </>
+      ) : null}
+    </>
+  );
+}
+
+function PrSummaryHoverCard({
+  entity,
+  children,
+  ...props
+}: Omit<React.ComponentProps<typeof HoverCard>, "children"> & {
+  entity: MirrorEntity;
+  children: React.ReactElement;
+}) {
+  return (
+    <HoverCard {...props}>
+      <HoverCardTrigger render={children} />
+      <HoverCardContent className="max-w-96 w-full flex flex-col gap-3">
+        <PrSummaryCard entity={entity} />
+      </HoverCardContent>
+    </HoverCard>
+  );
+}
+
+type PrChipButtonProps = Omit<
+  React.ComponentProps<typeof BaseButton>,
+  "children" | "render"
+> &
+  VariantProps<typeof threadChipVariants> & {
+    url: string;
+    ariaLabel: string;
+    children: React.ReactNode;
+  };
+
+function PrChipButton({
+  url,
+  ariaLabel,
+  disabled = false,
+  className,
+  children,
+  ...props
+}: PrChipButtonProps) {
+  return (
+    <BaseButton
+      type="button"
+      className={cn(threadChipVariants({ disabled }), className)}
+      disabled={disabled ?? false}
+      render={
+        // biome-ignore lint/a11y/useAnchorContent: Content is provided via children
+        <a href={url} target="_blank" rel="noreferrer" aria-label={ariaLabel} />
+      }
+      {...props}
+    >
+      {children}
+    </BaseButton>
+  );
+}
+
 export function PrChip({
   owner,
   repo,
@@ -189,20 +356,43 @@ export function PrChip({
     number: number;
     url: string;
   }) {
+  const entity = useMirrorEntityByRef({
+    type: "pull_request",
+    repoFullName: `${owner}/${repo}`,
+    number,
+  });
+
+  if (entity) {
+    const prState = getPullRequestState(entity);
+    const { label } = pullRequestStateConfig[prState];
+
+    const chip = (
+      <PrChipButton
+        url={entity.url}
+        ariaLabel={`Pull request ${entity.repoFullName}#${entity.number}: ${entity.title} (${label}, opens in new tab)`}
+        disabled={disabled}
+        className={className}
+        {...props}
+      >
+        <PrStateIndicator state={prState} />
+        <span className="text-foreground-primary truncate max-w-48">
+          {entity.title}
+        </span>
+        <span className="text-foreground-secondary tabular-nums shrink-0">
+          #{entity.number}
+        </span>
+      </PrChipButton>
+    );
+
+    return <PrSummaryHoverCard entity={entity}>{chip}</PrSummaryHoverCard>;
+  }
+
   return (
-    <BaseButton
-      type="button"
-      className={cn(threadChipVariants({ disabled }), className)}
-      disabled={disabled ?? false}
-      render={
-        // biome-ignore lint/a11y/useAnchorContent: Content is provided via children
-        <a
-          href={url}
-          target="_blank"
-          rel="noreferrer"
-          aria-label={`Pull request ${owner}/${repo}#${number} (opens in new tab)`}
-        />
-      }
+    <PrChipButton
+      url={url}
+      ariaLabel={`Pull request ${owner}/${repo}#${number} (opens in new tab)`}
+      disabled={disabled}
+      className={className}
       {...props}
     >
       <GitPullRequest className="size-3.5 text-foreground-secondary shrink-0" />
@@ -210,7 +400,7 @@ export function PrChip({
         {owner}/{repo}
       </span>
       <span className="text-foreground-secondary tabular-nums">#{number}</span>
-    </BaseButton>
+    </PrChipButton>
   );
 }
 

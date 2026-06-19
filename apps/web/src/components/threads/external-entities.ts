@@ -27,6 +27,22 @@ export type MirrorEntity = {
   authorLogin: string | null;
   assignees: string[];
   labels: string[];
+  merged: boolean | null;
+  draft: boolean | null;
+  headRef: string | null;
+  baseRef: string | null;
+};
+
+export type PullRequestState = "draft" | "open" | "closed" | "merged";
+
+/** Derives the display state for a mirrored pull request. */
+export const getPullRequestState = (
+  entity: Pick<MirrorEntity, "state" | "merged" | "draft">,
+): PullRequestState => {
+  if (entity.draft) return "draft";
+  if (entity.merged) return "merged";
+  if (entity.state === "closed") return "closed";
+  return "open";
 };
 
 /**
@@ -89,6 +105,10 @@ type MirrorEntityRow = Pick<
   | "authorLogin"
   | "assignees"
   | "labels"
+  | "merged"
+  | "draft"
+  | "headRef"
+  | "baseRef"
 >;
 
 const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
@@ -104,6 +124,10 @@ const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
   authorLogin: row.authorLogin,
   assignees: row.assignees,
   labels: row.labels,
+  merged: row.merged,
+  draft: row.draft,
+  headRef: row.headRef,
+  baseRef: row.baseRef,
 });
 
 /**
