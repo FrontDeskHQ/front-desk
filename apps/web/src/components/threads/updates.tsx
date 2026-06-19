@@ -25,6 +25,128 @@ const getMetadataString = (
   return typeof value === "string" ? value : null;
 };
 
+const useResolvedMirrorLabel = (
+  externalKey: string | null,
+  metadata: { [key: string]: unknown } | null,
+  fallbackKey: string,
+): string | null => {
+  const entity = useMirrorEntityByKey(externalKey);
+  return resolveMirrorEntityLabel(
+    entity,
+    getMetadataString(metadata, fallbackKey),
+  );
+};
+
+const IssueChangedUpdateText = ({
+  metadata,
+}: {
+  metadata: { [key: string]: unknown } | null;
+}) => {
+  const oldIssueLabel = useResolvedMirrorLabel(
+    getMetadataString(metadata, "oldIssueId"),
+    metadata,
+    "oldIssueLabel",
+  );
+  const newIssueLabel = useResolvedMirrorLabel(
+    getMetadataString(metadata, "newIssueId"),
+    metadata,
+    "newIssueLabel",
+  );
+
+  if (!oldIssueLabel && newIssueLabel) {
+    return (
+      <>
+        linked issue <span className="text-foreground">{newIssueLabel}</span>
+      </>
+    );
+  }
+
+  if (oldIssueLabel && !newIssueLabel) {
+    return (
+      <>
+        unlinked issue <span className="text-foreground">{oldIssueLabel}</span>
+      </>
+    );
+  }
+
+  if (oldIssueLabel && newIssueLabel) {
+    return (
+      <>
+        changed issue from{" "}
+        <span className="text-foreground">{oldIssueLabel}</span> to{" "}
+        <span className="text-foreground">{newIssueLabel}</span>
+      </>
+    );
+  }
+
+  return "changed issue";
+};
+
+const PrChangedUpdateText = ({
+  metadata,
+  verbPrefix,
+}: {
+  metadata: { [key: string]: unknown } | null;
+  verbPrefix: string;
+}) => {
+  const oldPrLabel = useResolvedMirrorLabel(
+    getMetadataString(metadata, "oldPrId"),
+    metadata,
+    "oldPrLabel",
+  );
+  const newPrLabel = useResolvedMirrorLabel(
+    getMetadataString(metadata, "newPrId"),
+    metadata,
+    "newPrLabel",
+  );
+
+  if (!oldPrLabel && newPrLabel) {
+    return (
+      <>
+        {verbPrefix}linked PR{" "}
+        <span className="text-foreground">{newPrLabel}</span>
+      </>
+    );
+  }
+
+  if (oldPrLabel && !newPrLabel) {
+    return (
+      <>
+        unlinked PR <span className="text-foreground">{oldPrLabel}</span>
+      </>
+    );
+  }
+
+  if (oldPrLabel && newPrLabel) {
+    return (
+      <>
+        changed PR from <span className="text-foreground">{oldPrLabel}</span> to{" "}
+        <span className="text-foreground">{newPrLabel}</span>
+      </>
+    );
+  }
+
+  return "changed PR";
+};
+
+const GithubIssueCreatedUpdateText = ({
+  metadata,
+}: {
+  metadata: { [key: string]: unknown } | null;
+}) => {
+  const issueLabel = useResolvedMirrorLabel(
+    getMetadataString(metadata, "issueId"),
+    metadata,
+    "issueLabel",
+  );
+
+  return (
+    <>
+      created issue <span className="text-foreground">{issueLabel}</span>
+    </>
+  );
+};
+
 export function Update({
   update,
   user,
@@ -42,47 +164,6 @@ export function Update({
       console.error("Error parsing update metadata:", error);
     }
   }
-
-  const isIssueChanged = update.type === "issue_changed";
-  const isPrChanged = update.type === "pr_changed";
-  const isGithubIssueCreated = update.type === "github_issue_created";
-
-  const oldIssueEntity = useMirrorEntityByKey(
-    isIssueChanged ? getMetadataString(metadata, "oldIssueId") : null,
-  );
-  const newIssueEntity = useMirrorEntityByKey(
-    isIssueChanged ? getMetadataString(metadata, "newIssueId") : null,
-  );
-  const oldPrEntity = useMirrorEntityByKey(
-    isPrChanged ? getMetadataString(metadata, "oldPrId") : null,
-  );
-  const newPrEntity = useMirrorEntityByKey(
-    isPrChanged ? getMetadataString(metadata, "newPrId") : null,
-  );
-  const createdIssueEntity = useMirrorEntityByKey(
-    isGithubIssueCreated ? getMetadataString(metadata, "issueId") : null,
-  );
-
-  const oldIssueLabel = resolveMirrorEntityLabel(
-    oldIssueEntity,
-    getMetadataString(metadata, "oldIssueLabel"),
-  );
-  const newIssueLabel = resolveMirrorEntityLabel(
-    newIssueEntity,
-    getMetadataString(metadata, "newIssueLabel"),
-  );
-  const oldPrLabel = resolveMirrorEntityLabel(
-    oldPrEntity,
-    getMetadataString(metadata, "oldPrLabel"),
-  );
-  const newPrLabel = resolveMirrorEntityLabel(
-    newPrEntity,
-    getMetadataString(metadata, "newPrLabel"),
-  );
-  const createdIssueLabel = resolveMirrorEntityLabel(
-    createdIssueEntity,
-    getMetadataString(metadata, "issueLabel"),
-  );
 
   const assignedUser = useLiveQuery(
     query.user.first({ id: metadata?.newAssignedUserId }),
@@ -155,75 +236,17 @@ export function Update({
     }
 
     if (update.type === "issue_changed") {
-      if (!oldIssueLabel && newIssueLabel) {
-        return (
-          <>
-            linked issue{" "}
-            <span className="text-foreground">{newIssueLabel}</span>
-          </>
-        );
-      }
-
-      if (oldIssueLabel && !newIssueLabel) {
-        return (
-          <>
-            unlinked issue{" "}
-            <span className="text-foreground">{oldIssueLabel}</span>
-          </>
-        );
-      }
-
-      if (oldIssueLabel && newIssueLabel) {
-        return (
-          <>
-            changed issue from{" "}
-            <span className="text-foreground">{oldIssueLabel}</span> to{" "}
-            <span className="text-foreground">{newIssueLabel}</span>
-          </>
-        );
-      }
-
-      return `changed issue`;
+      return <IssueChangedUpdateText metadata={metadata} />;
     }
 
     if (update.type === "pr_changed") {
-      if (!oldPrLabel && newPrLabel) {
-        return (
-          <>
-            {verbPrefix}linked PR{" "}
-            <span className="text-foreground">{newPrLabel}</span>
-          </>
-        );
-      }
-
-      if (oldPrLabel && !newPrLabel) {
-        return (
-          <>
-            unlinked PR <span className="text-foreground">{oldPrLabel}</span>
-          </>
-        );
-      }
-
-      if (oldPrLabel && newPrLabel) {
-        return (
-          <>
-            changed PR from{" "}
-            <span className="text-foreground">{oldPrLabel}</span> to{" "}
-            <span className="text-foreground">{newPrLabel}</span>
-          </>
-        );
-      }
-
-      return `changed PR`;
+      return (
+        <PrChangedUpdateText metadata={metadata} verbPrefix={verbPrefix} />
+      );
     }
 
     if (update.type === "github_issue_created") {
-      return (
-        <>
-          created issue{" "}
-          <span className="text-foreground">{createdIssueLabel}</span>
-        </>
-      );
+      return <GithubIssueCreatedUpdateText metadata={metadata} />;
     }
 
     if (update.type === "marked_duplicate") {
