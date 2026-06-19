@@ -99,9 +99,14 @@ const getQueue = (): Queue<BackfillJobData> => {
  *
  * BullMQ reserves `:` as a Redis key separator and rejects it in custom job
  * ids, so the parts are joined with `_` (and `fullName`'s `/` is replaced too).
+ * Underscores in `fullName` are escaped first so the id stays injective and
+ * matches the scheme used by the API's `enqueueGithubBackfill`.
  */
+const safeFullName = (fullName: string): string =>
+  fullName.replaceAll("_", "__").replace("/", "_");
+
 export const enqueueRepoBackfill = async (data: BackfillJobData) => {
-  const jobId = `backfill_${data.organizationId}_${data.fullName.replace("/", "_")}`;
+  const jobId = `backfill_${data.organizationId}_${safeFullName(data.fullName)}`;
   await getQueue().add(BACKFILL_JOB_NAME, data, {
     jobId,
     attempts: 3,
@@ -147,7 +152,7 @@ export const ensureReconcileScheduler = async () => {
  * is also idempotent (upsert-by-externalKey).
  */
 export const enqueueRepoReconcile = async (data: ReconcileRepoJobData) => {
-  const jobId = `reconcile_${data.organizationId}_${data.fullName.replace("/", "_")}`;
+  const jobId = `reconcile_${data.organizationId}_${safeFullName(data.fullName)}`;
   await getReconcileQueue().add(RECONCILE_REPO_JOB_NAME, data, {
     jobId,
     attempts: 3,

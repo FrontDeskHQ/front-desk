@@ -1,9 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { useMutation, useQuery } from "@tanstack/react-query";
-import type {
-  ExternalIssue,
-  ExternalRepository,
-} from "@workspace/schemas/external-issue";
+import { useMutation } from "@tanstack/react-query";
+import type { ExternalRepository } from "@workspace/schemas/external-issue";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -46,11 +43,18 @@ import {
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useAtomValue } from "jotai/react";
 import { Github, Loader2, Plus, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
+import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
+
+/** The facets the link UI needs to display a linked issue (mirror row subset). */
+type LinkedIssue = Pick<
+  MirrorEntity,
+  "externalKey" | "number" | "title" | "repoFullName"
+>;
 
 interface IssuesSectionProps {
   threadId: string;
@@ -59,7 +63,7 @@ interface IssuesSectionProps {
   threadName?: string;
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>
+    properties?: Record<string, unknown>,
   ) => void;
 }
 
@@ -76,46 +80,47 @@ export function IssuesSection({
   const [issueBody, setIssueBody] = useState("");
   const [selectedRepo, setSelectedRepo] = useState<string>("");
   const [search, setSearch] = useState("");
-  const [optimisticIssue, setOptimisticIssue] = useState<ExternalIssue | null>(
-    null
+  const [optimisticIssue, setOptimisticIssue] = useState<LinkedIssue | null>(
+    null,
   );
 
   const githubIntegration = useLiveQuery(
     query.integration.first({
       organizationId: currentOrg?.id,
       type: "github",
-    })
+    }),
   );
 
-  const { data: allIssues, refetch: refetchIssues } = useQuery({
-    queryKey: [
-      "github-issues",
-      currentOrg?.id,
-      githubIntegration?.enabled,
-      githubIntegration?.configStr,
-    ],
-    queryFn: () => {
-      if (!currentOrg) return { issues: [], count: 0 };
+  // Reactive mirror of the org's GitHub issues, synced via Live-State. Replaces
+  // the on-demand `thread.fetchGithubIssues` fetch.
+  const issues =
+    useLiveQuery(
+      query.externalEntity.where({
+        organizationId: currentOrg?.id,
+        type: "issue",
+        deletedAt: null,
+      }),
+    ) ?? [];
 
-      // Check if GitHub integration is enabled and configured
-      if (!githubIntegration?.enabled || !githubIntegration?.configStr) {
-        return { issues: [], count: 0 };
-      }
+  // Once the created issue lands in the mirror (via webhook upsert), drop the
+  // optimistic placeholder and let the synced row take over.
+  useEffect(() => {
+    if (
+      optimisticIssue &&
+      issues.some((issue) => issue.externalKey === optimisticIssue.externalKey)
+    ) {
+      setOptimisticIssue(null);
+    }
+  }, [issues, optimisticIssue]);
 
-      return fetchClient.mutate.thread.fetchGithubIssues({
-        organizationId: currentOrg.id,
-        state: "open",
-      });
-    },
-    enabled: !!currentOrg && !!githubIntegration?.enabled,
-  });
-
-  const issues = (allIssues?.issues ?? []) as ExternalIssue[];
+  // The link list only offers open issues; the linked issue itself resolves from
+  // the full mirror so an already-linked closed issue still displays.
+  const openIssues = issues.filter((issue) => issue.state === "open");
 
   const comboboxItems = prepareFooter(
-    issues.map((issue) => ({
-      value: issue.id ?? "",
-      label: `${issue.repository.fullName}#${issue.number} ${issue.title}`,
+    openIssues.map((issue) => ({
+      value: issue.externalKey,
+      label: `${issue.repoFullName}#${issue.number} ${issue.title}`,
       issue,
     })),
     [
@@ -123,12 +128,14 @@ export function IssuesSection({
         value: `footer:create_issue`,
         label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
       },
-    ]
+    ],
   );
 
-  const linkedIssue = optimisticIssue
-    ? optimisticIssue
-    : issues.find((issue) => issue.id === externalIssueId);
+  const linkedIssue: LinkedIssue | undefined =
+    issues.find((issue) => issue.externalKey === externalIssueId) ??
+    (optimisticIssue?.externalKey === externalIssueId
+      ? optimisticIssue
+      : undefined);
 
   const repos: ExternalRepository[] = githubIntegration?.configStr
     ? (() => {
@@ -181,25 +188,16 @@ export function IssuesSection({
       const repo = repos.find((r) => r.fullName === selectedRepo);
       if (!repo || !result?.issue) return;
 
-      // Create optimistic issue object
-      const optimisticIssueData: ExternalIssue = {
-        id: result.issue.id,
+      // Optimistic placeholder so the link shows immediately; the real mirror
+      // row arrives shortly after via the GitHub webhook upsert.
+      setOptimisticIssue({
+        externalKey: result.issue.id,
         number: result.issue.number,
         title: result.issue.title || variables.title,
-        body: result.issue.body || variables.body,
-        state: result.issue.state || "open",
-        url: result.issue.url,
-        repository: {
-          owner: repo.owner,
-          name: repo.name,
-          fullName: repo.fullName,
-        },
-      };
+        repoFullName: repo.fullName,
+      });
 
-      // Set optimistic issue state
-      setOptimisticIssue(optimisticIssueData);
-
-      // Link the thread to the newly created issue
+      // Link the thread to the newly created issue by its externalKey.
       mutate.thread.update(threadId, {
         externalIssueId: result.issue.id,
       });
@@ -220,13 +218,6 @@ export function IssuesSection({
       });
 
       setShowCreateDialog(false);
-
-      // After 3 seconds, invalidate query and remove optimistic value
-      setTimeout(() => {
-        refetchIssues().finally(() => {
-          setOptimisticIssue(null);
-        });
-      }, 3000);
     },
     onError: (error) => {
       console.error("Failed to create issue:", error);
@@ -265,7 +256,7 @@ export function IssuesSection({
       metadataStr: JSON.stringify({
         oldIssueId: externalIssueId,
         newIssueId: null,
-        oldIssueLabel: `${linkedIssue.repository.fullName}#${linkedIssue.number}`,
+        oldIssueLabel: `${linkedIssue.repoFullName}#${linkedIssue.number}`,
         newIssueLabel: null,
         userName: user.name,
       }),
@@ -275,7 +266,7 @@ export function IssuesSection({
     captureThreadEvent("thread:issue_unlink", {
       old_issue_id: externalIssueId,
       old_issue_number: linkedIssue.number,
-      repository: linkedIssue.repository.fullName,
+      repository: linkedIssue.repoFullName,
     });
   };
 
@@ -288,11 +279,16 @@ export function IssuesSection({
         <div className="flex gap-1 items-center group w-full max-w-52">
           <Combobox
             items={comboboxItems}
-            value={linkedIssue?.id ?? ""}
-            onOpenChange={(open) => {
-              if (open) {
-                refetchIssues();
-              }
+            value={linkedIssue?.externalKey ?? ""}
+            filter={(item, q) => {
+              const it = item as { value?: string; issue?: MirrorEntity };
+              if (
+                typeof it.value === "string" &&
+                it.value.startsWith("footer:")
+              )
+                return true;
+              if (!it.issue) return true;
+              return entityMatchesQuery(it.issue, q);
             }}
             onValueChange={(value) => {
               if (value?.startsWith("footer:")) {
@@ -300,11 +296,13 @@ export function IssuesSection({
               }
 
               const oldIssueId = externalIssueId ?? null;
-              const oldIssue = issues.find((issue) => issue.id === oldIssueId);
+              const oldIssue = issues.find(
+                (issue) => issue.externalKey === oldIssueId,
+              );
               // If clicking the same issue, unlink it
               const newIssueId = oldIssueId === value ? null : value || null;
               const newIssue = newIssueId
-                ? issues.find((issue) => issue.id === newIssueId)
+                ? issues.find((issue) => issue.externalKey === newIssueId)
                 : undefined;
               mutate.thread.update(threadId, {
                 externalIssueId: newIssueId,
@@ -319,10 +317,10 @@ export function IssuesSection({
                   oldIssueId,
                   newIssueId,
                   oldIssueLabel: oldIssue
-                    ? `${oldIssue.repository.fullName}#${oldIssue.number}`
+                    ? `${oldIssue.repoFullName}#${oldIssue.number}`
                     : null,
                   newIssueLabel: newIssue
-                    ? `${newIssue.repository.fullName}#${newIssue.number}`
+                    ? `${newIssue.repoFullName}#${newIssue.number}`
                     : null,
                   userName: user.name,
                 }),
@@ -335,13 +333,13 @@ export function IssuesSection({
                   new_issue_id: newIssueId,
                   old_issue_number: oldIssue?.number,
                   new_issue_number: newIssue?.number,
-                  repository: newIssue?.repository.fullName,
+                  repository: newIssue?.repoFullName,
                 });
               } else {
                 captureThreadEvent("thread:issue_unlink", {
                   old_issue_id: oldIssueId,
                   old_issue_number: oldIssue?.number,
-                  repository: oldIssue?.repository.fullName,
+                  repository: oldIssue?.repoFullName,
                 });
               }
             }}
@@ -375,7 +373,6 @@ export function IssuesSection({
               }
             />
             <ComboboxContent className="w-60 max-h-120" side="left">
-              {/* //TODO: Improve search functionality by searching the issue number */}
               <ComboboxInput
                 placeholder="Search..."
                 value={search}
@@ -391,7 +388,7 @@ export function IssuesSection({
                       className="overflow-auto grow shrink"
                     >
                       <ComboboxGroupContent>
-                        {(item: BaseItem & { issue: ExternalIssue }) => (
+                        {(item: BaseItem & { issue: MirrorEntity }) => (
                           <ComboboxItem key={item.value} value={item.value}>
                             <span>#{item.issue.number}</span>
                             <span className="truncate">{item.issue.title}</span>

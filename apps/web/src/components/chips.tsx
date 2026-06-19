@@ -171,9 +171,9 @@ export function ThreadSummaryHoverCard({
   );
 }
 
-// TODO: fetch live PR data (title + state) via
-// fetchClient.mutate.thread.fetchGithubPullRequests and surface it in a hover
-// card, mirroring ThreadChipWithSummary.
+// TODO: surface live PR data (title + state) in a hover card by reading the
+// org-scoped `externalEntity` mirror via useLiveQuery, mirroring
+// ThreadChipWithSummary.
 export function PrChip({
   owner,
   repo,

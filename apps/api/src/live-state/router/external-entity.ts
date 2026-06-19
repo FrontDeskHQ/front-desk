@@ -1,6 +1,7 @@
 // TODO refactor with new live-state mental model
 import { ulid } from "ulid";
 import { z } from "zod";
+import { enqueueGithubBackfill } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -13,6 +14,19 @@ import { schema } from "../schema";
  * `lastSyncedAt` / `deletedAt` bookkeeping. Org members read their own org's
  * entities; only the integration (internal API key) writes.
  */
+
+const githubBackfillConfigSchema = z.object({
+  installationId: z.number().int().positive().optional(),
+  repos: z
+    .array(
+      z.object({
+        owner: z.string().min(1),
+        name: z.string().min(1),
+        fullName: z.string().min(1),
+      }),
+    )
+    .default([]),
+});
 
 const externalEntityFields = z.object({
   organizationId: z.string(),
@@ -136,5 +150,88 @@ export default privateRoute
         });
         return existing.id;
       });
+    }),
+
+    /**
+     * Dev-only manual sync: enqueue a full issue/PR backfill for each connected
+     * repo, populating the mirror without webhooks (which aren't wired up
+     * locally). The github app owns the backfill worker that processes the jobs;
+     * this just kicks them off. Refuses to run in production, where webhooks +
+     * the daily reconcile keep the mirror current.
+     */
+    syncFromGithub: mutation(
+      z.object({
+        organizationId: z.string(),
+      }),
+    ).handler(async ({ req, db }) => {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error("DEV_ONLY");
+      }
+
+      const { organizationId } = req.input;
+
+      // Authorize: internal key, or a session user who belongs to the org.
+      let authorized = !!req.context?.internalApiKey;
+      if (!authorized && req.context?.session?.userId) {
+        const selfOrgUser = Object.values(
+          await db.find(schema.organizationUser, {
+            where: {
+              organizationId,
+              userId: req.context.session.userId,
+              enabled: true,
+            },
+          }),
+        )[0];
+        authorized = !!selfOrgUser;
+      }
+      if (!authorized) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const integration = Object.values(
+        await db.find(schema.integration, {
+          where: { organizationId, type: "github", enabled: true },
+        }),
+      )[0];
+      if (!integration || !integration.configStr) {
+        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      }
+
+      let rawConfig: unknown;
+      try {
+        rawConfig = JSON.parse(integration.configStr);
+      } catch {
+        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      }
+      const parsedConfig = githubBackfillConfigSchema.safeParse(rawConfig);
+      if (!parsedConfig.success) {
+        throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      }
+      const { repos, installationId } = parsedConfig.data;
+      if (repos.length === 0) {
+        throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
+      }
+      if (!installationId) {
+        throw new Error("GITHUB_INSTALLATION_NOT_CONFIGURED");
+      }
+
+      const results = await Promise.allSettled(
+        repos.map((repo) =>
+          enqueueGithubBackfill({
+            organizationId,
+            installationId,
+            owner: repo.owner,
+            repo: repo.name,
+            fullName: repo.fullName,
+          }),
+        ),
+      );
+
+      const enqueued = results.filter(
+        (result): result is PromiseFulfilledResult<string> =>
+          result.status === "fulfilled" && result.value !== null,
+      ).length;
+
+      return { enqueued, repos: repos.length };
     }),
   }));
