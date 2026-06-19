@@ -5,6 +5,11 @@
  * retired on-demand GitHub fetch procedures.
  */
 
+import { useLiveQuery } from "@live-state/sync/client";
+import { useAtomValue } from "jotai/react";
+import { activeOrganizationAtom } from "~/lib/atoms";
+import { query } from "~/lib/live-state";
+
 /**
  * The subset of an `externalEntity` mirror row the link UI displays and searches
  * over. Mirrors the columns written by the GitHub integration's upsert.
@@ -61,4 +66,86 @@ export const entityMatchesQuery = (
     .toLowerCase();
 
   return haystack.includes(normalized);
+};
+
+/** Repo + number lookup for surfaces that only have a GitHub URL, not an `externalKey`. */
+export type MirrorEntityRef = {
+  type: "issue" | "pull_request";
+  repoFullName: string;
+  number: number;
+};
+
+type MirrorEntityRow = Pick<
+  MirrorEntity,
+  | "id"
+  | "externalKey"
+  | "type"
+  | "number"
+  | "repoFullName"
+  | "url"
+  | "title"
+  | "body"
+  | "state"
+  | "authorLogin"
+  | "assignees"
+  | "labels"
+>;
+
+const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
+  id: row.id,
+  externalKey: row.externalKey,
+  type: row.type,
+  number: row.number,
+  repoFullName: row.repoFullName,
+  url: row.url,
+  title: row.title,
+  body: row.body,
+  state: row.state,
+  authorLogin: row.authorLogin,
+  assignees: row.assignees,
+  labels: row.labels,
+});
+
+/**
+ * Reactive lookup by `externalKey` — for surfaces that store the mirror reference
+ * (thread links, activity-feed metadata). Includes soft-deleted rows so
+ * historical events can still resolve a label when the entity remains mirrored.
+ */
+export const useMirrorEntityByKey = (
+  externalKey: string | null,
+): MirrorEntity | undefined => {
+  const currentOrg = useAtomValue(activeOrganizationAtom);
+
+  const row = useLiveQuery(
+    query.externalEntity.first({
+      organizationId: currentOrg?.id,
+      externalKey: externalKey ?? undefined,
+    }),
+  );
+
+  if (!externalKey || !currentOrg?.id || !row) return undefined;
+  return toMirrorEntity(row);
+};
+
+/**
+ * Reactive lookup by repo + number — for URL-derived surfaces (markdown chips)
+ * that only know `owner/repo` and the human-visible issue/PR number.
+ */
+export const useMirrorEntityByRef = (
+  ref: MirrorEntityRef | null,
+): MirrorEntity | undefined => {
+  const currentOrg = useAtomValue(activeOrganizationAtom);
+
+  const row = useLiveQuery(
+    query.externalEntity.first({
+      organizationId: currentOrg?.id,
+      type: ref?.type,
+      repoFullName: ref?.repoFullName,
+      number: ref?.number,
+      deletedAt: null,
+    }),
+  );
+
+  if (!ref || !currentOrg?.id || !row) return undefined;
+  return toMirrorEntity(row);
 };
