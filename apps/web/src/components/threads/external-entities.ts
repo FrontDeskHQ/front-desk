@@ -173,3 +173,17 @@ export const useMirrorEntityByRef = (
   if (!ref || !currentOrg?.id || !row) return undefined;
   return toMirrorEntity(row);
 };
+
+/** Display label for a mirrored issue or PR (`owner/repo#number`). */
+export const formatMirrorEntityLabel = (
+  entity: Pick<MirrorEntity, "repoFullName" | "number">,
+): string => `${entity.repoFullName}#${entity.number}`;
+
+/** Prefer a live mirror label; fall back to the baked snapshot when absent. */
+export const resolveMirrorEntityLabel = (
+  entity: MirrorEntity | undefined,
+  fallback: string | null | undefined,
+): string | null => {
+  if (entity) return formatMirrorEntityLabel(entity);
+  return fallback ?? null;
+};

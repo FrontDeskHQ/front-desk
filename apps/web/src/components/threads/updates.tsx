@@ -10,8 +10,20 @@ import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Bot, CircleUserIcon, CopySlash, Github, Tag } from "lucide-react";
 import { ThreadChipWithSummary } from "~/components/chips";
+import {
+  resolveMirrorEntityLabel,
+  useMirrorEntityByKey,
+} from "~/components/threads/external-entities";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
+
+const getMetadataString = (
+  metadata: { [key: string]: unknown } | null,
+  key: string,
+): string | null => {
+  const value = metadata?.[key];
+  return typeof value === "string" ? value : null;
+};
 
 export function Update({
   update,
@@ -31,17 +43,56 @@ export function Update({
     }
   }
 
+  const isIssueChanged = update.type === "issue_changed";
+  const isPrChanged = update.type === "pr_changed";
+  const isGithubIssueCreated = update.type === "github_issue_created";
+
+  const oldIssueEntity = useMirrorEntityByKey(
+    isIssueChanged ? getMetadataString(metadata, "oldIssueId") : null,
+  );
+  const newIssueEntity = useMirrorEntityByKey(
+    isIssueChanged ? getMetadataString(metadata, "newIssueId") : null,
+  );
+  const oldPrEntity = useMirrorEntityByKey(
+    isPrChanged ? getMetadataString(metadata, "oldPrId") : null,
+  );
+  const newPrEntity = useMirrorEntityByKey(
+    isPrChanged ? getMetadataString(metadata, "newPrId") : null,
+  );
+  const createdIssueEntity = useMirrorEntityByKey(
+    isGithubIssueCreated ? getMetadataString(metadata, "issueId") : null,
+  );
+
+  const oldIssueLabel = resolveMirrorEntityLabel(
+    oldIssueEntity,
+    getMetadataString(metadata, "oldIssueLabel"),
+  );
+  const newIssueLabel = resolveMirrorEntityLabel(
+    newIssueEntity,
+    getMetadataString(metadata, "newIssueLabel"),
+  );
+  const oldPrLabel = resolveMirrorEntityLabel(
+    oldPrEntity,
+    getMetadataString(metadata, "oldPrLabel"),
+  );
+  const newPrLabel = resolveMirrorEntityLabel(
+    newPrEntity,
+    getMetadataString(metadata, "newPrLabel"),
+  );
+  const createdIssueLabel = resolveMirrorEntityLabel(
+    createdIssueEntity,
+    getMetadataString(metadata, "issueLabel"),
+  );
+
   const assignedUser = useLiveQuery(
     query.user.first({ id: metadata?.newAssignedUserId }),
   );
 
   const duplicateThread = useLiveQuery(
-    query.thread
-      .first({ id: metadata?.duplicateOfThreadId })
-      .include({
-        author: { include: { user: true } },
-        assignedUser: { include: { user: true } },
-      }),
+    query.thread.first({ id: metadata?.duplicateOfThreadId }).include({
+      author: { include: { user: true } },
+      assignedUser: { include: { user: true } },
+    }),
   );
 
   const isAutonomous = metadata?.source === "autonomous";
@@ -104,30 +155,30 @@ export function Update({
     }
 
     if (update.type === "issue_changed") {
-      if (!metadata?.oldIssueLabel && metadata?.newIssueLabel) {
+      if (!oldIssueLabel && newIssueLabel) {
         return (
           <>
             linked issue{" "}
-            <span className="text-foreground">{metadata.newIssueLabel}</span>
+            <span className="text-foreground">{newIssueLabel}</span>
           </>
         );
       }
 
-      if (metadata?.oldIssueLabel && !metadata?.newIssueLabel) {
+      if (oldIssueLabel && !newIssueLabel) {
         return (
           <>
             unlinked issue{" "}
-            <span className="text-foreground">{metadata.oldIssueLabel}</span>
+            <span className="text-foreground">{oldIssueLabel}</span>
           </>
         );
       }
 
-      if (metadata?.oldIssueLabel && metadata?.newIssueLabel) {
+      if (oldIssueLabel && newIssueLabel) {
         return (
           <>
             changed issue from{" "}
-            <span className="text-foreground">{metadata.oldIssueLabel}</span> to{" "}
-            <span className="text-foreground">{metadata.newIssueLabel}</span>
+            <span className="text-foreground">{oldIssueLabel}</span> to{" "}
+            <span className="text-foreground">{newIssueLabel}</span>
           </>
         );
       }
@@ -136,30 +187,29 @@ export function Update({
     }
 
     if (update.type === "pr_changed") {
-      if (!metadata?.oldPrLabel && metadata?.newPrLabel) {
+      if (!oldPrLabel && newPrLabel) {
         return (
           <>
             {verbPrefix}linked PR{" "}
-            <span className="text-foreground">{metadata.newPrLabel}</span>
+            <span className="text-foreground">{newPrLabel}</span>
           </>
         );
       }
 
-      if (metadata?.oldPrLabel && !metadata?.newPrLabel) {
+      if (oldPrLabel && !newPrLabel) {
         return (
           <>
-            unlinked PR{" "}
-            <span className="text-foreground">{metadata.oldPrLabel}</span>
+            unlinked PR <span className="text-foreground">{oldPrLabel}</span>
           </>
         );
       }
 
-      if (metadata?.oldPrLabel && metadata?.newPrLabel) {
+      if (oldPrLabel && newPrLabel) {
         return (
           <>
             changed PR from{" "}
-            <span className="text-foreground">{metadata.oldPrLabel}</span> to{" "}
-            <span className="text-foreground">{metadata.newPrLabel}</span>
+            <span className="text-foreground">{oldPrLabel}</span> to{" "}
+            <span className="text-foreground">{newPrLabel}</span>
           </>
         );
       }
@@ -171,7 +221,7 @@ export function Update({
       return (
         <>
           created issue{" "}
-          <span className="text-foreground">{metadata?.issueLabel}</span>
+          <span className="text-foreground">{createdIssueLabel}</span>
         </>
       );
     }
