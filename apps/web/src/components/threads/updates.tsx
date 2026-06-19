@@ -142,7 +142,8 @@ const GithubIssueCreatedUpdateText = ({
 
   return (
     <>
-      created issue <span className="text-foreground">{issueLabel}</span>
+      created issue{" "}
+      <span className="text-foreground">{issueLabel ?? "an issue"}</span>
     </>
   );
 };
