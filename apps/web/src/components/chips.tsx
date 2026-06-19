@@ -221,91 +221,155 @@ function PrStateIndicator({ state }: { state: PullRequestState }) {
   );
 }
 
-function PrSummaryCard({ entity }: { entity: MirrorEntity }) {
-  const prState = getPullRequestState(entity);
-  const { label } = pullRequestStateConfig[prState];
+function ExternalEntitySummaryHeader({
+  stateIndicator,
+  entity,
+  stateLabel,
+  subtitle,
+}: {
+  stateIndicator: React.ReactNode;
+  entity: Pick<MirrorEntity, "title" | "number">;
+  stateLabel: string;
+  subtitle?: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <div className="flex items-center gap-1.5">
+        {stateIndicator}
+        <div className="flex min-w-0 flex-1 items-center gap-1.5">
+          <span className="font-medium text-sm text-foreground-primary truncate">
+            {entity.title}
+          </span>
+          <span className="text-sm text-foreground-secondary tabular-nums shrink-0">
+            #{entity.number}
+          </span>
+        </div>
+        <span className="text-sm text-foreground-secondary shrink-0">
+          {stateLabel}
+        </span>
+      </div>
+      {subtitle}
+    </div>
+  );
+}
+
+function ExternalEntityMetadataGrid({
+  entity,
+}: {
+  entity: Pick<MirrorEntity, "repoFullName" | "authorLogin">;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="text-xs text-muted-foreground">Repository</div>
+        <span className="text-sm truncate">{entity.repoFullName}</span>
+      </div>
+      <div className="flex flex-col gap-1 min-w-0">
+        <div className="text-xs text-muted-foreground">Author</div>
+        <span className="text-sm truncate">
+          {entity.authorLogin ?? "Unknown"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function ExternalEntityLabelList({ labels }: { labels: string[] }) {
+  if (labels.length === 0) return null;
 
   return (
     <>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-1.5">
-          <PrStateIndicator state={prState} />
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <span className="font-medium text-sm text-foreground-primary truncate">
-              {entity.title}
-            </span>
-            <span className="text-sm text-foreground-secondary tabular-nums shrink-0">
-              #{entity.number}
-            </span>
-          </div>
-          <span className="text-sm text-foreground-secondary shrink-0">
-            {label}
-          </span>
-        </div>
-        {entity.headRef || entity.baseRef ? (
-          <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground font-mono">
-            {entity.headRef ? (
-              <span className="truncate">{entity.headRef}</span>
-            ) : null}
-            {entity.headRef && entity.baseRef ? (
-              <ArrowRight
-                className="size-3.5 shrink-0 text-foreground-secondary"
-                aria-hidden="true"
-              />
-            ) : null}
-            {entity.baseRef ? (
-              <span className="truncate">{entity.baseRef}</span>
-            ) : null}
-          </div>
-        ) : null}
-      </div>
       <Separator />
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="text-xs text-muted-foreground">Repository</div>
-          <span className="text-sm truncate">{entity.repoFullName}</span>
-        </div>
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="text-xs text-muted-foreground">Author</div>
-          <span className="text-sm truncate">
-            {entity.authorLogin ?? "Unknown"}
+      <div className="flex flex-wrap gap-1">
+        {labels.map((labelName) => (
+          <span
+            key={labelName}
+            className="rounded-sm bg-foreground-tertiary/15 px-1.5 py-0.5 text-xs text-foreground-secondary"
+          >
+            {labelName}
           </span>
-        </div>
+        ))}
       </div>
-      {entity.labels.length > 0 ? (
-        <>
-          <Separator />
-          <div className="flex flex-wrap gap-1">
-            {entity.labels.map((labelName) => (
-              <span
-                key={labelName}
-                className="rounded-sm bg-foreground-tertiary/15 px-1.5 py-0.5 text-xs text-foreground-secondary"
-              >
-                {labelName}
-              </span>
-            ))}
-          </div>
-        </>
-      ) : null}
     </>
   );
 }
 
-function PrSummaryHoverCard({
+function ExternalEntitySummaryCard({
+  stateIndicator,
   entity,
+  stateLabel,
+  subtitle,
+}: {
+  stateIndicator: React.ReactNode;
+  entity: MirrorEntity;
+  stateLabel: string;
+  subtitle?: React.ReactNode;
+}) {
+  return (
+    <>
+      <ExternalEntitySummaryHeader
+        stateIndicator={stateIndicator}
+        entity={entity}
+        stateLabel={stateLabel}
+        subtitle={subtitle}
+      />
+      <Separator />
+      <ExternalEntityMetadataGrid entity={entity} />
+      <ExternalEntityLabelList labels={entity.labels} />
+    </>
+  );
+}
+
+function ExternalEntitySummaryHoverCard({
   children,
+  summary,
   ...props
 }: Omit<React.ComponentProps<typeof HoverCard>, "children"> & {
-  entity: MirrorEntity;
+  summary: React.ReactNode;
   children: React.ReactElement;
 }) {
   return (
     <HoverCard {...props}>
       <HoverCardTrigger render={children} />
       <HoverCardContent className="max-w-96 w-full flex flex-col gap-3">
-        <PrSummaryCard entity={entity} />
+        {summary}
       </HoverCardContent>
     </HoverCard>
+  );
+}
+
+function PrBranchSubtitle({ entity }: { entity: MirrorEntity }) {
+  if (!entity.headRef && !entity.baseRef) return null;
+
+  return (
+    <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground font-mono">
+      {entity.headRef ? (
+        <span className="truncate">{entity.headRef}</span>
+      ) : null}
+      {entity.headRef && entity.baseRef ? (
+        <ArrowRight
+          className="size-3.5 shrink-0 text-foreground-secondary"
+          aria-hidden="true"
+        />
+      ) : null}
+      {entity.baseRef ? (
+        <span className="truncate">{entity.baseRef}</span>
+      ) : null}
+    </div>
+  );
+}
+
+function PrSummaryCard({ entity }: { entity: MirrorEntity }) {
+  const prState = getPullRequestState(entity);
+  const { label } = pullRequestStateConfig[prState];
+
+  return (
+    <ExternalEntitySummaryCard
+      stateIndicator={<PrStateIndicator state={prState} />}
+      entity={entity}
+      stateLabel={label}
+      subtitle={<PrBranchSubtitle entity={entity} />}
+    />
   );
 }
 
@@ -377,70 +441,11 @@ function IssueSummaryCard({ entity }: { entity: MirrorEntity }) {
   const { label } = issueStateConfig[issueState];
 
   return (
-    <>
-      <div className="flex flex-col gap-1">
-        <div className="flex items-center gap-1.5">
-          <IssueStateIndicator state={issueState} />
-          <div className="flex min-w-0 flex-1 items-center gap-1.5">
-            <span className="font-medium text-sm text-foreground-primary truncate">
-              {entity.title}
-            </span>
-            <span className="text-sm text-foreground-secondary tabular-nums shrink-0">
-              #{entity.number}
-            </span>
-          </div>
-          <span className="text-sm text-foreground-secondary shrink-0">
-            {label}
-          </span>
-        </div>
-      </div>
-      <Separator />
-      <div className="grid grid-cols-2 gap-3">
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="text-xs text-muted-foreground">Repository</div>
-          <span className="text-sm truncate">{entity.repoFullName}</span>
-        </div>
-        <div className="flex flex-col gap-1 min-w-0">
-          <div className="text-xs text-muted-foreground">Author</div>
-          <span className="text-sm truncate">
-            {entity.authorLogin ?? "Unknown"}
-          </span>
-        </div>
-      </div>
-      {entity.labels.length > 0 ? (
-        <>
-          <Separator />
-          <div className="flex flex-wrap gap-1">
-            {entity.labels.map((labelName) => (
-              <span
-                key={labelName}
-                className="rounded-sm bg-foreground-tertiary/15 px-1.5 py-0.5 text-xs text-foreground-secondary"
-              >
-                {labelName}
-              </span>
-            ))}
-          </div>
-        </>
-      ) : null}
-    </>
-  );
-}
-
-function IssueSummaryHoverCard({
-  entity,
-  children,
-  ...props
-}: Omit<React.ComponentProps<typeof HoverCard>, "children"> & {
-  entity: MirrorEntity;
-  children: React.ReactElement;
-}) {
-  return (
-    <HoverCard {...props}>
-      <HoverCardTrigger render={children} />
-      <HoverCardContent className="max-w-96 w-full flex flex-col gap-3">
-        <IssueSummaryCard entity={entity} />
-      </HoverCardContent>
-    </HoverCard>
+    <ExternalEntitySummaryCard
+      stateIndicator={<IssueStateIndicator state={issueState} />}
+      entity={entity}
+      stateLabel={label}
+    />
   );
 }
 
@@ -487,7 +492,11 @@ export function IssueChip({
       </PrChipButton>
     );
 
-    return <IssueSummaryHoverCard entity={entity}>{chip}</IssueSummaryHoverCard>;
+    return (
+      <ExternalEntitySummaryHoverCard summary={<IssueSummaryCard entity={entity} />}>
+        {chip}
+      </ExternalEntitySummaryHoverCard>
+    );
   }
 
   return (
@@ -550,7 +559,11 @@ export function PrChip({
       </PrChipButton>
     );
 
-    return <PrSummaryHoverCard entity={entity}>{chip}</PrSummaryHoverCard>;
+    return (
+      <ExternalEntitySummaryHoverCard summary={<PrSummaryCard entity={entity} />}>
+        {chip}
+      </ExternalEntitySummaryHoverCard>
+    );
   }
 
   return (

@@ -19,7 +19,7 @@ const GITHUB_PR_URL_REGEX =
   /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pulls?\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
 
 const GITHUB_ISSUE_URL_REGEX =
-  /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/issues?\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
+  /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
 
 const GithubEntityUrlSchema = z.object({
   owner: z.string().min(1),
