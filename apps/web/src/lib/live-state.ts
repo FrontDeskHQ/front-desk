@@ -287,6 +287,77 @@ const { client, store } = createClient<Router>({
           replicatedStr: JSON.stringify({}),
         });
       },
+      linkGithubIssue: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldIssueId = thread.externalIssueId ?? null;
+        if (oldIssueId === input.externalIssueId) return;
+
+        const resolveIssueLabel = (externalKey: string | null) => {
+          if (!externalKey) return null;
+          const entity = storage.externalEntity
+            .where({ externalKey, type: "issue" })
+            .get()[0];
+          return entity ? `${entity.repoFullName}#${entity.number}` : null;
+        };
+
+        storage.thread.update(input.threadId, {
+          externalIssueId: input.externalIssueId,
+        });
+
+        if (!input.userId) return;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "issue_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldIssueId,
+            newIssueId: input.externalIssueId,
+            oldIssueLabel: resolveIssueLabel(oldIssueId),
+            newIssueLabel: resolveIssueLabel(input.externalIssueId),
+            ...(input.userName ? { userName: input.userName } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
+      unlinkGithubIssue: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldIssueId = thread.externalIssueId ?? null;
+        if (oldIssueId === null) return;
+
+        const oldIssue = storage.externalEntity
+          .where({ externalKey: oldIssueId, type: "issue" })
+          .get()[0];
+        const oldIssueLabel = oldIssue
+          ? `${oldIssue.repoFullName}#${oldIssue.number}`
+          : null;
+
+        storage.thread.update(input.threadId, { externalIssueId: null });
+
+        if (!input.userId) return;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "issue_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldIssueId,
+            newIssueId: null,
+            oldIssueLabel,
+            newIssueLabel: null,
+            ...(input.userName ? { userName: input.userName } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
     },
     autonomousAction: {
       undo: ({ input, storage }) => {

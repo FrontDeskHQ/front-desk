@@ -5,11 +5,15 @@ import z from "zod";
 import { authorize } from "../../lib/authorize";
 import {
   assignUserInputSchema,
+  linkGithubIssueInputSchema,
   runAssignThreadUser,
+  runLinkGithubIssue,
   runSetThreadPriority,
   runSetThreadStatus,
+  runUnlinkGithubIssue,
   setPriorityInputSchema,
   setStatusInputSchema,
+  unlinkGithubIssueInputSchema,
 } from "../../lib/thread-mutations";
 import {
   acceptInlineSuggestionInputSchema,
@@ -597,6 +601,36 @@ export default publicRoute
         userName: req.context?.user?.name ?? null,
       });
     }),
+    linkGithubIssue: mutation(linkGithubIssueInputSchema).handler(
+      async ({ req, db }) => {
+        authorize(req, { organizationId: req.input.organizationId });
+
+        const actorUserId = req.context?.session?.userId ?? null;
+        if (!actorUserId) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runLinkGithubIssue(db, req.input, {
+          userId: actorUserId,
+          userName: req.context?.user?.name ?? null,
+        });
+      },
+    ),
+    unlinkGithubIssue: mutation(unlinkGithubIssueInputSchema).handler(
+      async ({ req, db }) => {
+        authorize(req, { organizationId: req.input.organizationId });
+
+        const actorUserId = req.context?.session?.userId ?? null;
+        if (!actorUserId) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runUnlinkGithubIssue(db, req.input, {
+          userId: actorUserId,
+          userName: req.context?.user?.name ?? null,
+        });
+      },
+    ),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the

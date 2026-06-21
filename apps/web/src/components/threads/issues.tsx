@@ -45,7 +45,6 @@ import { useAtomValue } from "jotai/react";
 import { Github, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
@@ -186,7 +185,7 @@ export function IssuesSection({
     },
     onSuccess: (result, variables) => {
       const repo = repos.find((r) => r.fullName === selectedRepo);
-      if (!repo || !result?.issue) return;
+      if (!repo || !result?.issue || !currentOrg) return;
 
       // Optimistic placeholder so the link shows immediately; the real mirror
       // row arrives shortly after via the GitHub webhook upsert.
@@ -198,8 +197,12 @@ export function IssuesSection({
       });
 
       // Link the thread to the newly created issue by its externalKey.
-      mutate.thread.update(threadId, {
+      mutate.thread.linkGithubIssue({
+        threadId,
+        organizationId: currentOrg.id,
         externalIssueId: result.issue.id,
+        userId: user.id,
+        userName: user.name,
       });
 
       toast.success("Issue created successfully", {
@@ -241,26 +244,13 @@ export function IssuesSection({
 
   const handleUnlinkIssue = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!externalIssueId || !linkedIssue) return;
+    if (!externalIssueId || !linkedIssue || !currentOrg) return;
 
-    mutate.thread.update(threadId, {
-      externalIssueId: null,
-    });
-
-    mutate.update.insert({
-      id: ulid().toLowerCase(),
-      threadId: threadId,
-      type: "issue_changed",
-      createdAt: new Date(),
+    mutate.thread.unlinkGithubIssue({
+      threadId,
+      organizationId: currentOrg.id,
       userId: user.id,
-      metadataStr: JSON.stringify({
-        oldIssueId: externalIssueId,
-        newIssueId: null,
-        oldIssueLabel: `${linkedIssue.repoFullName}#${linkedIssue.number}`,
-        newIssueLabel: null,
-        userName: user.name,
-      }),
-      replicatedStr: JSON.stringify({}),
+      userName: user.name,
     });
 
     captureThreadEvent("thread:issue_unlink", {
@@ -291,7 +281,7 @@ export function IssuesSection({
               return entityMatchesQuery(it.issue, q);
             }}
             onValueChange={(value) => {
-              if (value?.startsWith("footer:")) {
+              if (value?.startsWith("footer:") || !currentOrg) {
                 return;
               }
 
@@ -304,30 +294,16 @@ export function IssuesSection({
               const newIssue = newIssueId
                 ? issues.find((issue) => issue.externalKey === newIssueId)
                 : undefined;
-              mutate.thread.update(threadId, {
-                externalIssueId: newIssueId,
-              });
-              mutate.update.insert({
-                id: ulid().toLowerCase(),
-                threadId: threadId,
-                type: "issue_changed",
-                createdAt: new Date(),
-                userId: user.id,
-                metadataStr: JSON.stringify({
-                  oldIssueId,
-                  newIssueId,
-                  oldIssueLabel: oldIssue
-                    ? `${oldIssue.repoFullName}#${oldIssue.number}`
-                    : null,
-                  newIssueLabel: newIssue
-                    ? `${newIssue.repoFullName}#${newIssue.number}`
-                    : null,
-                  userName: user.name,
-                }),
-                replicatedStr: JSON.stringify({}),
-              });
 
               if (newIssueId) {
+                mutate.thread.linkGithubIssue({
+                  threadId,
+                  organizationId: currentOrg.id,
+                  externalIssueId: newIssueId,
+                  userId: user.id,
+                  userName: user.name,
+                });
+
                 captureThreadEvent("thread:issue_link", {
                   old_issue_id: oldIssueId,
                   new_issue_id: newIssueId,
@@ -336,6 +312,13 @@ export function IssuesSection({
                   repository: newIssue?.repoFullName,
                 });
               } else {
+                mutate.thread.unlinkGithubIssue({
+                  threadId,
+                  organizationId: currentOrg.id,
+                  userId: user.id,
+                  userName: user.name,
+                });
+
                 captureThreadEvent("thread:issue_unlink", {
                   old_issue_id: oldIssueId,
                   old_issue_number: oldIssue?.number,
