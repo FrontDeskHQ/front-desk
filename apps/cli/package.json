@@ -5,27 +5,24 @@
   "type": "module",
   "author": "front-desk",
   "files": [
-    "dist"
+    "src"
   ],
   "bin": {
-    "fd": "./dist/index.js"
+    "fd": "./src/index.ts"
   },
   "scripts": {
     "lint": "biome lint src",
     "lint:fix": "biome lint --fix src",
-    "build": "tsdown",
-    "dev": "tsx src/index.ts",
-    "fd": "node dist/index.js",
+    "dev": "bun run src/index.ts",
+    "fd": "bun run src/index.ts",
     "typecheck": "tsc --noEmit",
     "format": "bun biome format ./src --fix"
   },
   "devDependencies": {
-    "@types/node": "^22.15.2",
-    "tsdown": "^0.10.2",
-    "tsx": "^4.19.3"
+    "@types/node": "^22.15.2"
   },
   "engines": {
-    "node": ">=20.18.0"
+    "bun": ">=1.3.5"
   },
   "dependencies": {
     "@live-state/sync": "catalog:",

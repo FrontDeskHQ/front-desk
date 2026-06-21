@@ -14,12 +14,13 @@ DISCORD_BOT_KEY=<same value as apps/api>
 FD_DEV_ORG=acme
 ```
 
-Build the API and CLI once:
+Build the API once:
 
 ```bash
 bun run --filter api build
-bun run --filter cli build
 ```
+
+The CLI itself runs straight from TypeScript via bun — no build step.
 
 ## Usage
 
@@ -36,9 +37,6 @@ bun run --filter cli fd thread create \
   --title "Payment failed but money was deducted" \
   --author "Michael Chen" \
   --message "I tried to upgrade but the charge appeared on my card anyway."
-
-# Dev without build
-bun run --filter cli dev thread create --fixture ./threads.json
 ```
 
 ## Fixture format
