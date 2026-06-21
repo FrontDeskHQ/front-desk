@@ -366,6 +366,85 @@ const { client, store } = createClient<Router>({
           replicatedStr: JSON.stringify({}),
         });
       },
+      linkPullRequest: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldPrId = thread.externalPrId ?? null;
+        if (oldPrId === input.externalPrId) return;
+
+        const resolvePrLabel = (externalKey: string | null) => {
+          if (!externalKey) return null;
+          const entity = storage.externalEntity
+            .where({
+              organizationId: input.organizationId,
+              externalKey,
+              type: "pull_request",
+            })
+            .get()[0];
+          return entity ? `${entity.repoFullName}#${entity.number}` : null;
+        };
+
+        storage.thread.update(input.threadId, {
+          externalPrId: input.externalPrId,
+        });
+
+        if (!input.userId) return;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "pr_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldPrId,
+            newPrId: input.externalPrId,
+            oldPrLabel: resolvePrLabel(oldPrId),
+            newPrLabel: resolvePrLabel(input.externalPrId),
+            ...(input.userName ? { userName: input.userName } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
+      unlinkPullRequest: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldPrId = thread.externalPrId ?? null;
+        if (oldPrId === null) return;
+
+        const oldPr = storage.externalEntity
+          .where({
+            organizationId: input.organizationId,
+            externalKey: oldPrId,
+            type: "pull_request",
+          })
+          .get()[0];
+        const oldPrLabel = oldPr
+          ? `${oldPr.repoFullName}#${oldPr.number}`
+          : null;
+
+        storage.thread.update(input.threadId, { externalPrId: null });
+
+        if (!input.userId) return;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "pr_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldPrId,
+            newPrId: null,
+            oldPrLabel,
+            newPrLabel: null,
+            ...(input.userName ? { userName: input.userName } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
     },
     autonomousAction: {
       undo: ({ input, storage }) => {

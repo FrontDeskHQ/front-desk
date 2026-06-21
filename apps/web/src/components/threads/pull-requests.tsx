@@ -12,7 +12,6 @@ import {
 import { useAtomValue } from "jotai/react";
 import { GitPullRequest, X } from "lucide-react";
 import { useState } from "react";
-import { ulid } from "ulid";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
@@ -71,26 +70,13 @@ export function PullRequestsSection({
 
   const handleUnlinkPr = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!externalPrId || !linkedPr) return;
+    if (!externalPrId || !linkedPr || !currentOrg) return;
 
-    mutate.thread.update(threadId, {
-      externalPrId: null,
-    });
-
-    mutate.update.insert({
-      id: ulid().toLowerCase(),
-      threadId: threadId,
-      type: "pr_changed",
-      createdAt: new Date(),
+    mutate.thread.unlinkPullRequest({
+      threadId,
+      organizationId: currentOrg.id,
       userId: user.id,
-      metadataStr: JSON.stringify({
-        oldPrId: externalPrId,
-        newPrId: null,
-        oldPrLabel: `${linkedPr.repoFullName}#${linkedPr.number}`,
-        newPrLabel: null,
-        userName: user.name,
-      }),
-      replicatedStr: JSON.stringify({}),
+      userName: user.name,
     });
 
     captureThreadEvent("thread:pr_unlink", {
@@ -116,6 +102,8 @@ export function PullRequestsSection({
               return entityMatchesQuery(it.pr, q);
             }}
             onValueChange={(value) => {
+              if (!currentOrg) return;
+
               const oldPrId = externalPrId ?? null;
               const oldPr = pullRequests.find(
                 (pr) => pr.externalKey === oldPrId,
@@ -125,39 +113,37 @@ export function PullRequestsSection({
               const newPr = newPrId
                 ? pullRequests.find((pr) => pr.externalKey === newPrId)
                 : undefined;
-              mutate.thread.update(threadId, {
-                externalPrId: newPrId,
-              });
-              mutate.update.insert({
-                id: ulid().toLowerCase(),
-                threadId: threadId,
-                type: "pr_changed",
-                createdAt: new Date(),
-                userId: user.id,
-                metadataStr: JSON.stringify({
-                  oldPrId,
-                  newPrId,
-                  oldPrLabel: oldPr
-                    ? `${oldPr.repoFullName}#${oldPr.number}`
-                    : null,
-                  newPrLabel: newPr
-                    ? `${newPr.repoFullName}#${newPr.number}`
-                    : null,
-                  userName: user.name,
-                }),
-                replicatedStr: JSON.stringify({}),
-              });
 
-              captureThreadEvent(
-                newPrId ? "thread:pr_link" : "thread:pr_unlink",
-                {
+              if (newPrId) {
+                mutate.thread.linkPullRequest({
+                  threadId,
+                  organizationId: currentOrg.id,
+                  externalPrId: newPrId,
+                  userId: user.id,
+                  userName: user.name,
+                });
+
+                captureThreadEvent("thread:pr_link", {
                   old_pr_id: oldPrId,
                   new_pr_id: newPrId,
                   old_pr_number: oldPr?.number,
                   new_pr_number: newPr?.number,
-                  repository: newPr?.repoFullName ?? oldPr?.repoFullName,
-                },
-              );
+                  repository: newPr?.repoFullName,
+                });
+              } else {
+                mutate.thread.unlinkPullRequest({
+                  threadId,
+                  organizationId: currentOrg.id,
+                  userId: user.id,
+                  userName: user.name,
+                });
+
+                captureThreadEvent("thread:pr_unlink", {
+                  old_pr_id: oldPrId,
+                  old_pr_number: oldPr?.number,
+                  repository: oldPr?.repoFullName,
+                });
+              }
             }}
           >
             <ComboboxTrigger
