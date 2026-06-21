@@ -166,7 +166,7 @@ export const runAssignThreadUser = async (
     return { thread, unchanged: true as const };
   }
 
-  if (newAssignedUserId) {
+  if (newAssignedUserId !== null) {
     const assignee = await db.organizationUser
       .first({
         organizationId: input.organizationId,
