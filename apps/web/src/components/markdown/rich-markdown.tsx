@@ -5,7 +5,11 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import { type Components, Streamdown } from "streamdown";
 import "streamdown/styles.css";
 import { z } from "zod";
-import { PrChip, ThreadChipWithSummary } from "~/components/chips";
+import {
+  IssueChip,
+  PrChip,
+  ThreadChipWithSummary,
+} from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
@@ -14,7 +18,10 @@ const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
 const GITHUB_PR_URL_REGEX =
   /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pulls?\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
 
-const GithubPrSchema = z.object({
+const GITHUB_ISSUE_URL_REGEX =
+  /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
+
+const GithubEntityUrlSchema = z.object({
   owner: z.string().min(1),
   repo: z.string().min(1),
   number: z.number().int().positive(),
@@ -25,7 +32,21 @@ export function parseGithubPrUrl(href: string | undefined) {
   if (!href) return null;
   const match = href.match(GITHUB_PR_URL_REGEX);
   if (!match) return null;
-  const parseResult = GithubPrSchema.safeParse({
+  const parseResult = GithubEntityUrlSchema.safeParse({
+    owner: match[1],
+    repo: match[2],
+    number: Number(match[3]),
+    url: href,
+  });
+  if (!parseResult.success) return null;
+  return parseResult.data;
+}
+
+export function parseGithubIssueUrl(href: string | undefined) {
+  if (!href) return null;
+  const match = href.match(GITHUB_ISSUE_URL_REGEX);
+  if (!match) return null;
+  const parseResult = GithubEntityUrlSchema.safeParse({
     owner: match[1],
     repo: match[2],
     number: Number(match[3]),
@@ -142,12 +163,14 @@ type RichMarkdownProps = {
   components?: Components;
 };
 
-export function PrChipInline(props: {
+type GithubEntityChipInlineProps = {
   owner: string;
   repo: string;
   number: number;
   url: string;
-}) {
+};
+
+function useInlineChipSpacing() {
   const ref = useRef<HTMLSpanElement>(null);
   const [hasLeadingSpace, setHasLeadingSpace] = useState(false);
   const [hasTrailingSpace, setHasTrailingSpace] = useState(false);
@@ -163,9 +186,32 @@ export function PrChipInline(props: {
     );
   });
 
+  return { ref, hasLeadingSpace, hasTrailingSpace };
+}
+
+export function PrChipInline(props: GithubEntityChipInlineProps) {
+  const { ref, hasLeadingSpace, hasTrailingSpace } = useInlineChipSpacing();
+
   return (
     <span ref={ref} className="contents">
       <PrChip
+        {...props}
+        className={cn(
+          "inline-flex mb-0 translate-y-0.5",
+          hasLeadingSpace && "ml-px",
+          hasTrailingSpace && "mr-px",
+        )}
+      />
+    </span>
+  );
+}
+
+export function IssueChipInline(props: GithubEntityChipInlineProps) {
+  const { ref, hasLeadingSpace, hasTrailingSpace } = useInlineChipSpacing();
+
+  return (
+    <span ref={ref} className="contents">
+      <IssueChip
         {...props}
         className={cn(
           "inline-flex mb-0 translate-y-0.5",
@@ -290,6 +336,10 @@ export const RichMarkdown = ({
         const pr = parseGithubPrUrl(href);
         if (pr) {
           return <PrChipInline {...pr} />;
+        }
+        const issue = parseGithubIssueUrl(href);
+        if (issue) {
+          return <IssueChipInline {...issue} />;
         }
         return (
           <a href={href} target="_blank" rel="noreferrer" {...props}>

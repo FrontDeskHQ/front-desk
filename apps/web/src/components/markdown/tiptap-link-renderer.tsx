@@ -4,7 +4,9 @@ import {
 } from "@workspace/ui/components/blocks/tiptap-link";
 import { useAtomValue } from "jotai";
 import {
+  IssueChipInline,
   PrChipInline,
+  parseGithubIssueUrl,
   parseGithubPrUrl,
   ThreadMention,
 } from "~/components/markdown/rich-markdown";
@@ -74,13 +76,18 @@ const renderLink: TiptapLinkRendererFn = ({ href }) => {
     return <PrChipInline {...pr} />;
   }
 
+  const issue = parseGithubIssueUrl(href);
+  if (issue) {
+    return <IssueChipInline {...issue} />;
+  }
+
   return null;
 };
 
 /**
  * Makes the shared Tiptap editor/renderer render thread references and GitHub
- * PR links as rich chips, mirroring {@link RichMarkdown}. Wrap any subtree that
- * mounts the Tiptap components from `@workspace/ui/components/blocks/tiptap`.
+ * issue/PR links as rich chips, mirroring {@link RichMarkdown}. Wrap any subtree
+ * that mounts the Tiptap components from `@workspace/ui/components/blocks/tiptap`.
  */
 export function TiptapLinkRenderer({
   children,
