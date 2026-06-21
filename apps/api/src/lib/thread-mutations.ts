@@ -34,7 +34,7 @@ export const assignUserInputSchema = z.object({
 export const linkIssueInputSchema = z.object({
   threadId: z.string(),
   organizationId: z.string(),
-  externalIssueId: z.string(),
+  externalIssueId: z.string().min(1),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });

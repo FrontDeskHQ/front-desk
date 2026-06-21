@@ -297,7 +297,11 @@ const { client, store } = createClient<Router>({
         const resolveIssueLabel = (externalKey: string | null) => {
           if (!externalKey) return null;
           const entity = storage.externalEntity
-            .where({ externalKey, type: "issue" })
+            .where({
+              organizationId: input.organizationId,
+              externalKey,
+              type: "issue",
+            })
             .get()[0];
           return entity ? `${entity.repoFullName}#${entity.number}` : null;
         };
@@ -332,7 +336,11 @@ const { client, store } = createClient<Router>({
         if (oldIssueId === null) return;
 
         const oldIssue = storage.externalEntity
-          .where({ externalKey: oldIssueId, type: "issue" })
+          .where({
+            organizationId: input.organizationId,
+            externalKey: oldIssueId,
+            type: "issue",
+          })
           .get()[0];
         const oldIssueLabel = oldIssue
           ? `${oldIssue.repoFullName}#${oldIssue.number}`
