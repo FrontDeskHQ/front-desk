@@ -4,8 +4,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
-import { updateThreadStatus } from "~/actions/threads";
-import { query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
 import { ReplyEditor } from "./reply-editor";
@@ -69,15 +68,14 @@ export const ThreadToolbar = ({
 
   const isResolved = currentStatus === 2;
 
-  const handleResolve = async () => {
+  const handleResolve = () => {
     if (!organizationId) return;
 
     const newStatus = isResolved ? 0 : 2;
-    await updateThreadStatus({
+    mutate.thread.setStatus({
       threadId,
       organizationId,
-      newStatus,
-      oldStatus: currentStatus,
+      status: newStatus,
       userId: user.id,
       userName: user.name,
     });

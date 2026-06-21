@@ -1,6 +1,6 @@
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ChevronRight, CircleUser, User } from "lucide-react";
-import { assignThreadToUser } from "~/actions/threads";
+import { mutate } from "~/lib/live-state";
 import type { Command, CommandPage } from "../../types";
 
 type AssignmentCommandsParams = {
@@ -39,18 +39,14 @@ export const createAssignmentCommands = ({
   commands: Command[];
   assignUserPage: CommandPage;
 } => {
-  const handleAssign = async (newAssignedUser: {
+  const handleAssign = (newAssignedUser: {
     id: string | null;
     name: string | null;
   }) => {
-    await assignThreadToUser({
+    mutate.thread.assignUser({
       threadId,
       organizationId,
-      newAssignedUser,
-      oldAssignedUser: {
-        id: thread?.assignedUser?.id ?? null,
-        name: thread?.assignedUser?.name ?? null,
-      },
+      assignedUserId: newAssignedUser.id,
       userId: user.id,
       userName: user.name,
     });

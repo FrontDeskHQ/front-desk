@@ -3,7 +3,7 @@ import {
   priorityText,
 } from "@workspace/ui/components/indicator";
 import { ChevronRight } from "lucide-react";
-import { updateThreadPriority } from "~/actions/threads";
+import { mutate } from "~/lib/live-state";
 import type { Command, CommandPage } from "../../types";
 
 type PriorityCommandsParams = {
@@ -37,12 +37,11 @@ export const createPriorityCommands = ({
   commands: Command[];
   priorityPage: CommandPage;
 } => {
-  const handlePriorityChange = async (newPriority: number) => {
-    await updateThreadPriority({
+  const handlePriorityChange = (newPriority: number) => {
+    mutate.thread.setPriority({
       threadId,
       organizationId,
-      newPriority,
-      oldPriority: thread?.priority ?? 0,
+      priority: newPriority,
       userId: user.id,
       userName: user.name,
     });

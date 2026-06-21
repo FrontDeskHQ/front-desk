@@ -3,7 +3,7 @@ import {
   statusValues,
 } from "@workspace/ui/components/indicator";
 import { ChevronRight } from "lucide-react";
-import { updateThreadStatus } from "~/actions/threads";
+import { mutate } from "~/lib/live-state";
 import type { Command, CommandPage } from "../../types";
 
 type StatusCommandsParams = {
@@ -30,12 +30,11 @@ export const createStatusCommands = ({
   commands: Command[];
   statusPage: CommandPage;
 } => {
-  const handleStatusChange = async (newStatus: number) => {
-    await updateThreadStatus({
+  const handleStatusChange = (newStatus: number) => {
+    mutate.thread.setStatus({
       threadId,
       organizationId,
-      newStatus,
-      oldStatus: thread?.status ?? 0,
+      status: newStatus,
       userId: user.id,
       userName: user.name,
     });
