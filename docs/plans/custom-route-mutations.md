@@ -367,7 +367,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 
 ## PR Feedback
 
-- Status: none.
+- 2026-06-21 (PR #292, cubic-dev-ai): `externalIssueId` must reject empty strings — **applied** in `cbe5b63` (`z.string().min(1)` on `linkIssueInputSchema`).
+- 2026-06-21 (PR #292, cubic-dev-ai): Optimistic `externalEntity` label lookups must filter by `organizationId` — **applied** in `cbe5b63` (`linkIssue` / `unlinkIssue` handlers in `live-state.ts`).
 
 ## Verification Ledger
 
