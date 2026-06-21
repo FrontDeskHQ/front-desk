@@ -5,6 +5,7 @@ import type { Command, CommandPage } from "../../types";
 
 type AssignmentCommandsParams = {
   threadId: string;
+  organizationId: string;
   thread:
     | {
         assignedUser?: {
@@ -30,6 +31,7 @@ type AssignmentCommandsParams = {
 
 export const createAssignmentCommands = ({
   threadId,
+  organizationId,
   thread,
   user,
   orgUsers,
@@ -42,13 +44,15 @@ export const createAssignmentCommands = ({
     name: string | null;
   }) => {
     await assignThreadToUser({
-      threadId: threadId,
+      threadId,
+      organizationId,
       newAssignedUser,
       oldAssignedUser: {
         id: thread?.assignedUser?.id ?? null,
         name: thread?.assignedUser?.name ?? null,
       },
       userId: user.id,
+      userName: user.name,
     });
   };
 

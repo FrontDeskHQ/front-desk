@@ -70,9 +70,12 @@ export const ThreadToolbar = ({
   const isResolved = currentStatus === 2;
 
   const handleResolve = async () => {
+    if (!organizationId) return;
+
     const newStatus = isResolved ? 0 : 2;
     await updateThreadStatus({
       threadId,
+      organizationId,
       newStatus,
       oldStatus: currentStatus,
       userId: user.id,

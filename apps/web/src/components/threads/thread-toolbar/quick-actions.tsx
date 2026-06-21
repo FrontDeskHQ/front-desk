@@ -244,25 +244,13 @@ export const QuickActionsPanel = ({
     const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
     const newStatusLabel = statusSuggestion.label;
 
-    mutate.thread.update(threadId, {
-      status: newStatus,
-    });
-
-    mutate.update.insert({
-      id: ulid().toLowerCase(),
+    mutate.thread.setStatus({
       threadId,
-      type: "status_changed",
-      createdAt: new Date(),
+      organizationId,
+      status: newStatus,
       userId: user.id,
-      metadataStr: JSON.stringify({
-        oldStatus,
-        newStatus,
-        oldStatusLabel,
-        newStatusLabel,
-        userName: user.name,
-        source: "support_intelligence",
-      }),
-      replicatedStr: JSON.stringify({}),
+      userName: user.name,
+      source: "support_intelligence",
     });
 
     // TODO(signals-overhaul issue 10): record acceptance on inlineSuggestions.

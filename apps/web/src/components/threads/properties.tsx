@@ -21,7 +21,6 @@ import {
 import { cn } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { CircleUser } from "lucide-react";
-import { ulid } from "ulid";
 import { assignThreadToUser } from "~/actions/threads";
 import { mutate } from "~/lib/live-state";
 
@@ -41,6 +40,13 @@ interface PropertiesSectionProps {
     properties?: Record<string, unknown>,
   ) => void;
 }
+
+const priorityLabels: Record<number, string> = {
+  0: "No priority",
+  1: "Low priority",
+  2: "Medium priority",
+  3: "High priority",
+};
 
 export function PropertiesSection({
   thread,
@@ -65,24 +71,12 @@ export function PropertiesSection({
             const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
             const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
-            mutate.thread.update(id, {
-              status: newStatus,
-            });
-
-            mutate.update.insert({
-              id: ulid().toLowerCase(),
+            mutate.thread.setStatus({
               threadId: id,
-              type: "status_changed",
-              createdAt: new Date(),
+              organizationId: thread.organizationId,
+              status: newStatus,
               userId: user.id,
-              metadataStr: JSON.stringify({
-                oldStatus,
-                newStatus,
-                oldStatusLabel,
-                newStatusLabel,
-                userName: user.name,
-              }),
-              replicatedStr: JSON.stringify({}),
+              userName: user.name,
             });
 
             captureThreadEvent("thread:status_update", {
@@ -146,33 +140,15 @@ export function PropertiesSection({
           onValueChange={(value) => {
             const oldPriority = thread?.priority ?? 0;
             const newPriority = value ? +value : 0;
-            const priorityLabels: Record<number, string> = {
-              0: "No priority",
-              1: "Low priority",
-              2: "Medium priority",
-              3: "High priority",
-            };
             const oldPriorityLabel = priorityLabels[oldPriority] ?? "Unknown";
             const newPriorityLabel = priorityLabels[newPriority] ?? "Unknown";
 
-            mutate.thread.update(id, {
-              priority: newPriority,
-            });
-
-            mutate.update.insert({
-              id: ulid().toLowerCase(),
+            mutate.thread.setPriority({
               threadId: id,
-              type: "priority_changed",
-              createdAt: new Date(),
+              organizationId: thread.organizationId,
+              priority: newPriority,
               userId: user.id,
-              metadataStr: JSON.stringify({
-                oldPriority,
-                newPriority,
-                oldPriorityLabel,
-                newPriorityLabel,
-                userName: user.name,
-              }),
-              replicatedStr: JSON.stringify({}),
+              userName: user.name,
             });
 
             captureThreadEvent("thread:priority_update", {
@@ -236,6 +212,7 @@ export function PropertiesSection({
 
             await assignThreadToUser({
               threadId: id,
+              organizationId: thread.organizationId,
               newAssignedUser: {
                 id: newAssignedUserId,
                 name: newAssignedUserName,
@@ -245,6 +222,7 @@ export function PropertiesSection({
                 name: oldAssignedUserName,
               },
               userId: user.id,
+              userName: user.name,
             });
 
             captureThreadEvent("thread:assignee_update", {

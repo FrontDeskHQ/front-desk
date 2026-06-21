@@ -8,6 +8,7 @@ import type { Command, CommandPage } from "../../types";
 
 type PriorityCommandsParams = {
   threadId: string;
+  organizationId: string;
   thread:
     | {
         priority?: number;
@@ -29,6 +30,7 @@ const priorityLabels: Record<number, string> = {
 
 export const createPriorityCommands = ({
   threadId,
+  organizationId,
   thread,
   user,
 }: PriorityCommandsParams): {
@@ -38,6 +40,7 @@ export const createPriorityCommands = ({
   const handlePriorityChange = async (newPriority: number) => {
     await updateThreadPriority({
       threadId,
+      organizationId,
       newPriority,
       oldPriority: thread?.priority ?? 0,
       userId: user.id,

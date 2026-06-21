@@ -33,18 +33,21 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
       const { commands: assignmentCommands, assignUserPage } =
         createAssignmentCommands({
           threadId,
+          organizationId: activeOrganization?.id ?? "",
           thread,
           user,
           orgUsers: orgUsers ?? null,
         });
       const { commands: statusCommands, statusPage } = createStatusCommands({
         threadId,
+        organizationId: activeOrganization?.id ?? "",
         thread,
         user,
       });
       const { commands: priorityCommands, priorityPage } =
         createPriorityCommands({
           threadId,
+          organizationId: activeOrganization?.id ?? "",
           thread,
           user,
         });

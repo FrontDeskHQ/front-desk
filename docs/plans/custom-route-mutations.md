@@ -14,15 +14,21 @@ All known callers must move to the replacement procedures. When a custom procedu
 - For every web-used custom procedure, decide explicitly whether it needs an optimistic mutation in `apps/web/src/lib/live-state.ts`; record intentional omissions.
 - Do not add optimistic mutation work for non-web callers; they only need to move to the procedure API.
 - Keep work in small route-family slices so each PR can be reviewed without understanding the entire router at once.
+- **One PR = one slice id** below (`LP-003b`, `LP-005a`, …). Do not combine slices unless the user explicitly expands scope.
+- A slice is done when its completion criterion holds, typecheck passes for affected apps, and ripgrep shows no leftover generic writes for that slice's scope.
+- **Lockdown slices** (`*-lockdown`) ship only after every caller for that route family is migrated in prior slices.
+- Bundle `withMutations` → `withProcedures` renames with the first slice that touches that route file.
 
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: LP-003 thread and message migration
+- Active checkpoint: **LP-003b** (next PR slice)
 - Branch or PR: none
 - Last updated: 2026-06-21
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
+
+**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser` (API procedures + web migration + optimistic handlers). `set-status` signal handler now calls `runSetThreadStatus`. Remaining LP-003 work: GitHub link/unlink, `markDuplicate`, `archive`/`restore`, `setAgentRead`, slack/discord `thread.create` / generic `message.insert`, and other generic `thread.update` call sites (`issues.tsx`, `pull-requests.tsx`, archive route, devtools).
 
 ## Write inventory matrix
 
@@ -37,7 +43,7 @@ Legend:
 
 | Route | Generic insert | Generic update | Procedure API (current) | Non-web call sites | Web call sites | Web optimistic |
 | --- | --- | --- | --- | --- | --- | --- |
-| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `list`†, `fetchRelatedThreads`†, `fetchGithubIssues`†, `fetchGithubPullRequests`†, `createGithubIssue`, `executeAutonomousBundle`, `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `upsertInlineSuggestion`, `writeHintSlot` | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. **Procedures**: `apps/worker` `apply-synthesis-autonomy.ts` (`executeAutonomousBundle`), `read-hints.ts` (`writeHintSlot`), `inline-suggestions.ts` (`upsertInlineSuggestion`). **API-internal** `db.thread.update`: signal handlers (`close`, `set-status`, `mark-duplicate`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | **Generic** `update`: `actions/threads.ts`, `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`, `threads/$id/index.tsx`, `archive/$id.tsx`, devtools `create-thread-button.tsx` (`insert`). **Procedures**: `create-thread-dialog.tsx`, devtools `create-thread-dialog.tsx`, `cli` `thread/create`, `issues.tsx` (`createGithubIssue`), `support-related-threads-section.tsx` (`fetchRelatedThreads`), `signals/action-row/handlers.ts` (read + inline suggestion accept/dismiss). | **Partial** — optimistic for `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion` only. **Missing** for heavily used generic `thread.update` + `thread.insert`, and for `create`, `createGithubIssue`. |
+| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `list`†, `fetchRelatedThreads`†, `fetchGithubIssues`†, `fetchGithubPullRequests`†, `createGithubIssue`, `executeAutonomousBundle`, `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `upsertInlineSuggestion`, `writeHintSlot` | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. **Procedures**: `apps/worker` `apply-synthesis-autonomy.ts` (`executeAutonomousBundle`), `read-hints.ts` (`writeHintSlot`), `inline-suggestions.ts` (`upsertInlineSuggestion`). **API-internal** `db.thread.update`: signal handlers (`close`, `set-status`, `mark-duplicate`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | **Generic** `update`: `actions/threads.ts` (priority/assign migrated), `issues.tsx`, `pull-requests.tsx`, `threads/$id/index.tsx`, `archive/$id.tsx`, devtools `create-thread-button.tsx` (`insert`). **Procedures**: `create-thread-dialog.tsx`, devtools `create-thread-dialog.tsx`, `cli` `thread/create`, `issues.tsx` (`createGithubIssue`), `support-related-threads-section.tsx` (`fetchRelatedThreads`), `signals/action-row/handlers.ts` (read + inline suggestion accept/dismiss); `properties.tsx`, `quick-actions.tsx` (status accept), command palette, toolbar resolve (`setStatus`/`setPriority`/`assignUser`). | **Partial** — optimistic for `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser`. **Missing** for generic `thread.update` (issues/PR/archive), `create`, `createGithubIssue`, `markDuplicate`. |
 | `message` | yes (org member, portal, public key) | internal key only | `withProcedures`: `create`, `markAsAnswer`, `search`† | **Generic** `insert`/`update`: `apps/slack`, `apps/discord` (`store.mutate`). **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), devtools `duplicate-thread-command.tsx` / `create-thread-button.tsx` (generic `insert`), `thread-reply.tsx` (`markAsAnswer`). | **Partial** — `create`, `markAsAnswer` yes. Generic `insert` (devtools) no. |
 | `update` | yes (org member session) | yes (org member + internal key) | none | **Generic** `insert`: `apps/github` webhooks (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord` (`fetchClient`). **API-internal** `db.insert(schema.update)`: `threads` `createGithubIssue`, `autonomous-action` `undo`, `signals/activity.ts`, thread inline-suggestion procedures. | Paired with almost every `thread.update` in `actions/threads.ts`, `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
 | `label` | disabled | disabled | `withProcedures`: `create`, `update`, `createAndAttachToThread`, `attachToThread`, `detachFromThread` | **API-internal** `db.label` / `db.threadLabel`: signal handler `apply-label.ts`, `autonomous-action` `undo`. | `labels.tsx` (thread UI), `labels.tsx` (settings), `quick-actions.tsx` (`attachToThread`). | **Yes** — all five procedures. |
@@ -92,7 +98,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 | --- | --- | --- |
 | `message` | `create`, `markAsAnswer` | Generic `insert` used only in devtools |
 | `label` | all five write procedures | Complete |
-| `thread` | `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion` | Generic `thread.update` is the highest-traffic gap; `create` also lacks optimistic UI |
+| `thread` | `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser` | Generic `thread.update` remains for issues/PR/archive; `create` also lacks optimistic UI |
 | `autonomousAction` | `undo` | Handler ready; no web caller wired yet |
 | All other routes | none | Settings/onboarding/integration writes are mostly `fetchClient` or infrequent — assess per procedure in LP-002 |
 
@@ -196,9 +202,9 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 | Procedure | Route | Replaces | Web optimistic |
 | --- | --- | --- | --- |
 | `create` ✓ | `thread` | generic `thread.insert` (web devtools, slack, discord) | **yes** — high-traffic; mirror `message.create` author+message graph |
-| `setStatus` | `thread` | generic `thread.update` status + `update.insert` status_changed | **yes** |
-| `setPriority` | `thread` | generic `thread.update` priority + `update.insert` priority_changed | **yes** |
-| `assignUser` | `thread` | generic `thread.update` assignedUserId + `update.insert` assigned_changed | **yes** |
+| `setStatus` ✓ | `thread` | generic `thread.update` status + `update.insert` status_changed | **yes** ✓ |
+| `setPriority` ✓ | `thread` | generic `thread.update` priority + `update.insert` priority_changed | **yes** ✓ |
+| `assignUser` ✓ | `thread` | generic `thread.update` assignedUserId + `update.insert` assigned_changed | **yes** ✓ |
 | `linkGithubIssue` / `unlinkGithubIssue` | `thread` | generic `thread.update` externalIssueId + paired `update.insert` | **yes** |
 | `linkGithubPullRequest` / `unlinkGithubPullRequest` | `thread` | generic `thread.update` externalPrId + paired `update.insert` | **yes** |
 | `markDuplicate` | `thread` | generic `thread.update` status duplicate + activity | **yes** (low traffic) |
@@ -258,17 +264,94 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 3. Generic mutator disabled on that route when the checklist item says so.
 4. Web: exercise or manually smoke the touched UI paths; note gaps in `Verification Ledger`.
 
+## PR slices (one PR per row)
+
+Parent checklist items (`LP-003`–`LP-009`) complete when all child slices under them are checked. Slices are ordered by dependency where it matters; otherwise they can ship in parallel.
+
+### LP-003 — `thread`, `message`, `author`
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [x] **LP-003a** | `thread.setStatus` / `setPriority` / `assignUser` | `thread-mutations.ts`, `router/threads.ts`, `set-status` handler, web properties/commands/toolbar/quick-actions status, optimistic handlers | No web generic writes for status/priority/assign; procedures + optimistic live |
+| [ ] **LP-003b** | `thread.linkGithubIssue` / `unlinkGithubIssue` | `thread-mutations.ts`, `issues.tsx`, optimistic handlers | `issues.tsx` has zero `thread.update` + `update.insert` for issue link/unlink |
+| [ ] **LP-003c** | `thread.linkGithubPullRequest` / `unlinkGithubPullRequest` | `thread-mutations.ts`, `pull-requests.tsx`, optimistic handlers | `pull-requests.tsx` has zero generic thread/update pairs for PR link/unlink |
+| [ ] **LP-003d** | `thread.markDuplicate` | `thread-mutations.ts`, `quick-actions.tsx` duplicate accept, `mark-duplicate` handler → shared helper, optimistic | Duplicate accept uses `mutate.thread.markDuplicate` only |
+| [ ] **LP-003e** | `thread.archive` / `thread.restore` | `thread-mutations.ts`, `threads/$id/index.tsx` delete, `archive/$id.tsx` restore, optimistic (archive) | Archive/restore use procedures; no generic `thread.update` for `deletedAt` |
+| [ ] **LP-003f** | Signal handler convergence (close + mark-duplicate) | `close.ts`, `mark-duplicate.ts` → `runSetThreadStatus` / `runMarkDuplicate` | Handlers call shared helpers, not raw `db.thread.update` + `insertThreadActivity` |
+| [ ] **LP-003g** | `thread.setAgentRead` (worker) | `thread-mutations.ts`, `apps/worker/src/lib/agent-read.ts` | Worker uses `thread.setAgentRead`; no generic `thread.update` for `agentRead` |
+| [ ] **LP-003h** | Web devtools → `thread.create` / `message.create` | `create-thread-button.tsx`, `duplicate-thread-command.tsx`; remove generic `author.insert` | Devtools use procedures only |
+| [ ] **LP-003i** | `thread.create` optimistic (optional) | `live-state.ts` if product `mutate.thread.create` paths need instant UI | Document yes/no in matrix; implement only if fire-and-forget `mutate` callers exist |
+| [ ] **LP-003j** | Slack → `thread.create` / `message.create` | `apps/slack/src/index.ts` (`store.mutate` / `fetchClient` thread/message/author inserts) | Ripgrep: no `store.mutate.thread.insert` / `message.insert` in slack |
+| [ ] **LP-003k** | Discord → `thread.create` / `message.create` | `apps/discord/src/index.ts` | Same as LP-003j for discord |
+| [ ] **LP-003l** | GitHub webhook thread status | `apps/github/src/webhooks/index.ts` → `thread.setStatus` (or internal helper) | Webhook stops `store.mutate.thread.update` + `update.insert` |
+| [ ] **LP-003m** | Slack/Discord thread field sync | Remaining `thread.update` in slack/discord (e.g. channel metadata sync) | Map each to a named procedure or document exception |
+| [ ] **LP-003n-lockdown** | Deny generic `thread` / `message` / `author` writes | `router/threads.ts`, `router/message.ts`, `router/author.ts` — `insert`/`update` → `false` | All LP-003a–m complete; typecheck + ripgrep clean |
+
+### LP-004 — `update`, `label`, `threadLabel`
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [x] **LP-004-labels** | *(already done)* | `label.*` procedures + web optimistic | Label family complete per matrix |
+| [ ] **LP-004a** | `update.recordActivity` (internal) | `router/update.ts` new procedure; migrate API-internal `db.insert(schema.update)` not owned by `thread.*` | Internal timeline writes use `recordActivity` or thread procedures |
+| [ ] **LP-004b** | Slack `update.update` | `apps/slack/src/index.ts` `fetchClient.mutate.update.update` | Slack has no generic `update.update` |
+| [ ] **LP-004c** | Discord `update.update` | `apps/discord/src/index.ts` | Discord has no generic `update.update` |
+| [ ] **LP-004d** | `apply-label` handler convergence | `apply-label.ts` → shared label attach helper | Handler reuses `label.attachToThread` logic |
+| [ ] **LP-004e-lockdown** | Deny generic `update` writes | `router/update.ts` | Product + integration callers migrated; github webhook timeline covered |
+
+### LP-005 — `organization`, `organizationUser`, `user`, `invite`
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [ ] **LP-005a** | `organization.updateSettings` + builder rename | `router/organization.ts` `withProcedures`, `settings/organization/index.tsx`, `support-intelligence.tsx` | No `mutate.organization.update` in web |
+| [ ] **LP-005b** | `organizationUser.updateMember` | `router/organization-user.ts`, `team.tsx` role/enabled toggles | No `mutate.organizationUser.update` in web |
+| [ ] **LP-005c** | `user.updateProfile` | `router/user.ts` new procedure, `settings/user/index.tsx` | No `mutate.user.update` in web |
+| [ ] **LP-005d** | `invite.revoke` | `router/invite.ts`, `team.tsx` invite revoke | No `mutate.invite.update` in web |
+| [ ] **LP-005e-lockdown** | Deny generic org-family writes | `organization`, `organizationUser`, `user`, `invite` routes | All LP-005a–d complete |
+
+### LP-006 — `integration`, `externalEntity`
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [ ] **LP-006a** | `integration.connectInstallation` / `updateInstallation` (web) | `router/integration.ts` `withProcedures`, slack/discord/github settings, `lib/integrations/activate.ts` | No `mutate.integration.insert` / `.update` in web |
+| [ ] **LP-006b** | Slack integration app writes | `apps/slack` `installation-store.ts`, `utils.ts` | Slack app uses integration procedures |
+| [ ] **LP-006c** | Discord integration app writes | `apps/discord/lib/utils.ts` | Discord app uses integration procedures |
+| [ ] **LP-006d** | GitHub integration app writes | `apps/github/routes/setup.ts` | GitHub app uses integration procedures |
+| [ ] **LP-006e-lockdown** | Deny generic integration / externalEntity writes | `router/integration.ts`, `router/external-entity.ts` `withProcedures` rename | Procedures only; externalEntity already procedure-only |
+
+### LP-007 — `onboarding`, `documentationSource`, `agentChat`, `autonomousAction`
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [ ] **LP-007a** | Onboarding builder rename + lockdown | `router/onboarding.ts` — procedures already used by web via `fetchClient` / `mutate` | Generic onboarding insert/update denied |
+| [ ] **LP-007b** | Documentation source worker + rename | `router/documentation-source.ts` `withProcedures`, `worker/.../crawl-documentation.ts` | Worker uses `documentationSource.*` procedure, not generic `update` |
+| [ ] **LP-007c** | Agent chat builder rename | `router/agent-chat.ts` `withProcedures`; verify no generic writes | Builder renamed; writes remain procedure-only |
+| [ ] **LP-007d** | `autonomousAction.record` convergence | `autonomous-receipts.ts` → `record` procedure | No direct `db.autonomousAction.insert` bypass |
+| [ ] **LP-007e-lockdown** | Deny generic writes on LP-007 routes | onboarding, documentationSource, agentChat, autonomousAction | All LP-007a–d complete |
+
+### LP-008 — Cross-route lockdown audit
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [ ] **LP-008** | Final generic-write audit | Verify every product route denies insert/update; document `pipeline*`, `subscription`, `allowlist`, `migration` exceptions | LP-003n, 004e, 005e, 006e, 007e all done; matrix matches reality |
+
+### LP-009 — End-to-end verification
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [ ] **LP-009a** | Repo-wide static verification | `bun run typecheck`, ripgrep for `mutate.<product>.insert` / `.update` under `apps/` | Zero unintended product generic writes |
+| [ ] **LP-009b** | Smoke test matrix | Manual or scripted exercise of inbox, thread properties, labels, settings, integrations | Verification ledger lists paths tested + gaps |
+
 ## Checklist
 
 - [x] LP-001: Inventory all API route write capabilities and repository call sites. Completion: ledger contains a route-by-route matrix of generic writes, custom procedures, all call-site usage, web usage, and web optimistic mutation status.
 - [x] LP-002: Define the target procedure contract. Completion: documented conventions for naming, input schemas, authorization, return values, optimistic handlers, and whether generic writes stay available for internal-only routes.
-- [ ] LP-003: Migrate thread and message writes. Completion: no repository call site relies on generic `thread` or `message` writes, and needed web optimistic mutations exist.
-- [ ] LP-004: Migrate label, thread-label, and update writes. Completion: label attachment, detachment, thread property updates, and timeline update creation go through custom procedures with matching optimistic behavior where used.
-- [ ] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: settings, team, invitation, API key, autonomy, and profile writes use custom procedures or have documented internal-only exceptions.
-- [ ] LP-006: Migrate integration and external-entity writes. Completion: Slack, Discord, GitHub, and external entity flows use explicit custom procedures with no product reliance on generic writes.
-- [ ] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: remaining product/devtool procedure call sites are explicit custom procedures with web optimistic coverage assessed.
-- [ ] LP-008: Lock down generic route permissions. Completion: generic `insert` and `update` are disabled or restricted to documented internal-only paths after replacements are live.
-- [ ] LP-009: Verify the migration end-to-end. Completion: typecheck passes, focused web flows are exercised or covered by tests, and no unintended `mutate.<resource>.insert/update` product call sites remain.
+- [ ] LP-003: Migrate thread and message writes. Completion: all **LP-003a–n** slices done (including lockdown).
+- [ ] LP-004: Migrate label, thread-label, and update writes. Completion: all **LP-004\*** slices done (labels already ✓).
+- [ ] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
+- [ ] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
+- [ ] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
+- [ ] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
+- [ ] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
 
 ## Decisions
 
@@ -279,6 +362,8 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 - 2026-06-21 (LP-002): Thread property changes that today pair `thread.update` + `update.insert` become atomic `thread.*` procedures (`setStatus`, `setPriority`, `assignUser`, link/unlink helpers, etc.); product callers must not insert timeline rows via generic `update.insert`.
 - 2026-06-21 (LP-002): `author` generic insert is blocked without a dedicated procedure — rows are always created inside `thread.create` / `message.create`.
 - 2026-06-21 (LP-002): Optimistic mutations required for high-traffic synced `mutate.thread.*` procedures; settings/onboarding/integration procedures stay fetchClient-only without optimistic handlers unless usage changes.
+- 2026-06-21 (LP-003): Thread property helpers (`runSetThreadStatus`, `runSetThreadPriority`, `runAssignThreadUser`) live in `apps/api/src/lib/thread-mutations.ts`; `set-status` signal handler delegates to `runSetThreadStatus`. Procedure input may include optional `userId`/`userName` for optimistic reconciliation; server always uses session actor for authorization and activity `userId`.
+- 2026-06-21: Broke LP-003–LP-009 into **PR slices** (one PR per slice id). Lockdown slices ship after caller migration. Parent checklist items complete when all child slices are done.
 
 ## PR Feedback
 
@@ -289,6 +374,7 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 - 2026-06-21: Not run. Reason: created the planning ledger only; no production code changed.
 - 2026-06-21: LP-001 inventory verified by ripgrep across `apps/{api,web,worker,slack,discord,github,cli}` for `mutate.*`, `fetchClient.mutate.*`, `store.mutate.*`, and API `db.*` write paths in router + signal handlers. No typecheck or runtime exercise — documentation-only session.
 - 2026-06-21 (LP-002): Contract cross-checked against `agents/saved-prompts/update-routers.md`, `authorize.ts`, `labels.ts`, `threads.ts`, `external-entity.ts`, and `apps/web/src/lib/live-state.ts`. Documentation-only — no typecheck run.
+- 2026-06-21 (LP-003 partial): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep confirms web status/priority/assign paths use `mutate.thread.setStatus|setPriority|assignUser`; remaining generic `thread.update` in `issues.tsx`, `pull-requests.tsx`, `archive/$id.tsx`, `threads/$id/index.tsx`, `quick-actions.tsx` (`markDuplicate`). No runtime UI smoke test.
 
 ## Session Log
 
@@ -297,7 +383,9 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 - 2026-06-21: Updated scope so all repository call sites migrate to procedures, with optimistic mutations only for `apps/web`.
 - 2026-06-21 (LP-001): Built full write inventory matrix in this ledger — 16 product routes + 5 internal-only routes + API-internal signal/agent paths. Key findings: `thread.update` + `update.insert` are the densest generic web pattern; slack/discord still generic-insert threads/messages; several families use legacy `withMutations`; `autonomous-receipts.ts` bypasses `autonomousAction.record`; optimistic coverage is strong for `label` and partial for `message`/`thread` signals only.
 - 2026-06-21 (LP-002): Added **Target procedure contract** — naming, Zod inputs, `authorize` rules, return values, shared helpers, web optimistic criteria, LP-008 lockdown table, and per-slice planned procedure catalog for LP-003–LP-007.
+- 2026-06-21 (LP-003 partial): Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser` in `apps/api/src/lib/thread-mutations.ts` + `router/threads.ts`; refactored `set-status` signal handler; migrated web call sites (`actions/threads.ts`, `properties.tsx`, command palette, toolbar, quick-actions status accept); added optimistic handlers in `live-state.ts`.
+- 2026-06-21: Added **PR slices** section — LP-003 split into 14 slices (003a–n), LP-004–007 into 4–6 slices each, LP-008–009 into audit/verification slices. Updated checklist to reference child slices.
 
 ## Handoff
 
-Next action: Start **LP-003** — implement `thread.setStatus` (and shared activity helper) in `apps/api/src/live-state/router/threads.ts`, migrate `updateThreadStatus` in `apps/web/src/actions/threads.ts` to `mutate.thread.setStatus`, add the optimistic handler in `apps/web/src/lib/live-state.ts`, then repeat for the remaining thread procedures before tackling slack/discord `thread.create` / generic `message.insert`.
+Next action: Ship **LP-003b** — implement `thread.linkGithubIssue` / `unlinkGithubIssue` in `apps/api/src/lib/thread-mutations.ts`, migrate `apps/web/src/components/threads/issues.tsx`, add optimistic handlers. See **PR slices** table for scope and completion criteria.

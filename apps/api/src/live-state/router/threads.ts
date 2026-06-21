@@ -4,6 +4,14 @@ import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
 import {
+  assignUserInputSchema,
+  runAssignThreadUser,
+  runSetThreadPriority,
+  runSetThreadStatus,
+  setPriorityInputSchema,
+  setStatusInputSchema,
+} from "../../lib/thread-mutations";
+import {
   acceptInlineSuggestionInputSchema,
   acceptReadInputSchema,
   dismissInlineSuggestionInputSchema,
@@ -550,6 +558,45 @@ export default publicRoute
         return runWriteHintSlot(db, req.input);
       },
     ),
+    setStatus: mutation(setStatusInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runSetThreadStatus(db, req.input, {
+        userId: actorUserId,
+        userName: req.context?.user?.name ?? null,
+      });
+    }),
+    setPriority: mutation(setPriorityInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runSetThreadPriority(db, req.input, {
+        userId: actorUserId,
+        userName: req.context?.user?.name ?? null,
+      });
+    }),
+    assignUser: mutation(assignUserInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runAssignThreadUser(db, req.input, {
+        userId: actorUserId,
+        userName: req.context?.user?.name ?? null,
+      });
+    }),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the

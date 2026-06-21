@@ -190,6 +190,106 @@ const { client, store } = createClient<Router>({
           ),
         });
       },
+      setStatus: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldStatus = thread.status ?? 0;
+        if (oldStatus === input.status) return;
+
+        storage.thread.update(input.threadId, { status: input.status });
+
+        if (!input.userId) return;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "status_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldStatus,
+            newStatus: input.status,
+            oldStatusLabel: STATUS_LABELS[oldStatus] ?? null,
+            newStatusLabel: STATUS_LABELS[input.status] ?? null,
+            ...(input.userName ? { userName: input.userName } : {}),
+            ...(input.source ? { source: input.source } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
+      setPriority: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldPriority = thread.priority ?? 0;
+        if (oldPriority === input.priority) return;
+
+        storage.thread.update(input.threadId, { priority: input.priority });
+
+        if (!input.userId) return;
+
+        const priorityLabels: Record<number, string> = {
+          0: "No priority",
+          1: "Low priority",
+          2: "Medium priority",
+          3: "High priority",
+          4: "Urgent priority",
+        };
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "priority_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldPriority,
+            newPriority: input.priority,
+            oldPriorityLabel: priorityLabels[oldPriority] ?? null,
+            newPriorityLabel: priorityLabels[input.priority] ?? null,
+            ...(input.userName ? { userName: input.userName } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
+      assignUser: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldAssignedUserId = thread.assignedUserId ?? null;
+        const newAssignedUserId = input.assignedUserId;
+        if (oldAssignedUserId === newAssignedUserId) return;
+
+        storage.thread.update(input.threadId, {
+          assignedUserId: newAssignedUserId,
+        });
+
+        if (!input.userId) return;
+
+        const oldAssignedUserName =
+          storage.user.where({ id: oldAssignedUserId ?? "" }).get()[0]?.name ??
+          null;
+        const newAssignedUserName =
+          storage.user.where({ id: newAssignedUserId ?? "" }).get()[0]?.name ??
+          null;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "assigned_changed",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            oldAssignedUserId,
+            newAssignedUserId,
+            oldAssignedUserName,
+            newAssignedUserName,
+            ...(input.userName ? { userName: input.userName } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
     },
     autonomousAction: {
       undo: ({ input, storage }) => {

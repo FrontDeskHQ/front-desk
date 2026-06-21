@@ -8,6 +8,7 @@ import type { Command, CommandPage } from "../../types";
 
 type StatusCommandsParams = {
   threadId: string;
+  organizationId: string;
   thread:
     | {
         status?: number;
@@ -22,6 +23,7 @@ type StatusCommandsParams = {
 
 export const createStatusCommands = ({
   threadId,
+  organizationId,
   thread,
   user,
 }: StatusCommandsParams): {
@@ -31,6 +33,7 @@ export const createStatusCommands = ({
   const handleStatusChange = async (newStatus: number) => {
     await updateThreadStatus({
       threadId,
+      organizationId,
       newStatus,
       oldStatus: thread?.status ?? 0,
       userId: user.id,
