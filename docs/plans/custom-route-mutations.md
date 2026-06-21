@@ -18,7 +18,7 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: LP-002 target procedure contract
+- Active checkpoint: LP-003 thread and message migration
 - Branch or PR: none
 - Last updated: 2026-06-21
 
@@ -96,10 +96,172 @@ These run inside the API process via `db.*` and must be accounted for when locki
 | `autonomousAction` | `undo` | Handler ready; no web caller wired yet |
 | All other routes | none | Settings/onboarding/integration writes are mostly `fetchClient` or infrequent — assess per procedure in LP-002 |
 
+## Target procedure contract (LP-002)
+
+Authoritative implementation habits also live in `agents/saved-prompts/update-routers.md`. This section is the migration contract for this project.
+
+### API primitive
+
+- Declare custom writes and reads with **`withProcedures`** (`mutation` / `query`). Do not add new `withMutations` routes.
+- When touching a legacy `withMutations` route during LP-003–LP-007, rename the builder to `withProcedures` in the same PR (procedure names stay stable).
+- **Queries** (`list`, `search`, `fetchRelatedThreads`, …) are out of migration scope unless a generic write is being replaced; they may remain as-is.
+
+### Naming
+
+| Rule | Example |
+| --- | --- |
+| Use a **verb** that names the product operation, not the SQL shape | `create`, `setStatus`, `attachToThread`, `upsert`, `record` |
+| Prefer **one procedure per real operation** — no UI-side branching that the server already owns | `attachToThread` resolves natural keys; clients do not `insert` + `update` pairs |
+| Put the procedure on the collection that owns the **product concept**, even when other tables are touched | label attach/detach live on `label.*`; timeline rows are a side effect of `thread.*` |
+| Use **paired, consistent names** for inverse operations | `attachToThread` / `detachFromThread`; `linkGithubIssue` / `unlinkGithubIssue` |
+| Avoid generic `update` as a procedure name when a specific verb exists | `setStatus` not `updateThread` with a status field |
+| Integration / worker entry points get the **same procedure** as web when the operation is identical | slack/discord thread ingestion calls `thread.create`, not `thread.insert` |
+
+**Reserved names (already in use — do not overload):** `create`, `record`, `undo`, `upsert`, `softDelete`, `accept`, `decline`, `inviteUser`, `initialize`, `completeStep`, `skip`, `complete`, `sendMessage`, `acceptDraft`, `dismissDraft`, `updateDraft`.
+
+### Input schemas
+
+- Every procedure takes a **Zod object** as its input schema.
+- **Updates** take stable identifiers (`threadId`, `labelId`, …) plus only the fields that change. Do not accept arbitrary collection patches from clients.
+- **Creates** accept the minimum fields needed to construct the row(s). Optional `id` / `threadLabelId` / similar may be supplied for optimistic client reconciliation; server ignores client `id` when upserting by natural key.
+- Reuse shared Zod fragments when the same field bundle appears in multiple procedures (see `externalEntityFields` in `external-entity.ts`).
+- Coerce dates with `z.coerce.date()` where clients may send ISO strings.
+- Throw **stable string error codes** (`UNAUTHORIZED`, `THREAD_NOT_FOUND`, `LABEL_NOT_FOUND`, …) — match existing handlers.
+
+### Authorization
+
+- Inside handlers, call **`authorize(req, { organizationId, role?, allowPublicApiKey?, allowInternalApiKey? })`** with the mutation/query `req`. Use `isAuthorized(ctx, opts)` only when a boolean guard is needed without throwing.
+- Resolve `organizationId` from the target row when it is not in input (load entity → `authorize` → mutate).
+- **Portal**, **public API key**, and **internal API key** flows follow the `thread.create` / `message.create` pattern: explicit context checks where `authorize` alone is insufficient (portal userId match, public key ownerId, etc.).
+- Collection-route **`insert` / `update` (pre/post)** become **deny-by-default** (`() => false` or equivalent) once all product and integration callers for that resource are migrated. Until then, keep existing permissions so parallel migration does not break callers.
+- Procedure-level auth must be **at least as strict** as the generic mutator it replaces.
+
+### Return values
+
+- **Creates:** return the inserted row (or included graph) when the caller needs it for navigation or optimistic reconciliation. `db.*.insert` usually returns the row — avoid an extra `one(id).get()` unless `include` is required.
+- **Updates:** return the updated row after mutation when clients read the result; otherwise return a minimal ack (`{ ok: true }`, `{ id, alreadyExists: true }`).
+- **Side-effect-only** procedures (e.g. `record` on `autonomousAction`) return the written row or a stable id for undo flows.
+- Do not return secrets or internal-only fields beyond what sync already exposes.
+
+### Shared server logic
+
+- Factor insert/update paths into helpers that accept **`db` or transaction `trx`** so procedures, signal handlers, and agent-chat code reuse one implementation.
+- **API-internal `db.*` writes** (signal handlers, `autonomous-receipts.ts`, agent-chat streaming, boot migrations) must either call those shared helpers or gain a tracked exception in this ledger. Goal: no duplicate business rules between procedures and signal handlers.
+- Signal handlers that today do `thread.update` + `insertThreadActivity` should converge on the same helper used by the matching `thread.*` procedure (LP-003 / LP-004).
+
+### Client migration
+
+- Replace **`mutate.<resource>.insert|update`** and **`fetchClient.mutate.*` / `store.mutate.*`** with **`mutate.<resource>.<procedure>(input)`** everywhere in the repo.
+- **Preserve await behavior:** if the original call was fire-and-forget, keep it fire-and-forget; if it was awaited, keep await.
+- Devtools and integration bots are not exempt — they migrate in the same route-family PR.
+
+### Optimistic mutations (web only)
+
+Add a handler in `apps/web/src/lib/live-state.ts` when **all** of the following are true:
+
+1. The UI calls the procedure via synced **`mutate.*`** (not only `fetchClient`).
+2. The call is **fire-and-forget** or must feel instant (inbox, thread header, composer, label chips).
+3. The optimistic patch can **mirror server semantics** on local `storage` without guessing server-only fields.
+
+**Do not add optimistic handlers when:**
+
+- The caller always uses **`fetchClient`** and awaits (settings, onboarding, OAuth redirects, documentation crawl).
+- The procedure is **dev-only** or **worker/integration-only**.
+- The write is **idempotent background sync** (external entity upsert, pipeline tables).
+- Correct rollback requires **server-computed fields** the client cannot derive (e.g. billing subscription state).
+
+**Implementation rules:**
+
+- Handler shape: `defineOptimisticMutations<Router, typeof schema>({ resource: { procedure: ({ input, storage }) => { … } } })`.
+- Touch the **same collections** in the **same order** as the server procedure.
+- Side-effect rows (`author` on `message.create`, `update` on `autonomousAction.undo`) belong inside the owning procedure's optimistic handler.
+- Record every **intentional omission** in the matrix above when adding a new procedure.
+
+### Generic write lockdown (LP-008 target)
+
+| Category | Routes | Generic `insert` / `update` after LP-008 |
+| --- | --- | --- |
+| **Product — disabled** | `thread`, `message`, `update`, `author`, `organization`, `organizationUser`, `user`, `invite`, `integration`, `onboarding`, `documentationSource`, `label`, `threadLabel`, `externalEntity`, `agentChat`, `agentChatMessage`, `autonomousAction` | `false` / deny; all writes via procedures |
+| **Internal-only — keep restricted** | `pipelineIdempotencyKey`, `pipelineJob` | internal API key only |
+| **Internal-only — side effects** | `allowlist` | internal key; rows created inside `invite.accept` |
+| **Internal-only — billing** | `subscription` | internal key; Dodo webhook may keep direct `storage.update` (documented exception) |
+| **Boot-only** | `migration` | disabled; migrations runner only |
+
+### Planned procedure catalog (by migration slice)
+
+Procedures **already implemented** are marked ✓. Others are the LP-003–LP-007 target names — adjust only with a `Decisions` entry.
+
+#### LP-003: `thread`, `message`, `author`
+
+| Procedure | Route | Replaces | Web optimistic |
+| --- | --- | --- | --- |
+| `create` ✓ | `thread` | generic `thread.insert` (web devtools, slack, discord) | **yes** — high-traffic; mirror `message.create` author+message graph |
+| `setStatus` | `thread` | generic `thread.update` status + `update.insert` status_changed | **yes** |
+| `setPriority` | `thread` | generic `thread.update` priority + `update.insert` priority_changed | **yes** |
+| `assignUser` | `thread` | generic `thread.update` assignedUserId + `update.insert` assigned_changed | **yes** |
+| `linkGithubIssue` / `unlinkGithubIssue` | `thread` | generic `thread.update` externalIssueId + paired `update.insert` | **yes** |
+| `linkGithubPullRequest` / `unlinkGithubPullRequest` | `thread` | generic `thread.update` externalPrId + paired `update.insert` | **yes** |
+| `markDuplicate` | `thread` | generic `thread.update` status duplicate + activity | **yes** (low traffic) |
+| `archive` / `restore` | `thread` | generic `thread.update` deletedAt / status | **yes** for archive path |
+| `setAgentRead` | `thread` | generic `thread.update` agentRead (worker `agent-read.ts`) | **no** — worker-only |
+| `create` ✓ | `message` | generic `message.insert` (slack, discord, devtools) | ✓ already |
+| `markAsAnswer` ✓ | `message` | — | ✓ already |
+| — | `author` | generic `author.insert` | **no** — always created inside `thread.create` / `message.create`; block generic insert |
+
+#### LP-004: `update`, `label`, `threadLabel`
+
+| Procedure | Route | Replaces | Web optimistic |
+| --- | --- | --- | --- |
+| (thread procedures above own timeline inserts) | `update` | generic `update.insert` from web + github webhook | **n/a** — product callers stop inserting directly |
+| `recordActivity` | `update` | any remaining **internal** timeline writes that are not part of a thread procedure | **no** |
+| `create` / `update` / `attachToThread` / … ✓ | `label` | — | ✓ already |
+| — | `threadLabel` | direct writes | remain blocked; only via `label.*` |
+
+#### LP-005: `organization`, `organizationUser`, `user`, `invite`
+
+| Procedure | Route | Replaces | Web optimistic |
+| --- | --- | --- | --- |
+| `create` ✓ | `organization` | — | **no** — onboarding uses `fetchClient`, awaited |
+| `updateSettings` | `organization` | generic `organization.update` (support URL, name, …) | **no** |
+| `setActionAutonomy` ✓ | `organization` | — | **no** |
+| `createPublicApiKey` / `revokePublicApiKey` ✓ | `organization` | — | **no** |
+| `inviteUser` ✓ | `organizationUser` | — | **no** |
+| `updateMember` | `organizationUser` | generic `organizationUser.update` (role, enabled) | **no** |
+| `updateProfile` | `user` | generic `user.update` | **no** |
+| `accept` / `decline` ✓ | `invite` | — | **no** |
+| `revoke` | `invite` | generic `invite.update` revoke | **no** |
+
+#### LP-006: `integration`, `externalEntity`
+
+| Procedure | Route | Replaces | Web optimistic |
+| --- | --- | --- | --- |
+| `connectInstallation` | `integration` | generic `integration.insert` (slack/discord/github) | **no** — OAuth / `fetchClient` |
+| `updateInstallation` | `integration` | generic `integration.update` | **no** |
+| `fetchSlackChannels` ✓ (query) | `integration` | — | — |
+| `upsert` / `softDelete` ✓ | `externalEntity` | — | **no** |
+| `syncFromGithub` ✓ (query) | `externalEntity` | — | — |
+
+#### LP-007: `onboarding`, `documentationSource`, `agentChat`, `autonomousAction`
+
+| Procedure | Route | Replaces | Web optimistic |
+| --- | --- | --- | --- |
+| `initialize` / `completeStep` / `skip` / `complete` ✓ | `onboarding` | generic `onboarding.insert` / `update` | **no** — `fetchClient` |
+| `addDocumentationSource` / … ✓ | `documentationSource` | generic `update` in worker crawl | **no** |
+| `create` / `sendMessage` / draft procedures ✓ | `agentChat` | — | **no** — streamed server state |
+| `record` ✓ | `autonomousAction` | `db.autonomousAction.insert` in `autonomous-receipts.ts` | **no** |
+| `undo` ✓ | `autonomousAction` | — | ✓ handler exists; wire UI or drop handler in LP-009 if still unused |
+
+### Verification expectations (per migration PR)
+
+1. `bun run typecheck` (root or affected apps).
+2. Ripgrep: no remaining `mutate.<resource>.insert` / `.update` for the migrated resource under `apps/`.
+3. Generic mutator disabled on that route when the checklist item says so.
+4. Web: exercise or manually smoke the touched UI paths; note gaps in `Verification Ledger`.
+
 ## Checklist
 
 - [x] LP-001: Inventory all API route write capabilities and repository call sites. Completion: ledger contains a route-by-route matrix of generic writes, custom procedures, all call-site usage, web usage, and web optimistic mutation status.
-- [ ] LP-002: Define the target procedure contract. Completion: documented conventions for naming, input schemas, authorization, return values, optimistic handlers, and whether generic writes stay available for internal-only routes.
+- [x] LP-002: Define the target procedure contract. Completion: documented conventions for naming, input schemas, authorization, return values, optimistic handlers, and whether generic writes stay available for internal-only routes.
 - [ ] LP-003: Migrate thread and message writes. Completion: no repository call site relies on generic `thread` or `message` writes, and needed web optimistic mutations exist.
 - [ ] LP-004: Migrate label, thread-label, and update writes. Completion: label attachment, detachment, thread property updates, and timeline update creation go through custom procedures with matching optimistic behavior where used.
 - [ ] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: settings, team, invitation, API key, autonomy, and profile writes use custom procedures or have documented internal-only exceptions.
@@ -114,6 +276,9 @@ These run inside the API process via `db.*` and must be accounted for when locki
 - 2026-06-21: Corrected the target API primitive from `.withMutations(...)` to `withProcedures` per user direction.
 - 2026-06-21: Expanded migration scope from web call sites to all repository call sites; optimistic mutation work remains web-only.
 - 2026-06-21: The migration will be sliced by route family so each step can preserve behavior and verify web usage before generic writes are locked down.
+- 2026-06-21 (LP-002): Thread property changes that today pair `thread.update` + `update.insert` become atomic `thread.*` procedures (`setStatus`, `setPriority`, `assignUser`, link/unlink helpers, etc.); product callers must not insert timeline rows via generic `update.insert`.
+- 2026-06-21 (LP-002): `author` generic insert is blocked without a dedicated procedure — rows are always created inside `thread.create` / `message.create`.
+- 2026-06-21 (LP-002): Optimistic mutations required for high-traffic synced `mutate.thread.*` procedures; settings/onboarding/integration procedures stay fetchClient-only without optimistic handlers unless usage changes.
 
 ## PR Feedback
 
@@ -123,6 +288,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 
 - 2026-06-21: Not run. Reason: created the planning ledger only; no production code changed.
 - 2026-06-21: LP-001 inventory verified by ripgrep across `apps/{api,web,worker,slack,discord,github,cli}` for `mutate.*`, `fetchClient.mutate.*`, `store.mutate.*`, and API `db.*` write paths in router + signal handlers. No typecheck or runtime exercise — documentation-only session.
+- 2026-06-21 (LP-002): Contract cross-checked against `agents/saved-prompts/update-routers.md`, `authorize.ts`, `labels.ts`, `threads.ts`, `external-entity.ts`, and `apps/web/src/lib/live-state.ts`. Documentation-only — no typecheck run.
 
 ## Session Log
 
@@ -130,7 +296,8 @@ These run inside the API process via `db.*` and must be accounted for when locki
 - 2026-06-21: Updated project terminology and operating instructions to target `withProcedures` instead of `withMutations`.
 - 2026-06-21: Updated scope so all repository call sites migrate to procedures, with optimistic mutations only for `apps/web`.
 - 2026-06-21 (LP-001): Built full write inventory matrix in this ledger — 16 product routes + 5 internal-only routes + API-internal signal/agent paths. Key findings: `thread.update` + `update.insert` are the densest generic web pattern; slack/discord still generic-insert threads/messages; several families use legacy `withMutations`; `autonomous-receipts.ts` bypasses `autonomousAction.record`; optimistic coverage is strong for `label` and partial for `message`/`thread` signals only.
+- 2026-06-21 (LP-002): Added **Target procedure contract** — naming, Zod inputs, `authorize` rules, return values, shared helpers, web optimistic criteria, LP-008 lockdown table, and per-slice planned procedure catalog for LP-003–LP-007.
 
 ## Handoff
 
-Next action: Start LP-002 — document the target procedure contract in this ledger (naming, input schemas, auth, return values, optimistic handler rules, and which generic writes remain internal-only). Use the LP-001 matrix as the source list of routes that still need conventions or migration.
+Next action: Start **LP-003** — implement `thread.setStatus` (and shared activity helper) in `apps/api/src/live-state/router/threads.ts`, migrate `updateThreadStatus` in `apps/web/src/actions/threads.ts` to `mutate.thread.setStatus`, add the optimistic handler in `apps/web/src/lib/live-state.ts`, then repeat for the remaining thread procedures before tackling slack/discord `thread.create` / generic `message.insert`.
