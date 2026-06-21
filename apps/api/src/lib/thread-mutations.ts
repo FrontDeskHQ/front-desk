@@ -31,7 +31,7 @@ export const assignUserInputSchema = z.object({
   userName: z.string().optional(),
 });
 
-export const linkGithubIssueInputSchema = z.object({
+export const linkIssueInputSchema = z.object({
   threadId: z.string(),
   organizationId: z.string(),
   externalIssueId: z.string(),
@@ -39,7 +39,7 @@ export const linkGithubIssueInputSchema = z.object({
   userName: z.string().optional(),
 });
 
-export const unlinkGithubIssueInputSchema = z.object({
+export const unlinkIssueInputSchema = z.object({
   threadId: z.string(),
   organizationId: z.string(),
   userId: z.string().optional(),
@@ -51,7 +51,7 @@ type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
 type ThreadAssignDb = ThreadWriteDb &
   Pick<ServerDB<typeof schema>, "organizationUser">;
 
-type ThreadGithubLinkDb = ThreadWriteDb &
+type ThreadIssueLinkDb = ThreadWriteDb &
   Pick<ServerDB<typeof schema>, "find">;
 
 const priorityActivityMetadata = (oldPriority: number, newPriority: number) => ({
@@ -252,9 +252,9 @@ const resolveIssueLabel = async (
   return `${entity.repoFullName}#${entity.number}`;
 };
 
-export const runLinkGithubIssue = async (
-  db: ThreadGithubLinkDb,
-  input: z.infer<typeof linkGithubIssueInputSchema>,
+export const runLinkIssue = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof linkIssueInputSchema>,
   actor: {
     userId: string | null;
     userName: string | null;
@@ -305,9 +305,9 @@ export const runLinkGithubIssue = async (
   };
 };
 
-export const runUnlinkGithubIssue = async (
-  db: ThreadGithubLinkDb,
-  input: z.infer<typeof unlinkGithubIssueInputSchema>,
+export const runUnlinkIssue = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof unlinkIssueInputSchema>,
   actor: {
     userId: string | null;
     userName: string | null;

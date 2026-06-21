@@ -287,7 +287,7 @@ const { client, store } = createClient<Router>({
           replicatedStr: JSON.stringify({}),
         });
       },
-      linkGithubIssue: ({ input, storage }) => {
+      linkIssue: ({ input, storage }) => {
         const thread = storage.thread.where({ id: input.threadId }).get()[0];
         if (!thread) return;
 
@@ -324,7 +324,7 @@ const { client, store } = createClient<Router>({
           replicatedStr: JSON.stringify({}),
         });
       },
-      unlinkGithubIssue: ({ input, storage }) => {
+      unlinkIssue: ({ input, storage }) => {
         const thread = storage.thread.where({ id: input.threadId }).get()[0];
         if (!thread) return;
 

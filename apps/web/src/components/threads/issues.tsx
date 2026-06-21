@@ -197,7 +197,7 @@ export function IssuesSection({
       });
 
       // Link the thread to the newly created issue by its externalKey.
-      mutate.thread.linkGithubIssue({
+      mutate.thread.linkIssue({
         threadId,
         organizationId: currentOrg.id,
         externalIssueId: result.issue.id,
@@ -246,7 +246,7 @@ export function IssuesSection({
     e.stopPropagation();
     if (!externalIssueId || !linkedIssue || !currentOrg) return;
 
-    mutate.thread.unlinkGithubIssue({
+    mutate.thread.unlinkIssue({
       threadId,
       organizationId: currentOrg.id,
       userId: user.id,
@@ -296,7 +296,7 @@ export function IssuesSection({
                 : undefined;
 
               if (newIssueId) {
-                mutate.thread.linkGithubIssue({
+                mutate.thread.linkIssue({
                   threadId,
                   organizationId: currentOrg.id,
                   externalIssueId: newIssueId,
@@ -312,7 +312,7 @@ export function IssuesSection({
                   repository: newIssue?.repoFullName,
                 });
               } else {
-                mutate.thread.unlinkGithubIssue({
+                mutate.thread.unlinkIssue({
                   threadId,
                   organizationId: currentOrg.id,
                   userId: user.id,
