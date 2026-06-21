@@ -29,10 +29,21 @@ Use agent intelligence to author varied, believable thread fixtures, then seed t
 
 ## Flow
 
-1. **Invent fixtures** — write varied, realistic opener threads (see guidelines below)
-2. **Write JSON** — single object or array to a temp file (e.g. `/tmp/seed-threads.json`)
-3. **Run CLI** — parse stdout JSON for created thread URLs/ids
-4. **Verify** — threads appear in the inbox with correct title, author, and message
+1. **Resolve the org** — if the user didn't name one and `FD_DEV_ORG` isn't set, list orgs and pick (see below)
+2. **Invent fixtures** — write varied, realistic opener threads (see guidelines below)
+3. **Write JSON** — single object or array to a temp file (e.g. `/tmp/seed-threads.json`)
+4. **Run CLI** — parse stdout JSON for created thread URLs/ids
+5. **Verify** — threads appear in the inbox with correct title, author, and message
+
+### Selecting an org
+
+When no org is given (no `--org`, no `FD_DEV_ORG`), list the available organizations and resolve the slug before seeding:
+
+```bash
+bun run --filter cli fd org list
+```
+
+Stdout is JSON: `{ "organizations": [{ "id", "name", "slug", "url" }] }`. If exactly one org exists, use its slug. If several, ask the user which slug to seed into rather than guessing.
 
 ```bash
 bun run --filter cli fd thread create --org acme --fixture /tmp/seed-threads.json

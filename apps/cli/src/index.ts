@@ -1,9 +1,30 @@
 #!/usr/bin/env bun
 import { cac } from "cac";
 import "./env.js";
+import { runOrgList } from "./commands/org/list.js";
 import { runThreadCreate } from "./commands/thread/create.js";
 
 const cli = cac("fd");
+
+cli
+  .command("org <action>", "Organization operations")
+  .action(async (action) => {
+    if (action !== "list") {
+      console.error(`Unknown org action: ${action}`);
+      process.exitCode = 1;
+      return;
+    }
+
+    try {
+      const { output, exitCode } = await runOrgList();
+      console.log(JSON.stringify(output, null, 2));
+      process.exitCode = exitCode;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(message);
+      process.exitCode = 1;
+    }
+  });
 
 cli
   .command("thread <action>", "Thread operations")

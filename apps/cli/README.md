@@ -25,6 +25,9 @@ The CLI itself runs straight from TypeScript via bun — no build step.
 ## Usage
 
 ```bash
+# List all organizations (id, name, slug, support URL)
+bun run --filter cli fd org list
+
 # Default org from FD_DEV_ORG
 bun run --filter cli fd thread create --fixture ./threads.json
 
