@@ -7,6 +7,7 @@ import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 import {
   parseAutonomousActionMetadata,
+  PRIORITY_LABELS,
   STATUS_LABELS,
 } from "@workspace/schemas/signals";
 import type { Router } from "api/router";
@@ -229,14 +230,6 @@ const { client, store } = createClient<Router>({
 
         if (!input.userId) return;
 
-        const priorityLabels: Record<number, string> = {
-          0: "No priority",
-          1: "Low priority",
-          2: "Medium priority",
-          3: "High priority",
-          4: "Urgent priority",
-        };
-
         storage.update.insert({
           id: ulid().toLowerCase(),
           threadId: input.threadId,
@@ -246,8 +239,8 @@ const { client, store } = createClient<Router>({
           metadataStr: JSON.stringify({
             oldPriority,
             newPriority: input.priority,
-            oldPriorityLabel: priorityLabels[oldPriority] ?? null,
-            newPriorityLabel: priorityLabels[input.priority] ?? null,
+            oldPriorityLabel: PRIORITY_LABELS[oldPriority] ?? null,
+            newPriorityLabel: PRIORITY_LABELS[input.priority] ?? null,
             ...(input.userName ? { userName: input.userName } : {}),
           }),
           replicatedStr: JSON.stringify({}),

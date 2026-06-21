@@ -1,4 +1,5 @@
 import type { ServerDB } from "@live-state/sync/server";
+import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { schema } from "../live-state/schema";
@@ -33,14 +34,6 @@ type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
 
 type ThreadAssignDb = ThreadWriteDb &
   Pick<ServerDB<typeof schema>, "organizationUser">;
-
-const PRIORITY_LABELS: Record<number, string> = {
-  0: "No priority",
-  1: "Low priority",
-  2: "Medium priority",
-  3: "High priority",
-  4: "Urgent priority",
-};
 
 const priorityActivityMetadata = (oldPriority: number, newPriority: number) => ({
   oldPriority,
@@ -151,10 +144,7 @@ export const runAssignThreadUser = async (
     userName: string | null;
   },
 ) => {
-  const thread = await db.thread
-    .one(input.threadId)
-    .include({ assignedUser: true })
-    .get();
+  const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
@@ -165,12 +155,10 @@ export const runAssignThreadUser = async (
     return { thread, unchanged: true as const };
   }
 
-  const oldAssignedUserName = thread.assignedUser?.name ?? null;
-  const newAssignedUserName = await resolveAssignedUserName(
-    db,
-    input.organizationId,
-    newAssignedUserId,
-  );
+  const [oldAssignedUserName, newAssignedUserName] = await Promise.all([
+    resolveAssignedUserName(db, input.organizationId, oldAssignedUserId),
+    resolveAssignedUserName(db, input.organizationId, newAssignedUserId),
+  ]);
 
   await db.thread.update(input.threadId, {
     assignedUserId: newAssignedUserId,

@@ -1,3 +1,4 @@
+import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import {
   PriorityIndicator,
   priorityText,
@@ -19,13 +20,6 @@ type PriorityCommandsParams = {
     id: string;
     name: string;
   };
-};
-
-const priorityLabels: Record<number, string> = {
-  0: "No priority",
-  1: "Low priority",
-  2: "Medium priority",
-  3: "High priority",
 };
 
 export const createPriorityCommands = ({
@@ -65,13 +59,13 @@ export const createPriorityCommands = ({
             <div className="flex items-center gap-0.5 text-foreground-secondary">
               Change priority <ChevronRight />
               <div className="text-foreground-primary">
-                {priorityLabels[+priorityKey] ?? priorityLabel}
+                {PRIORITY_LABELS[+priorityKey] ?? priorityLabel}
               </div>
             </div>
           ),
           keywords: [
             priorityLabel.toLowerCase(),
-            priorityLabels[+priorityKey]?.toLowerCase() ?? "",
+            PRIORITY_LABELS[+priorityKey]?.toLowerCase() ?? "",
             "priority",
           ].filter(Boolean),
           icon: <PriorityIndicator priority={+priorityKey} />,
@@ -91,7 +85,7 @@ export const createPriorityCommands = ({
     icon: <PriorityIndicator priority={thread?.priority ?? 0} />,
     commands: priorityEntries.map(([priorityKey, priorityLabel]) => ({
       id: priorityKey,
-      label: priorityLabels[+priorityKey] ?? priorityLabel,
+      label: PRIORITY_LABELS[+priorityKey] ?? priorityLabel,
       icon: <PriorityIndicator priority={+priorityKey} />,
       checked: thread?.priority === +priorityKey,
       onSelect: async () => {

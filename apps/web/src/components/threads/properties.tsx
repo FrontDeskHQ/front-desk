@@ -19,6 +19,7 @@ import {
   statusValues,
 } from "@workspace/ui/components/indicator";
 import { cn } from "@workspace/ui/lib/utils";
+import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import type { schema } from "api/schema";
 import { CircleUser } from "lucide-react";
 import { mutate } from "~/lib/live-state";
@@ -39,13 +40,6 @@ interface PropertiesSectionProps {
     properties?: Record<string, unknown>,
   ) => void;
 }
-
-const priorityLabels: Record<number, string> = {
-  0: "No priority",
-  1: "Low priority",
-  2: "Medium priority",
-  3: "High priority",
-};
 
 export function PropertiesSection({
   thread,
@@ -139,8 +133,8 @@ export function PropertiesSection({
           onValueChange={(value) => {
             const oldPriority = thread?.priority ?? 0;
             const newPriority = value ? +value : 0;
-            const oldPriorityLabel = priorityLabels[oldPriority] ?? "Unknown";
-            const newPriorityLabel = priorityLabels[newPriority] ?? "Unknown";
+            const oldPriorityLabel = PRIORITY_LABELS[oldPriority] ?? "Unknown";
+            const newPriorityLabel = PRIORITY_LABELS[newPriority] ?? "Unknown";
 
             mutate.thread.setPriority({
               threadId: id,
