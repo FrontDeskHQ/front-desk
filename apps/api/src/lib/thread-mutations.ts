@@ -155,6 +155,19 @@ export const runAssignThreadUser = async (
     return { thread, unchanged: true as const };
   }
 
+  if (newAssignedUserId) {
+    const assignee = await db.organizationUser
+      .first({
+        organizationId: input.organizationId,
+        userId: newAssignedUserId,
+        enabled: true,
+      })
+      .get();
+    if (!assignee) {
+      throw new Error("ASSIGNEE_NOT_IN_ORGANIZATION");
+    }
+  }
+
   const [oldAssignedUserName, newAssignedUserName] = await Promise.all([
     resolveAssignedUserName(db, input.organizationId, oldAssignedUserId),
     resolveAssignedUserName(db, input.organizationId, newAssignedUserId),

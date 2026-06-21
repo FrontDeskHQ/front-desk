@@ -276,8 +276,12 @@ const { client, store } = createClient<Router>({
           metadataStr: JSON.stringify({
             oldAssignedUserId,
             newAssignedUserId,
-            oldAssignedUserName,
-            newAssignedUserName,
+            oldAssignedUserName:
+              oldAssignedUserName ??
+              (oldAssignedUserId ? "Unknown user" : null),
+            newAssignedUserName:
+              newAssignedUserName ??
+              (newAssignedUserId ? "Unknown user" : null),
             ...(input.userName ? { userName: input.userName } : {}),
           }),
           replicatedStr: JSON.stringify({}),
