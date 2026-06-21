@@ -40,5 +40,5 @@ export const buildThreadUrl = ({
           return slug ? `${shortId}-${slug}` : String(shortId);
         })();
 
-  return `${base}/support/${orgSlug}/threads/${param}`;
+  return `${base}/support/${encodeURIComponent(orgSlug)}/threads/${encodeURIComponent(param)}`;
 };

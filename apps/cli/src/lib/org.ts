@@ -17,7 +17,9 @@ export const resolveOrganization = async (
 
   const organization = ULID_RE.test(trimmed)
     ? await fetchClient.query.organization.first({ id: trimmed.toLowerCase() }).get()
-    : await fetchClient.query.organization.first({ slug: trimmed }).get();
+    : await fetchClient.query.organization
+        .first({ slug: trimmed.toLowerCase() })
+        .get();
 
   if (!organization) {
     throw new Error(`Organization not found: ${trimmed}`);

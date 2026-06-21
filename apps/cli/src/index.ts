@@ -17,7 +17,8 @@ cli
   .action(async (action, options) => {
     if (action !== "create") {
       console.error(`Unknown thread action: ${action}`);
-      process.exit(1);
+      process.exitCode = 1;
+      return;
     }
 
     try {
@@ -32,11 +33,11 @@ cli
       });
 
       console.log(JSON.stringify(output, null, 2));
-      process.exit(exitCode);
+      process.exitCode = exitCode;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(message);
-      process.exit(1);
+      process.exitCode = 1;
     }
   });
 

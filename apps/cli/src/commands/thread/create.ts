@@ -10,8 +10,6 @@ import { fetchClient } from "../../lib/live-state.js";
 import { resolveOrganization } from "../../lib/org.js";
 import { buildThreadUrl } from "../../lib/thread-url.js";
 import {
-  normalizeThreadFixtures,
-  threadFixtureFileSchema,
   threadFixtureSchema,
   type ThreadFixture,
 } from "../../schema/thread-fixture.js";
@@ -50,20 +48,32 @@ const logVerbose = (verbose: boolean, message: string) => {
   }
 };
 
-const loadFixtures = async (options: ThreadCreateOptions): Promise<ThreadFixture[]> => {
+// Load raw fixture entries without validating them — each entry is validated
+// per-item inside the creation loop so one bad fixture doesn't abort the batch.
+const loadRawFixtures = async (
+  options: ThreadCreateOptions,
+): Promise<unknown[]> => {
   if (options.fixture) {
     const raw = await readFile(options.fixture, "utf8");
-    const parsed = threadFixtureFileSchema.parse(JSON.parse(raw));
-    return normalizeThreadFixtures(parsed);
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [parsed];
   }
 
-  const inline = threadFixtureSchema.parse({
-    title: options.title,
-    author: options.author,
-    message: options.message,
-  });
+  return [
+    {
+      title: options.title,
+      author: options.author,
+      message: options.message,
+    },
+  ];
+};
 
-  return [inline];
+const fixtureTitle = (raw: unknown): string => {
+  if (raw && typeof raw === "object" && "title" in raw) {
+    const { title } = raw as { title?: unknown };
+    if (typeof title === "string" && title.trim()) return title;
+  }
+  return "(invalid fixture)";
 };
 
 const formatError = (error: unknown): string => {
@@ -118,19 +128,39 @@ export const runThreadCreate = async (
     );
   }
 
-  const fixtures = await loadFixtures(options);
+  const rawFixtures = await loadRawFixtures(options);
   const { id: organizationId, slug: orgSlug } =
     await resolveOrganization(orgRef);
   const webUrl = getWebUrl();
 
   logVerbose(
     options.verbose ?? false,
-    `Seeding ${fixtures.length} thread(s) into org ${orgSlug} (${organizationId})`,
+    `Seeding ${rawFixtures.length} thread(s) into org ${orgSlug} (${organizationId})`,
   );
 
   const output: ThreadCreateOutput = { created: [], failed: [] };
 
-  for (const [index, fixture] of fixtures.entries()) {
+  for (const [index, raw] of rawFixtures.entries()) {
+    const parsed = threadFixtureSchema.safeParse(raw);
+    if (!parsed.success) {
+      const failure: FailedThreadResult = {
+        index,
+        title: fixtureTitle(raw),
+        error: formatError(parsed.error),
+      };
+      output.failed.push(failure);
+      logVerbose(
+        options.verbose ?? false,
+        `Failed thread ${index} (${failure.title}): ${failure.error}`,
+      );
+
+      if (options.failFast) {
+        break;
+      }
+      continue;
+    }
+
+    const fixture = parsed.data;
     try {
       const created = await createOneThread({
         organizationId,
