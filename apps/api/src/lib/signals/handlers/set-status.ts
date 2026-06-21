@@ -1,5 +1,5 @@
 import type { SetStatusAction } from "@workspace/schemas/signals";
-import { insertThreadActivity, statusActivityMetadata } from "../activity";
+import { runSetThreadStatus } from "../../thread-mutations";
 import {
   clearCompensateSnapshot,
   getCompensateSnapshot,
@@ -26,13 +26,20 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
       setCompensateSnapshot(ctx, snapshotKey(action), { previousStatus });
     }
 
-    await ctx.db.thread.update(ctx.threadId, { status: action.status });
-
-    await insertThreadActivity(ctx, {
-      type: "status_changed",
-      metadata: statusActivityMetadata(previousStatus, action.status),
-      source: "inline_suggestion",
-    });
+    await runSetThreadStatus(
+      ctx.db,
+      {
+        threadId: ctx.threadId,
+        organizationId: ctx.organizationId,
+        status: action.status,
+        source: "inline_suggestion",
+      },
+      {
+        userId: ctx.actorUserId,
+        userName: ctx.actorUserName,
+      },
+      { preloadedThread: thread },
+    );
   },
 
   async compensate(action, ctx) {

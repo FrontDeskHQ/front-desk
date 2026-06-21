@@ -14,6 +14,7 @@ const copyIcon = <Copy />;
 
 export const ThreadCommands = ({ threadId }: { threadId: string }) => {
   const { activeOrganization } = useOrganizationSwitcher();
+  const organizationId = activeOrganization?.id ?? "";
   const { user } = getRouteApi("/app").useRouteContext();
 
   const orgUsers = useLiveQuery(
@@ -33,18 +34,21 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
       const { commands: assignmentCommands, assignUserPage } =
         createAssignmentCommands({
           threadId,
+          organizationId,
           thread,
           user,
           orgUsers: orgUsers ?? null,
         });
       const { commands: statusCommands, statusPage } = createStatusCommands({
         threadId,
+        organizationId,
         thread,
         user,
       });
       const { commands: priorityCommands, priorityPage } =
         createPriorityCommands({
           threadId,
+          organizationId,
           thread,
           user,
         });
@@ -79,8 +83,8 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
       };
     },
     {
-      active: true,
-      deps: [threadId, thread, user, orgUsers],
+      active: Boolean(organizationId),
+      deps: [threadId, organizationId, thread, user, orgUsers],
     },
   );
 

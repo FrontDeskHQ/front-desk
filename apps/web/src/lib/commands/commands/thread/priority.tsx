@@ -1,13 +1,15 @@
+import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import {
   PriorityIndicator,
   priorityText,
 } from "@workspace/ui/components/indicator";
 import { ChevronRight } from "lucide-react";
-import { updateThreadPriority } from "~/actions/threads";
+import { mutate } from "~/lib/live-state";
 import type { Command, CommandPage } from "../../types";
 
 type PriorityCommandsParams = {
   threadId: string;
+  organizationId: string;
   thread:
     | {
         priority?: number;
@@ -20,26 +22,20 @@ type PriorityCommandsParams = {
   };
 };
 
-const priorityLabels: Record<number, string> = {
-  0: "No priority",
-  1: "Low priority",
-  2: "Medium priority",
-  3: "High priority",
-};
-
 export const createPriorityCommands = ({
   threadId,
+  organizationId,
   thread,
   user,
 }: PriorityCommandsParams): {
   commands: Command[];
   priorityPage: CommandPage;
 } => {
-  const handlePriorityChange = async (newPriority: number) => {
-    await updateThreadPriority({
+  const handlePriorityChange = (newPriority: number) => {
+    mutate.thread.setPriority({
       threadId,
-      newPriority,
-      oldPriority: thread?.priority ?? 0,
+      organizationId,
+      priority: newPriority,
       userId: user.id,
       userName: user.name,
     });
@@ -63,13 +59,13 @@ export const createPriorityCommands = ({
             <div className="flex items-center gap-0.5 text-foreground-secondary">
               Change priority <ChevronRight />
               <div className="text-foreground-primary">
-                {priorityLabels[+priorityKey] ?? priorityLabel}
+                {PRIORITY_LABELS[+priorityKey] ?? priorityLabel}
               </div>
             </div>
           ),
           keywords: [
             priorityLabel.toLowerCase(),
-            priorityLabels[+priorityKey]?.toLowerCase() ?? "",
+            PRIORITY_LABELS[+priorityKey]?.toLowerCase() ?? "",
             "priority",
           ].filter(Boolean),
           icon: <PriorityIndicator priority={+priorityKey} />,
@@ -89,7 +85,7 @@ export const createPriorityCommands = ({
     icon: <PriorityIndicator priority={thread?.priority ?? 0} />,
     commands: priorityEntries.map(([priorityKey, priorityLabel]) => ({
       id: priorityKey,
-      label: priorityLabels[+priorityKey] ?? priorityLabel,
+      label: PRIORITY_LABELS[+priorityKey] ?? priorityLabel,
       icon: <PriorityIndicator priority={+priorityKey} />,
       checked: thread?.priority === +priorityKey,
       onSelect: async () => {

@@ -19,10 +19,9 @@ import {
   statusValues,
 } from "@workspace/ui/components/indicator";
 import { cn } from "@workspace/ui/lib/utils";
+import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import type { schema } from "api/schema";
 import { CircleUser } from "lucide-react";
-import { ulid } from "ulid";
-import { assignThreadToUser } from "~/actions/threads";
 import { mutate } from "~/lib/live-state";
 
 interface PropertiesSectionProps {
@@ -65,24 +64,12 @@ export function PropertiesSection({
             const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
             const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
-            mutate.thread.update(id, {
-              status: newStatus,
-            });
-
-            mutate.update.insert({
-              id: ulid().toLowerCase(),
+            mutate.thread.setStatus({
               threadId: id,
-              type: "status_changed",
-              createdAt: new Date(),
+              organizationId: thread.organizationId,
+              status: newStatus,
               userId: user.id,
-              metadataStr: JSON.stringify({
-                oldStatus,
-                newStatus,
-                oldStatusLabel,
-                newStatusLabel,
-                userName: user.name,
-              }),
-              replicatedStr: JSON.stringify({}),
+              userName: user.name,
             });
 
             captureThreadEvent("thread:status_update", {
@@ -146,33 +133,15 @@ export function PropertiesSection({
           onValueChange={(value) => {
             const oldPriority = thread?.priority ?? 0;
             const newPriority = value ? +value : 0;
-            const priorityLabels: Record<number, string> = {
-              0: "No priority",
-              1: "Low priority",
-              2: "Medium priority",
-              3: "High priority",
-            };
-            const oldPriorityLabel = priorityLabels[oldPriority] ?? "Unknown";
-            const newPriorityLabel = priorityLabels[newPriority] ?? "Unknown";
+            const oldPriorityLabel = PRIORITY_LABELS[oldPriority] ?? "Unknown";
+            const newPriorityLabel = PRIORITY_LABELS[newPriority] ?? "Unknown";
 
-            mutate.thread.update(id, {
-              priority: newPriority,
-            });
-
-            mutate.update.insert({
-              id: ulid().toLowerCase(),
+            mutate.thread.setPriority({
               threadId: id,
-              type: "priority_changed",
-              createdAt: new Date(),
+              organizationId: thread.organizationId,
+              priority: newPriority,
               userId: user.id,
-              metadataStr: JSON.stringify({
-                oldPriority,
-                newPriority,
-                oldPriorityLabel,
-                newPriorityLabel,
-                userName: user.name,
-              }),
-              replicatedStr: JSON.stringify({}),
+              userName: user.name,
             });
 
             captureThreadEvent("thread:priority_update", {
@@ -226,7 +195,7 @@ export function PropertiesSection({
             })) ?? []),
           ]}
           value={thread?.assignedUser?.id}
-          onValueChange={async (value) => {
+          onValueChange={(value) => {
             const oldAssignedUserId = thread?.assignedUser?.id ?? null;
             const oldAssignedUserName = thread?.assignedUser?.name ?? null;
             const newAssignedUserId = value;
@@ -234,17 +203,12 @@ export function PropertiesSection({
               organizationUsers?.find((ou) => ou.userId === value)?.user.name ??
               null;
 
-            await assignThreadToUser({
+            mutate.thread.assignUser({
               threadId: id,
-              newAssignedUser: {
-                id: newAssignedUserId,
-                name: newAssignedUserName,
-              },
-              oldAssignedUser: {
-                id: oldAssignedUserId,
-                name: oldAssignedUserName,
-              },
+              organizationId: thread.organizationId,
+              assignedUserId: newAssignedUserId,
               userId: user.id,
+              userName: user.name,
             });
 
             captureThreadEvent("thread:assignee_update", {

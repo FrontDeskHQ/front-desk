@@ -363,3 +363,11 @@ export const STATUS_LABELS: Record<number, string> = {
   3: "Closed",
   4: "Duplicated",
 };
+
+export const PRIORITY_LABELS: Record<number, string> = {
+  0: "No priority",
+  1: "Low priority",
+  2: "Medium priority",
+  3: "High priority",
+  4: "Urgent priority",
+};
