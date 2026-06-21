@@ -1,3 +1,4 @@
+import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
@@ -57,6 +58,8 @@ const resolveAssignedUserName = async (
   return orgUser?.user?.name ?? null;
 };
 
+type ThreadRow = InferLiveObject<typeof schema.thread>;
+
 export const runSetThreadStatus = async (
   db: ThreadWriteDb,
   input: z.infer<typeof setStatusInputSchema>,
@@ -64,8 +67,13 @@ export const runSetThreadStatus = async (
     userId: string | null;
     userName: string | null;
   },
+  options?: {
+    preloadedThread?: ThreadRow;
+  },
 ) => {
-  const thread = await db.thread.one(input.threadId).get();
+  const thread =
+    options?.preloadedThread ??
+    (await db.thread.one(input.threadId).get());
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
@@ -93,8 +101,11 @@ export const runSetThreadStatus = async (
     });
   }
 
-  const updated = await db.thread.one(input.threadId).get();
-  return { thread: updated, oldStatus, newStatus: input.status };
+  return {
+    thread: { ...thread, status: input.status },
+    oldStatus,
+    newStatus: input.status,
+  };
 };
 
 export const runSetThreadPriority = async (

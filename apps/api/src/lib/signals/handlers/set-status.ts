@@ -38,6 +38,7 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
         userId: ctx.actorUserId,
         userName: ctx.actorUserName,
       },
+      { preloadedThread: thread },
     );
   },
 
