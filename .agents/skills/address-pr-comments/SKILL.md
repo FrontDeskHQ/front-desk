@@ -23,6 +23,8 @@ You are a code review assistant. Your goal is to systematically process unresolv
 
 **Leave human-decision comments untouched.** Do not reply to or resolve comments that need a human decision — flag them in the report only.
 
+**Update active long-project ledgers.** If the user invokes this skill during a `long-project` workflow, or names an active project ledger, reflect PR comments that change scope, operating instructions, acceptance criteria, checklist work, or handoff in that ledger before replying, resolving, or reporting the comment. Record the source comment and status in the ledger's `PR Feedback` section.
+
 ---
 
 ## Step 1: Fetch PR Comments
@@ -76,6 +78,15 @@ For each unresolved comment, determine if it's AI-actionable:
 - Alternative approaches to discuss
 - Scope changes or feature additions
 - Security-sensitive changes
+
+### Ledger-Affecting
+- Scope or acceptance-criteria changes
+- New instructions for future sessions
+- Requested checklist additions or removals
+- Handoff changes for unfinished work
+- PR comments the user explicitly asks to preserve in the project plan
+
+If a comment is both AI-actionable and ledger-affecting, implement the code change and update the active ledger. If it needs a human decision, leave the GitHub thread untouched and record the open decision in the ledger.
 
 ---
 
