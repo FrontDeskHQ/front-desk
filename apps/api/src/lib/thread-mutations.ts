@@ -31,10 +31,28 @@ export const assignUserInputSchema = z.object({
   userName: z.string().optional(),
 });
 
+export const linkIssueInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+  externalIssueId: z.string().min(1),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+});
+
+export const unlinkIssueInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+});
+
 type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
 
 type ThreadAssignDb = ThreadWriteDb &
   Pick<ServerDB<typeof schema>, "organizationUser">;
+
+type ThreadIssueLinkDb = ThreadWriteDb &
+  Pick<ServerDB<typeof schema>, "find">;
 
 const priorityActivityMetadata = (oldPriority: number, newPriority: number) => ({
   oldPriority,
@@ -215,4 +233,122 @@ export const runAssignThreadUser = async (
     oldAssignedUserId,
     newAssignedUserId,
   };
+};
+
+const resolveIssueLabel = async (
+  db: Pick<ServerDB<typeof schema>, "find">,
+  organizationId: string,
+  externalKey: string | null,
+) => {
+  if (!externalKey) return null;
+
+  const entity = Object.values(
+    await db.find(schema.externalEntity, {
+      where: { organizationId, externalKey, type: "issue" },
+    }),
+  )[0];
+
+  if (!entity) return null;
+  return `${entity.repoFullName}#${entity.number}`;
+};
+
+export const runLinkIssue = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof linkIssueInputSchema>,
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+) => {
+  const thread = await db.thread.one(input.threadId).get();
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  const oldIssueId = thread.externalIssueId ?? null;
+  if (oldIssueId === input.externalIssueId) {
+    return { thread, unchanged: true as const };
+  }
+
+  const [oldIssueLabel, newIssueLabel] = await Promise.all([
+    resolveIssueLabel(db, input.organizationId, oldIssueId),
+    resolveIssueLabel(db, input.organizationId, input.externalIssueId),
+  ]);
+
+  await db.thread.update(input.threadId, {
+    externalIssueId: input.externalIssueId,
+  });
+
+  if (actor.userId !== null) {
+    await db.insert(schema.update, {
+      id: ulid().toLowerCase(),
+      threadId: input.threadId,
+      userId: actor.userId,
+      type: "issue_changed",
+      createdAt: new Date(),
+      metadataStr: JSON.stringify({
+        oldIssueId,
+        newIssueId: input.externalIssueId,
+        oldIssueLabel,
+        newIssueLabel,
+        ...(actor.userName ? { userName: actor.userName } : {}),
+      }),
+      replicatedStr: JSON.stringify({}),
+    });
+  }
+
+  const updated = await db.thread.one(input.threadId).get();
+  return {
+    thread: updated,
+    oldIssueId,
+    newIssueId: input.externalIssueId,
+  };
+};
+
+export const runUnlinkIssue = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof unlinkIssueInputSchema>,
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+) => {
+  const thread = await db.thread.one(input.threadId).get();
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  const oldIssueId = thread.externalIssueId ?? null;
+  if (oldIssueId === null) {
+    return { thread, unchanged: true as const };
+  }
+
+  const oldIssueLabel = await resolveIssueLabel(
+    db,
+    input.organizationId,
+    oldIssueId,
+  );
+
+  await db.thread.update(input.threadId, { externalIssueId: null });
+
+  if (actor.userId !== null) {
+    await db.insert(schema.update, {
+      id: ulid().toLowerCase(),
+      threadId: input.threadId,
+      userId: actor.userId,
+      type: "issue_changed",
+      createdAt: new Date(),
+      metadataStr: JSON.stringify({
+        oldIssueId,
+        newIssueId: null,
+        oldIssueLabel,
+        newIssueLabel: null,
+        ...(actor.userName ? { userName: actor.userName } : {}),
+      }),
+      replicatedStr: JSON.stringify({}),
+    });
+  }
+
+  const updated = await db.thread.one(input.threadId).get();
+  return { thread: updated, oldIssueId, newIssueId: null };
 };

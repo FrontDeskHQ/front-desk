@@ -22,13 +22,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-003b** (next PR slice)
+- Active checkpoint: **LP-003c** (next PR slice)
 - Branch or PR: none
 - Last updated: 2026-06-21
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser` (API procedures + web migration + optimistic handlers). `set-status` signal handler now calls `runSetThreadStatus`. Remaining LP-003 work: GitHub link/unlink, `markDuplicate`, `archive`/`restore`, `setAgentRead`, slack/discord `thread.create` / generic `message.insert`, and other generic `thread.update` call sites (`issues.tsx`, `pull-requests.tsx`, archive route, devtools).
+**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser`, `thread.linkIssue`, `thread.unlinkIssue` (API procedures + web migration + optimistic handlers). `set-status` signal handler delegates to `runSetThreadStatus`. `issues.tsx` has zero generic `thread.update` + `update.insert` for issue link/unlink. Remaining LP-003 work: PR link/unlink (`pull-requests.tsx`), `markDuplicate`, `archive`/`restore`, `setAgentRead`, slack/discord `thread.create` / generic `message.insert`, and other generic `thread.update` call sites (`archive/$id.tsx`, `threads/$id/index.tsx`, `quick-actions.tsx`, devtools).
 
 ## Write inventory matrix
 
@@ -43,7 +43,7 @@ Legend:
 
 | Route | Generic insert | Generic update | Procedure API (current) | Non-web call sites | Web call sites | Web optimistic |
 | --- | --- | --- | --- | --- | --- | --- |
-| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `list`†, `fetchRelatedThreads`†, `fetchGithubIssues`†, `fetchGithubPullRequests`†, `createGithubIssue`, `executeAutonomousBundle`, `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `upsertInlineSuggestion`, `writeHintSlot` | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. **Procedures**: `apps/worker` `apply-synthesis-autonomy.ts` (`executeAutonomousBundle`), `read-hints.ts` (`writeHintSlot`), `inline-suggestions.ts` (`upsertInlineSuggestion`). **API-internal** `db.thread.update`: signal handlers (`close`, `set-status`, `mark-duplicate`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | **Generic** `update`: `actions/threads.ts` (priority/assign migrated), `issues.tsx`, `pull-requests.tsx`, `threads/$id/index.tsx`, `archive/$id.tsx`, devtools `create-thread-button.tsx` (`insert`). **Procedures**: `create-thread-dialog.tsx`, devtools `create-thread-dialog.tsx`, `cli` `thread/create`, `issues.tsx` (`createGithubIssue`), `support-related-threads-section.tsx` (`fetchRelatedThreads`), `signals/action-row/handlers.ts` (read + inline suggestion accept/dismiss); `properties.tsx`, `quick-actions.tsx` (status accept), command palette, toolbar resolve (`setStatus`/`setPriority`/`assignUser`). | **Partial** — optimistic for `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser`. **Missing** for generic `thread.update` (issues/PR/archive), `create`, `createGithubIssue`, `markDuplicate`. |
+| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `linkIssue`✓, `unlinkIssue`✓, `list`†, `fetchRelatedThreads`†, `fetchGithubIssues`†, `fetchGithubPullRequests`†, `createGithubIssue`, `executeAutonomousBundle`, `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `upsertInlineSuggestion`, `writeHintSlot` | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. **Procedures**: `apps/worker` `apply-synthesis-autonomy.ts` (`executeAutonomousBundle`), `read-hints.ts` (`writeHintSlot`), `inline-suggestions.ts` (`upsertInlineSuggestion`). **API-internal** `db.thread.update`: signal handlers (`close`, `set-status`, `mark-duplicate`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | **Generic** `update`: `pull-requests.tsx`, `threads/$id/index.tsx`, `archive/$id.tsx`, devtools `create-thread-button.tsx` (`insert`). **Procedures**: `create-thread-dialog.tsx`, devtools `create-thread-dialog.tsx`, `cli` `thread/create`, `issues.tsx` (`createGithubIssue`, `linkIssue`, `unlinkIssue`), `support-related-threads-section.tsx` (`fetchRelatedThreads`), `signals/action-row/handlers.ts` (read + inline suggestion accept/dismiss); `properties.tsx`, `quick-actions.tsx` (status accept), command palette, toolbar resolve (`setStatus`/`setPriority`/`assignUser`). | **Partial** — optimistic for `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser`, `linkIssue`, `unlinkIssue`. **Missing** for generic `thread.update` (PR/archive), `create`, `createGithubIssue`, `markDuplicate`. |
 | `message` | yes (org member, portal, public key) | internal key only | `withProcedures`: `create`, `markAsAnswer`, `search`† | **Generic** `insert`/`update`: `apps/slack`, `apps/discord` (`store.mutate`). **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), devtools `duplicate-thread-command.tsx` / `create-thread-button.tsx` (generic `insert`), `thread-reply.tsx` (`markAsAnswer`). | **Partial** — `create`, `markAsAnswer` yes. Generic `insert` (devtools) no. |
 | `update` | yes (org member session) | yes (org member + internal key) | none | **Generic** `insert`: `apps/github` webhooks (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord` (`fetchClient`). **API-internal** `db.insert(schema.update)`: `threads` `createGithubIssue`, `autonomous-action` `undo`, `signals/activity.ts`, thread inline-suggestion procedures. | Paired with almost every `thread.update` in `actions/threads.ts`, `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
 | `label` | disabled | disabled | `withProcedures`: `create`, `update`, `createAndAttachToThread`, `attachToThread`, `detachFromThread` | **API-internal** `db.label` / `db.threadLabel`: signal handler `apply-label.ts`, `autonomous-action` `undo`. | `labels.tsx` (thread UI), `labels.tsx` (settings), `quick-actions.tsx` (`attachToThread`). | **Yes** — all five procedures. |
@@ -98,7 +98,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 | --- | --- | --- |
 | `message` | `create`, `markAsAnswer` | Generic `insert` used only in devtools |
 | `label` | all five write procedures | Complete |
-| `thread` | `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser` | Generic `thread.update` remains for issues/PR/archive; `create` also lacks optimistic UI |
+| `thread` | `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser`, `linkIssue`, `unlinkIssue` | Generic `thread.update` remains for PR/archive; `create` also lacks optimistic UI |
 | `autonomousAction` | `undo` | Handler ready; no web caller wired yet |
 | All other routes | none | Settings/onboarding/integration writes are mostly `fetchClient` or infrequent — assess per procedure in LP-002 |
 
@@ -119,7 +119,7 @@ Authoritative implementation habits also live in `agents/saved-prompts/update-ro
 | Use a **verb** that names the product operation, not the SQL shape | `create`, `setStatus`, `attachToThread`, `upsert`, `record` |
 | Prefer **one procedure per real operation** — no UI-side branching that the server already owns | `attachToThread` resolves natural keys; clients do not `insert` + `update` pairs |
 | Put the procedure on the collection that owns the **product concept**, even when other tables are touched | label attach/detach live on `label.*`; timeline rows are a side effect of `thread.*` |
-| Use **paired, consistent names** for inverse operations | `attachToThread` / `detachFromThread`; `linkGithubIssue` / `unlinkGithubIssue` |
+| Use **paired, consistent names** for inverse operations | `attachToThread` / `detachFromThread`; `linkIssue` / `unlinkIssue` |
 | Avoid generic `update` as a procedure name when a specific verb exists | `setStatus` not `updateThread` with a status field |
 | Integration / worker entry points get the **same procedure** as web when the operation is identical | slack/discord thread ingestion calls `thread.create`, not `thread.insert` |
 
@@ -205,8 +205,8 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 | `setStatus` ✓ | `thread` | generic `thread.update` status + `update.insert` status_changed | **yes** ✓ |
 | `setPriority` ✓ | `thread` | generic `thread.update` priority + `update.insert` priority_changed | **yes** ✓ |
 | `assignUser` ✓ | `thread` | generic `thread.update` assignedUserId + `update.insert` assigned_changed | **yes** ✓ |
-| `linkGithubIssue` / `unlinkGithubIssue` | `thread` | generic `thread.update` externalIssueId + paired `update.insert` | **yes** |
-| `linkGithubPullRequest` / `unlinkGithubPullRequest` | `thread` | generic `thread.update` externalPrId + paired `update.insert` | **yes** |
+| `linkIssue` / `unlinkIssue` ✓ | `thread` | generic `thread.update` externalIssueId + paired `update.insert` | **yes** ✓ |
+| `linkPullRequest` / `unlinkPullRequest` | `thread` | generic `thread.update` externalPrId + paired `update.insert` | **yes** |
 | `markDuplicate` | `thread` | generic `thread.update` status duplicate + activity | **yes** (low traffic) |
 | `archive` / `restore` | `thread` | generic `thread.update` deletedAt / status | **yes** for archive path |
 | `setAgentRead` | `thread` | generic `thread.update` agentRead (worker `agent-read.ts`) | **no** — worker-only |
@@ -273,8 +273,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
 | [x] **LP-003a** | `thread.setStatus` / `setPriority` / `assignUser` | `thread-mutations.ts`, `router/threads.ts`, `set-status` handler, web properties/commands/toolbar/quick-actions status, optimistic handlers | No web generic writes for status/priority/assign; procedures + optimistic live |
-| [ ] **LP-003b** | `thread.linkGithubIssue` / `unlinkGithubIssue` | `thread-mutations.ts`, `issues.tsx`, optimistic handlers | `issues.tsx` has zero `thread.update` + `update.insert` for issue link/unlink |
-| [ ] **LP-003c** | `thread.linkGithubPullRequest` / `unlinkGithubPullRequest` | `thread-mutations.ts`, `pull-requests.tsx`, optimistic handlers | `pull-requests.tsx` has zero generic thread/update pairs for PR link/unlink |
+| [x] **LP-003b** | `thread.linkIssue` / `unlinkIssue` | `thread-mutations.ts`, `issues.tsx`, optimistic handlers | `issues.tsx` has zero `thread.update` + `update.insert` for issue link/unlink |
+| [ ] **LP-003c** | `thread.linkPullRequest` / `unlinkPullRequest` | `thread-mutations.ts`, `pull-requests.tsx`, optimistic handlers | `pull-requests.tsx` has zero generic thread/update pairs for PR link/unlink |
 | [ ] **LP-003d** | `thread.markDuplicate` | `thread-mutations.ts`, `quick-actions.tsx` duplicate accept, `mark-duplicate` handler → shared helper, optimistic | Duplicate accept uses `mutate.thread.markDuplicate` only |
 | [ ] **LP-003e** | `thread.archive` / `thread.restore` | `thread-mutations.ts`, `threads/$id/index.tsx` delete, `archive/$id.tsx` restore, optimistic (archive) | Archive/restore use procedures; no generic `thread.update` for `deletedAt` |
 | [ ] **LP-003f** | Signal handler convergence (close + mark-duplicate) | `close.ts`, `mark-duplicate.ts` → `runSetThreadStatus` / `runMarkDuplicate` | Handlers call shared helpers, not raw `db.thread.update` + `insertThreadActivity` |
@@ -363,18 +363,20 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-002): `author` generic insert is blocked without a dedicated procedure — rows are always created inside `thread.create` / `message.create`.
 - 2026-06-21 (LP-002): Optimistic mutations required for high-traffic synced `mutate.thread.*` procedures; settings/onboarding/integration procedures stay fetchClient-only without optimistic handlers unless usage changes.
 - 2026-06-21 (LP-003): Thread property helpers (`runSetThreadStatus`, `runSetThreadPriority`, `runAssignThreadUser`) live in `apps/api/src/lib/thread-mutations.ts`; `set-status` signal handler delegates to `runSetThreadStatus`. Procedure input may include optional `userId`/`userName` for optimistic reconciliation; server always uses session actor for authorization and activity `userId`.
-- 2026-06-21: Broke LP-003–LP-009 into **PR slices** (one PR per slice id). Lockdown slices ship after caller migration. Parent checklist items complete when all child slices are done.
+- 2026-06-21 (LP-003b): Issue link procedures are provider-agnostic (`linkIssue` / `unlinkIssue`); they resolve labels from the `externalEntity` mirror (`type: "issue"`) by `externalKey`, not GitHub-specific APIs. `createGithubIssue` success still calls `linkIssue` separately (create procedure does not auto-link).
 
 ## PR Feedback
 
-- Status: none.
+- 2026-06-21 (PR #292, cubic-dev-ai): `externalIssueId` must reject empty strings — **applied** in `cbe5b63` (`z.string().min(1)` on `linkIssueInputSchema`).
+- 2026-06-21 (PR #292, cubic-dev-ai): Optimistic `externalEntity` label lookups must filter by `organizationId` — **applied** in `cbe5b63` (`linkIssue` / `unlinkIssue` handlers in `live-state.ts`).
 
 ## Verification Ledger
 
 - 2026-06-21: Not run. Reason: created the planning ledger only; no production code changed.
 - 2026-06-21: LP-001 inventory verified by ripgrep across `apps/{api,web,worker,slack,discord,github,cli}` for `mutate.*`, `fetchClient.mutate.*`, `store.mutate.*`, and API `db.*` write paths in router + signal handlers. No typecheck or runtime exercise — documentation-only session.
 - 2026-06-21 (LP-002): Contract cross-checked against `agents/saved-prompts/update-routers.md`, `authorize.ts`, `labels.ts`, `threads.ts`, `external-entity.ts`, and `apps/web/src/lib/live-state.ts`. Documentation-only — no typecheck run.
-- 2026-06-21 (LP-003 partial): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep confirms web status/priority/assign paths use `mutate.thread.setStatus|setPriority|assignUser`; remaining generic `thread.update` in `issues.tsx`, `pull-requests.tsx`, `archive/$id.tsx`, `threads/$id/index.tsx`, `quick-actions.tsx` (`markDuplicate`). No runtime UI smoke test.
+- 2026-06-21 (LP-003 partial): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep confirms web status/priority/assign paths use `mutate.thread.setStatus|setPriority|assignUser`; remaining generic `thread.update` in `pull-requests.tsx`, `archive/$id.tsx`, `threads/$id/index.tsx`, `quick-actions.tsx` (`markDuplicate`). No runtime UI smoke test.
+- 2026-06-21 (LP-003b): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: `issues.tsx` has zero `mutate.thread.update` / `mutate.update.insert`. No runtime UI smoke test for issue link/unlink combobox.
 
 ## Session Log
 
@@ -385,7 +387,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-002): Added **Target procedure contract** — naming, Zod inputs, `authorize` rules, return values, shared helpers, web optimistic criteria, LP-008 lockdown table, and per-slice planned procedure catalog for LP-003–LP-007.
 - 2026-06-21 (LP-003 partial): Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser` in `apps/api/src/lib/thread-mutations.ts` + `router/threads.ts`; refactored `set-status` signal handler; migrated web call sites (`actions/threads.ts`, `properties.tsx`, command palette, toolbar, quick-actions status accept); added optimistic handlers in `live-state.ts`.
 - 2026-06-21: Added **PR slices** section — LP-003 split into 14 slices (003a–n), LP-004–007 into 4–6 slices each, LP-008–009 into audit/verification slices. Updated checklist to reference child slices.
+- 2026-06-21 (LP-003b): Implemented `thread.linkIssue` / `unlinkIssue` — `runLinkIssue` / `runUnlinkIssue` in `thread-mutations.ts`, procedures in `router/threads.ts`, migrated `issues.tsx`, optimistic handlers in `live-state.ts`.
 
 ## Handoff
 
-Next action: Ship **LP-003b** — implement `thread.linkGithubIssue` / `unlinkGithubIssue` in `apps/api/src/lib/thread-mutations.ts`, migrate `apps/web/src/components/threads/issues.tsx`, add optimistic handlers. See **PR slices** table for scope and completion criteria.
+Next action: Ship **LP-003c** — implement `thread.linkPullRequest` / `unlinkPullRequest` in `apps/api/src/lib/thread-mutations.ts`, migrate `apps/web/src/components/threads/pull-requests.tsx`, add optimistic handlers. Mirror LP-003b patterns (`externalPrId`, `pr_changed` activity type).

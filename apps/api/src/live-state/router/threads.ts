@@ -5,11 +5,15 @@ import z from "zod";
 import { authorize } from "../../lib/authorize";
 import {
   assignUserInputSchema,
+  linkIssueInputSchema,
   runAssignThreadUser,
+  runLinkIssue,
   runSetThreadPriority,
   runSetThreadStatus,
+  runUnlinkIssue,
   setPriorityInputSchema,
   setStatusInputSchema,
+  unlinkIssueInputSchema,
 } from "../../lib/thread-mutations";
 import {
   acceptInlineSuggestionInputSchema,
@@ -593,6 +597,32 @@ export default publicRoute
       }
 
       return runAssignThreadUser(db, req.input, {
+        userId: actorUserId,
+        userName: req.context?.user?.name ?? null,
+      });
+    }),
+    linkIssue: mutation(linkIssueInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runLinkIssue(db, req.input, {
+        userId: actorUserId,
+        userName: req.context?.user?.name ?? null,
+      });
+    }),
+    unlinkIssue: mutation(unlinkIssueInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runUnlinkIssue(db, req.input, {
         userId: actorUserId,
         userName: req.context?.user?.name ?? null,
       });
