@@ -524,6 +524,10 @@ const { client, store } = createClient<Router>({
 
         if (!input.userId) return;
 
+        const duplicateThread = storage.thread
+          .where({ id: input.duplicateOfThreadId })
+          .get()[0];
+
         storage.update.insert({
           id: ulid().toLowerCase(),
           threadId: input.threadId,
@@ -532,7 +536,8 @@ const { client, store } = createClient<Router>({
           createdAt: new Date(),
           metadataStr: JSON.stringify({
             duplicateOfThreadId: input.duplicateOfThreadId,
-            duplicateOfThreadName: input.duplicateOfThreadName ?? null,
+            duplicateOfThreadName:
+              input.duplicateOfThreadName ?? duplicateThread?.name ?? null,
             ...(input.userName ? { userName: input.userName } : {}),
             ...(input.source ? { source: input.source } : {}),
           }),

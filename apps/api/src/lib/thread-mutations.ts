@@ -531,13 +531,20 @@ export const runMarkDuplicate = async (
 
   const thread =
     options?.preloadedThread ??
-    (await db.thread.one(input.threadId).get());
+    (await db.thread
+      .first({ id: input.threadId, organizationId: input.organizationId })
+      .get());
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
 
-  const target = await db.thread.one(input.duplicateOfThreadId).get();
-  if (!target || target.organizationId !== input.organizationId) {
+  const target = await db.thread
+    .first({
+      id: input.duplicateOfThreadId,
+      organizationId: input.organizationId,
+    })
+    .get();
+  if (!target) {
     throw new Error("TARGET_THREAD_NOT_FOUND");
   }
 
@@ -550,22 +557,20 @@ export const runMarkDuplicate = async (
 
   const duplicateOfThreadName = input.duplicateOfThreadName ?? target.name;
 
-  if (actor.userId !== null) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
-      threadId: input.threadId,
-      userId: actor.userId,
-      type: "marked_duplicate",
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
-        duplicateOfThreadId: input.duplicateOfThreadId,
-        duplicateOfThreadName,
-        ...(actor.userName ? { userName: actor.userName } : {}),
-        ...(input.source ? { source: input.source } : {}),
-      }),
-      replicatedStr: JSON.stringify({}),
-    });
-  }
+  await db.insert(schema.update, {
+    id: ulid().toLowerCase(),
+    threadId: input.threadId,
+    userId: actor.userId,
+    type: "marked_duplicate",
+    createdAt: new Date(),
+    metadataStr: JSON.stringify({
+      duplicateOfThreadId: input.duplicateOfThreadId,
+      duplicateOfThreadName,
+      ...(actor.userName ? { userName: actor.userName } : {}),
+      ...(input.source ? { source: input.source } : {}),
+    }),
+    replicatedStr: JSON.stringify({}),
+  });
 
   return {
     thread: { ...thread, status: STATUS_DUPLICATED },
@@ -584,7 +589,9 @@ export const runArchiveThread = async (
 ) => {
   const thread =
     options?.preloadedThread ??
-    (await db.thread.one(input.threadId).get());
+    (await db.thread
+      .first({ id: input.threadId, organizationId: input.organizationId })
+      .get());
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
@@ -611,7 +618,9 @@ export const runRestoreThread = async (
 ) => {
   const thread =
     options?.preloadedThread ??
-    (await db.thread.one(input.threadId).get());
+    (await db.thread
+      .first({ id: input.threadId, organizationId: input.organizationId })
+      .get());
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
