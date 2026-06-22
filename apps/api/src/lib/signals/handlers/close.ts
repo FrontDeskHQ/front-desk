@@ -47,9 +47,16 @@ export const closeHandler: ActionHandler<CloseAction> = {
     );
     if (!snapshot) return;
 
-    await ctx.db.thread.update(ctx.threadId, {
-      status: snapshot.previousStatus,
-    });
+    await runSetThreadStatus(
+      ctx.db,
+      {
+        threadId: ctx.threadId,
+        organizationId: ctx.organizationId,
+        status: snapshot.previousStatus,
+        source: "agent_read",
+      },
+      { userId: null, userName: null },
+    );
     clearCompensateSnapshot(ctx, snapshotKey());
   },
 };
