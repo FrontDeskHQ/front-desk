@@ -1,8 +1,14 @@
 import type { CloseAction } from "@workspace/schemas/signals";
-import { insertThreadActivity, statusActivityMetadata } from "../activity";
+import { runSetThreadStatus } from "../../thread-mutations";
+import {
+  clearCompensateSnapshot,
+  getCompensateSnapshot,
+  setCompensateSnapshot,
+} from "../compensate-snapshots";
 import type { ActionHandler } from "../types";
 
 const STATUS_CLOSED = 3;
+const snapshotKey = () => "close";
 
 export const closeHandler: ActionHandler<CloseAction> = {
   async apply(_action, ctx) {
@@ -14,12 +20,43 @@ export const closeHandler: ActionHandler<CloseAction> = {
     const previousStatus = thread.status ?? 0;
     if (previousStatus === STATUS_CLOSED) return;
 
-    await ctx.db.thread.update(ctx.threadId, { status: STATUS_CLOSED });
+    if (getCompensateSnapshot(ctx, snapshotKey()) === undefined) {
+      setCompensateSnapshot(ctx, snapshotKey(), { previousStatus });
+    }
 
-    await insertThreadActivity(ctx, {
-      type: "status_changed",
-      metadata: statusActivityMetadata(previousStatus, STATUS_CLOSED),
-      source: "agent_read",
-    });
+    await runSetThreadStatus(
+      ctx.db,
+      {
+        threadId: ctx.threadId,
+        organizationId: ctx.organizationId,
+        status: STATUS_CLOSED,
+        source: "agent_read",
+      },
+      {
+        userId: ctx.actorUserId,
+        userName: ctx.actorUserName,
+      },
+      { preloadedThread: thread },
+    );
+  },
+
+  async compensate(_action, ctx) {
+    const snapshot = getCompensateSnapshot<{ previousStatus: number }>(
+      ctx,
+      snapshotKey(),
+    );
+    if (!snapshot) return;
+
+    await runSetThreadStatus(
+      ctx.db,
+      {
+        threadId: ctx.threadId,
+        organizationId: ctx.organizationId,
+        status: snapshot.previousStatus,
+        source: "agent_read",
+      },
+      { userId: null, userName: null },
+    );
+    clearCompensateSnapshot(ctx, snapshotKey());
   },
 };
