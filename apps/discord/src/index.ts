@@ -35,6 +35,9 @@ import { getOrCreateWebhook } from "./utils";
 
 const THREAD_CREATION_THRESHOLD_MS = 1000;
 
+const ensureThreadTitle = (title: string) =>
+  title.length >= 3 ? title : title.padEnd(3, ".");
+
 const token = process.env.DISCORD_TOKEN;
 
 type RelatedThreadLink = {
@@ -111,31 +114,13 @@ const client = new Client({
   ],
 });
 
-/**
- * Helper to get or create an author record for a Discord user
- */
-const getOrCreateAuthor = async (
+const resolveDiscordAuthor = (
   discordUserId: string,
   displayName: string,
-  organizationId: string,
-): Promise<string> => {
-  let authorId = store.query.author
-    .first({ metaId: `discord:${discordUserId}` })
-    .get()?.id;
-
-  if (!authorId) {
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
-      name: displayName,
-      userId: null,
-      metaId: `discord:${discordUserId}`,
-      organizationId,
-    });
-  }
-
-  return authorId;
-};
+): { id: string; name: string } => ({
+  id: `discord:${discordUserId}`,
+  name: displayName,
+});
 
 /**
  * Backfill threads from a specific Discord channel (page-based)
@@ -511,40 +496,35 @@ const backfillThread = async (
   // Get the first non-bot message author as the thread author
   const firstMessage =
     sortedMessages.find((m) => !m.author.bot) ?? sortedMessages[0];
-  const authorId = await getOrCreateAuthor(
+  const author = resolveDiscordAuthor(
     firstMessage.author.id,
     firstMessage.author.displayName,
-    organizationId,
   );
 
-  // Create the thread
-  // Status: 0 = Open, 3 = Closed (for archived Discord threads)
   const threadId = ulid().toLowerCase();
-  store.mutate.thread.insert({
+  const firstContent = parseContentAsMarkdown(firstMessage);
+
+  await fetchClient.mutate.thread.create({
     id: threadId,
     organizationId,
-    name: thread.name,
+    title: ensureThreadTitle(thread.name),
+    message: parse(firstContent),
+    author,
     createdAt: thread.createdAt ?? new Date(),
-    deletedAt: null,
-    discordChannelId: thread.id,
-    authorId,
-    assignedUserId: null,
     status: thread.archived ? 3 : 0,
-    externalIssueId: null,
-    externalPrId: null,
+    discordChannelId: thread.id,
     externalId: thread.id,
     externalOrigin: "discord",
     externalMetadataStr: JSON.stringify({ channelId: thread.id }),
+    firstMessage: {
+      createdAt: firstMessage.createdAt,
+      origin: "discord",
+      isBackfill: true,
+      externalMessageId: firstMessage.id,
+    },
   });
 
-  // Wait for the thread to be created
-  await new Promise((resolve) => setTimeout(resolve, 150));
-
-  // Optionally send portal message for new threads
-  // (Skipped during backfill to avoid spamming old threads)
-
-  // Sync all messages
-  for (const message of sortedMessages) {
+  for (const message of sortedMessages.slice(1)) {
     if (message.author.bot) continue;
 
     await backfillMessage(message, threadId, organizationId);
@@ -577,8 +557,11 @@ const backfillMessages = async (
     console.log(
       `      Updating thread status: ${thread.name} (${currentStatus} → ${expectedStatus})`,
     );
-    await fetchClient.mutate.thread.update(existingThread.id, {
+    await fetchClient.mutate.thread.setStatus({
+      threadId: existingThread.id,
+      organizationId,
       status: expectedStatus,
+      source: "discord",
     });
   }
 
@@ -632,19 +615,18 @@ const backfillMessage = async (
   threadId: string,
   organizationId: string,
 ) => {
-  const authorId = await getOrCreateAuthor(
+  const author = resolveDiscordAuthor(
     message.author.id,
     message.author.displayName,
-    organizationId,
   );
-
   const contentWithMentions = parseContentAsMarkdown(message);
 
-  store.mutate.message.insert({
+  await fetchClient.mutate.message.create({
     id: ulid().toLowerCase(),
     threadId,
-    authorId,
-    content: JSON.stringify(parse(contentWithMentions)),
+    organizationId,
+    author,
+    content: parse(contentWithMentions),
     createdAt: message.createdAt,
     origin: "discord",
     isBackfill: true,
@@ -686,30 +668,32 @@ client.on("messageCreate", async (message) => {
 
   // TODO do this in a transaction
 
-  const authorId = await getOrCreateAuthor(
+  const author = resolveDiscordAuthor(
     message.author.id,
     message.author.displayName,
-    integration.organizationId,
   );
 
   if (isFirstMessage) {
     threadId = ulid().toLowerCase();
-    store.mutate.thread.insert({
+    const contentWithMentions = parseContentAsMarkdown(message);
+
+    await fetchClient.mutate.thread.create({
       id: threadId,
       organizationId: integration.organizationId,
-      name: message.channel.name,
+      title: ensureThreadTitle(message.channel.name),
+      message: parse(contentWithMentions),
+      author,
       createdAt: new Date(),
-      deletedAt: null,
       discordChannelId: message.channel.id,
-      authorId: authorId,
-      assignedUserId: null,
-      externalIssueId: null,
-      externalPrId: null,
       externalId: message.channel.id,
       externalOrigin: "discord",
       externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
+      firstMessage: {
+        createdAt: message.createdAt,
+        origin: "discord",
+        externalMessageId: message.id,
+      },
     });
-    await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
     try {
       const organization = await fetchClient.query.organization
@@ -743,17 +727,19 @@ client.on("messageCreate", async (message) => {
 
   if (!threadId) return;
 
-  const contentWithMentions = parseContentAsMarkdown(message);
+  if (!isFirstMessage) {
+    const contentWithMentions = parseContentAsMarkdown(message);
 
-  store.mutate.message.insert({
-    id: ulid().toLowerCase(),
-    threadId,
-    authorId: authorId,
-    content: JSON.stringify(parse(contentWithMentions)),
-    createdAt: message.createdAt,
-    origin: "discord",
-    externalMessageId: message.id,
-  });
+    store.mutate.message.create({
+      threadId,
+      organizationId: integration.organizationId,
+      author,
+      content: parse(contentWithMentions),
+      createdAt: message.createdAt,
+      origin: "discord",
+      externalMessageId: message.id,
+    });
+  }
 
   if (isFirstMessage && portalMessageOrgSlug) {
     const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";

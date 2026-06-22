@@ -1,5 +1,4 @@
 import { statusValues } from "@workspace/ui/components/indicator";
-import { ulid } from "ulid";
 import {
   buildIssueFields,
   buildPullRequestFields,
@@ -85,27 +84,19 @@ const resolveLinkedThreads = (
       `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
     );
 
-    store.mutate.thread.update(thread.id, { status: newStatus });
-
-    store.mutate.update.insert({
-      id: ulid().toLowerCase(),
+    store.mutate.thread.setStatus({
       threadId: thread.id,
-      type: "status_changed",
-      createdAt: new Date(),
-      userId: null,
-      metadataStr: JSON.stringify({
-        oldStatus,
-        newStatus,
-        oldStatusLabel: statusValues[oldStatus]?.label,
-        newStatusLabel: statusValues[newStatus]?.label,
-        source: "github",
+      organizationId: thread.organizationId,
+      status: newStatus,
+      source: "github",
+      userName: "GitHub Integration",
+      recordActivity: true,
+      activityMetadata: {
         repoFullName: fields.repoFullName,
         ...(fields.type === "issue"
           ? { issueNumber: fields.number }
           : { prNumber: fields.number, merged: meta.merged }),
-        userName: "GitHub Integration",
-      }),
-      // Mark as replicated from GitHub so it doesn't sync back
+      },
       replicatedStr: JSON.stringify({ github: true }),
     });
   }

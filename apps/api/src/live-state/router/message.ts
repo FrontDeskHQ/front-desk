@@ -4,10 +4,30 @@ import z from "zod";
 import { authorize } from "../../lib/authorize";
 import { enqueueThreadRead } from "../../lib/queue";
 import { searchMessages } from "../../lib/search/qdrant";
+import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
 const STATUS_RESOLVED = 2;
+
+const messageCreateInputSchema = z.object({
+  threadId: z.string(),
+  content: z.union([z.string(), z.any()]),
+  organizationId: z.string(),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+  author: z
+    .object({
+      id: z.string(),
+      name: z.string(),
+    })
+    .optional(),
+  id: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+  origin: z.string().nullable().optional(),
+  externalMessageId: z.string().nullable().optional(),
+  isBackfill: z.boolean().optional(),
+});
 
 export default publicRoute
   .collectionRoute(schema.message, {
@@ -44,19 +64,13 @@ export default publicRoute
     },
   })
   .withProcedures(({ mutation }) => ({
-    create: mutation(
-      z.object({
-        threadId: z.string(),
-        content: z.union([z.string(), z.any()]), // Accept string or TipTap JSONContent
-        userId: z.string().optional(),
-        userName: z.string().optional(),
-        organizationId: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
+    create: mutation(messageCreateInputSchema).handler(async ({ req, db }) => {
       authorize(req, {
         organizationId: req.input.organizationId,
         allowPublicApiKey: true,
       });
+
+      const hasIntegrationAuthor = !!req.input.author;
 
       const actualUserId: string | undefined =
         req.context?.portalSession?.session.userId ??
@@ -68,7 +82,7 @@ export default publicRoute
         req.context?.user?.name ??
         req.input.userName;
 
-      if (!actualUserId || !actualUserName) {
+      if (!hasIntegrationAuthor && (!actualUserId || !actualUserName)) {
         throw new Error("MISSING_USER_ID_OR_NAME");
       }
 
@@ -78,38 +92,56 @@ export default publicRoute
         throw new Error("THREAD_NOT_FOUND");
       }
 
-      const content =
-        typeof req.input.content === "string"
-          ? JSON.stringify([
-              {
-                type: "paragraph",
-                content: [{ type: "text", text: req.input.content }],
-              },
-            ])
-          : JSON.stringify(req.input.content);
-
-      const messageId = ulid().toLowerCase();
+      const content = serializeMessageContent(req.input.content);
+      const messageId = req.input.id ?? ulid().toLowerCase();
 
       await db.transaction(async ({ trx }) => {
-        const existingAuthor = await trx.author
-          .first({
-            userId: actualUserId,
-            organizationId: req.input.organizationId,
-          })
-          .get();
+        let authorId: string | undefined;
 
-        let authorId = existingAuthor?.id;
+        if (hasIntegrationAuthor && req.input.author) {
+          const existingAuthor = await trx.author
+            .first({
+              metaId: req.input.author.id,
+              organizationId: req.input.organizationId,
+            })
+            .get();
 
-        if (!authorId) {
-          authorId = ulid().toLowerCase();
+          authorId = existingAuthor?.id;
 
-          await trx.author.insert({
-            id: authorId,
-            userId: actualUserId,
-            metaId: null,
-            name: actualUserName,
-            organizationId: req.input.organizationId,
-          });
+          if (!authorId) {
+            authorId = ulid().toLowerCase();
+            await trx.author.insert({
+              id: authorId,
+              name: req.input.author.name,
+              organizationId: req.input.organizationId,
+              metaId: req.input.author.id,
+              userId: null,
+            });
+          }
+        } else {
+          if (!actualUserId || !actualUserName) {
+            throw new Error("MISSING_USER_ID_OR_NAME");
+          }
+
+          const existingAuthor = await trx.author
+            .first({
+              userId: actualUserId,
+              organizationId: req.input.organizationId,
+            })
+            .get();
+
+          authorId = existingAuthor?.id;
+
+          if (!authorId) {
+            authorId = ulid().toLowerCase();
+            await trx.author.insert({
+              id: authorId,
+              userId: actualUserId,
+              metaId: null,
+              name: actualUserName,
+              organizationId: req.input.organizationId,
+            });
+          }
         }
 
         await trx.message.insert({
@@ -117,9 +149,10 @@ export default publicRoute
           authorId: authorId,
           content: content,
           threadId: req.input.threadId,
-          createdAt: new Date(),
-          origin: null,
-          externalMessageId: null,
+          createdAt: req.input.createdAt ?? new Date(),
+          origin: req.input.origin ?? null,
+          externalMessageId: req.input.externalMessageId ?? null,
+          isBackfill: req.input.isBackfill ?? false,
         });
       });
 

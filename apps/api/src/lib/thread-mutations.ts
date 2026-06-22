@@ -14,6 +14,10 @@ export const setStatusInputSchema = z.object({
   source: z.string().optional(),
   userId: z.string().optional(),
   userName: z.string().optional(),
+  /** Internal API key only — insert timeline row without a session actor. */
+  recordActivity: z.boolean().optional(),
+  activityMetadata: z.record(z.string(), z.unknown()).optional(),
+  replicatedStr: z.string().optional(),
 });
 
 export const setPriorityInputSchema = z.object({
@@ -173,6 +177,7 @@ export const runSetThreadStatus = async (
   },
   options?: {
     preloadedThread?: ThreadRow;
+    recordActivity?: boolean;
   },
 ) => {
   const thread =
@@ -189,7 +194,10 @@ export const runSetThreadStatus = async (
 
   await db.thread.update(input.threadId, { status: input.status });
 
-  if (actor.userId !== null) {
+  const shouldRecordActivity =
+    actor.userId !== null || options?.recordActivity === true;
+
+  if (shouldRecordActivity) {
     await db.insert(schema.update, {
       id: ulid().toLowerCase(),
       threadId: input.threadId,
@@ -200,8 +208,9 @@ export const runSetThreadStatus = async (
         ...statusActivityMetadata(oldStatus, input.status),
         ...(actor.userName ? { userName: actor.userName } : {}),
         ...(input.source ? { source: input.source } : {}),
+        ...(input.activityMetadata ?? {}),
       }),
-      replicatedStr: JSON.stringify({}),
+      replicatedStr: input.replicatedStr ?? JSON.stringify({}),
     });
   }
 
