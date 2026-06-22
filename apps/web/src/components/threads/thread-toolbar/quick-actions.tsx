@@ -277,21 +277,14 @@ export const QuickActionsPanel = ({
 
     // TODO(signals-overhaul issue 10): record acceptance on inlineSuggestions
     // (duplicate handling will move into the synthesis-track in issue 06).
-    mutate.thread.update(threadId, { status: 4 });
-
-    mutate.update.insert({
-      id: ulid().toLowerCase(),
+    mutate.thread.markDuplicate({
       threadId,
-      type: "marked_duplicate",
-      createdAt: new Date(),
+      organizationId,
+      duplicateOfThreadId: duplicateSuggestion.duplicateThreadId,
+      duplicateOfThreadName: duplicateSuggestion.thread?.name,
       userId: user.id,
-      metadataStr: JSON.stringify({
-        duplicateOfThreadId: duplicateSuggestion.duplicateThreadId,
-        duplicateOfThreadName: duplicateSuggestion.thread?.name,
-        userName: user.name,
-        source: "support_intelligence",
-      }),
-      replicatedStr: JSON.stringify({}),
+      userName: user.name,
+      source: "support_intelligence",
     });
 
     captureThreadEvent("support_intelligence:duplicate_accepted", {

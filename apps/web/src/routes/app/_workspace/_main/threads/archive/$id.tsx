@@ -116,8 +116,11 @@ function RouteComponent() {
   });
 
   const restoreThread = () => {
-    mutate.thread.update(id, {
-      deletedAt: null,
+    if (!thread?.organizationId) return;
+
+    mutate.thread.restore({
+      threadId: id,
+      organizationId: thread.organizationId,
     });
     setShowRestoreDialog(false);
     toast.success("Thread restored", {
