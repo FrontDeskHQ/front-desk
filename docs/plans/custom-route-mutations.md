@@ -22,13 +22,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-003h** (next PR slice)
+- Active checkpoint: **LP-003j** (next PR slice)
 - Branch or PR: none
 - Last updated: 2026-06-22
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser`, `thread.linkIssue`, `thread.unlinkIssue`, `thread.linkPullRequest`, `thread.unlinkPullRequest`, `thread.markDuplicate`, `thread.archive`, `thread.restore`, `thread.setAgentRead` (API procedures + web migration + optimistic handler for archive). `set-status`, `close`, and `mark-duplicate` signal handlers delegate to shared helpers. Worker `persistAgentRead` uses `thread.setAgentRead`. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Remaining LP-003 work: slack/discord `thread.create` / generic `message.insert`, and integration generic `thread.update` call sites.
+**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser`, `thread.linkIssue`, `thread.unlinkIssue`, `thread.linkPullRequest`, `thread.unlinkPullRequest`, `thread.markDuplicate`, `thread.archive`, `thread.restore`, `thread.setAgentRead` (API procedures + web migration + optimistic handler for archive). `set-status`, `close`, and `mark-duplicate` signal handlers delegate to shared helpers. Worker `persistAgentRead` uses `thread.setAgentRead`. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Devtools (`create-thread-dialog.tsx`, `duplicate-thread-command.tsx`) use `thread.create` only; dead `create-thread-button.tsx` removed. Remaining LP-003 work: slack/discord `thread.create` / generic `message.insert`, and integration generic `thread.update` call sites.
 
 ## Write inventory matrix
 
@@ -43,12 +43,12 @@ Legend:
 
 | Route | Generic insert | Generic update | Procedure API (current) | Non-web call sites | Web call sites | Web optimistic |
 | --- | --- | --- | --- | --- | --- | --- |
-| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `linkIssue`✓, `unlinkIssue`✓, `linkPullRequest`✓, `unlinkPullRequest`✓, `markDuplicate`✓, `archive`✓, `restore`✓, `list`†, … | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. … **API-internal** `db.thread.update`: signal handlers (`close`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | **Generic** `update`: none in web thread UI (archive/restore migrated). Devtools `create-thread-button.tsx` (`insert`). **Procedures**: … `threads/$id/index.tsx` (`archive`), `archive/$id.tsx` (`restore`), `quick-actions.tsx` (status + duplicate accept), … | **Partial** — optimistic for … `markDuplicate`, `archive`. **Missing** for `create`, `createGithubIssue`. **Intentional gap:** `restore` (navigates away immediately; no optimistic). |
-| `message` | yes (org member, portal, public key) | internal key only | `withProcedures`: `create`, `markAsAnswer`, `search`† | **Generic** `insert`/`update`: `apps/slack`, `apps/discord` (`store.mutate`). **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), devtools `duplicate-thread-command.tsx` / `create-thread-button.tsx` (generic `insert`), `thread-reply.tsx` (`markAsAnswer`). | **Partial** — `create`, `markAsAnswer` yes. Generic `insert` (devtools) no. |
+| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `linkIssue`✓, `unlinkIssue`✓, `linkPullRequest`✓, `unlinkPullRequest`✓, `markDuplicate`✓, `archive`✓, `restore`✓, `list`†, … | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. … **API-internal** `db.thread.update`: signal handlers (`close`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | Devtools `create-thread-dialog.tsx` (`thread.create` ✓). **Procedures**: … `threads/$id/index.tsx` (`archive`), `archive/$id.tsx` (`restore`), `quick-actions.tsx` (status + duplicate accept), `duplicate-thread-command.tsx` (`thread.create` ✓), … | **Partial** — optimistic for … `markDuplicate`, `archive`. **Intentional gap:** `create` (all callers use awaited `fetchClient`); `restore` (navigates away immediately). **Missing** for `createGithubIssue`. |
+| `message` | yes (org member, portal, public key) | internal key only | `withProcedures`: `create`, `markAsAnswer`, `search`† | **Generic** `insert`/`update`: `apps/slack`, `apps/discord` (`store.mutate`). **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), `thread-reply.tsx` (`markAsAnswer`). Devtools duplicate uses `thread.create` (includes first message). | **Partial** — `create`, `markAsAnswer` yes. |
+| `author` | yes (session/portal/internal key) | internal key only | none | `apps/slack`, `apps/discord` (`author.insert`). Created inside `thread.create`, `message.create`, `agent-chat` `acceptDraft`, signal `reply.ts`. | none direct (devtools author rows created inside `thread.create`). | **No** (author rows optimistically created only as side effect of `message.create`). |
 | `update` | yes (org member session) | yes (org member + internal key) | none | **Generic** `insert`: `apps/github` webhooks (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord` (`fetchClient`). **API-internal** `db.insert(schema.update)`: `threads` `createGithubIssue`, `autonomous-action` `undo`, `signals/activity.ts`, thread inline-suggestion procedures. | Paired with almost every `thread.update` in `actions/threads.ts`, `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
 | `label` | disabled | disabled | `withProcedures`: `create`, `update`, `createAndAttachToThread`, `attachToThread`, `detachFromThread` | **API-internal** `db.label` / `db.threadLabel`: signal handler `apply-label.ts`, `autonomous-action` `undo`. | `labels.tsx` (thread UI), `labels.tsx` (settings), `quick-actions.tsx` (`attachToThread`). | **Yes** — all five procedures. |
 | `threadLabel` | disabled | disabled | none (writes only via `label.*` procedures) | **API-internal**: `apply-label.ts`, `autonomous-action` `undo`. | none direct | n/a |
-| `author` | yes (session/portal/internal key) | internal key only | none | `apps/slack`, `apps/discord` (`author.insert`). Created inside `thread.create`, `message.create`, `agent-chat` `acceptDraft`, signal `reply.ts`. | devtools `create-thread-button.tsx` (generic `insert`). | **No** (author rows optimistically created only as side effect of `message.create`). |
 | `organization` | disabled | owner or internal key | `withMutations`: `create`, `setActionAutonomy`, `createPublicApiKey`, `revokePublicApiKey`, `listApiKeys`† | Boot migration `002_seed_autonomy_settings.ts` (`db.organization.update`). `organization.create` also inserts `subscription` + `organizationUser` server-side. | `onboarding/connect.tsx` (`create`), settings `index.tsx` + `support-intelligence.tsx` (generic `update`, `setActionAutonomy`), `api-keys.tsx` (key procedures). | **No** |
 | `organizationUser` | disabled | owner or internal key | `withMutations`: `inviteUser` | Created by `invite.accept`, `organization.create`. | `team.tsx` (generic `update`, `inviteUser`). | **No** |
 | `user` | disabled | self or internal key | none | none | `settings/user/index.tsx` (generic `update`). | **No** |
@@ -89,7 +89,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 
 1. **`thread.update` + `update.insert` pairs** — status, priority, assignment, PR link/unlink, duplicate mark, archive restore. Central helpers in `apps/web/src/actions/threads.ts`; also inline in `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`.
 2. **`integration.insert` / `integration.update`** — OAuth connect flows across slack, discord, github settings and `lib/integrations/activate.ts`.
-3. **Devtools generic inserts** — `thread.insert`, `message.insert`, `author.insert` in `create-thread-button.tsx` and `duplicate-thread-command.tsx` (should use `thread.create` / `message.create`).
+3. **Devtools** — `create-thread-dialog.tsx` and `duplicate-thread-command.tsx` use `thread.create` ✓.
 4. **Integration bots** — slack/discord still use generic `thread.insert` / `message.insert` / `message.update` via synced `store.mutate` (see `threads.ts` `afterInsert` shortId hook TODO).
 
 ### Optimistic mutation coverage summary (`apps/web/src/lib/live-state.ts`)
@@ -98,7 +98,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 | --- | --- | --- |
 | `message` | `create`, `markAsAnswer` | Generic `insert` used only in devtools |
 | `label` | all five write procedures | Complete |
-| `thread` | `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser`, `linkIssue`, `unlinkIssue`, `linkPullRequest`, `unlinkPullRequest`, `markDuplicate`, `archive` | `restore` omitted (immediate navigation); `create` lacks optimistic UI |
+| `thread` | `acceptRead`, `dismissRead`, `acceptInlineSuggestion`, `dismissInlineSuggestion`, `setStatus`, `setPriority`, `assignUser`, `linkIssue`, `unlinkIssue`, `linkPullRequest`, `unlinkPullRequest`, `markDuplicate`, `archive` | `create` omitted (all callers use awaited `fetchClient`); `restore` omitted (immediate navigation) |
 | `autonomousAction` | `undo` | Handler ready; no web caller wired yet |
 | All other routes | none | Settings/onboarding/integration writes are mostly `fetchClient` or infrequent — assess per procedure in LP-002 |
 
@@ -201,7 +201,7 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 
 | Procedure | Route | Replaces | Web optimistic |
 | --- | --- | --- | --- |
-| `create` ✓ | `thread` | generic `thread.insert` (web devtools, slack, discord) | **yes** — high-traffic; mirror `message.create` author+message graph |
+| `create` ✓ | `thread` | generic `thread.insert` (web devtools, slack, discord) | **no** — all web callers use awaited `fetchClient`; devtools + portal |
 | `setStatus` ✓ | `thread` | generic `thread.update` status + `update.insert` status_changed | **yes** ✓ |
 | `setPriority` ✓ | `thread` | generic `thread.update` priority + `update.insert` priority_changed | **yes** ✓ |
 | `assignUser` ✓ | `thread` | generic `thread.update` assignedUserId + `update.insert` assigned_changed | **yes** ✓ |
@@ -279,8 +279,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 | [x] **LP-003e** | `thread.archive` / `thread.restore` | `thread-mutations.ts`, `threads/$id/index.tsx` delete, `archive/$id.tsx` restore, optimistic (archive) | Archive/restore use procedures; no generic `thread.update` for `deletedAt` |
 | [x] **LP-003f** | Signal handler convergence (close) | `close.ts` → `runSetThreadStatus` | Handler calls shared helper, not raw `db.thread.update` + `insertThreadActivity` |
 | [x] **LP-003g** | `thread.setAgentRead` (worker) | `thread-mutations.ts`, `apps/worker/src/lib/agent-read.ts` | Worker uses `thread.setAgentRead`; no generic `thread.update` for `agentRead` |
-| [ ] **LP-003h** | Web devtools → `thread.create` / `message.create` | `create-thread-button.tsx`, `duplicate-thread-command.tsx`; remove generic `author.insert` | Devtools use procedures only |
-| [ ] **LP-003i** | `thread.create` optimistic (optional) | `live-state.ts` if product `mutate.thread.create` paths need instant UI | Document yes/no in matrix; implement only if fire-and-forget `mutate` callers exist |
+| [x] **LP-003h** | Web devtools → `thread.create` / `message.create` | `create-thread-dialog.tsx` (already migrated), `duplicate-thread-command.tsx`; removed dead `create-thread-button.tsx` | Devtools use procedures only |
+| [x] **LP-003i** | `thread.create` optimistic (optional) | Documented intentional omission — no fire-and-forget `mutate.thread.create` callers | Matrix updated; no handler added |
 | [ ] **LP-003j** | Slack → `thread.create` / `message.create` | `apps/slack/src/index.ts` (`store.mutate` / `fetchClient` thread/message/author inserts) | Ripgrep: no `store.mutate.thread.insert` / `message.insert` in slack |
 | [ ] **LP-003k** | Discord → `thread.create` / `message.create` | `apps/discord/src/index.ts` | Same as LP-003j for discord |
 | [ ] **LP-003l** | GitHub webhook thread status | `apps/github/src/webhooks/index.ts` → `thread.setStatus` (or internal helper) | Webhook stops `store.mutate.thread.update` + `update.insert` |
@@ -369,6 +369,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-003e): `runArchiveThread` / `runRestoreThread` own `deletedAt` semantics server-side (`THREAD_DELETION_GRACE_DAYS = 30`); no timeline activity rows (matches prior generic-update behavior). Optimistic handler for `archive` only; `restore` intentionally omitted (user navigates away immediately).
 - 2026-06-22 (LP-003f): `close` signal handler delegates to `runSetThreadStatus` with `source: "agent_read"`; added compensate snapshot logic (close is reversible per `isReversible`). Activity insertion now flows through shared helper when `actorUserId` is set.
 - 2026-06-22 (LP-003g): `runSetAgentRead` + `thread.setAgentRead` procedure (internal API key only); worker `persistAgentRead` migrated; no web optimistic handler (worker-only).
+- 2026-06-22 (LP-003h): Devtools `duplicate-thread-command.tsx` migrated to `thread.create`; dead `create-thread-button.tsx` removed (`create-thread-dialog.tsx` already used procedures). Zero generic `thread`/`message`/`author` inserts in `apps/web`.
+- 2026-06-22 (LP-003i): No `thread.create` optimistic handler — all web callers (`create-thread-dialog`, portal `create-thread-dialog`, devtools duplicate) use awaited `fetchClient.mutate.thread.create`; documented intentional omission in matrix.
 
 ## PR Feedback
 
@@ -387,6 +389,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-003e): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: `threads/$id/index.tsx` and `archive/$id.tsx` have zero `mutate.thread.update`. No runtime UI smoke test for archive/restore flows.
 - 2026-06-22 (LP-003f): `bun run --filter api typecheck` pass. Ripgrep: `close.ts` has no `insertThreadActivity`; apply path uses `runSetThreadStatus`. No runtime test for close action in autonomous bundle rollback.
 - 2026-06-22 (LP-003g): `bun run --filter api typecheck` and `bun run --filter worker typecheck` pass. Ripgrep: `apps/worker/src` has zero `mutate.thread.update` / `thread.update` for agentRead. No runtime synthesis pipeline smoke test.
+- 2026-06-22 (LP-003h): `bun run --filter web typecheck` pass. Ripgrep: `apps/web` has zero `mutate.thread.insert` / `mutate.message.insert` / `mutate.author.insert`. No runtime devtools smoke test for create/duplicate flows.
+- 2026-06-22 (LP-003i): Verified no `mutate.thread.create` (synced) callers in `apps/web` — only `fetchClient.mutate.thread.create`. Documentation-only decision; no code change beyond matrix.
 
 ## Session Log
 
@@ -403,7 +407,9 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-003e): Implemented `thread.archive` / `thread.restore` — `runArchiveThread` / `runRestoreThread` in `thread-mutations.ts`, procedures in `router/threads.ts`, migrated `threads/$id/index.tsx` and `archive/$id.tsx`, optimistic `archive` handler in `live-state.ts`.
 - 2026-06-22 (LP-003f): Refactored `close.ts` to delegate apply to `runSetThreadStatus`; added compensate snapshot (first-write-wins) mirroring `set-status.ts`.
 - 2026-06-22 (LP-003g): Added `runSetAgentRead` + `thread.setAgentRead` procedure (internal key); migrated worker `persistAgentRead` and `apply-synthesis-autonomy.ts` call sites.
+- 2026-06-22 (LP-003h): Migrated `duplicate-thread-command.tsx` to `thread.create`; deleted unused `create-thread-button.tsx` (superseded by `create-thread-dialog.tsx`).
+- 2026-06-22 (LP-003i): Assessed `thread.create` optimistic need — none; documented intentional omission in matrix.
 
 ## Handoff
 
-Next action: Ship **LP-003h** — migrate devtools `create-thread-button.tsx` and `duplicate-thread-command.tsx` from generic `thread.insert` / `message.insert` / `author.insert` to `thread.create` / `message.create`; remove standalone `author.insert` calls.
+Next action: Ship **LP-003j** — migrate `apps/slack/src/index.ts` from generic `store.mutate.thread.insert` / `message.insert` / `author.insert` to `thread.create` / `message.create` procedures.
