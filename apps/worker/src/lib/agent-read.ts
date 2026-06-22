@@ -8,7 +8,12 @@ export { nextAgentReadAfterExecution } from "@workspace/schemas/signals";
 
 export const persistAgentRead = async (
   threadId: string,
+  organizationId: string,
   agentRead: ThreadRead | null,
 ): Promise<void> => {
-  await fetchClient.mutate.thread.update(threadId, { agentRead });
+  await fetchClient.mutate.thread.setAgentRead({
+    threadId,
+    organizationId,
+    agentRead,
+  });
 };

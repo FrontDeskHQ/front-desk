@@ -22,13 +22,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-003f** (next PR slice)
+- Active checkpoint: **LP-003h** (next PR slice)
 - Branch or PR: none
-- Last updated: 2026-06-21
+- Last updated: 2026-06-22
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser`, `thread.linkIssue`, `thread.unlinkIssue`, `thread.linkPullRequest`, `thread.unlinkPullRequest`, `thread.markDuplicate`, `thread.archive`, `thread.restore` (API procedures + web migration + optimistic handler for archive). `set-status` and `mark-duplicate` signal handlers delegate to shared helpers. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Remaining LP-003 work: `setAgentRead`, slack/discord `thread.create` / generic `message.insert`, and integration generic `thread.update` call sites.
+**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser`, `thread.linkIssue`, `thread.unlinkIssue`, `thread.linkPullRequest`, `thread.unlinkPullRequest`, `thread.markDuplicate`, `thread.archive`, `thread.restore`, `thread.setAgentRead` (API procedures + web migration + optimistic handler for archive). `set-status`, `close`, and `mark-duplicate` signal handlers delegate to shared helpers. Worker `persistAgentRead` uses `thread.setAgentRead`. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Remaining LP-003 work: slack/discord `thread.create` / generic `message.insert`, and integration generic `thread.update` call sites.
 
 ## Write inventory matrix
 
@@ -209,7 +209,7 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 | `linkPullRequest` / `unlinkPullRequest` ✓ | `thread` | generic `thread.update` externalPrId + paired `update.insert` | **yes** ✓ |
 | `markDuplicate` ✓ | `thread` | generic `thread.update` status duplicate + activity | **yes** ✓ |
 | `archive` / `restore` ✓ | `thread` | generic `thread.update` deletedAt / status | **yes** for archive only ✓ |
-| `setAgentRead` | `thread` | generic `thread.update` agentRead (worker `agent-read.ts`) | **no** — worker-only |
+| `setAgentRead` ✓ | `thread` | generic `thread.update` agentRead (worker `agent-read.ts`) | **no** — worker-only |
 | `create` ✓ | `message` | generic `message.insert` (slack, discord, devtools) | ✓ already |
 | `markAsAnswer` ✓ | `message` | — | ✓ already |
 | — | `author` | generic `author.insert` | **no** — always created inside `thread.create` / `message.create`; block generic insert |
@@ -277,8 +277,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 | [x] **LP-003c** | `thread.linkPullRequest` / `unlinkPullRequest` | `thread-mutations.ts`, `pull-requests.tsx`, optimistic handlers | `pull-requests.tsx` has zero generic thread/update pairs for PR link/unlink |
 | [x] **LP-003d** | `thread.markDuplicate` | `thread-mutations.ts`, `quick-actions.tsx` duplicate accept, `mark-duplicate` handler → shared helper, optimistic | Duplicate accept uses `mutate.thread.markDuplicate` only |
 | [x] **LP-003e** | `thread.archive` / `thread.restore` | `thread-mutations.ts`, `threads/$id/index.tsx` delete, `archive/$id.tsx` restore, optimistic (archive) | Archive/restore use procedures; no generic `thread.update` for `deletedAt` |
-| [ ] **LP-003f** | Signal handler convergence (close) | `close.ts` → `runSetThreadStatus` | Handler calls shared helper, not raw `db.thread.update` + `insertThreadActivity` |
-| [ ] **LP-003g** | `thread.setAgentRead` (worker) | `thread-mutations.ts`, `apps/worker/src/lib/agent-read.ts` | Worker uses `thread.setAgentRead`; no generic `thread.update` for `agentRead` |
+| [x] **LP-003f** | Signal handler convergence (close) | `close.ts` → `runSetThreadStatus` | Handler calls shared helper, not raw `db.thread.update` + `insertThreadActivity` |
+| [x] **LP-003g** | `thread.setAgentRead` (worker) | `thread-mutations.ts`, `apps/worker/src/lib/agent-read.ts` | Worker uses `thread.setAgentRead`; no generic `thread.update` for `agentRead` |
 | [ ] **LP-003h** | Web devtools → `thread.create` / `message.create` | `create-thread-button.tsx`, `duplicate-thread-command.tsx`; remove generic `author.insert` | Devtools use procedures only |
 | [ ] **LP-003i** | `thread.create` optimistic (optional) | `live-state.ts` if product `mutate.thread.create` paths need instant UI | Document yes/no in matrix; implement only if fire-and-forget `mutate` callers exist |
 | [ ] **LP-003j** | Slack → `thread.create` / `message.create` | `apps/slack/src/index.ts` (`store.mutate` / `fetchClient` thread/message/author inserts) | Ripgrep: no `store.mutate.thread.insert` / `message.insert` in slack |
@@ -367,6 +367,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-003c): PR link procedures mirror issue link (`linkPullRequest` / `unlinkPullRequest`); labels resolve from `externalEntity` mirror (`type: "pull_request"`). Activity type is `pr_changed` with `oldPrId`/`newPrId`/`oldPrLabel`/`newPrLabel` metadata.
 - 2026-06-21 (LP-003d): `runMarkDuplicate` sets status to `STATUS_DUPLICATED` (4) and inserts `marked_duplicate` activity; `mark-duplicate` signal handler delegates to shared helper (compensate snapshot logic retained in handler). Web duplicate accept passes optional `duplicateOfThreadName` for optimistic metadata when target thread is already loaded.
 - 2026-06-21 (LP-003e): `runArchiveThread` / `runRestoreThread` own `deletedAt` semantics server-side (`THREAD_DELETION_GRACE_DAYS = 30`); no timeline activity rows (matches prior generic-update behavior). Optimistic handler for `archive` only; `restore` intentionally omitted (user navigates away immediately).
+- 2026-06-22 (LP-003f): `close` signal handler delegates to `runSetThreadStatus` with `source: "agent_read"`; added compensate snapshot logic (close is reversible per `isReversible`). Activity insertion now flows through shared helper when `actorUserId` is set.
+- 2026-06-22 (LP-003g): `runSetAgentRead` + `thread.setAgentRead` procedure (internal API key only); worker `persistAgentRead` migrated; no web optimistic handler (worker-only).
 
 ## PR Feedback
 
@@ -383,6 +385,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-003c): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: `pull-requests.tsx` has zero `mutate.thread.update` / `mutate.update.insert`. No runtime UI smoke test for PR link/unlink combobox.
 - 2026-06-21 (LP-003d): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: `quick-actions.tsx` has zero `mutate.thread.update` / `mutate.update.insert`. No runtime UI smoke test for duplicate accept in Support Intelligence panel.
 - 2026-06-21 (LP-003e): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: `threads/$id/index.tsx` and `archive/$id.tsx` have zero `mutate.thread.update`. No runtime UI smoke test for archive/restore flows.
+- 2026-06-22 (LP-003f): `bun run --filter api typecheck` pass. Ripgrep: `close.ts` has no `insertThreadActivity`; apply path uses `runSetThreadStatus`. No runtime test for close action in autonomous bundle rollback.
+- 2026-06-22 (LP-003g): `bun run --filter api typecheck` and `bun run --filter worker typecheck` pass. Ripgrep: `apps/worker/src` has zero `mutate.thread.update` / `thread.update` for agentRead. No runtime synthesis pipeline smoke test.
 
 ## Session Log
 
@@ -397,7 +401,9 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-21 (LP-003c): Implemented `thread.linkPullRequest` / `unlinkPullRequest` — `runLinkPullRequest` / `runUnlinkPullRequest` in `thread-mutations.ts`, procedures in `router/threads.ts`, migrated `pull-requests.tsx`, optimistic handlers in `live-state.ts`.
 - 2026-06-21 (LP-003d): Implemented `thread.markDuplicate` — `runMarkDuplicate` in `thread-mutations.ts`, procedure in `router/threads.ts`, migrated `quick-actions.tsx` duplicate accept, refactored `mark-duplicate` signal handler, optimistic handler in `live-state.ts`.
 - 2026-06-21 (LP-003e): Implemented `thread.archive` / `thread.restore` — `runArchiveThread` / `runRestoreThread` in `thread-mutations.ts`, procedures in `router/threads.ts`, migrated `threads/$id/index.tsx` and `archive/$id.tsx`, optimistic `archive` handler in `live-state.ts`.
+- 2026-06-22 (LP-003f): Refactored `close.ts` to delegate apply to `runSetThreadStatus`; added compensate snapshot (first-write-wins) mirroring `set-status.ts`.
+- 2026-06-22 (LP-003g): Added `runSetAgentRead` + `thread.setAgentRead` procedure (internal key); migrated worker `persistAgentRead` and `apply-synthesis-autonomy.ts` call sites.
 
 ## Handoff
 
-Next action: Ship **LP-003f** — refactor `apps/api/src/lib/signals/handlers/close.ts` to delegate to `runSetThreadStatus` (mirror `set-status.ts`); retain compensate snapshot logic in the handler.
+Next action: Ship **LP-003h** — migrate devtools `create-thread-button.tsx` and `duplicate-thread-command.tsx` from generic `thread.insert` / `message.insert` / `author.insert` to `thread.create` / `message.create`; remove standalone `author.insert` calls.

@@ -1,6 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
-import { PRIORITY_LABELS } from "@workspace/schemas/signals";
+import { PRIORITY_LABELS, threadReadSchema } from "@workspace/schemas/signals";
 import { addDays } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -84,6 +84,12 @@ export const archiveThreadInputSchema = z.object({
 export const restoreThreadInputSchema = z.object({
   threadId: z.string(),
   organizationId: z.string(),
+});
+
+export const setAgentReadInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+  agentRead: threadReadSchema.nullable(),
 });
 
 type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
@@ -633,5 +639,26 @@ export const runRestoreThread = async (
 
   return {
     thread: { ...thread, deletedAt: null },
+  };
+};
+
+export const runSetAgentRead = async (
+  db: Pick<ServerDB<typeof schema>, "thread">,
+  input: z.infer<typeof setAgentReadInputSchema>,
+  options?: {
+    preloadedThread?: ThreadRow;
+  },
+) => {
+  const thread =
+    options?.preloadedThread ??
+    (await db.thread.one(input.threadId).get());
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  await db.thread.update(input.threadId, { agentRead: input.agentRead });
+
+  return {
+    thread: { ...thread, agentRead: input.agentRead },
   };
 };

@@ -19,7 +19,7 @@ export const applySynthesisAutonomy = async (
   rawActionSet: ThreadRead | null,
 ): Promise<ThreadRead | null> => {
   if (!rawActionSet) {
-    await persistAgentRead(threadId, null);
+    await persistAgentRead(threadId, organizationId, null);
     return null;
   }
 
@@ -33,7 +33,7 @@ export const applySynthesisAutonomy = async (
   );
 
   if (primary.length === 0) {
-    await persistAgentRead(threadId, null);
+    await persistAgentRead(threadId, organizationId, null);
     return null;
   }
 
@@ -83,7 +83,7 @@ export const applySynthesisAutonomy = async (
   }
 
   if (finalPrimary.length === 0) {
-    await persistAgentRead(threadId, null);
+    await persistAgentRead(threadId, organizationId, null);
     return null;
   }
 
@@ -92,6 +92,6 @@ export const applySynthesisAutonomy = async (
     primary: finalPrimary,
   };
 
-  await persistAgentRead(threadId, agentRead);
+  await persistAgentRead(threadId, organizationId, agentRead);
   return agentRead;
 };

@@ -16,10 +16,12 @@ import {
   runLinkPullRequest,
   runMarkDuplicate,
   runRestoreThread,
+  runSetAgentRead,
   runSetThreadPriority,
   runSetThreadStatus,
   runUnlinkIssue,
   runUnlinkPullRequest,
+  setAgentReadInputSchema,
   setPriorityInputSchema,
   setStatusInputSchema,
   unlinkIssueInputSchema,
@@ -702,6 +704,15 @@ export default publicRoute
 
       return runRestoreThread(db, req.input);
     }),
+    setAgentRead: mutation(setAgentReadInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runSetAgentRead(db, req.input);
+      },
+    ),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the
