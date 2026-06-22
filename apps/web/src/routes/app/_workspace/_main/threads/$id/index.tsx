@@ -55,7 +55,6 @@ import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import {
   buildThreadParam,
-  calculateDeletionDate,
   DAYS_UNTIL_DELETION,
   parseThreadParam,
 } from "~/utils/thread";
@@ -217,8 +216,11 @@ function RouteComponent() {
   };
 
   const deleteThread = () => {
-    mutate.thread.update(id, {
-      deletedAt: calculateDeletionDate(),
+    if (!thread?.organizationId) return;
+
+    mutate.thread.archive({
+      threadId: id,
+      organizationId: thread.organizationId,
     });
     setShowDeleteDialog(false);
     toast.success(`Thread will be deleted after ${DAYS_UNTIL_DELETION} days`, {

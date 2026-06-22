@@ -1,5 +1,5 @@
 import type { MarkDuplicateAction } from "@workspace/schemas/signals";
-import { insertThreadActivity } from "../activity";
+import { runMarkDuplicate } from "../../thread-mutations";
 import {
   clearCompensateSnapshot,
   getCompensateSnapshot,
@@ -7,25 +7,14 @@ import {
 } from "../compensate-snapshots";
 import type { ActionHandler } from "../types";
 
-const STATUS_DUPLICATED = 4;
-
 const snapshotKey = (action: MarkDuplicateAction) =>
   `mark_duplicate:${action.targetThreadId}`;
 
 export const markDuplicateHandler: ActionHandler<MarkDuplicateAction> = {
   async apply(action, ctx) {
-    if (action.targetThreadId === ctx.threadId) {
-      throw new Error("CANNOT_MARK_DUPLICATE_OF_SELF");
-    }
-
     const thread = await ctx.db.thread.one(ctx.threadId).get();
     if (!thread || thread.organizationId !== ctx.organizationId) {
       throw new Error("THREAD_NOT_FOUND");
-    }
-
-    const target = await ctx.db.thread.one(action.targetThreadId).get();
-    if (!target || target.organizationId !== ctx.organizationId) {
-      throw new Error("TARGET_THREAD_NOT_FOUND");
     }
 
     const previousStatus = thread.status ?? 0;
@@ -36,16 +25,20 @@ export const markDuplicateHandler: ActionHandler<MarkDuplicateAction> = {
       setCompensateSnapshot(ctx, snapshotKey(action), { previousStatus });
     }
 
-    await ctx.db.thread.update(ctx.threadId, { status: STATUS_DUPLICATED });
-
-    await insertThreadActivity(ctx, {
-      type: "marked_duplicate",
-      metadata: {
+    await runMarkDuplicate(
+      ctx.db,
+      {
+        threadId: ctx.threadId,
+        organizationId: ctx.organizationId,
         duplicateOfThreadId: action.targetThreadId,
-        duplicateOfThreadName: target.name,
+        source: ctx.actorUserId ? "agent_read" : "autonomous",
       },
-      source: ctx.actorUserId ? "agent_read" : "autonomous",
-    });
+      {
+        userId: ctx.actorUserId,
+        userName: ctx.actorUserName,
+      },
+      { preloadedThread: thread },
+    );
   },
 
   async compensate(action, ctx) {

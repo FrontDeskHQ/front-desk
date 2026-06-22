@@ -1,6 +1,7 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 import { PRIORITY_LABELS } from "@workspace/schemas/signals";
+import { addDays } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { schema } from "../live-state/schema";
@@ -59,6 +60,30 @@ export const unlinkPullRequestInputSchema = z.object({
   organizationId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
+});
+
+export const STATUS_DUPLICATED = 4;
+
+export const markDuplicateInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+  duplicateOfThreadId: z.string().min(1),
+  duplicateOfThreadName: z.string().optional(),
+  source: z.string().optional(),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+});
+
+export const THREAD_DELETION_GRACE_DAYS = 30;
+
+export const archiveThreadInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+});
+
+export const restoreThreadInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
 });
 
 type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
@@ -488,3 +513,116 @@ export const runUnlinkPullRequest = async (
     threadId: input.threadId,
     organizationId: input.organizationId,
   }, actor);
+
+export const runMarkDuplicate = async (
+  db: ThreadWriteDb,
+  input: z.infer<typeof markDuplicateInputSchema>,
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+  options?: {
+    preloadedThread?: ThreadRow;
+  },
+) => {
+  if (input.duplicateOfThreadId === input.threadId) {
+    throw new Error("CANNOT_MARK_DUPLICATE_OF_SELF");
+  }
+
+  const thread =
+    options?.preloadedThread ??
+    (await db.thread.one(input.threadId).get());
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  const target = await db.thread.one(input.duplicateOfThreadId).get();
+  if (!target || target.organizationId !== input.organizationId) {
+    throw new Error("TARGET_THREAD_NOT_FOUND");
+  }
+
+  const oldStatus = thread.status ?? 0;
+  if (oldStatus === STATUS_DUPLICATED) {
+    return { thread, unchanged: true as const };
+  }
+
+  await db.thread.update(input.threadId, { status: STATUS_DUPLICATED });
+
+  const duplicateOfThreadName = input.duplicateOfThreadName ?? target.name;
+
+  if (actor.userId !== null) {
+    await db.insert(schema.update, {
+      id: ulid().toLowerCase(),
+      threadId: input.threadId,
+      userId: actor.userId,
+      type: "marked_duplicate",
+      createdAt: new Date(),
+      metadataStr: JSON.stringify({
+        duplicateOfThreadId: input.duplicateOfThreadId,
+        duplicateOfThreadName,
+        ...(actor.userName ? { userName: actor.userName } : {}),
+        ...(input.source ? { source: input.source } : {}),
+      }),
+      replicatedStr: JSON.stringify({}),
+    });
+  }
+
+  return {
+    thread: { ...thread, status: STATUS_DUPLICATED },
+    oldStatus,
+    duplicateOfThreadId: input.duplicateOfThreadId,
+    duplicateOfThreadName,
+  };
+};
+
+export const runArchiveThread = async (
+  db: ThreadWriteDb,
+  input: z.infer<typeof archiveThreadInputSchema>,
+  options?: {
+    preloadedThread?: ThreadRow;
+  },
+) => {
+  const thread =
+    options?.preloadedThread ??
+    (await db.thread.one(input.threadId).get());
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  if (thread.deletedAt != null) {
+    return { thread, unchanged: true as const };
+  }
+
+  const deletedAt = addDays(new Date(), THREAD_DELETION_GRACE_DAYS);
+  await db.thread.update(input.threadId, { deletedAt });
+
+  return {
+    thread: { ...thread, deletedAt },
+    deletedAt,
+  };
+};
+
+export const runRestoreThread = async (
+  db: ThreadWriteDb,
+  input: z.infer<typeof restoreThreadInputSchema>,
+  options?: {
+    preloadedThread?: ThreadRow;
+  },
+) => {
+  const thread =
+    options?.preloadedThread ??
+    (await db.thread.one(input.threadId).get());
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  if (thread.deletedAt == null) {
+    return { thread, unchanged: true as const };
+  }
+
+  await db.thread.update(input.threadId, { deletedAt: null });
+
+  return {
+    thread: { ...thread, deletedAt: null },
+  };
+};

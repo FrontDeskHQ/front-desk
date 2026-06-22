@@ -4,12 +4,18 @@ import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
 import {
+  archiveThreadInputSchema,
   assignUserInputSchema,
   linkIssueInputSchema,
   linkPullRequestInputSchema,
+  markDuplicateInputSchema,
+  restoreThreadInputSchema,
+  runArchiveThread,
   runAssignThreadUser,
   runLinkIssue,
   runLinkPullRequest,
+  runMarkDuplicate,
+  runRestoreThread,
   runSetThreadPriority,
   runSetThreadStatus,
   runUnlinkIssue,
@@ -661,6 +667,41 @@ export default publicRoute
         });
       },
     ),
+    markDuplicate: mutation(markDuplicateInputSchema).handler(
+      async ({ req, db }) => {
+        authorize(req, { organizationId: req.input.organizationId });
+
+        const actorUserId = req.context?.session?.userId ?? null;
+        if (!actorUserId) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runMarkDuplicate(db, req.input, {
+          userId: actorUserId,
+          userName: req.context?.user?.name ?? null,
+        });
+      },
+    ),
+    archive: mutation(archiveThreadInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runArchiveThread(db, req.input);
+    }),
+    restore: mutation(restoreThreadInputSchema).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+
+      const actorUserId = req.context?.session?.userId ?? null;
+      if (!actorUserId) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      return runRestoreThread(db, req.input);
+    }),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the

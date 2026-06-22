@@ -15,6 +15,7 @@ import { schema } from "api/schema";
 import { ulid } from "ulid";
 import { authClient } from "./auth-client";
 import { getLiveStateApiUrl } from "./urls";
+import { calculateDeletionDate } from "~/utils/thread";
 
 type ExternalEntityKind = "issue" | "pull_request";
 
@@ -510,6 +511,40 @@ const { client, store } = createClient<Router>({
           input,
           storage,
           kind: "pull_request",
+        });
+      },
+      markDuplicate: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread) return;
+
+        const oldStatus = thread.status ?? 0;
+        if (oldStatus === 4) return;
+
+        storage.thread.update(input.threadId, { status: 4 });
+
+        if (!input.userId) return;
+
+        storage.update.insert({
+          id: ulid().toLowerCase(),
+          threadId: input.threadId,
+          userId: input.userId,
+          type: "marked_duplicate",
+          createdAt: new Date(),
+          metadataStr: JSON.stringify({
+            duplicateOfThreadId: input.duplicateOfThreadId,
+            duplicateOfThreadName: input.duplicateOfThreadName ?? null,
+            ...(input.userName ? { userName: input.userName } : {}),
+            ...(input.source ? { source: input.source } : {}),
+          }),
+          replicatedStr: JSON.stringify({}),
+        });
+      },
+      archive: ({ input, storage }) => {
+        const thread = storage.thread.where({ id: input.threadId }).get()[0];
+        if (!thread || thread.deletedAt != null) return;
+
+        storage.thread.update(input.threadId, {
+          deletedAt: calculateDeletionDate(),
         });
       },
     },
