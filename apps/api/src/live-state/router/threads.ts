@@ -6,14 +6,18 @@ import { authorize } from "../../lib/authorize";
 import {
   assignUserInputSchema,
   linkIssueInputSchema,
+  linkPullRequestInputSchema,
   runAssignThreadUser,
   runLinkIssue,
+  runLinkPullRequest,
   runSetThreadPriority,
   runSetThreadStatus,
   runUnlinkIssue,
+  runUnlinkPullRequest,
   setPriorityInputSchema,
   setStatusInputSchema,
   unlinkIssueInputSchema,
+  unlinkPullRequestInputSchema,
 } from "../../lib/thread-mutations";
 import {
   acceptInlineSuggestionInputSchema,
@@ -627,6 +631,36 @@ export default publicRoute
         userName: req.context?.user?.name ?? null,
       });
     }),
+    linkPullRequest: mutation(linkPullRequestInputSchema).handler(
+      async ({ req, db }) => {
+        authorize(req, { organizationId: req.input.organizationId });
+
+        const actorUserId = req.context?.session?.userId ?? null;
+        if (!actorUserId) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runLinkPullRequest(db, req.input, {
+          userId: actorUserId,
+          userName: req.context?.user?.name ?? null,
+        });
+      },
+    ),
+    unlinkPullRequest: mutation(unlinkPullRequestInputSchema).handler(
+      async ({ req, db }) => {
+        authorize(req, { organizationId: req.input.organizationId });
+
+        const actorUserId = req.context?.session?.userId ?? null;
+        if (!actorUserId) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runUnlinkPullRequest(db, req.input, {
+          userId: actorUserId,
+          userName: req.context?.user?.name ?? null,
+        });
+      },
+    ),
   }))
   .withHooks({
     // TODO: Migrate this logic into a custom `create` mutation and have the

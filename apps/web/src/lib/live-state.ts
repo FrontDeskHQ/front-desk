@@ -16,6 +16,201 @@ import { ulid } from "ulid";
 import { authClient } from "./auth-client";
 import { getLiveStateApiUrl } from "./urls";
 
+type ExternalEntityKind = "issue" | "pull_request";
+
+type OptimisticExternalEntityStorage = {
+  thread: {
+    where: (query: { id: string }) => {
+      get: () => Array<{
+        externalIssueId?: string | null;
+        externalPrId?: string | null;
+      }>;
+    };
+    update: (
+      id: string,
+      data: { externalIssueId?: string | null; externalPrId?: string | null },
+    ) => void;
+  };
+  externalEntity: {
+    where: (query: {
+      organizationId: string;
+      externalKey: string;
+      type: ExternalEntityKind;
+    }) => {
+      get: () => Array<{ repoFullName: string; number: number }>;
+    };
+  };
+  update: {
+    insert: (data: {
+      id: string;
+      threadId: string;
+      userId: string;
+      type: string;
+      createdAt: Date;
+      metadataStr: string;
+      replicatedStr: string;
+    }) => void;
+  };
+};
+
+const optimisticExternalEntityConfig = {
+  issue: {
+    threadField: "externalIssueId" as const,
+    updateType: "issue_changed" as const,
+    entityType: "issue" as const,
+    metadataKeys: {
+      oldId: "oldIssueId",
+      newId: "newIssueId",
+      oldLabel: "oldIssueLabel",
+      newLabel: "newIssueLabel",
+    },
+  },
+  pull_request: {
+    threadField: "externalPrId" as const,
+    updateType: "pr_changed" as const,
+    entityType: "pull_request" as const,
+    metadataKeys: {
+      oldId: "oldPrId",
+      newId: "newPrId",
+      oldLabel: "oldPrLabel",
+      newLabel: "newPrLabel",
+    },
+  },
+} satisfies Record<
+  ExternalEntityKind,
+  {
+    threadField: "externalIssueId" | "externalPrId";
+    updateType: "issue_changed" | "pr_changed";
+    entityType: ExternalEntityKind;
+    metadataKeys: {
+      oldId: string;
+      newId: string;
+      oldLabel: string;
+      newLabel: string;
+    };
+  }
+>;
+
+const resolveOptimisticExternalEntityLabel = (
+  storage: OptimisticExternalEntityStorage,
+  organizationId: string,
+  externalKey: string | null,
+  type: ExternalEntityKind,
+) => {
+  if (!externalKey) return null;
+
+  const entity = storage.externalEntity
+    .where({ organizationId, externalKey, type })
+    .get()[0];
+
+  return entity ? `${entity.repoFullName}#${entity.number}` : null;
+};
+
+const handleOptimisticLinkExternalEntity = ({
+  input,
+  storage,
+  kind,
+  externalId,
+}: {
+  input: {
+    threadId: string;
+    organizationId: string;
+    userId?: string;
+    userName?: string;
+  };
+  storage: OptimisticExternalEntityStorage;
+  kind: ExternalEntityKind;
+  externalId: string;
+}) => {
+  const config = optimisticExternalEntityConfig[kind];
+  const thread = storage.thread.where({ id: input.threadId }).get()[0];
+  if (!thread) return;
+
+  const oldId = thread[config.threadField] ?? null;
+  if (oldId === externalId) return;
+
+  storage.thread.update(input.threadId, {
+    [config.threadField]: externalId,
+  });
+
+  if (!input.userId) return;
+
+  storage.update.insert({
+    id: ulid().toLowerCase(),
+    threadId: input.threadId,
+    userId: input.userId,
+    type: config.updateType,
+    createdAt: new Date(),
+    metadataStr: JSON.stringify({
+      [config.metadataKeys.oldId]: oldId,
+      [config.metadataKeys.newId]: externalId,
+      [config.metadataKeys.oldLabel]: resolveOptimisticExternalEntityLabel(
+        storage,
+        input.organizationId,
+        oldId,
+        config.entityType,
+      ),
+      [config.metadataKeys.newLabel]: resolveOptimisticExternalEntityLabel(
+        storage,
+        input.organizationId,
+        externalId,
+        config.entityType,
+      ),
+      ...(input.userName ? { userName: input.userName } : {}),
+    }),
+    replicatedStr: JSON.stringify({}),
+  });
+};
+
+const handleOptimisticUnlinkExternalEntity = ({
+  input,
+  storage,
+  kind,
+}: {
+  input: {
+    threadId: string;
+    organizationId: string;
+    userId?: string;
+    userName?: string;
+  };
+  storage: OptimisticExternalEntityStorage;
+  kind: ExternalEntityKind;
+}) => {
+  const config = optimisticExternalEntityConfig[kind];
+  const thread = storage.thread.where({ id: input.threadId }).get()[0];
+  if (!thread) return;
+
+  const oldId = thread[config.threadField] ?? null;
+  if (oldId === null) return;
+
+  const oldLabel = resolveOptimisticExternalEntityLabel(
+    storage,
+    input.organizationId,
+    oldId,
+    config.entityType,
+  );
+
+  storage.thread.update(input.threadId, { [config.threadField]: null });
+
+  if (!input.userId) return;
+
+  storage.update.insert({
+    id: ulid().toLowerCase(),
+    threadId: input.threadId,
+    userId: input.userId,
+    type: config.updateType,
+    createdAt: new Date(),
+    metadataStr: JSON.stringify({
+      [config.metadataKeys.oldId]: oldId,
+      [config.metadataKeys.newId]: null,
+      [config.metadataKeys.oldLabel]: oldLabel,
+      [config.metadataKeys.newLabel]: null,
+      ...(input.userName ? { userName: input.userName } : {}),
+    }),
+    replicatedStr: JSON.stringify({}),
+  });
+};
+
 const { client, store } = createClient<Router>({
   url:
     import.meta.env.VITE_LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
@@ -288,82 +483,33 @@ const { client, store } = createClient<Router>({
         });
       },
       linkIssue: ({ input, storage }) => {
-        const thread = storage.thread.where({ id: input.threadId }).get()[0];
-        if (!thread) return;
-
-        const oldIssueId = thread.externalIssueId ?? null;
-        if (oldIssueId === input.externalIssueId) return;
-
-        const resolveIssueLabel = (externalKey: string | null) => {
-          if (!externalKey) return null;
-          const entity = storage.externalEntity
-            .where({
-              organizationId: input.organizationId,
-              externalKey,
-              type: "issue",
-            })
-            .get()[0];
-          return entity ? `${entity.repoFullName}#${entity.number}` : null;
-        };
-
-        storage.thread.update(input.threadId, {
-          externalIssueId: input.externalIssueId,
-        });
-
-        if (!input.userId) return;
-
-        storage.update.insert({
-          id: ulid().toLowerCase(),
-          threadId: input.threadId,
-          userId: input.userId,
-          type: "issue_changed",
-          createdAt: new Date(),
-          metadataStr: JSON.stringify({
-            oldIssueId,
-            newIssueId: input.externalIssueId,
-            oldIssueLabel: resolveIssueLabel(oldIssueId),
-            newIssueLabel: resolveIssueLabel(input.externalIssueId),
-            ...(input.userName ? { userName: input.userName } : {}),
-          }),
-          replicatedStr: JSON.stringify({}),
+        handleOptimisticLinkExternalEntity({
+          input,
+          storage,
+          kind: "issue",
+          externalId: input.externalIssueId,
         });
       },
       unlinkIssue: ({ input, storage }) => {
-        const thread = storage.thread.where({ id: input.threadId }).get()[0];
-        if (!thread) return;
-
-        const oldIssueId = thread.externalIssueId ?? null;
-        if (oldIssueId === null) return;
-
-        const oldIssue = storage.externalEntity
-          .where({
-            organizationId: input.organizationId,
-            externalKey: oldIssueId,
-            type: "issue",
-          })
-          .get()[0];
-        const oldIssueLabel = oldIssue
-          ? `${oldIssue.repoFullName}#${oldIssue.number}`
-          : null;
-
-        storage.thread.update(input.threadId, { externalIssueId: null });
-
-        if (!input.userId) return;
-
-        storage.update.insert({
-          id: ulid().toLowerCase(),
-          threadId: input.threadId,
-          userId: input.userId,
-          type: "issue_changed",
-          createdAt: new Date(),
-          metadataStr: JSON.stringify({
-            oldIssueId,
-            newIssueId: null,
-            oldIssueLabel,
-            newIssueLabel: null,
-            ...(input.userName ? { userName: input.userName } : {}),
-          }),
-          replicatedStr: JSON.stringify({}),
+        handleOptimisticUnlinkExternalEntity({
+          input,
+          storage,
+          kind: "issue",
+        });
+      },
+      linkPullRequest: ({ input, storage }) => {
+        handleOptimisticLinkExternalEntity({
+          input,
+          storage,
+          kind: "pull_request",
+          externalId: input.externalPrId,
+        });
+      },
+      unlinkPullRequest: ({ input, storage }) => {
+        handleOptimisticUnlinkExternalEntity({
+          input,
+          storage,
+          kind: "pull_request",
         });
       },
     },

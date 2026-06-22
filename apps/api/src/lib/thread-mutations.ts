@@ -46,6 +46,21 @@ export const unlinkIssueInputSchema = z.object({
   userName: z.string().optional(),
 });
 
+export const linkPullRequestInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+  externalPrId: z.string().min(1),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+});
+
+export const unlinkPullRequestInputSchema = z.object({
+  threadId: z.string(),
+  organizationId: z.string(),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+});
+
 type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
 
 type ThreadAssignDb = ThreadWriteDb &
@@ -53,6 +68,46 @@ type ThreadAssignDb = ThreadWriteDb &
 
 type ThreadIssueLinkDb = ThreadWriteDb &
   Pick<ServerDB<typeof schema>, "find">;
+
+type ExternalEntityKind = "issue" | "pull_request";
+
+const externalEntityLinkConfig = {
+  issue: {
+    threadField: "externalIssueId" as const,
+    updateType: "issue_changed" as const,
+    entityType: "issue" as const,
+    metadataKeys: {
+      oldId: "oldIssueId",
+      newId: "newIssueId",
+      oldLabel: "oldIssueLabel",
+      newLabel: "newIssueLabel",
+    },
+  },
+  pull_request: {
+    threadField: "externalPrId" as const,
+    updateType: "pr_changed" as const,
+    entityType: "pull_request" as const,
+    metadataKeys: {
+      oldId: "oldPrId",
+      newId: "newPrId",
+      oldLabel: "oldPrLabel",
+      newLabel: "newPrLabel",
+    },
+  },
+} satisfies Record<
+  ExternalEntityKind,
+  {
+    threadField: "externalIssueId" | "externalPrId";
+    updateType: "issue_changed" | "pr_changed";
+    entityType: ExternalEntityKind;
+    metadataKeys: {
+      oldId: string;
+      newId: string;
+      oldLabel: string;
+      newLabel: string;
+    };
+  }
+>;
 
 const priorityActivityMetadata = (oldPriority: number, newPriority: number) => ({
   oldPriority,
@@ -235,16 +290,17 @@ export const runAssignThreadUser = async (
   };
 };
 
-const resolveIssueLabel = async (
+const resolveExternalEntityLabel = async (
   db: Pick<ServerDB<typeof schema>, "find">,
   organizationId: string,
   externalKey: string | null,
+  type: ExternalEntityKind,
 ) => {
   if (!externalKey) return null;
 
   const entity = Object.values(
     await db.find(schema.externalEntity, {
-      where: { organizationId, externalKey, type: "issue" },
+      where: { organizationId, externalKey, type },
     }),
   )[0];
 
@@ -252,31 +308,47 @@ const resolveIssueLabel = async (
   return `${entity.repoFullName}#${entity.number}`;
 };
 
-export const runLinkIssue = async (
+const runLinkExternalEntity = async (
   db: ThreadIssueLinkDb,
-  input: z.infer<typeof linkIssueInputSchema>,
+  kind: ExternalEntityKind,
+  input: {
+    threadId: string;
+    organizationId: string;
+    externalId: string;
+  },
   actor: {
     userId: string | null;
     userName: string | null;
   },
 ) => {
+  const config = externalEntityLinkConfig[kind];
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
 
-  const oldIssueId = thread.externalIssueId ?? null;
-  if (oldIssueId === input.externalIssueId) {
+  const oldId = thread[config.threadField] ?? null;
+  if (oldId === input.externalId) {
     return { thread, unchanged: true as const };
   }
 
-  const [oldIssueLabel, newIssueLabel] = await Promise.all([
-    resolveIssueLabel(db, input.organizationId, oldIssueId),
-    resolveIssueLabel(db, input.organizationId, input.externalIssueId),
+  const [oldLabel, newLabel] = await Promise.all([
+    resolveExternalEntityLabel(
+      db,
+      input.organizationId,
+      oldId,
+      config.entityType,
+    ),
+    resolveExternalEntityLabel(
+      db,
+      input.organizationId,
+      input.externalId,
+      config.entityType,
+    ),
   ]);
 
   await db.thread.update(input.threadId, {
-    externalIssueId: input.externalIssueId,
+    [config.threadField]: input.externalId,
   });
 
   if (actor.userId !== null) {
@@ -284,13 +356,13 @@ export const runLinkIssue = async (
       id: ulid().toLowerCase(),
       threadId: input.threadId,
       userId: actor.userId,
-      type: "issue_changed",
+      type: config.updateType,
       createdAt: new Date(),
       metadataStr: JSON.stringify({
-        oldIssueId,
-        newIssueId: input.externalIssueId,
-        oldIssueLabel,
-        newIssueLabel,
+        [config.metadataKeys.oldId]: oldId,
+        [config.metadataKeys.newId]: input.externalId,
+        [config.metadataKeys.oldLabel]: oldLabel,
+        [config.metadataKeys.newLabel]: newLabel,
         ...(actor.userName ? { userName: actor.userName } : {}),
       }),
       replicatedStr: JSON.stringify({}),
@@ -300,10 +372,82 @@ export const runLinkIssue = async (
   const updated = await db.thread.one(input.threadId).get();
   return {
     thread: updated,
-    oldIssueId,
-    newIssueId: input.externalIssueId,
+    [config.metadataKeys.oldId]: oldId,
+    [config.metadataKeys.newId]: input.externalId,
   };
 };
+
+const runUnlinkExternalEntity = async (
+  db: ThreadIssueLinkDb,
+  kind: ExternalEntityKind,
+  input: {
+    threadId: string;
+    organizationId: string;
+  },
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+) => {
+  const config = externalEntityLinkConfig[kind];
+  const thread = await db.thread.one(input.threadId).get();
+  if (!thread || thread.organizationId !== input.organizationId) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
+  const oldId = thread[config.threadField] ?? null;
+  if (oldId === null) {
+    return { thread, unchanged: true as const };
+  }
+
+  const oldLabel = await resolveExternalEntityLabel(
+    db,
+    input.organizationId,
+    oldId,
+    config.entityType,
+  );
+
+  await db.thread.update(input.threadId, { [config.threadField]: null });
+
+  if (actor.userId !== null) {
+    await db.insert(schema.update, {
+      id: ulid().toLowerCase(),
+      threadId: input.threadId,
+      userId: actor.userId,
+      type: config.updateType,
+      createdAt: new Date(),
+      metadataStr: JSON.stringify({
+        [config.metadataKeys.oldId]: oldId,
+        [config.metadataKeys.newId]: null,
+        [config.metadataKeys.oldLabel]: oldLabel,
+        [config.metadataKeys.newLabel]: null,
+        ...(actor.userName ? { userName: actor.userName } : {}),
+      }),
+      replicatedStr: JSON.stringify({}),
+    });
+  }
+
+  const updated = await db.thread.one(input.threadId).get();
+  return {
+    thread: updated,
+    [config.metadataKeys.oldId]: oldId,
+    [config.metadataKeys.newId]: null,
+  };
+};
+
+export const runLinkIssue = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof linkIssueInputSchema>,
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+) =>
+  runLinkExternalEntity(db, "issue", {
+    threadId: input.threadId,
+    organizationId: input.organizationId,
+    externalId: input.externalIssueId,
+  }, actor);
 
 export const runUnlinkIssue = async (
   db: ThreadIssueLinkDb,
@@ -312,43 +456,35 @@ export const runUnlinkIssue = async (
     userId: string | null;
     userName: string | null;
   },
-) => {
-  const thread = await db.thread.one(input.threadId).get();
-  if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
-  }
+) =>
+  runUnlinkExternalEntity(db, "issue", {
+    threadId: input.threadId,
+    organizationId: input.organizationId,
+  }, actor);
 
-  const oldIssueId = thread.externalIssueId ?? null;
-  if (oldIssueId === null) {
-    return { thread, unchanged: true as const };
-  }
+export const runLinkPullRequest = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof linkPullRequestInputSchema>,
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+) =>
+  runLinkExternalEntity(db, "pull_request", {
+    threadId: input.threadId,
+    organizationId: input.organizationId,
+    externalId: input.externalPrId,
+  }, actor);
 
-  const oldIssueLabel = await resolveIssueLabel(
-    db,
-    input.organizationId,
-    oldIssueId,
-  );
-
-  await db.thread.update(input.threadId, { externalIssueId: null });
-
-  if (actor.userId !== null) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
-      threadId: input.threadId,
-      userId: actor.userId,
-      type: "issue_changed",
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
-        oldIssueId,
-        newIssueId: null,
-        oldIssueLabel,
-        newIssueLabel: null,
-        ...(actor.userName ? { userName: actor.userName } : {}),
-      }),
-      replicatedStr: JSON.stringify({}),
-    });
-  }
-
-  const updated = await db.thread.one(input.threadId).get();
-  return { thread: updated, oldIssueId, newIssueId: null };
-};
+export const runUnlinkPullRequest = async (
+  db: ThreadIssueLinkDb,
+  input: z.infer<typeof unlinkPullRequestInputSchema>,
+  actor: {
+    userId: string | null;
+    userName: string | null;
+  },
+) =>
+  runUnlinkExternalEntity(db, "pull_request", {
+    threadId: input.threadId,
+    organizationId: input.organizationId,
+  }, actor);
