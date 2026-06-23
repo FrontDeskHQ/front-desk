@@ -513,20 +513,10 @@ export const router = createRouter({
     }),
     author: publicRoute.collectionRoute(schema.author, {
       read: () => true,
-      insert: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-
-        if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-        return true;
-        // TODO FRO-68: Figure a good way to handle this
-        // return {
-        //   userId: ctx.session.userId,
-        // };
-      },
+      insert: () => false,
       update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        preMutation: () => false,
+        postMutation: () => false,
       },
     }),
     invite: privateRoute

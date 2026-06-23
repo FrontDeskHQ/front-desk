@@ -1047,7 +1047,8 @@ const handleMessages = async (
       });
 
       if (result.ok && result.ts) {
-        store.mutate.message.update(message.id, {
+        store.mutate.message.setExternalMessageId({
+          messageId: message.id,
           externalMessageId: result.ts,
         });
       }

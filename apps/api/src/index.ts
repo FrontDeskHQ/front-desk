@@ -14,6 +14,7 @@ import { auth } from "./lib/auth";
 import { reflagClient } from "./lib/feature-flag";
 import { portalAuth } from "./lib/portal-auth";
 import { runMigrations } from "./live-state/migrations";
+import { liveStateHooks } from "./live-state/hooks";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
@@ -41,6 +42,7 @@ const lsServer = server({
   router,
   storage,
   schema,
+  hooks: liveStateHooks,
   contextProvider: async ({
     transport,
     headers,

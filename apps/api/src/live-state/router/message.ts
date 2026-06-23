@@ -2,7 +2,6 @@
 import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
-import { enqueueThreadRead } from "../../lib/queue";
 import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
@@ -29,38 +28,18 @@ const messageCreateInputSchema = z.object({
   isBackfill: z.boolean().optional(),
 });
 
+const setExternalMessageIdInputSchema = z.object({
+  messageId: z.string(),
+  externalMessageId: z.string().min(1),
+});
+
 export default publicRoute
   .collectionRoute(schema.message, {
     read: () => true,
-    insert: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-
-      if (ctx?.publicApiKey) {
-        return {
-          thread: {
-            organization: {
-              id: ctx.publicApiKey.ownerId,
-            },
-          },
-        };
-      }
-
-      if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-      return {
-        thread: {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session?.userId ?? ctx.portalSession?.session.userId,
-              enabled: true,
-            },
-          },
-        },
-      };
-    },
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
   .withProcedures(({ mutation }) => ({
@@ -261,32 +240,27 @@ export default publicRoute
         })),
       };
     }),
-  }))
-  .withHooks({
-    afterInsert: ({ value, db }) => {
-      (async () => {
-        try {
-          // TODO(issue-06): when the author is outbound (teammate or Agent),
-          // dispatch kind:"supersede" instead so the worker handler can null
-          // thread.agentRead without invoking synthesis.
-          const queuePriority = value.isBackfill ? "low" : "high";
-          const jobId = await enqueueThreadRead(value.threadId, {
-            kind: "message",
-            priority: queuePriority,
-          });
-
-          if (!jobId) {
-            console.warn(
-              `Redis queue not configured; skipping thread-read enqueue for thread ${value.threadId}`,
-            );
-          }
-        } catch (error) {
-          console.error(
-            `Unhandled error in afterInsert thread-read enqueue for message ${value.id}`,
-            error,
-          );
+    setExternalMessageId: mutation(setExternalMessageIdInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
         }
 
-      })();
-    },
-  });
+        const message = await db.message.one(req.input.messageId).get();
+        if (!message) {
+          throw new Error("MESSAGE_NOT_FOUND");
+        }
+
+        await db.message.update(req.input.messageId, {
+          externalMessageId: req.input.externalMessageId,
+        });
+
+        return {
+          message: {
+            ...message,
+            externalMessageId: req.input.externalMessageId,
+          },
+        };
+      },
+    ),
+  }));
