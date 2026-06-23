@@ -23,6 +23,7 @@ export const insertThreadActivity = async (
     metadata: {
       ...args.metadata,
       source: args.source,
+      userName: ctx.actorUserName,
     },
   });
 };

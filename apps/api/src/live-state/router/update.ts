@@ -63,26 +63,16 @@ export default publicRoute
         authorize(req, { organizationId: req.input.organizationId });
 
         const isInternal = !!req.context?.internalApiKey;
-        const sessionUserId = req.context?.session?.userId ?? null;
-
-        if (!isInternal && !sessionUserId) {
+        if (!isInternal) {
           throw new Error("UNAUTHORIZED");
         }
-
-        const userId = isInternal
-          ? (req.input.userId ?? null)
-          : sessionUserId;
-
-        const userName = isInternal
-          ? (req.input.userName ?? null)
-          : (req.input.userName ?? req.context?.user?.name ?? null);
 
         return runRecordActivity(db, {
           threadId: req.input.threadId,
           organizationId: req.input.organizationId,
           type: req.input.type,
-          userId,
-          userName,
+          userId: req.input.userId ?? null,
+          userName: req.input.userName ?? null,
           metadata: req.input.metadata,
           replicatedStr: req.input.replicatedStr,
           id: req.input.id,

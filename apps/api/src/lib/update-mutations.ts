@@ -10,7 +10,22 @@ export const recordActivityInputSchema = z.object({
   userId: z.string().nullable().optional(),
   userName: z.string().nullable().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
-  replicatedStr: z.string().nullable().optional(),
+  replicatedStr: z
+    .string()
+    .nullable()
+    .optional()
+    .refine(
+      (value) => {
+        if (value === undefined || value === null) return true;
+        try {
+          JSON.parse(value);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      { message: "INVALID_REPLICATED_STR" },
+    ),
   id: z.string().optional(),
   createdAt: z.coerce.date().optional(),
 });
@@ -26,10 +41,15 @@ export const runRecordActivity = async (
     throw new Error("THREAD_NOT_FOUND");
   }
 
-  const metadata: Record<string, unknown> = { ...(input.metadata ?? {}) };
-  if (input.userName) {
-    metadata.userName = input.userName;
-  }
+  const metadata: Record<string, unknown> = {
+    ...(input.metadata ?? {}),
+    userName: input.userName ?? null,
+  };
+
+  const replicatedStr =
+    input.replicatedStr === undefined
+      ? JSON.stringify({})
+      : input.replicatedStr;
 
   return db.insert(schema.update, {
     id: input.id ?? ulid().toLowerCase(),
@@ -38,9 +58,6 @@ export const runRecordActivity = async (
     type: input.type,
     createdAt: input.createdAt ?? new Date(),
     metadataStr: JSON.stringify(metadata),
-    replicatedStr:
-      input.replicatedStr === undefined
-        ? JSON.stringify({})
-        : input.replicatedStr,
+    replicatedStr,
   });
 };
