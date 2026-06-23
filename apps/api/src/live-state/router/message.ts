@@ -71,6 +71,13 @@ export default publicRoute
       });
 
       const hasIntegrationAuthor = !!req.input.author;
+      if (
+        hasIntegrationAuthor &&
+        !req.context?.internalApiKey &&
+        !req.context?.publicApiKey
+      ) {
+        throw new Error("UNAUTHORIZED");
+      }
 
       const actualUserId: string | undefined =
         req.context?.portalSession?.session.userId ??

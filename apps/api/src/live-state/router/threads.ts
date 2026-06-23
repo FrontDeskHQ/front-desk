@@ -70,7 +70,7 @@ const threadCreateInputSchema = z.object({
   userName: z.string().optional(),
   id: z.string().optional(),
   createdAt: z.coerce.date().optional(),
-  status: z.number().optional(),
+  status: z.number().int().min(0).max(4).optional(),
   discordChannelId: z.string().nullable().optional(),
   externalId: z.string().nullable().optional(),
   externalOrigin: z.string().nullable().optional(),
@@ -600,9 +600,9 @@ export default publicRoute
       }
 
       if (
-        req.input.recordActivity ||
-        req.input.activityMetadata ||
-        req.input.replicatedStr
+        req.input.recordActivity !== undefined ||
+        req.input.activityMetadata !== undefined ||
+        req.input.replicatedStr !== undefined
       ) {
         throw new Error("UNAUTHORIZED");
       }
