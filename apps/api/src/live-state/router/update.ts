@@ -1,6 +1,8 @@
 import { authorize } from "../../lib/authorize";
 import {
+  markReplicatedInputSchema,
   recordActivityInputSchema,
+  runMarkReplicated,
   runRecordActivity,
 } from "../../lib/update-mutations";
 import { publicRoute } from "../factories";
@@ -78,6 +80,15 @@ export default publicRoute
           id: req.input.id,
           createdAt: req.input.createdAt,
         });
+      },
+    ),
+    markReplicated: mutation(markReplicatedInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runMarkReplicated(db, req.input);
       },
     ),
   }));
