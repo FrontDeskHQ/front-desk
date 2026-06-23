@@ -43,9 +43,40 @@ import {
   upsertInlineSuggestionInputSchema,
   writeHintSlotInputSchema,
 } from "../../lib/signals/thread-procedures.js";
+import { serializeMessageContent } from "../../lib/tiptap-content";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
+
+const integrationAuthorSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+});
+
+const integrationFirstMessageSchema = z.object({
+  id: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+  origin: z.string().nullable().optional(),
+  externalMessageId: z.string().nullable().optional(),
+  isBackfill: z.boolean().optional(),
+});
+
+const threadCreateInputSchema = z.object({
+  organizationId: z.string().optional(),
+  title: z.string().min(3),
+  message: z.union([z.string(), z.any()]),
+  author: integrationAuthorSchema.optional(),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
+  id: z.string().optional(),
+  createdAt: z.coerce.date().optional(),
+  status: z.number().int().min(0).max(4).optional(),
+  discordChannelId: z.string().nullable().optional(),
+  externalId: z.string().nullable().optional(),
+  externalOrigin: z.string().nullable().optional(),
+  externalMetadataStr: z.string().nullable().optional(),
+  firstMessage: integrationFirstMessageSchema.optional(),
+});
 
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
@@ -96,21 +127,7 @@ export default publicRoute
     },
   })
   .withProcedures(({ mutation, query }) => ({
-    create: mutation(
-      z.object({
-        organizationId: z.string().optional(),
-        title: z.string().min(3),
-        message: z.union([z.string(), z.any()]), // Accept string or TipTap JSONContent
-        author: z
-          .object({
-            id: z.string(),
-            name: z.string(),
-          })
-          .optional(), // Optional - can be inferred from session
-        userId: z.string().optional(), // For portal sessions
-        userName: z.string().optional(), // For portal sessions
-      }),
-    ).handler(async ({ req, db }) => {
+    create: mutation(threadCreateInputSchema).handler(async ({ req, db }) => {
       const hasInternalKey = !!req.context?.internalApiKey;
       const hasPublicKey = !!req.context?.publicApiKey;
       const hasPortalSession = !!req.context?.portalSession?.session;
@@ -153,18 +170,25 @@ export default publicRoute
         }
       }
 
-      // Convert string message to TipTap format if needed
-      const content =
-        typeof req.input.message === "string"
-          ? JSON.stringify([
-              {
-                type: "paragraph",
-                content: [{ type: "text", text: req.input.message }],
-              },
-            ])
-          : JSON.stringify(req.input.message);
+      if (
+        !hasInternalKey &&
+        !hasPublicKey &&
+        (req.input.id !== undefined ||
+          req.input.createdAt !== undefined ||
+          req.input.status !== undefined ||
+          req.input.discordChannelId !== undefined ||
+          req.input.externalId !== undefined ||
+          req.input.externalOrigin !== undefined ||
+          req.input.externalMetadataStr !== undefined ||
+          req.input.firstMessage !== undefined)
+      ) {
+        throw new Error("UNAUTHORIZED");
+      }
 
-      const threadId = ulid().toLowerCase();
+      const content = serializeMessageContent(req.input.message);
+
+      const threadId = req.input.id ?? ulid().toLowerCase();
+      const firstMessage = req.input.firstMessage;
 
       await db.transaction(async ({ trx }) => {
         let authorId: string | undefined;
@@ -235,29 +259,30 @@ export default publicRoute
           name: req.input.title,
           organizationId: organizationId,
           authorId: authorId,
-          status: 0,
+          status: req.input.status ?? 0,
           priority: 0,
           assignedUserId: null,
-          createdAt: new Date(),
+          createdAt: req.input.createdAt ?? new Date(),
           deletedAt: null,
-          discordChannelId: null,
+          discordChannelId: req.input.discordChannelId ?? null,
           externalIssueId: null,
           externalPrId: null,
-          externalId: null,
-          externalOrigin: null,
-          externalMetadataStr: null,
+          externalId: req.input.externalId ?? null,
+          externalOrigin: req.input.externalOrigin ?? null,
+          externalMetadataStr: req.input.externalMetadataStr ?? null,
           shortId,
         });
 
         // Create first message
         await trx.insert(schema.message, {
-          id: ulid().toLowerCase(),
+          id: firstMessage?.id ?? ulid().toLowerCase(),
           authorId: authorId,
           content: content,
           threadId: threadId,
-          createdAt: new Date(),
-          origin: null,
-          externalMessageId: null,
+          createdAt: firstMessage?.createdAt ?? new Date(),
+          origin: firstMessage?.origin ?? null,
+          externalMessageId: firstMessage?.externalMessageId ?? null,
+          isBackfill: firstMessage?.isBackfill ?? false,
         });
       });
 
@@ -575,6 +600,28 @@ export default publicRoute
       },
     ),
     setStatus: mutation(setStatusInputSchema).handler(async ({ req, db }) => {
+      const hasInternalKey = !!req.context?.internalApiKey;
+
+      if (hasInternalKey) {
+        return runSetThreadStatus(
+          db,
+          req.input,
+          {
+            userId: null,
+            userName: req.input.userName ?? null,
+          },
+          { recordActivity: req.input.recordActivity ?? false },
+        );
+      }
+
+      if (
+        req.input.recordActivity !== undefined ||
+        req.input.activityMetadata !== undefined ||
+        req.input.replicatedStr !== undefined
+      ) {
+        throw new Error("UNAUTHORIZED");
+      }
+
       authorize(req, { organizationId: req.input.organizationId });
 
       const actorUserId = req.context?.session?.userId ?? null;

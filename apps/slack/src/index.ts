@@ -284,44 +284,30 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
 };
 
 /**
- * Get or create an author record for a Slack user
+ * Resolve Slack user info for integration author metaId
  */
-const getOrCreateAuthor = async (
+const resolveSlackAuthor = async (
   client: WebClient,
   slackUserId: string,
-  organizationId: string,
-): Promise<string> => {
-  let authorId = store.query.author
-    .first({ metaId: `slack:${slackUserId}`, organizationId })
-    .get()?.id;
-
-  if (!authorId) {
-    // Fetch user info from Slack
-    let userName = "Unknown";
-    try {
-      const userInfo = await client.users.info({ user: slackUserId });
-      if (userInfo.ok && userInfo.user) {
-        userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
-      }
-    } catch (error) {
-      console.error(
-        `[Slack] Error fetching user info for ${slackUserId}:`,
-        error,
-      );
+): Promise<{ id: string; name: string }> => {
+  let userName = "Unknown";
+  try {
+    const userInfo = await client.users.info({ user: slackUserId });
+    if (userInfo.ok && userInfo.user) {
+      userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
     }
-
-    authorId = ulid().toLowerCase();
-    await fetchClient.mutate.author.insert({
-      id: authorId,
-      name: userName,
-      userId: null,
-      metaId: `slack:${slackUserId}`,
-      organizationId,
-    });
+  } catch (error) {
+    console.error(
+      `[Slack] Error fetching user info for ${slackUserId}:`,
+      error,
+    );
   }
 
-  return authorId;
+  return { id: `slack:${slackUserId}`, name: userName };
 };
+
+const ensureThreadTitle = (title: string) =>
+  title.length >= 3 ? title : title.padEnd(3, ".");
 
 /**
  * Backfill a single message into the database
@@ -335,14 +321,15 @@ const backfillMessage = async (
   // Skip bot messages
   if (msg.bot_id || !msg.user || !msg.ts) return;
 
-  const authorId = await getOrCreateAuthor(client, msg.user, organizationId);
+  const author = await resolveSlackAuthor(client, msg.user);
   const messageContent = msg.text || "";
 
-  await store.mutate.message.insert({
+  await fetchClient.mutate.message.create({
     id: ulid().toLowerCase(),
     threadId,
-    authorId,
-    content: JSON.stringify(parse(messageContent)),
+    organizationId,
+    author,
+    content: parse(messageContent),
     createdAt: new Date(Number.parseFloat(msg.ts) * 1000),
     origin: "slack",
     isBackfill: true,
@@ -397,44 +384,42 @@ const createThreadWithMessages = async (
     return;
   }
 
-  // Get or create author for the thread creator
-  const authorId = await getOrCreateAuthor(
+  const author = await resolveSlackAuthor(
     client,
     parentMessage.user,
-    organizationId,
   );
 
-  // Generate thread name from first message
-  const threadName =
+  const threadName = ensureThreadTitle(
     parentMessage.text && parentMessage.text.length > 0
       ? parentMessage.text.substring(0, 100)
-      : "Slack Thread";
+      : "Slack Thread",
+  );
 
-  // Create the thread
   const threadId = ulid().toLowerCase();
-  await store.mutate.thread.insert({
+  const parentTs = parentMessage.ts ?? threadTs;
+  const parentContent = parentMessage.text || "";
+
+  await fetchClient.mutate.thread.create({
     id: threadId,
     organizationId,
-    name: threadName,
+    title: threadName,
+    message: parse(parentContent),
+    author,
     createdAt: new Date(Number.parseFloat(threadTs) * 1000),
-    deletedAt: null,
-    discordChannelId: null,
-    authorId,
-    assignedUserId: null,
     externalId: threadTs,
     externalOrigin: "slack",
     externalMetadataStr: JSON.stringify({ channelId }),
-    externalIssueId: null,
-    externalPrId: null,
+    firstMessage: {
+      createdAt: new Date(Number.parseFloat(parentTs) * 1000),
+      origin: "slack",
+      isBackfill: true,
+      externalMessageId: parentTs,
+    },
   });
-
-  // Wait for the thread to be created
-  await new Promise((resolve) => setTimeout(resolve, 150));
 
   console.log(`    [Slack] Created thread: ${threadName.substring(0, 50)}...`);
 
-  // Insert all messages (including the parent)
-  for (const msg of messages) {
+  for (const msg of messages.slice(1)) {
     await backfillMessage(client, msg, threadId, organizationId);
   }
 
@@ -873,49 +858,36 @@ app.message(
 
     const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
 
-    let authorId = store.query.author
-      .first({
-        metaId: `slack:${message.user}`,
-        organizationId: integration.organizationId,
-      })
-      .get()?.id;
-
-    if (!authorId) {
-      authorId = ulid().toLowerCase();
-      await fetchClient.mutate.author.insert({
-        id: authorId,
-        name: userName,
-        userId: null,
-        metaId: `slack:${message.user}`,
-        organizationId: integration.organizationId,
-      });
-    }
+    const author = {
+      id: `slack:${message.user}`,
+      name: userName,
+    };
 
     if (isFirstMessage) {
       threadId = ulid().toLowerCase();
       const messageText = "text" in message ? message.text : undefined;
-      const threadName =
+      const threadName = ensureThreadTitle(
         (messageText && messageText.length > 0
           ? messageText.substring(0, 100)
-          : channelName) || channelName;
+          : channelName) || channelName,
+      );
 
-      store.mutate.thread.insert({
+      await fetchClient.mutate.thread.create({
         id: threadId,
         organizationId: integration.organizationId,
-        name: threadName,
+        title: threadName,
+        message: parse(messageText || ""),
+        author,
         createdAt: new Date(parseFloat(message.ts) * 1000),
-        deletedAt: null,
-        discordChannelId: null,
-        authorId: authorId,
-        assignedUserId: null,
         externalId: message.ts,
         externalOrigin: "slack",
         externalMetadataStr: JSON.stringify({ channelId: message.channel }),
-        externalIssueId: null,
-        externalPrId: null,
+        firstMessage: {
+          createdAt: new Date(parseFloat(message.ts) * 1000),
+          origin: "slack",
+          externalMessageId: message.ts,
+        },
       });
-
-      await new Promise((resolve) => setTimeout(resolve, 150)); // TODO remove this once we have a proper transaction
 
       try {
         const organization = await fetchClient.query.organization
@@ -1001,14 +973,14 @@ app.message(
       threadId = thread.id;
     }
 
-    if (!threadId) return;
+    if (!threadId || isFirstMessage) return;
+
     const messageText = "text" in message ? message.text : "";
-    const messageContent = messageText || "";
-    store.mutate.message.insert({
-      id: ulid().toLowerCase(),
+    store.mutate.message.create({
       threadId,
-      authorId: authorId,
-      content: JSON.stringify(parse(messageContent)),
+      organizationId: integration.organizationId,
+      author,
+      content: parse(messageText || ""),
       createdAt: new Date(parseFloat(message.ts) * 1000),
       origin: "slack",
       externalMessageId: message.ts,

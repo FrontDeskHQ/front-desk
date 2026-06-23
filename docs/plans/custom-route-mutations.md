@@ -22,13 +22,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-003j** (next PR slice)
+- Active checkpoint: **LP-003n-lockdown** (next PR slice)
 - Branch or PR: none
 - Last updated: 2026-06-22
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 progress:** Shared thread write helpers live in `apps/api/src/lib/thread-mutations.ts`. Implemented `thread.setStatus`, `thread.setPriority`, `thread.assignUser`, `thread.linkIssue`, `thread.unlinkIssue`, `thread.linkPullRequest`, `thread.unlinkPullRequest`, `thread.markDuplicate`, `thread.archive`, `thread.restore`, `thread.setAgentRead` (API procedures + web migration + optimistic handler for archive). `set-status`, `close`, and `mark-duplicate` signal handlers delegate to shared helpers. Worker `persistAgentRead` uses `thread.setAgentRead`. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Devtools (`create-thread-dialog.tsx`, `duplicate-thread-command.tsx`) use `thread.create` only; dead `create-thread-button.tsx` removed. Remaining LP-003 work: slack/discord `thread.create` / generic `message.insert`, and integration generic `thread.update` call sites.
+**LP-003 progress:** … Worker `persistAgentRead` uses `thread.setAgentRead`. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Devtools use `thread.create` only. **Slack and Discord** ingest via `thread.create` / `message.create` (no generic `thread.insert` / `message.insert` / `author.insert`). **GitHub** webhooks use `thread.setStatus` for linked-thread resolution. **Discord** channel re-add backfill uses `thread.setStatus` for Open/Closed sync. Remaining LP-003 work: lockdown (`LP-003n`).
 
 ## Write inventory matrix
 
@@ -281,10 +281,10 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 | [x] **LP-003g** | `thread.setAgentRead` (worker) | `thread-mutations.ts`, `apps/worker/src/lib/agent-read.ts` | Worker uses `thread.setAgentRead`; no generic `thread.update` for `agentRead` |
 | [x] **LP-003h** | Web devtools → `thread.create` / `message.create` | `create-thread-dialog.tsx` (already migrated), `duplicate-thread-command.tsx`; removed dead `create-thread-button.tsx` | Devtools use procedures only |
 | [x] **LP-003i** | `thread.create` optimistic (optional) | Documented intentional omission — no fire-and-forget `mutate.thread.create` callers | Matrix updated; no handler added |
-| [ ] **LP-003j** | Slack → `thread.create` / `message.create` | `apps/slack/src/index.ts` (`store.mutate` / `fetchClient` thread/message/author inserts) | Ripgrep: no `store.mutate.thread.insert` / `message.insert` in slack |
-| [ ] **LP-003k** | Discord → `thread.create` / `message.create` | `apps/discord/src/index.ts` | Same as LP-003j for discord |
-| [ ] **LP-003l** | GitHub webhook thread status | `apps/github/src/webhooks/index.ts` → `thread.setStatus` (or internal helper) | Webhook stops `store.mutate.thread.update` + `update.insert` |
-| [ ] **LP-003m** | Slack/Discord thread field sync | Remaining `thread.update` in slack/discord (e.g. channel metadata sync) | Map each to a named procedure or document exception |
+| [x] **LP-003j** | Slack → `thread.create` / `message.create` | `apps/slack/src/index.ts` (`store.mutate` / `fetchClient` thread/message/author inserts) | Ripgrep: no `store.mutate.thread.insert` / `message.insert` in slack |
+| [x] **LP-003k** | Discord → `thread.create` / `message.create` | `apps/discord/src/index.ts` | Same as LP-003j for discord |
+| [x] **LP-003l** | GitHub webhook thread status | `apps/github/src/webhooks/index.ts` → `thread.setStatus` (or internal helper) | Webhook stops `store.mutate.thread.update` + `update.insert` |
+| [x] **LP-003m** | Slack/Discord thread field sync | Remaining `thread.update` in slack/discord (e.g. channel metadata sync) | Map each to a named procedure or document exception |
 | [ ] **LP-003n-lockdown** | Deny generic `thread` / `message` / `author` writes | `router/threads.ts`, `router/message.ts`, `router/author.ts` — `insert`/`update` → `false` | All LP-003a–m complete; typecheck + ripgrep clean |
 
 ### LP-004 — `update`, `label`, `threadLabel`
@@ -371,6 +371,9 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-22 (LP-003g): `runSetAgentRead` + `thread.setAgentRead` procedure (internal API key only); worker `persistAgentRead` migrated; no web optimistic handler (worker-only).
 - 2026-06-22 (LP-003h): Devtools `duplicate-thread-command.tsx` migrated to `thread.create`; dead `create-thread-button.tsx` removed (`create-thread-dialog.tsx` already used procedures). Zero generic `thread`/`message`/`author` inserts in `apps/web`.
 - 2026-06-22 (LP-003i): No `thread.create` optimistic handler — all web callers (`create-thread-dialog`, portal `create-thread-dialog`, devtools duplicate) use awaited `fetchClient.mutate.thread.create`; documented intentional omission in matrix.
+- 2026-06-22 (LP-003j/k): Extended `thread.create` and `message.create` with optional integration fields (`id`, `createdAt`, `externalId`/`externalOrigin`/`externalMetadataStr`, `discordChannelId`, `status`, `firstMessage`, `author` metaId on `message.create`, `origin`/`isBackfill`/`externalMessageId`). Added `serializeMessageContent` helper. Slack/Discord backfill and realtime ingest use procedures; author rows created inside procedures (no `author.insert`). `message.update` for outbound external id sync remains generic until lockdown.
+- 2026-06-22 (LP-003l): Extended `thread.setStatus` for internal API key — optional `recordActivity`, `activityMetadata`, `replicatedStr` on input; GitHub `resolveLinkedThreads` calls `store.mutate.thread.setStatus` with `source: "github"` and `replicatedStr: { github: true }`.
+- 2026-06-22 (LP-003m): Discord `backfillMessages` archived/active sync uses `thread.setStatus` (no activity row). Slack had zero `thread.update` call sites — no code change; `update.update` replication marking deferred to LP-004b.
 
 ## PR Feedback
 
@@ -391,6 +394,10 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-22 (LP-003g): `bun run --filter api typecheck` and `bun run --filter worker typecheck` pass. Ripgrep: `apps/worker/src` has zero `mutate.thread.update` / `thread.update` for agentRead. No runtime synthesis pipeline smoke test.
 - 2026-06-22 (LP-003h): `bun run --filter web typecheck` pass. Ripgrep: `apps/web` has zero `mutate.thread.insert` / `mutate.message.insert` / `mutate.author.insert`. No runtime devtools smoke test for create/duplicate flows.
 - 2026-06-22 (LP-003i): Verified no `mutate.thread.create` (synced) callers in `apps/web` — only `fetchClient.mutate.thread.create`. Documentation-only decision; no code change beyond matrix.
+- 2026-06-22 (LP-003j): `bun run --filter api typecheck` pass; `bunx tsc --noEmit` in `apps/slack` blocked on missing `@types/node` (pre-existing). Ripgrep: `apps/slack` has zero `mutate.thread.insert` / `mutate.message.insert` / `mutate.author.insert`. No runtime Slack ingest smoke test.
+- 2026-06-22 (LP-003k): `bun run --filter api typecheck` and `apps/discord` `bun run typecheck` pass. Ripgrep: `apps/discord` has zero generic thread/message/author inserts. `thread.update` for archived status sync remains (LP-003m). No runtime Discord ingest smoke test.
+- 2026-06-22 (LP-003l): `bun run --filter api typecheck` and `apps/github` `bun run typecheck` pass. Ripgrep: `apps/github` has zero `thread.update` / `update.insert`. No runtime GitHub issue/PR close webhook smoke test.
+- 2026-06-22 (LP-003m): `bun run --filter api typecheck` and `apps/discord` `bun run typecheck` pass. Ripgrep: `apps/discord` and `apps/slack` have zero `thread.update`. No runtime Discord channel re-add backfill smoke test.
 
 ## Session Log
 
@@ -409,7 +416,10 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-22 (LP-003g): Added `runSetAgentRead` + `thread.setAgentRead` procedure (internal key); migrated worker `persistAgentRead` and `apply-synthesis-autonomy.ts` call sites.
 - 2026-06-22 (LP-003h): Migrated `duplicate-thread-command.tsx` to `thread.create`; deleted unused `create-thread-button.tsx` (superseded by `create-thread-dialog.tsx`).
 - 2026-06-22 (LP-003i): Assessed `thread.create` optimistic need — none; documented intentional omission in matrix.
+- 2026-06-22 (LP-003j/k): Extended `thread.create` / `message.create` for integration ingest; migrated `apps/slack/src/index.ts` and `apps/discord/src/index.ts` to procedures. Removed `getOrCreateAuthor` + `author.insert` paths; first-message realtime uses atomic `thread.create` (drops 150ms sleep).
+- 2026-06-22 (LP-003l): Extended `thread.setStatus` for internal API key + integration activity fields; migrated `apps/github/src/webhooks/index.ts` `resolveLinkedThreads` to `store.mutate.thread.setStatus`.
+- 2026-06-22 (LP-003m): Migrated Discord `backfillMessages` status sync to `fetchClient.mutate.thread.setStatus`; confirmed Slack has no `thread.update` call sites.
 
 ## Handoff
 
-Next action: Ship **LP-003j** — migrate `apps/slack/src/index.ts` from generic `store.mutate.thread.insert` / `message.insert` / `author.insert` to `thread.create` / `message.create` procedures.
+Next action: Ship **LP-003n-lockdown** — deny generic `thread` / `message` / `author` `insert`/`update` in `router/threads.ts`, `router/message.ts`, `router/author.ts` after verifying no remaining product/integration callers (ripgrep under `apps/`).
