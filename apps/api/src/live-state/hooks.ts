@@ -1,5 +1,5 @@
 import { defineHooks } from "@live-state/sync/server";
-import { enqueueThreadRead } from "../lib/queue";
+import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
 import { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
@@ -16,9 +16,9 @@ export const liveStateHooks = defineHooks<typeof schema>({
             priority: queuePriority,
           });
 
-          if (!jobId) {
+          if (!jobId && areWorkerJobsEnabled()) {
             console.warn(
-              `Redis queue not configured; skipping thread-read enqueue for thread ${value.threadId}`,
+              `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}`,
             );
           }
         } catch (error) {
