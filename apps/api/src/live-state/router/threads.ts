@@ -27,6 +27,7 @@ import {
   unlinkIssueInputSchema,
   unlinkPullRequestInputSchema,
 } from "../../lib/thread-mutations";
+import { runRecordActivity } from "../../lib/update-mutations";
 import {
   acceptInlineSuggestionInputSchema,
   acceptReadInputSchema,
@@ -487,17 +488,16 @@ export default publicRoute
         };
       };
 
-      await db.insert(schema.update, {
-        id: ulid().toLowerCase(),
+      await runRecordActivity(db, {
         threadId: req.input.threadId,
+        organizationId,
         userId: req.context?.session?.userId ?? null,
         type: "github_issue_created",
-        createdAt: new Date(),
-        metadataStr: JSON.stringify({
+        metadata: {
           issueId: data.issue.id,
           issueNumber: data.issue.number,
           issueLabel: `${req.input.owner}/${req.input.repo}#${data.issue.number}`,
-        }),
+        },
         replicatedStr: null,
       });
 
