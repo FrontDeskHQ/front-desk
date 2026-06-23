@@ -84,46 +84,10 @@ const GITHUB_SERVER_URL =
 export default publicRoute
   .collectionRoute(schema.thread, {
     read: () => true,
-    insert: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session && !ctx?.portalSession?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session?.userId ?? ctx.portalSession?.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
-      postMutation: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
   .withProcedures(({ mutation, query }) => ({
@@ -760,22 +724,4 @@ export default publicRoute
         return runSetAgentRead(db, req.input);
       },
     ),
-  }))
-  .withHooks({
-    // TODO: Migrate this logic into a custom `create` mutation and have the
-    // integration apps (slack/discord/devtools) call that mutation instead of
-    // inserting threads via the default `store.mutate.thread.insert(...)` path.
-    // This hook runs post-commit, so shortId assignment isn't in the same
-    // transaction as the insert — a failure here leaves the thread without a
-    // shortId with no retry. A custom mutation can do the insert + shortId
-    // assignment atomically (like the `create` mutation above already does).
-    afterInsert: async ({ value, db }) => {
-      if (value.shortId != null) return;
-      try {
-        const shortId = await nextThreadShortId(db, value.organizationId);
-        await db.thread.update(value.id, { shortId });
-      } catch (error) {
-        console.error(`Failed to assign shortId to thread ${value.id}:`, error);
-      }
-    },
-  });
+  }));

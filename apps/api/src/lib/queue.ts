@@ -10,6 +10,9 @@ import "../env";
 // back. Always enabled in development so the pipeline can run locally.
 const WORKER_JOBS_DISABLED = process.env.NODE_ENV === "production";
 
+/** False when worker enqueue is intentionally skipped (e.g. prod without worker service). */
+export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
+
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const THREAD_READ_JOB_NAME = "thread-read";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";

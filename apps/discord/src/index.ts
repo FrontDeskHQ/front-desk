@@ -838,7 +838,8 @@ const handleMessages = async (
         username: message.author.name,
         avatarURL: message.author?.user?.image ?? undefined,
       });
-      store.mutate.message.update(message.id, {
+      store.mutate.message.setExternalMessageId({
+        messageId: message.id,
         externalMessageId: webhookMessage.id,
       });
     } catch (error) {

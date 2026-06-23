@@ -18,17 +18,19 @@ All known callers must move to the replacement procedures. When a custom procedu
 - A slice is done when its completion criterion holds, typecheck passes for affected apps, and ripgrep shows no leftover generic writes for that slice's scope.
 - **Lockdown slices** (`*-lockdown`) ship only after every caller for that route family is migrated in prior slices.
 - Bundle `withMutations` → `withProcedures` renames with the first slice that touches that route file.
+- **`withHooks` is deprecated** — do not add new `.withHooks(...)` on routes. Declare hooks with **`defineHooks<typeof schema>({ … })`** in `apps/api/src/live-state/hooks.ts` (or a focused module) and pass the result to **`server({ hooks, … })`** in `apps/api/src/index.ts`. Use `mergeHooks` when combining hook slices.
+- **Do not use ad-hoc authorization** in procedure handlers, queries, or lib code. Use **`authorize`** / **`isAuthorized`** from `apps/api/src/lib/authorize.ts`. When a flow does not fit (portal userId match, thread-author bypass, integration-only fields, etc.), **extend `authorize.ts`** — new options, helpers, or context fields — instead of inlining `req.context?.session` / `internalApiKey` checks. Bundle `authorize.ts` changes with the slice that needs them.
 
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-003n-lockdown** (next PR slice)
+- Active checkpoint: **LP-004a** (next PR slice)
 - Branch or PR: none
-- Last updated: 2026-06-22
+- Last updated: 2026-06-23
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 progress:** … Worker `persistAgentRead` uses `thread.setAgentRead`. Web archive/restore and duplicate accept have zero generic `thread.update` for `deletedAt` or status/activity pairs. Devtools use `thread.create` only. **Slack and Discord** ingest via `thread.create` / `message.create` (no generic `thread.insert` / `message.insert` / `author.insert`). **GitHub** webhooks use `thread.setStatus` for linked-thread resolution. **Discord** channel re-add backfill uses `thread.setStatus` for Open/Closed sync. Remaining LP-003 work: lockdown (`LP-003n`).
+**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. Remaining LP-004 work starts with `update.recordActivity` (`LP-004a`).
 
 ## Write inventory matrix
 
@@ -43,9 +45,9 @@ Legend:
 
 | Route | Generic insert | Generic update | Procedure API (current) | Non-web call sites | Web call sites | Web optimistic |
 | --- | --- | --- | --- | --- | --- | --- |
-| `thread` | yes (org member, portal, internal key) | yes (org member session, internal key) | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `linkIssue`✓, `unlinkIssue`✓, `linkPullRequest`✓, `unlinkPullRequest`✓, `markDuplicate`✓, `archive`✓, `restore`✓, `list`†, … | **Generic** `insert`: `apps/slack`, `apps/discord` (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord`, `apps/github` webhooks (`store.mutate` / `fetchClient`), `apps/worker` `agent-read.ts`. … **API-internal** `db.thread.update`: signal handlers (`close`, `reply` path), `autonomous-action` `undo`, `thread-procedures.ts`, `afterInsert` shortId hook. | Devtools `create-thread-dialog.tsx` (`thread.create` ✓). **Procedures**: … `threads/$id/index.tsx` (`archive`), `archive/$id.tsx` (`restore`), `quick-actions.tsx` (status + duplicate accept), `duplicate-thread-command.tsx` (`thread.create` ✓), … | **Partial** — optimistic for … `markDuplicate`, `archive`. **Intentional gap:** `create` (all callers use awaited `fetchClient`); `restore` (navigates away immediately). **Missing** for `createGithubIssue`. |
-| `message` | yes (org member, portal, public key) | internal key only | `withProcedures`: `create`, `markAsAnswer`, `search`† | **Generic** `insert`/`update`: `apps/slack`, `apps/discord` (`store.mutate`). **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), `thread-reply.tsx` (`markAsAnswer`). Devtools duplicate uses `thread.create` (includes first message). | **Partial** — `create`, `markAsAnswer` yes. |
-| `author` | yes (session/portal/internal key) | internal key only | none | `apps/slack`, `apps/discord` (`author.insert`). Created inside `thread.create`, `message.create`, `agent-chat` `acceptDraft`, signal `reply.ts`. | none direct (devtools author rows created inside `thread.create`). | **No** (author rows optimistically created only as side effect of `message.create`). |
+| `thread` | **disabled** | **disabled** | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `linkIssue`✓, `unlinkIssue`✓, `linkPullRequest`✓, `unlinkPullRequest`✓, `markDuplicate`✓, `archive`✓, `restore`✓, `setAgentRead`✓, `list`†, … | none (slack/discord/github/worker migrated) | Devtools + web procedures only | **Partial** — optimistic for … `markDuplicate`, `archive`. **Intentional gap:** `create` (all callers use awaited `fetchClient`); `restore` (navigates away immediately). **Missing** for `createGithubIssue`. |
+| `message` | **disabled** | **disabled** | `withProcedures`: `create`, `markAsAnswer`, `setExternalMessageId`✓, `search`† | slack/discord outbound sync via `message.setExternalMessageId`. **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), `thread-reply.tsx` (`markAsAnswer`). Devtools duplicate uses `thread.create` (includes first message). | **Partial** — `create`, `markAsAnswer` yes. |
+| `author` | **disabled** | **disabled** | none | Created inside `thread.create`, `message.create`, `agent-chat` `acceptDraft`, signal `reply.ts`. | none direct (devtools author rows created inside `thread.create`). | **No** (author rows optimistically created only as side effect of `message.create`). |
 | `update` | yes (org member session) | yes (org member + internal key) | none | **Generic** `insert`: `apps/github` webhooks (`store.mutate`). **Generic** `update`: `apps/slack`, `apps/discord` (`fetchClient`). **API-internal** `db.insert(schema.update)`: `threads` `createGithubIssue`, `autonomous-action` `undo`, `signals/activity.ts`, thread inline-suggestion procedures. | Paired with almost every `thread.update` in `actions/threads.ts`, `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
 | `label` | disabled | disabled | `withProcedures`: `create`, `update`, `createAndAttachToThread`, `attachToThread`, `detachFromThread` | **API-internal** `db.label` / `db.threadLabel`: signal handler `apply-label.ts`, `autonomous-action` `undo`. | `labels.tsx` (thread UI), `labels.tsx` (settings), `quick-actions.tsx` (`attachToThread`). | **Yes** — all five procedures. |
 | `threadLabel` | disabled | disabled | none (writes only via `label.*` procedures) | **API-internal**: `apply-label.ts`, `autonomous-action` `undo`. | none direct | n/a |
@@ -90,7 +92,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 1. **`thread.update` + `update.insert` pairs** — status, priority, assignment, PR link/unlink, duplicate mark, archive restore. Central helpers in `apps/web/src/actions/threads.ts`; also inline in `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`.
 2. **`integration.insert` / `integration.update`** — OAuth connect flows across slack, discord, github settings and `lib/integrations/activate.ts`.
 3. **Devtools** — `create-thread-dialog.tsx` and `duplicate-thread-command.tsx` use `thread.create` ✓.
-4. **Integration bots** — slack/discord still use generic `thread.insert` / `message.insert` / `message.update` via synced `store.mutate` (see `threads.ts` `afterInsert` shortId hook TODO).
+4. **Integration bots** — slack/discord use `thread.create` / `message.create` / `message.setExternalMessageId` only (generic writes locked down in LP-003n).
 
 ### Optimistic mutation coverage summary (`apps/web/src/lib/live-state.ts`)
 
@@ -110,6 +112,7 @@ Authoritative implementation habits also live in `agents/saved-prompts/update-ro
 
 - Declare custom writes and reads with **`withProcedures`** (`mutation` / `query`). Do not add new `withMutations` routes.
 - When touching a legacy `withMutations` route during LP-003–LP-007, rename the builder to `withProcedures` in the same PR (procedure names stay stable).
+- **Lifecycle hooks** use **`defineHooks`** registered on **`server({ hooks })`**, not `.withHooks(...)` on routes (`withHooks` is deprecated in `@live-state/sync`).
 - **Queries** (`list`, `search`, `fetchRelatedThreads`, …) are out of migration scope unless a generic write is being replaced; they may remain as-is.
 
 ### Naming
@@ -136,10 +139,11 @@ Authoritative implementation habits also live in `agents/saved-prompts/update-ro
 
 ### Authorization
 
-- Inside handlers, call **`authorize(req, { organizationId, role?, allowPublicApiKey?, allowInternalApiKey? })`** with the mutation/query `req`. Use `isAuthorized(ctx, opts)` only when a boolean guard is needed without throwing.
+- **Single entry point:** `apps/api/src/lib/authorize.ts` — **`authorize(req, opts)`** throws `UNAUTHORIZED`; **`isAuthorized(ctx, opts)`** returns boolean. Do not duplicate membership / key / role logic inline.
+- **`AuthorizeOptions`:** `organizationId` (required), optional `role`, `allowPublicApiKey`, `allowInternalApiKey` (default `true` for internal key bypass). Extend this module when a new pattern appears (e.g. portal session, thread-author read, owner-only) rather than scattering checks.
 - Resolve `organizationId` from the target row when it is not in input (load entity → `authorize` → mutate).
-- **Portal**, **public API key**, and **internal API key** flows follow the `thread.create` / `message.create` pattern: explicit context checks where `authorize` alone is insufficient (portal userId match, public key ownerId, etc.).
-- Collection-route **`insert` / `update` (pre/post)** become **deny-by-default** (`() => false` or equivalent) once all product and integration callers for that resource are migrated. Until then, keep existing permissions so parallel migration does not break callers.
+- **Portal**, **public API key**, and **integration-only input** may still need **small, documented guards** beside `authorize` (e.g. portal `userId` must match input). Prefer folding repeated guards into `authorize.ts` during **LP-010**.
+- Collection-route **`insert` / `update` (pre/post)** become **deny-by-default** once callers are migrated.
 - Procedure-level auth must be **at least as strict** as the generic mutator it replaces.
 
 ### Return values
@@ -212,7 +216,8 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 | `setAgentRead` ✓ | `thread` | generic `thread.update` agentRead (worker `agent-read.ts`) | **no** — worker-only |
 | `create` ✓ | `message` | generic `message.insert` (slack, discord, devtools) | ✓ already |
 | `markAsAnswer` ✓ | `message` | — | ✓ already |
-| — | `author` | generic `author.insert` | **no** — always created inside `thread.create` / `message.create`; block generic insert |
+| `setExternalMessageId` ✓ | `message` | generic `message.update` external id (slack, discord outbound) | **no** — integration fire-and-forget |
+| — | `author` | generic `author.insert` | **no** — always created inside `thread.create` / `message.create`; generic insert blocked |
 
 #### LP-004: `update`, `label`, `threadLabel`
 
@@ -266,7 +271,7 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 
 ## PR slices (one PR per row)
 
-Parent checklist items (`LP-003`–`LP-009`) complete when all child slices under them are checked. Slices are ordered by dependency where it matters; otherwise they can ship in parallel.
+Parent checklist items (`LP-003`–`LP-010`) complete when all child slices under them are checked. Slices are ordered by dependency where it matters; otherwise they can ship in parallel.
 
 ### LP-003 — `thread`, `message`, `author`
 
@@ -285,7 +290,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 | [x] **LP-003k** | Discord → `thread.create` / `message.create` | `apps/discord/src/index.ts` | Same as LP-003j for discord |
 | [x] **LP-003l** | GitHub webhook thread status | `apps/github/src/webhooks/index.ts` → `thread.setStatus` (or internal helper) | Webhook stops `store.mutate.thread.update` + `update.insert` |
 | [x] **LP-003m** | Slack/Discord thread field sync | Remaining `thread.update` in slack/discord (e.g. channel metadata sync) | Map each to a named procedure or document exception |
-| [ ] **LP-003n-lockdown** | Deny generic `thread` / `message` / `author` writes | `router/threads.ts`, `router/message.ts`, `router/author.ts` — `insert`/`update` → `false` | All LP-003a–m complete; typecheck + ripgrep clean |
+| [x] **LP-003n-lockdown** | Deny generic `thread` / `message` / `author` writes | `router/threads.ts`, `router/message.ts`, `router.ts` author — `insert`/`update` → `false`; `message.setExternalMessageId` for slack/discord outbound | All LP-003a–m complete; typecheck + ripgrep clean |
+| [x] **LP-003o** | Migrate `withHooks` → `defineHooks` | `live-state/hooks.ts`, `index.ts`; remove `.withHooks` from `router/threads.ts`, `router/message.ts` | Zero `.withHooks` under `apps/api`; `message.afterInsert` enqueue on `server({ hooks })` |
 
 ### LP-004 — `update`, `label`, `threadLabel`
 
@@ -341,17 +347,28 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 | [ ] **LP-009a** | Repo-wide static verification | `bun run typecheck`, ripgrep for `mutate.<product>.insert` / `.update` under `apps/` | Zero unintended product generic writes |
 | [ ] **LP-009b** | Smoke test matrix | Manual or scripted exercise of inbox, thread properties, labels, settings, integrations | Verification ledger lists paths tested + gaps |
 
+### LP-010 — Authorization via `authorize.ts`
+
+Cross-cutting cleanup after procedure migration. Can bundle router-file migrations with LP-004–LP-007 slices when the same file is already in scope; otherwise ship as dedicated PRs.
+
+| Slice | PR title (suggested) | Scope | Completion |
+| --- | --- | --- | --- |
+| [ ] **LP-010a** | Scan ad-hoc authorization | Ripgrep `apps/api/src` for inline `req.context?.session` / `internalApiKey` / `portalSession` checks, manual `orgUsers.find`, and `throw new Error("UNAUTHORIZED")` outside `authorize.ts` | Ledger lists files + patterns; each site tagged migrate / extend-util / intentional-exception |
+| [ ] **LP-010b** | Migrate live-state routers | `apps/api/src/live-state/router/**/*.ts` (heavy: `threads.ts`, `message.ts`, `onboarding.ts`, `agent-chat.ts`, `documentation-sources.ts`, `external-entity.ts`) | Procedure/query handlers use `authorize` / `isAuthorized`; repeated patterns folded into `authorize.ts` |
+| [ ] **LP-010c** | Migrate API lib | `apps/api/src/lib/**` (signal handlers, agent-chat helpers, etc.) | Same criterion as LP-010b for non-router code paths |
+
 ## Checklist
 
 - [x] LP-001: Inventory all API route write capabilities and repository call sites. Completion: ledger contains a route-by-route matrix of generic writes, custom procedures, all call-site usage, web usage, and web optimistic mutation status.
 - [x] LP-002: Define the target procedure contract. Completion: documented conventions for naming, input schemas, authorization, return values, optimistic handlers, and whether generic writes stay available for internal-only routes.
-- [ ] LP-003: Migrate thread and message writes. Completion: all **LP-003a–n** slices done (including lockdown).
+- [x] LP-003: Migrate thread and message writes. Completion: all **LP-003a–o** slices done (including lockdown and hooks migration).
 - [ ] LP-004: Migrate label, thread-label, and update writes. Completion: all **LP-004\*** slices done (labels already ✓).
 - [ ] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
 - [ ] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
 - [ ] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
 - [ ] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
 - [ ] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
+- [ ] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
 
 ## Decisions
 
@@ -374,11 +391,16 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-22 (LP-003j/k): Extended `thread.create` and `message.create` with optional integration fields (`id`, `createdAt`, `externalId`/`externalOrigin`/`externalMetadataStr`, `discordChannelId`, `status`, `firstMessage`, `author` metaId on `message.create`, `origin`/`isBackfill`/`externalMessageId`). Added `serializeMessageContent` helper. Slack/Discord backfill and realtime ingest use procedures; author rows created inside procedures (no `author.insert`). `message.update` for outbound external id sync remains generic until lockdown.
 - 2026-06-22 (LP-003l): Extended `thread.setStatus` for internal API key — optional `recordActivity`, `activityMetadata`, `replicatedStr` on input; GitHub `resolveLinkedThreads` calls `store.mutate.thread.setStatus` with `source: "github"` and `replicatedStr: { github: true }`.
 - 2026-06-22 (LP-003m): Discord `backfillMessages` archived/active sync uses `thread.setStatus` (no activity row). Slack had zero `thread.update` call sites — no code change; `update.update` replication marking deferred to LP-004b.
+- 2026-06-23 (LP-003n): Denied generic `insert`/`update` on `thread`, `message`, and `author` collection routes. Added `message.setExternalMessageId` (internal API key) for Slack/Discord outbound external id sync; migrated `apps/slack` and `apps/discord` off `message.update`. Author route lockdown lives in `router.ts` (no separate `router/author.ts`).
+- 2026-06-23: **`withHooks` → `defineHooks`** — Live-State deprecates route-level `.withHooks`; hooks move to `defineHooks<typeof schema>(…)` in `live-state/hooks.ts` and `server({ hooks })` in `index.ts`. Shipped as **LP-003o**.
+- 2026-06-23 (LP-003o): Removed `thread.afterInsert` shortId hook (dead after LP-003n — `thread.create` assigns `shortId` atomically and generic `thread.insert` is denied). Kept `message.afterInsert` thread-read enqueue in `defineHooks`.
+- 2026-06-23: **Authorization** — procedures and lib code must use `authorize` / `isAuthorized` from `apps/api/src/lib/authorize.ts`; extend that module for new patterns instead of ad-hoc `req.context` checks. Tracked as **LP-010** (scan + migrate).
 
 ## PR Feedback
 
 - 2026-06-21 (PR #292, cubic-dev-ai): `externalIssueId` must reject empty strings — **applied** in `cbe5b63` (`z.string().min(1)` on `linkIssueInputSchema`).
 - 2026-06-21 (PR #292, cubic-dev-ai): Optimistic `externalEntity` label lookups must filter by `organizationId` — **applied** in `cbe5b63` (`linkIssue` / `unlinkIssue` handlers in `live-state.ts`).
+- 2026-06-23 (PR #299, cubic-dev-ai): Thread-read enqueue warn must not fire when worker jobs intentionally disabled in prod — **applied** in `bc89935` (`areWorkerJobsEnabled()` guard in `hooks.ts`).
 
 ## Verification Ledger
 
@@ -398,6 +420,8 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-22 (LP-003k): `bun run --filter api typecheck` and `apps/discord` `bun run typecheck` pass. Ripgrep: `apps/discord` has zero generic thread/message/author inserts. `thread.update` for archived status sync remains (LP-003m). No runtime Discord ingest smoke test.
 - 2026-06-22 (LP-003l): `bun run --filter api typecheck` and `apps/github` `bun run typecheck` pass. Ripgrep: `apps/github` has zero `thread.update` / `update.insert`. No runtime GitHub issue/PR close webhook smoke test.
 - 2026-06-22 (LP-003m): `bun run --filter api typecheck` and `apps/discord` `bun run typecheck` pass. Ripgrep: `apps/discord` and `apps/slack` have zero `thread.update`. No runtime Discord channel re-add backfill smoke test.
+- 2026-06-23 (LP-003n): `bun run --filter api typecheck` and `apps/discord` `bun run typecheck` pass. `apps/slack` `bunx tsc --noEmit` blocked on missing `@types/node` (pre-existing). Ripgrep: zero `mutate.(thread|message|author).(insert|update)` under `apps/` (comment-only match in `threads.ts`). No runtime outbound Slack/Discord message sync smoke test.
+- 2026-06-23 (LP-003o): `bun run --filter api typecheck` pass. Ripgrep: zero `.withHooks(` under `apps/api`. No runtime message-ingest / thread-read enqueue smoke test.
 
 ## Session Log
 
@@ -419,7 +443,11 @@ Parent checklist items (`LP-003`–`LP-009`) complete when all child slices unde
 - 2026-06-22 (LP-003j/k): Extended `thread.create` / `message.create` for integration ingest; migrated `apps/slack/src/index.ts` and `apps/discord/src/index.ts` to procedures. Removed `getOrCreateAuthor` + `author.insert` paths; first-message realtime uses atomic `thread.create` (drops 150ms sleep).
 - 2026-06-22 (LP-003l): Extended `thread.setStatus` for internal API key + integration activity fields; migrated `apps/github/src/webhooks/index.ts` `resolveLinkedThreads` to `store.mutate.thread.setStatus`.
 - 2026-06-22 (LP-003m): Migrated Discord `backfillMessages` status sync to `fetchClient.mutate.thread.setStatus`; confirmed Slack has no `thread.update` call sites.
+- 2026-06-23 (LP-003n): Locked generic `thread`/`message`/`author` writes; added `message.setExternalMessageId`; migrated Slack/Discord outbound sync. Files: `router/threads.ts`, `router/message.ts`, `router.ts`, `apps/slack/src/index.ts`, `apps/discord/src/index.ts`.
+- 2026-06-23: Recorded operating instruction to migrate deprecated `withHooks` → `defineHooks` + `server({ hooks })` (documentation only; no code change this session).
+- 2026-06-23 (LP-003o): Migrated `message.afterInsert` to `live-state/hooks.ts` (`defineHooks`); wired `server({ hooks })` in `index.ts`; removed `.withHooks` from `router/message.ts` and `router/threads.ts` (dropped dead `thread.afterInsert` shortId hook). Files: `hooks.ts`, `index.ts`, `router/message.ts`, `router/threads.ts`.
+- 2026-06-23: Added **LP-010** (authorization scan + migrate) and operating instruction to centralize on `authorize.ts` (ledger only).
 
 ## Handoff
 
-Next action: Ship **LP-003n-lockdown** — deny generic `thread` / `message` / `author` `insert`/`update` in `router/threads.ts`, `router/message.ts`, `router/author.ts` after verifying no remaining product/integration callers (ripgrep under `apps/`).
+Next action: Ship **LP-004a** — add `update.recordActivity` procedure in `router/update.ts` and migrate API-internal `db.insert(schema.update)` call sites that are not already owned by `thread.*` procedures. Start by ripgrep for `db.insert(schema.update)` and `insertThreadActivity` under `apps/api/src`.
