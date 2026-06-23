@@ -170,6 +170,21 @@ export default publicRoute
         }
       }
 
+      if (
+        !hasInternalKey &&
+        !hasPublicKey &&
+        (req.input.id !== undefined ||
+          req.input.createdAt !== undefined ||
+          req.input.status !== undefined ||
+          req.input.discordChannelId !== undefined ||
+          req.input.externalId !== undefined ||
+          req.input.externalOrigin !== undefined ||
+          req.input.externalMetadataStr !== undefined ||
+          req.input.firstMessage !== undefined)
+      ) {
+        throw new Error("UNAUTHORIZED");
+      }
+
       const content = serializeMessageContent(req.input.message);
 
       const threadId = req.input.id ?? ulid().toLowerCase();

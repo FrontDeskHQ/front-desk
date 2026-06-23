@@ -1,8 +1,17 @@
 /** Serialize plain text or TipTap JSON (object or JSON string) for message storage. */
 export const serializeMessageContent = (content: string | unknown): string => {
-  if (typeof content !== "string") {
+  if (content !== null && typeof content === "object") {
     const serialized = JSON.stringify(content);
     return serialized ?? JSON.stringify([{ type: "paragraph" }]);
+  }
+
+  if (typeof content !== "string") {
+    return JSON.stringify([
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: String(content) }],
+      },
+    ]);
   }
 
   const trimmed = content.trim();

@@ -524,7 +524,8 @@ const backfillThread = async (
     },
   });
 
-  for (const message of sortedMessages.slice(1)) {
+  for (const message of sortedMessages) {
+    if (message.id === firstMessage.id) continue;
     if (message.author.bot) continue;
 
     await backfillMessage(message, threadId, organizationId);
