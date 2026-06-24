@@ -27,6 +27,7 @@ import integrationRoute from "./router/integration";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
 import onboardingRoute from "./router/onboarding";
+import { pipelineRoutes } from "./router/pipeline";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
@@ -727,10 +728,10 @@ export const router = createRouter({
           email: ctx.user.email.toLowerCase(),
         };
       },
-      insert: ({ ctx }) => !!ctx?.internalApiKey,
+      insert: () => false,
       update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        preMutation: () => false,
+        postMutation: () => false,
       },
     }),
     subscription: privateRoute.collectionRoute(schema.subscription, {
@@ -750,8 +751,8 @@ export const router = createRouter({
       },
       insert: () => false,
       update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+        preMutation: () => false,
+        postMutation: () => false,
       },
     }),
     // Mirror of external issues/PRs. Default mutators are disabled; writes go
@@ -766,26 +767,7 @@ export const router = createRouter({
     agentChat: agentChatRoute,
     agentChatMessage: agentChatMessageRoute,
     ...labelsRoute,
-    // Internal pipeline tables (not synced to clients, used by worker)
-    pipelineIdempotencyKey: publicRoute.collectionRoute(
-      schema.pipelineIdempotencyKey,
-      {
-        read: ({ ctx }) => !!ctx?.internalApiKey,
-        insert: ({ ctx }) => !!ctx?.internalApiKey,
-        update: {
-          preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-          postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        },
-      },
-    ),
-    pipelineJob: publicRoute.collectionRoute(schema.pipelineJob, {
-      read: ({ ctx }) => !!ctx?.internalApiKey,
-      insert: ({ ctx }) => !!ctx?.internalApiKey,
-      update: {
-        preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-        postMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      },
-    }),
+    ...pipelineRoutes,
     // Server-only: migration bookkeeping managed by the boot-time runner.
     migration: publicRoute.collectionRoute(schema.migration, {
       read: () => false,
