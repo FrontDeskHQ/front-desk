@@ -24,13 +24,20 @@ export const recordAutonomousActionInputSchema = z
 
 type RecordAutonomousActionDb = Pick<
   ServerDB<typeof schema>,
-  "autonomousAction"
+  "autonomousAction" | "thread"
 >;
 
 export const runRecordAutonomousAction = async (
   db: RecordAutonomousActionDb,
   input: z.infer<typeof recordAutonomousActionInputSchema>,
 ) => {
+  const thread = await db.thread
+    .first({ id: input.entityId, organizationId: input.organizationId })
+    .get();
+  if (!thread) {
+    throw new Error("THREAD_NOT_FOUND");
+  }
+
   return db.autonomousAction.insert({
     id: input.id ?? ulid().toLowerCase(),
     organizationId: input.organizationId,

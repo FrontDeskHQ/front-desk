@@ -37,6 +37,7 @@ const formatError = (error: unknown): string => {
  */
 const updateSourceStatus = async (
   id: string,
+  organizationId: string,
   updates: {
     status?: "pending" | "crawling" | "completed" | "failed";
     errorStr?: string | null;
@@ -49,6 +50,7 @@ const updateSourceStatus = async (
   try {
     await fetchClient.mutate.documentationSource.syncCrawlProgress({
       id,
+      organizationId,
       ...updates,
     });
   } catch (error) {
@@ -277,7 +279,7 @@ export const handleCrawlDocumentation = async (
   );
   requestLog.info(`Starting crawl for ${baseUrl}`);
 
-  await updateSourceStatus(documentationSourceId, {
+  await updateSourceStatus(documentationSourceId, organizationId, {
     status: "crawling",
     errorStr: null,
     updatedAt: new Date(),
@@ -288,7 +290,7 @@ export const handleCrawlDocumentation = async (
     const pageUrls = await fetchSitemapUrls(baseUrl);
 
     if (pageUrls.length === 0) {
-      await updateSourceStatus(documentationSourceId, {
+      await updateSourceStatus(documentationSourceId, organizationId, {
         status: "failed",
         errorStr: "No pages found in sitemap",
         updatedAt: new Date(),
@@ -400,7 +402,7 @@ export const handleCrawlDocumentation = async (
       }
 
       // Update progress
-      await updateSourceStatus(documentationSourceId, {
+      await updateSourceStatus(documentationSourceId, organizationId, {
         pageCount: processedPages,
         chunksIndexed: totalChunks,
         updatedAt: new Date(),
@@ -419,7 +421,7 @@ export const handleCrawlDocumentation = async (
     }
 
     // 4. Mark as completed
-    await updateSourceStatus(documentationSourceId, {
+    await updateSourceStatus(documentationSourceId, organizationId, {
       status: "completed",
       lastCrawledAt: new Date(),
       pageCount: processedPages,
@@ -448,7 +450,7 @@ export const handleCrawlDocumentation = async (
     const errorMessage =
       error instanceof Error ? error.message : String(error);
 
-    await updateSourceStatus(documentationSourceId, {
+    await updateSourceStatus(documentationSourceId, organizationId, {
       status: "failed",
       errorStr: errorMessage,
       updatedAt: new Date(),

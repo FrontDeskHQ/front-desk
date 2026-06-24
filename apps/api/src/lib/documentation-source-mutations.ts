@@ -13,6 +13,7 @@ const documentationSourceStatusSchema = z.enum([
 export const syncCrawlProgressInputSchema = z
   .object({
     id: z.string(),
+    organizationId: z.string(),
     status: documentationSourceStatusSchema.optional(),
     errorStr: z.string().nullable().optional(),
     pageCount: z.number().optional(),
@@ -34,12 +35,18 @@ export const runSyncCrawlProgress = async (
   db: SyncCrawlProgressDb,
   input: z.infer<typeof syncCrawlProgressInputSchema>,
 ) => {
-  const source = await db.documentationSource.one(input.id).get();
+  const source = await db.documentationSource
+    .first({ id: input.id, organizationId: input.organizationId })
+    .get();
   if (!source) {
     throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
   }
 
-  const { id, ...updates } = input;
+  if (source.status === "deleted") {
+    throw new Error("DOCUMENTATION_SOURCE_DELETED");
+  }
+
+  const { id, organizationId: _organizationId, ...updates } = input;
 
   await db.documentationSource.update(id, {
     ...updates,
