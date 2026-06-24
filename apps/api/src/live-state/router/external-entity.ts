@@ -74,7 +74,7 @@ export default privateRoute
       postMutation: () => false,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     /**
      * Insert or update the mirror row identified by
      * `(organizationId, externalKey)`. Refreshes `lastSyncedAt` and clears any

@@ -70,7 +70,8 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
         name: repo.name,
       }));
 
-      await fetchClient.mutate.integration.update(integration.id, {
+      await fetchClient.mutate.integration.updateInstallation({
+        integrationId: integration.id,
         enabled: true,
         updatedAt: new Date(),
         configStr: JSON.stringify({
