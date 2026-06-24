@@ -11,6 +11,7 @@ export type SignalExecutionDb = Pick<
   | "label"
   | "autonomousAction"
   | "insert"
+  | "transaction"
 >;
 
 export type ExecutionContext = {

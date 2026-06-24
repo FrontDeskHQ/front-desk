@@ -1,11 +1,11 @@
 import type { ApplyLabelAction } from "@workspace/schemas/signals";
-import { ulid } from "ulid";
+import { runAttachLabelToThread } from "../../label-mutations";
+import { insertThreadActivity } from "../activity";
 import {
   clearCompensateSnapshot,
   getCompensateSnapshot,
   setCompensateSnapshot,
 } from "../compensate-snapshots";
-import { insertThreadActivity } from "../activity";
 import type { ActionHandler } from "../types";
 
 const snapshotKey = (action: ApplyLabelAction) =>
@@ -13,44 +13,19 @@ const snapshotKey = (action: ApplyLabelAction) =>
 
 export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
   async apply(action, ctx) {
-    const thread = await ctx.db.thread.one(ctx.threadId).get();
-    if (!thread || thread.organizationId !== ctx.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
-    }
+    const result = await runAttachLabelToThread(ctx.db, {
+      threadId: ctx.threadId,
+      labelId: action.labelId,
+      organizationId: ctx.organizationId,
+    });
 
-    const label = await ctx.db.label.one(action.labelId).get();
-    if (!label || label.organizationId !== ctx.organizationId) {
-      throw new Error("LABEL_NOT_FOUND");
-    }
-
-    const existing = await ctx.db.threadLabel
-      .first({
-        threadId: ctx.threadId,
-        labelId: action.labelId,
-      })
-      .get();
-
-    if (existing?.enabled) {
+    if (result.noOp) {
       return;
     }
 
-    let threadLabelId = existing?.id;
-
-    if (existing) {
-      await ctx.db.threadLabel.update(existing.id, { enabled: true });
-    } else {
-      threadLabelId = ulid().toLowerCase();
-      await ctx.db.threadLabel.insert({
-        id: threadLabelId,
-        threadId: ctx.threadId,
-        labelId: action.labelId,
-        enabled: true,
-      });
-    }
-
     setCompensateSnapshot(ctx, snapshotKey(action), {
-      threadLabelId: threadLabelId!,
-      hadEnabled: existing?.enabled ?? false,
+      threadLabelId: result.threadLabelId,
+      hadEnabled: false,
     });
 
     await insertThreadActivity(ctx, {
@@ -58,7 +33,7 @@ export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
       metadata: {
         action: "added",
         labelId: action.labelId,
-        labelName: label.name,
+        labelName: result.label.name,
       },
       source: "inline_suggestion",
     });
