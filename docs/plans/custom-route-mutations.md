@@ -24,13 +24,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-005a** (next PR slice)
+- Active checkpoint: **LP-006a** (next PR slice)
 - Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/303
 - Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied.
+**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied. **LP-005 complete** — org-family procedures (`updateSettings`, `updateMember`, `updateProfile`, `revoke`); builders renamed to `withProcedures` where touched; generic `organization` / `organizationUser` / `user` / `invite` `insert`/`update` denied.
 
 ## Write inventory matrix
 
@@ -51,10 +51,10 @@ Legend:
 | `update` | **disabled** | **disabled** | `withProcedures`: `recordActivity`✓, `markReplicated`✓ | **API-internal** timeline writes use `runRecordActivity` in `update-mutations.ts` (thread procedures, signal handlers, `createGithubIssue`, `autonomousAction.undo`). Slack/Discord replication via `update.markReplicated`. | No direct web callers — timeline rows created inside thread procedures' optimistic handlers. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
 | `label` | disabled | disabled | `withProcedures`: `create`, `update`, `createAndAttachToThread`, `attachToThread`, `detachFromThread` | **API-internal** `db.label` / `db.threadLabel`: signal handler `apply-label.ts`, `autonomous-action` `undo`. | `labels.tsx` (thread UI), `labels.tsx` (settings), `quick-actions.tsx` (`attachToThread`). | **Yes** — all five procedures. |
 | `threadLabel` | disabled | disabled | none (writes only via `label.*` procedures) | **API-internal**: `apply-label.ts`, `autonomous-action` `undo`. | none direct | n/a |
-| `organization` | disabled | owner or internal key | `withMutations`: `create`, `setActionAutonomy`, `createPublicApiKey`, `revokePublicApiKey`, `listApiKeys`† | Boot migration `002_seed_autonomy_settings.ts` (`db.organization.update`). `organization.create` also inserts `subscription` + `organizationUser` server-side. | `onboarding/connect.tsx` (`create`), settings `index.tsx` + `support-intelligence.tsx` (generic `update`, `setActionAutonomy`), `api-keys.tsx` (key procedures). | **No** |
-| `organizationUser` | disabled | owner or internal key | `withMutations`: `inviteUser` | Created by `invite.accept`, `organization.create`. | `team.tsx` (generic `update`, `inviteUser`). | **No** |
-| `user` | disabled | self or internal key | none | none | `settings/user/index.tsx` (generic `update`). | **No** |
-| `invite` | disabled | org members | `withMutations`: `accept`, `decline` | `inviteUser` creates rows; `accept` also inserts `organizationUser` + `allowlist`. | `invitation.$id.tsx` (`accept`, `decline`), `onboarding/index.tsx` (`accept`), `team.tsx` (generic `update` revoke). | **No** |
+| `organization` | disabled | **disabled** | `withProcedures`: `create`, `updateSettings`✓, `setActionAutonomy`, `createPublicApiKey`, `revokePublicApiKey`, `listApiKeys`† | Boot migration `002_seed_autonomy_settings.ts` (`db.organization.update`). `organization.create` also inserts `subscription` + `organizationUser` server-side. | `onboarding/connect.tsx` (`create`), settings `index.tsx` + `support-intelligence.tsx` (`updateSettings`, `setActionAutonomy`), `api-keys.tsx` (key procedures). | **No** |
+| `organizationUser` | disabled | **disabled** | `withProcedures`: `inviteUser`, `updateMember`✓ | Created by `invite.accept`, `organization.create`. | `team.tsx` (`updateMember`, `inviteUser`). | **No** |
+| `user` | disabled | **disabled** | `withProcedures`: `updateProfile`✓ | none | `settings/user/index.tsx` (`updateProfile`). | **No** |
+| `invite` | disabled | **disabled** | `withProcedures`: `accept`, `decline`, `revoke`✓ | `inviteUser` creates rows; `accept` also inserts `organizationUser` + `allowlist`. | `invitation.$id.tsx` (`accept`, `decline`), `onboarding/index.tsx` (`accept`), `team.tsx` (`revoke`). | **No** |
 | `integration` | owner or internal key | owner or internal key | `withMutations`: `fetchSlackChannels`† | `apps/slack` (`installation-store`, `utils`), `apps/discord` (`utils`), `apps/github` (`setup.ts`, settings flows via web). | Settings + redirect routes for slack/discord/github, `lib/integrations/activate.ts`, `organization/index.tsx` (`fetchSlackChannels`). | **No** |
 | `onboarding` | org members + internal key | org members + internal key | `withMutations`: `initialize`, `completeStep`, `skip`, `complete` | none | `use-onboarding.ts` (all four procedures; `initialize` via `fetchClient`). | **No** |
 | `documentationSource` | internal key only | internal key only | `withMutations`: `validateDocumentationSource`†, `addDocumentationSource`, `recrawlDocumentationSource`, `deleteDocumentationSource` | `apps/worker` `crawl-documentation.ts` (generic `update` via internal key). | `settings/organization/documentation.tsx` (all custom procedures). | **No** |
@@ -234,14 +234,14 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 | Procedure | Route | Replaces | Web optimistic |
 | --- | --- | --- | --- |
 | `create` ✓ | `organization` | — | **no** — onboarding uses `fetchClient`, awaited |
-| `updateSettings` | `organization` | generic `organization.update` (support URL, name, …) | **no** |
+| `updateSettings` ✓ | `organization` | generic `organization.update` (support URL, name, …) | **no** |
 | `setActionAutonomy` ✓ | `organization` | — | **no** |
 | `createPublicApiKey` / `revokePublicApiKey` ✓ | `organization` | — | **no** |
 | `inviteUser` ✓ | `organizationUser` | — | **no** |
-| `updateMember` | `organizationUser` | generic `organizationUser.update` (role, enabled) | **no** |
-| `updateProfile` | `user` | generic `user.update` | **no** |
+| `updateMember` ✓ | `organizationUser` | generic `organizationUser.update` (role, enabled) | **no** |
+| `updateProfile` ✓ | `user` | generic `user.update` | **no** |
 | `accept` / `decline` ✓ | `invite` | — | **no** |
-| `revoke` | `invite` | generic `invite.update` revoke | **no** |
+| `revoke` ✓ | `invite` | generic `invite.update` revoke | **no** |
 
 #### LP-006: `integration`, `externalEntity`
 
@@ -309,11 +309,11 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
-| [ ] **LP-005a** | `organization.updateSettings` + builder rename | `router/organization.ts` `withProcedures`, `settings/organization/index.tsx`, `support-intelligence.tsx` | No `mutate.organization.update` in web |
-| [ ] **LP-005b** | `organizationUser.updateMember` | `router/organization-user.ts`, `team.tsx` role/enabled toggles | No `mutate.organizationUser.update` in web |
-| [ ] **LP-005c** | `user.updateProfile` | `router/user.ts` new procedure, `settings/user/index.tsx` | No `mutate.user.update` in web |
-| [ ] **LP-005d** | `invite.revoke` | `router/invite.ts`, `team.tsx` invite revoke | No `mutate.invite.update` in web |
-| [ ] **LP-005e-lockdown** | Deny generic org-family writes | `organization`, `organizationUser`, `user`, `invite` routes | All LP-005a–d complete |
+| [x] **LP-005a** | `organization.updateSettings` + builder rename | `router.ts` organization `withProcedures`, `settings/organization/index.tsx`, `support-intelligence.tsx` | No `mutate.organization.update` in web |
+| [x] **LP-005b** | `organizationUser.updateMember` | `router.ts` organizationUser `withProcedures`, `team.tsx` role/enabled toggles | No `mutate.organizationUser.update` in web |
+| [x] **LP-005c** | `user.updateProfile` | `router.ts` user `withProcedures`, `settings/user/index.tsx` | No `mutate.user.update` in web |
+| [x] **LP-005d** | `invite.revoke` | `router.ts` invite `withProcedures`, `team.tsx` invite revoke | No `mutate.invite.update` in web |
+| [x] **LP-005e-lockdown** | Deny generic org-family writes | `organization`, `organizationUser`, `user`, `invite` routes | All LP-005a–d complete |
 
 ### LP-006 — `integration`, `externalEntity`
 
@@ -364,7 +364,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - [x] LP-002: Define the target procedure contract. Completion: documented conventions for naming, input schemas, authorization, return values, optimistic handlers, and whether generic writes stay available for internal-only routes.
 - [x] LP-003: Migrate thread and message writes. Completion: all **LP-003a–o** slices done (including lockdown and hooks migration).
 - [x] LP-004: Migrate label, thread-label, and update writes. Completion: all **LP-004\*** slices done (labels already ✓).
-- [ ] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
+- [x] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
 - [ ] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
 - [ ] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
 - [ ] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
@@ -398,6 +398,11 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-23: **Authorization** — procedures and lib code must use `authorize` / `isAuthorized` from `apps/api/src/lib/authorize.ts`; extend that module for new patterns instead of ad-hoc `req.context` checks. Tracked as **LP-010** (scan + migrate).
 - 2026-06-23 (LP-004a): Added `runRecordActivity` in `apps/api/src/lib/update-mutations.ts` and `update.recordActivity` procedure (`withProcedures`). Migrated `insertThreadActivity`, `thread-mutations` activity rows, `createGithubIssue`, and `autonomousAction.undo` to the shared helper. Single `db.insert(schema.update)` site remains in `update-mutations.ts`.
 - 2026-06-23 (LP-004b): Added `update.markReplicated` procedure + `runMarkReplicated` helper (internal API key only). Migrated Slack `handleUpdates` replication marking off generic `update.update`. Discord migrated in **LP-004c**.
+- 2026-06-24 (LP-005a): Added `organization.updateSettings` — owner-only procedure accepting optional `name`, `slug`, `logoUrl`, `socials`, `customInstructions`, `settings`; validates slug + settings via shared schemas. Renamed organization route builder to `withProcedures`. Web settings forms use `mutate.organization.updateSettings({ organizationId, … })`. Intentional: no optimistic handler (settings use fire-and-forget `mutate` but infrequent; same as prior generic update behavior).
+- 2026-06-24 (LP-005b): `organizationUser.updateMember` — owner auth via `authorize`; optional `role` / `enabled`; blocks self role change or removal. Renamed builder to `withProcedures`.
+- 2026-06-24 (LP-005c): `user.updateProfile` — self or internal key; optional `name`, `email`, `image`. Added `withProcedures` on user route.
+- 2026-06-24 (LP-005d): `invite.revoke` — owner auth; sets `active: false`. Renamed invite builder to `withProcedures`.
+- 2026-06-24 (LP-005e): Denied generic `insert`/`update` on `organization`, `organizationUser`, `user`, `invite` collection routes. Boot migrations and procedures continue using direct `db.*` writes.
 
 ## PR Feedback
 
@@ -430,6 +435,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-23 (LP-004c): `bun run --filter api typecheck` and `bun run --filter discord typecheck` pass. Ripgrep: `apps/discord` has zero `mutate.update.update` / `mutate.update.insert`. No runtime Discord timeline replication smoke test.
 - 2026-06-23 (LP-004d): `bun run --filter api typecheck` pass. Ripgrep: `apply-label.ts` has no `threadLabel.insert` / direct label lookup — only `runAttachLabelToThread` + compensate `threadLabel.update`. No runtime inline-suggestion label apply smoke test.
 - 2026-06-24 (LP-004e): `bun run --filter api typecheck` pass. Ripgrep: zero `mutate.update.insert` / `mutate.update.update` under `apps/web`, `apps/slack`, `apps/discord`, `apps/github`; slack/discord use `update.markReplicated` only. No runtime smoke test.
+- 2026-06-24 (LP-005a): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.organization.update(` in `apps/web`. No runtime smoke test for org profile, digest, or custom-instructions settings forms.
+- 2026-06-24 (LP-005b–e): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.(organization|organizationUser|user|invite).(update|insert)(` under `apps/web`, `apps/api`, `apps/slack`, `apps/discord`, `apps/github`. No runtime smoke test for team role/remove/revoke or user profile save.
 
 ## Session Log
 
@@ -461,7 +468,9 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-004e): Denied generic `insert`/`update` on `update` collection route; product callers already on thread procedures or `markReplicated`; internal timeline writes use `runRecordActivity` only.
 - 2026-06-23 (LP-004d): Extracted `runAttachLabelToThread` in `label-mutations.ts`; `label.attachToThread` procedure and `apply-label` signal handler delegate to shared helper (transaction + race handling). Added `transaction` to `SignalExecutionDb`.
 - 2026-06-24 (LP-004e): Denied generic `insert`/`update` on `router/update.ts` (`insert: () => false`, `update.preMutation/postMutation: () => false`). Confirmed no remaining product/integration generic callers — GitHub webhooks use `thread.setStatus`; slack/discord use `update.markReplicated`. Files: `router/update.ts`.
+- 2026-06-24 (LP-005a): Added `organization.updateSettings` procedure (owner auth via `authorize`); renamed organization builder to `withProcedures`. Migrated web org profile, digest, and custom-instructions forms. Files: `router.ts`, `settings/organization/index.tsx`, `support-intelligence.tsx`.
+- 2026-06-24 (LP-005b–e): Added `organizationUser.updateMember`, `user.updateProfile`, `invite.revoke`; renamed `organizationUser` and `invite` builders to `withProcedures`; added `withProcedures` on `user`. Migrated `team.tsx` and `settings/user/index.tsx`. Denied generic writes on all four org-family routes. Files: `router.ts`, `team.tsx`, `settings/user/index.tsx`.
 
 ## Handoff
 
-Next action: Ship **LP-005a** — add `organization.updateSettings` procedure in `apps/api/src/live-state/router/organization.ts` (rename builder to `withProcedures` in same PR), migrate `apps/web` settings pages off generic `mutate.organization.update` (`settings/organization/index.tsx`, `support-intelligence.tsx`). Ripgrep target: zero `mutate.organization.update` in `apps/web`.
+Next action: Ship **LP-006a** — add `integration.connectInstallation` / `updateInstallation` procedures in `apps/api/src/live-state/router.ts` (rename integration builder to `withProcedures`), migrate web integration connect/update flows off generic `mutate.integration.insert` / `.update` (`slack`, `discord`, `github` settings, `lib/integrations/activate.ts`, `organization/index.tsx`). Ripgrep target: zero `mutate.integration.insert` / `mutate.integration.update` in `apps/web`.
