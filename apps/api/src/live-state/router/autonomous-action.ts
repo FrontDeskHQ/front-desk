@@ -9,6 +9,7 @@ import {
 import { ulid } from "ulid";
 import z from "zod";
 import { authorize } from "../../lib/authorize";
+import { runRecordActivity } from "../../lib/update-mutations";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -146,14 +147,13 @@ export default privateRoute
       }
 
       if (activityType) {
-        await db.insert(schema.update, {
-          id: ulid().toLowerCase(),
+        await runRecordActivity(db, {
           threadId,
+          organizationId: req.input.organizationId,
           userId: req.context?.session?.userId ?? null,
           type: activityType,
+          metadata: activityMetadata,
           createdAt: now,
-          metadataStr: JSON.stringify(activityMetadata),
-          replicatedStr: JSON.stringify({}),
         });
       }
 

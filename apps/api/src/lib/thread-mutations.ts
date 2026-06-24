@@ -2,10 +2,10 @@ import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 import { PRIORITY_LABELS, threadReadSchema } from "@workspace/schemas/signals";
 import { addDays } from "date-fns";
-import { ulid } from "ulid";
 import { z } from "zod";
 import { schema } from "../live-state/schema";
 import { statusActivityMetadata } from "./signals/activity";
+import { runRecordActivity } from "./update-mutations";
 
 export const setStatusInputSchema = z.object({
   threadId: z.string(),
@@ -198,18 +198,17 @@ export const runSetThreadStatus = async (
     actor.userId !== null || options?.recordActivity === true;
 
   if (shouldRecordActivity) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
+    await runRecordActivity(db, {
       threadId: input.threadId,
+      organizationId: input.organizationId,
       userId: actor.userId,
+      userName: actor.userName,
       type: "status_changed",
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
+      metadata: {
         ...statusActivityMetadata(oldStatus, input.status),
-        ...(actor.userName ? { userName: actor.userName } : {}),
         ...(input.source ? { source: input.source } : {}),
         ...(input.activityMetadata ?? {}),
-      }),
+      },
       replicatedStr: input.replicatedStr ?? JSON.stringify({}),
     });
   }
@@ -242,17 +241,13 @@ export const runSetThreadPriority = async (
   await db.thread.update(input.threadId, { priority: input.priority });
 
   if (actor.userId !== null) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
+    await runRecordActivity(db, {
       threadId: input.threadId,
+      organizationId: input.organizationId,
       userId: actor.userId,
+      userName: actor.userName,
       type: "priority_changed",
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
-        ...priorityActivityMetadata(oldPriority, input.priority),
-        ...(actor.userName ? { userName: actor.userName } : {}),
-      }),
-      replicatedStr: JSON.stringify({}),
+      metadata: priorityActivityMetadata(oldPriority, input.priority),
     });
   }
 
@@ -302,20 +297,18 @@ export const runAssignThreadUser = async (
   });
 
   if (actor.userId !== null) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
+    await runRecordActivity(db, {
       threadId: input.threadId,
+      organizationId: input.organizationId,
       userId: actor.userId,
+      userName: actor.userName,
       type: "assigned_changed",
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
+      metadata: {
         oldAssignedUserId,
         newAssignedUserId,
         oldAssignedUserName,
         newAssignedUserName,
-        ...(actor.userName ? { userName: actor.userName } : {}),
-      }),
-      replicatedStr: JSON.stringify({}),
+      },
     });
   }
 
@@ -392,20 +385,18 @@ const runLinkExternalEntity = async (
   });
 
   if (actor.userId !== null) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
+    await runRecordActivity(db, {
       threadId: input.threadId,
+      organizationId: input.organizationId,
       userId: actor.userId,
+      userName: actor.userName,
       type: config.updateType,
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
+      metadata: {
         [config.metadataKeys.oldId]: oldId,
         [config.metadataKeys.newId]: input.externalId,
         [config.metadataKeys.oldLabel]: oldLabel,
         [config.metadataKeys.newLabel]: newLabel,
-        ...(actor.userName ? { userName: actor.userName } : {}),
-      }),
-      replicatedStr: JSON.stringify({}),
+      },
     });
   }
 
@@ -450,20 +441,18 @@ const runUnlinkExternalEntity = async (
   await db.thread.update(input.threadId, { [config.threadField]: null });
 
   if (actor.userId !== null) {
-    await db.insert(schema.update, {
-      id: ulid().toLowerCase(),
+    await runRecordActivity(db, {
       threadId: input.threadId,
+      organizationId: input.organizationId,
       userId: actor.userId,
+      userName: actor.userName,
       type: config.updateType,
-      createdAt: new Date(),
-      metadataStr: JSON.stringify({
+      metadata: {
         [config.metadataKeys.oldId]: oldId,
         [config.metadataKeys.newId]: null,
         [config.metadataKeys.oldLabel]: oldLabel,
         [config.metadataKeys.newLabel]: null,
-        ...(actor.userName ? { userName: actor.userName } : {}),
-      }),
-      replicatedStr: JSON.stringify({}),
+      },
     });
   }
 
@@ -572,19 +561,17 @@ export const runMarkDuplicate = async (
 
   const duplicateOfThreadName = input.duplicateOfThreadName ?? target.name;
 
-  await db.insert(schema.update, {
-    id: ulid().toLowerCase(),
+  await runRecordActivity(db, {
     threadId: input.threadId,
+    organizationId: input.organizationId,
     userId: actor.userId,
+    userName: actor.userName,
     type: "marked_duplicate",
-    createdAt: new Date(),
-    metadataStr: JSON.stringify({
+    metadata: {
       duplicateOfThreadId: input.duplicateOfThreadId,
       duplicateOfThreadName,
-      ...(actor.userName ? { userName: actor.userName } : {}),
       ...(input.source ? { source: input.source } : {}),
-    }),
-    replicatedStr: JSON.stringify({}),
+    },
   });
 
   return {
