@@ -24,7 +24,7 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-004d** (next PR slice)
+- Active checkpoint: **LP-004e-lockdown** (next PR slice)
 - Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/300
 - Last updated: 2026-06-23
 
@@ -302,7 +302,7 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 | [x] **LP-004a** | `update.recordActivity` (internal) | `router/update.ts` new procedure; migrate API-internal `db.insert(schema.update)` not owned by `thread.*` | Internal timeline writes use `recordActivity` or thread procedures |
 | [x] **LP-004b** | Slack `update.update` | `apps/slack/src/index.ts` `fetchClient.mutate.update.update` → `update.markReplicated` | Slack has no generic `update.update` |
 | [x] **LP-004c** | Discord `update.update` | `apps/discord/src/index.ts` | Discord has no generic `update.update` |
-| [ ] **LP-004d** | `apply-label` handler convergence | `apply-label.ts` → shared label attach helper | Handler reuses `label.attachToThread` logic |
+| [x] **LP-004d** | `apply-label` handler convergence | `apply-label.ts` → shared label attach helper | Handler reuses `label.attachToThread` logic |
 | [ ] **LP-004e-lockdown** | Deny generic `update` writes | `router/update.ts` | Product + integration callers migrated; github webhook timeline covered |
 
 ### LP-005 — `organization`, `organizationUser`, `user`, `invite`
@@ -428,6 +428,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-23 (LP-004a): `bun run --filter api typecheck` pass. Ripgrep: single `db.insert(schema.update)` in `update-mutations.ts`; `insertThreadActivity` delegates to `runRecordActivity`. No runtime smoke test for GitHub issue creation timeline or autonomous undo activity rows.
 - 2026-06-23 (LP-004b): `bun run --filter api typecheck` pass. Ripgrep: `apps/slack` has zero `mutate.update.update` / `mutate.update.insert`. No runtime Slack timeline replication smoke test.
 - 2026-06-23 (LP-004c): `bun run --filter api typecheck` and `bun run --filter discord typecheck` pass. Ripgrep: `apps/discord` has zero `mutate.update.update` / `mutate.update.insert`. No runtime Discord timeline replication smoke test.
+- 2026-06-23 (LP-004d): `bun run --filter api typecheck` pass. Ripgrep: `apply-label.ts` has no `threadLabel.insert` / direct label lookup — only `runAttachLabelToThread` + compensate `threadLabel.update`. No runtime inline-suggestion label apply smoke test.
 
 ## Session Log
 
@@ -456,7 +457,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-23 (LP-004a): Added `update.recordActivity` procedure and `runRecordActivity` helper; migrated all API-internal timeline inserts. Files: `update-mutations.ts`, `router/update.ts`, `signals/activity.ts`, `thread-mutations.ts`, `router/threads.ts`, `router/autonomous-action.ts`.
 - 2026-06-23 (LP-004b): Added `update.markReplicated` procedure; migrated Slack `handleUpdates` off generic `update.update`. Files: `update-mutations.ts`, `router/update.ts`, `apps/slack/src/index.ts`.
 - 2026-06-23 (LP-004c): Migrated Discord `handleUpdates` off generic `update.update` to `update.markReplicated`. Files: `apps/discord/src/index.ts`.
+- 2026-06-23 (LP-004d): Extracted `runAttachLabelToThread` in `label-mutations.ts`; `label.attachToThread` procedure and `apply-label` signal handler delegate to shared helper (transaction + race handling). Added `transaction` to `SignalExecutionDb`.
 
 ## Handoff
 
-Next action: Ship **LP-004d** — refactor `apps/api/src/lib/signals/handlers/apply-label.ts` to reuse the shared label attach helper (same logic as `label.attachToThread` procedure). Read `router/label.ts` and any existing label mutation helpers before editing; goal is one implementation path for attach + threadLabel rows. Ripgrep `apply-label.ts` for zero direct `db.label` / `db.threadLabel` writes that duplicate procedure logic when done.
+Next action: Ship **LP-004e-lockdown** — deny generic `insert`/`update` on `router/update.ts` collection route (`insert`/`update` pre/post → `false` or deny-by-default). Before locking: ripgrep repo for remaining `mutate.update.insert` / `mutate.update.update` product callers (GitHub webhook `store.mutate` timeline inserts may still need `recordActivity` or thread procedures — see matrix). Confirm slack/discord replication already on `markReplicated`; web `update.insert` pairs should already be gone via thread procedures.

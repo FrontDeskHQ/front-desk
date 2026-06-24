@@ -3,6 +3,7 @@ import { ulid } from "ulid";
 import type { ServerDB } from "@live-state/sync/server";
 import type { AuthorizationContext } from "../../lib/authorize";
 import { authorize } from "../../lib/authorize";
+import { runAttachLabelToThread } from "../../lib/label-mutations";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -253,54 +254,19 @@ export default {
         organizationId: thread.organizationId,
       });
 
-      const id = req.input.id ?? ulid().toLowerCase();
-      const threadLabelId = await db.transaction(async ({ trx }) => {
-        const existing = await trx.threadLabel
-          .first({
-            threadId: req.input.threadId,
-            labelId: req.input.labelId,
-          })
-          .get();
-
-        if (existing) {
-          if (!existing.enabled) {
-            await trx.threadLabel.update(existing.id, { enabled: true });
-          }
-
-          return existing.id;
-        }
-
-        try {
-          const created = await trx.threadLabel.insert({
-            id,
-            threadId: req.input.threadId,
-            labelId: req.input.labelId,
-            enabled: true,
-          });
-
-          return created.id;
-        } catch {
-          const concurrent = await trx.threadLabel
-            .first({
-              threadId: req.input.threadId,
-              labelId: req.input.labelId,
-            })
-            .get();
-
-          if (concurrent) {
-            if (!concurrent.enabled) {
-              await trx.threadLabel.update(concurrent.id, { enabled: true });
-            }
-
-            return concurrent.id;
-          }
-
-          throw new Error("THREAD_LABEL_ATTACH_FAILED");
-        }
-      });
+      const attachResult = await runAttachLabelToThread(
+        db,
+        {
+          threadId: req.input.threadId,
+          labelId: req.input.labelId,
+          organizationId: thread.organizationId,
+          threadLabelId: req.input.id,
+        },
+        { preloadedThread: thread, preloadedLabel: label },
+      );
 
       const created = await db.threadLabel
-        .one(threadLabelId)
+        .one(attachResult.threadLabelId)
         .include({ label: true })
         .get();
 
