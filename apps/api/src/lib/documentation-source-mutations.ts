@@ -23,7 +23,7 @@ export const syncCrawlProgressInputSchema = z
   })
   .refine(
     (input) => {
-      const { id: _id, ...fields } = input;
+      const { id: _id, organizationId: _organizationId, ...fields } = input;
       return Object.values(fields).some((value) => value !== undefined);
     },
     { message: "NO_FIELDS_TO_UPDATE" },
