@@ -2,7 +2,14 @@
 import { formatGitHubId } from "@workspace/schemas/external-issue";
 import { ulid } from "ulid";
 import z from "zod";
-import { authorize } from "../../lib/authorize";
+import {
+  assertInternalKeyForIntegrationFields,
+  authorize,
+  authorizeThreadCreate,
+  getPortalAuthor,
+  getWorkspaceActor,
+  requireInternalApiKey,
+} from "../../lib/authorize";
 import {
   archiveThreadInputSchema,
   assignUserInputSchema,
@@ -93,21 +100,6 @@ export default publicRoute
   })
   .withProcedures(({ mutation, query }) => ({
     create: mutation(threadCreateInputSchema).handler(async ({ req, db }) => {
-      const hasInternalKey = !!req.context?.internalApiKey;
-      const hasPublicKey = !!req.context?.publicApiKey;
-      const hasPortalSession = !!req.context?.portalSession?.session;
-      const hasWorkspaceSession = !!req.context?.session?.userId;
-
-      if (
-        !hasInternalKey &&
-        !hasPublicKey &&
-        !hasPortalSession &&
-        !hasWorkspaceSession
-      ) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      // Determine organization ID
       const organizationId =
         req.context?.publicApiKey?.ownerId ?? req.input.organizationId;
 
@@ -115,39 +107,24 @@ export default publicRoute
         throw new Error("MISSING_ORGANIZATION_ID");
       }
 
-      if (
-        hasWorkspaceSession &&
-        !hasInternalKey &&
-        !hasPublicKey &&
-        !hasPortalSession
-      ) {
-        authorize(req, { organizationId });
-        if (!req.input.author) {
-          throw new Error("MISSING_AUTHOR_INFO");
-        }
-      }
+      const hasIntegrationOnlyFields =
+        req.input.id !== undefined ||
+        req.input.createdAt !== undefined ||
+        req.input.status !== undefined ||
+        req.input.discordChannelId !== undefined ||
+        req.input.externalId !== undefined ||
+        req.input.externalOrigin !== undefined ||
+        req.input.externalMetadataStr !== undefined ||
+        req.input.firstMessage !== undefined;
 
-      // For portal sessions, verify the user matches
-      if (req.context?.portalSession?.session) {
-        const sessionUserId = req.context.portalSession.session.userId;
-        if (req.input.userId && req.input.userId !== sessionUserId) {
-          throw new Error("UNAUTHORIZED");
-        }
-      }
+      const createFlow = authorizeThreadCreate(req, {
+        organizationId,
+        inputUserId: req.input.userId,
+        hasIntegrationOnlyFields,
+      });
 
-      if (
-        !hasInternalKey &&
-        !hasPublicKey &&
-        (req.input.id !== undefined ||
-          req.input.createdAt !== undefined ||
-          req.input.status !== undefined ||
-          req.input.discordChannelId !== undefined ||
-          req.input.externalId !== undefined ||
-          req.input.externalOrigin !== undefined ||
-          req.input.externalMetadataStr !== undefined ||
-          req.input.firstMessage !== undefined)
-      ) {
-        throw new Error("UNAUTHORIZED");
+      if (createFlow === "workspace" && !req.input.author) {
+        throw new Error("MISSING_AUTHOR_INFO");
       }
 
       const content = serializeMessageContent(req.input.message);
@@ -159,20 +136,17 @@ export default publicRoute
         let authorId: string | undefined;
 
         // Determine author based on context
-        if (req.input.userId || req.context?.portalSession?.session) {
-          // Portal session flow - use userId
-          const userId =
-            req.input.userId ?? req.context?.portalSession?.session.userId;
-          const userName =
-            req.input.userName ??
-            req.context?.portalSession?.session.userName ??
-            "Unknown User";
+        if (createFlow === "portal" || req.input.userId) {
+          const { userId, userName } = getPortalAuthor(req, {
+            userId: req.input.userId,
+            userName: req.input.userName,
+          });
 
           const existingAuthor = Object.values(
             await trx.find(schema.author, {
               where: {
-                userId: userId,
-                organizationId: organizationId,
+                userId,
+                organizationId,
               },
             }),
           );
@@ -183,10 +157,10 @@ export default publicRoute
             authorId = ulid().toLowerCase();
             await trx.insert(schema.author, {
               id: authorId,
-              userId: userId,
+              userId,
               metaId: null,
               name: userName,
-              organizationId: organizationId,
+              organizationId,
             });
           }
         } else if (req.input.author) {
@@ -386,25 +360,9 @@ export default publicRoute
         throw new Error("MISSING_ORGANIZATION_ID");
       }
 
-      let authorized = !!req.context?.internalApiKey;
+      authorize(req, { organizationId });
 
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-
-        authorized = !!selfOrgUser;
-      }
-
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = getWorkspaceActor(req);
 
       // Get GitHub integration config
       const integration = Object.values(
@@ -491,7 +449,7 @@ export default publicRoute
       await runRecordActivity(db, {
         threadId: req.input.threadId,
         organizationId,
-        userId: req.context?.session?.userId ?? null,
+        userId: actor.userId,
         type: "github_issue_created",
         metadata: {
           issueId: data.issue.id,
@@ -523,9 +481,7 @@ export default publicRoute
     executeAutonomousBundle: mutation(
       executeAutonomousBundleInputSchema,
     ).handler(async ({ req, db }) => {
-      if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      requireInternalApiKey(req.context);
 
       return runExecuteAutonomousBundle(db, req.input);
     }),
@@ -549,24 +505,18 @@ export default publicRoute
     }),
     upsertInlineSuggestion: mutation(upsertInlineSuggestionInputSchema).handler(
       async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
         return runUpsertInlineSuggestion(db, req.input);
       },
     ),
     writeHintSlot: mutation(writeHintSlotInputSchema).handler(
       async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
         return runWriteHintSlot(db, req.input);
       },
     ),
     setStatus: mutation(setStatusInputSchema).handler(async ({ req, db }) => {
-      const hasInternalKey = !!req.context?.internalApiKey;
-
-      if (hasInternalKey) {
+      if (req.context?.internalApiKey) {
         return runSetThreadStatus(
           db,
           req.input,
@@ -578,90 +528,70 @@ export default publicRoute
         );
       }
 
-      if (
-        req.input.recordActivity !== undefined ||
-        req.input.activityMetadata !== undefined ||
-        req.input.replicatedStr !== undefined
-      ) {
-        throw new Error("UNAUTHORIZED");
-      }
+      assertInternalKeyForIntegrationFields(req, {
+        recordActivity: req.input.recordActivity,
+        activityMetadata: req.input.activityMetadata,
+        replicatedStr: req.input.replicatedStr,
+      });
 
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = getWorkspaceActor(req);
 
       return runSetThreadStatus(db, req.input, {
-        userId: actorUserId,
-        userName: req.context?.user?.name ?? null,
+        userId: actor.userId,
+        userName: actor.userName,
       });
     }),
     setPriority: mutation(setPriorityInputSchema).handler(async ({ req, db }) => {
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = getWorkspaceActor(req);
 
       return runSetThreadPriority(db, req.input, {
-        userId: actorUserId,
-        userName: req.context?.user?.name ?? null,
+        userId: actor.userId,
+        userName: actor.userName,
       });
     }),
     assignUser: mutation(assignUserInputSchema).handler(async ({ req, db }) => {
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = getWorkspaceActor(req);
 
       return runAssignThreadUser(db, req.input, {
-        userId: actorUserId,
-        userName: req.context?.user?.name ?? null,
+        userId: actor.userId,
+        userName: actor.userName,
       });
     }),
     linkIssue: mutation(linkIssueInputSchema).handler(async ({ req, db }) => {
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = getWorkspaceActor(req);
 
       return runLinkIssue(db, req.input, {
-        userId: actorUserId,
-        userName: req.context?.user?.name ?? null,
+        userId: actor.userId,
+        userName: actor.userName,
       });
     }),
     unlinkIssue: mutation(unlinkIssueInputSchema).handler(async ({ req, db }) => {
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = getWorkspaceActor(req);
 
       return runUnlinkIssue(db, req.input, {
-        userId: actorUserId,
-        userName: req.context?.user?.name ?? null,
+        userId: actor.userId,
+        userName: actor.userName,
       });
     }),
     linkPullRequest: mutation(linkPullRequestInputSchema).handler(
       async ({ req, db }) => {
         authorize(req, { organizationId: req.input.organizationId });
 
-        const actorUserId = req.context?.session?.userId ?? null;
-        if (!actorUserId) {
-          throw new Error("UNAUTHORIZED");
-        }
+        const actor = getWorkspaceActor(req);
 
         return runLinkPullRequest(db, req.input, {
-          userId: actorUserId,
-          userName: req.context?.user?.name ?? null,
+          userId: actor.userId,
+          userName: actor.userName,
         });
       },
     ),
@@ -669,14 +599,11 @@ export default publicRoute
       async ({ req, db }) => {
         authorize(req, { organizationId: req.input.organizationId });
 
-        const actorUserId = req.context?.session?.userId ?? null;
-        if (!actorUserId) {
-          throw new Error("UNAUTHORIZED");
-        }
+        const actor = getWorkspaceActor(req);
 
         return runUnlinkPullRequest(db, req.input, {
-          userId: actorUserId,
-          userName: req.context?.user?.name ?? null,
+          userId: actor.userId,
+          userName: actor.userName,
         });
       },
     ),
@@ -684,42 +611,31 @@ export default publicRoute
       async ({ req, db }) => {
         authorize(req, { organizationId: req.input.organizationId });
 
-        const actorUserId = req.context?.session?.userId ?? null;
-        if (!actorUserId) {
-          throw new Error("UNAUTHORIZED");
-        }
+        const actor = getWorkspaceActor(req);
 
         return runMarkDuplicate(db, req.input, {
-          userId: actorUserId,
-          userName: req.context?.user?.name ?? null,
+          userId: actor.userId,
+          userName: actor.userName,
         });
       },
     ),
     archive: mutation(archiveThreadInputSchema).handler(async ({ req, db }) => {
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      getWorkspaceActor(req);
 
       return runArchiveThread(db, req.input);
     }),
     restore: mutation(restoreThreadInputSchema).handler(async ({ req, db }) => {
       authorize(req, { organizationId: req.input.organizationId });
 
-      const actorUserId = req.context?.session?.userId ?? null;
-      if (!actorUserId) {
-        throw new Error("UNAUTHORIZED");
-      }
+      getWorkspaceActor(req);
 
       return runRestoreThread(db, req.input);
     }),
     setAgentRead: mutation(setAgentReadInputSchema).handler(
       async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
 
         return runSetAgentRead(db, req.input);
       },
