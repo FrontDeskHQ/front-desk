@@ -32,7 +32,19 @@ const updateInstallationInputSchema = z
 
 export default privateRoute
   .collectionRoute(schema.integration, {
-    read: () => true,
+    read: ({ ctx }) => {
+      if (ctx?.internalApiKey) return true;
+      if (!ctx?.session) return false;
+
+      return {
+        organization: {
+          organizationUsers: {
+            userId: ctx.session.userId,
+            enabled: true,
+          },
+        },
+      };
+    },
     insert: () => false,
     update: {
       preMutation: () => false,
@@ -48,17 +60,32 @@ export default privateRoute
         authorize(req, { organizationId, role: "owner" });
 
         const now = new Date();
-        const row = await db.insert(schema.integration, {
-          id: id ?? ulid().toLowerCase(),
-          organizationId,
-          type,
-          enabled: enabled ?? false,
-          configStr: configStr ?? null,
-          createdAt: createdAt ?? now,
-          updatedAt: updatedAt ?? now,
-        });
 
-        return row;
+        return db.transaction(async ({ trx }) => {
+          const existing = Object.values(
+            await trx.find(schema.integration, {
+              where: { organizationId, type },
+            }),
+          )[0];
+
+          if (existing) {
+            return trx.update(schema.integration, existing.id, {
+              ...(enabled !== undefined ? { enabled } : {}),
+              ...(configStr !== undefined ? { configStr } : {}),
+              updatedAt: updatedAt ?? now,
+            });
+          }
+
+          return trx.insert(schema.integration, {
+            id: id ?? ulid().toLowerCase(),
+            organizationId,
+            type,
+            enabled: enabled ?? false,
+            configStr: configStr ?? null,
+            createdAt: createdAt ?? now,
+            updatedAt: updatedAt ?? now,
+          });
+        });
       },
     ),
 
@@ -108,7 +135,12 @@ export default privateRoute
         throw new Error("SLACK_INTEGRATION_NOT_CONFIGURED");
       }
 
-      const config = JSON.parse(integration.configStr);
+      let config: { teamId?: unknown };
+      try {
+        config = JSON.parse(integration.configStr);
+      } catch {
+        throw new Error("SLACK_INTEGRATION_CONFIG_INVALID");
+      }
       const teamId = config?.teamId;
 
       if (!teamId) {

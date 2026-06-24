@@ -271,7 +271,7 @@ function RouteComponent() {
                     className="ml-auto text-red-700 dark:hover:text-red-500"
                     onClick={() => {
                       mutate.integration.updateInstallation({
-                        integrationId: integration?.id,
+                        integrationId: integration.id,
                         enabled: false,
                         updatedAt: new Date(),
                       });
