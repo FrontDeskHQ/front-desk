@@ -26,7 +26,7 @@ All known callers must move to the replacement procedures. When a custom procedu
 
 - Status: in-progress
 - Active checkpoint: **LP-010b** (`onboarding.ts` + `documentation-sources.ts` next)
-- Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/303
+- Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/308 (stacked on #307 / `feat/lp-008-pipeline-lockdown`)
 - Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Route families now use `withProcedures` for custom operations. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
