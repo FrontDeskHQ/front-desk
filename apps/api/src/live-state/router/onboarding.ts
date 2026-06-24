@@ -19,49 +19,13 @@ export default privateRoute
         },
       };
     },
-    insert: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
-      postMutation: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        };
-      },
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     initialize: mutation(
       z.object({
         organizationId: z.string(),

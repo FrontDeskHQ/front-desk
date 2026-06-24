@@ -24,13 +24,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-007a** (next PR slice)
+- Active checkpoint: **LP-008** (next PR slice)
 - Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/303
 - Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied. **LP-005 complete** — org-family procedures (`updateSettings`, `updateMember`, `updateProfile`, `revoke`); builders renamed to `withProcedures` where touched; generic `organization` / `organizationUser` / `user` / `invite` `insert`/`update` denied. **LP-006 complete** — `integration.connectInstallation` / `updateInstallation`; builders renamed to `withProcedures` on `integration` and `externalEntity`; generic `integration` `insert`/`update` denied; all web + slack/discord/github callers migrated.
+**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied. **LP-005 complete** — org-family procedures (`updateSettings`, `updateMember`, `updateProfile`, `revoke`); builders renamed to `withProcedures` where touched; generic `organization` / `organizationUser` / `user` / `invite` `insert`/`update` denied. **LP-006 complete** — `integration.connectInstallation` / `updateInstallation`; builders renamed to `withProcedures` on `integration` and `externalEntity`; generic `integration` `insert`/`update` denied; all web + slack/discord/github callers migrated. **LP-007 complete** — onboarding / documentationSource / agentChat builders renamed to `withProcedures`; `documentationSource.syncCrawlProgress` for worker crawl status; `runRecordAutonomousAction` helper converges `autonomous-receipts.ts` with `autonomousAction.record`; generic writes denied on all four routes.
 
 ## Write inventory matrix
 
@@ -56,12 +56,12 @@ Legend:
 | `user` | disabled | **disabled** | `withProcedures`: `updateProfile`✓ | none | `settings/user/index.tsx` (`updateProfile`). | **No** |
 | `invite` | disabled | **disabled** | `withProcedures`: `accept`, `decline`, `revoke`✓ | `inviteUser` creates rows; `accept` also inserts `organizationUser` + `allowlist`. | `invitation.$id.tsx` (`accept`, `decline`), `onboarding/index.tsx` (`accept`), `team.tsx` (`revoke`). | **No** |
 | `integration` | disabled | disabled | `withProcedures`: `connectInstallation`✓, `updateInstallation`✓, `fetchSlackChannels`† | `apps/slack` (`installation-store`, `utils`), `apps/discord` (`utils`), `apps/github` (`setup.ts`), settings flows via web. | Settings + redirect routes for slack/discord/github, `lib/integrations/activate.ts`, `organization/index.tsx` (`fetchSlackChannels`). | **No** |
-| `onboarding` | org members + internal key | org members + internal key | `withMutations`: `initialize`, `completeStep`, `skip`, `complete` | none | `use-onboarding.ts` (all four procedures; `initialize` via `fetchClient`). | **No** |
-| `documentationSource` | internal key only | internal key only | `withMutations`: `validateDocumentationSource`†, `addDocumentationSource`, `recrawlDocumentationSource`, `deleteDocumentationSource` | `apps/worker` `crawl-documentation.ts` (generic `update` via internal key). | `settings/organization/documentation.tsx` (all custom procedures). | **No** |
+| `onboarding` | disabled | disabled | `withProcedures`: `initialize`, `completeStep`, `skip`, `complete` | none | `use-onboarding.ts` (all four procedures; `initialize` via `fetchClient`). | **No** |
+| `documentationSource` | disabled | disabled | `withProcedures`: `validateDocumentationSource`†, `addDocumentationSource`, `recrawlDocumentationSource`, `deleteDocumentationSource`, `syncCrawlProgress`✓ | `apps/worker` `crawl-documentation.ts` (`documentationSource.syncCrawlProgress` via internal key). | `settings/organization/documentation.tsx` (all custom procedures). | **No** |
 | `externalEntity` | disabled | disabled | `withProcedures`: `upsert`, `softDelete`, `syncFromGithub`† | `apps/github` `external-entity.ts` (`upsert`), `jobs/reconcile.ts` + webhooks (`softDelete`). | devtools `github-submenu.tsx` (`syncFromGithub`, dev-only). | **No** |
-| `agentChat` | disabled | disabled | `withMutations`: `create`, `sendMessage`, `acceptDraft`, `dismissDraft`, `updateDraft` | `agentChatMessage` rows written inside `sendMessage` / streaming handlers. | `support-intelligence-chat.tsx`, playground `index.tsx`. | **No** |
+| `agentChat` | disabled | disabled | `withProcedures`: `create`, `sendMessage`, `acceptDraft`, `dismissDraft`, `updateDraft` | `agentChatMessage` rows written inside `sendMessage` / streaming handlers. | `support-intelligence-chat.tsx`, playground `index.tsx`. | **No** |
 | `agentChatMessage` | disabled | disabled | none (written by `agentChat.sendMessage` / server stream) | same as above | none direct | n/a |
-| `autonomousAction` | disabled | disabled | `withProcedures`: `record`, `undo`, `seedFake`†, `clearFake`† | **API-internal** `db.autonomousAction.insert`: `signals/autonomous-receipts.ts` (bypasses `record` procedure). `apps/worker` uses `thread.executeAutonomousBundle` instead of `record` directly. | devtools `signals-submenu.tsx` (`seedFake`, `clearFake`). **No web caller for `undo` yet** despite optimistic handler. | **Partial** — `undo` handler exists, no UI caller. |
+| `autonomousAction` | disabled | disabled | `withProcedures`: `record`, `undo`, `seedFake`†, `clearFake`† | **API-internal** `runRecordAutonomousAction`: `signals/autonomous-receipts.ts` (via shared helper). `apps/worker` uses `thread.executeAutonomousBundle` instead of `record` directly. | devtools `signals-submenu.tsx` (`seedFake`, `clearFake`). **No web caller for `undo` yet** despite optimistic handler. | **Partial** — `undo` handler exists, no UI caller. |
 
 † = read/query or dev-only; not a product write path but listed for completeness.
 
@@ -83,7 +83,7 @@ These run inside the API process via `db.*` and must be accounted for when locki
 | --- | --- | --- |
 | Signal action handlers | `thread`, `message`, `author`, `threadLabel`, `update` | `apps/api/src/lib/signals/handlers/*.ts`, `activity.ts` |
 | Signal thread procedures | `thread` | `apps/api/src/lib/signals/thread-procedures.ts` (used by `thread.*` procedures) |
-| Autonomous receipts | `autonomousAction` | `apps/api/src/lib/signals/autonomous-receipts.ts` — should migrate to `autonomousAction.record` |
+| Autonomous receipts | `autonomousAction` | `apps/api/src/lib/signals/autonomous-receipts.ts` — uses `runRecordAutonomousAction` shared helper |
 | Agent chat streaming | `agentChat`, `agentChatMessage`, `message`, `author` | `apps/api/src/live-state/router/agent-chat.ts` handlers |
 | Boot migrations | `thread`, `organization`, … | `apps/api/src/live-state/migrations/files/*.ts` |
 
@@ -259,6 +259,7 @@ Procedures **already implemented** are marked ✓. Others are the LP-003–LP-00
 | --- | --- | --- | --- |
 | `initialize` / `completeStep` / `skip` / `complete` ✓ | `onboarding` | generic `onboarding.insert` / `update` | **no** — `fetchClient` |
 | `addDocumentationSource` / … ✓ | `documentationSource` | generic `update` in worker crawl | **no** |
+| `syncCrawlProgress` ✓ | `documentationSource` | worker crawl status/progress updates | **no** |
 | `create` / `sendMessage` / draft procedures ✓ | `agentChat` | — | **no** — streamed server state |
 | `record` ✓ | `autonomousAction` | `db.autonomousAction.insert` in `autonomous-receipts.ts` | **no** |
 | `undo` ✓ | `autonomousAction` | — | ✓ handler exists; wire UI or drop handler in LP-009 if still unused |
@@ -329,11 +330,11 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
-| [ ] **LP-007a** | Onboarding builder rename + lockdown | `router/onboarding.ts` — procedures already used by web via `fetchClient` / `mutate` | Generic onboarding insert/update denied |
-| [ ] **LP-007b** | Documentation source worker + rename | `router/documentation-source.ts` `withProcedures`, `worker/.../crawl-documentation.ts` | Worker uses `documentationSource.*` procedure, not generic `update` |
-| [ ] **LP-007c** | Agent chat builder rename | `router/agent-chat.ts` `withProcedures`; verify no generic writes | Builder renamed; writes remain procedure-only |
-| [ ] **LP-007d** | `autonomousAction.record` convergence | `autonomous-receipts.ts` → `record` procedure | No direct `db.autonomousAction.insert` bypass |
-| [ ] **LP-007e-lockdown** | Deny generic writes on LP-007 routes | onboarding, documentationSource, agentChat, autonomousAction | All LP-007a–d complete |
+| [x] **LP-007a** | Onboarding builder rename + lockdown | `router/onboarding.ts` — procedures already used by web via `fetchClient` / `mutate` | Generic onboarding insert/update denied |
+| [x] **LP-007b** | Documentation source worker + rename | `router/documentation-source.ts` `withProcedures`, `worker/.../crawl-documentation.ts` | Worker uses `documentationSource.syncCrawlProgress`, not generic `update` |
+| [x] **LP-007c** | Agent chat builder rename | `router/agent-chat.ts` `withProcedures`; verify no generic writes | Builder renamed; writes remain procedure-only |
+| [x] **LP-007d** | `autonomousAction.record` convergence | `autonomous-receipts.ts` → `runRecordAutonomousAction` helper | No direct `db.autonomousAction.insert` bypass outside helper + dev `seedFake` |
+| [x] **LP-007e-lockdown** | Deny generic writes on LP-007 routes | onboarding, documentationSource, agentChat, autonomousAction | All LP-007a–d complete |
 
 ### LP-008 — Cross-route lockdown audit
 
@@ -366,7 +367,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - [x] LP-004: Migrate label, thread-label, and update writes. Completion: all **LP-004\*** slices done (labels already ✓).
 - [x] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
 - [x] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
-- [ ] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
+- [x] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
 - [ ] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
 - [ ] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
 - [ ] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
@@ -403,6 +404,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005c): `user.updateProfile` — self or internal key; optional `name`, `email`, `image`. Added `withProcedures` on user route.
 - 2026-06-24 (LP-005d): `invite.revoke` — owner auth; sets `active: false`. Renamed invite builder to `withProcedures`.
 - 2026-06-24 (LP-006a–e): Added `integration.connectInstallation` / `updateInstallation` procedures in new `router/integration.ts` (owner auth via `authorize`; internal key bypass for slack/discord/github bots). Extracted integration route from `router.ts`; denied generic `insert`/`update`. Renamed `externalEntity` builder to `withProcedures`. Migrated all web integration settings/redirect/activate flows and slack `installation-store`/`utils`, discord `utils`, github `setup.ts` off generic `mutate.integration.insert` / `.update`. Intentional: no optimistic handlers (OAuth / awaited `fetchClient`).
+- 2026-06-24 (LP-007a–e): Renamed onboarding, documentationSource, agentChat builders to `withProcedures`; denied generic `insert`/`update` on all four routes. Added `documentationSource.syncCrawlProgress` + `runSyncCrawlProgress` helper (internal key only); migrated worker `crawl-documentation.ts`. Added `runRecordAutonomousAction` helper; `autonomousAction.record` procedure and `autonomous-receipts.ts` converge on shared helper. Intentional: `seedFake` dev procedure still inserts directly (dev-only fake rows with backdated `appliedAt`).
 
 ## PR Feedback
 
@@ -438,6 +440,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005a): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.organization.update(` in `apps/web`. No runtime smoke test for org profile, digest, or custom-instructions settings forms.
 - 2026-06-24 (LP-005b–e): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.(organization|organizationUser|user|invite).(update|insert)(` under `apps/web`, `apps/api`, `apps/slack`, `apps/discord`, `apps/github`. No runtime smoke test for team role/remove/revoke or user profile save.
 - 2026-06-24 (LP-006a–e): `bun run --filter api typecheck`, `bun run --filter web typecheck`, `apps/discord` and `apps/github` `bun run typecheck` pass. `apps/slack` `bunx tsc --noEmit` blocked on missing `@types/node` (pre-existing). Ripgrep: zero `mutate.integration.insert` / `mutate.integration.update` under `apps/`. Generic `integration` `insert`/`update` denied in `router/integration.ts`; `externalEntity` uses `withProcedures`. No runtime smoke test for OAuth connect flows or slack installation-store.
+- 2026-06-24 (LP-007a–e): `bun run --filter api typecheck`, `bun run --filter worker typecheck`, and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.(onboarding|documentationSource|agentChat|autonomousAction).(insert|update)` under `apps/web`, `apps/worker`, `apps/api`. Zero `withMutations` under `apps/api`. Single `db.autonomousAction.insert` bypass sites: `autonomous-action-mutations.ts` helper + dev-only `seedFake` procedure. No runtime smoke test for onboarding, documentation crawl, agent chat, or autonomous receipt flows.
 
 ## Session Log
 
@@ -472,7 +475,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005a): Added `organization.updateSettings` procedure (owner auth via `authorize`); renamed organization builder to `withProcedures`. Migrated web org profile, digest, and custom-instructions forms. Files: `router.ts`, `settings/organization/index.tsx`, `support-intelligence.tsx`.
 - 2026-06-24 (LP-005b–e): Added `organizationUser.updateMember`, `user.updateProfile`, `invite.revoke`; renamed `organizationUser` and `invite` builders to `withProcedures`; added `withProcedures` on `user`. Migrated `team.tsx` and `settings/user/index.tsx`. Denied generic writes on all four org-family routes. Files: `router.ts`, `team.tsx`, `settings/user/index.tsx`.
 - 2026-06-24 (LP-006a–e): Added `integration.connectInstallation` / `updateInstallation` in `router/integration.ts`; extracted integration route from `router.ts`; denied generic writes; renamed `externalEntity` to `withProcedures`. Migrated web slack/discord/github settings + redirects + `activate.ts`; slack `installation-store.ts`/`utils.ts`; discord `utils.ts`; github `setup.ts`.
+- 2026-06-24 (LP-007a–e): Renamed onboarding, documentation-sources, agent-chat to `withProcedures`; denied generic writes. Added `documentation-source-mutations.ts` (`syncCrawlProgress`) + worker migration. Added `autonomous-action-mutations.ts` (`runRecordAutonomousAction`); converged `autonomous-receipts.ts` and `autonomousAction.record` procedure. Files: `router/onboarding.ts`, `router/documentation-sources.ts`, `router/agent-chat.ts`, `router/autonomous-action.ts`, `lib/autonomous-action-mutations.ts`, `lib/documentation-source-mutations.ts`, `lib/signals/autonomous-receipts.ts`, `apps/worker/src/handlers/crawl-documentation.ts`.
 
 ## Handoff
 
-Next action: Ship **LP-007a** — rename onboarding route builder to `withProcedures` in `apps/api/src/live-state/router/onboarding.ts` and deny generic `onboarding.insert` / `update` (web already uses procedures via `fetchClient` / `mutate`). Ripgrep target: zero generic onboarding writes outside procedures.
+Next action: Ship **LP-008** — final generic-write audit across all product routes; verify every route denies `insert`/`update` per the LP-008 lockdown table and document remaining exceptions (`pipeline*`, `subscription`, `allowlist`, `migration`). Start with ripgrep: `insert: \(\{ ctx` / `insert: \(\) => true` / non-`false` generic mutators under `apps/api/src/live-state/router/`.

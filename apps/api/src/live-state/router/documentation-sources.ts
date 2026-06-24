@@ -2,6 +2,10 @@
 import dns from "node:dns/promises";
 import { ulid } from "ulid";
 import { z } from "zod";
+import {
+  runSyncCrawlProgress,
+  syncCrawlProgressInputSchema,
+} from "../../lib/documentation-source-mutations";
 import { reflagClient } from "../../lib/feature-flag";
 import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -161,13 +165,22 @@ export default privateRoute
         },
       };
     },
-    insert: ({ ctx }) => !!ctx?.internalApiKey,
+    insert: () => false,
     update: {
-      preMutation: ({ ctx }) => !!ctx?.internalApiKey,
-      postMutation: ({ ctx }) => !!ctx?.internalApiKey,
+      preMutation: () => false,
+      postMutation: () => false,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
+    syncCrawlProgress: mutation(syncCrawlProgressInputSchema).handler(
+      async ({ req, db }) => {
+        if (!req.context?.internalApiKey) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return runSyncCrawlProgress(db, req.input);
+      },
+    ),
     validateDocumentationSource: mutation(
       z.object({
         organizationId: z.string(),

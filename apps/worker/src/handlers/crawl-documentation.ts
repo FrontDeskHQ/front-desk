@@ -37,10 +37,20 @@ const formatError = (error: unknown): string => {
  */
 const updateSourceStatus = async (
   id: string,
-  updates: Record<string, unknown>,
+  updates: {
+    status?: "pending" | "crawling" | "completed" | "failed";
+    errorStr?: string | null;
+    pageCount?: number;
+    chunksIndexed?: number;
+    lastCrawledAt?: Date;
+    updatedAt?: Date;
+  },
 ) => {
   try {
-    await fetchClient.mutate.documentationSource.update(id, updates);
+    await fetchClient.mutate.documentationSource.syncCrawlProgress({
+      id,
+      ...updates,
+    });
   } catch (error) {
     log.error(
       "worker.crawl-documentation",
