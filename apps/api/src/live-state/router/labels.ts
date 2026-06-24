@@ -1,8 +1,10 @@
 import z from "zod";
 import { ulid } from "ulid";
 import type { ServerDB } from "@live-state/sync/server";
-import type { AuthorizationContext } from "../../lib/authorize";
-import { authorize } from "../../lib/authorize";
+import {
+  authorize,
+  getAuthorizedOrganizationIds,
+} from "../../lib/authorize";
 import { runAttachLabelToThread } from "../../lib/label-mutations";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -34,30 +36,6 @@ const insertLabel = async (
   db: LabelInsertDb,
   args: Parameters<typeof buildInsertLabelRow>[0],
 ) => db.label.insert(buildInsertLabelRow(args));
-
-type RequestWithAuthorizationContext = {
-  context?: AuthorizationContext | null;
-};
-
-const getAuthorizedOrganizationIds = (
-  req: RequestWithAuthorizationContext,
-): string[] | null => {
-  const ctx = req.context ?? {};
-
-  if (ctx.internalApiKey) {
-    return null;
-  }
-
-  if (ctx.publicApiKey) {
-    return [ctx.publicApiKey.ownerId];
-  }
-
-  if (!ctx.orgUsers?.length) {
-    return [];
-  }
-
-  return [...new Set(ctx.orgUsers.map((orgUser) => orgUser.organizationId))];
-};
 
 const findLabelForAuthorizedOrganizations = async (
   db: Pick<ServerDB<typeof schema>, "label">,

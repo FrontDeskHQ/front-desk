@@ -1,4 +1,4 @@
-import { authorize } from "../../lib/authorize";
+import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import {
   markReplicatedInputSchema,
   recordActivityInputSchema,
@@ -20,12 +20,10 @@ export default publicRoute
   .withProcedures(({ mutation }) => ({
     recordActivity: mutation(recordActivityInputSchema).handler(
       async ({ req, db }) => {
-        authorize(req, { organizationId: req.input.organizationId });
-
-        const isInternal = !!req.context?.internalApiKey;
-        if (!isInternal) {
-          throw new Error("UNAUTHORIZED");
-        }
+        authorize(req, {
+          organizationId: req.input.organizationId,
+          internalApiKeyOnly: true,
+        });
 
         return runRecordActivity(db, {
           threadId: req.input.threadId,
@@ -42,9 +40,7 @@ export default publicRoute
     ),
     markReplicated: mutation(markReplicatedInputSchema).handler(
       async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
 
         return runMarkReplicated(db, req.input);
       },

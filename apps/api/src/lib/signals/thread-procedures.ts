@@ -10,7 +10,7 @@ import {
 import { z } from "zod";
 import { schema } from "../../live-state/schema";
 import type { AuthorizeReq } from "../authorize";
-import { authorize } from "../authorize";
+import { authorize, getWorkspaceActor } from "../authorize";
 import {
   assertReadFingerprint,
   deselectedPrimaryActions,
@@ -129,21 +129,13 @@ export const runExecuteAutonomousBundle = async (
 };
 
 export const runAcceptRead = async (
-  req: AuthorizeReq & {
-    context?: {
-      session?: { userId: string };
-      user?: { name: string };
-    };
-  },
+  req: AuthorizeReq,
   db: SignalExecutionDb,
   input: z.infer<typeof acceptReadInputSchema>,
 ): Promise<ExecutionResult> => {
   authorize(req, { organizationId: input.organizationId });
 
-  const actorUserId = req.context?.session?.userId ?? null;
-  if (!actorUserId) {
-    throw new Error("UNAUTHORIZED");
-  }
+  const { userId: actorUserId, userName: actorUserName } = getWorkspaceActor(req);
 
   const thread = await loadThread(db, input.threadId, input.organizationId);
   if (!thread.agentRead) {
@@ -164,7 +156,7 @@ export const runAcceptRead = async (
     threadId: input.threadId,
     organizationId: input.organizationId,
     actorUserId,
-    actorUserName: req.context?.user?.name ?? null,
+    actorUserName,
   });
 
   const result = await executeBundle(bundle, registry, ctx);
@@ -211,21 +203,13 @@ export const runDismissRead = async (
 };
 
 export const runAcceptInlineSuggestion = async (
-  req: AuthorizeReq & {
-    context?: {
-      session?: { userId: string };
-      user?: { name: string };
-    };
-  },
+  req: AuthorizeReq,
   db: SignalExecutionDb,
   input: z.infer<typeof acceptInlineSuggestionInputSchema>,
 ): Promise<ExecutionResult> => {
   authorize(req, { organizationId: input.organizationId });
 
-  const actorUserId = req.context?.session?.userId ?? null;
-  if (!actorUserId) {
-    throw new Error("UNAUTHORIZED");
-  }
+  const { userId: actorUserId, userName: actorUserName } = getWorkspaceActor(req);
 
   const thread = await loadThread(db, input.threadId, input.organizationId);
   const suggestions = thread.inlineSuggestions ?? [];
@@ -239,7 +223,7 @@ export const runAcceptInlineSuggestion = async (
     threadId: input.threadId,
     organizationId: input.organizationId,
     actorUserId,
-    actorUserName: req.context?.user?.name ?? null,
+    actorUserName,
   });
 
   const result = await executeBundle([suggestion.action], registry, ctx);

@@ -24,8 +24,8 @@ All known callers must move to the replacement procedures. When a custom procedu
 
 ## Current State
 
-- Status: in-progress
-- Active checkpoint: **LP-010b** (`onboarding.ts` + `documentation-sources.ts` next)
+- Status: complete
+- Active checkpoint: **LP-010** done — custom route mutations project complete
 - Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/308 (stacked on #307 / `feat/lp-008-pipeline-lockdown`)
 - Last updated: 2026-06-24
 
@@ -396,8 +396,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
 | [x] **LP-010a** | Scan ad-hoc authorization | Ripgrep `apps/api/src` for inline `req.context?.session` / `internalApiKey` / `portalSession` checks, manual `orgUsers.find`, and `throw new Error("UNAUTHORIZED")` outside `authorize.ts` | Ledger lists files + patterns; each site tagged migrate / extend-util / intentional-exception |
-| [ ] **LP-010b** | Migrate live-state routers | `apps/api/src/live-state/router/**/*.ts` — **`threads.ts` ✓**, **`message.ts` ✓** (2026-06-24); remaining: `onboarding.ts`, `agent-chat.ts`, `documentation-sources.ts`, `external-entity.ts`, `router.ts` org bootstrap | Procedure/query handlers use `authorize` / `isAuthorized`; repeated patterns folded into `authorize.ts` |
-| [ ] **LP-010c** | Migrate API lib | `apps/api/src/lib/**` (signal handlers, agent-chat helpers, etc.) | Same criterion as LP-010b for non-router code paths |
+| [x] **LP-010b** | Migrate live-state routers | All router files migrated to `authorize` / shared helpers | Procedure/query handlers use `authorize` / `isAuthorized`; repeated patterns folded into `authorize.ts` |
+| [x] **LP-010c** | Migrate API lib | `apps/api/src/lib/signals/thread-procedures.ts` | `getWorkspaceActor` after `authorize`; no ad-hoc session checks |
 
 ## Checklist
 
@@ -410,7 +410,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - [x] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
 - [x] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
 - [x] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
-- [ ] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
+- [x] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
 
 ## Decisions
 
@@ -449,6 +449,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-008, user correction): **No generic mutations anywhere** — internal-key-only generic mutators are not allowed. Added `pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}` and `pipelineJob.{create,patch}`; denied generic writes on `allowlist` and `subscription`; migrated worker pipeline callers. Direct `db.*` / `storage.*` inside the API process remains fine.
 - 2026-06-24 (LP-010b partial): `authorize.ts` extended with `PortalSession` on context, `authorizeThreadCreate`, `getPortalAuthor`, `getWorkspaceActor`, `requireInternalApiKey`, `assertInternalKeyForIntegrationFields`. `threads.ts` property procedures use `getWorkspaceActor` after `authorize`; `thread.create` uses `authorizeThreadCreate`; internal-only procedures use `requireInternalApiKey`.
 - 2026-06-24 (LP-010b partial): Added `allowPortalUser`, `getCallerUserId`, `resolveHumanAuthor`, `assertIntegrationAuthor`. `message.create` uses `allowPortalUser: true` (fixes portal composer auth). `markAsAnswer` keeps org-only fallback for non-thread-authors.
+- 2026-06-24 (LP-010 complete): Extended `authorize.ts` with `internalApiKeyOnly`, `authorizeSelfOrInternal`, `authorizeWorkspaceOrgMember`, `authorizeOwnedAgentChat`, `assertInviteRecipient`, `getAuthorizedOrganizationIds`. Migrated all remaining router files + `thread-procedures.ts`. Documented intentional exceptions in **LP-010 documented exceptions**.
 
 ## PR Feedback
 
@@ -492,6 +493,17 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-009a): `bun run typecheck` (root, 10 packages) pass. Ripgrep: zero `mutate.<product>.insert(` under `apps/`; zero generic `mutate.(thread|message|author|organization|organizationUser|user|invite|integration|onboarding|documentationSource|agentChat|autonomousAction|update).update(` — only `mutate.label.update` (named `label.update` procedure). Worker uses `pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}` and `pipelineJob.{create,patch}` only. Zero `withMutations` under `apps/api`; zero `insert: ({ ctx })` in live-state router.
 - 2026-06-24 (LP-009b): Smoke test matrix documented below. No runtime UI/integration exercise this session — gaps listed per path.
 - 2026-06-24 (LP-010a): Authorization scan complete — 12 files with ad-hoc patterns tagged; zero `orgUsers.find` outside `authorize.ts`. Documented in **LP-010a scan results** section. No code changes.
+- 2026-06-24 (LP-010b–c): `bun run --filter api typecheck` pass. Ripgrep: ad-hoc `UNAUTHORIZED` / `session` / `internalApiKey` checks remain only in `authorize.ts` plus documented exceptions (`factories.ts`, `message.ts` `markAsAnswer`, `threads.ts` `setStatus` integration branch, `router.ts` `updateMember` self-guard). Zero `orgUsers.find` outside `authorize.ts`. No runtime smoke test.
+
+### LP-010 documented exceptions (post-migration)
+
+| File | Pattern | Reason |
+| --- | --- | --- |
+| `live-state/factories.ts` | `privateRoute` requires session or internal key | Route-factory gate; not procedure-level auth |
+| `live-state/router/message.ts` | `markAsAnswer` portal caller + thread-author bypass | Portal users who are not thread authors fall through to `authorize`; documented in LP-010b |
+| `live-state/router/threads.ts` | `setStatus` `internalApiKey` branch for integration activity fields | Complements `assertInternalKeyForIntegrationFields` |
+| `live-state/router.ts` | `updateMember` compares `session.userId` to target member | Self-modify guard after `authorize`; not a membership check |
+| `live-state/router/agent-chat.ts` | `create` throws `UNAUTHORIZED` when thread missing | Anti-enumeration; thread belongs to another org |
 
 ### LP-009b smoke test matrix
 
@@ -589,7 +601,8 @@ Ripgrep across `apps/api/src` for ad-hoc auth. **`authorize()` already used** in
 - 2026-06-24 (LP-009a–b): Repo-wide static verification — `bun run typecheck` pass; ripgrep confirms zero generic product-route `insert`/`update` call sites (`label.update` is named procedure). Documented LP-009b smoke test matrix with runtime gaps. Files: `docs/plans/custom-route-mutations.md` only.
 - 2026-06-24 (LP-010a): Authorization scan across `apps/api/src` — tagged ad-hoc patterns in 12 files; priority order for LP-010b documented. Files: `docs/plans/custom-route-mutations.md` only.
 - 2026-06-24 (LP-010b partial): Extended `authorize.ts` with portal/workspace helpers (`authorizeThreadCreate`, `getPortalAuthor`, `getWorkspaceActor`, `requireInternalApiKey`, `assertInternalKeyForIntegrationFields`). Migrated `live-state/router/threads.ts` off ad-hoc auth. Files: `authorize.ts`, `router/threads.ts`.
+- 2026-06-24 (LP-010b–c): Completed authorization consolidation. Extended `authorize.ts`; migrated all remaining router files + `thread-procedures.ts` + `labels.ts` org scoping helper. Files: `authorize.ts`, `router/onboarding.ts`, `router/documentation-sources.ts`, `router/agent-chat.ts`, `router/external-entity.ts`, `router.ts`, `router/update.ts`, `router/autonomous-action.ts`, `router/pipeline.ts`, `router/labels.ts`, `lib/signals/thread-procedures.ts`.
 
 ## Handoff
 
-Next action: Continue **LP-010b** — migrate `onboarding.ts` and `documentation-sources.ts` (same duplicated `internalApiKey || session` + `orgUsers` pattern). Replace with `authorize(req, { organizationId })` per procedure. Run `bun run --filter api typecheck` after changes.
+Project **complete**. All LP-001–LP-010 checklist items done. Optional follow-ups (out of scope): runtime smoke pass per LP-009b matrix; wire `autonomousAction.undo` UI or remove unused optimistic handler; open PR #308 for review/merge.

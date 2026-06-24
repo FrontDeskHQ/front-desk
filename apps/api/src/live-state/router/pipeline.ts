@@ -10,14 +10,9 @@ import {
   runUpsertIdempotencyKey,
   upsertIdempotencyKeyInputSchema,
 } from "../../lib/pipeline-mutations";
+import { requireInternalApiKey } from "../../lib/authorize";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
-
-const requireInternalApiKey = (internalApiKey: string | undefined) => {
-  if (!internalApiKey) {
-    throw new Error("UNAUTHORIZED");
-  }
-};
 
 export const pipelineRoutes = {
   pipelineIdempotencyKey: publicRoute
@@ -32,19 +27,19 @@ export const pipelineRoutes = {
     .withProcedures(({ mutation }) => ({
       upsert: mutation(upsertIdempotencyKeyInputSchema).handler(
         async ({ req, db }) => {
-          requireInternalApiKey(req.context?.internalApiKey);
+          requireInternalApiKey(req.context);
           return runUpsertIdempotencyKey(db, req.input);
         },
       ),
       invalidate: mutation(invalidateIdempotencyKeyInputSchema).handler(
         async ({ req, db }) => {
-          requireInternalApiKey(req.context?.internalApiKey);
+          requireInternalApiKey(req.context);
           return runInvalidateIdempotencyKey(db, req.input);
         },
       ),
       batchUpsert: mutation(batchUpsertIdempotencyKeysInputSchema).handler(
         async ({ req, db }) => {
-          requireInternalApiKey(req.context?.internalApiKey);
+          requireInternalApiKey(req.context);
           return runBatchUpsertIdempotencyKeys(db, req.input);
         },
       ),
@@ -61,13 +56,13 @@ export const pipelineRoutes = {
     .withProcedures(({ mutation }) => ({
       create: mutation(createPipelineJobInputSchema).handler(
         async ({ req, db }) => {
-          requireInternalApiKey(req.context?.internalApiKey);
+          requireInternalApiKey(req.context);
           return runCreatePipelineJob(db, req.input);
         },
       ),
       patch: mutation(patchPipelineJobInputSchema).handler(
         async ({ req, db }) => {
-          requireInternalApiKey(req.context?.internalApiKey);
+          requireInternalApiKey(req.context);
           return runPatchPipelineJob(db, req.input);
         },
       ),

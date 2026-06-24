@@ -24,7 +24,7 @@ export type AuthorizationContext = {
   publicApiKey?: { ownerId: string };
   orgUsers?: { organizationId: string; role: string }[];
   session?: { userId?: string } | null;
-  user?: { name?: string } | null;
+  user?: { name?: string; email?: string } | null;
   portalSession?: PortalSession | null;
 };
 
@@ -34,7 +34,7 @@ export type AuthorizeReq = {
 };
 
 export type AuthorizeOptions = {
-  organizationId: string;
+  organizationId?: string;
   role?: string;
   allowPublicApiKey?: boolean;
   /** Portal customer sessions (no org membership) may call org-scoped procedures. */
@@ -45,6 +45,8 @@ export type AuthorizeOptions = {
    * same membership rules as regular sessions even when an internal key is present.
    */
   allowInternalApiKey?: boolean;
+  /** When `true`, only {@link AuthorizationContext.internalApiKey} satisfies auth. */
+  internalApiKeyOnly?: boolean;
 };
 
 export type ThreadCreateAuthInput = {
@@ -207,10 +209,87 @@ export const assertInternalKeyForIntegrationFields = (
   }
 };
 
+export const authorizeSelfOrInternal = (
+  req: AuthorizeReq,
+  userId: string,
+): void => {
+  const ctx = req.context ?? {};
+  if (ctx.internalApiKey) {
+    return;
+  }
+
+  if (getWorkspaceUserId(ctx) === userId) {
+    return;
+  }
+
+  throw new Error("UNAUTHORIZED");
+};
+
+export const authorizeWorkspaceOrgMember = (
+  req: AuthorizeReq,
+  organizationId: string,
+): { userId: string; userName: string | null } => {
+  authorize(req, {
+    organizationId,
+    allowInternalApiKey: false,
+  });
+
+  return getWorkspaceActor(req);
+};
+
+export const authorizeOwnedAgentChat = (
+  req: AuthorizeReq,
+  chat: { organizationId: string; userId: string },
+): { userId: string; userName: string | null } => {
+  const actor = authorizeWorkspaceOrgMember(req, chat.organizationId);
+
+  if (chat.userId !== actor.userId) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  return actor;
+};
+
+export const assertInviteRecipient = (
+  req: AuthorizeReq,
+  inviteEmail: string,
+): void => {
+  const userEmail = req.context?.user?.email;
+  if (!userEmail || userEmail.toLowerCase() !== inviteEmail.toLowerCase()) {
+    throw new Error("INVALID_USER");
+  }
+
+  getWorkspaceActor(req);
+};
+
+export const getAuthorizedOrganizationIds = (
+  req: AuthorizeReq,
+): string[] | null => {
+  const ctx = req.context ?? {};
+
+  if (ctx.internalApiKey) {
+    return null;
+  }
+
+  if (ctx.publicApiKey) {
+    return [ctx.publicApiKey.ownerId];
+  }
+
+  if (!ctx.orgUsers?.length) {
+    return [];
+  }
+
+  return [...new Set(ctx.orgUsers.map((orgUser) => orgUser.organizationId))];
+};
+
 export const isAuthorized = (
   ctx: AuthorizationContext,
   opts: AuthorizeOptions,
 ): boolean => {
+  if (opts.internalApiKeyOnly) {
+    return !!ctx.internalApiKey;
+  }
+
   if (!!ctx.internalApiKey && opts.allowInternalApiKey !== false) {
     return true;
   }
@@ -226,7 +305,7 @@ export const isAuthorized = (
     return true;
   }
 
-  if (ctx.orgUsers) {
+  if (ctx.orgUsers && opts.organizationId) {
     const orgUser = ctx.orgUsers.find(
       (ou) => ou.organizationId === opts.organizationId,
     );
@@ -247,6 +326,15 @@ export const isAuthorized = (
 };
 
 export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
+  if (opts.internalApiKeyOnly) {
+    requireInternalApiKey(req.context);
+    return;
+  }
+
+  if (!opts.organizationId) {
+    throw new Error("UNAUTHORIZED");
+  }
+
   if (isAuthorized(req.context ?? {}, opts)) return;
 
   throw new Error("UNAUTHORIZED");

@@ -1,6 +1,7 @@
 // TODO refactor with new live-state mental model
 import { ulid } from "ulid";
 import { z } from "zod";
+import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import { enqueueGithubBackfill } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
@@ -84,9 +85,7 @@ export default privateRoute
      * events for the same entity don't race into duplicate rows.
      */
     upsert: mutation(externalEntityFields).handler(async ({ req, db }) => {
-      if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      requireInternalApiKey(req.context);
 
       const { organizationId, externalKey } = req.input;
       const now = new Date();
@@ -128,9 +127,7 @@ export default privateRoute
         externalKey: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      requireInternalApiKey(req.context);
 
       const { organizationId, externalKey } = req.input;
 
@@ -170,23 +167,7 @@ export default privateRoute
 
       const { organizationId } = req.input;
 
-      // Authorize: internal key, or a session user who belongs to the org.
-      let authorized = !!req.context?.internalApiKey;
-      if (!authorized && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-            },
-          }),
-        )[0];
-        authorized = !!selfOrgUser;
-      }
-      if (!authorized) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req, { organizationId });
 
       const integration = Object.values(
         await db.find(schema.integration, {
