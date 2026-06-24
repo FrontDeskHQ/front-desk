@@ -939,7 +939,8 @@ const handleUpdates = async (
       const botMessage = await (channel as TextChannel).send({
         content: updateMessage,
       });
-      await fetchClient.mutate.update.update(update.id, {
+      await fetchClient.mutate.update.markReplicated({
+        updateId: update.id,
         replicatedStr: JSON.stringify({
           ...replicated,
           discord: botMessage.id,
