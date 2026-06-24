@@ -105,8 +105,9 @@ function RouteComponent() {
                   value={orgUser.role}
                   items={roleOptions}
                   onValueChange={(value) => {
-                    mutate.organizationUser.update(orgUser.id, {
-                      role: value as string,
+                    mutate.organizationUser.updateMember({
+                      organizationUserId: orgUser.id,
+                      role: value as "owner" | "user",
                     });
                   }}
                 >
@@ -157,7 +158,8 @@ function RouteComponent() {
                         <AlertDialogAction
                           variant="destructive"
                           onClick={() => {
-                            mutate.organizationUser.update(orgUser.id, {
+                            mutate.organizationUser.updateMember({
+                              organizationUserId: orgUser.id,
                               enabled: false,
                             });
                           }}
@@ -209,9 +211,7 @@ function RouteComponent() {
                         <AlertDialogAction
                           variant="destructive"
                           onClick={() => {
-                            mutate.invite.update(invite.id, {
-                              active: false,
-                            });
+                            mutate.invite.revoke({ inviteId: invite.id });
                           }}
                         >
                           Revoke

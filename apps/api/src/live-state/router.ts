@@ -1,6 +1,7 @@
 // TODO refactor with new live-state mental model
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
+import { organizationSettingsSchema } from "@workspace/schemas/organization";
 import {
   type ActionAutonomyMap,
   actionAutonomyMapSchema,
@@ -30,6 +31,31 @@ import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
+const RESERVED_ORG_SLUGS: readonly string[] = [
+  "support",
+  "help",
+  "status",
+  "api",
+  "admin",
+  "www",
+  "app",
+  "dashboard",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "documentation",
+  "blog",
+  "about",
+  "contact",
+  "privacy",
+  "terms",
+  "legal",
+];
+
 export const router = createRouter({
   schema,
   routes: {
@@ -38,33 +64,11 @@ export const router = createRouter({
         read: () => true,
         insert: () => false,
         update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                role: "owner",
-                enabled: true,
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organizationUsers: {
-                userId: ctx.session.userId,
-                role: "owner",
-                enabled: true,
-              },
-            };
-          },
+          preMutation: () => false,
+          postMutation: () => false,
         },
       })
-      .withMutations(({ mutation }) => ({
+      .withProcedures(({ mutation }) => ({
         create: mutation(
           z.object({
             name: z.string(),
@@ -72,34 +76,7 @@ export const router = createRouter({
               .string()
               .min(4)
               .refine(
-                (slug) => {
-                  // TODO: Unify reserved slugs list - extract to shared constant
-                  const reservedSlugs = [
-                    "support",
-                    "help",
-                    "status",
-                    "api",
-                    "admin",
-                    "www",
-                    "app",
-                    "dashboard",
-                    "login",
-                    "signup",
-                    "register",
-                    "account",
-                    "settings",
-                    "billing",
-                    "docs",
-                    "documentation",
-                    "blog",
-                    "about",
-                    "contact",
-                    "privacy",
-                    "terms",
-                    "legal",
-                  ];
-                  return !reservedSlugs.includes(slug.toLowerCase());
-                },
+                (slug) => !RESERVED_ORG_SLUGS.includes(slug.toLowerCase()),
                 {
                   message: "This slug is reserved and cannot be used",
                 },
@@ -232,6 +209,78 @@ export const router = createRouter({
             } as any,
           });
         }),
+        updateSettings: mutation(
+          z
+            .object({
+              organizationId: z.string(),
+              name: z.string().optional(),
+              slug: z
+                .string()
+                .min(4)
+                .refine(
+                  (slug) => !RESERVED_ORG_SLUGS.includes(slug.toLowerCase()),
+                  {
+                    message: "This slug is reserved and cannot be used",
+                  },
+                )
+                .optional(),
+              logoUrl: z.string().nullable().optional(),
+              socials: z.string().nullable().optional(),
+              customInstructions: z.string().nullable().optional(),
+              settings: organizationSettingsSchema.optional(),
+            })
+            .refine(
+              (input) => {
+                const { organizationId: _organizationId, ...fields } = input;
+                return Object.values(fields).some(
+                  (value) => value !== undefined,
+                );
+              },
+              { message: "NO_FIELDS_TO_UPDATE" },
+            ),
+        ).handler(async ({ req, db }) => {
+          authorize(req, {
+            organizationId: req.input.organizationId,
+            role: "owner",
+          });
+
+          const org = await db.organization.one(req.input.organizationId).get();
+          if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+
+          const {
+            organizationId: _organizationId,
+            name,
+            slug,
+            logoUrl,
+            socials,
+            customInstructions,
+            settings,
+          } = req.input;
+
+          const rawSettings =
+            org.settings &&
+            typeof org.settings === "object" &&
+            !Array.isArray(org.settings)
+              ? (org.settings as Record<string, unknown>)
+              : {};
+
+          return db.organization.update(org.id, {
+            ...(name !== undefined ? { name } : {}),
+            ...(slug !== undefined ? { slug } : {}),
+            ...(logoUrl !== undefined ? { logoUrl } : {}),
+            ...(socials !== undefined ? { socials } : {}),
+            ...(customInstructions !== undefined ? { customInstructions } : {}),
+            ...(settings !== undefined
+              ? {
+                  settings: {
+                    ...rawSettings,
+                    ...settings,
+                    // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
+                  } as any,
+                }
+              : {}),
+          });
+        }),
         createPublicApiKey: mutation(
           z.object({
             organizationId: z.string(),
@@ -360,37 +409,11 @@ export const router = createRouter({
         read: () => true,
         insert: () => false,
         update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                  role: "owner",
-                },
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                  role: "owner",
-                },
-              },
-            };
-          },
+          preMutation: () => false,
+          postMutation: () => false,
         },
       })
-      .withMutations(({ mutation }) => ({
+      .withProcedures(({ mutation }) => ({
         inviteUser: mutation(
           z.object({
             organizationId: z.string(),
@@ -488,29 +511,98 @@ export const router = createRouter({
             success: true,
           };
         }),
+        updateMember: mutation(
+          z
+            .object({
+              organizationUserId: z.string(),
+              role: z.enum(["owner", "user"]).optional(),
+              enabled: z.boolean().optional(),
+            })
+            .refine(
+              (input) => {
+                const { organizationUserId: _organizationUserId, ...fields } =
+                  input;
+                return Object.values(fields).some(
+                  (value) => value !== undefined,
+                );
+              },
+              { message: "NO_FIELDS_TO_UPDATE" },
+            ),
+        ).handler(async ({ req, db }) => {
+          const member = await db.organizationUser
+            .one(req.input.organizationUserId)
+            .get();
+          if (!member) throw new Error("ORGANIZATION_USER_NOT_FOUND");
+
+          authorize(req, {
+            organizationId: member.organizationId,
+            role: "owner",
+          });
+
+          if (
+            member.userId === req.context?.session?.userId &&
+            (req.input.enabled === false ||
+              (req.input.role !== undefined && req.input.role !== member.role))
+          ) {
+            throw new Error("CANNOT_UPDATE_SELF");
+          }
+
+          const { organizationUserId: _organizationUserId, role, enabled } =
+            req.input;
+
+          return db.organizationUser.update(member.id, {
+            ...(role !== undefined ? { role } : {}),
+            ...(enabled !== undefined ? { enabled } : {}),
+          });
+        }),
       })),
-    user: publicRoute.collectionRoute(schema.user, {
-      read: () => true,
-      insert: () => false,
-      update: {
-        preMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            id: ctx.session.userId,
-          };
+    user: publicRoute
+      .collectionRoute(schema.user, {
+        read: () => true,
+        insert: () => false,
+        update: {
+          preMutation: () => false,
+          postMutation: () => false,
         },
-        postMutation: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
+      })
+      .withProcedures(({ mutation }) => ({
+        updateProfile: mutation(
+          z
+            .object({
+              userId: z.string(),
+              name: z.string().optional(),
+              email: z.string().optional(),
+              image: z.string().nullable().optional(),
+            })
+            .refine(
+              (input) => {
+                const { userId: _userId, ...fields } = input;
+                return Object.values(fields).some(
+                  (value) => value !== undefined,
+                );
+              },
+              { message: "NO_FIELDS_TO_UPDATE" },
+            ),
+        ).handler(async ({ req, db }) => {
+          const isSelf = req.context?.session?.userId === req.input.userId;
+          const isInternal = !!req.context?.internalApiKey;
 
-          return {
-            id: ctx.session.userId,
-          };
-        },
-      },
-    }),
+          if (!isSelf && !isInternal) {
+            throw new Error("UNAUTHORIZED");
+          }
+
+          const existing = await db.user.one(req.input.userId).get();
+          if (!existing) throw new Error("USER_NOT_FOUND");
+
+          const { userId: _userId, name, email, image } = req.input;
+
+          return db.user.update(existing.id, {
+            ...(name !== undefined ? { name } : {}),
+            ...(email !== undefined ? { email } : {}),
+            ...(image !== undefined ? { image } : {}),
+          });
+        }),
+      })),
     author: publicRoute.collectionRoute(schema.author, {
       read: () => true,
       insert: () => false,
@@ -543,35 +635,11 @@ export const router = createRouter({
         },
         insert: () => false,
         update: {
-          preMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                },
-              },
-            };
-          },
-          postMutation: ({ ctx }) => {
-            if (ctx?.internalApiKey) return true;
-            if (!ctx?.session) return false;
-
-            return {
-              organization: {
-                organizationUsers: {
-                  userId: ctx.session.userId,
-                  enabled: true,
-                },
-              },
-            };
-          },
+          preMutation: () => false,
+          postMutation: () => false,
         },
       })
-      .withMutations(({ mutation }) => ({
+      .withProcedures(({ mutation }) => ({
         accept: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
             await db.transaction(async ({ trx }) => {
@@ -633,6 +701,19 @@ export const router = createRouter({
             return {
               success: true,
             };
+          },
+        ),
+        revoke: mutation(z.object({ inviteId: z.string() })).handler(
+          async ({ req, db }) => {
+            const invite = await db.invite.one(req.input.inviteId).get();
+            if (!invite) throw new Error("INVITATION_NOT_FOUND");
+
+            authorize(req, {
+              organizationId: invite.organizationId,
+              role: "owner",
+            });
+
+            return db.invite.update(invite.id, { active: false });
           },
         ),
       })),

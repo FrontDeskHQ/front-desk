@@ -63,7 +63,8 @@ function RouteComponent() {
         imageUrl = await uploadFile({ data: formData });
       }
 
-      mutate.user.update(user.id, {
+      mutate.user.updateProfile({
+        userId: user.id,
         name: value.userName,
         email: value.userEmail,
         image: imageUrl,
