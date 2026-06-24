@@ -25,7 +25,7 @@ All known callers must move to the replacement procedures. When a custom procedu
 
 - Status: in-progress
 - Active checkpoint: **LP-005a** (next PR slice)
-- Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/300
+- Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/303
 - Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
