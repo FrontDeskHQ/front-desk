@@ -24,13 +24,13 @@ All known callers must move to the replacement procedures. When a custom procedu
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-004e-lockdown** (next PR slice)
+- Active checkpoint: **LP-005a** (next PR slice)
 - Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/300
-- Last updated: 2026-06-23
+- Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Several families already expose custom procedures but still use `withMutations` instead of `withProcedures`; `thread`, `message`, `label`, and `autonomousAction` already use `withProcedures`. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004a** shipped: `update.recordActivity` + `runRecordActivity` helper; all API-internal timeline inserts funnel through the helper.
+**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied.
 
 ## Write inventory matrix
 
@@ -48,7 +48,7 @@ Legend:
 | `thread` | **disabled** | **disabled** | `withProcedures`: `create`, `setStatus`✓, `setPriority`✓, `assignUser`✓, `linkIssue`✓, `unlinkIssue`✓, `linkPullRequest`✓, `unlinkPullRequest`✓, `markDuplicate`✓, `archive`✓, `restore`✓, `setAgentRead`✓, `list`†, … | none (slack/discord/github/worker migrated) | Devtools + web procedures only | **Partial** — optimistic for … `markDuplicate`, `archive`. **Intentional gap:** `create` (all callers use awaited `fetchClient`); `restore` (navigates away immediately). **Missing** for `createGithubIssue`. |
 | `message` | **disabled** | **disabled** | `withProcedures`: `create`, `markAsAnswer`, `setExternalMessageId`✓, `search`† | slack/discord outbound sync via `message.setExternalMessageId`. **API-internal** `db.message.insert`: signal handler `reply.ts`, `agent-chat` `acceptDraft`. | `reply-editor.tsx` (`create`), portal `support/$slug/threads/$id.tsx` (`create`, `markAsAnswer`), `search/index.tsx` (`search`), `thread-reply.tsx` (`markAsAnswer`). Devtools duplicate uses `thread.create` (includes first message). | **Partial** — `create`, `markAsAnswer` yes. |
 | `author` | **disabled** | **disabled** | none | Created inside `thread.create`, `message.create`, `agent-chat` `acceptDraft`, signal `reply.ts`. | none direct (devtools author rows created inside `thread.create`). | **No** (author rows optimistically created only as side effect of `message.create`). |
-| `update` | yes (org member session) | yes (org member + internal key) | `withProcedures`: `recordActivity`✓, `markReplicated`✓ | **Generic** `insert`: `apps/github` webhooks (`store.mutate`). **API-internal** timeline writes use `runRecordActivity` in `update-mutations.ts` (thread procedures, signal handlers, `createGithubIssue`, `autonomousAction.undo`). | Paired with almost every `thread.update` in `actions/threads.ts`, `properties.tsx`, `quick-actions.tsx`, `issues.tsx`, `pull-requests.tsx`. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
+| `update` | **disabled** | **disabled** | `withProcedures`: `recordActivity`✓, `markReplicated`✓ | **API-internal** timeline writes use `runRecordActivity` in `update-mutations.ts` (thread procedures, signal handlers, `createGithubIssue`, `autonomousAction.undo`). Slack/Discord replication via `update.markReplicated`. | No direct web callers — timeline rows created inside thread procedures' optimistic handlers. | **No** (except side effects inside `autonomousAction.undo` optimistic). |
 | `label` | disabled | disabled | `withProcedures`: `create`, `update`, `createAndAttachToThread`, `attachToThread`, `detachFromThread` | **API-internal** `db.label` / `db.threadLabel`: signal handler `apply-label.ts`, `autonomous-action` `undo`. | `labels.tsx` (thread UI), `labels.tsx` (settings), `quick-actions.tsx` (`attachToThread`). | **Yes** — all five procedures. |
 | `threadLabel` | disabled | disabled | none (writes only via `label.*` procedures) | **API-internal**: `apply-label.ts`, `autonomous-action` `undo`. | none direct | n/a |
 | `organization` | disabled | owner or internal key | `withMutations`: `create`, `setActionAutonomy`, `createPublicApiKey`, `revokePublicApiKey`, `listApiKeys`† | Boot migration `002_seed_autonomy_settings.ts` (`db.organization.update`). `organization.create` also inserts `subscription` + `organizationUser` server-side. | `onboarding/connect.tsx` (`create`), settings `index.tsx` + `support-intelligence.tsx` (generic `update`, `setActionAutonomy`), `api-keys.tsx` (key procedures). | **No** |
@@ -303,7 +303,7 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 | [x] **LP-004b** | Slack `update.update` | `apps/slack/src/index.ts` `fetchClient.mutate.update.update` → `update.markReplicated` | Slack has no generic `update.update` |
 | [x] **LP-004c** | Discord `update.update` | `apps/discord/src/index.ts` | Discord has no generic `update.update` |
 | [x] **LP-004d** | `apply-label` handler convergence | `apply-label.ts` → shared label attach helper | Handler reuses `label.attachToThread` logic |
-| [ ] **LP-004e-lockdown** | Deny generic `update` writes | `router/update.ts` | Product + integration callers migrated; github webhook timeline covered |
+| [x] **LP-004e-lockdown** | Deny generic `update` writes | `router/update.ts` | Product + integration callers migrated; github webhook timeline covered |
 
 ### LP-005 — `organization`, `organizationUser`, `user`, `invite`
 
@@ -363,7 +363,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - [x] LP-001: Inventory all API route write capabilities and repository call sites. Completion: ledger contains a route-by-route matrix of generic writes, custom procedures, all call-site usage, web usage, and web optimistic mutation status.
 - [x] LP-002: Define the target procedure contract. Completion: documented conventions for naming, input schemas, authorization, return values, optimistic handlers, and whether generic writes stay available for internal-only routes.
 - [x] LP-003: Migrate thread and message writes. Completion: all **LP-003a–o** slices done (including lockdown and hooks migration).
-- [ ] LP-004: Migrate label, thread-label, and update writes. Completion: all **LP-004\*** slices done (labels already ✓).
+- [x] LP-004: Migrate label, thread-label, and update writes. Completion: all **LP-004\*** slices done (labels already ✓).
 - [ ] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
 - [ ] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
 - [ ] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
@@ -429,6 +429,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-23 (LP-004b): `bun run --filter api typecheck` pass. Ripgrep: `apps/slack` has zero `mutate.update.update` / `mutate.update.insert`. No runtime Slack timeline replication smoke test.
 - 2026-06-23 (LP-004c): `bun run --filter api typecheck` and `bun run --filter discord typecheck` pass. Ripgrep: `apps/discord` has zero `mutate.update.update` / `mutate.update.insert`. No runtime Discord timeline replication smoke test.
 - 2026-06-23 (LP-004d): `bun run --filter api typecheck` pass. Ripgrep: `apply-label.ts` has no `threadLabel.insert` / direct label lookup — only `runAttachLabelToThread` + compensate `threadLabel.update`. No runtime inline-suggestion label apply smoke test.
+- 2026-06-24 (LP-004e): `bun run --filter api typecheck` pass. Ripgrep: zero `mutate.update.insert` / `mutate.update.update` under `apps/web`, `apps/slack`, `apps/discord`, `apps/github`; slack/discord use `update.markReplicated` only. No runtime smoke test.
 
 ## Session Log
 
@@ -457,8 +458,10 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-23 (LP-004a): Added `update.recordActivity` procedure and `runRecordActivity` helper; migrated all API-internal timeline inserts. Files: `update-mutations.ts`, `router/update.ts`, `signals/activity.ts`, `thread-mutations.ts`, `router/threads.ts`, `router/autonomous-action.ts`.
 - 2026-06-23 (LP-004b): Added `update.markReplicated` procedure; migrated Slack `handleUpdates` off generic `update.update`. Files: `update-mutations.ts`, `router/update.ts`, `apps/slack/src/index.ts`.
 - 2026-06-23 (LP-004c): Migrated Discord `handleUpdates` off generic `update.update` to `update.markReplicated`. Files: `apps/discord/src/index.ts`.
+- 2026-06-24 (LP-004e): Denied generic `insert`/`update` on `update` collection route; product callers already on thread procedures or `markReplicated`; internal timeline writes use `runRecordActivity` only.
 - 2026-06-23 (LP-004d): Extracted `runAttachLabelToThread` in `label-mutations.ts`; `label.attachToThread` procedure and `apply-label` signal handler delegate to shared helper (transaction + race handling). Added `transaction` to `SignalExecutionDb`.
+- 2026-06-24 (LP-004e): Denied generic `insert`/`update` on `router/update.ts` (`insert: () => false`, `update.preMutation/postMutation: () => false`). Confirmed no remaining product/integration generic callers — GitHub webhooks use `thread.setStatus`; slack/discord use `update.markReplicated`. Files: `router/update.ts`.
 
 ## Handoff
 
-Next action: Ship **LP-004e-lockdown** — deny generic `insert`/`update` on `router/update.ts` collection route (`insert`/`update` pre/post → `false` or deny-by-default). Before locking: ripgrep repo for remaining `mutate.update.insert` / `mutate.update.update` product callers (GitHub webhook `store.mutate` timeline inserts may still need `recordActivity` or thread procedures — see matrix). Confirm slack/discord replication already on `markReplicated`; web `update.insert` pairs should already be gone via thread procedures.
+Next action: Ship **LP-005a** — add `organization.updateSettings` procedure in `apps/api/src/live-state/router/organization.ts` (rename builder to `withProcedures` in same PR), migrate `apps/web` settings pages off generic `mutate.organization.update` (`settings/organization/index.tsx`, `support-intelligence.tsx`). Ripgrep target: zero `mutate.organization.update` in `apps/web`.
