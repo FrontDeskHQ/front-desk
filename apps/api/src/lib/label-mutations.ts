@@ -29,14 +29,33 @@ export const runAttachLabelToThread = async (
 ) => {
   const thread =
     options?.preloadedThread ??
-    (await db.thread.one(input.threadId).get());
-  if (!thread || thread.organizationId !== input.organizationId) {
+    (await db.thread
+      .first({
+        id: input.threadId,
+        organizationId: input.organizationId,
+      })
+      .get());
+  if (
+    !thread ||
+    thread.id !== input.threadId ||
+    thread.organizationId !== input.organizationId
+  ) {
     throw new Error("THREAD_NOT_FOUND");
   }
 
   const label =
-    options?.preloadedLabel ?? (await db.label.one(input.labelId).get());
-  if (!label || label.organizationId !== input.organizationId) {
+    options?.preloadedLabel ??
+    (await db.label
+      .first({
+        id: input.labelId,
+        organizationId: input.organizationId,
+      })
+      .get());
+  if (
+    !label ||
+    label.id !== input.labelId ||
+    label.organizationId !== input.organizationId
+  ) {
     throw new Error("LABEL_NOT_FOUND");
   }
 

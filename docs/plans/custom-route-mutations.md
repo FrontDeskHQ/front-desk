@@ -461,4 +461,4 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 
 ## Handoff
 
-Next action: Ship **LP-004e-lockdown** — deny generic `insert`/`update` on `router/update.ts` collection route (`insert`/`update` pre/post → `false` or deny-by-default). Before locking: ripgrep repo for remaining `mutate.update.insert` / `mutate.update.update` product callers (github webhook `store.mutate` timeline inserts may still need `recordActivity` or thread procedures — see matrix). Confirm slack/discord replication already on `markReplicated`; web `update.insert` pairs should already be gone via thread procedures.
+Next action: Ship **LP-004e-lockdown** — deny generic `insert`/`update` on `router/update.ts` collection route (`insert`/`update` pre/post → `false` or deny-by-default). Before locking: ripgrep repo for remaining `mutate.update.insert` / `mutate.update.update` product callers (GitHub webhook `store.mutate` timeline inserts may still need `recordActivity` or thread procedures — see matrix). Confirm slack/discord replication already on `markReplicated`; web `update.insert` pairs should already be gone via thread procedures.
