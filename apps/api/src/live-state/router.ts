@@ -31,6 +31,31 @@ import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
+const RESERVED_ORG_SLUGS: readonly string[] = [
+  "support",
+  "help",
+  "status",
+  "api",
+  "admin",
+  "www",
+  "app",
+  "dashboard",
+  "login",
+  "signup",
+  "register",
+  "account",
+  "settings",
+  "billing",
+  "docs",
+  "documentation",
+  "blog",
+  "about",
+  "contact",
+  "privacy",
+  "terms",
+  "legal",
+];
+
 export const router = createRouter({
   schema,
   routes: {
@@ -51,34 +76,7 @@ export const router = createRouter({
               .string()
               .min(4)
               .refine(
-                (slug) => {
-                  // TODO: Unify reserved slugs list - extract to shared constant
-                  const reservedSlugs = [
-                    "support",
-                    "help",
-                    "status",
-                    "api",
-                    "admin",
-                    "www",
-                    "app",
-                    "dashboard",
-                    "login",
-                    "signup",
-                    "register",
-                    "account",
-                    "settings",
-                    "billing",
-                    "docs",
-                    "documentation",
-                    "blog",
-                    "about",
-                    "contact",
-                    "privacy",
-                    "terms",
-                    "legal",
-                  ];
-                  return !reservedSlugs.includes(slug.toLowerCase());
-                },
+                (slug) => !RESERVED_ORG_SLUGS.includes(slug.toLowerCase()),
                 {
                   message: "This slug is reserved and cannot be used",
                 },
@@ -220,33 +218,7 @@ export const router = createRouter({
                 .string()
                 .min(4)
                 .refine(
-                  (slug) => {
-                    const reservedSlugs = [
-                      "support",
-                      "help",
-                      "status",
-                      "api",
-                      "admin",
-                      "www",
-                      "app",
-                      "dashboard",
-                      "login",
-                      "signup",
-                      "register",
-                      "account",
-                      "settings",
-                      "billing",
-                      "docs",
-                      "documentation",
-                      "blog",
-                      "about",
-                      "contact",
-                      "privacy",
-                      "terms",
-                      "legal",
-                    ];
-                    return !reservedSlugs.includes(slug.toLowerCase());
-                  },
+                  (slug) => !RESERVED_ORG_SLUGS.includes(slug.toLowerCase()),
                   {
                     message: "This slug is reserved and cannot be used",
                   },
@@ -285,13 +257,28 @@ export const router = createRouter({
             settings,
           } = req.input;
 
+          const rawSettings =
+            org.settings &&
+            typeof org.settings === "object" &&
+            !Array.isArray(org.settings)
+              ? (org.settings as Record<string, unknown>)
+              : {};
+
           return db.organization.update(org.id, {
             ...(name !== undefined ? { name } : {}),
             ...(slug !== undefined ? { slug } : {}),
             ...(logoUrl !== undefined ? { logoUrl } : {}),
             ...(socials !== undefined ? { socials } : {}),
             ...(customInstructions !== undefined ? { customInstructions } : {}),
-            ...(settings !== undefined ? { settings } : {}),
+            ...(settings !== undefined
+              ? {
+                  settings: {
+                    ...rawSettings,
+                    ...settings,
+                    // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
+                  } as any,
+                }
+              : {}),
           });
         }),
         createPublicApiKey: mutation(
