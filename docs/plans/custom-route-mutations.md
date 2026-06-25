@@ -20,17 +20,18 @@ All known callers must move to the replacement procedures. When a custom procedu
 - Bundle `withMutations` → `withProcedures` renames with the first slice that touches that route file.
 - **`withHooks` is deprecated** — do not add new `.withHooks(...)` on routes. Declare hooks with **`defineHooks<typeof schema>({ … })`** in `apps/api/src/live-state/hooks.ts` (or a focused module) and pass the result to **`server({ hooks, … })`** in `apps/api/src/index.ts`. Use `mergeHooks` when combining hook slices.
 - **Do not use ad-hoc authorization** in procedure handlers, queries, or lib code. Use **`authorize`** / **`isAuthorized`** from `apps/api/src/lib/authorize.ts`. When a flow does not fit (portal userId match, thread-author bypass, integration-only fields, etc.), **extend `authorize.ts`** — new options, helpers, or context fields — instead of inlining `req.context?.session` / `internalApiKey` checks. Bundle `authorize.ts` changes with the slice that needs them.
+- **No generic collection mutations anywhere** — every route must deny generic `insert`/`update`, including internal-key-only tables. Worker/integration callers use named procedures; API-process side effects use `db.*` / `storage.*` directly. Never leave `insert: ({ ctx }) => !!ctx?.internalApiKey` (or equivalent) on a collection route.
 
 ## Current State
 
 - Status: in-progress
-- Active checkpoint: **LP-008** (next PR slice)
+- Active checkpoint: **LP-009a** (next PR slice)
 - Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/303
 - Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Route families now use `withProcedures` for custom operations. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
 
-**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied. **LP-005 complete** — org-family procedures (`updateSettings`, `updateMember`, `updateProfile`, `revoke`); builders renamed to `withProcedures` where touched; generic `organization` / `organizationUser` / `user` / `invite` `insert`/`update` denied. **LP-006 complete** — `integration.connectInstallation` / `updateInstallation`; builders renamed to `withProcedures` on `integration` and `externalEntity`; generic `integration` `insert`/`update` denied; all web + slack/discord/github callers migrated. **LP-007 complete** — onboarding / documentationSource / agentChat builders renamed to `withProcedures`; `documentationSource.syncCrawlProgress` for worker crawl status; `runRecordAutonomousAction` helper converges `autonomous-receipts.ts` with `autonomousAction.record`; generic writes denied on all four routes.
+**LP-003 complete** (including **LP-003o** hooks migration). Generic `thread` / `message` / `author` `insert`/`update` denied. Lifecycle hooks live in `live-state/hooks.ts` via `defineHooks` + `server({ hooks })`. **LP-004 complete** — `update.recordActivity` + `runRecordActivity` helper; slack/discord on `update.markReplicated`; generic `update` `insert`/`update` denied. **LP-005 complete** — org-family procedures (`updateSettings`, `updateMember`, `updateProfile`, `revoke`); builders renamed to `withProcedures` where touched; generic `organization` / `organizationUser` / `user` / `invite` `insert`/`update` denied. **LP-006 complete** — `integration.connectInstallation` / `updateInstallation`; builders renamed to `withProcedures` on `integration` and `externalEntity`; generic `integration` `insert`/`update` denied; all web + slack/discord/github callers migrated. **LP-007 complete** — onboarding / documentationSource / agentChat builders renamed to `withProcedures`; `documentationSource.syncCrawlProgress` for worker crawl status; `runRecordAutonomousAction` helper converges `autonomous-receipts.ts` with `autonomousAction.record`; generic writes denied on all four routes. **LP-008 complete** — all routes deny generic `insert`/`update` (zero `insert: ({ ctx })` in router). Worker pipeline writes use `pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}` and `pipelineJob.{create,patch}`; `allowlist` / `subscription` writes are API-internal `db.*` / `storage.*` only.
 
 ## Write inventory matrix
 
@@ -65,15 +66,15 @@ Legend:
 
 † = read/query or dev-only; not a product write path but listed for completeness.
 
-### Internal-only routes (documented exceptions — keep generic or direct DB)
+### Internal-only routes (procedures or direct DB — no generic mutations)
 
-| Route | Generic insert | Generic update | Call sites | Notes |
+| Route | Generic insert | Generic update | Write path | Notes |
 | --- | --- | --- | --- | --- |
-| `pipelineIdempotencyKey` | internal key | internal key | `apps/worker` `pipeline/core/idempotency.ts` | Worker bookkeeping |
-| `pipelineJob` | internal key | internal key | `apps/worker` `pipeline/core/persistence.ts` | Worker bookkeeping |
-| `allowlist` | internal key | internal key | `invite.accept` procedure (`db.insert`) | Side effect of invite flow |
-| `subscription` | disabled | internal key | `organization.create`; `apps/api/src/index.ts` Dodo webhook (`storage.update` direct) | Billing webhook bypasses Live-State client |
-| `migration` | disabled | disabled | `apps/api/src/live-state/migrations/index.ts` | Boot-time runner only |
+| `pipelineIdempotencyKey` | disabled | disabled | `upsert`, `invalidate`, `batchUpsert` (internal key) | `apps/worker` `pipeline/core/idempotency.ts` |
+| `pipelineJob` | disabled | disabled | `create`, `patch` (internal key) | `apps/worker` `pipeline/core/persistence.ts` |
+| `allowlist` | disabled | disabled | `db.insert` inside `invite.accept` only | No Live-State client callers |
+| `subscription` | disabled | disabled | `db.insert` in `organization.create`; `storage.update` in Dodo webhook | Billing webhook bypasses Live-State client |
+| `migration` | disabled | disabled | `trx.migration.insert` in boot runner | `apps/api/src/live-state/migrations/index.ts` |
 
 ### API-internal writes (not Live-State client mutations)
 
@@ -191,11 +192,50 @@ Add a handler in `apps/web/src/lib/live-state.ts` when **all** of the following 
 
 | Category | Routes | Generic `insert` / `update` after LP-008 |
 | --- | --- | --- |
-| **Product — disabled** | `thread`, `message`, `update`, `author`, `organization`, `organizationUser`, `user`, `invite`, `integration`, `onboarding`, `documentationSource`, `label`, `threadLabel`, `externalEntity`, `agentChat`, `agentChatMessage`, `autonomousAction` | `false` / deny; all writes via procedures |
-| **Internal-only — keep restricted** | `pipelineIdempotencyKey`, `pipelineJob` | internal API key only |
-| **Internal-only — side effects** | `allowlist` | internal key; rows created inside `invite.accept` |
-| **Internal-only — billing** | `subscription` | internal key; Dodo webhook may keep direct `storage.update` (documented exception) |
-| **Boot-only** | `migration` | disabled; migrations runner only |
+| **All routes — disabled** | Every collection in `schema` | `false` / deny on every route; no internal-key generic mutators |
+| **Product writes** | `thread`, `message`, … (17 product routes) | Named procedures only |
+| **Worker pipeline** | `pipelineIdempotencyKey`, `pipelineJob` | `upsert` / `invalidate` / `batchUpsert`; `create` / `patch` (internal key) |
+| **API-internal DB** | `allowlist`, `subscription` | `db.*` / `storage.*` inside API process only |
+| **Boot-only** | `migration` | `trx.migration.insert` in migrations runner only |
+
+### LP-008 audit results (2026-06-24)
+
+Route-by-route generic mutator permissions in `apps/api/src/live-state/router*.ts` (verified by ripgrep + file read):
+
+| Route | `insert` | `update` | Route file |
+| --- | --- | --- | --- |
+| `thread` | `false` | denied | `router/threads.ts` |
+| `message` | `false` | denied | `router/message.ts` |
+| `author` | `false` | denied | `router.ts` |
+| `update` | `false` | denied | `router/update.ts` |
+| `label` | `false` | denied | `router/labels.ts` |
+| `threadLabel` | `false` | denied | `router/labels.ts` |
+| `organization` | `false` | denied | `router.ts` |
+| `organizationUser` | `false` | denied | `router.ts` |
+| `user` | `false` | denied | `router.ts` |
+| `invite` | `false` | denied | `router.ts` |
+| `integration` | `false` | denied | `router/integration.ts` |
+| `externalEntity` | `false` | denied | `router/external-entity.ts` |
+| `onboarding` | `false` | denied | `router/onboarding.ts` |
+| `documentationSource` | `false` | denied | `router/documentation-sources.ts` |
+| `agentChat` | `false` | denied | `router/agent-chat.ts` |
+| `agentChatMessage` | `false` | denied | `router/agent-chat.ts` |
+| `autonomousAction` | `false` | denied | `router/autonomous-action.ts` |
+| `allowlist` | `false` | denied | `router.ts` |
+| `subscription` | `false` | denied | `router.ts` |
+| `pipelineIdempotencyKey` | `false` | denied | `router/pipeline.ts` |
+| `pipelineJob` | `false` | denied | `router/pipeline.ts` |
+| `migration` | `false` | denied | `router.ts` |
+
+**Direct DB exceptions (not Live-State generic mutations):**
+
+| Route | Mechanism | Call sites |
+| --- | --- | --- |
+| `allowlist` | `db.insert` inside `invite.accept` | `router.ts` |
+| `subscription` | `db.insert` in `organization.create`; `storage.update` in Dodo webhook | `router.ts`, `apps/api/src/index.ts` (4 webhook sites) |
+| `migration` | `trx.migration.insert` in boot runner | `migrations/index.ts` |
+
+**Repo-wide client scan (`apps/`):** zero `mutate.<resource>.(insert|update)(` call sites (ripgrep). All writes are named procedures or API-internal `db.*`. Zero `withMutations` under `apps/api`. Zero `insert: ({ ctx })` in `apps/api/src/live-state`.
 
 ### Planned procedure catalog (by migration slice)
 
@@ -340,7 +380,7 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
-| [ ] **LP-008** | Final generic-write audit | Verify every product route denies insert/update; document `pipeline*`, `subscription`, `allowlist`, `migration` exceptions | LP-003n, 004e, 005e, 006e, 007e all done; matrix matches reality |
+| [x] **LP-008** | Final generic-write audit | Verify every product route denies insert/update; document `pipeline*`, `subscription`, `allowlist`, `migration` exceptions | LP-003n, 004e, 005e, 006e, 007e all done; matrix matches reality |
 
 ### LP-009 — End-to-end verification
 
@@ -368,7 +408,7 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - [x] LP-005: Migrate organization, organization-user, invite, and user writes. Completion: all **LP-005a–e** slices done.
 - [x] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
 - [x] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
-- [ ] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
+- [x] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
 - [ ] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
 - [ ] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
 
@@ -405,6 +445,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005d): `invite.revoke` — owner auth; sets `active: false`. Renamed invite builder to `withProcedures`.
 - 2026-06-24 (LP-006a–e): Added `integration.connectInstallation` / `updateInstallation` procedures in new `router/integration.ts` (owner auth via `authorize`; internal key bypass for slack/discord/github bots). Extracted integration route from `router.ts`; denied generic `insert`/`update`. Renamed `externalEntity` builder to `withProcedures`. Migrated all web integration settings/redirect/activate flows and slack `installation-store`/`utils`, discord `utils`, github `setup.ts` off generic `mutate.integration.insert` / `.update`. Intentional: no optimistic handlers (OAuth / awaited `fetchClient`).
 - 2026-06-24 (LP-007a–e): Renamed onboarding, documentationSource, agentChat builders to `withProcedures`; denied generic `insert`/`update` on all four routes. Added `documentationSource.syncCrawlProgress` + `runSyncCrawlProgress` helper (internal key only); migrated worker `crawl-documentation.ts`. Added `runRecordAutonomousAction` helper; `autonomousAction.record` procedure and `autonomous-receipts.ts` converge on shared helper. Intentional: `seedFake` dev procedure still inserts directly (dev-only fake rows with backdated `appliedAt`).
+- 2026-06-24 (LP-008): Cross-route lockdown audit — all 17 product routes deny generic `insert`/`update`; four internal exception families documented with call sites. No code changes required; prior lockdown slices (003n, 004e, 005e, 006e, 007e) sufficient.
+- 2026-06-24 (LP-008, user correction): **No generic mutations anywhere** — internal-key-only generic mutators are not allowed. Added `pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}` and `pipelineJob.{create,patch}`; denied generic writes on `allowlist` and `subscription`; migrated worker pipeline callers. Direct `db.*` / `storage.*` inside the API process remains fine.
 
 ## PR Feedback
 
@@ -441,6 +483,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005b–e): `bun run --filter api typecheck` and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.(organization|organizationUser|user|invite).(update|insert)(` under `apps/web`, `apps/api`, `apps/slack`, `apps/discord`, `apps/github`. No runtime smoke test for team role/remove/revoke or user profile save.
 - 2026-06-24 (LP-006a–e): `bun run --filter api typecheck`, `bun run --filter web typecheck`, `apps/discord` and `apps/github` `bun run typecheck` pass. `apps/slack` `bunx tsc --noEmit` blocked on missing `@types/node` (pre-existing). Ripgrep: zero `mutate.integration.insert` / `mutate.integration.update` under `apps/`. Generic `integration` `insert`/`update` denied in `router/integration.ts`; `externalEntity` uses `withProcedures`. No runtime smoke test for OAuth connect flows or slack installation-store.
 - 2026-06-24 (LP-007a–e): `bun run --filter api typecheck`, `bun run --filter worker typecheck`, and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.(onboarding|documentationSource|agentChat|autonomousAction).(insert|update)` under `apps/web`, `apps/worker`, `apps/api`. Zero `withMutations` under `apps/api`. Single `db.autonomousAction.insert` bypass sites: `autonomous-action-mutations.ts` helper + dev-only `seedFake` procedure. No runtime smoke test for onboarding, documentation crawl, agent chat, or autonomous receipt flows.
+- 2026-06-24 (LP-008): `bun run typecheck` (root, 10 packages) pass. Ripgrep across `apps/api/src/live-state` confirms all routes use `insert: () => false` and `update.preMutation/postMutation: () => false`; zero internal-key generic writes remain. Ripgrep across `apps/`: zero `mutate.<resource>.(insert|update)(` call sites; worker pipeline uses named `fetchClient.mutate.pipeline*` procedures only. No runtime smoke test.
+- 2026-06-24 (LP-008 pipeline lockdown): `bun run --filter api typecheck` and `bun run --filter worker typecheck` pass. Ripgrep: zero `mutate.<resource>.(insert|update)(` under entire repo; zero `insert: ({ ctx })` in live-state router. No runtime worker pipeline smoke test.
 
 ## Session Log
 
@@ -476,7 +520,9 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005b–e): Added `organizationUser.updateMember`, `user.updateProfile`, `invite.revoke`; renamed `organizationUser` and `invite` builders to `withProcedures`; added `withProcedures` on `user`. Migrated `team.tsx` and `settings/user/index.tsx`. Denied generic writes on all four org-family routes. Files: `router.ts`, `team.tsx`, `settings/user/index.tsx`.
 - 2026-06-24 (LP-006a–e): Added `integration.connectInstallation` / `updateInstallation` in `router/integration.ts`; extracted integration route from `router.ts`; denied generic writes; renamed `externalEntity` to `withProcedures`. Migrated web slack/discord/github settings + redirects + `activate.ts`; slack `installation-store.ts`/`utils.ts`; discord `utils.ts`; github `setup.ts`.
 - 2026-06-24 (LP-007a–e): Renamed onboarding, documentation-sources, agent-chat to `withProcedures`; denied generic writes. Added `documentation-source-mutations.ts` (`syncCrawlProgress`) + worker migration. Added `autonomous-action-mutations.ts` (`runRecordAutonomousAction`); converged `autonomous-receipts.ts` and `autonomousAction.record` procedure. Files: `router/onboarding.ts`, `router/documentation-sources.ts`, `router/agent-chat.ts`, `router/autonomous-action.ts`, `lib/autonomous-action-mutations.ts`, `lib/documentation-source-mutations.ts`, `lib/signals/autonomous-receipts.ts`, `apps/worker/src/handlers/crawl-documentation.ts`.
+- 2026-06-24 (LP-008): Cross-route generic-write audit — verified all 17 product routes deny generic `insert`/`update`; documented internal exceptions (`pipeline*`, `subscription`, `allowlist`, `migration`) with call sites in new **LP-008 audit results** section. No production code changes. Files: `docs/plans/custom-route-mutations.md` only.
+- 2026-06-24 (LP-008 pipeline lockdown): Added `lib/pipeline-mutations.ts`, `router/pipeline.ts` (`pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}`, `pipelineJob.{create,patch}`); denied generic writes on `allowlist`, `subscription`, pipeline routes in `router.ts`; migrated worker `idempotency.ts` and `persistence.ts` off generic `mutate.*.(insert|update)`.
 
 ## Handoff
 
-Next action: Ship **LP-008** — final generic-write audit across all product routes; verify every route denies `insert`/`update` per the LP-008 lockdown table and document remaining exceptions (`pipeline*`, `subscription`, `allowlist`, `migration`). Start with ripgrep: `insert: \(\{ ctx` / `insert: \(\) => true` / non-`false` generic mutators under `apps/api/src/live-state/router/`.
+Next action: Ship **LP-009a** — repo-wide static verification. Run `bun run typecheck` and ripgrep for any remaining `mutate.<resource>.(insert|update)(` under `apps/` (expect zero). Record results in `Verification Ledger`; if clean, mark LP-009a complete and proceed to **LP-009b** smoke matrix.

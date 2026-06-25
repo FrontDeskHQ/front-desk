@@ -23,7 +23,7 @@ export const createPipelineJob = async (
     options,
   };
 
-  await fetchClient.mutate.pipelineJob.insert({
+  await fetchClient.mutate.pipelineJob.create({
     id: jobId,
     name: PIPELINE_NAME,
     status: "pending",
@@ -53,18 +53,12 @@ export const updatePipelineJobStatus = async (
       return false;
     }
 
-    const currentMetadata: PipelineJobMetadata = existing.metadataStr
-      ? JSON.parse(existing.metadataStr)
-      : {};
-
-    const updatedMetadata: PipelineJobMetadata = {
-      ...currentMetadata,
-      ...additionalMetadata,
-    };
-
-    await fetchClient.mutate.pipelineJob.update(jobId, {
+    await fetchClient.mutate.pipelineJob.patch({
+      jobId,
       status,
-      metadataStr: JSON.stringify(updatedMetadata),
+      ...(additionalMetadata
+        ? { metadataPatch: additionalMetadata }
+        : {}),
       updatedAt: new Date(),
     });
 
@@ -92,19 +86,13 @@ export const completePipelineJob = async (
       return false;
     }
 
-    const currentMetadata: PipelineJobMetadata = existing.metadataStr
-      ? JSON.parse(existing.metadataStr)
-      : {};
-
-    const updatedMetadata: PipelineJobMetadata = {
-      ...currentMetadata,
-      turns: result.turns,
-      summary: result.summary,
-    };
-
-    await fetchClient.mutate.pipelineJob.update(jobId, {
+    await fetchClient.mutate.pipelineJob.patch({
+      jobId,
       status: result.status,
-      metadataStr: JSON.stringify(updatedMetadata),
+      metadataPatch: {
+        turns: result.turns,
+        summary: result.summary,
+      },
       updatedAt: new Date(),
     });
 
@@ -132,18 +120,10 @@ export const failPipelineJob = async (
       return false;
     }
 
-    const currentMetadata: PipelineJobMetadata = existing.metadataStr
-      ? JSON.parse(existing.metadataStr)
-      : {};
-
-    const updatedMetadata: PipelineJobMetadata = {
-      ...currentMetadata,
-      error,
-    };
-
-    await fetchClient.mutate.pipelineJob.update(jobId, {
+    await fetchClient.mutate.pipelineJob.patch({
+      jobId,
       status: "failed",
-      metadataStr: JSON.stringify(updatedMetadata),
+      metadataPatch: { error },
       updatedAt: new Date(),
     });
 
