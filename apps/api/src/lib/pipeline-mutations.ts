@@ -3,6 +3,28 @@ import { ulid } from "ulid";
 import { z } from "zod";
 import { schema } from "../live-state/schema";
 
+const jsonObjectStringSchema = z.string().refine(
+  (value) => {
+    try {
+      const parsed = JSON.parse(value);
+      return (
+        parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      );
+    } catch {
+      return false;
+    }
+  },
+  { message: "metadataStr must be a JSON object string" },
+);
+
+const parseMetadataStr = (metadataStr: string): Record<string, unknown> => {
+  try {
+    return JSON.parse(metadataStr) as Record<string, unknown>;
+  } catch {
+    return {};
+  }
+};
+
 export const upsertIdempotencyKeyInputSchema = z.object({
   key: z.string(),
   hash: z.string(),
@@ -27,7 +49,7 @@ export const createPipelineJobInputSchema = z.object({
   id: z.string().optional(),
   name: z.string(),
   status: z.string(),
-  metadataStr: z.string().nullable().optional(),
+  metadataStr: jsonObjectStringSchema.nullable().optional(),
   createdAt: z.coerce.date().optional(),
   updatedAt: z.coerce.date().optional(),
 });
@@ -66,12 +88,29 @@ export const runUpsertIdempotencyKey = async (
     });
   }
 
-  return db.insert(schema.pipelineIdempotencyKey, {
-    id: input.id ?? ulid().toLowerCase(),
-    key: input.key,
-    hash: input.hash,
-    createdAt: now,
-  });
+  try {
+    return await db.insert(schema.pipelineIdempotencyKey, {
+      id: input.id ?? ulid().toLowerCase(),
+      key: input.key,
+      hash: input.hash,
+      createdAt: now,
+    });
+  } catch {
+    const concurrent = Object.values(
+      await db.find(schema.pipelineIdempotencyKey, {
+        where: { key: input.key },
+      }),
+    )[0];
+
+    if (!concurrent) {
+      throw new Error("PIPELINE_IDEMPOTENCY_KEY_UPSERT_FAILED");
+    }
+
+    return db.update(schema.pipelineIdempotencyKey, concurrent.id, {
+      hash: input.hash,
+      createdAt: now,
+    });
+  }
 };
 
 export const runInvalidateIdempotencyKey = async (
@@ -104,7 +143,11 @@ export const runBatchUpsertIdempotencyKeys = async (
     return { ok: true as const };
   }
 
-  const keys = input.entries.map((entry) => entry.key);
+  const entriesByKey = new Map(
+    input.entries.map((entry) => [entry.key, entry] as const),
+  );
+  const entries = [...entriesByKey.values()];
+  const keys = entries.map((entry) => entry.key);
   const existingRows = Object.values(
     await db.find(schema.pipelineIdempotencyKey, {
       where: { key: { $in: keys } },
@@ -116,7 +159,7 @@ export const runBatchUpsertIdempotencyKeys = async (
 
   const now = new Date();
 
-  for (const { key, hash } of input.entries) {
+  for (const { key, hash } of entries) {
     const existingId = existingByKey.get(key);
 
     if (existingId) {
@@ -127,12 +170,13 @@ export const runBatchUpsertIdempotencyKeys = async (
       continue;
     }
 
-    await db.insert(schema.pipelineIdempotencyKey, {
+    const created = await db.insert(schema.pipelineIdempotencyKey, {
       id: ulid().toLowerCase(),
       key,
       hash,
       createdAt: now,
     });
+    existingByKey.set(key, created.id);
   }
 
   return { ok: true as const };
@@ -164,7 +208,7 @@ export const runPatchPipelineJob = async (
   }
 
   const currentMetadata = existing.metadataStr
-    ? (JSON.parse(existing.metadataStr) as Record<string, unknown>)
+    ? parseMetadataStr(existing.metadataStr)
     : {};
   const metadataStr =
     input.metadataPatch === undefined
