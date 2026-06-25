@@ -136,9 +136,8 @@ export default publicRoute
         let authorId: string | undefined;
 
         // Determine author based on context
-        if (createFlow === "portal" || req.input.userId) {
+        if (createFlow === "portal") {
           const { userId, userName } = getPortalAuthor(req, {
-            userId: req.input.userId,
             userName: req.input.userName,
           });
 
@@ -362,7 +361,9 @@ export default publicRoute
 
       authorize(req, { organizationId });
 
-      const actor = getWorkspaceActor(req);
+      const actor = req.context?.internalApiKey
+        ? null
+        : getWorkspaceActor(req);
 
       // Get GitHub integration config
       const integration = Object.values(
@@ -449,7 +450,7 @@ export default publicRoute
       await runRecordActivity(db, {
         threadId: req.input.threadId,
         organizationId,
-        userId: actor.userId,
+        userId: actor?.userId ?? null,
         type: "github_issue_created",
         metadata: {
           issueId: data.issue.id,

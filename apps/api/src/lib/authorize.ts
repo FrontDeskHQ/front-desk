@@ -26,6 +26,8 @@ export type AuthorizationContext = {
   session?: { userId?: string } | null;
   user?: { name?: string; email?: string } | null;
   portalSession?: PortalSession | null;
+  /** Organization resolved from the portal request origin (subdomain or /support/{slug}). */
+  portalOrganizationId?: string;
 };
 
 /** Request-like shape that carries credential context (e.g. mutation/query `req`). */
@@ -94,10 +96,10 @@ export const getWorkspaceActor = (
 
 export const getPortalAuthor = (
   req: AuthorizeReq,
-  input: { userId?: string; userName?: string },
+  input: { userName?: string } = {},
 ): { userId: string; userName: string } => {
   const ctx = req.context ?? {};
-  const userId = input.userId ?? getPortalUserId(ctx);
+  const userId = getPortalUserId(ctx);
   if (!userId) {
     throw new Error("UNAUTHORIZED");
   }
@@ -118,7 +120,7 @@ export const getCallerUserId = (req: AuthorizeReq): string | undefined => {
 
 export const resolveHumanAuthor = (
   req: AuthorizeReq,
-  input: { userId?: string; userName?: string },
+  input: { userName?: string } = {},
 ): { userId: string; userName: string } => {
   const ctx = req.context ?? {};
 
@@ -133,7 +135,7 @@ export const resolveHumanAuthor = (
   }
 
   return {
-    userId: input.userId ?? actor.userId,
+    userId: actor.userId,
     userName,
   };
 };
@@ -171,6 +173,9 @@ export const authorizeThreadCreate = (
 
   if (hasPortalSession) {
     if (input.inputUserId && input.inputUserId !== portalUserId) {
+      throw new Error("UNAUTHORIZED");
+    }
+    if (ctx.portalOrganizationId !== input.organizationId) {
       throw new Error("UNAUTHORIZED");
     }
     return "portal";
@@ -302,7 +307,10 @@ export const isAuthorized = (
   }
 
   if (opts.allowPortalUser && getPortalUserId(ctx) !== undefined) {
-    return true;
+    return (
+      !!opts.organizationId &&
+      ctx.portalOrganizationId === opts.organizationId
+    );
   }
 
   if (ctx.orgUsers && opts.organizationId) {
@@ -338,4 +346,45 @@ export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
   if (isAuthorized(req.context ?? {}, opts)) return;
 
   throw new Error("UNAUTHORIZED");
+};
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Resolve portal tenant slug from forwarded browser origin (subdomain or /support/{slug}). */
+export const parsePortalOrganizationSlug = (
+  headers: Record<string, string>,
+): string | undefined => {
+  const baseHostname = new URL(
+    process.env.BASE_FRONTEND_URL ?? "http://localhost:3000",
+  ).hostname;
+  const suffixRegex = new RegExp(`\\.?${escapeRegExp(baseHostname)}$`);
+
+  const candidates = [
+    headers.origin,
+    headers.referer,
+    headers["x-forwarded-host"]
+      ? `https://${headers["x-forwarded-host"]}`
+      : undefined,
+    headers.host ? `https://${headers.host}` : undefined,
+  ].filter((value): value is string => !!value);
+
+  for (const candidate of candidates) {
+    try {
+      const url = new URL(candidate);
+      const pathMatch = url.pathname.match(/^\/support\/([^/]+)/);
+      if (pathMatch?.[1]) {
+        return pathMatch[1];
+      }
+
+      const subdomain = url.hostname.replace(suffixRegex, "");
+      if (subdomain && subdomain !== url.hostname) {
+        return subdomain;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return undefined;
 };

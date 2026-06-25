@@ -63,10 +63,7 @@ export default publicRoute
 
       const humanAuthor = hasIntegrationAuthor
         ? null
-        : resolveHumanAuthor(req, {
-            userId: req.input.userId,
-            userName: req.input.userName,
-          });
+        : resolveHumanAuthor(req);
 
       const thread = await db.thread.one(req.input.threadId).get();
 
