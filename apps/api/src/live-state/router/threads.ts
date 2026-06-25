@@ -535,7 +535,7 @@ export default publicRoute
         replicatedStr: req.input.replicatedStr,
       });
 
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       const actor = getWorkspaceActor(req);
 
@@ -545,7 +545,7 @@ export default publicRoute
       });
     }),
     setPriority: mutation(setPriorityInputSchema).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       const actor = getWorkspaceActor(req);
 
@@ -555,7 +555,7 @@ export default publicRoute
       });
     }),
     assignUser: mutation(assignUserInputSchema).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       const actor = getWorkspaceActor(req);
 
@@ -565,7 +565,7 @@ export default publicRoute
       });
     }),
     linkIssue: mutation(linkIssueInputSchema).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       const actor = getWorkspaceActor(req);
 
@@ -575,7 +575,7 @@ export default publicRoute
       });
     }),
     unlinkIssue: mutation(unlinkIssueInputSchema).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       const actor = getWorkspaceActor(req);
 
@@ -586,7 +586,7 @@ export default publicRoute
     }),
     linkPullRequest: mutation(linkPullRequestInputSchema).handler(
       async ({ req, db }) => {
-        authorize(req, { organizationId: req.input.organizationId });
+        authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
         const actor = getWorkspaceActor(req);
 
@@ -598,7 +598,7 @@ export default publicRoute
     ),
     unlinkPullRequest: mutation(unlinkPullRequestInputSchema).handler(
       async ({ req, db }) => {
-        authorize(req, { organizationId: req.input.organizationId });
+        authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
         const actor = getWorkspaceActor(req);
 
@@ -610,7 +610,7 @@ export default publicRoute
     ),
     markDuplicate: mutation(markDuplicateInputSchema).handler(
       async ({ req, db }) => {
-        authorize(req, { organizationId: req.input.organizationId });
+        authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
         const actor = getWorkspaceActor(req);
 
@@ -621,14 +621,14 @@ export default publicRoute
       },
     ),
     archive: mutation(archiveThreadInputSchema).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       getWorkspaceActor(req);
 
       return runArchiveThread(db, req.input);
     }),
     restore: mutation(restoreThreadInputSchema).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
+      authorize(req, { organizationId: req.input.organizationId, allowInternalApiKey: false });
 
       getWorkspaceActor(req);
 

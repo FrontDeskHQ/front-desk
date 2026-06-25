@@ -187,6 +187,10 @@ export const authorizeThreadCreate = (
   }
 
   if (hasPublicKey) {
+    authorize(req, {
+      organizationId: input.organizationId,
+      allowPublicApiKey: true,
+    });
     return "public";
   }
 
@@ -348,17 +352,13 @@ export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
   throw new Error("UNAUTHORIZED");
 };
 
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-
 /** Resolve portal tenant slug from forwarded browser origin (subdomain or /support/{slug}). */
 export const parsePortalOrganizationSlug = (
   headers: Record<string, string>,
 ): string | undefined => {
   const baseHostname = new URL(
     process.env.BASE_FRONTEND_URL ?? "http://localhost:3000",
-  ).hostname;
-  const suffixRegex = new RegExp(`\\.?${escapeRegExp(baseHostname)}$`);
+  ).hostname.toLowerCase();
 
   const candidates = [
     headers.origin,
@@ -372,14 +372,23 @@ export const parsePortalOrganizationSlug = (
   for (const candidate of candidates) {
     try {
       const url = new URL(candidate);
-      const pathMatch = url.pathname.match(/^\/support\/([^/]+)/);
-      if (pathMatch?.[1]) {
-        return pathMatch[1];
+      const hostname = url.hostname.toLowerCase();
+      const isBaseHost = hostname === baseHostname;
+      const isBaseSubdomain = hostname.endsWith(`.${baseHostname}`);
+
+      if (!isBaseHost && !isBaseSubdomain) {
+        continue;
       }
 
-      const subdomain = url.hostname.replace(suffixRegex, "");
-      if (subdomain && subdomain !== url.hostname) {
-        return subdomain;
+      if (isBaseHost) {
+        const pathMatch = url.pathname.match(/^\/support\/([^/]+)/);
+        if (pathMatch?.[1]) {
+          return pathMatch[1];
+        }
+      }
+
+      if (isBaseSubdomain) {
+        return hostname.slice(0, -(baseHostname.length + 1));
       }
     } catch {
       continue;

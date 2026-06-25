@@ -93,7 +93,7 @@ export const agentChatRoute = privateRoute
         throw new Error("CHAT_NOT_FOUND");
       }
 
-      authorizeOwnedAgentChat(req, agentChat);
+      const actor = authorizeOwnedAgentChat(req, agentChat);
 
       // Insert user message
       await db.insert(schema.agentChatMessage, {
@@ -242,7 +242,7 @@ export const agentChatRoute = privateRoute
       // Fetch current user name for personalization
       const currentUser = await db.findOne(
         schema.user,
-        req.context.session.userId,
+        actor.userId,
       );
 
       const systemPrompt = buildSystemPrompt({

@@ -85,11 +85,13 @@ export const router = createRouter({
           }),
         ).handler(async ({ req, db }) => {
           const actor = getWorkspaceActor(req);
+          const userEmail = req.context?.user?.email;
+          const userName = req.context?.user?.name ?? actor.userName;
           const organizationId = ulid().toLowerCase();
 
           const dodopaymentsCustomer = await dodopayments?.customers.create({
-            email: req.context?.user?.email,
-            name: req.context?.user?.name,
+            email: userEmail,
+            name: userName,
           });
 
           const organization = await db.insert(schema.organization, {
@@ -141,14 +143,14 @@ export const router = createRouter({
             }),
           );
 
-          if (userMemberships.length === 1) {
+          if (userMemberships.length === 1 && userEmail && userName) {
             const delayMinutes = Math.floor(Math.random() * 21) + 20;
 
             sendWelcomeEmail
               .trigger(
                 {
-                  email: req.context!.user!.email,
-                  name: req.context!.user!.name,
+                  email: userEmail,
+                  name: userName,
                 },
                 { delay: `${delayMinutes}m` },
               )

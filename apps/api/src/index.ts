@@ -157,11 +157,7 @@ const lsServer = server({
           where: { userId: session.user.id, enabled: true },
         }),
       );
-      const portalOrganizationId = await resolvePortalOrganizationId(
-        headers,
-        portalSession,
-      );
-      return { ...session, portalSession, orgUsers, portalOrganizationId };
+      return { ...session, orgUsers };
     }
 
     const portalOrganizationId = await resolvePortalOrganizationId(
