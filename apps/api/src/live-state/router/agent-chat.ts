@@ -39,7 +39,7 @@ export const agentChatRoute = privateRoute
       postMutation: () => false,
     },
   })
-  .withMutations(({ mutation }) => ({
+  .withProcedures(({ mutation }) => ({
     create: mutation(
       z.object({
         organizationId: z.string(),

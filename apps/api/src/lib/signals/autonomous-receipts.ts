@@ -3,7 +3,7 @@ import {
   type AutonomousActionMetadata,
   isReversible,
 } from "@workspace/schemas/signals";
-import { ulid } from "ulid";
+import { runRecordAutonomousAction } from "../autonomous-action-mutations";
 import { getCompensateSnapshot } from "./compensate-snapshots";
 import type { ExecutionContext } from "./types";
 
@@ -59,14 +59,11 @@ export const recordAutonomousReceipts = async (
     const metadata = buildMetadata(action, ctx);
     if (!metadata) continue;
 
-    await ctx.db.autonomousAction.insert({
-      id: ulid().toLowerCase(),
+    await runRecordAutonomousAction(ctx.db, {
       organizationId: ctx.organizationId,
-      signalType: action.kind,
+      actionKind: action.kind,
       entityId: ctx.threadId,
-      appliedAt: new Date(),
-      undoneAt: null,
-      metadataStr: JSON.stringify(metadata),
+      metadata,
     });
   }
 };
