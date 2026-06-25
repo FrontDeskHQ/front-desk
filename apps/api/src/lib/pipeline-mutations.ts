@@ -19,7 +19,12 @@ const jsonObjectStringSchema = z.string().refine(
 
 const parseMetadataStr = (metadataStr: string): Record<string, unknown> => {
   try {
-    return JSON.parse(metadataStr) as Record<string, unknown>;
+    const parsed = JSON.parse(metadataStr);
+    return parsed !== null &&
+      typeof parsed === "object" &&
+      !Array.isArray(parsed)
+      ? (parsed as Record<string, unknown>)
+      : {};
   } catch {
     return {};
   }
