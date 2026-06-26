@@ -10,7 +10,7 @@ import {
   recordAutonomousActionInputSchema,
   runRecordAutonomousAction,
 } from "../../lib/autonomous-action-mutations";
-import { authorize } from "../../lib/authorize";
+import { authorize, getWorkspaceActor, requireInternalApiKey } from "../../lib/authorize";
 import { runRecordActivity } from "../../lib/update-mutations";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
@@ -42,9 +42,7 @@ export default privateRoute
         // Receipts are written by the worker only — never by user sessions or
         // public API keys, otherwise a teammate could forge "FrontDesk handled
         // X" entries that show up in the leverage report.
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
 
         return runRecordAutonomousAction(db, req.input);
       },
@@ -127,10 +125,11 @@ export default privateRoute
       }
 
       if (activityType) {
+        const actor = getWorkspaceActor(req);
         await runRecordActivity(db, {
           threadId,
           organizationId: req.input.organizationId,
-          userId: req.context?.session?.userId ?? null,
+          userId: actor.userId,
           type: activityType,
           metadata: activityMetadata,
           createdAt: now,

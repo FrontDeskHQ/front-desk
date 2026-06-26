@@ -6,6 +6,7 @@ import {
   runSyncCrawlProgress,
   syncCrawlProgressInputSchema,
 } from "../../lib/documentation-source-mutations";
+import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import { reflagClient } from "../../lib/feature-flag";
 import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -174,9 +175,7 @@ export default privateRoute
   .withProcedures(({ mutation }) => ({
     syncCrawlProgress: mutation(syncCrawlProgressInputSchema).handler(
       async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
 
         return runSyncCrawlProgress(db, req.input);
       },
@@ -189,25 +188,7 @@ export default privateRoute
     ).handler(async ({ req, db }) => {
       const { organizationId, baseUrl } = req.input;
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req, { organizationId, role: "owner" });
 
       await checkFeatureFlag(organizationId);
 
@@ -229,25 +210,7 @@ export default privateRoute
     ).handler(async ({ req, db }) => {
       const { organizationId, name, baseUrl } = req.input;
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req, { organizationId, role: "owner" });
 
       // Feature flag check
       await checkFeatureFlag(organizationId);
@@ -305,25 +268,7 @@ export default privateRoute
         throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: source.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req, { organizationId: source.organizationId, role: "owner" });
 
       // Feature flag check
       await checkFeatureFlag(source.organizationId);
@@ -372,25 +317,7 @@ export default privateRoute
         throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
       }
 
-      // Authorization check
-      if (!req.context?.internalApiKey && req.context?.session?.userId) {
-        const selfOrgUser = Object.values(
-          await db.find(schema.organizationUser, {
-            where: {
-              organizationId: source.organizationId,
-              userId: req.context.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          }),
-        )[0];
-
-        if (!selfOrgUser) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else if (!req.context?.internalApiKey) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorize(req, { organizationId: source.organizationId, role: "owner" });
 
       // Feature flag check
       await checkFeatureFlag(source.organizationId);

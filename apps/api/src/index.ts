@@ -11,6 +11,7 @@ import cors from "cors";
 import express from "express";
 import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
+import { parsePortalOrganizationSlug } from "./lib/authorize";
 import { reflagClient } from "./lib/feature-flag";
 import { portalAuth } from "./lib/portal-auth";
 import { runMigrations } from "./live-state/migrations";
@@ -20,6 +21,28 @@ import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
 
 const { app } = expressWs(express() as any);
+
+const resolvePortalOrganizationId = async (
+  headers: Record<string, string>,
+  portalSession: unknown,
+): Promise<string | undefined> => {
+  if (!portalSession) {
+    return undefined;
+  }
+
+  const slug = parsePortalOrganizationSlug(headers);
+  if (!slug) {
+    return undefined;
+  }
+
+  const organization = Object.values(
+    await storage.find(schema.organization, {
+      where: { slug },
+    }),
+  )[0];
+
+  return organization?.id;
+};
 
 const corsOptions = {
   origin: "*",
@@ -134,12 +157,18 @@ const lsServer = server({
           where: { userId: session.user.id, enabled: true },
         }),
       );
-      return { ...session, portalSession, orgUsers };
+      return { ...session, orgUsers };
     }
+
+    const portalOrganizationId = await resolvePortalOrganizationId(
+      headers,
+      portalSession,
+    );
 
     return {
       ...session,
       portalSession,
+      portalOrganizationId,
     };
   },
 });

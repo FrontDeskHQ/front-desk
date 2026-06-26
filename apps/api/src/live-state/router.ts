@@ -14,7 +14,7 @@ import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
-import { authorize } from "../lib/authorize";
+import { authorize, assertInviteRecipient, authorizeSelfOrInternal, getWorkspaceActor } from "../lib/authorize";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
@@ -84,11 +84,15 @@ export const router = createRouter({
               ),
           }),
         ).handler(async ({ req, db }) => {
+          const actor = getWorkspaceActor(req);
+          const userEmail = req.context?.user?.email;
+          const userName =
+            req.context?.user?.name ?? actor.userName ?? undefined;
           const organizationId = ulid().toLowerCase();
 
           const dodopaymentsCustomer = await dodopayments?.customers.create({
-            email: req.context.user?.email,
-            name: req.context.user?.name,
+            email: userEmail,
+            name: userName,
           });
 
           const organization = await db.insert(schema.organization, {
@@ -126,7 +130,7 @@ export const router = createRouter({
           await db.insert(schema.organizationUser, {
             id: ulid().toLowerCase(),
             organizationId,
-            userId: req.context.session.userId,
+            userId: actor.userId,
             enabled: true,
             role: "owner",
           });
@@ -135,19 +139,19 @@ export const router = createRouter({
           const userMemberships = Object.values(
             await db.find(schema.organizationUser, {
               where: {
-                userId: req.context.session.userId,
+                userId: actor.userId,
               },
             }),
           );
 
-          if (userMemberships.length === 1) {
+          if (userMemberships.length === 1 && userEmail && userName) {
             const delayMinutes = Math.floor(Math.random() * 21) + 20;
 
             sendWelcomeEmail
               .trigger(
                 {
-                  email: req.context.user!.email,
-                  name: req.context.user!.name,
+                  email: userEmail,
+                  name: userName,
                 },
                 { delay: `${delayMinutes}m` },
               )
@@ -291,28 +295,7 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
-          let authorized = !!req.context?.internalApiKey;
-
-          if (!authorized && req.context?.session?.userId) {
-            const selfOrgUser = Object.values(
-              await db.find(schema.organizationUser, {
-                where: {
-                  organizationId,
-                  userId: req.context.session.userId,
-                },
-                include: {
-                  user: true,
-                  organization: true,
-                },
-              }),
-            )[0] as any;
-
-            authorized = selfOrgUser && selfOrgUser.role === "owner";
-          }
-
-          if (!authorized) {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorize(req, { organizationId, role: "owner" });
 
           const publicApiKey = await publicKeys.create({
             ownerId: organizationId,
@@ -334,28 +317,17 @@ export const router = createRouter({
             id: z.string(),
           }),
         ).handler(async ({ req, db }) => {
-          if (!req.context?.session?.userId) {
-            throw new Error("UNAUTHORIZED");
-          }
-
           const publicApiKey = await publicKeys.findById(req.input.id);
 
           if (!publicApiKey) {
             throw new Error("PUBLIC_API_KEY_NOT_FOUND");
           }
 
-          const selfOrgUser = Object.values(
-            await db.find(schema.organizationUser, {
-              where: {
-                organizationId: publicApiKey.metadata.ownerId,
-                userId: req.context.session.userId,
-              },
-            }),
-          )[0] as any;
-
-          if (!selfOrgUser || selfOrgUser.role !== "owner") {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorize(req, {
+            organizationId: publicApiKey.metadata.ownerId,
+            role: "owner",
+            allowInternalApiKey: false,
+          });
 
           await publicKeys.revoke(publicApiKey.id).catch((error) => {
             console.error("Error revoking public API key", error);
@@ -373,24 +345,7 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const organizationId = req.input.organizationId;
 
-          let authorized = !!req.context?.internalApiKey;
-
-          if (!authorized && req.context?.session?.userId) {
-            const selfOrgUser = Object.values(
-              await db.find(schema.organizationUser, {
-                where: {
-                  organizationId,
-                  userId: req.context.session.userId,
-                },
-              }),
-            )[0] as any;
-
-            authorized = selfOrgUser && selfOrgUser.role === "owner";
-          }
-
-          if (!authorized) {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorize(req, { organizationId, role: "owner" });
 
           const apiKeys = await publicKeys.list(organizationId);
 
@@ -423,12 +378,17 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const orgId = req.input!.organizationId;
 
-          // TODO follow https://github.com/pedroscosta/live-state/issues/74
+          authorize(req, {
+            organizationId: orgId,
+            role: "owner",
+            allowInternalApiKey: false,
+          });
+
           const selfOrgUser = Object.values(
             await db.find(schema.organizationUser, {
               where: {
                 organizationId: orgId,
-                userId: req.context.session.userId,
+                userId: req.context!.session!.userId,
               },
               include: {
                 user: true,
@@ -436,10 +396,6 @@ export const router = createRouter({
               },
             }),
           )[0] as any;
-
-          if (!selfOrgUser || selfOrgUser.role !== "owner") {
-            throw new Error("UNAUTHORIZED");
-          }
 
           const existingMembers = Object.values(
             await db.find(schema.organizationUser, {
@@ -585,12 +541,7 @@ export const router = createRouter({
               { message: "NO_FIELDS_TO_UPDATE" },
             ),
         ).handler(async ({ req, db }) => {
-          const isSelf = req.context?.session?.userId === req.input.userId;
-          const isInternal = !!req.context?.internalApiKey;
-
-          if (!isSelf && !isInternal) {
-            throw new Error("UNAUTHORIZED");
-          }
+          authorizeSelfOrInternal(req, req.input.userId);
 
           const existing = await db.user.one(req.input.userId).get();
           if (!existing) throw new Error("USER_NOT_FOUND");
@@ -650,14 +601,14 @@ export const router = createRouter({
                 throw new Error("INVITATION_NOT_FOUND");
               }
 
-              if (invite.email !== req.context?.user?.email) {
-                throw new Error("INVALID_USER");
-              }
+              assertInviteRecipient(req, invite.email);
+
+              const actor = getWorkspaceActor(req);
 
               await trx.insert(schema.organizationUser, {
                 id: ulid().toLowerCase(),
                 organizationId: invite.organizationId,
-                userId: req.context.session.userId,
+                userId: actor.userId,
                 enabled: true,
                 role: "user",
               });
@@ -691,9 +642,7 @@ export const router = createRouter({
               throw new Error("INVITATION_NOT_FOUND");
             }
 
-            if (invite.email !== req.context?.user?.email) {
-              throw new Error("INVALID_USER");
-            }
+            assertInviteRecipient(req, invite.email);
 
             await db.update(schema.invite, req.input!.id, {
               active: false,

@@ -1,7 +1,13 @@
 // TODO refactor with new live-state mental model
 import { ulid } from "ulid";
 import z from "zod";
-import { authorize } from "../../lib/authorize";
+import {
+  assertIntegrationAuthor,
+  authorize,
+  getCallerUserId,
+  requireInternalApiKey,
+  resolveHumanAuthor,
+} from "../../lib/authorize";
 import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
@@ -47,30 +53,17 @@ export default publicRoute
       authorize(req, {
         organizationId: req.input.organizationId,
         allowPublicApiKey: true,
+        allowPortalUser: true,
       });
 
       const hasIntegrationAuthor = !!req.input.author;
-      if (
-        hasIntegrationAuthor &&
-        !req.context?.internalApiKey &&
-        !req.context?.publicApiKey
-      ) {
-        throw new Error("UNAUTHORIZED");
+      if (hasIntegrationAuthor) {
+        assertIntegrationAuthor(req);
       }
 
-      const actualUserId: string | undefined =
-        req.context?.portalSession?.session.userId ??
-        req.context?.session?.userId ??
-        req.input.userId;
-
-      const actualUserName: string | undefined =
-        req.context?.portalSession?.user.name ??
-        req.context?.user?.name ??
-        req.input.userName;
-
-      if (!hasIntegrationAuthor && (!actualUserId || !actualUserName)) {
-        throw new Error("MISSING_USER_ID_OR_NAME");
-      }
+      const humanAuthor = hasIntegrationAuthor
+        ? null
+        : resolveHumanAuthor(req);
 
       const thread = await db.thread.one(req.input.threadId).get();
 
@@ -105,9 +98,8 @@ export default publicRoute
             });
           }
         } else {
-          if (!actualUserId || !actualUserName) {
-            throw new Error("MISSING_USER_ID_OR_NAME");
-          }
+          const { userId: actualUserId, userName: actualUserName } =
+            humanAuthor!;
 
           const existingAuthor = await trx.author
             .first({
@@ -156,9 +148,7 @@ export default publicRoute
         messageId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      const callerUserId =
-        req.context?.portalSession?.session.userId ??
-        req.context?.session?.userId;
+      const callerUserId = getCallerUserId(req);
 
       if (!req.context?.internalApiKey && !callerUserId) {
         throw new Error("UNAUTHORIZED");
@@ -242,9 +232,7 @@ export default publicRoute
     }),
     setExternalMessageId: mutation(setExternalMessageIdInputSchema).handler(
       async ({ req, db }) => {
-        if (!req.context?.internalApiKey) {
-          throw new Error("UNAUTHORIZED");
-        }
+        requireInternalApiKey(req.context);
 
         const message = await db.message.one(req.input.messageId).get();
         if (!message) {

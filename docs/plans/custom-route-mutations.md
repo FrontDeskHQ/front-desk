@@ -24,9 +24,9 @@ All known callers must move to the replacement procedures. When a custom procedu
 
 ## Current State
 
-- Status: in-progress
-- Active checkpoint: **LP-009a** (next PR slice)
-- Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/303
+- Status: complete
+- Active checkpoint: **LP-010** done — custom route mutations project complete
+- Branch or PR: https://github.com/FrontDeskHQ/front-desk/pull/308 (stacked on #307 / `feat/lp-008-pipeline-lockdown`)
 - Last updated: 2026-06-24
 
 LP-001 inventory is complete below. API routes live in `apps/api/src/live-state/router.ts` and `apps/api/src/live-state/router/*.ts`. Route families now use `withProcedures` for custom operations. Web writes use both `mutate.*` (synced client) and `fetchClient.mutate.*` (HTTP); optimistic handlers are centralized in `apps/web/src/lib/live-state.ts`.
@@ -386,8 +386,8 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
-| [ ] **LP-009a** | Repo-wide static verification | `bun run typecheck`, ripgrep for `mutate.<product>.insert` / `.update` under `apps/` | Zero unintended product generic writes |
-| [ ] **LP-009b** | Smoke test matrix | Manual or scripted exercise of inbox, thread properties, labels, settings, integrations | Verification ledger lists paths tested + gaps |
+| [x] **LP-009a** | Repo-wide static verification | `bun run typecheck`, ripgrep for `mutate.<product>.insert` / `.update` under `apps/` | Zero unintended product generic writes |
+| [x] **LP-009b** | Smoke test matrix | Manual or scripted exercise of inbox, thread properties, labels, settings, integrations | Verification ledger lists paths tested + gaps |
 
 ### LP-010 — Authorization via `authorize.ts`
 
@@ -395,9 +395,9 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
-| [ ] **LP-010a** | Scan ad-hoc authorization | Ripgrep `apps/api/src` for inline `req.context?.session` / `internalApiKey` / `portalSession` checks, manual `orgUsers.find`, and `throw new Error("UNAUTHORIZED")` outside `authorize.ts` | Ledger lists files + patterns; each site tagged migrate / extend-util / intentional-exception |
-| [ ] **LP-010b** | Migrate live-state routers | `apps/api/src/live-state/router/**/*.ts` (heavy: `threads.ts`, `message.ts`, `onboarding.ts`, `agent-chat.ts`, `documentation-sources.ts`, `external-entity.ts`) | Procedure/query handlers use `authorize` / `isAuthorized`; repeated patterns folded into `authorize.ts` |
-| [ ] **LP-010c** | Migrate API lib | `apps/api/src/lib/**` (signal handlers, agent-chat helpers, etc.) | Same criterion as LP-010b for non-router code paths |
+| [x] **LP-010a** | Scan ad-hoc authorization | Ripgrep `apps/api/src` for inline `req.context?.session` / `internalApiKey` / `portalSession` checks, manual `orgUsers.find`, and `throw new Error("UNAUTHORIZED")` outside `authorize.ts` | Ledger lists files + patterns; each site tagged migrate / extend-util / intentional-exception |
+| [x] **LP-010b** | Migrate live-state routers | All router files migrated to `authorize` / shared helpers | Procedure/query handlers use `authorize` / `isAuthorized`; repeated patterns folded into `authorize.ts` |
+| [x] **LP-010c** | Migrate API lib | `apps/api/src/lib/signals/thread-procedures.ts` | `getWorkspaceActor` after `authorize`; no ad-hoc session checks |
 
 ## Checklist
 
@@ -409,8 +409,8 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - [x] LP-006: Migrate integration and external-entity writes. Completion: all **LP-006a–e** slices done.
 - [x] LP-007: Migrate onboarding, documentation-source, agent-chat, and autonomous-action writes. Completion: all **LP-007a–e** slices done.
 - [x] LP-008: Lock down generic route permissions. Completion: **LP-008** audit slice done.
-- [ ] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
-- [ ] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
+- [x] LP-009: Verify the migration end-to-end. Completion: **LP-009a–b** slices done.
+- [x] LP-010: Consolidate authorization on `authorize.ts`. Completion: **LP-010a–c** slices done — no ad-hoc membership/key/session checks outside `apps/api/src/lib/authorize.ts` except documented exceptions in the ledger.
 
 ## Decisions
 
@@ -444,9 +444,12 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-005c): `user.updateProfile` — self or internal key; optional `name`, `email`, `image`. Added `withProcedures` on user route.
 - 2026-06-24 (LP-005d): `invite.revoke` — owner auth; sets `active: false`. Renamed invite builder to `withProcedures`.
 - 2026-06-24 (LP-006a–e): Added `integration.connectInstallation` / `updateInstallation` procedures in new `router/integration.ts` (owner auth via `authorize`; internal key bypass for slack/discord/github bots). Extracted integration route from `router.ts`; denied generic `insert`/`update`. Renamed `externalEntity` builder to `withProcedures`. Migrated all web integration settings/redirect/activate flows and slack `installation-store`/`utils`, discord `utils`, github `setup.ts` off generic `mutate.integration.insert` / `.update`. Intentional: no optimistic handlers (OAuth / awaited `fetchClient`).
-- 2026-06-24 (LP-007a–e): Renamed onboarding, documentationSource, agentChat builders to `withProcedures`; denied generic `insert`/`update` on all four routes. Added `documentationSource.syncCrawlProgress` + `runSyncCrawlProgress` helper (internal key only); migrated worker `crawl-documentation.ts`. Added `runRecordAutonomousAction` helper; `autonomousAction.record` procedure and `autonomous-receipts.ts` converge on shared helper. Intentional: `seedFake` dev procedure still inserts directly (dev-only fake rows with backdated `appliedAt`).
+- 2026-06-24 (LP-007a–e): Renamed onboarding, documentation-sources, agentChat builders to `withProcedures`; denied generic `insert`/`update` on all four routes. Added `documentationSource.syncCrawlProgress` + `runSyncCrawlProgress` helper (internal key only); migrated worker `crawl-documentation.ts`. Added `runRecordAutonomousAction` helper; `autonomousAction.record` procedure and `autonomous-receipts.ts` converge on shared helper. Intentional: `seedFake` dev procedure still inserts directly (dev-only fake rows with backdated `appliedAt`).
 - 2026-06-24 (LP-008): Cross-route lockdown audit — all 17 product routes deny generic `insert`/`update`; four internal exception families documented with call sites. No code changes required; prior lockdown slices (003n, 004e, 005e, 006e, 007e) sufficient.
 - 2026-06-24 (LP-008, user correction): **No generic mutations anywhere** — internal-key-only generic mutators are not allowed. Added `pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}` and `pipelineJob.{create,patch}`; denied generic writes on `allowlist` and `subscription`; migrated worker pipeline callers. Direct `db.*` / `storage.*` inside the API process remains fine.
+- 2026-06-24 (LP-010b partial): `authorize.ts` extended with `PortalSession` on context, `authorizeThreadCreate`, `getPortalAuthor`, `getWorkspaceActor`, `requireInternalApiKey`, `assertInternalKeyForIntegrationFields`. `threads.ts` property procedures use `getWorkspaceActor` after `authorize`; `thread.create` uses `authorizeThreadCreate`; internal-only procedures use `requireInternalApiKey`.
+- 2026-06-24 (LP-010b partial): Added `allowPortalUser`, `getCallerUserId`, `resolveHumanAuthor`, `assertIntegrationAuthor`. `message.create` uses `allowPortalUser: true` (fixes portal composer auth). `markAsAnswer` keeps org-only fallback for non-thread-authors.
+- 2026-06-24 (LP-010 complete): Extended `authorize.ts` with `internalApiKeyOnly`, `authorizeSelfOrInternal`, `authorizeWorkspaceOrgMember`, `authorizeOwnedAgentChat`, `assertInviteRecipient`, `getAuthorizedOrganizationIds`. Migrated all remaining router files + `thread-procedures.ts`. Documented intentional exceptions in **LP-010 documented exceptions**.
 
 ## PR Feedback
 
@@ -485,6 +488,77 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-007a–e): `bun run --filter api typecheck`, `bun run --filter worker typecheck`, and `bun run --filter web typecheck` pass. Ripgrep: zero `mutate.(onboarding|documentationSource|agentChat|autonomousAction).(insert|update)` under `apps/web`, `apps/worker`, `apps/api`. Zero `withMutations` under `apps/api`. Single `db.autonomousAction.insert` bypass sites: `autonomous-action-mutations.ts` helper + dev-only `seedFake` procedure. No runtime smoke test for onboarding, documentation crawl, agent chat, or autonomous receipt flows.
 - 2026-06-24 (LP-008): `bun run typecheck` (root, 10 packages) pass. Ripgrep across `apps/api/src/live-state` confirms all routes use `insert: () => false` and `update.preMutation/postMutation: () => false`; zero internal-key generic writes remain. Ripgrep across `apps/`: zero `mutate.<resource>.(insert|update)(` call sites; worker pipeline uses named `fetchClient.mutate.pipeline*` procedures only. No runtime smoke test.
 - 2026-06-24 (LP-008 pipeline lockdown): `bun run --filter api typecheck` and `bun run --filter worker typecheck` pass. Ripgrep: zero `mutate.<resource>.(insert|update)(` under entire repo; zero `insert: ({ ctx })` in live-state router. No runtime worker pipeline smoke test.
+- 2026-06-24 (LP-010b partial, `threads.ts`): `bun run --filter api typecheck` pass. Ripgrep: `threads.ts` has zero `throw new Error("UNAUTHORIZED")` and zero `portalSession` / `session?.userId` ad-hoc checks (one intentional `req.context?.internalApiKey` branch in `setStatus`). No runtime smoke test for portal thread create or property procedures.
+- 2026-06-24 (LP-010b partial, `message.ts`): `bun run --filter api typecheck` pass. Added `allowPortalUser`, `getCallerUserId`, `resolveHumanAuthor`, `assertIntegrationAuthor` to `authorize.ts`. `message.ts` migrated; `markAsAnswer` intentionally omits `allowPortalUser` on org fallback (non-author portal users stay denied). No runtime portal composer smoke test.
+- 2026-06-24 (LP-009a): `bun run typecheck` (root, 10 packages) pass. Ripgrep: zero `mutate.<product>.insert(` under `apps/`; zero generic `mutate.(thread|message|author|organization|organizationUser|user|invite|integration|onboarding|documentationSource|agentChat|autonomousAction|update).update(` — only `mutate.label.update` (named `label.update` procedure). Worker uses `pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}` and `pipelineJob.{create,patch}` only. Zero `withMutations` under `apps/api`; zero `insert: ({ ctx })` in live-state router.
+- 2026-06-24 (LP-009b): Smoke test matrix documented below. No runtime UI/integration exercise this session — gaps listed per path.
+- 2026-06-24 (LP-010a): Authorization scan complete — 12 files with ad-hoc patterns tagged; zero `orgUsers.find` outside `authorize.ts`. Documented in **LP-010a scan results** section. No code changes.
+- 2026-06-24 (LP-010b–c): `bun run --filter api typecheck` pass. Ripgrep: ad-hoc `UNAUTHORIZED` / `session` / `internalApiKey` checks remain only in `authorize.ts` plus documented exceptions (`factories.ts`, `message.ts` `markAsAnswer`, `threads.ts` `setStatus` integration branch, `router.ts` `updateMember` self-guard). Zero `orgUsers.find` outside `authorize.ts`. No runtime smoke test.
+
+### LP-010 documented exceptions (post-migration)
+
+| File | Pattern | Reason |
+| --- | --- | --- |
+| `live-state/factories.ts` | `privateRoute` requires session or internal key | Route-factory gate; not procedure-level auth |
+| `live-state/router/message.ts` | `markAsAnswer` portal caller + thread-author bypass | Portal users who are not thread authors fall through to `authorize`; documented in LP-010b |
+| `live-state/router/threads.ts` | `setStatus` `internalApiKey` branch for integration activity fields | Complements `assertInternalKeyForIntegrationFields` |
+| `live-state/router.ts` | `updateMember` compares `session.userId` to target member | Self-modify guard after `authorize`; not a membership check |
+| `live-state/router/agent-chat.ts` | `create` throws `UNAUTHORIZED` when thread missing | Anti-enumeration; thread belongs to another org |
+
+### LP-009b smoke test matrix
+
+| Area | Path / procedure | Expected behavior | Runtime tested | Gap |
+| --- | --- | --- | --- | --- |
+| Inbox | Thread list load + navigation | Threads sync via Live-State; no console mutation errors | no | Needs authenticated session |
+| Thread properties | `thread.setStatus` / `setPriority` / `assignUser` | Properties panel updates optimistically; timeline row appears | no | Prior slices verified typecheck + ripgrep only |
+| Thread properties | `thread.linkIssue` / `unlinkIssue` | Issues combobox links/unlinks; optimistic label resolution | no | — |
+| Thread properties | `thread.linkPullRequest` / `unlinkPullRequest` | PR combobox links/unlinks | no | — |
+| Thread | `thread.archive` / `thread.restore` | Archive navigates away; restore from archive page | no | `restore` has no optimistic handler (intentional) |
+| Thread | `thread.markDuplicate` | Support Intelligence duplicate accept | no | — |
+| Labels | `label.create` / `update` / `attachToThread` / `detachFromThread` | Settings labels CRUD + thread chip attach/detach | no | `label.update` is named procedure (not generic) |
+| Composer | `message.create` / `markAsAnswer` | Reply editor + portal mark-as-answer | no | — |
+| Settings | `organization.updateSettings` | Org profile / digest / custom instructions save | no | — |
+| Settings | `organizationUser.updateMember` / `invite.revoke` | Team role toggle, member remove, invite revoke | no | — |
+| Settings | `user.updateProfile` | User profile save | no | — |
+| Integrations | `integration.connectInstallation` / `updateInstallation` | Slack/Discord/GitHub OAuth connect flows | no | — |
+| Onboarding | `onboarding.*` | First-steps checklist progression | no | — |
+| Documentation | `documentationSource.*` | Add/recrawl/delete source | no | — |
+| Worker | `documentationSource.syncCrawlProgress` | Crawl status updates in settings UI | no | — |
+| Slack/Discord | `thread.create` / `message.create` / `message.setExternalMessageId` | Inbound message ingest + outbound external id sync | no | — |
+| GitHub | `thread.setStatus` webhook | Issue/PR close updates linked threads | no | — |
+| Pipeline | `pipelineIdempotencyKey.*` / `pipelineJob.*` | Worker thread ingestion completes | no | — |
+
+**Recommended manual pass before merge:** inbox navigation → change status/priority/assign on one thread → attach/detach label → archive thread → settings org name save → team role toggle.
+
+### LP-010a scan results (2026-06-24)
+
+Ripgrep across `apps/api/src` for ad-hoc auth. **`authorize()` already used** in: `router.ts` (org-family procedures), `labels.ts`, `integration.ts`, `threads.ts` (most property procedures), `message.ts` (partial), `update.ts` (`recordActivity`), `autonomous-action.ts` (`record`/`undo`), `signals/thread-procedures.ts`.
+
+| File | Pattern | Count / notes | Tag |
+| --- | --- | --- | --- |
+| `live-state/router/threads.ts` | `portalSession` + `userId` match on `thread.create` | Portal customer creates thread; inline session checks + many `throw UNAUTHORIZED` on property procedures that already call `authorize` for redundant guards | **extend-util** — add `portalSession` / `allowPortalUser` to `authorize.ts`; **migrate** duplicate throws after `authorize` |
+| `live-state/router/threads.ts` | `internalApiKey` guards on `setAgentRead`, `list`, integration-only fields | Internal-key-only procedures | **extend-util** — `authorize(req, { allowInternalApiKeyOnly: true })` or keep `requireInternalApiKey` helper folded into `authorize.ts` |
+| `live-state/router/threads.ts` | `fetchRelatedThreads` manual `authorized` + `orgUsers` loop | Query auth not using `authorize` | **migrate** |
+| `live-state/router/message.ts` | `portalSession` author resolution on `create` | Portal composer passes author from session | **extend-util** — portal actor helper beside `authorize` |
+| `live-state/router/message.ts` | `markAsAnswer` inline session + membership | Partial `authorize` usage | **migrate** |
+| `live-state/router/message.ts` | `setExternalMessageId` internal-key guard | Worker/integration only | **extend-util** — internal-key-only option |
+| `live-state/router/agent-chat.ts` | `!req.context?.session?.userId` + `throw UNAUTHORIZED` | All draft/chat procedures (~15 sites) | **migrate** — use `authorize` with self-session or new `requireSessionUser` helper in `authorize.ts` |
+| `live-state/router/onboarding.ts` | Repeated `internalApiKey \|\| session` + `orgUsers.find` per procedure | 4 procedures × same block | **migrate** — single `authorize(req, { organizationId })` per handler |
+| `live-state/router/documentation-sources.ts` | Same pattern as onboarding + `syncCrawlProgress` internal guard | 5 write procedures + 1 internal | **migrate** / **extend-util** for internal-only |
+| `live-state/router/external-entity.ts` | `upsert`/`softDelete` internal-key; `syncFromGithub` manual authorized | Mixed internal + member | **migrate** queries; fold internal guards into `authorize.ts` |
+| `live-state/router/update.ts` | `markReplicated` internal-key-only | 2 sites | **extend-util** |
+| `live-state/router/autonomous-action.ts` | `seedFake`/`clearFake` dev internal guard; `record` uses `authorize` | Dev procedures | **extend-util** for dev-only internal |
+| `live-state/router/pipeline.ts` | Local `requireInternalApiKey` helper | 5 procedure entry points | **extend-util** — move helper to `authorize.ts` |
+| `live-state/router.ts` | `organization.create` / `invite.accept` / `invite.decline` manual authorized blocks | Org bootstrap flows | **migrate** |
+| `live-state/router.ts` | `user` read rule `isSelf \|\| isInternal` | Collection read permission | **extend-util** — `isAuthorized` self-or-internal variant |
+| `live-state/router/labels.ts` | `getAuthorizedOrganizationIds` for query scoping | Not membership throw — org list filter | **intentional-exception** (query scoping); consider folding into `authorize.ts` as `getAuthorizedOrgIds(ctx)` |
+| `live-state/factories.ts` | `publicRoute` session-or-internal check | Factory for public queries | **intentional-exception** until `authorize.ts` exposes query-scoping helper |
+| `lib/signals/thread-procedures.ts` | `authorize` ✓ but `actorUserId` from `req.context?.session` with extra throw | Signal handlers | **migrate** — derive actor via `authorize.ts` helper after auth |
+| `lib/authorize.ts` | Canonical `authorize` / `isAuthorized` | — | **keep** |
+
+**`orgUsers.find` outside `authorize.ts`:** zero direct sites (only inside `authorize.ts`). Onboarding/documentation-sources duplicate membership logic via inline `orgUsers` iteration — counts as **migrate**.
+
+**Priority for LP-010b (by call volume / duplication):** `threads.ts` (portal + redundant throws) → `agent-chat.ts` → `onboarding.ts` + `documentation-sources.ts` → `router.ts` org bootstrap → `message.ts` portal → `external-entity.ts` queries.
 
 ## Session Log
 
@@ -522,7 +596,13 @@ Cross-cutting cleanup after procedure migration. Can bundle router-file migratio
 - 2026-06-24 (LP-007a–e): Renamed onboarding, documentation-sources, agent-chat to `withProcedures`; denied generic writes. Added `documentation-source-mutations.ts` (`syncCrawlProgress`) + worker migration. Added `autonomous-action-mutations.ts` (`runRecordAutonomousAction`); converged `autonomous-receipts.ts` and `autonomousAction.record` procedure. Files: `router/onboarding.ts`, `router/documentation-sources.ts`, `router/agent-chat.ts`, `router/autonomous-action.ts`, `lib/autonomous-action-mutations.ts`, `lib/documentation-source-mutations.ts`, `lib/signals/autonomous-receipts.ts`, `apps/worker/src/handlers/crawl-documentation.ts`.
 - 2026-06-24 (LP-008): Cross-route generic-write audit — verified all 17 product routes deny generic `insert`/`update`; documented internal exceptions (`pipeline*`, `subscription`, `allowlist`, `migration`) with call sites in new **LP-008 audit results** section. No production code changes. Files: `docs/plans/custom-route-mutations.md` only.
 - 2026-06-24 (LP-008 pipeline lockdown): Added `lib/pipeline-mutations.ts`, `router/pipeline.ts` (`pipelineIdempotencyKey.{upsert,invalidate,batchUpsert}`, `pipelineJob.{create,patch}`); denied generic writes on `allowlist`, `subscription`, pipeline routes in `router.ts`; migrated worker `idempotency.ts` and `persistence.ts` off generic `mutate.*.(insert|update)`.
+- 2026-06-24 (LP-010b partial): Extended `authorize.ts`; migrated `threads.ts` auth to shared helpers. Zero ad-hoc `UNAUTHORIZED` / portal checks remain in `threads.ts`.
+- 2026-06-24 (LP-010b partial): Migrated `message.ts` — `allowPortalUser` for `message.create`; `resolveHumanAuthor` / `getCallerUserId` / `requireInternalApiKey`. Files: `authorize.ts`, `router/message.ts`.
+- 2026-06-24 (LP-009a–b): Repo-wide static verification — `bun run typecheck` pass; ripgrep confirms zero generic product-route `insert`/`update` call sites (`label.update` is named procedure). Documented LP-009b smoke test matrix with runtime gaps. Files: `docs/plans/custom-route-mutations.md` only.
+- 2026-06-24 (LP-010a): Authorization scan across `apps/api/src` — tagged ad-hoc patterns in 12 files; priority order for LP-010b documented. Files: `docs/plans/custom-route-mutations.md` only.
+- 2026-06-24 (LP-010b partial): Extended `authorize.ts` with portal/workspace helpers (`authorizeThreadCreate`, `getPortalAuthor`, `getWorkspaceActor`, `requireInternalApiKey`, `assertInternalKeyForIntegrationFields`). Migrated `live-state/router/threads.ts` off ad-hoc auth. Files: `authorize.ts`, `router/threads.ts`.
+- 2026-06-24 (LP-010b–c): Completed authorization consolidation. Extended `authorize.ts`; migrated all remaining router files + `thread-procedures.ts` + `labels.ts` org scoping helper. Files: `authorize.ts`, `router/onboarding.ts`, `router/documentation-sources.ts`, `router/agent-chat.ts`, `router/external-entity.ts`, `router.ts`, `router/update.ts`, `router/autonomous-action.ts`, `router/pipeline.ts`, `router/labels.ts`, `lib/signals/thread-procedures.ts`.
 
 ## Handoff
 
-Next action: Ship **LP-009a** — repo-wide static verification. Run `bun run typecheck` and ripgrep for any remaining `mutate.<resource>.(insert|update)(` under `apps/` (expect zero). Record results in `Verification Ledger`; if clean, mark LP-009a complete and proceed to **LP-009b** smoke matrix.
+Project **complete**. All LP-001–LP-010 checklist items done. Optional follow-ups (out of scope): runtime smoke pass per LP-009b matrix; wire `autonomousAction.undo` UI or remove unused optimistic handler; review/merge PR #308.

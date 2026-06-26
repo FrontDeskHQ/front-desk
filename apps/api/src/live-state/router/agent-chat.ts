@@ -6,6 +6,10 @@ import { stepCountIs, streamText } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
+import {
+  authorizeOwnedAgentChat,
+  authorizeWorkspaceOrgMember,
+} from "../../lib/authorize";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import {
@@ -46,23 +50,10 @@ export const agentChatRoute = privateRoute
         threadId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: req.input.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = authorizeWorkspaceOrgMember(
+        req,
+        req.input.organizationId,
+      );
 
       const thread = Object.values(
         await db.find(schema.thread, {
@@ -82,7 +73,7 @@ export const agentChatRoute = privateRoute
       const agentChat = await db.insert(schema.agentChat, {
         id,
         organizationId: req.input.organizationId,
-        userId: req.context.session.userId,
+        userId: actor.userId,
         threadId: req.input.threadId,
         createdAt: new Date(),
         draft: null,
@@ -97,34 +88,12 @@ export const agentChatRoute = privateRoute
         message: z.string().min(1),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!agentChat) {
         throw new Error("CHAT_NOT_FOUND");
       }
 
-      // Enforce chat ownership
-      if (agentChat.userId !== req.context.session.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      // Verify org membership
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: agentChat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = authorizeOwnedAgentChat(req, agentChat);
 
       // Insert user message
       await db.insert(schema.agentChatMessage, {
@@ -273,7 +242,7 @@ export const agentChatRoute = privateRoute
       // Fetch current user name for personalization
       const currentUser = await db.findOne(
         schema.user,
-        req.context.session.userId,
+        actor.userId,
       );
 
       const systemPrompt = buildSystemPrompt({
@@ -697,34 +666,12 @@ export const agentChatRoute = privateRoute
         chatId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const chat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
       }
 
-      // Enforce chat ownership
-      if (chat.userId !== req.context.session.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      // Verify org membership
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: chat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
+      const actor = authorizeOwnedAgentChat(req, chat);
 
       if (!chat.draft || chat.draftStatus !== "active") {
         throw new Error("NO_ACTIVE_DRAFT");
@@ -737,7 +684,7 @@ export const agentChatRoute = privateRoute
       const existingAuthor = Object.values(
         await db.find(schema.author, {
           where: {
-            userId: req.context.session.userId,
+            userId: actor.userId,
             organizationId: chat.organizationId,
           },
         }),
@@ -746,11 +693,11 @@ export const agentChatRoute = privateRoute
       let authorId = existingAuthor?.id;
 
       if (!authorId) {
-        const user = await db.findOne(schema.user, req.context.session.userId);
+        const user = await db.findOne(schema.user, actor.userId);
         authorId = ulid().toLowerCase();
         await db.insert(schema.author, {
           id: authorId,
-          userId: req.context.session.userId,
+          userId: actor.userId,
           metaId: null,
           name: user?.name ?? "Unknown User",
           organizationId: chat.organizationId,
@@ -796,34 +743,12 @@ export const agentChatRoute = privateRoute
         chatId: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const chat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
       }
 
-      // Enforce chat ownership
-      if (chat.userId !== req.context.session.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      // Verify org membership
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: chat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorizeOwnedAgentChat(req, chat);
 
       await db.update(schema.agentChat, chat.id, {
         draft: null,
@@ -839,32 +764,12 @@ export const agentChatRoute = privateRoute
         content: z.string(),
       }),
     ).handler(async ({ req, db }) => {
-      if (!req.context?.session?.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
       const chat = await db.findOne(schema.agentChat, req.input.chatId);
       if (!chat) {
         throw new Error("CHAT_NOT_FOUND");
       }
 
-      if (chat.userId !== req.context.session.userId) {
-        throw new Error("UNAUTHORIZED");
-      }
-
-      const orgUser = Object.values(
-        await db.find(schema.organizationUser, {
-          where: {
-            organizationId: chat.organizationId,
-            userId: req.context.session.userId,
-            enabled: true,
-          },
-        }),
-      )[0];
-
-      if (!orgUser) {
-        throw new Error("UNAUTHORIZED");
-      }
+      authorizeOwnedAgentChat(req, chat);
 
       if (chat.draftStatus !== "active") {
         throw new Error("NO_ACTIVE_DRAFT");
