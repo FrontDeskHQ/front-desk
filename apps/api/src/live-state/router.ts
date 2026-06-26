@@ -86,7 +86,8 @@ export const router = createRouter({
         ).handler(async ({ req, db }) => {
           const actor = getWorkspaceActor(req);
           const userEmail = req.context?.user?.email;
-          const userName = req.context?.user?.name ?? actor.userName;
+          const userName =
+            req.context?.user?.name ?? actor.userName ?? undefined;
           const organizationId = ulid().toLowerCase();
 
           const dodopaymentsCustomer = await dodopayments?.customers.create({
