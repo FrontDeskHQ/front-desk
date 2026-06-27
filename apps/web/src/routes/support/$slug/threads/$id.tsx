@@ -16,7 +16,6 @@ import {
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
-  BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
 import {
@@ -224,9 +223,6 @@ function RouteComponent() {
                           </BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
-                        <BreadcrumbItem>
-                          <BreadcrumbPage>{thread.name}</BreadcrumbPage>
-                        </BreadcrumbItem>
                       </BreadcrumbList>
                     </Breadcrumb>
                   )}
