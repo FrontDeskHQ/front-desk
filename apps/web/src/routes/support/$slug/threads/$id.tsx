@@ -304,7 +304,7 @@ function RouteComponent() {
             </div>
           </div>
         </div>
-        <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
+        <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 px-4 pb-4 pt-[4.25rem]">
           <TooltipProvider>
             <div className="flex flex-col gap-2">
               <div className="text-muted-foreground text-xs">
