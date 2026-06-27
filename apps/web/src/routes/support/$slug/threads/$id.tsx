@@ -189,7 +189,7 @@ function RouteComponent() {
   const isThreadAuthor = Boolean(user && thread?.author?.userId === user.id);
 
   return (
-    <div className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto">
+    <div className="flex flex-col w-full flex-1">
       <div className="flex justify-center px-4 py-4 sm:py-8 sm:px-8">
         <div className="grow shrink max-w-0 2xl:max-w-64" />
         <div className="w-full grow shrink flex flex-col max-w-5xl">
