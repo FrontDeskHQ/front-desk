@@ -153,7 +153,7 @@ function RouteComponent() {
 
   return (
     <div className="w-full">
-      <div className="flex flex-col gap-4 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-5xl">
+      <div className="flex flex-col gap-4 mx-auto py-8 px-4 sm:px-6 lg:px-8 max-w-6xl">
         <div className="flex items-center justify-between gap-4 px-3">
           <h1 className="text-lg font-medium">Threads</h1>
           <Popover>
@@ -226,7 +226,7 @@ function RouteComponent() {
                     slug: organization.slug,
                     id: buildThreadParam(thread),
                   }}
-                  className="max-w-5xl w-full flex flex-col p-3 gap-2 mx-auto hover:bg-muted"
+                  className="max-w-6xl w-full flex flex-col p-3 gap-2 mx-auto hover:bg-muted"
                   resetScroll={false}
                   style={{
                     position: "absolute",
