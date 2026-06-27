@@ -10,8 +10,6 @@ import {
   Editor,
   EditorInput,
   EditorSubmit,
-  RichText,
-  TruncatedText,
 } from "@workspace/ui/components/blocks/tiptap";
 import {
   Breadcrumb,
@@ -21,15 +19,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { ActionButton, Button } from "@workspace/ui/components/button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
+import { Card, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import {
   PriorityIndicator,
   PriorityText,
@@ -37,15 +27,15 @@ import {
   StatusText,
 } from "@workspace/ui/components/indicator";
 import { LabelBadge } from "@workspace/ui/components/label-badge";
+import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
-import { safeParseJSON } from "@workspace/ui/lib/tiptap";
-import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { ArrowDown, Check, CircleUser } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { CircleUser } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
 import { SupportRelatedThreadsSection } from "~/components/threads/support-related-threads-section";
-import { Update } from "~/components/threads/updates";
+import { ThreadHeader } from "~/components/threads/thread-header";
+import { ThreadReply } from "~/components/threads/thread-reply";
+import { ThreadUpdates } from "~/components/threads/thread-updates";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { buildThreadParam, parseThreadParam } from "~/utils/thread";
@@ -138,9 +128,29 @@ function RouteComponent() {
       ].sort((a, b) => a.id.localeCompare(b.id))
     : [];
 
-  const enabledLabels = thread?.labels?.filter(
-    (tl) => tl.enabled && !!tl.label?.enabled
-  ) ?? [];
+  const firstItem = allItems[0];
+  const restItems = allItems.slice(1);
+
+  type ReplyGroup =
+    | { type: "updates"; key: string; items: any[] }
+    | { type: "message"; key: string; item: any };
+
+  const replyGroups: ReplyGroup[] = [];
+  for (const item of restItems) {
+    if (item.itemType === "update") {
+      const last = replyGroups[replyGroups.length - 1];
+      if (last?.type === "updates") {
+        last.items.push(item);
+        continue;
+      }
+      replyGroups.push({ type: "updates", key: item.id, items: [item] });
+    } else {
+      replyGroups.push({ type: "message", key: item.id, item });
+    }
+  }
+
+  const enabledLabels =
+    thread?.labels?.filter((tl) => tl.enabled && !!tl.label?.enabled) ?? [];
 
   useEffect(() => {
     const checkHash = () => {
@@ -176,7 +186,7 @@ function RouteComponent() {
     };
   }, [highlightAnswer]);
 
-  const { scrollRef, disableAutoScroll } = useAutoScroll({
+  const { scrollRef, contentRef, disableAutoScroll } = useAutoScroll({
     smooth: false,
     content: allItems,
     offset: 264,
@@ -188,218 +198,123 @@ function RouteComponent() {
   const isThreadAuthor = Boolean(user && thread?.author?.userId === user.id);
 
   return (
-    <div className="flex flex-col w-full gap-4 sm:gap-8">
-      <div className="flex flex-col flex-1 px-4 py-4 sm:py-8 sm:px-8">
-        <div className="flex flex-1 justify-center">
-          <div className="grow shrink max-w-0 2xl:max-w-64" />
-          <Card className="w-full grow shrink flex flex-col max-w-5xl">
-            <CardHeader>
-              <CardTitle>
-                {thread && (
-                  <Breadcrumb>
-                    <BreadcrumbList>
-                      <BreadcrumbItem>
-                        <BreadcrumbLink asChild>
-                          <Link
-                            to="/support/$slug/threads"
-                            params={{ slug: organization.slug }}
-                          >
-                            Threads
-                          </Link>
-                        </BreadcrumbLink>
-                      </BreadcrumbItem>
-                      <BreadcrumbSeparator />
-                      <BreadcrumbItem>
-                        <BreadcrumbPage>{thread.name}</BreadcrumbPage>
-                      </BreadcrumbItem>
-                    </BreadcrumbList>
-                  </Breadcrumb>
-                )}
-              </CardTitle>
-            </CardHeader>
-            <div className="flex flex-col p-4 gap-4 flex-1 w-full max-w-5xl mx-auto overflow-hidden">
-              <div
-                className="p-4 flex-1 flex flex-col gap-4 overflow-y-auto"
-                ref={scrollRef}
-                onScroll={disableAutoScroll}
-                onTouchMove={disableAutoScroll}
-              >
-                {allItems.map((item, i) => {
-                  if (item.itemType === "message") {
-                    return (
-                      <TooltipProvider key={item.id}>
-                        <Card
-                          className={cn(
-                            "relative before:w-px before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border group transition-[color,box-shadow] data-[highlight=true]:border-ring data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
-                            item.markedAsAnswer && "border-green-700/30",
-                          )}
-                          data-highlight={
-                            item.markedAsAnswer && highlightAnswer
-                          }
-                          id={
-                            item.markedAsAnswer ? "answer-message" : undefined
-                          }
+    <div className="flex flex-col w-full">
+      <div className="flex flex-1 justify-center px-4 py-4 sm:py-8 sm:px-8">
+        <div className="grow shrink max-w-0 2xl:max-w-64" />
+        <Card className="w-full grow shrink flex flex-col max-w-5xl overflow-hidden p-0 gap-0">
+          <CardHeader>
+            <CardTitle>
+              {thread && (
+                <Breadcrumb>
+                  <BreadcrumbList>
+                    <BreadcrumbItem>
+                      <BreadcrumbLink asChild>
+                        <Link
+                          to="/support/$slug/threads"
+                          params={{ slug: organization.slug }}
                         >
-                          {/* TODO: update the way it's checking if it's an message from the current user */}
-                          <CardHeader
-                            size="sm"
-                            className={cn(
-                              "px-2",
-                              item.markedAsAnswer &&
-                                "bg-green-800/10 border-green-700/30",
-                            )}
-                          >
-                            <CardTitle>
-                              <Avatar
-                                variant="user"
-                                size="md"
-                                fallback={item.author?.name}
-                              />
-                              <p>{item.author?.name}</p>
-                              <p className="text-muted-foreground">
-                                {formatRelativeTime(item.createdAt as Date)}
-                              </p>
-                              {item.origin === "discord" && (
-                                <>
-                                  <span className="bg-muted-foreground size-0.75 rounded-full" />
-                                  <p className="text-muted-foreground">
-                                    Imported from Discord
-                                  </p>
-                                </>
-                              )}
-                              {item.markedAsAnswer && (
-                                <>
-                                  <span className="bg-muted-foreground size-0.75 rounded-full" />
-                                  <Check className="size-3.5" />
-                                  <p className="text-muted-foreground">
-                                    Marked as answer
-                                  </p>
-                                </>
-                              )}
-                            </CardTitle>
-                            {i > 0 && isThreadAuthor && !answerMessage && (
-                              <CardAction
-                                side="right"
-                                className="hidden group-hover:flex"
-                              >
-                                <ActionButton
-                                  variant="ghost"
-                                  size="icon-sm"
-                                  tooltip="Mark as answer"
-                                  onClick={async () => {
-                                    try {
-                                      await fetchClient.mutate.message.markAsAnswer(
-                                        {
-                                          messageId: item.id,
-                                        },
-                                      );
-                                      route.invalidate();
-                                    } catch (error) {
-                                      console.error(
-                                        "Failed to mark message as answer:",
-                                        error,
-                                      );
-                                      toast.error(
-                                        "Failed to mark message as answer",
-                                      );
-                                    }
-                                  }}
-                                >
-                                  <Check />
-                                </ActionButton>
-                              </CardAction>
-                            )}
-                          </CardHeader>
-                          <CardContent
-                            className={cn(
-                              i === 0 && answerMessage && "border-b",
-                            )}
-                          >
-                            <RichText content={safeParseJSON(item.content)} />
-                          </CardContent>
-                          {i === 0 && answerMessage && (
-                            <CardFooter className="flex-col items-start p-4 gap-2 bg-green-800/15 border-t-0">
-                              <div className="text-xs flex items-center gap-2">
-                                <Check className="size-3.5" /> Answered by{" "}
-                                {answerMessage.author?.name}
-                                <p className="text-muted-foreground">
-                                  {formatRelativeTime(
-                                    answerMessage.createdAt as Date,
-                                  )}
-                                </p>
-                              </div>
-                              <TruncatedText maxHeight={64} hideShowMore>
-                                <RichText
-                                  content={safeParseJSON(answerMessage.content)}
-                                />
-                              </TruncatedText>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                render={
-                                  <Link
-                                    to="/support/$slug/threads/$id"
-                                    params={{
-                                      slug: organization.slug,
-                                      id: buildThreadParam(thread),
-                                    }}
-                                    hash="answer-message"
-                                    onClick={() => {
-                                      setHighlightAnswer(true);
-                                    }}
-                                  />
-                                }
-                                className="cursor-default"
-                              >
-                                Go to answer
-                                <ArrowDown className="size-3.5" />
-                              </Button>
-                            </CardFooter>
-                          )}
-                        </Card>
-                      </TooltipProvider>
-                    );
-                  }
-
-                  if (item.itemType === "update") {
-                    return <Update key={item.id} update={item} />;
-                  }
-
-                  return null;
-                })}
-              </div>
-              {user ? (
-                <Editor
-                  onSubmit={async (value) => {
-                    if (!user) return;
-
-                    await fetchClient.mutate.message.create({
-                      threadId: thread.id,
-                      content: value,
-                      userId: user.id,
-                      userName: user.name,
-                      organizationId: thread.organizationId,
-                    });
-
-                    // TODO: Find out how to only invalidate this route
-                    route.invalidate();
-                  }}
-                >
-                  <EditorInput
-                    className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-                    placeholder="Write a reply..."
-                  >
-                    <EditorSubmit />
-                  </EditorInput>
-                </Editor>
-              ) : (
-                <div className="flex flex-col gap-2 justify-center items-center text-foreground-secondary pt-8 pb-4 border-t">
-                  You must be signed in to reply to this thread.
-                </div>
+                          Threads
+                        </Link>
+                      </BreadcrumbLink>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator />
+                    <BreadcrumbItem>
+                      <BreadcrumbPage>{thread.name}</BreadcrumbPage>
+                    </BreadcrumbItem>
+                  </BreadcrumbList>
+                </Breadcrumb>
               )}
+            </CardTitle>
+          </CardHeader>
+          <div className="flex flex-col flex-1 w-full overflow-hidden">
+            <div
+              className="flex-1 overflow-y-auto overscroll-none"
+              ref={scrollRef}
+              onScroll={disableAutoScroll}
+              onTouchMove={disableAutoScroll}
+            >
+              <div ref={contentRef} className="flex flex-col min-h-full">
+                <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto flex-1">
+                  {thread &&
+                    (firstItem?.itemType === "message" ? (
+                      <ThreadHeader title={thread.name} message={firstItem} />
+                    ) : (
+                      <h1 className="text-2xl font-semibold text-foreground">
+                        {thread.name}
+                      </h1>
+                    ))}
+                  {replyGroups.length > 0 && (
+                    <>
+                      <Separator />
+                      {answerMessage && (
+                        <ThreadReply
+                          message={answerMessage}
+                          canMarkAsAnswer={false}
+                          highlight={false}
+                          asCard
+                        />
+                      )}
+                      <h2 className="text-base py-2">Replies</h2>
+                    </>
+                  )}
+
+                  {replyGroups.map((group) => (
+                    <Fragment key={group.key}>
+                      {group.type === "updates" ? (
+                        <ThreadUpdates updates={group.items} user={user} />
+                      ) : (
+                        <ThreadReply
+                          message={group.item}
+                          canMarkAsAnswer={isThreadAuthor && !answerMessage}
+                          highlight={highlightAnswer}
+                          onMarkAsAnswer={async () => {
+                            await fetchClient.mutate.message.markAsAnswer({
+                              messageId: group.item.id,
+                            });
+                            route.invalidate();
+                          }}
+                        />
+                      )}
+                    </Fragment>
+                  ))}
+                </div>
+                <div className="sticky bottom-0 w-full max-w-5xl mx-auto px-8 pb-4">
+                  {user ? (
+                    <Editor
+                      onSubmit={async (value) => {
+                        if (!user) return;
+
+                        await fetchClient.mutate.message.create({
+                          threadId: thread.id,
+                          content: value,
+                          userId: user.id,
+                          userName: user.name,
+                          organizationId: thread.organizationId,
+                        });
+
+                        // TODO: Find out how to only invalidate this route
+                        route.invalidate();
+                      }}
+                    >
+                      <EditorInput
+                        className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
+                        placeholder="Write a reply..."
+                      >
+                        <EditorSubmit />
+                      </EditorInput>
+                    </Editor>
+                  ) : (
+                    <div className="flex flex-col gap-2 justify-center items-center text-foreground-secondary pt-8 pb-4 border-t">
+                      You must be signed in to reply to this thread.
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
-          </Card>
-          <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
+          </div>
+        </Card>
+        <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
+          <TooltipProvider>
             <div className="flex flex-col gap-2">
               <div className="text-muted-foreground text-xs">
                 Thread properties
@@ -437,15 +352,17 @@ function RouteComponent() {
               <div className="text-muted-foreground text-xs">Labels</div>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center px-1.5 gap-2 flex-wrap">
-                  {enabledLabels.length > 0 ?
-                    enabledLabels
-                      .map((threadLabel) => (
-                        <LabelBadge
-                          key={threadLabel.label.id}
-                          name={threadLabel.label.name}
-                          color={threadLabel.label.color}
-                        />
-                      )) : <span className="text-muted-foreground">No labels</span>}
+                  {enabledLabels.length > 0 ? (
+                    enabledLabels.map((threadLabel) => (
+                      <LabelBadge
+                        key={threadLabel.label.id}
+                        name={threadLabel.label.name}
+                        color={threadLabel.label.color}
+                      />
+                    ))
+                  ) : (
+                    <span className="text-muted-foreground">No labels</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -454,7 +371,7 @@ function RouteComponent() {
               organizationId={thread.organizationId}
               slug={organization.slug}
             />
-          </div>
+          </TooltipProvider>
         </div>
       </div>
     </div>

@@ -237,7 +237,7 @@ function RouteComponent() {
                         slug: organization.slug,
                         id: buildThreadParam(thread),
                       }}
-                      className="w-full flex flex-col p-3 gap-2 hover:bg-muted"
+                      className="max-w-5xl w-full flex flex-col p-3 gap-2 mx-auto hover:bg-muted"
                       resetScroll={false}
                       style={{
                         position: "absolute",
@@ -248,13 +248,18 @@ function RouteComponent() {
                       }}
                     >
                       <div className="flex justify-between">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
                           <Avatar
                             variant="user"
                             size="md"
                             fallback={thread?.author?.name}
                           />
-                          <div>{thread?.name}</div>
+                          <span className="truncate">{thread?.name}</span>
+                          {thread?.shortId != null && (
+                            <span className="text-foreground-secondary tabular-nums font-normal">
+                              #{thread.shortId}
+                            </span>
+                          )}
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="flex items-center gap-1.5 mr-1">
@@ -270,9 +275,7 @@ function RouteComponent() {
                                 />
                               ))}
                           </div>
-                          <PriorityIndicator
-                            priority={thread?.priority ?? 0}
-                          />
+                          <PriorityIndicator priority={thread?.priority ?? 0} />
                           <StatusIndicator status={thread?.status ?? 0} />
                         </div>
                       </div>
@@ -286,9 +289,8 @@ function RouteComponent() {
                           <span className="max-w-full">
                             {getFirstTextContent(
                               safeParseJSON(
-                                thread?.messages?.[
-                                  thread.messages.length - 1
-                                ]?.content ?? "",
+                                thread?.messages?.[thread.messages.length - 1]
+                                  ?.content ?? "",
                               ),
                             )}
                           </span>
