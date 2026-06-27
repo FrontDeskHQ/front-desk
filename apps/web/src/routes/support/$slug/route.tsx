@@ -120,7 +120,7 @@ export const Route = createFileRoute("/support/$slug")({
 
     return (
       <ReflagClientProvider client={reflagClient}>
-        <main className="w-full">
+        <main className="w-full h-svh flex flex-col overflow-hidden">
           <Navbar className="relative">
             <Navbar.Group>
               <Link

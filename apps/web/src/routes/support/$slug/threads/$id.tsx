@@ -27,7 +27,6 @@ import {
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
-import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import { CircleUser } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { SupportRelatedThreadsSection } from "~/components/threads/support-related-threads-section";
@@ -184,124 +183,107 @@ function RouteComponent() {
     };
   }, [highlightAnswer]);
 
-  const { scrollRef, contentRef, disableAutoScroll } = useAutoScroll({
-    smooth: false,
-    content: allItems,
-    offset: 264,
-  });
-
   const answerMessage = thread?.messages.find(
     (message) => message.markedAsAnswer,
   );
   const isThreadAuthor = Boolean(user && thread?.author?.userId === user.id);
 
   return (
-    <div className="flex flex-col w-full">
-      <div className="flex flex-1 justify-center px-4 py-4 sm:py-8 sm:px-8">
+    <div className="flex flex-col w-full flex-1 min-h-0 overflow-y-auto">
+      <div className="flex justify-center px-4 py-4 sm:py-8 sm:px-8">
         <div className="grow shrink max-w-0 2xl:max-w-64" />
-        <div className="w-full grow shrink flex flex-col max-w-5xl overflow-hidden">
-          <div className="flex flex-col flex-1 w-full overflow-hidden">
-            <div
-              className="flex-1 overflow-y-auto overscroll-none"
-              ref={scrollRef}
-              onScroll={disableAutoScroll}
-              onTouchMove={disableAutoScroll}
-            >
-              <div ref={contentRef} className="flex flex-col min-h-full">
-                <div className="flex flex-col gap-4 px-8 w-full max-w-5xl mx-auto flex-1">
-                  {thread && (
-                    <Breadcrumb>
-                      <BreadcrumbList>
-                        <BreadcrumbItem>
-                          <BreadcrumbLink asChild>
-                            <Link
-                              to="/support/$slug/threads"
-                              params={{ slug: organization.slug }}
-                            >
-                              Threads
-                            </Link>
-                          </BreadcrumbLink>
-                        </BreadcrumbItem>
-                        <BreadcrumbSeparator />
-                      </BreadcrumbList>
-                    </Breadcrumb>
-                  )}
-                  {thread &&
-                    (firstItem?.itemType === "message" ? (
-                      <ThreadHeader title={thread.name} message={firstItem} />
-                    ) : (
-                      <h1 className="text-2xl font-semibold text-foreground">
-                        {thread.name}
-                      </h1>
-                    ))}
-                  {replyGroups.length > 0 && (
-                    <>
-                      <Separator />
-                      {answerMessage && (
-                        <ThreadReply
-                          message={answerMessage}
-                          canMarkAsAnswer={false}
-                          highlight={false}
-                          asCard
-                        />
-                      )}
-                      <h2 className="text-base py-2">Replies</h2>
-                    </>
-                  )}
-
-                  {replyGroups.map((group) => (
-                    <Fragment key={group.key}>
-                      {group.type === "updates" ? (
-                        <ThreadUpdates updates={group.items} user={user} />
-                      ) : (
-                        <ThreadReply
-                          message={group.item}
-                          canMarkAsAnswer={isThreadAuthor && !answerMessage}
-                          highlight={highlightAnswer}
-                          onMarkAsAnswer={async () => {
-                            await fetchClient.mutate.message.markAsAnswer({
-                              messageId: group.item.id,
-                            });
-                            route.invalidate();
-                          }}
-                        />
-                      )}
-                    </Fragment>
-                  ))}
-                </div>
-                <div className="sticky bottom-0 w-full max-w-5xl mx-auto px-8 pb-4">
-                  {user ? (
-                    <Editor
-                      onSubmit={async (value) => {
-                        if (!user) return;
-
-                        await fetchClient.mutate.message.create({
-                          threadId: thread.id,
-                          content: value,
-                          userId: user.id,
-                          userName: user.name,
-                          organizationId: thread.organizationId,
-                        });
-
-                        // TODO: Find out how to only invalidate this route
-                        route.invalidate();
-                      }}
-                    >
-                      <EditorInput
-                        className="bottom-2.5 w-full shadow-lg bg-[#1B1B1E]"
-                        placeholder="Write a reply..."
+        <div className="w-full grow shrink flex flex-col max-w-5xl">
+          <div className="flex flex-col gap-4 px-8 w-full max-w-5xl mx-auto">
+            {thread && (
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink asChild>
+                      <Link
+                        to="/support/$slug/threads"
+                        params={{ slug: organization.slug }}
                       >
-                        <EditorSubmit />
-                      </EditorInput>
-                    </Editor>
-                  ) : (
-                    <div className="flex flex-col gap-2 justify-center items-center text-foreground-secondary pt-8 pb-4 border-t">
-                      You must be signed in to reply to this thread.
-                    </div>
-                  )}
-                </div>
+                        Threads
+                      </Link>
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                </BreadcrumbList>
+              </Breadcrumb>
+            )}
+            {thread &&
+              (firstItem?.itemType === "message" ? (
+                <ThreadHeader title={thread.name} message={firstItem} />
+              ) : (
+                <h1 className="text-2xl font-semibold text-foreground">
+                  {thread.name}
+                </h1>
+              ))}
+            {replyGroups.length > 0 && (
+              <>
+                <Separator />
+                {answerMessage && (
+                  <ThreadReply
+                    message={answerMessage}
+                    canMarkAsAnswer={false}
+                    highlight={false}
+                    asCard
+                  />
+                )}
+                <h2 className="text-base py-2">Replies</h2>
+              </>
+            )}
+
+            {replyGroups.map((group) => (
+              <Fragment key={group.key}>
+                {group.type === "updates" ? (
+                  <ThreadUpdates updates={group.items} user={user} />
+                ) : (
+                  <ThreadReply
+                    message={group.item}
+                    canMarkAsAnswer={isThreadAuthor && !answerMessage}
+                    highlight={highlightAnswer}
+                    onMarkAsAnswer={async () => {
+                      await fetchClient.mutate.message.markAsAnswer({
+                        messageId: group.item.id,
+                      });
+                      route.invalidate();
+                    }}
+                  />
+                )}
+              </Fragment>
+            ))}
+          </div>
+          <div className="w-full max-w-5xl mx-auto px-8 pt-6 pb-8 mt-6">
+            {user ? (
+              <Editor
+                onSubmit={async (value) => {
+                  if (!user) return;
+
+                  await fetchClient.mutate.message.create({
+                    threadId: thread.id,
+                    content: value,
+                    userId: user.id,
+                    userName: user.name,
+                    organizationId: thread.organizationId,
+                  });
+
+                  // TODO: Find out how to only invalidate this route
+                  route.invalidate();
+                }}
+              >
+                <EditorInput
+                  className="w-full bg-[#1B1B1E]"
+                  placeholder="Write a reply..."
+                >
+                  <EditorSubmit />
+                </EditorInput>
+              </Editor>
+            ) : (
+              <div className="flex flex-col gap-2 justify-center items-center text-foreground-secondary pt-8 pb-4 border-t">
+                You must be signed in to reply to this thread.
               </div>
-            </div>
+            )}
           </div>
         </div>
         <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4 pt-10">
