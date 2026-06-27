@@ -19,7 +19,6 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Card, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import {
   PriorityIndicator,
   PriorityText,
@@ -201,31 +200,7 @@ function RouteComponent() {
     <div className="flex flex-col w-full">
       <div className="flex flex-1 justify-center px-4 py-4 sm:py-8 sm:px-8">
         <div className="grow shrink max-w-0 2xl:max-w-64" />
-        <Card className="w-full grow shrink flex flex-col max-w-5xl overflow-hidden p-0 gap-0">
-          <CardHeader>
-            <CardTitle>
-              {thread && (
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink asChild>
-                        <Link
-                          to="/support/$slug/threads"
-                          params={{ slug: organization.slug }}
-                        >
-                          Threads
-                        </Link>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage>{thread.name}</BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
-              )}
-            </CardTitle>
-          </CardHeader>
+        <div className="w-full grow shrink flex flex-col max-w-5xl overflow-hidden">
           <div className="flex flex-col flex-1 w-full overflow-hidden">
             <div
               className="flex-1 overflow-y-auto overscroll-none"
@@ -235,6 +210,26 @@ function RouteComponent() {
             >
               <div ref={contentRef} className="flex flex-col min-h-full">
                 <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto flex-1">
+                  {thread && (
+                    <Breadcrumb>
+                      <BreadcrumbList>
+                        <BreadcrumbItem>
+                          <BreadcrumbLink asChild>
+                            <Link
+                              to="/support/$slug/threads"
+                              params={{ slug: organization.slug }}
+                            >
+                              Threads
+                            </Link>
+                          </BreadcrumbLink>
+                        </BreadcrumbItem>
+                        <BreadcrumbSeparator />
+                        <BreadcrumbItem>
+                          <BreadcrumbPage>{thread.name}</BreadcrumbPage>
+                        </BreadcrumbItem>
+                      </BreadcrumbList>
+                    </Breadcrumb>
+                  )}
                   {thread &&
                     (firstItem?.itemType === "message" ? (
                       <ThreadHeader title={thread.name} message={firstItem} />
@@ -312,7 +307,7 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-        </Card>
+        </div>
         <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4">
           <TooltipProvider>
             <div className="flex flex-col gap-2">

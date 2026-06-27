@@ -143,7 +143,6 @@ export const Route = createFileRoute("/support/$slug")({
                       match.pathname === `/support/${slug}/threads` ||
                       match.pathname === `/support/${slug}/threads/`,
                   )}
-                  size="sm"
                   render={
                     <Link
                       to="/support/$slug/threads"

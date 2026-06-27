@@ -126,7 +126,7 @@ export function CreateThreadDialog({
         ) : (
           <DialogTrigger
             render={
-              <Button size="sm" variant="primary">
+              <Button variant="primary">
                 <PlusIcon />
                 Create thread
               </Button>
@@ -175,7 +175,7 @@ export function CreateThreadDialog({
       ) : (
         <DialogTrigger
           render={
-            <Button size="sm" variant="primary">
+            <Button variant="primary">
               <PlusIcon />
               Create thread
             </Button>
