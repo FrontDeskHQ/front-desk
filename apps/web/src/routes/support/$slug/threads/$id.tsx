@@ -208,7 +208,7 @@ function RouteComponent() {
               onTouchMove={disableAutoScroll}
             >
               <div ref={contentRef} className="flex flex-col min-h-full">
-                <div className="flex flex-col gap-4 p-8 w-full max-w-5xl mx-auto flex-1">
+                <div className="flex flex-col gap-4 px-8 w-full max-w-5xl mx-auto flex-1">
                   {thread && (
                     <Breadcrumb>
                       <BreadcrumbList>
@@ -304,7 +304,7 @@ function RouteComponent() {
             </div>
           </div>
         </div>
-        <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 px-4 pb-4 pt-[4.25rem]">
+        <div className="grow shrink-0 md:flex hidden max-w-64 flex-col gap-4 p-4 pt-10">
           <TooltipProvider>
             <div className="flex flex-col gap-2">
               <div className="text-muted-foreground text-xs">
