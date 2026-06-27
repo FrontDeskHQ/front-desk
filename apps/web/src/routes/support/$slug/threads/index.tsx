@@ -28,7 +28,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { createStandardSchemaV1, parseAsStringEnum } from "nuqs";
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { buildThreadParam } from "~/utils/thread";
@@ -121,12 +121,31 @@ function RouteComponent() {
 
   const parentRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const scrollRef = useRef<HTMLElement | null>(null);
+  const [scrollMargin, setScrollMargin] = useState(0);
+
+  // Scroll against the page-level scroll container (set in support/$slug
+  // route.tsx) so the list scrolls with the whole page instead of an inner box.
+  useLayoutEffect(() => {
+    const parent = parentRef.current;
+    const scrollEl =
+      parent?.closest<HTMLElement>("[data-portal-scroll]") ?? null;
+    scrollRef.current = scrollEl;
+    if (parent && scrollEl) {
+      setScrollMargin(
+        parent.getBoundingClientRect().top -
+          scrollEl.getBoundingClientRect().top +
+          scrollEl.scrollTop,
+      );
+    }
+  }, []);
 
   const virtualizer = useVirtualizer({
     count: threads.length,
-    getScrollElement: () => parentRef.current,
+    getScrollElement: () => scrollRef.current,
     estimateSize: () => 72,
     overscan: 10,
+    scrollMargin,
     getItemKey: (index) => threads[index]?.id ?? `thread-fallback-${index}`,
   });
 
@@ -140,7 +159,7 @@ function RouteComponent() {
           fetchNextPage();
         }
       },
-      { root: parentRef.current, rootMargin: "200px" },
+      { root: scrollRef.current, rootMargin: "200px" },
     );
 
     observer.observe(sentinel);
@@ -200,11 +219,7 @@ function RouteComponent() {
             </PopoverContent>
           </Popover>
         </div>
-        <div
-          ref={parentRef}
-          className="overflow-y-auto"
-          style={{ maxHeight: "calc(100vh - 16rem)" }}
-        >
+        <div ref={parentRef}>
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,
@@ -233,7 +248,9 @@ function RouteComponent() {
                     top: 0,
                     left: 0,
                     right: 0,
-                    transform: `translateY(${virtualItem.start}px)`,
+                    transform: `translateY(${
+                      virtualItem.start - scrollMargin
+                    }px)`,
                   }}
                 >
                   <div className="flex justify-between">

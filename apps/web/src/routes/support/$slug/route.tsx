@@ -229,7 +229,10 @@ export const Route = createFileRoute("/support/$slug")({
               )}
             </Navbar.Group>
           </Navbar>
-          <div className="flex-1 min-h-0 overflow-y-auto flex flex-col">
+          <div
+            data-portal-scroll
+            className="flex-1 min-h-0 overflow-y-auto flex flex-col"
+          >
             <Outlet />
             <footer className="w-full py-6 flex justify-center items-center">
               <a
