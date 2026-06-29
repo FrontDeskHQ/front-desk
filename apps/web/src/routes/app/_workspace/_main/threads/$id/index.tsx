@@ -9,7 +9,6 @@ import {
   notFound,
   useNavigate,
 } from "@tanstack/react-router";
-import { useAtomValue } from "jotai";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -39,6 +38,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import type { schema } from "api/schema";
+import { useAtomValue } from "jotai";
 import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -47,10 +47,13 @@ import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
 import { PullRequestsSection } from "~/components/threads/pull-requests";
 import { RelatedThreadsSection } from "~/components/threads/related-threads-section";
+import { ThreadHeader } from "~/components/threads/thread-header";
+import { ThreadReply } from "~/components/threads/thread-reply";
 import { ThreadToolbar } from "~/components/threads/thread-toolbar";
+import { ThreadUpdates } from "~/components/threads/thread-updates";
+import { activeOrganizationAtom } from "~/lib/atoms";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
-import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import {
@@ -58,9 +61,6 @@ import {
   DAYS_UNTIL_DELETION,
   parseThreadParam,
 } from "~/utils/thread";
-import { ThreadHeader } from "./-components/thread-header";
-import { ThreadReply } from "./-components/thread-reply";
-import { ThreadUpdates } from "./-components/thread-updates";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id/")({
   component: RouteComponent,
@@ -89,8 +89,7 @@ function RouteComponent() {
   // TODO: remove the organizationUsers[0] fallback once activeOrganizationAtom
   // persists + hydrates the last used org synchronously on reload. See backlog.
   const orgId =
-    activeOrg?.id ??
-    workspaceCtx.organizationUsers?.[0]?.organization?.id;
+    activeOrg?.id ?? workspaceCtx.organizationUsers?.[0]?.organization?.id;
   if (parsed.kind === "shortId" && !orgId) throw notFound();
 
   const where =
@@ -377,6 +376,11 @@ function RouteComponent() {
                           message={group.item}
                           canMarkAsAnswer={!answerMessage}
                           highlight={highlightAnswer}
+                          onMarkAsAnswer={() =>
+                            mutate.message.markAsAnswer({
+                              messageId: group.item.id,
+                            })
+                          }
                         />
                       )}
                     </Fragment>

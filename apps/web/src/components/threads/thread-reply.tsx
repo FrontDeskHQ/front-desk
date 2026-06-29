@@ -8,7 +8,6 @@ import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { mutate } from "~/lib/live-state";
 
 type Message = InferLiveObject<typeof schema.message, { author: true }>;
 
@@ -17,11 +16,13 @@ export function ThreadReply({
   canMarkAsAnswer,
   highlight,
   asCard,
+  onMarkAsAnswer,
 }: {
   message: Message;
   canMarkAsAnswer: boolean;
   highlight: boolean;
   asCard?: boolean;
+  onMarkAsAnswer?: () => unknown | Promise<unknown>;
 }) {
   const isAnswer = message.markedAsAnswer;
 
@@ -77,12 +78,12 @@ export function ThreadReply({
               variant="ghost"
               size="icon-sm"
               tooltip="Mark as answer"
-              onClick={() => {
-                mutate.message
-                  .markAsAnswer({ messageId: message.id })
-                  .catch(() => {
-                    toast.error("Failed to mark message as answer");
-                  });
+              onClick={async () => {
+                try {
+                  await onMarkAsAnswer?.();
+                } catch {
+                  toast.error("Failed to mark message as answer");
+                }
               }}
             >
               <Check />

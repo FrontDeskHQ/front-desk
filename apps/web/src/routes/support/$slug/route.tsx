@@ -120,7 +120,7 @@ export const Route = createFileRoute("/support/$slug")({
 
     return (
       <ReflagClientProvider client={reflagClient}>
-        <main className="w-full">
+        <main className="w-full h-svh flex flex-col overflow-hidden">
           <Navbar className="relative">
             <Navbar.Group>
               <Link
@@ -143,7 +143,6 @@ export const Route = createFileRoute("/support/$slug")({
                       match.pathname === `/support/${slug}/threads` ||
                       match.pathname === `/support/${slug}/threads/`,
                   )}
-                  size="sm"
                   render={
                     <Link
                       to="/support/$slug/threads"
@@ -230,20 +229,25 @@ export const Route = createFileRoute("/support/$slug")({
               )}
             </Navbar.Group>
           </Navbar>
-          <Outlet />
-          <footer className="w-full py-6 flex justify-center items-center">
-            <a
-              href="https://tryfrontdesk.app"
-              target="_blank"
-              rel="noopener"
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
-              aria-label="Visit FrontDesk website"
-            >
-              <span className="mr-1">Powered by</span>
-              <Logo.Icon className="size-4" />
-              FrontDesk
-            </a>
-          </footer>
+          <div
+            data-portal-scroll
+            className="flex-1 min-h-0 overflow-y-auto flex flex-col"
+          >
+            <Outlet />
+            <footer className="w-full py-6 flex justify-center items-center">
+              <a
+                href="https://tryfrontdesk.app"
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                aria-label="Visit FrontDesk website"
+              >
+                <span className="mr-1">Powered by</span>
+                <Logo.Icon className="size-4" />
+                FrontDesk
+              </a>
+            </footer>
+          </div>
         </main>
       </ReflagClientProvider>
     );
