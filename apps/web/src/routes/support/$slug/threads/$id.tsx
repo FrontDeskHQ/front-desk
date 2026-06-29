@@ -125,8 +125,12 @@ function RouteComponent() {
       ].sort((a, b) => a.id.localeCompare(b.id))
     : [];
 
-  const firstItem = allItems[0];
-  const restItems = allItems.slice(1);
+  const firstMessageIndex = allItems.findIndex(
+    (item) => item.itemType === "message",
+  );
+  const firstItem =
+    firstMessageIndex >= 0 ? allItems[firstMessageIndex] : undefined;
+  const restItems = allItems.filter((_, index) => index !== firstMessageIndex);
 
   type ReplyGroup =
     | { type: "updates"; key: string; items: any[] }

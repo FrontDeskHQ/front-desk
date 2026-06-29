@@ -127,17 +127,23 @@ function RouteComponent() {
   // Scroll against the page-level scroll container (set in support/$slug
   // route.tsx) so the list scrolls with the whole page instead of an inner box.
   useLayoutEffect(() => {
-    const parent = parentRef.current;
-    const scrollEl =
-      parent?.closest<HTMLElement>("[data-portal-scroll]") ?? null;
-    scrollRef.current = scrollEl;
-    if (parent && scrollEl) {
-      setScrollMargin(
-        parent.getBoundingClientRect().top -
-          scrollEl.getBoundingClientRect().top +
-          scrollEl.scrollTop,
-      );
-    }
+    const updateScrollMetrics = () => {
+      const parent = parentRef.current;
+      const scrollEl =
+        parent?.closest<HTMLElement>("[data-portal-scroll]") ?? null;
+      scrollRef.current = scrollEl;
+      if (parent && scrollEl) {
+        setScrollMargin(
+          parent.getBoundingClientRect().top -
+            scrollEl.getBoundingClientRect().top +
+            scrollEl.scrollTop,
+        );
+      }
+    };
+
+    updateScrollMetrics();
+    window.addEventListener("resize", updateScrollMetrics);
+    return () => window.removeEventListener("resize", updateScrollMetrics);
   }, []);
 
   const virtualizer = useVirtualizer({
