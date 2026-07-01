@@ -25,7 +25,7 @@ import {
   usePendingLabelSuggestions,
   usePendingStatusSuggestions,
 } from "~/components/threads/thread-toolbar/support-intelligence";
-import { mutate, query } from "~/lib/live-state";
+import { mutate } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
 type UseQuickActionsSuggestionsProps = {
@@ -172,18 +172,18 @@ export const QuickActionsPanel = ({
   // Accepting an inline suggestion executes its action (attach label / set
   // status) and removes it from thread.inlineSuggestions server-side; dismissing
   // just removes it. Both are no-ops without an organization scope.
-  const acceptSuggestion = (suggestionId: string) => {
+  const acceptSuggestion = async (suggestionId: string) => {
     if (!organizationId) return;
-    mutate.thread.acceptInlineSuggestion({
+    await mutate.thread.acceptInlineSuggestion({
       threadId,
       organizationId,
       suggestionId,
     });
   };
 
-  const dismissSuggestion = (suggestionId: string) => {
+  const dismissSuggestion = async (suggestionId: string) => {
     if (!organizationId) return;
-    mutate.thread.dismissInlineSuggestion({
+    await mutate.thread.dismissInlineSuggestion({
       threadId,
       organizationId,
       suggestionId,
@@ -202,11 +202,14 @@ export const QuickActionsPanel = ({
     });
   };
 
-  const handleAcceptAllLabels = () => {
+  // Accept/dismiss the batch serially: each mutation read-modify-writes the same
+  // thread.inlineSuggestions JSON array server-side, so firing them concurrently
+  // would let writes clobber each other and leave suggestions behind.
+  const handleAcceptAllLabels = async () => {
     const labels = suggestedLabels ?? [];
 
     for (const label of labels) {
-      acceptSuggestion(label.suggestionId);
+      await acceptSuggestion(label.suggestionId);
     }
 
     captureThreadEvent("support_intelligence:all_labels_accepted", {
@@ -214,11 +217,11 @@ export const QuickActionsPanel = ({
     });
   };
 
-  const handleDismissAllLabels = () => {
+  const handleDismissAllLabels = async () => {
     const labels = suggestedLabels ?? [];
 
     for (const label of labels) {
-      dismissSuggestion(label.suggestionId);
+      await dismissSuggestion(label.suggestionId);
     }
 
     captureThreadEvent("support_intelligence:all_labels_dismissed", {
@@ -226,7 +229,7 @@ export const QuickActionsPanel = ({
     });
   };
 
-  const handleAcceptStatus = () => {
+  const handleAcceptStatus = async () => {
     if (!statusSuggestion) return;
 
     const oldStatus = currentStatus;
@@ -234,7 +237,7 @@ export const QuickActionsPanel = ({
     const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
     const newStatusLabel = statusSuggestion.label;
 
-    acceptSuggestion(statusSuggestion.suggestionId);
+    await acceptSuggestion(statusSuggestion.suggestionId);
 
     captureThreadEvent("support_intelligence:status_accepted", {
       old_status: oldStatus,
@@ -244,10 +247,10 @@ export const QuickActionsPanel = ({
     });
   };
 
-  const handleDismissStatus = () => {
+  const handleDismissStatus = async () => {
     if (!statusSuggestion) return;
 
-    dismissSuggestion(statusSuggestion.suggestionId);
+    await dismissSuggestion(statusSuggestion.suggestionId);
 
     captureThreadEvent("support_intelligence:status_dismissed", {
       suggested_status: statusSuggestion.suggestedStatus,
@@ -286,15 +289,15 @@ export const QuickActionsPanel = ({
     });
   };
 
-  const handleAcceptAll = () => {
-    if (hasStatusSuggestion) handleAcceptStatus();
-    if (hasLabelSuggestions) handleAcceptAllLabels();
+  const handleAcceptAll = async () => {
+    if (hasStatusSuggestion) await handleAcceptStatus();
+    if (hasLabelSuggestions) await handleAcceptAllLabels();
     if (hasDuplicateSuggestion) handleAcceptDuplicate();
   };
 
-  const handleDismissAll = () => {
-    if (hasStatusSuggestion) handleDismissStatus();
-    if (hasLabelSuggestions) handleDismissAllLabels();
+  const handleDismissAll = async () => {
+    if (hasStatusSuggestion) await handleDismissStatus();
+    if (hasLabelSuggestions) await handleDismissAllLabels();
     if (hasDuplicateSuggestion) handleDismissDuplicate();
   };
 

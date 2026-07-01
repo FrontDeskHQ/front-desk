@@ -62,12 +62,15 @@ export const usePendingLabelSuggestions = ({
     );
 
     const result: LabelSuggestion[] = [];
+    const seenLabelIds = new Set<string>();
     for (const suggestion of suggestions) {
       if (suggestion.action.kind !== "apply_label") continue;
       const labelId = suggestion.action.labelId;
       if (attachedLabelIds.has(labelId)) continue;
+      if (seenLabelIds.has(labelId)) continue;
       const label = labelById.get(labelId);
       if (!label) continue;
+      seenLabelIds.add(labelId);
       result.push({
         suggestionId: suggestion.id,
         id: label.id,
