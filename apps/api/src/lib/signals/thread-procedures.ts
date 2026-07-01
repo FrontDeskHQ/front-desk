@@ -109,6 +109,32 @@ const removeInlineSuggestion = (
 ): InlineSuggestion[] =>
   suggestions.filter((suggestion) => suggestion.id !== suggestionId);
 
+// Atomically drops a suggestion from thread.inlineSuggestions. The read-filter-
+// write runs inside a single transaction so concurrent accepts/dismisses (a
+// batch loop, or another tab) can't each read the same array and clobber one
+// another's removals — the client-side serialization is only a courtesy on top
+// of this. Returns whether the suggestion was present.
+const removeInlineSuggestionAtomically = async (
+  db: TransactionalDb,
+  args: { threadId: string; organizationId: string; suggestionId: string },
+): Promise<boolean> => {
+  let existed = false;
+  await db.transaction(async ({ trx }) => {
+    const thread = await trx.findOne(schema.thread, args.threadId);
+    if (!thread || thread.organizationId !== args.organizationId) {
+      throw new Error("THREAD_NOT_FOUND");
+    }
+    const current = thread.inlineSuggestions ?? [];
+    existed = current.some((s) => s.id === args.suggestionId);
+    if (existed) {
+      await trx.update(schema.thread, args.threadId, {
+        inlineSuggestions: removeInlineSuggestion(current, args.suggestionId),
+      });
+    }
+  });
+  return existed;
+};
+
 export const runExecuteAutonomousBundle = async (
   db: SignalExecutionDb,
   input: z.infer<typeof executeAutonomousBundleInputSchema>,
@@ -135,7 +161,8 @@ export const runAcceptRead = async (
 ): Promise<ExecutionResult> => {
   authorize(req, { organizationId: input.organizationId });
 
-  const { userId: actorUserId, userName: actorUserName } = getWorkspaceActor(req);
+  const { userId: actorUserId, userName: actorUserName } =
+    getWorkspaceActor(req);
 
   const thread = await loadThread(db, input.threadId, input.organizationId);
   if (!thread.agentRead) {
@@ -209,7 +236,8 @@ export const runAcceptInlineSuggestion = async (
 ): Promise<ExecutionResult> => {
   authorize(req, { organizationId: input.organizationId });
 
-  const { userId: actorUserId, userName: actorUserName } = getWorkspaceActor(req);
+  const { userId: actorUserId, userName: actorUserName } =
+    getWorkspaceActor(req);
 
   const thread = await loadThread(db, input.threadId, input.organizationId);
   const suggestions = thread.inlineSuggestions ?? [];
@@ -229,8 +257,10 @@ export const runAcceptInlineSuggestion = async (
   const result = await executeBundle([suggestion.action], registry, ctx);
 
   if (!result.failed) {
-    await db.thread.update(input.threadId, {
-      inlineSuggestions: removeInlineSuggestion(suggestions, suggestion.id),
+    await removeInlineSuggestionAtomically(db, {
+      threadId: input.threadId,
+      organizationId: input.organizationId,
+      suggestionId: suggestion.id,
     });
   }
 
@@ -244,16 +274,14 @@ export const runDismissInlineSuggestion = async (
 ): Promise<{ dismissed: true }> => {
   authorize(req, { organizationId: input.organizationId });
 
-  const thread = await loadThread(db, input.threadId, input.organizationId);
-  const suggestions = thread.inlineSuggestions ?? [];
-  const suggestion = suggestions.find((s) => s.id === input.suggestionId);
-  if (!suggestion) {
+  const existed = await removeInlineSuggestionAtomically(db, {
+    threadId: input.threadId,
+    organizationId: input.organizationId,
+    suggestionId: input.suggestionId,
+  });
+  if (!existed) {
     throw new Error("INLINE_SUGGESTION_NOT_FOUND");
   }
-
-  await db.thread.update(input.threadId, {
-    inlineSuggestions: removeInlineSuggestion(suggestions, suggestion.id),
-  });
 
   return { dismissed: true };
 };

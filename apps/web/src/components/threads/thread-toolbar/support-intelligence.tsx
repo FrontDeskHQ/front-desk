@@ -1,17 +1,40 @@
-// TODO(signals-overhaul issue 10): rewrite against thread.agentRead /
-// thread.inlineSuggestions. The suggestion table was dropped in issue 02;
-// these hooks return empty data and Suggestions renders null until then.
+// Reads the inline-track suggestions off `thread.inlineSuggestions` (the
+// suggestion table was dropped in the signals overhaul) and shapes them for the
+// quick-actions toolbar. Only the inline-track kinds surface here — `apply_label`
+// and `set_status`; synthesis-track reads (reply / duplicate / close) render in
+// the signals feed via ThreadReadCard.
 
 import type { InferLiveObject } from "@live-state/sync";
+import { useLiveQuery } from "@live-state/sync/client";
+import { STATUS_LABELS } from "@workspace/schemas/signals";
+import { statusValues } from "@workspace/ui/components/indicator";
 import type { schema } from "api/schema";
+import { useMemo } from "react";
+import { query } from "~/lib/live-state";
 
-type SuggestionRow = {
+export type LabelSuggestion = {
+  suggestionId: string;
   id: string;
-  relatedEntityId: string | null;
-  active: boolean;
-  accepted: boolean;
-  resultsStr: string | null;
-  metadataStr: string | null;
+  name: string;
+  color: string;
+};
+
+export type StatusSuggestionData = {
+  suggestionId: string;
+  suggestedStatus: number;
+  label: string;
+} | null;
+
+const useInlineSuggestions = (threadId: string) => {
+  const threads = useLiveQuery(query.thread.where({ id: threadId }));
+  const thread = threads?.[0];
+  return useMemo(
+    () =>
+      (thread?.inlineSuggestions ?? []).filter(
+        (suggestion) => !suggestion.dismissedAt,
+      ),
+    [thread?.inlineSuggestions],
+  );
 };
 
 type UsePendingLabelSuggestionsProps = {
@@ -20,15 +43,45 @@ type UsePendingLabelSuggestionsProps = {
   threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
 };
 
-export const usePendingLabelSuggestions = (
-  _props: UsePendingLabelSuggestionsProps,
-) => {
-  return {
-    suggestedLabels: undefined as
-      | Array<{ id: string; name: string; color: string }>
-      | undefined,
-    suggestions: undefined as SuggestionRow[] | undefined,
-  };
+export const usePendingLabelSuggestions = ({
+  threadId,
+  organizationId,
+  threadLabels,
+}: UsePendingLabelSuggestionsProps) => {
+  const suggestions = useInlineSuggestions(threadId);
+  const labels = useLiveQuery(
+    query.label.where({ organizationId, enabled: true }),
+  );
+
+  const suggestedLabels = useMemo<LabelSuggestion[] | undefined>(() => {
+    if (!labels) return undefined;
+
+    const labelById = new Map(labels.map((label) => [label.id, label]));
+    const attachedLabelIds = new Set(
+      (threadLabels ?? []).map((threadLabel) => threadLabel.label.id),
+    );
+
+    const result: LabelSuggestion[] = [];
+    const seenLabelIds = new Set<string>();
+    for (const suggestion of suggestions) {
+      if (suggestion.action.kind !== "apply_label") continue;
+      const labelId = suggestion.action.labelId;
+      if (attachedLabelIds.has(labelId)) continue;
+      if (seenLabelIds.has(labelId)) continue;
+      const label = labelById.get(labelId);
+      if (!label) continue;
+      seenLabelIds.add(labelId);
+      result.push({
+        suggestionId: suggestion.id,
+        id: label.id,
+        name: label.name,
+        color: label.color,
+      });
+    }
+    return result;
+  }, [labels, suggestions, threadLabels]);
+
+  return { suggestedLabels };
 };
 
 type UsePendingStatusSuggestionsProps = {
@@ -37,19 +90,30 @@ type UsePendingStatusSuggestionsProps = {
   currentStatus: number;
 };
 
-type StatusSuggestionData = {
-  suggestion: SuggestionRow;
-  suggestedStatus: number;
-  label: string;
-} | null;
+const statusLabel = (status: number): string =>
+  statusValues[status]?.label ?? STATUS_LABELS[status] ?? `Status ${status}`;
 
-export const usePendingStatusSuggestions = (
-  _props: UsePendingStatusSuggestionsProps,
-) => {
-  return {
-    statusSuggestion: null as StatusSuggestionData,
-    suggestion: undefined as SuggestionRow | undefined,
-  };
+export const usePendingStatusSuggestions = ({
+  threadId,
+  currentStatus,
+}: UsePendingStatusSuggestionsProps) => {
+  const suggestions = useInlineSuggestions(threadId);
+
+  const statusSuggestion = useMemo<StatusSuggestionData>(() => {
+    for (const suggestion of suggestions) {
+      if (suggestion.action.kind !== "set_status") continue;
+      const suggestedStatus = suggestion.action.status;
+      if (suggestedStatus === currentStatus) continue;
+      return {
+        suggestionId: suggestion.id,
+        suggestedStatus,
+        label: statusLabel(suggestedStatus),
+      };
+    }
+    return null;
+  }, [suggestions, currentStatus]);
+
+  return { statusSuggestion };
 };
 
 type UsePendingDuplicateSuggestionsProps = {
@@ -62,41 +126,19 @@ type DuplicateThread = InferLiveObject<
   { author: { include: { user: true } }; assignedUser: true }
 >;
 
-type DuplicateSuggestionData = {
-  suggestion: SuggestionRow;
+export type DuplicateSuggestionData = {
+  suggestionId: string;
   duplicateThreadId: string;
   confidence: string | null;
   reason: string | null;
   thread: DuplicateThread | null;
 } | null;
 
+// Duplicate detection moved to the synthesis track (rendered in the signals
+// feed as a `mark_duplicate` agent read), so no duplicate surfaces on the
+// inline toolbar. Kept as a no-op hook so the quick-actions layout stays intact.
 export const usePendingDuplicateSuggestions = (
   _props: UsePendingDuplicateSuggestionsProps,
 ) => {
-  return {
-    duplicateSuggestion: null as DuplicateSuggestionData,
-    suggestion: undefined as SuggestionRow | undefined,
-  };
-};
-
-type SuggestionsProps = {
-  threadId: string;
-  organizationId: string | undefined;
-  suggestedLabels:
-    | Array<{ id: string; name: string; color: string }>
-    | undefined;
-  threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
-  suggestions: SuggestionRow[] | undefined;
-  statusSuggestion: StatusSuggestionData;
-  duplicateSuggestion: DuplicateSuggestionData;
-  currentStatus: number;
-  user: { id: string; name: string };
-  captureThreadEvent: (
-    eventName: string,
-    properties?: Record<string, unknown>,
-  ) => void;
-};
-
-export const Suggestions = (_props: SuggestionsProps) => {
-  return null;
+  return { duplicateSuggestion: null as DuplicateSuggestionData };
 };
