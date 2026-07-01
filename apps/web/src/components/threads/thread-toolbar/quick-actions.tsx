@@ -19,7 +19,6 @@ import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { Check, ChevronDown, CircleUser, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ulid } from "ulid";
 import { ThreadChip } from "~/components/chips";
 import {
   usePendingDuplicateSuggestions,
@@ -42,7 +41,7 @@ export const useQuickActionsSuggestions = ({
   threadLabels,
   currentStatus,
 }: UseQuickActionsSuggestionsProps) => {
-  const { suggestedLabels, suggestions } = usePendingLabelSuggestions({
+  const { suggestedLabels } = usePendingLabelSuggestions({
     threadId,
     organizationId,
     threadLabels,
@@ -68,7 +67,6 @@ export const useQuickActionsSuggestions = ({
 
   return {
     suggestedLabels,
-    suggestions,
     statusSuggestion,
     duplicateSuggestion,
     hasLabelSuggestions,
@@ -97,16 +95,6 @@ type QuickActionsPanelProps = {
   suggestionsData: QuickActionsSuggestionsData;
 };
 
-const getSuggestionReasoning = (metadataStr: string | null): string | null => {
-  if (!metadataStr) return null;
-  try {
-    const metadata = JSON.parse(metadataStr) as { reasoning?: string };
-    return metadata.reasoning ?? null;
-  } catch {
-    return null;
-  }
-};
-
 type HoverCardPayload = {
   element: React.ReactNode;
   subtitle: string;
@@ -129,7 +117,6 @@ export const QuickActionsPanel = ({
 }: QuickActionsPanelProps) => {
   const {
     suggestedLabels,
-    suggestions,
     statusSuggestion,
     duplicateSuggestion,
     hasLabelSuggestions,
@@ -182,78 +169,73 @@ export const QuickActionsPanel = ({
     setIsCollapsed(newState);
   };
 
-  // TODO(signals-overhaul issue 10): rewrite against thread.inlineSuggestions.
-  // The suggestion table was dropped in issue 02; this is a no-op until the
-  // inline-suggestion mutations land.
-  const updateSuggestionForLabel = (_labelId: string, _accepted: boolean) => {};
+  // Accepting an inline suggestion executes its action (attach label / set
+  // status) and removes it from thread.inlineSuggestions server-side; dismissing
+  // just removes it. Both are no-ops without an organization scope.
+  const acceptSuggestion = (suggestionId: string) => {
+    if (!organizationId) return;
+    mutate.thread.acceptInlineSuggestion({
+      threadId,
+      organizationId,
+      suggestionId,
+    });
+  };
+
+  const dismissSuggestion = (suggestionId: string) => {
+    if (!organizationId) return;
+    mutate.thread.dismissInlineSuggestion({
+      threadId,
+      organizationId,
+      suggestionId,
+    });
+  };
 
   const handleAcceptLabel = (labelId: string) => {
     const label = suggestedLabels?.find((l) => l.id === labelId);
+    if (!label) return;
 
-    mutate.label.attachToThread({
-      threadId,
-      labelId,
-      id: ulid().toLowerCase(),
-    });
-
-    updateSuggestionForLabel(labelId, true);
+    acceptSuggestion(label.suggestionId);
 
     captureThreadEvent("support_intelligence:label_accepted", {
       label_id: labelId,
-      label_name: label?.name,
+      label_name: label.name,
     });
   };
 
   const handleAcceptAllLabels = () => {
-    const labelIds = suggestedLabels?.map((l) => l.id) ?? [];
+    const labels = suggestedLabels ?? [];
 
-    for (const label of suggestedLabels ?? []) {
-      const labelId = label.id;
-
-      mutate.label.attachToThread({
-        threadId,
-        labelId: label.id,
-        id: ulid().toLowerCase(),
-      });
-
-      updateSuggestionForLabel(labelId, true);
+    for (const label of labels) {
+      acceptSuggestion(label.suggestionId);
     }
 
     captureThreadEvent("support_intelligence:all_labels_accepted", {
-      label_count: labelIds.length,
+      label_count: labels.length,
     });
   };
 
   const handleDismissAllLabels = () => {
-    const labelIds = suggestedLabels?.map((l) => l.id) ?? [];
+    const labels = suggestedLabels ?? [];
 
-    for (const labelId of labelIds) {
-      updateSuggestionForLabel(labelId, false);
+    for (const label of labels) {
+      dismissSuggestion(label.suggestionId);
     }
 
     captureThreadEvent("support_intelligence:all_labels_dismissed", {
-      label_count: labelIds.length,
+      label_count: labels.length,
     });
   };
 
   const handleAcceptStatus = () => {
-    if (!statusSuggestion || !organizationId) return;
+    if (!statusSuggestion) return;
 
     const oldStatus = currentStatus;
     const newStatus = statusSuggestion.suggestedStatus;
     const oldStatusLabel = statusValues[oldStatus]?.label ?? "Unknown";
     const newStatusLabel = statusSuggestion.label;
 
-    mutate.thread.setStatus({
-      threadId,
-      organizationId,
-      status: newStatus,
-      userId: user.id,
-      userName: user.name,
-      source: "support_intelligence",
-    });
+    acceptSuggestion(statusSuggestion.suggestionId);
 
-    // TODO(signals-overhaul issue 10): record acceptance on inlineSuggestions.
     captureThreadEvent("support_intelligence:status_accepted", {
       old_status: oldStatus,
       new_status: newStatus,
@@ -265,7 +247,8 @@ export const QuickActionsPanel = ({
   const handleDismissStatus = () => {
     if (!statusSuggestion) return;
 
-    // TODO(signals-overhaul issue 10): record dismissal on inlineSuggestions.
+    dismissSuggestion(statusSuggestion.suggestionId);
+
     captureThreadEvent("support_intelligence:status_dismissed", {
       suggested_status: statusSuggestion.suggestedStatus,
       suggested_status_label: statusSuggestion.label,
@@ -376,43 +359,37 @@ export const QuickActionsPanel = ({
                 <>
                   <div className="text-foreground-secondary">Suggestions</div>
                   <div className="flex gap-2 items-center flex-wrap group">
-                    {statusSuggestion &&
-                      (() => {
-                        const reasoning = getSuggestionReasoning(
-                          statusSuggestion.suggestion.metadataStr,
-                        );
-                        return (
-                          <HoverCardTrigger
-                            render={
-                              <ActionButton
-                                variant="ghost"
-                                size="sm"
-                                className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-                                onClick={handleAcceptStatus}
+                    {statusSuggestion && (
+                      <HoverCardTrigger
+                        render={
+                          <ActionButton
+                            variant="ghost"
+                            size="sm"
+                            className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
+                            onClick={handleAcceptStatus}
+                          />
+                        }
+                        handle={hoverCardHandle}
+                        payload={{
+                          subtitle: "Suggested status",
+                          element: (
+                            <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15">
+                              <StatusIndicator
+                                status={statusSuggestion.suggestedStatus}
                               />
-                            }
-                            handle={hoverCardHandle}
-                            payload={{
-                              subtitle: "Suggested status",
-                              element: (
-                                <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs bg-foreground-tertiary/15">
-                                  <StatusIndicator
-                                    status={statusSuggestion.suggestedStatus}
-                                  />
-                                  {statusSuggestion.label}
-                                </div>
-                              ),
-                              reasoning: reasoning,
-                              handleAccept: handleAcceptStatus,
-                            }}
-                          >
-                            <StatusIndicator
-                              status={statusSuggestion.suggestedStatus}
-                            />
-                            {statusSuggestion.label}
-                          </HoverCardTrigger>
-                        );
-                      })()}
+                              {statusSuggestion.label}
+                            </div>
+                          ),
+                          reasoning: null,
+                          handleAccept: handleAcceptStatus,
+                        }}
+                      >
+                        <StatusIndicator
+                          status={statusSuggestion.suggestedStatus}
+                        />
+                        {statusSuggestion.label}
+                      </HoverCardTrigger>
+                    )}
                     {suggestedLabels?.map((label) => {
                       return (
                         <HoverCardTrigger
@@ -496,7 +473,9 @@ export const QuickActionsPanel = ({
                               <Link
                                 to="/app/threads/$id"
                                 params={{
-                                  id: buildThreadParam(duplicateSuggestion.thread),
+                                  id: buildThreadParam(
+                                    duplicateSuggestion.thread,
+                                  ),
                                 }}
                                 className="text-sm font-medium text-foreground hover:underline"
                               >
