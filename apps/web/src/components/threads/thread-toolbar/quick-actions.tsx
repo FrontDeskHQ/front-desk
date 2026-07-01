@@ -202,9 +202,10 @@ export const QuickActionsPanel = ({
     });
   };
 
-  // Accept/dismiss the batch serially: each mutation read-modify-writes the same
-  // thread.inlineSuggestions JSON array server-side, so firing them concurrently
-  // would let writes clobber each other and leave suggestions behind.
+  // Accept/dismiss the batch serially so this loop doesn't pile redundant
+  // requests against the same thread. The server-side removal is transactional,
+  // so cross-tab concurrency is already safe; awaiting here just avoids
+  // self-inflicted contention.
   const handleAcceptAllLabels = async () => {
     const labels = suggestedLabels ?? [];
 
