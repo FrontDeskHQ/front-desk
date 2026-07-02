@@ -263,12 +263,10 @@ function InlineSuggestionsRow({
   suggestions: InlineSuggestion[];
   organizationId: string;
   busy: boolean;
-  onAccept: (suggestion: InlineSuggestion) => void;
-  onDismiss: (suggestion: InlineSuggestion) => void;
+  onAccept: (suggestion: InlineSuggestion) => void | Promise<void>;
+  onDismiss: (suggestion: InlineSuggestion) => void | Promise<void>;
 }) {
-  const labels = useLiveQuery(
-    query.label.where({ organizationId, enabled: true }),
-  );
+  const labels = useLiveQuery(query.label.where({ organizationId }));
 
   const resolved = useMemo<ResolvedInlineSuggestion[]>(() => {
     const labelById = new Map((labels ?? []).map((label) => [label.id, label]));
@@ -284,7 +282,17 @@ function InlineSuggestionsRow({
         });
       } else {
         const label = labelById.get(suggestion.action.labelId);
-        if (!label) continue;
+        if (!label) {
+          // Keep the suggestion dismissible even when its label was deleted,
+          // disabled, or hasn't loaded yet — otherwise it becomes a stuck row.
+          result.push({
+            suggestion,
+            kind: "label",
+            name: "Unknown label",
+            color: "var(--muted-foreground)",
+          });
+          continue;
+        }
         result.push({
           suggestion,
           kind: "label",
@@ -354,15 +362,19 @@ function InlineSuggestionsRow({
             </HoverCardContent>
           </HoverCard>
         ))}
-        <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
+        <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto">
           <ActionButton
             variant="ghost"
             size="icon-sm"
             tooltip="Apply all"
             className="text-foreground-secondary"
-            onClick={() =>
-              resolved.forEach((item) => onAccept(item.suggestion))
-            }
+            onClick={async () => {
+              // Run sequentially so a single busy state covers the whole batch
+              // instead of concurrent requests racing to clear it.
+              for (const item of resolved) {
+                await onAccept(item.suggestion);
+              }
+            }}
             disabled={busy}
           >
             <Check />
@@ -372,9 +384,11 @@ function InlineSuggestionsRow({
             size="icon-sm"
             tooltip="Ignore all"
             className="text-foreground-secondary"
-            onClick={() =>
-              resolved.forEach((item) => onDismiss(item.suggestion))
-            }
+            onClick={async () => {
+              for (const item of resolved) {
+                await onDismiss(item.suggestion);
+              }
+            }}
             disabled={busy}
           >
             <X />
@@ -501,6 +515,10 @@ export function ThreadReadCard({ thread, ctx }: Props) {
 
   const handlePrimaryClick = () => {
     if (selectionIncludesReply) {
+      // Reseed the shared draft so an earlier alternative-reply flow can't leak
+      // stale text into the primary editor.
+      setReplyDraft(primaryReplyDraftMarkdown(read.primary));
+      setReplyEditorRevision((revision) => revision + 1);
       setReplyTarget({ kind: "primary" });
       return;
     }
