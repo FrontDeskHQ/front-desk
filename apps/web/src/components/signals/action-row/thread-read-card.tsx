@@ -5,12 +5,12 @@ import {
   ACTION_KIND_LABEL,
   ACTION_KIND_VERB,
   type Action,
-  fingerprintAgentRead,
   type InlineSuggestion,
   type ReplyAction,
   STATUS_LABELS,
-  sanitizeAgentReadReasoning,
   type ThreadRead,
+  fingerprintAgentRead,
+  sanitizeAgentReadReasoning,
   urgencyTierFromScore,
 } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
@@ -643,11 +643,24 @@ export function ThreadReadCard({ thread, ctx }: Props) {
           ) : null}
         </ActionRow.Title>
         <ActionRow.Reason>
-          <RichMarkdown
-            content={read.summary}
-            preset="inline"
-            className="text-foreground-primary"
-          />
+          <div className="flex min-w-0 flex-col gap-1">
+            <RichMarkdown
+              content={read.summary}
+              preset="inline"
+              className={
+                read.recommendation
+                  ? "text-foreground-secondary"
+                  : "text-foreground-primary"
+              }
+            />
+            {read.recommendation ? (
+              <RichMarkdown
+                content={read.recommendation}
+                preset="inline"
+                className="text-foreground-primary"
+              />
+            ) : null}
+          </div>
         </ActionRow.Reason>
         {inlineSuggestions.length > 0 && (
           <InlineSuggestionsRow
