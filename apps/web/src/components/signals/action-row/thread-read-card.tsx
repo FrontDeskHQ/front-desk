@@ -1,4 +1,5 @@
 import type { InferLiveObject } from "@live-state/sync";
+import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import {
   ACTION_KIND_LABEL,
@@ -20,13 +21,15 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@workspace/ui/components/hover-card";
+import { StatusIndicator } from "@workspace/ui/components/indicator";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { Brain } from "lucide-react";
+import { Brain, Check, X } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ThreadSummaryHoverCard } from "~/components/chips";
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
+import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 import { ActionRow } from "./action-row";
 import {
@@ -231,13 +234,155 @@ function CompoundActionButton({
   );
 }
 
-function inlineSuggestionLabel(suggestion: InlineSuggestion): string {
-  if (suggestion.action.kind === "set_status") {
-    const status =
-      STATUS_LABELS[suggestion.action.status] ?? suggestion.action.status;
-    return `Set status: ${status}`;
-  }
-  return `Apply label (${suggestion.action.labelId})`;
+type ResolvedInlineSuggestion =
+  | {
+      suggestion: InlineSuggestion;
+      kind: "status";
+      name: string;
+      status: number;
+    }
+  | {
+      suggestion: InlineSuggestion;
+      kind: "label";
+      name: string;
+      color: string;
+    };
+
+/**
+ * Inline-track suggestions (apply label / set status) rendered as dashed chips,
+ * mirroring the thread toolbar's quick-actions style: click a chip to apply,
+ * hover for detail, and reveal apply-all / ignore-all on row hover.
+ */
+function InlineSuggestionsRow({
+  suggestions,
+  organizationId,
+  busy,
+  onAccept,
+  onDismiss,
+}: {
+  suggestions: InlineSuggestion[];
+  organizationId: string;
+  busy: boolean;
+  onAccept: (suggestion: InlineSuggestion) => void;
+  onDismiss: (suggestion: InlineSuggestion) => void;
+}) {
+  const labels = useLiveQuery(
+    query.label.where({ organizationId, enabled: true }),
+  );
+
+  const resolved = useMemo<ResolvedInlineSuggestion[]>(() => {
+    const labelById = new Map((labels ?? []).map((label) => [label.id, label]));
+    const result: ResolvedInlineSuggestion[] = [];
+    for (const suggestion of suggestions) {
+      if (suggestion.action.kind === "set_status") {
+        const status = suggestion.action.status;
+        result.push({
+          suggestion,
+          kind: "status",
+          name: STATUS_LABELS[status] ?? `Status ${status}`,
+          status,
+        });
+      } else {
+        const label = labelById.get(suggestion.action.labelId);
+        if (!label) continue;
+        result.push({
+          suggestion,
+          kind: "label",
+          name: label.name,
+          color: label.color,
+        });
+      }
+    }
+    return result;
+  }, [labels, suggestions]);
+
+  if (resolved.length === 0) return null;
+
+  const chipContent = (item: ResolvedInlineSuggestion) => (
+    <>
+      {item.kind === "status" ? (
+        <StatusIndicator status={item.status} />
+      ) : (
+        <div
+          className="size-2 rounded-full"
+          style={{ backgroundColor: item.color }}
+        />
+      )}
+      {item.name}
+    </>
+  );
+
+  return (
+    <div className="pl-6 mt-2 grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 items-center text-sm">
+      <div className="text-foreground-secondary">Quick suggestions</div>
+      <div className="flex gap-2 items-center flex-wrap group">
+        {resolved.map((item) => (
+          <HoverCard key={item.suggestion.id}>
+            <HoverCardTrigger
+              render={
+                <ActionButton
+                  variant="ghost"
+                  size="sm"
+                  className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
+                  onClick={() => onAccept(item.suggestion)}
+                  disabled={busy}
+                />
+              }
+            >
+              {chipContent(item)}
+            </HoverCardTrigger>
+            <HoverCardContent className="min-w-72 w-full max-w-96 flex flex-col gap-3">
+              <div className="text-xs flex flex-col gap-1">
+                <div className="text-foreground-secondary">
+                  {item.kind === "status"
+                    ? "Suggested status"
+                    : "Suggested label"}
+                </div>
+                <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15">
+                  {chipContent(item)}
+                </div>
+              </div>
+              <ActionButton
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => onAccept(item.suggestion)}
+                disabled={busy}
+              >
+                Apply suggestion
+              </ActionButton>
+            </HoverCardContent>
+          </HoverCard>
+        ))}
+        <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
+          <ActionButton
+            variant="ghost"
+            size="icon-sm"
+            tooltip="Apply all"
+            className="text-foreground-secondary"
+            onClick={() =>
+              resolved.forEach((item) => onAccept(item.suggestion))
+            }
+            disabled={busy}
+          >
+            <Check />
+          </ActionButton>
+          <ActionButton
+            variant="ghost"
+            size="icon-sm"
+            tooltip="Ignore all"
+            className="text-foreground-secondary"
+            onClick={() =>
+              resolved.forEach((item) => onDismiss(item.suggestion))
+            }
+            disabled={busy}
+          >
+            <X />
+          </ActionButton>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function AgentReadReasoningTrigger({ reasoning }: { reasoning: string }) {
@@ -442,36 +587,13 @@ export function ThreadReadCard({ thread, ctx }: Props) {
           />
         </ActionRow.Reason>
         {inlineSuggestions.length > 0 && (
-          <div className="pl-6 mt-2 flex flex-col gap-2">
-            {inlineSuggestions.map((suggestion) => (
-              <div
-                key={suggestion.id}
-                className="flex items-center justify-between gap-2 rounded-sm border bg-background-tertiary px-2 py-1"
-              >
-                <span className="text-xs text-foreground-secondary">
-                  {inlineSuggestionLabel(suggestion)}
-                </span>
-                <div className="flex items-center gap-2">
-                  <ActionButton
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleInlineDismiss(suggestion)}
-                    disabled={busyKey !== null}
-                  >
-                    Skip
-                  </ActionButton>
-                  <ActionButton
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => handleInlineAccept(suggestion)}
-                    disabled={busyKey !== null}
-                  >
-                    Apply
-                  </ActionButton>
-                </div>
-              </div>
-            ))}
-          </div>
+          <InlineSuggestionsRow
+            suggestions={inlineSuggestions}
+            organizationId={ctx.organizationId}
+            busy={busyKey !== null}
+            onAccept={handleInlineAccept}
+            onDismiss={handleInlineDismiss}
+          />
         )}
         <ActionRow.TopActions>
           <AgentReadReasoningTrigger reasoning={read.reasoning} />
