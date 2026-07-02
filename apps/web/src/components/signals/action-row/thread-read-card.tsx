@@ -424,7 +424,14 @@ function formatErrorMessage(error: unknown): string {
 
 export function ThreadReadCard({ thread, ctx }: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [replyEditorOpen, setReplyEditorOpen] = useState(false);
+  // Which reply is being previewed/edited: the primary bundle's reply, or a
+  // specific alternative reply. Both open the same inline draft editor.
+  const [replyTarget, setReplyTarget] = useState<
+    { kind: "primary" } | { kind: "alternative"; index: number } | null
+  >(null);
+  const replyEditorOpen = replyTarget !== null;
+  const editingPrimaryReply = replyTarget?.kind === "primary";
+  const editingAlternativeReply = replyTarget?.kind === "alternative";
   const read = thread.agentRead;
   const readFingerprint = fingerprintAgentRead(read);
   const replyIndex = read.primary.findIndex(
@@ -443,7 +450,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   );
 
   useEffect(() => {
-    setReplyEditorOpen(false);
+    setReplyTarget(null);
     setSelectedIndices(new Set(read.primary.map((_, index) => index)));
     setReplyDraft(primaryReplyDraftMarkdown(read.primary));
     setReplyEditorRevision((revision) => revision + 1);
@@ -468,7 +475,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         ctx,
         replyDraft: replyDraftValue,
       });
-      setReplyEditorOpen(false);
+      setReplyTarget(null);
     } catch (error) {
       toast.error(formatErrorMessage(error));
     } finally {
@@ -478,14 +485,14 @@ export function ThreadReadCard({ thread, ctx }: Props) {
 
   const handlePrimaryClick = () => {
     if (selectionIncludesReply) {
-      setReplyEditorOpen(true);
+      setReplyTarget({ kind: "primary" });
       return;
     }
     void handleAcceptSelected();
   };
 
   const handleCancelReplyEditor = () => {
-    setReplyEditorOpen(false);
+    setReplyTarget(null);
     setReplyDraft(primaryReplyDraftMarkdown(read.primary));
     setReplyEditorRevision((revision) => revision + 1);
   };
@@ -493,12 +500,16 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   const handleSendReply = () => {
     const trimmed = replyDraft.trim();
     if (trimmed.length === 0) return;
+    if (replyTarget?.kind === "alternative") {
+      void handleAcceptAlternative(replyTarget.index, trimmed);
+      return;
+    }
     void handleAcceptSelected(trimmed);
   };
 
   const toggleAction = (index: number) => {
-    // Reply stays locked-in while its editor is expanded.
-    if (replyEditorOpen && index === replyIndex) return;
+    // The primary reply stays locked-in while its editor is expanded.
+    if (editingPrimaryReply && index === replyIndex) return;
     setSelectedIndices((prev) => {
       const next = new Set(prev);
       if (next.has(index)) next.delete(index);
@@ -507,7 +518,10 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     });
   };
 
-  const handleAcceptAlternative = async (alternativeIndex: number) => {
+  const handleAcceptAlternative = async (
+    alternativeIndex: number,
+    replyDraftValue?: string,
+  ) => {
     setBusyKey(`alt:${alternativeIndex}`);
     try {
       await acceptThreadRead({
@@ -515,12 +529,27 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         read,
         selection: { alternativeIndex },
         ctx,
+        replyDraft: replyDraftValue,
       });
+      setReplyTarget(null);
     } catch (error) {
       toast.error(formatErrorMessage(error));
     } finally {
       setBusyKey(null);
     }
+  };
+
+  // A reply alternative opens the same inline preview editor as the primary
+  // reply (seeded with its own draft); any other alternative applies directly.
+  const handleAlternativeClick = (alternativeIndex: number) => {
+    const alternative = read.alternatives?.[alternativeIndex];
+    if (alternative?.kind === "reply") {
+      setReplyTarget({ kind: "alternative", index: alternativeIndex });
+      setReplyDraft(alternative.draftMarkdown ?? "");
+      setReplyEditorRevision((revision) => revision + 1);
+      return;
+    }
+    void handleAcceptAlternative(alternativeIndex);
   };
 
   const handleDismissRead = async () => {
@@ -607,15 +636,13 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         onDraftChange={setReplyDraft}
       />
       <ActionRow.Actions>
-        {(read.alternatives ?? [])
-          .map((alternative, index) => ({ alternative, index }))
-          .filter(({ alternative }) => alternative.kind !== "reply")
-          .map(({ alternative, index }) => (
+        {!editingAlternativeReply &&
+          (read.alternatives ?? []).map((alternative, index) => (
             <ActionButton
               key={`${thread.id}:alternative:${alternative.kind}:${index}`}
               size="sm"
               variant="secondary"
-              onClick={() => handleAcceptAlternative(index)}
+              onClick={() => handleAlternativeClick(index)}
               disabled={busyKey !== null}
             >
               {ACTION_KIND_LABEL[alternative.kind]}
@@ -631,21 +658,32 @@ export function ThreadReadCard({ thread, ctx }: Props) {
             Cancel
           </ActionButton>
         )}
-        {read.primary.length > 0 && (
-          <CompoundActionButton
-            label={compoundButtonLabel(orderedSelected, replyEditorOpen)}
-            disabled={busyKey !== null}
-            executeDisabled={
-              orderedSelected.length === 0 ||
-              (replyEditorOpen && replyDraft.trim().length === 0)
-            }
-            onClick={replyEditorOpen ? handleSendReply : handlePrimaryClick}
-            actions={isCompound ? read.primary : null}
-            selectedIndices={selectedIndices}
-            lockedIndex={replyEditorOpen ? replyIndex : -1}
-            disableToggles={busyKey !== null}
-            onToggle={toggleAction}
-          />
+        {editingAlternativeReply ? (
+          <ActionButton
+            size="sm"
+            variant="primary"
+            onClick={handleSendReply}
+            disabled={busyKey !== null || replyDraft.trim().length === 0}
+          >
+            Send reply
+          </ActionButton>
+        ) : (
+          read.primary.length > 0 && (
+            <CompoundActionButton
+              label={compoundButtonLabel(orderedSelected, replyEditorOpen)}
+              disabled={busyKey !== null}
+              executeDisabled={
+                orderedSelected.length === 0 ||
+                (replyEditorOpen && replyDraft.trim().length === 0)
+              }
+              onClick={replyEditorOpen ? handleSendReply : handlePrimaryClick}
+              actions={isCompound ? read.primary : null}
+              selectedIndices={selectedIndices}
+              lockedIndex={editingPrimaryReply ? replyIndex : -1}
+              disableToggles={busyKey !== null}
+              onToggle={toggleAction}
+            />
+          )
         )}
       </ActionRow.Actions>
     </ActionRow.Root>
