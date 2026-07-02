@@ -72,7 +72,7 @@ export const actionKindSchema = z.enum(ACTION_KINDS);
 export type ActionKind = z.infer<typeof actionKindSchema>;
 
 export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
-  reply: "Send reply",
+  reply: "Just reply",
   mark_duplicate: "Mark duplicate",
   link_pr: "Link pull request",
   close: "Close thread",
