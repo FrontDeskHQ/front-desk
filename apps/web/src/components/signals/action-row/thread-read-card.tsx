@@ -636,7 +636,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         onDraftChange={setReplyDraft}
       />
       <ActionRow.Actions>
-        {!editingAlternativeReply &&
+        {!replyEditorOpen &&
           (read.alternatives ?? []).map((alternative, index) => (
             <ActionButton
               key={`${thread.id}:alternative:${alternative.kind}:${index}`}
