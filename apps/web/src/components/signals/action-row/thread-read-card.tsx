@@ -607,17 +607,20 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         onDraftChange={setReplyDraft}
       />
       <ActionRow.Actions>
-        {(read.alternatives ?? []).map((alternative, index) => (
-          <ActionButton
-            key={`${thread.id}:alternative:${alternative.kind}:${index}`}
-            size="sm"
-            variant="secondary"
-            onClick={() => handleAcceptAlternative(index)}
-            disabled={busyKey !== null}
-          >
-            {ACTION_KIND_LABEL[alternative.kind]}
-          </ActionButton>
-        ))}
+        {(read.alternatives ?? [])
+          .map((alternative, index) => ({ alternative, index }))
+          .filter(({ alternative }) => alternative.kind !== "reply")
+          .map(({ alternative, index }) => (
+            <ActionButton
+              key={`${thread.id}:alternative:${alternative.kind}:${index}`}
+              size="sm"
+              variant="secondary"
+              onClick={() => handleAcceptAlternative(index)}
+              disabled={busyKey !== null}
+            >
+              {ACTION_KIND_LABEL[alternative.kind]}
+            </ActionButton>
+          ))}
         {replyEditorOpen && (
           <ActionButton
             size="sm"
