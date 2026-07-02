@@ -463,6 +463,22 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   const selectionIncludesReply =
     replyIndex >= 0 && selectedIndices.has(replyIndex);
 
+  // When the primary bundle is a lone reply, a reply-only alternative is
+  // redundant — it offers the same "just reply" as the primary — so drop it.
+  // Indices are kept intact so accept/edit handlers still map to read.alternatives.
+  const primaryIsJustReply =
+    read.primary.length === 1 && read.primary[0]?.kind === "reply";
+  const visibleAlternatives = useMemo(
+    () =>
+      (read.alternatives ?? [])
+        .map((alternative, index) => ({ alternative, index }))
+        .filter(
+          ({ alternative }) =>
+            !(primaryIsJustReply && alternative.kind === "reply"),
+        ),
+    [read.alternatives, primaryIsJustReply],
+  );
+
   const handleAcceptSelected = async (replyDraftValue?: string) => {
     const indices = [...selectedIndices].sort((a, b) => a - b);
     if (indices.length === 0) return;
@@ -637,7 +653,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
       />
       <ActionRow.Actions>
         {!replyEditorOpen &&
-          (read.alternatives ?? []).map((alternative, index) => (
+          visibleAlternatives.map(({ alternative, index }) => (
             <ActionButton
               key={`${thread.id}:alternative:${alternative.kind}:${index}`}
               size="sm"
@@ -665,7 +681,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
             onClick={handleSendReply}
             disabled={busyKey !== null || replyDraft.trim().length === 0}
           >
-            Send reply
+            Just reply
           </ActionButton>
         ) : (
           read.primary.length > 0 && (
