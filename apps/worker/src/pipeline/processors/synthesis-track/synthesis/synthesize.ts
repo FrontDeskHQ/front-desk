@@ -18,6 +18,7 @@ const synthesisActionSchema = z.discriminatedUnion("kind", [
 
 const synthesisRawActionSetSchema = z.object({
   summary: z.string(),
+  recommendation: z.string(),
   reasoning: z.string(),
   primary: z.array(synthesisActionSchema),
   alternatives: z.array(synthesisActionSchema).default([]),
@@ -112,34 +113,37 @@ When hasTeamReply is false, the customer has written but no teammate has replied
 
 When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close or mark_duplicate).
 
-## summary vs reasoning (critical)
+## summary, recommendation, and reasoning (critical)
 
-\`summary\` is the **inbox headline** (1–2 sentences). It must match \`primary\` and always pair (1) what the customer needs with (2) the next move in direct, imperative language.
+\`summary\` and \`recommendation\` together are the **inbox headline**. They must match \`primary\`: the summary states what the customer needs, the recommendation states the next move in direct, imperative language.
 
-**Format:** Sentence 1 = concise customer situation (what they want or reported). Sentence 2 = imperative instruction tied to \`primary\` (what the human should do). Never prefix with "Recommend" or "We recommend".
+\`summary\` = **one concise sentence** describing the customer situation (what they want or reported). No action, no imperative — just the situation.
 
-- mark_duplicate: end with "This is a duplicate of [target thread name](thread:targetThreadId)." Use the exact \`targetThreadId\` from primary and the name from read_thread when available.
-- reply: end with a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
-- close: end with a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
-- empty primary: both sentences; second states no substantive move, e.g. "No reply, duplicate link, or close is justified yet."
+\`recommendation\` = **one imperative sentence** tied to \`primary\` (what the human should do). Never prefix with "Recommend" or "We recommend".
 
-Thread mentions in summary must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.
+- mark_duplicate: "This is a duplicate of [target thread name](thread:targetThreadId)." Use the exact \`targetThreadId\` from primary and the name from read_thread when available.
+- reply: a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
+- close: a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
+- empty primary: state that no substantive move is justified, e.g. "No reply, duplicate link, or close is justified yet."
+
+Thread mentions in \`recommendation\` must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.
 
 Example (reply):
-"Customer is interested in upgrading to the enterprise plan and is asking for pricing details for 50+ users and additional features. Reply to acknowledge the request and inform them that a specialist will provide the details."
+- summary: "Customer is interested in upgrading to the enterprise plan and is asking for pricing details for 50+ users and additional features."
+- recommendation: "Reply to acknowledge the request and inform them that a specialist will provide the details."
 
 Example (mark_duplicate):
-"Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits. This is a duplicate of [API rate limit increase](thread:abc123)."
+- summary: "Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits."
+- recommendation: "This is a duplicate of [API rate limit increase](thread:abc123)."
 
-Incomplete (missing the actionable second sentence — never do this):
-"Customer is requesting an increase in API rate limits due to their application constantly hitting the current limits."
+Never leave \`recommendation\` empty when \`primary\` is non-empty.
 
 \`reasoning\` is **why** in plain language for a human agent reviewing the inbox. Use 2–4 short sentences grounded in the conversation and what you verified. Do not repeat the full summary.
 
 **Never put in \`reasoning\` (user-facing copy):**
 - Internal pipeline terms (hint bag, hints JSON, tool names, tool calls, messageId, preprocessor/thread digest, synthesis agent)
 - Confidence or similarity numbers (percentages, 0–1 scores, "confidence: …", urgency scores)
-- Raw identifiers (thread ids, message ids, UUIDs, doc ids) — refer to other threads by **name** only. Thread markdown links belong in \`summary\` only, not in \`reasoning\`.
+- Raw identifiers (thread ids, message ids, UUIDs, doc ids) — refer to other threads by **name** only. Thread markdown links belong in \`recommendation\` only, not in \`reasoning\`.
 
 Thread id: ${input.threadId}
 Thread name: ${input.threadName ?? "(none)"}
@@ -148,13 +152,14 @@ Default sourceInputMessageId: ${input.sourceInputMessageId}
 Thread messages (oldest -> newest):
 ${transcript}
 
-${summaryJson ? `Thread digest (preprocessor context only — do not copy into summary):\n${summaryJson}\n` : ""}
+${summaryJson ? `Thread digest (preprocessor context only — do not copy into summary or recommendation):\n${summaryJson}\n` : ""}
 Hint bag:
 ${hintsJson}
 
 Return a single valid JSON object with exactly this shape:
 {
-  "summary": string (customer situation + imperative next move; use [name](thread:id) for duplicate targets),
+  "summary": string (one sentence: customer situation only, no imperative),
+  "recommendation": string (one imperative sentence tied to primary; use [name](thread:id) for duplicate targets),
   "reasoning": string (user-facing evidence; no internal terms, scores, or raw ids),
   "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
   "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,

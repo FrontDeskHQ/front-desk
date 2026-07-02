@@ -22,6 +22,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "No action needed",
+        recommendation: "No reply, duplicate link, or close is justified yet.",
         reasoning: "No substantive move is justified.",
         primary: [],
         alternatives: [],
@@ -44,6 +45,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "Customer reports invoice amount mismatch ",
+        recommendation: "Reply with an explanation of the invoice difference.",
         reasoning:
           " Latest inbound asks why the invoice total differs from the expected plan price. ",
         primary: [
@@ -73,6 +75,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "Likely duplicate report",
+        recommendation: "This is a duplicate of an existing thread.",
         reasoning: "Hint points strongly to an existing thread.",
         primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
         alternatives: [{ kind: "close" }],
@@ -95,6 +98,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "No useful reply content",
+        recommendation: "Reply to acknowledge the customer.",
         reasoning: "Model proposed an empty draft.",
         primary: [{ kind: "reply", draftMarkdown: "   " }],
         alternatives: [],
@@ -117,6 +121,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "Duplicate target is missing",
+        recommendation: "This is a duplicate of an existing thread.",
         reasoning: "Model attempted mark_duplicate without a real target id.",
         primary: [{ kind: "mark_duplicate", targetThreadId: "   " }],
         alternatives: [{ kind: "close" }],
@@ -139,6 +144,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "Duplicate without acknowledgment",
+        recommendation: "This is a duplicate of an existing thread.",
         reasoning: "Should be rejected by normalize.",
         primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
         alternatives: [{ kind: "close" }],
@@ -161,6 +167,8 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "Link duplicate and acknowledge customer",
+        recommendation:
+          "This is a duplicate of an existing thread; reply to acknowledge the customer.",
         reasoning: "Bundled reply is valid.",
         primary: [
           { kind: "mark_duplicate", targetThreadId: "t-123" },
@@ -189,6 +197,8 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     input: {
       output: {
         summary: "Customer confirmed issue resolved",
+        recommendation:
+          "Close the thread — the customer confirmed the issue is resolved.",
         reasoning: "Latest message says we can close the thread.",
         primary: [{ kind: "close" }],
         alternatives: [
