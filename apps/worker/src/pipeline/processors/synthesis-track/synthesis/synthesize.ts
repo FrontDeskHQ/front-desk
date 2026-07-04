@@ -18,7 +18,7 @@ const synthesisActionSchema = z.discriminatedUnion("kind", [
 
 const synthesisRawActionSetSchema = z.object({
   summary: z.string(),
-  recommendation: z.string(),
+  recommendation: z.string().trim().min(1),
   reasoning: z.string(),
   primary: z.array(synthesisActionSchema),
   alternatives: z.array(synthesisActionSchema).default([]),

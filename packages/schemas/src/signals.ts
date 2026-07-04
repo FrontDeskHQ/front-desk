@@ -125,7 +125,7 @@ export const threadReadSchema = z.object({
   /** Thread summary: the customer situation (what they want or reported). */
   summary: z.string(),
   /** Actionable output: the imperative next move, tied to `primary`. */
-  recommendation: z.string(),
+  recommendation: z.string().trim().min(1),
   reasoning: z.string(),
   primary: z.array(actionSchema),
   alternatives: z.array(actionSchema).optional(),

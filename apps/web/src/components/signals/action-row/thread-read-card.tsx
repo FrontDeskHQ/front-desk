@@ -647,19 +647,13 @@ export function ThreadReadCard({ thread, ctx }: Props) {
             <RichMarkdown
               content={read.summary}
               preset="inline"
-              className={
-                read.recommendation
-                  ? "text-foreground-secondary"
-                  : "text-foreground-primary"
-              }
+              className="text-foreground-secondary"
             />
-            {read.recommendation ? (
-              <RichMarkdown
-                content={read.recommendation}
-                preset="inline"
-                className="text-foreground-primary"
-              />
-            ) : null}
+            <RichMarkdown
+              content={read.recommendation}
+              preset="inline"
+              className="text-foreground-primary"
+            />
           </div>
         </ActionRow.Reason>
         {inlineSuggestions.length > 0 && (
