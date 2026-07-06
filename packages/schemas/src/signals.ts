@@ -122,7 +122,10 @@ export const isInlineAction = (action: Action): boolean =>
 // --- ThreadRead -----------------------------------------------------------
 
 export const threadReadSchema = z.object({
+  /** Thread summary: the customer situation (what they want or reported). */
   summary: z.string(),
+  /** Actionable output: the imperative next move, tied to `primary`. */
+  recommendation: z.string().trim().min(1),
   reasoning: z.string(),
   primary: z.array(actionSchema),
   alternatives: z.array(actionSchema).optional(),
@@ -138,6 +141,7 @@ export type ThreadRead = z.infer<typeof threadReadSchema>;
 export const fingerprintAgentRead = (read: ThreadRead): string => {
   const payload = {
     summary: read.summary,
+    recommendation: read.recommendation,
     reasoning: read.reasoning,
     primary: read.primary,
     alternatives: read.alternatives ?? [],

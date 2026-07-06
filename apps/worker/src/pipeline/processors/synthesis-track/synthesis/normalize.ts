@@ -64,6 +64,7 @@ export const normalizeSynthesisRawActionSet = ({
 
   const rawActionSet: ThreadRead = {
     summary: output.summary.trim(),
+    recommendation: output.recommendation.trim(),
     reasoning: sanitizeAgentReadReasoning(output.reasoning),
     urgencyScore: output.urgencyScore,
     sourceInputMessageId: messageIds.has(output.sourceInputMessageId)
