@@ -27,7 +27,6 @@ import {
   TreeItemRow,
   TreeJoin,
   TreeList,
-  TreeSkip,
   TREE_ROW_GAP_PX,
 } from "@workspace/ui/components/tree";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
@@ -665,7 +664,8 @@ export function ThreadReadCard({ thread, ctx }: Props) {
             <TreeList>
               <TreeItem>
                 <div className={cn(treeRowClassName, "items-start")}>
-                  <TreeSkip
+                  <TreeJoin
+                    isLast={!read.recommendation}
                     stretchStart={TREE_ROW_GAP_PX}
                     stretchEnd={read.recommendation ? TREE_ROW_GAP_PX : 0}
                   />

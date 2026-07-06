@@ -226,7 +226,8 @@ function TreeJoin({
   );
 }
 
-type TreeSkipProps = React.ComponentProps<"div"> & TreeIndicatorStretch;
+type TreeSkipProps = React.ComponentProps<"div"> &
+  Omit<TreeIndicatorStretch, "stretchSide">;
 
 function TreeSkip({
   className,
