@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TreeRouteImport } from './routes/tree'
 import { Route as ToggleGroupRouteImport } from './routes/toggle-group'
 import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
 import { Route as SegmentedControlRouteImport } from './routes/segmented-control'
@@ -19,6 +20,11 @@ import { Route as ButtonRouteImport } from './routes/button'
 import { Route as AvatarRouteImport } from './routes/avatar'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TreeRoute = TreeRouteImport.update({
+  id: '/tree',
+  path: '/tree',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ToggleGroupRoute = ToggleGroupRouteImport.update({
   id: '/toggle-group',
   path: '/toggle-group',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
   '/toggle-group': typeof ToggleGroupRoute
+  '/tree': typeof TreeRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
   '/toggle-group': typeof ToggleGroupRoute
+  '/tree': typeof TreeRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -98,6 +106,7 @@ export interface FileRoutesById {
   '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
   '/toggle-group': typeof ToggleGroupRoute
+  '/tree': typeof TreeRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/segmented-control'
     | '/status-indicator'
     | '/toggle-group'
+    | '/tree'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -122,6 +132,7 @@ export interface FileRouteTypes {
     | '/segmented-control'
     | '/status-indicator'
     | '/toggle-group'
+    | '/tree'
   id:
     | '__root__'
     | '/'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/segmented-control'
     | '/status-indicator'
     | '/toggle-group'
+    | '/tree'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,10 +157,18 @@ export interface RootRouteChildren {
   SegmentedControlRoute: typeof SegmentedControlRoute
   StatusIndicatorRoute: typeof StatusIndicatorRoute
   ToggleGroupRoute: typeof ToggleGroupRoute
+  TreeRoute: typeof TreeRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tree': {
+      id: '/tree'
+      path: '/tree'
+      fullPath: '/tree'
+      preLoaderRoute: typeof TreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/toggle-group': {
       id: '/toggle-group'
       path: '/toggle-group'
@@ -225,6 +245,7 @@ const rootRouteChildren: RootRouteChildren = {
   SegmentedControlRoute: SegmentedControlRoute,
   StatusIndicatorRoute: StatusIndicatorRoute,
   ToggleGroupRoute: ToggleGroupRoute,
+  TreeRoute: TreeRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
