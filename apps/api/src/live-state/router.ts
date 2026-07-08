@@ -665,20 +665,31 @@ export const router = createRouter({
     invite: privateRoute.withProcedures(({ mutation, query }) => ({
         /** Single invite by id, with org + creator — invitation accept page. */
         byId: query(z.object({ id: z.string() })).handler(
-          async ({ db, req }) =>
-            db.invite
+          async ({ db, req }) => {
+            const invite = await db.invite
               .one(req.input.id)
               .include({ organization: true, creator: true })
-              .get(),
+              .get();
+            if (!invite) return undefined;
+            // Only the recipient, an org member, or an internal key may read
+            // the invite (which exposes email, org, and creator).
+            const callerEmail = req.context?.user?.email?.toLowerCase();
+            if (callerEmail !== invite.email.toLowerCase()) {
+              authorize(req, { organizationId: invite.organizationId });
+            }
+            return invite;
+          },
         ),
         /** Active, unexpired invites for an email — onboarding join prompt. */
         forEmail: query(z.object({ email: z.string() })).handler(
           async ({ db, req }) => {
-            const email = req.input.email;
+            // Invites are stored lowercased; normalize so casing differences
+            // don't hide a valid invite.
+            const email = req.input.email.toLowerCase();
             // Callers may only look up their own email (internal keys excepted).
             if (
               !req.context?.internalApiKey &&
-              req.context?.user?.email?.toLowerCase() !== email.toLowerCase()
+              req.context?.user?.email?.toLowerCase() !== email
             ) {
               throw new Error("UNAUTHORIZED");
             }

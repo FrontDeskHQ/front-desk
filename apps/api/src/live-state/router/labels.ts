@@ -95,8 +95,9 @@ export default {
         organizationId: z.string(),
         enabled: z.boolean().optional(),
       }),
-    ).handler(async ({ req, db }) =>
-      Object.values(
+    ).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+      return Object.values(
         await db.find(schema.label, {
           where: {
             organizationId: req.input.organizationId,
@@ -105,8 +106,8 @@ export default {
               : {}),
           },
         }),
-      ),
-    ),
+      );
+    }),
 
     create: mutation(
       z.object({

@@ -301,13 +301,23 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
      * pre-purge-window) lookups.
      */
     detail: query(
-      z.object({
-        id: z.string().optional(),
-        shortId: z.number().optional(),
-        organizationId: z.string().optional(),
-        onlyDeleted: z.boolean().optional(),
-        deletedBefore: z.coerce.date().optional(),
-      }),
+      z
+        .object({
+          id: z.string().optional(),
+          shortId: z.number().optional(),
+          organizationId: z.string().optional(),
+          onlyDeleted: z.boolean().optional(),
+          deletedBefore: z.coerce.date().optional(),
+        })
+        .refine(
+          (input) => input.id !== undefined || input.shortId !== undefined,
+          { message: "THREAD_SELECTOR_REQUIRED" },
+        )
+        .refine(
+          (input) =>
+            input.shortId === undefined || input.organizationId !== undefined,
+          { message: "SHORT_ID_REQUIRES_ORGANIZATION" },
+        ),
     ).handler(async ({ req, db }) => {
       const { id, shortId, organizationId, onlyDeleted, deletedBefore } =
         req.input;
@@ -336,7 +346,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     /** All threads with their org — sitemap generation. Public (open read). */
     listAll: query().handler(async ({ db }) =>
-      db.thread.include({ organization: true, messages: true }).get(),
+      db.thread
+        .where({ deletedAt: null })
+        .include({ organization: true, messages: true })
+        .get(),
     ),
 
     /** Thread lookup by external (platform) id — integration bot dedupe. */

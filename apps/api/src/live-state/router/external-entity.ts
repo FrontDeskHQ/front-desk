@@ -70,6 +70,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           where: {
             organizationId: req.input.organizationId,
             repoFullName: req.input.repoFullName,
+            provider: "github",
             deletedAt: null,
           },
         }),

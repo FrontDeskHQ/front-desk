@@ -778,7 +778,9 @@ const handleMessages = async (
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = await fetchClient.query.integration.forOrg({ organizationId: message.thread?.organizationId, type: "discord" });
+    const organizationId = message.thread?.organizationId;
+    if (!organizationId) continue;
+    const integration = await fetchClient.query.integration.forOrg({ organizationId, type: "discord" });
 
     if (!integration || !integration.configStr) continue;
 
@@ -881,7 +883,9 @@ const handleUpdates = async (
 
     try {
       // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-      const integration = await fetchClient.query.integration.forOrg({ organizationId: update.thread?.organizationId, type: "discord" });
+      const organizationId = update.thread?.organizationId;
+      if (!organizationId) continue;
+      const integration = await fetchClient.query.integration.forOrg({ organizationId, type: "discord" });
 
       if (!integration || !integration.configStr) continue;
 
