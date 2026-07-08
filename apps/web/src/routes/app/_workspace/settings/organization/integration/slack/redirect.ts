@@ -24,14 +24,10 @@ export const Route = createFileRoute(
           if (data.code && data.state) {
             const [orgId, csrfToken] = data.state.split("_");
 
-            const integration = (
-              await fetchClient.query.integration
-                .where({
-                  organizationId: orgId,
-                  type: "slack",
-                })
-                .get()
-            )[0];
+            const integration = await fetchClient.query.integration.forOrg({
+              organizationId: orgId,
+              type: "slack",
+            });
 
             if (!integration) {
               throw new Error("INTEGRATION_NOT_FOUND");

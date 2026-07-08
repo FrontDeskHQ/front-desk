@@ -139,13 +139,10 @@ export const handleReconcileRepo = async (job: Job<ReconcileRepoJobData>) => {
 
   // Snapshot the current (non-deleted) mirror rows for this repo: the cursor for
   // skipping unchanged upserts, and the baseline for detecting deletions.
-  const mirrorRows = await fetchClient.query.externalEntity
-    .where({
-      organizationId: data.organizationId,
-      repoFullName: data.fullName,
-      deletedAt: null,
-    })
-    .get();
+  const mirrorRows = await fetchClient.query.externalEntity.listForRepo({
+    organizationId: data.organizationId,
+    repoFullName: data.fullName,
+  });
 
   const cursorByKey = new Map<string, number>();
   for (const row of mirrorRows) {

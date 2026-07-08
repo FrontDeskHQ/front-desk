@@ -151,28 +151,7 @@ const checkFeatureFlag = async (organizationId: string) => {
   }
 };
 
-export default privateRoute
-  .collectionRoute(schema.documentationSource, {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+export default privateRoute.withProcedures(({ mutation }) => ({
     syncCrawlProgress: mutation(syncCrawlProgressInputSchema).handler(
       async ({ req, db }) => {
         requireInternalApiKey(req.context);

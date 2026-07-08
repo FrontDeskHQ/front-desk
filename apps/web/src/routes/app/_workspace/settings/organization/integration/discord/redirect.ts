@@ -25,14 +25,10 @@ export const Route = createFileRoute(
           if (data.guild_id && data.state) {
             const [orgId, csrfToken] = data.state.split("_");
 
-            const integration = (
-              await fetchClient.query.integration
-                .where({
-                  organizationId: orgId,
-                  type: "discord",
-                })
-                .get()
-            )[0];
+            const integration = await fetchClient.query.integration.forOrg({
+              organizationId: orgId,
+              type: "discord",
+            });
 
             if (!integration) {
               throw new Error("INTEGRATION_NOT_FOUND");

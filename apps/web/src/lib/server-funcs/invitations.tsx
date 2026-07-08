@@ -21,15 +21,7 @@ export const getInvitation = createServerFn({
     const { user } = sessionData;
 
     const invitation = await fetchClient.query.invite
-      .where({
-        id: data.id,
-      })
-      .include({
-        organization: true,
-        creator: true,
-      })
-      .get()
-      .then((v) => v[0])
+      .byId({ id: data.id })
       .catch(() => null);
 
     if (!invitation) {

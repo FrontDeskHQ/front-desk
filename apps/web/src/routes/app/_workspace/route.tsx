@@ -50,13 +50,7 @@ export const Route = createFileRoute("/app/_workspace")({
 
     orgUsers = {
       organizationUsers: await fetchClient.query.organizationUser
-        .where({
-          userId: user.id,
-        })
-        .include({
-          organization: true,
-        })
-        .get()
+        .forUser({})
         .catch(() => []),
     };
 

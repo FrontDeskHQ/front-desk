@@ -467,12 +467,7 @@ const backfillMissingMessages = async (
     if (!msg.ts || msg.bot_id || !msg.user) continue;
 
     // Check if message already exists
-    const existingMessage = await fetchClient.query.message
-      .first({
-        externalMessageId: msg.ts,
-        threadId: existingThread.id,
-      })
-      .get();
+    const existingMessage = await fetchClient.query.message.byExternalId({ externalMessageId: msg.ts, threadId: existingThread.id });
 
     if (!existingMessage) {
       await backfillMessage(client, msg, existingThread.id, organizationId);
@@ -498,9 +493,7 @@ const backfillThread = async (
   organizationId: string,
 ): Promise<void> => {
   // Check if thread already exists
-  const existingThread = await fetchClient.query.thread
-    .first({ externalId: threadTs, externalOrigin: "slack" })
-    .get();
+  const existingThread = await fetchClient.query.thread.byExternalId({ externalId: threadTs, externalOrigin: "slack" });
 
   if (existingThread) {
     // Thread exists, backfill missing messages
@@ -559,9 +552,7 @@ const backfillChannel = async (
 
     // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
     await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
+      const integration = await fetchClient.query.integration.byId({ id: integrationId });
       const currentSettings = safeParseIntegrationSettings(
         integration?.configStr ?? null,
       );
@@ -611,9 +602,7 @@ const backfillChannel = async (
 
     // Determine if there are more pages
     const budgetExhausted = await (async () => {
-      const integration = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
+      const integration = await fetchClient.query.integration.byId({ id: integrationId });
       const settings = safeParseIntegrationSettings(
         integration?.configStr ?? null,
       );
@@ -628,9 +617,7 @@ const backfillChannel = async (
     if (!hasMorePages || budgetExhausted) {
       // This channel is done discovering — decrement channelsDiscovering
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration
-          .first({ id: integrationId })
-          .get();
+        const integration = await fetchClient.query.integration.byId({ id: integrationId });
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );
@@ -755,9 +742,7 @@ const handleIntegrationChanges = async (
 
       // Initialize/accumulate backfill status
       await withBackfillLock(integration.id, async () => {
-        const latestIntegration = await fetchClient.query.integration
-          .first({ id: integration.id })
-          .get();
+        const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
         const latestSettings = safeParseIntegrationSettings(
           latestIntegration?.configStr ?? null,
         );
@@ -890,9 +875,7 @@ app.message(
       });
 
       try {
-        const organization = await fetchClient.query.organization
-          .first({ id: integration.organizationId })
-          .get();
+        const organization = await fetchClient.query.organization.byId({ id: integration.organizationId });
 
         if (organization?.slug) {
           const showPortalMessage =
@@ -1198,9 +1181,7 @@ const handleUpdates = async (
     processThread: backfillThread,
     onThreadBackfillComplete: async (integrationId: string) => {
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration
-          .first({ id: integrationId })
-          .get();
+        const integration = await fetchClient.query.integration.byId({ id: integrationId });
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );

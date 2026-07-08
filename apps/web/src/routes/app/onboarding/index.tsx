@@ -20,27 +20,10 @@ export const Route = createFileRoute("/app/onboarding/")({
 
     const [orgUsers, invites] = await Promise.all([
       fetchClient.query.organizationUser
-        .where({
-          userId: user.id,
-          enabled: true,
-        })
-        .include({
-          organization: true,
-        })
-        .get()
+        .forUser({ enabledOnly: true })
         .catch(() => null),
       fetchClient.query.invite
-        .where({
-          email: user.email,
-          active: true,
-          expiresAt: {
-            $gt: new Date(),
-          },
-        })
-        .include({
-          organization: true,
-        })
-        .get()
+        .forEmail({ email: user.email })
         .catch(() => null),
     ]);
 

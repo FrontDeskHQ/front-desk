@@ -65,7 +65,7 @@ export const Route = createFileRoute("/support/$slug")({
 
     const [newPortalSessionData, newOrganizationData] = await Promise.all([
       getPortalAuthUser(),
-      fetchClient.query.organization.first({ slug: slug }).get(),
+      fetchClient.query.organization.bySlug({ slug }),
     ]);
 
     portalSessionData = newPortalSessionData;

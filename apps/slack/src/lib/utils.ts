@@ -23,9 +23,7 @@ export const updateSyncedChannels = async (
   integrationId: string,
   syncedChannels: string[],
 ) => {
-  const latestIntegration = await fetchClient.query.integration
-    .first({ id: integrationId })
-    .get();
+  const latestIntegration = await fetchClient.query.integration.byId({ id: integrationId });
   const current = safeParseIntegrationSettings(
     latestIntegration?.configStr ?? null,
   ) ?? {};
@@ -38,9 +36,7 @@ export const updateSyncedChannels = async (
 export const getBackfillLimit = async (
   organizationId: string,
 ): Promise<number | null> => {
-  const subscription = await fetchClient.query.subscription
-    .first({ organizationId })
-    .get();
+  const subscription = await fetchClient.query.subscription.forOrg({ organizationId });
   if (!subscription || subscription.plan === "trial") {
     return 100;
   }

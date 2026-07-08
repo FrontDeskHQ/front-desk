@@ -46,9 +46,9 @@ export const updateSyncedChannels = async (
 export const getBackfillLimit = async (
   organizationId: string,
 ): Promise<number | null> => {
-  const subscription = await fetchClient.query.subscription
-    .first({ organizationId })
-    .get();
+  const subscription = await fetchClient.query.subscription.forOrg({
+    organizationId,
+  });
   if (!subscription || subscription.plan === "trial") {
     return 100;
   }

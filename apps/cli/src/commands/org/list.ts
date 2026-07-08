@@ -23,7 +23,7 @@ export const runOrgList = async (): Promise<{
   assertLocalhostApiUrl(getApiUrl());
 
   const webUrl = getWebUrl();
-  const organizations = await fetchClient.query.organization.get();
+  const organizations = await fetchClient.query.organization.list();
 
   const items: OrgListItem[] = organizations.map((org) => ({
     id: org.id,

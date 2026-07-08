@@ -14,10 +14,9 @@ type OrgRow = {
 export async function getOrgActionAutonomy(
   organizationId: string,
 ): Promise<Record<ActionKind, AutonomyLevel>> {
-  const rows = (await fetchClient.query.organization
-    .where({ id: organizationId })
-    .get()) as OrgRow[];
-  const org = rows[0];
+  const org = (await fetchClient.query.organization.byId({
+    id: organizationId,
+  })) as OrgRow | undefined;
   const parsed = safeParseOrgSettings(org?.settings);
   return { ...getDefaultActionAutonomy(), ...(parsed.actionAutonomy ?? {}) };
 }

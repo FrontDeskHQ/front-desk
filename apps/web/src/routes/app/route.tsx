@@ -31,11 +31,9 @@ export const Route = createFileRoute("/app")({
       });
     }
 
-    const allowlist = await fetchClient.query.allowlist
-      .first({
-        email: sessionData.user.email,
-      })
-      .get();
+    const allowlist = await fetchClient.query.allowlist.forEmail({
+      email: sessionData.user.email,
+    });
 
     if (!allowlist) {
       throw redirect({
@@ -58,7 +56,6 @@ export const Route = createFileRoute("/app")({
 });
 
 function App() {
-  const { user } = Route.useRouteContext();
   useEffect(() => {
     client.ws.connect();
 
@@ -67,50 +64,7 @@ function App() {
     };
   }, []);
 
-  useLoadData(
-    client,
-    query.organizationUser
-      .where({
-        userId: user.id,
-      })
-      .include({
-        organization: {
-          include: {
-            threads: {
-              include: {
-                messages: {
-                  include: { author: true },
-                },
-                updates: {
-                  include: { user: true },
-                },
-                labels: {
-                  include: { label: true },
-                },
-                author: true,
-                assignedUser: true,
-              },
-            },
-            invites: true,
-            integrations: true,
-            subscriptions: true,
-            labels: true,
-            organizationUsers: {
-              include: { user: true },
-            },
-            authors: true,
-            onboardings: true,
-            documentationSources: true,
-            // TODO improve this to load only when needed
-            agentChats: {
-              include: { messages: true },
-            },
-            autonomousActions: true,
-            externalEntities: true,
-          },
-        },
-      }),
-  );
+  useLoadData(client, query.organizationUser.load());
 
   return (
     <>

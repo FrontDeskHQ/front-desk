@@ -52,13 +52,7 @@ export const DuplicateThreadMenuItem = () => {
         }
         where = { shortId: parsed.shortId, organizationId: activeOrgId };
       }
-      const thread = await fetchClient.query.thread
-        .first(where)
-        .include({
-          author: true,
-          messages: { include: { author: true } },
-        })
-        .get();
+      const thread = await fetchClient.query.thread.detail(where);
 
       if (!thread) {
         toast.error("Thread not found");

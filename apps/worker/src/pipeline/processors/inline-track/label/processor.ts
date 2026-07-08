@@ -74,9 +74,10 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
           };
         }
 
-        const orgLabels = (await fetchClient.query.label
-          .where({ organizationId: thread.organizationId, enabled: true })
-          .get()) as LabelRow[];
+        const orgLabels = (await fetchClient.query.label.forOrg({
+          organizationId: thread.organizationId,
+          enabled: true,
+        })) as LabelRow[];
 
         if (orgLabels.length === 0) {
           return {

@@ -13,9 +13,9 @@ type SlotEvidenceMap = {
 };
 
 export async function readHintBag(threadId: string): Promise<Hints> {
-  const rows = (await fetchClient.query.thread
-    .where({ id: threadId })
-    .get()) as Array<{ hints: Hints | null }>;
+  const rows = (await fetchClient.query.thread.byIds({
+    ids: [threadId],
+  })) as Array<{ hints: Hints | null }>;
   return rows[0]?.hints ?? {};
 }
 

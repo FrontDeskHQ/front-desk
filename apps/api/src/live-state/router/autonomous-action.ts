@@ -13,30 +13,8 @@ import {
 import { authorize, getWorkspaceActor, requireInternalApiKey } from "../../lib/authorize";
 import { runRecordActivity } from "../../lib/update-mutations";
 import { privateRoute } from "../factories";
-import { schema } from "../schema";
 
-export default privateRoute
-  .collectionRoute(schema.autonomousAction, {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+export default privateRoute.withProcedures(({ mutation }) => ({
     record: mutation(recordAutonomousActionInputSchema).handler(
       async ({ req, db }) => {
         // Receipts are written by the worker only — never by user sessions or

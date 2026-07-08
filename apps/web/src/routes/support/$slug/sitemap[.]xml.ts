@@ -13,12 +13,10 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
     handlers: {
       GET: async () => {
         // Fetch all organizations
-        const organizations = await fetchClient.query.organization.get();
+        const organizations = await fetchClient.query.organization.list();
 
         // Fetch all threads for all organizations
-        const allThreads = await fetchClient.query.thread
-          .include({ organization: true, messages: true })
-          .get();
+        const allThreads = await fetchClient.query.thread.listAll();
 
         // Build the URL list
         const urls: Array<{

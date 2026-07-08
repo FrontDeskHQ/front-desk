@@ -22,8 +22,9 @@ export const resolveThreadUlid = async (
   if (parsed.kind === "ulid") return parsed.id;
   const orgId = getDefaultStore().get(activeOrganizationAtom)?.id;
   if (!orgId) return null;
-  const thread = await fetchClient.query.thread
-    .first({ shortId: parsed.shortId, organizationId: orgId })
-    .get();
+  const thread = await fetchClient.query.thread.detail({
+    shortId: parsed.shortId,
+    organizationId: orgId,
+  });
   return thread?.id ?? null;
 };

@@ -1,6 +1,6 @@
 import { ulid } from "ulid";
 import { z } from "zod";
-import { authorize } from "../../lib/authorize";
+import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import { slackChannelsCache } from "./slack-channels";
@@ -30,28 +30,54 @@ const updateInstallationInputSchema = z
     { message: "NO_FIELDS_TO_UPDATE" },
   );
 
-export default privateRoute
-  .collectionRoute(schema.integration, {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
+export default privateRoute.withProcedures(({ mutation, query }) => ({
+    // --- Reads ---------------------------------------------------------------
+    // Replaces the removed default-query path. Auth is per-handler now: internal
+    // bot keys read freely; sessions are scoped to their org membership via
+    // `authorize`. In-app reads still flow through the org-tree load procedure.
 
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
+    /** Single integration by id (bot config refetch, web redirect handlers). */
+    byId: query(z.object({ id: z.string() })).handler(async ({ req, db }) => {
+      const integration = await db.integration.one(req.input.id).get();
+      if (!integration) return undefined;
+      authorize(req, { organizationId: integration.organizationId });
+      return integration;
+    }),
+
+    /** Single integration for an org, optionally filtered by type/enabled. */
+    forOrg: query(
+      z.object({
+        organizationId: z.string(),
+        type: z.string().optional(),
+        enabled: z.boolean().optional(),
+      }),
+    ).handler(async ({ req, db }) => {
+      const { organizationId, type, enabled } = req.input;
+      authorize(req, { organizationId });
+      return Object.values(
+        await db.find(schema.integration, {
+          where: {
+            organizationId,
+            ...(type !== undefined ? { type } : {}),
+            ...(enabled !== undefined ? { enabled } : {}),
           },
-        },
-      };
-    },
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+        }),
+      )[0];
+    }),
+
+    /** All integrations of a given type across orgs — internal (bot) use only. */
+    listByType: query(z.object({ type: z.string() })).handler(
+      async ({ req, db }) => {
+        requireInternalApiKey(req.context);
+        return Object.values(
+          await db.find(schema.integration, {
+            where: { type: req.input.type },
+          }),
+        );
+      },
+    ),
+
+    // --- Mutations -----------------------------------------------------------
     connectInstallation: mutation(connectInstallationInputSchema).handler(
       async ({ req, db }) => {
         const { organizationId, type, enabled, configStr, id, createdAt, updatedAt } =

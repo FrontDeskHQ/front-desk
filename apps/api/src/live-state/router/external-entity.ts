@@ -53,29 +53,29 @@ const externalEntityFields = z.object({
   baseRef: z.string().nullable(),
 });
 
-export default privateRoute
-  .collectionRoute(schema.externalEntity, {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
+export default privateRoute.withProcedures(({ mutation, query }) => ({
+    /**
+     * Non-deleted mirror rows for a repo — the reconcile job's cursor/baseline.
+     * Internal (integration) use only; in-app reads flow through the org tree.
+     */
+    listForRepo: query(
+      z.object({
+        organizationId: z.string(),
+        repoFullName: z.string(),
+      }),
+    ).handler(async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+      return Object.values(
+        await db.find(schema.externalEntity, {
+          where: {
+            organizationId: req.input.organizationId,
+            repoFullName: req.input.repoFullName,
+            deletedAt: null,
           },
-        },
-      };
-    },
-    // Writes go through the custom procedures only.
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+        }),
+      );
+    }),
+
     /**
      * Insert or update the mirror row identified by
      * `(organizationId, externalKey)`. Refreshes `lastSyncedAt` and clears any

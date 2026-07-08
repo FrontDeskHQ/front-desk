@@ -14,12 +14,12 @@ import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { publicKeys } from "../lib/api-key";
-import { authorize, assertInviteRecipient, authorizeSelfOrInternal, getWorkspaceActor } from "../lib/authorize";
+import { authorize, assertInviteRecipient, authorizeSelfOrInternal, getWorkspaceActor, requireInternalApiKey } from "../lib/authorize";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
-import { agentChatMessageRoute, agentChatRoute } from "./router/agent-chat";
+import { agentChatRoute } from "./router/agent-chat";
 import autonomousActionRoute from "./router/autonomous-action";
 import documentationSourcesRoute from "./router/documentation-sources";
 import externalEntityRoute from "./router/external-entity";
@@ -60,16 +60,58 @@ const RESERVED_ORG_SLUGS: readonly string[] = [
 export const router = createRouter({
   schema,
   routes: {
-    organization: publicRoute
-      .collectionRoute(schema.organization, {
-        read: () => true,
-        insert: () => false,
-        update: {
-          preMutation: () => false,
-          postMutation: () => false,
-        },
-      })
-      .withProcedures(({ mutation }) => ({
+    organization: publicRoute.withProcedures(({ mutation, query }) => ({
+        /** Single organization by slug — public portal shell. */
+        bySlug: query(z.object({ slug: z.string() })).handler(
+          async ({ db, req }) =>
+            Object.values(
+              await db.find(schema.organization, {
+                where: { slug: req.input.slug.toLowerCase() },
+              }),
+            )[0],
+        ),
+        /** Single organization by id — cli, worker, integration bots. */
+        byId: query(z.object({ id: z.string() })).handler(
+          async ({ db, req }) =>
+            db.organization.one(req.input.id).get(),
+        ),
+        /** All organizations — cli listing and public sitemap generation. */
+        list: query().handler(async ({ db }) =>
+          Object.values(await db.find(schema.organization, {})),
+        ),
+        // Un-executed query returned to integration clients (discord/slack/
+        // github), which load it via `client.load`. The whole-tree read has no
+        // per-resource backstop now (live-state 1.0), so it is gated to internal
+        // bot keys — the only callers — to avoid leaking every org's data.
+        load: query().handler(({ db, req }) => {
+          requireInternalApiKey(req.context);
+          return db.organization.include({
+            threads: {
+              include: {
+                messages: {
+                  include: {
+                    author: {
+                      include: { user: true },
+                    },
+                  },
+                },
+                updates: {
+                  include: { user: true },
+                },
+                labels: {
+                  include: { label: true },
+                },
+                author: {
+                  include: { user: true },
+                },
+              },
+            },
+            integrations: true,
+            authors: {
+              include: { user: true },
+            },
+          });
+        }),
         create: mutation(
           z.object({
             name: z.string(),
@@ -360,16 +402,77 @@ export const router = createRouter({
             }));
         }),
       })),
-    organizationUser: privateRoute
-      .collectionRoute(schema.organizationUser, {
-        read: () => true,
-        insert: () => false,
-        update: {
-          preMutation: () => false,
-          postMutation: () => false,
-        },
-      })
-      .withProcedures(({ mutation }) => ({
+    organizationUser: privateRoute.withProcedures(({ mutation, query }) => ({
+        /**
+         * The caller's own org memberships (each with its organization) — SSR
+         * loaders (billing, onboarding, workspace shell). Always scoped to the
+         * session user; `withSubscriptions` includes billing state for the
+         * owner-facing billing screen.
+         */
+        forUser: query(
+          z.object({
+            enabledOnly: z.boolean().optional(),
+            withSubscriptions: z.boolean().optional(),
+          }),
+        ).handler(async ({ req, db }) => {
+          const userId = req.context?.session?.userId;
+          if (!userId) throw new Error("UNAUTHORIZED");
+          return db.organizationUser
+            .where({
+              userId,
+              ...(req.input.enabledOnly ? { enabled: true } : {}),
+            })
+            .include({
+              organization: req.input.withSubscriptions
+                ? { include: { subscriptions: true } }
+                : true,
+            })
+            .get();
+        }),
+        // Un-executed query returned to the client, which loads it via
+        // `useLoadData`. Scoped to the session user server-side so the client
+        // never dictates which user's memberships (and org data) to sync.
+        load: query().handler(({ req, db }) =>
+          db.organizationUser
+            .where({ userId: req.context!.session!.userId })
+            .include({
+              organization: {
+                include: {
+                  threads: {
+                    include: {
+                      messages: {
+                        include: { author: true },
+                      },
+                      updates: {
+                        include: { user: true },
+                      },
+                      labels: {
+                        include: { label: true },
+                      },
+                      author: true,
+                      assignedUser: true,
+                    },
+                  },
+                  invites: true,
+                  integrations: true,
+                  subscriptions: true,
+                  labels: true,
+                  organizationUsers: {
+                    include: { user: true },
+                  },
+                  authors: true,
+                  onboardings: true,
+                  documentationSources: true,
+                  // TODO improve this to load only when needed
+                  agentChats: {
+                    include: { messages: true },
+                  },
+                  autonomousActions: true,
+                  externalEntities: true,
+                },
+              },
+            }),
+        ),
         inviteUser: mutation(
           z.object({
             organizationId: z.string(),
@@ -513,16 +616,7 @@ export const router = createRouter({
           });
         }),
       })),
-    user: publicRoute
-      .collectionRoute(schema.user, {
-        read: () => true,
-        insert: () => false,
-        update: {
-          preMutation: () => false,
-          postMutation: () => false,
-        },
-      })
-      .withProcedures(({ mutation }) => ({
+    user: publicRoute.withProcedures(({ mutation }) => ({
         updateProfile: mutation(
           z
             .object({
@@ -555,43 +649,49 @@ export const router = createRouter({
           });
         }),
       })),
-    author: publicRoute.collectionRoute(schema.author, {
-      read: () => true,
-      insert: () => false,
-      update: {
-        preMutation: () => false,
-        postMutation: () => false,
-      },
-    }),
-    invite: privateRoute
-      .collectionRoute(schema.invite, {
-        read: ({ ctx }) => {
-          if (ctx?.internalApiKey) return true;
-          if (!ctx?.session) return false;
-
-          return {
-            $or: [
-              {
-                organization: {
-                  organizationUsers: {
-                    userId: ctx.session.userId,
-                    enabled: true,
-                  },
-                },
-              },
-              {
-                email: ctx?.user?.email,
-              },
-            ],
-          };
+    author: publicRoute.withProcedures(({ query }) => ({
+      /** Authors by id (batch) — worker message-role resolution. */
+      byIds: query(z.object({ ids: z.array(z.string()) })).handler(
+        async ({ db, req }) => {
+          if (req.input.ids.length === 0) return [];
+          return Object.values(
+            await db.find(schema.author, {
+              where: { id: { $in: req.input.ids } },
+            }),
+          );
         },
-        insert: () => false,
-        update: {
-          preMutation: () => false,
-          postMutation: () => false,
-        },
-      })
-      .withProcedures(({ mutation }) => ({
+      ),
+    })),
+    invite: privateRoute.withProcedures(({ mutation, query }) => ({
+        /** Single invite by id, with org + creator — invitation accept page. */
+        byId: query(z.object({ id: z.string() })).handler(
+          async ({ db, req }) =>
+            db.invite
+              .one(req.input.id)
+              .include({ organization: true, creator: true })
+              .get(),
+        ),
+        /** Active, unexpired invites for an email — onboarding join prompt. */
+        forEmail: query(z.object({ email: z.string() })).handler(
+          async ({ db, req }) => {
+            const email = req.input.email;
+            // Callers may only look up their own email (internal keys excepted).
+            if (
+              !req.context?.internalApiKey &&
+              req.context?.user?.email?.toLowerCase() !== email.toLowerCase()
+            ) {
+              throw new Error("UNAUTHORIZED");
+            }
+            return db.invite
+              .where({
+                email,
+                active: true,
+                expiresAt: { $gt: new Date() },
+              })
+              .include({ organization: true })
+              .get();
+          },
+        ),
         accept: mutation(z.object({ id: z.string() })).handler(
           async ({ req, db }) => {
             await db.transaction(async ({ trx }) => {
@@ -668,42 +768,44 @@ export const router = createRouter({
         ),
       })),
     integration: integrationRoute,
-    allowlist: privateRoute.collectionRoute(schema.allowlist, {
-      read: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.user?.email) return false;
-
-        return {
-          email: ctx.user.email.toLowerCase(),
-        };
-      },
-      insert: () => false,
-      update: {
-        preMutation: () => false,
-        postMutation: () => false,
-      },
-    }),
-    subscription: privateRoute.collectionRoute(schema.subscription, {
-      read: ({ ctx }) => {
-        if (ctx?.internalApiKey) return true;
-        if (!ctx?.session) return false;
-
-        return {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-              role: "owner",
-            },
-          },
-        };
-      },
-      insert: () => false,
-      update: {
-        preMutation: () => false,
-        postMutation: () => false,
-      },
-    }),
+    allowlist: privateRoute.withProcedures(({ query }) => ({
+      /** Whether an email is allowlisted — app gate in `beforeLoad`. */
+      forEmail: query(z.object({ email: z.string() })).handler(
+        async ({ db, req }) => {
+          const email = req.input.email.toLowerCase();
+          // Callers may only check their own email (internal keys excepted).
+          if (
+            !req.context?.internalApiKey &&
+            req.context?.user?.email?.toLowerCase() !== email
+          ) {
+            throw new Error("UNAUTHORIZED");
+          }
+          return Object.values(
+            await db.find(schema.allowlist, { where: { email } }),
+          )[0];
+        },
+      ),
+    })),
+    subscription: privateRoute.withProcedures(({ query }) => ({
+      /**
+       * Subscription for an org — billing UI and the integration bots' backfill
+       * gate. Owner-only for sessions (matching the old read clause); internal
+       * bot keys read freely.
+       */
+      forOrg: query(z.object({ organizationId: z.string() })).handler(
+        async ({ db, req }) => {
+          authorize(req, {
+            organizationId: req.input.organizationId,
+            role: "owner",
+          });
+          return Object.values(
+            await db.find(schema.subscription, {
+              where: { organizationId: req.input.organizationId },
+            }),
+          )[0];
+        },
+      ),
+    })),
     // Mirror of external issues/PRs. Default mutators are disabled; writes go
     // through the route's custom `upsert` / `softDelete` procedures.
     externalEntity: externalEntityRoute,
@@ -714,18 +816,8 @@ export const router = createRouter({
     onboarding: onboardingRoute,
     documentationSource: documentationSourcesRoute,
     agentChat: agentChatRoute,
-    agentChatMessage: agentChatMessageRoute,
     ...labelsRoute,
     ...pipelineRoutes,
-    // Server-only: migration bookkeeping managed by the boot-time runner.
-    migration: publicRoute.collectionRoute(schema.migration, {
-      read: () => false,
-      insert: () => false,
-      update: {
-        preMutation: () => false,
-        postMutation: () => false,
-      },
-    }),
   },
 });
 
