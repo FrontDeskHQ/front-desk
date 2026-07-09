@@ -14,17 +14,10 @@ const authorizeOrganizationUser = async (customerId: string) => {
   const { user } = sessionData;
 
   const organizationUser = (
-    await fetchClient.query.organizationUser
-      .where({
-        userId: user.id,
-        enabled: true,
-      })
-      .include({
-        organization: {
-          include: { subscriptions: true },
-        },
-      })
-      .get()
+    await fetchClient.query.organizationUser.forUser({
+      enabledOnly: true,
+      withSubscriptions: true,
+    })
   ).find(
     (v) =>
       (v as any).organization?.subscriptions?.[0]?.customerId === customerId

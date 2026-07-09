@@ -16,10 +16,10 @@ export const resolveOrganization = async (
   }
 
   const organization = ULID_RE.test(trimmed)
-    ? await fetchClient.query.organization.first({ id: trimmed.toLowerCase() }).get()
-    : await fetchClient.query.organization
-        .first({ slug: trimmed.toLowerCase() })
-        .get();
+    ? await fetchClient.query.organization.byId({ id: trimmed.toLowerCase() })
+    : await fetchClient.query.organization.bySlug({
+        slug: trimmed.toLowerCase(),
+      });
 
   if (!organization) {
     throw new Error(`Organization not found: ${trimmed}`);

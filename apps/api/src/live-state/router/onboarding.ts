@@ -5,28 +5,7 @@ import { authorize } from "../../lib/authorize";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
-export default privateRoute
-  .collectionRoute(schema.onboarding, {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+export default privateRoute.withProcedures(({ mutation }) => ({
     initialize: mutation(
       z.object({
         organizationId: z.string(),

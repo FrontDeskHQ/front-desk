@@ -61,6 +61,41 @@ await (storage as unknown as {
   init: (schema: unknown) => Promise<void>;
 }).init(schema);
 
+/**
+ * Mirror non-sensitive billing state (plan/status) onto `organization.settings`
+ * so every member gets correct feature gating. Billing identifiers stay on the
+ * owner-only `subscription` row and are never copied here.
+ */
+const mirrorPlanToOrgSettings = async (
+  organizationId: string,
+  patch: { plan?: string; status?: string | null },
+) => {
+  const org = Object.values(
+    await storage.find(schema.organization, {
+      where: { id: organizationId },
+    }),
+  )[0];
+  if (!org) return;
+
+  const rawSettings =
+    org.settings &&
+    typeof org.settings === "object" &&
+    !Array.isArray(org.settings)
+      ? (org.settings as Record<string, unknown>)
+      : {};
+
+  await storage.update(schema.organization, organizationId, {
+    settings: {
+      ...rawSettings,
+      ...(patch.plan !== undefined ? { plan: patch.plan } : {}),
+      ...(patch.status !== undefined
+        ? { subscriptionStatus: patch.status }
+        : {}),
+      // biome-ignore lint/suspicious/noExplicitAny: settings JSON is opaque here
+    } as any,
+  });
+};
+
 const lsServer = server({
   router,
   storage,
@@ -213,6 +248,11 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           subscriptionId: payload.data.subscription_id,
           seats: payload.data.quantity ?? 1,
         });
+
+        await mirrorPlanToOrgSettings(subscription.organizationId, {
+          plan,
+          status: "active",
+        });
       },
       onSubscriptionExpired: async (payload) => {
         const subscription = Object.values(
@@ -227,6 +267,10 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
         await storage.update(schema.subscription, subscription.id, {
           status: "expired",
           updatedAt: new Date(),
+        });
+
+        await mirrorPlanToOrgSettings(subscription.organizationId, {
+          status: "expired",
         });
       },
       onSubscriptionPlanChanged: async (payload) => {
@@ -258,6 +302,11 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           updatedAt: new Date(),
           subscriptionId: payload.data.subscription_id,
         });
+
+        await mirrorPlanToOrgSettings(subscription.organizationId, {
+          plan,
+          status: payload.data.status,
+        });
       },
       onSubscriptionCancelled: async (payload) => {
         const subscription = Object.values(
@@ -272,6 +321,10 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
         await storage.update(schema.subscription, subscription.id, {
           status: "cancelled",
           updatedAt: new Date(),
+        });
+
+        await mirrorPlanToOrgSettings(subscription.organizationId, {
+          status: "cancelled",
         });
       },
     }) as any,

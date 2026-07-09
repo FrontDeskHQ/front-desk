@@ -49,20 +49,7 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
         ? { id: parsed.id, organizationId: context.organization.id }
         : { shortId: parsed.shortId, organizationId: context.organization.id };
 
-    const thread = (
-      await fetchClient.query.thread
-        .where(where)
-        .include({
-          author: true,
-          messages: { include: { author: true } },
-          assignedUser: true,
-          updates: { include: { user: true } },
-          labels: {
-            include: { label: true },
-          },
-        })
-        .get()
-    )[0];
+    const thread = await fetchClient.query.thread.detail(where);
 
     if (!thread) {
       throw notFound();

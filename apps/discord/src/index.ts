@@ -156,9 +156,7 @@ const backfillChannel = async (
 
     // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
     const budgetExhausted = await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
+      const integration = await fetchClient.query.integration.byId({ id: integrationId });
       const currentSettings = safeParseIntegrationSettings(
         integration?.configStr ?? null,
       );
@@ -196,9 +194,7 @@ const backfillChannel = async (
     if (!hasMoreArchived || budgetExhausted) {
       // This channel is done discovering — decrement channelsDiscovering
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration
-          .first({ id: integrationId })
-          .get();
+        const integration = await fetchClient.query.integration.byId({ id: integrationId });
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );
@@ -246,9 +242,7 @@ const backfillChannel = async (
     console.error(`    Error fetching threads from #${channel.name}:`, error);
     // Decrement channelsDiscovering on error so backfill can complete
     await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration
-        .first({ id: integrationId })
-        .get();
+      const integration = await fetchClient.query.integration.byId({ id: integrationId });
       const settings = safeParseIntegrationSettings(
         integration?.configStr ?? null,
       );
@@ -306,9 +300,7 @@ const handleIntegrationChanges = async (
       // Migration: if syncedChannels is undefined, initialize from current selectedChannels
       // This prevents false trigger on first deploy with new code
       if (settings.syncedChannels === undefined) {
-        const latestIntegration = await fetchClient.query.integration
-          .first({ id: integration.id })
-          .get();
+        const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
         await updateSyncedChannels(
           integration.id,
           latestIntegration?.configStr ?? integration.configStr,
@@ -335,9 +327,7 @@ const handleIntegrationChanges = async (
       if (addedChannels.length === 0) {
         // Persist cleanup only (no new channels to add)
         if (hadCleanup) {
-          const latestIntegration = await fetchClient.query.integration
-            .first({ id: integration.id })
-            .get();
+          const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
           await updateSyncedChannels(
             integration.id,
             latestIntegration?.configStr ?? null,
@@ -349,9 +339,7 @@ const handleIntegrationChanges = async (
 
       // Consolidate cleanup + add into a single update; use fresh config to avoid overwriting concurrent changes
       const finalSynced = [...syncedChannels, ...addedChannels];
-      const latestIntegration = await fetchClient.query.integration
-        .first({ id: integration.id })
-        .get();
+      const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
       const freshConfigStr = latestIntegration?.configStr ?? null;
 
       // Check if backfill feature is enabled for this organization
@@ -394,9 +382,7 @@ const handleIntegrationChanges = async (
 
       // Initialize/accumulate backfill status
       await withBackfillLock(integration.id, async () => {
-        const latestIntegration = await fetchClient.query.integration
-          .first({ id: integration.id })
-          .get();
+        const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
         const latestSettings = safeParseIntegrationSettings(
           latestIntegration?.configStr ?? null,
         );
@@ -456,9 +442,7 @@ const backfillThread = async (
   organizationId: string,
 ) => {
   // Check if thread already exists in the database using externalId
-  const existingThread = await fetchClient.query.thread
-    .first({ externalId: thread.id, organizationId })
-    .get();
+  const existingThread = await fetchClient.query.thread.byExternalId({ externalId: thread.id, organizationId });
 
   if (existingThread) {
     // Thread exists (re-added channel), sync status and backfill missing messages
@@ -591,9 +575,7 @@ const backfillMessages = async (
     if (message.author.bot) continue;
 
     // Check if message already exists in the database
-    const existingMessage = await fetchClient.query.message
-      .first({ externalMessageId: message.id })
-      .get();
+    const existingMessage = await fetchClient.query.message.byExternalId({ externalMessageId: message.id });
 
     if (!existingMessage) {
       await backfillMessage(message, existingThread.id, organizationId);
@@ -648,7 +630,7 @@ client.on("messageCreate", async (message) => {
   let portalMessageOrgSlug: string | null = null;
 
   const integration = (
-    await fetchClient.query.integration.where({ type: "discord" }).get()
+    await fetchClient.query.integration.listByType({ type: "discord" })
   ).find((i) => {
     const parsed = safeParseIntegrationSettings(i.configStr);
     return parsed?.guildId === message.guild?.id;
@@ -697,9 +679,7 @@ client.on("messageCreate", async (message) => {
     });
 
     try {
-      const organization = await fetchClient.query.organization
-        .first({ id: integration.organizationId })
-        .get();
+      const organization = await fetchClient.query.organization.byId({ id: integration.organizationId });
 
       if (organization?.slug) {
         const showPortalMessage =
@@ -798,12 +778,9 @@ const handleMessages = async (
 ) => {
   for (const message of messages) {
     // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = await fetchClient.query.integration
-      .first({
-        organizationId: message.thread?.organizationId,
-        type: "discord",
-      })
-      .get();
+    const organizationId = message.thread?.organizationId;
+    if (!organizationId) continue;
+    const integration = await fetchClient.query.integration.forOrg({ organizationId, type: "discord" });
 
     if (!integration || !integration.configStr) continue;
 
@@ -906,12 +883,9 @@ const handleUpdates = async (
 
     try {
       // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-      const integration = await fetchClient.query.integration
-        .first({
-          organizationId: update.thread?.organizationId,
-          type: "discord",
-        })
-        .get();
+      const organizationId = update.thread?.organizationId;
+      if (!organizationId) continue;
+      const integration = await fetchClient.query.integration.forOrg({ organizationId, type: "discord" });
 
       if (!integration || !integration.configStr) continue;
 
@@ -1007,9 +981,7 @@ client.once("ready", async () => {
     processThread: backfillThread,
     onThreadBackfillComplete: async (integrationId: string) => {
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration
-          .first({ id: integrationId })
-          .get();
+        const integration = await fetchClient.query.integration.byId({ id: integrationId });
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );

@@ -21,15 +21,7 @@ export const fetchThreadWithRelations = async (
   threadId: string,
 ): Promise<Thread | null> => {
   try {
-    const threads = await fetchClient.query.thread
-      .where({ id: threadId })
-      .include({
-        messages: true,
-        labels: {
-          include: { label: true },
-        },
-      })
-      .get();
+    const threads = await fetchClient.query.thread.byIds({ ids: [threadId] });
 
     const thread = threads[0];
     return (thread as Thread) ?? null;
@@ -52,17 +44,7 @@ export const fetchThreadsWithRelations = async (
   }
 
   try {
-    const results = await fetchClient.query.thread
-      .where({
-        id: { $in: threadIds },
-      })
-      .include({
-        messages: true,
-        labels: {
-          include: { label: true },
-        },
-      })
-      .get();
+    const results = await fetchClient.query.thread.byIds({ ids: threadIds });
 
     for (const thread of results) {
       threads.set(thread.id, thread as Thread);

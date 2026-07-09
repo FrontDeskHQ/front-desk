@@ -22,28 +22,7 @@ import {
   STATUS_LABELS,
 } from "./agent-chat-core";
 
-export const agentChatRoute = privateRoute
-  .collectionRoute(schema.agentChat, {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        organization: {
-          organizationUsers: {
-            userId: ctx.session.userId,
-            enabled: true,
-          },
-        },
-      };
-    },
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
     create: mutation(
       z.object({
         organizationId: z.string(),
@@ -783,28 +762,6 @@ export const agentChatRoute = privateRoute
     }),
   }));
 
-export const agentChatMessageRoute = privateRoute.collectionRoute(
-  schema.agentChatMessage,
-  {
-    read: ({ ctx }) => {
-      if (ctx?.internalApiKey) return true;
-      if (!ctx?.session) return false;
-
-      return {
-        agentChat: {
-          organization: {
-            organizationUsers: {
-              userId: ctx.session.userId,
-              enabled: true,
-            },
-          },
-        },
-      };
-    },
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  },
-);
+// `agentChatMessage` no longer needs its own route: messages are written via
+// `agentChat.sendMessage` and read as part of the org tree (agentChats.messages).
+// A resource is queryable by virtue of being in the schema (live-state 1.0).

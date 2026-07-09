@@ -88,14 +88,27 @@ const findThreadForAuthorizedOrganizations = async (
 };
 
 export default {
-  label: publicRoute.collectionRoute(schema.label, {
-    read: () => true,
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  }).withProcedures(({ mutation }) => ({
+  label: publicRoute.withProcedures(({ mutation, query }) => ({
+    /** Org's labels (optionally only enabled) — worker inline-label processor. */
+    forOrg: query(
+      z.object({
+        organizationId: z.string(),
+        enabled: z.boolean().optional(),
+      }),
+    ).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+      return Object.values(
+        await db.find(schema.label, {
+          where: {
+            organizationId: req.input.organizationId,
+            ...(req.input.enabled !== undefined
+              ? { enabled: req.input.enabled }
+              : {}),
+          },
+        }),
+      );
+    }),
+
     create: mutation(
       z.object({
         id: z.string().optional(),
@@ -308,12 +321,7 @@ export default {
     }),
   })),
 
-  threadLabel: publicRoute.collectionRoute(schema.threadLabel, {
-    read: () => true,
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  }),
+  // `threadLabel` no longer needs a route: it is written via the label
+  // attach/detach procedures and read as part of the org tree (thread.labels).
+  // A resource is queryable by virtue of being in the schema (live-state 1.0).
 };

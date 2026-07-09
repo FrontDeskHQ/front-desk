@@ -39,16 +39,29 @@ const setExternalMessageIdInputSchema = z.object({
   externalMessageId: z.string().min(1),
 });
 
-export default publicRoute
-  .collectionRoute(schema.message, {
-    read: () => true,
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+export default publicRoute.withProcedures(({ mutation, query }) => ({
+    /**
+     * Existence/lookup of a message by its external (platform) id — dedupe
+     * checks in the integration bots. Public: mirrors the old open read.
+     */
+    byExternalId: query(
+      z.object({
+        externalMessageId: z.string(),
+        threadId: z.string().optional(),
+      }),
+    ).handler(async ({ req, db }) =>
+      Object.values(
+        await db.find(schema.message, {
+          where: {
+            externalMessageId: req.input.externalMessageId,
+            ...(req.input.threadId !== undefined
+              ? { threadId: req.input.threadId }
+              : {}),
+          },
+        }),
+      )[0],
+    ),
+
     create: mutation(messageCreateInputSchema).handler(async ({ req, db }) => {
       authorize(req, {
         organizationId: req.input.organizationId,

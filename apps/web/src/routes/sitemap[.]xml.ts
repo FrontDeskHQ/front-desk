@@ -37,7 +37,7 @@ export const Route = createFileRoute("/sitemap.xml")({
           },
         ];
 
-        const organizations = await fetchClient.query.organization.get();
+        const organizations = await fetchClient.query.organization.list();
 
         const baseUrlObj = new URL(baseUrl);
 

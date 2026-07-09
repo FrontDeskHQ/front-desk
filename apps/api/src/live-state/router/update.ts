@@ -6,18 +6,8 @@ import {
   runRecordActivity,
 } from "../../lib/update-mutations";
 import { publicRoute } from "../factories";
-import { schema } from "../schema";
 
-export default publicRoute
-  .collectionRoute(schema.update, {
-    read: () => true,
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation }) => ({
+export default publicRoute.withProcedures(({ mutation }) => ({
     recordActivity: mutation(recordActivityInputSchema).handler(
       async ({ req, db }) => {
         authorize(req, {

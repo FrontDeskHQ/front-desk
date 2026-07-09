@@ -44,9 +44,7 @@ export const updatePipelineJobStatus = async (
   additionalMetadata?: Partial<PipelineJobMetadata>,
 ): Promise<boolean> => {
   try {
-    const existing = await fetchClient.query.pipelineJob
-      .first({ id: jobId })
-      .get();
+    const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!existing) {
       console.error(`Pipeline job ${jobId} not found`);
@@ -77,9 +75,7 @@ export const completePipelineJob = async (
   result: PipelineExecutionResult,
 ): Promise<boolean> => {
   try {
-    const existing = await fetchClient.query.pipelineJob
-      .first({ id: jobId })
-      .get();
+    const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!existing) {
       console.error(`Pipeline job ${jobId} not found`);
@@ -111,9 +107,7 @@ export const failPipelineJob = async (
   error: string,
 ): Promise<boolean> => {
   try {
-    const existing = await fetchClient.query.pipelineJob
-      .first({ id: jobId })
-      .get();
+    const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!existing) {
       console.error(`Pipeline job ${jobId} not found`);
@@ -148,9 +142,7 @@ export const getPipelineJob = async (
   updatedAt: Date;
 } | null> => {
   try {
-    const job = await fetchClient.query.pipelineJob
-      .first({ id: jobId })
-      .get();
+    const job = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!job) {
       return null;

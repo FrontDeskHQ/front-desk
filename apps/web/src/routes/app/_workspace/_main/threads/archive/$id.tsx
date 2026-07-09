@@ -51,24 +51,11 @@ export const Route = createFileRoute(
   component: RouteComponent,
   loader: async ({ params }) => {
     const { id } = params;
-    const thread = (
-      await fetchClient.query.thread
-        .where({
-          id,
-          deletedAt: {
-            $not: null,
-            $lt: add(new Date(), {
-              days: DAYS_UNTIL_DELETION,
-            }),
-          },
-        })
-        .include({
-          organization: true,
-          messages: { include: { author: true } },
-          assignedUser: true,
-        })
-        .get()
-    )[0];
+    const thread = await fetchClient.query.thread.detail({
+      id,
+      onlyDeleted: true,
+      deletedBefore: add(new Date(), { days: DAYS_UNTIL_DELETION }),
+    });
     return { thread };
   },
   head: ({ loaderData }) => {

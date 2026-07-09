@@ -89,16 +89,7 @@ const threadCreateInputSchema = z.object({
 const GITHUB_SERVER_URL =
   process.env.BASE_GITHUB_SERVER_URL || "http://localhost:3334";
 
-export default publicRoute
-  .collectionRoute(schema.thread, {
-    read: () => true,
-    insert: () => false,
-    update: {
-      preMutation: () => false,
-      postMutation: () => false,
-    },
-  })
-  .withProcedures(({ mutation, query }) => ({
+export default publicRoute.withProcedures(({ mutation, query }) => ({
     create: mutation(threadCreateInputSchema).handler(async ({ req, db }) => {
       const organizationId =
         req.context?.publicApiKey?.ownerId ?? req.input.organizationId;
@@ -302,6 +293,104 @@ export default publicRoute
 
       return { threads, nextCursor };
     }),
+
+    /**
+     * Single thread with its full relation tree — portal thread page, workspace
+     * archive view, and devtools. Public, matching the old open `read` on
+     * threads. `onlyDeleted`/`deletedBefore` serve the archive (soft-deleted,
+     * pre-purge-window) lookups.
+     */
+    detail: query(
+      z
+        .object({
+          id: z.string().optional(),
+          shortId: z.number().optional(),
+          organizationId: z.string().optional(),
+          onlyDeleted: z.boolean().optional(),
+          deletedBefore: z.coerce.date().optional(),
+        })
+        .refine(
+          (input) => input.id !== undefined || input.shortId !== undefined,
+          { message: "THREAD_SELECTOR_REQUIRED" },
+        )
+        .refine(
+          (input) =>
+            input.shortId === undefined || input.organizationId !== undefined,
+          { message: "SHORT_ID_REQUIRES_ORGANIZATION" },
+        ),
+    ).handler(async ({ req, db }) => {
+      const { id, shortId, organizationId, onlyDeleted, deletedBefore } =
+        req.input;
+
+      const rows = await db.thread
+        .where({
+          ...(id !== undefined ? { id } : {}),
+          ...(shortId !== undefined ? { shortId } : {}),
+          ...(organizationId !== undefined ? { organizationId } : {}),
+          deletedAt: onlyDeleted
+            ? { $not: null, ...(deletedBefore ? { $lt: deletedBefore } : {}) }
+            : null,
+        })
+        .include({
+          author: true,
+          organization: true,
+          messages: { include: { author: true } },
+          assignedUser: true,
+          updates: { include: { user: true } },
+          labels: { include: { label: true } },
+        })
+        .get();
+
+      return rows[0];
+    }),
+
+    /** All threads with their org — sitemap generation. Public (open read). */
+    listAll: query().handler(async ({ db }) =>
+      db.thread
+        .where({ deletedAt: null })
+        .include({ organization: true, messages: true })
+        .get(),
+    ),
+
+    /** Thread lookup by external (platform) id — integration bot dedupe. */
+    byExternalId: query(
+      z.object({
+        externalId: z.string(),
+        // Required so dedupe/reads are always tenant-scoped — external ids can
+        // collide across organizations.
+        organizationId: z.string(),
+        externalOrigin: z.string().optional(),
+      }),
+    ).handler(async ({ req, db }) => {
+      const { externalId, organizationId, externalOrigin } = req.input;
+      return Object.values(
+        await db.find(schema.thread, {
+          where: {
+            externalId,
+            organizationId,
+            ...(externalOrigin !== undefined ? { externalOrigin } : {}),
+          },
+        }),
+      )[0];
+    }),
+
+    /**
+     * Threads by id (with messages + labels) — worker pipeline reads. Accepts a
+     * batch so callers can hydrate many threads in one round-trip.
+     */
+    byIds: query(z.object({ ids: z.array(z.string()) })).handler(
+      async ({ req, db }) => {
+        if (req.input.ids.length === 0) return [];
+        return db.thread
+          .where({ id: { $in: req.input.ids } })
+          .include({
+            messages: true,
+            labels: { include: { label: true } },
+          })
+          .get();
+      },
+    ),
+
     // TODO(signals-overhaul issue 10): rewrite against thread.agentRead /
     // thread.inlineSuggestions (or replace with a new related-threads source).
     // The suggestion table backing this was dropped in issue 02; returns [] now.

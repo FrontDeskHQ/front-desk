@@ -22,7 +22,7 @@ import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
-import { query } from "~/lib/live-state";
+import { fetchClient, query } from "~/lib/live-state";
 import {
   cancelSubscription,
   createCheckoutSession,
@@ -49,7 +49,43 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
+  const { plan, isBetaFeedback } = useOrganizationPlan();
+  const { organizationUsers } = Route.useRouteContext();
+
+  // `subscription.forOrg` is owner-only server-side; mirror that here so
+  // non-owners skip the wasted call and its silently-caught error.
+  const isOwner =
+    organizationUsers?.some(
+      (orgUser) =>
+        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner",
+    ) ?? false;
+
+  // Billing identifiers (customerId/subscriptionId) are owner-only and no longer
+  // synced into the local store; fetch the full subscription on demand.
+  const [subscription, setSubscription] = useState<
+    Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>> | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (!isOwner || !currentOrg?.id) {
+      setSubscription(undefined);
+      return;
+    }
+    // Guard against out-of-order responses when switching orgs so billing state
+    // only ever reflects the latest fetch.
+    let cancelled = false;
+    fetchClient.query.subscription
+      .forOrg({ organizationId: currentOrg.id })
+      .then((result) => {
+        if (!cancelled) setSubscription(result);
+      })
+      .catch(() => {
+        if (!cancelled) setSubscription(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, currentOrg?.id]);
 
   const seats =
     useLiveQuery(

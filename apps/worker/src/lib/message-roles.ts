@@ -13,16 +13,11 @@ export const resolveMessageRoles = async (
   threadAuthorId: string | null | undefined,
 ): Promise<Map<string, MessageRole>> => {
   const unique = [...new Set(authorIds.filter(Boolean))];
-  const rows = await Promise.all(
-    unique.map(
-      (id) =>
-        fetchClient.query.author.where({ id }).get() as Promise<
-          Array<{ id: string; userId: string | null }>
-        >,
-    ),
-  );
+  const rows = (await fetchClient.query.author.byIds({
+    ids: unique,
+  })) as Array<{ id: string; userId: string | null }>;
   const map = new Map<string, MessageRole>();
-  for (const [row] of rows) {
+  for (const row of rows) {
     if (!row) continue;
     if (row.id === threadAuthorId) map.set(row.id, "customer");
     else if (row.userId) map.set(row.id, "agent");

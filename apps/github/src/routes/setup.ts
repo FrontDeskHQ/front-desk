@@ -33,12 +33,10 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
     }
 
     try {
-      const integration = await fetchClient.query.integration
-        .first({
-          organizationId: orgId,
-          type: "github",
-        })
-        .get();
+      const integration = await fetchClient.query.integration.forOrg({
+        organizationId: orgId,
+        type: "github",
+      });
 
       if (!integration) {
         throw new Error("INTEGRATION_NOT_FOUND");

@@ -23,9 +23,9 @@ export const checkIdempotency = async (
   hash: string,
 ): Promise<boolean> => {
   try {
-    const existing = await fetchClient.query.pipelineIdempotencyKey
-      .first({ key })
-      .get();
+    const existing = (
+      await fetchClient.query.pipelineIdempotencyKey.byKeys({ keys: [key] })
+    )[0];
 
     if (!existing) {
       return false;
@@ -93,9 +93,9 @@ export const batchCheckIdempotency = async (
 
   try {
     const keys = keyHashPairs.map((p) => p.key);
-    const existingKeys = await fetchClient.query.pipelineIdempotencyKey
-      .where({ key: { $in: keys } })
-      .get();
+    const existingKeys = await fetchClient.query.pipelineIdempotencyKey.byKeys({
+      keys,
+    });
 
     const existingMap = new Map<string, string>();
     for (const existing of existingKeys) {
@@ -136,9 +136,9 @@ export const batchCheckIdempotencyKeyExists = async (
   }
 
   try {
-    const existingKeys = await fetchClient.query.pipelineIdempotencyKey
-      .where({ key: { $in: keys } })
-      .get();
+    const existingKeys = await fetchClient.query.pipelineIdempotencyKey.byKeys({
+      keys,
+    });
 
     const existingSet = new Set(existingKeys.map((k) => k.key));
 
