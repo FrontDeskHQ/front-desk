@@ -37,7 +37,7 @@
       "packages/*"
     ],
     "catalog": {
-      "@live-state/sync": "1.0.0-canary-1",
+      "@live-state/sync": "1.0.0-canary-2",
       "@types/react": "^19.2.3",
       "@types/react-dom": "^19.2.3",
       "better-auth": "^1.4.0",
