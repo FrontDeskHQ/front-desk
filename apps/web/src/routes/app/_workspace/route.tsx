@@ -75,7 +75,7 @@ function RouteComponent() {
   // This is needed to set the active organization in the organization switcher
   useOrganizationSwitcher();
 
-  const { user } = Route.useRouteContext();
+  const { user, organizationUsers } = Route.useRouteContext();
 
   const posthog = usePostHog();
 
@@ -96,7 +96,30 @@ function RouteComponent() {
       });
     }
   }, [currentOrg?.id, currentOrg?.name, posthog]);
-  const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
+  const { plan, status, isBetaFeedback } = useOrganizationPlan();
+
+  // Billing (subscription identifiers + trial start) is owner-only. Non-owners
+  // are still feature-gated by `plan`/`status` but never see the upgrade flow.
+  const isOwner =
+    organizationUsers?.some(
+      (orgUser) =>
+        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner",
+    ) ?? false;
+
+  const [subscription, setSubscription] = useState<
+    Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>> | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (!isOwner || !currentOrg?.id) {
+      setSubscription(undefined);
+      return;
+    }
+    fetchClient.query.subscription
+      .forOrg({ organizationId: currentOrg.id })
+      .then(setSubscription)
+      .catch(() => setSubscription(undefined));
+  }, [isOwner, currentOrg?.id]);
 
   const seats =
     useLiveQuery(
@@ -114,12 +137,14 @@ function RouteComponent() {
     ? isAfter(new Date(), proTrialEndDate)
     : false;
 
-  // Don't show trial expired dialog for beta-feedback plans
+  // Only owners see the trial-expired upgrade dialog (they own billing).
+  // Don't show it for beta-feedback plans.
   const showTrialExpiredDialog =
+    isOwner &&
     plan === "trial" &&
     !isBetaFeedback &&
     trialEnded &&
-    subscription?.status !== "active";
+    status !== "active";
 
   const [isSubscribing, setIsSubscribing] = useState(false);
 

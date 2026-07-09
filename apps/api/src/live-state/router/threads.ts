@@ -356,7 +356,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     byExternalId: query(
       z.object({
         externalId: z.string(),
-        organizationId: z.string().optional(),
+        // Required so dedupe/reads are always tenant-scoped — external ids can
+        // collide across organizations.
+        organizationId: z.string(),
         externalOrigin: z.string().optional(),
       }),
     ).handler(async ({ req, db }) => {
@@ -365,7 +367,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         await db.find(schema.thread, {
           where: {
             externalId,
-            ...(organizationId !== undefined ? { organizationId } : {}),
+            organizationId,
             ...(externalOrigin !== undefined ? { externalOrigin } : {}),
           },
         }),

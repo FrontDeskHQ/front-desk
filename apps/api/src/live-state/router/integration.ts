@@ -36,12 +36,14 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     // bot keys read freely; sessions are scoped to their org membership via
     // `authorize`. In-app reads still flow through the org-tree load procedure.
 
-    /** Single integration by id (bot config refetch, web redirect handlers). */
+    /**
+     * Single integration by id — internal (bot) use only, so it can't be used
+     * to probe whether an arbitrary integration id exists. In-app reads flow
+     * through the org tree; web redirect handlers use `forOrg`.
+     */
     byId: query(z.object({ id: z.string() })).handler(async ({ req, db }) => {
-      const integration = await db.integration.one(req.input.id).get();
-      if (!integration) return undefined;
-      authorize(req, { organizationId: integration.organizationId });
-      return integration;
+      requireInternalApiKey(req.context);
+      return db.integration.one(req.input.id).get();
     }),
 
     /** Single integration for an org, optionally filtered by type/enabled. */

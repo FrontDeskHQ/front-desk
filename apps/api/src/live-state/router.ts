@@ -155,6 +155,8 @@ export const router = createRouter({
                 lastDigestSentAt: null,
               },
               actionAutonomy: getDefaultActionAutonomy(),
+              plan: "trial",
+              subscriptionStatus: null,
             },
           });
 
@@ -421,6 +423,10 @@ export const router = createRouter({
             .where({
               userId,
               ...(req.input.enabledOnly ? { enabled: true } : {}),
+              // Subscriptions are owner-only: when requested, restrict to the
+              // caller's owner memberships so billing data never leaks to
+              // non-owner members.
+              ...(req.input.withSubscriptions ? { role: "owner" } : {}),
             })
             .include({
               organization: req.input.withSubscriptions
@@ -455,7 +461,10 @@ export const router = createRouter({
                   },
                   invites: true,
                   integrations: true,
-                  subscriptions: true,
+                  // `subscriptions` is intentionally NOT synced here: it carries
+                  // billing identifiers and is owner-only (see subscription.forOrg).
+                  // Feature-gating state lives in organization.settings (plan,
+                  // subscriptionStatus), which syncs to every member.
                   labels: true,
                   organizationUsers: {
                     include: { user: true },

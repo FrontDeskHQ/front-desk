@@ -493,7 +493,7 @@ const backfillThread = async (
   organizationId: string,
 ): Promise<void> => {
   // Check if thread already exists
-  const existingThread = await fetchClient.query.thread.byExternalId({ externalId: threadTs, externalOrigin: "slack" });
+  const existingThread = await fetchClient.query.thread.byExternalId({ externalId: threadTs, organizationId, externalOrigin: "slack" });
 
   if (existingThread) {
     // Thread exists, backfill missing messages

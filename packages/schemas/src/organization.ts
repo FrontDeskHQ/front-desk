@@ -24,6 +24,11 @@ export const organizationSettingsSchema = z.object({
   timezone: z.string().default("UTC"),
   digest: digestSettingsSchema.default(digestSettingsDefaults),
   actionAutonomy: actionAutonomyMapSchema.optional(),
+  // Non-sensitive billing state, denormalized from the owner-only `subscription`
+  // row so all members get correct feature gating. Billing identifiers
+  // (customerId/subscriptionId) stay owner-only and are never synced here.
+  plan: z.string().default("trial"),
+  subscriptionStatus: z.string().nullable().default(null),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;

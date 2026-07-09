@@ -22,7 +22,7 @@ import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
-import { query } from "~/lib/live-state";
+import { fetchClient, query } from "~/lib/live-state";
 import {
   cancelSubscription,
   createCheckoutSession,
@@ -49,7 +49,24 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
-  const { subscription, plan, isBetaFeedback } = useOrganizationPlan();
+  const { plan, isBetaFeedback } = useOrganizationPlan();
+
+  // Billing identifiers (customerId/subscriptionId) are owner-only and no longer
+  // synced into the local store; fetch the full subscription on demand.
+  const [subscription, setSubscription] = useState<
+    Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>> | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (!currentOrg?.id) {
+      setSubscription(undefined);
+      return;
+    }
+    fetchClient.query.subscription
+      .forOrg({ organizationId: currentOrg.id })
+      .then(setSubscription)
+      .catch(() => setSubscription(undefined));
+  }, [currentOrg?.id]);
 
   const seats =
     useLiveQuery(
