@@ -115,10 +115,20 @@ function RouteComponent() {
       setSubscription(undefined);
       return;
     }
+    // Guard against out-of-order responses when switching orgs so billing state
+    // only ever reflects the latest fetch.
+    let cancelled = false;
     fetchClient.query.subscription
       .forOrg({ organizationId: currentOrg.id })
-      .then(setSubscription)
-      .catch(() => setSubscription(undefined));
+      .then((result) => {
+        if (!cancelled) setSubscription(result);
+      })
+      .catch(() => {
+        if (!cancelled) setSubscription(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [isOwner, currentOrg?.id]);
 
   const seats =

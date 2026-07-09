@@ -11,8 +11,13 @@ const migration: Migration = {
     const orgs = await db.organization.where({}).get();
 
     for (const org of orgs) {
+      // Order deterministically so a (rare) multi-row org mirrors its most
+      // recent billing state rather than an arbitrary row.
       const subscription = (
-        await db.subscription.where({ organizationId: org.id }).get()
+        await db.subscription
+          .where({ organizationId: org.id })
+          .orderBy("updatedAt", "desc")
+          .get()
       )[0];
 
       // Preserve any unrelated keys on settings — only patch plan/status.

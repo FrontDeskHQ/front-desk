@@ -25,7 +25,9 @@ export const useOrganizationPlan = () => {
   );
 
   const settings = safeParseOrgSettings(org?.settings);
-  const rawPlan = (settings.plan as PlanType) ?? "trial";
+  // `settings.plan` is already validated against the plan literals by the
+  // schema (unknown values coerce to "trial"), so no cast/fallback is needed.
+  const rawPlan: PlanType = settings.plan;
   const status = settings.subscriptionStatus;
 
   // Treat "beta-feedback" as "starter" plan for feature checks (free plan access)

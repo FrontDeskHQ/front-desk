@@ -50,6 +50,15 @@ export const Route = createFileRoute(
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const { plan, isBetaFeedback } = useOrganizationPlan();
+  const { organizationUsers } = Route.useRouteContext();
+
+  // `subscription.forOrg` is owner-only server-side; mirror that here so
+  // non-owners skip the wasted call and its silently-caught error.
+  const isOwner =
+    organizationUsers?.some(
+      (orgUser) =>
+        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner",
+    ) ?? false;
 
   // Billing identifiers (customerId/subscriptionId) are owner-only and no longer
   // synced into the local store; fetch the full subscription on demand.
@@ -58,15 +67,25 @@ function RouteComponent() {
   >(undefined);
 
   useEffect(() => {
-    if (!currentOrg?.id) {
+    if (!isOwner || !currentOrg?.id) {
       setSubscription(undefined);
       return;
     }
+    // Guard against out-of-order responses when switching orgs so billing state
+    // only ever reflects the latest fetch.
+    let cancelled = false;
     fetchClient.query.subscription
       .forOrg({ organizationId: currentOrg.id })
-      .then(setSubscription)
-      .catch(() => setSubscription(undefined));
-  }, [currentOrg?.id]);
+      .then((result) => {
+        if (!cancelled) setSubscription(result);
+      })
+      .catch(() => {
+        if (!cancelled) setSubscription(undefined);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner, currentOrg?.id]);
 
   const seats =
     useLiveQuery(

@@ -27,7 +27,13 @@ export const organizationSettingsSchema = z.object({
   // Non-sensitive billing state, denormalized from the owner-only `subscription`
   // row so all members get correct feature gating. Billing identifiers
   // (customerId/subscriptionId) stay owner-only and are never synced here.
-  plan: z.string().default("trial"),
+  // Constrained to the supported plan literals so stored settings can't drift
+  // from the union the feature-gating logic assumes; unknown values coerce to
+  // "trial" instead of leaking through as an arbitrary string.
+  plan: z
+    .enum(["trial", "starter", "pro", "beta-feedback"])
+    .catch("trial")
+    .default("trial"),
   subscriptionStatus: z.string().nullable().default(null),
 });
 
