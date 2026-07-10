@@ -9,6 +9,8 @@ export {
 } from "./capabilities";
 export {
   CAPABILITY_INVOKE_PATH,
+  CAPABILITY_INVOKE_SECRET_HEADER,
+  CAPABILITY_INVOKE_TIMEOUT_MS,
   type InvokeEnvelope,
   invokeCapability,
   invokeEnvelopeSchema,

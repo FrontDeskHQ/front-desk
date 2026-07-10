@@ -1,5 +1,6 @@
 import {
   CAPABILITY_INVOKE_PATH,
+  CAPABILITY_INVOKE_SECRET_HEADER,
   invokeEnvelopeSchema,
 } from "@connectors/framework";
 import { formatGitHubId } from "@workspace/schemas/external-issue";
@@ -41,7 +42,18 @@ const createIssuePayloadSchema = z.object({
  */
 export const capabilitiesRoutes = new Elysia().post(
   CAPABILITY_INVOKE_PATH,
-  async ({ body: requestBody, set }) => {
+  async ({ body: requestBody, headers, set }) => {
+    // Only the core holds the shared secret; reject anyone else who can reach
+    // this host. Fails closed when the secret isn't configured.
+    const expectedSecret = process.env.DISCORD_BOT_KEY;
+    if (
+      !expectedSecret ||
+      headers[CAPABILITY_INVOKE_SECRET_HEADER] !== expectedSecret
+    ) {
+      set.status = 401;
+      return { error: "UNAUTHORIZED" };
+    }
+
     const envelope = invokeEnvelopeSchema.safeParse(requestBody);
     if (!envelope.success) {
       set.status = 400;

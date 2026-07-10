@@ -10,7 +10,10 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
-import { connectorRegistry } from "../../lib/connector-registry";
+import {
+  connectorInvokeSecret,
+  connectorRegistry,
+} from "../../lib/connector-registry";
 import {
   acceptInlineSuggestionInputSchema,
   acceptReadInputSchema,
@@ -516,6 +519,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           target: req.input.target,
         },
       },
+      { secret: connectorInvokeSecret },
     );
 
     await runRecordActivity(db, {
