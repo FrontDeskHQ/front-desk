@@ -168,13 +168,12 @@ export function IssuesSection({
     }) => {
       if (!currentOrg) throw new Error("No organization selected");
 
-      const result = await fetchClient.mutate.thread.createGithubIssue({
+      const result = await fetchClient.mutate.thread.createIssue({
         organizationId: currentOrg.id,
         threadId,
         title: title.trim(),
         body,
-        owner,
-        repo,
+        target: { owner, repo },
       });
 
       if (!result?.issue?.id || !result?.issue?.number || !result?.issue?.url) {

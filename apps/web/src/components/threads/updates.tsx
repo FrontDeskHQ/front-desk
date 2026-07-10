@@ -129,7 +129,7 @@ const PrChangedUpdateText = ({
   return "changed PR";
 };
 
-const GithubIssueCreatedUpdateText = ({
+const IssueCreatedUpdateText = ({
   metadata,
 }: {
   metadata: { [key: string]: unknown } | null;
@@ -246,8 +246,13 @@ export function Update({
       );
     }
 
-    if (update.type === "github_issue_created") {
-      return <GithubIssueCreatedUpdateText metadata={metadata} />;
+    // `github_issue_created` is the legacy type kept for existing rows; new
+    // rows use the provider-neutral `issue_created` from generic dispatch.
+    if (
+      update.type === "issue_created" ||
+      update.type === "github_issue_created"
+    ) {
+      return <IssueCreatedUpdateText metadata={metadata} />;
     }
 
     if (update.type === "marked_duplicate") {
@@ -306,7 +311,8 @@ export function Update({
               ))}
             {update.type === "issue_changed" && <Github className="size-3.5" />}
             {update.type === "pr_changed" && <Github className="size-3.5" />}
-            {update.type === "github_issue_created" && (
+            {(update.type === "issue_created" ||
+              update.type === "github_issue_created") && (
               <Github className="size-3.5" />
             )}
             {update.type === "marked_duplicate" && (
