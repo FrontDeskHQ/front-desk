@@ -484,6 +484,12 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       throw new Error("CONNECTOR_NOT_REGISTERED");
     }
 
+    // An integration can be enabled before it's configured (`configStr` is
+    // nullable); fail with a clear error rather than forwarding a null config.
+    if (!integration.configStr) {
+      throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
+    }
+
     // Verify thread exists and belongs to the organization
     const thread = await db.findOne(schema.thread, req.input.threadId);
     if (!thread || thread.organizationId !== organizationId) {
@@ -516,6 +522,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       threadId: req.input.threadId,
       organizationId,
       userId: actor?.userId ?? null,
+      userName: actor?.userName ?? null,
       type: "issue_created",
       metadata: {
         issueId: entity.id,

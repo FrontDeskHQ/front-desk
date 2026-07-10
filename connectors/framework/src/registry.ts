@@ -40,7 +40,16 @@ export function buildRegistry(
   const entries = new Map<string, RegistryEntry>();
 
   for (const manifest of manifests) {
-    const baseUrl = env[manifest.baseUrlEnv] ?? manifest.defaultBaseUrl;
+    if (entries.has(manifest.type)) {
+      throw new Error(
+        `DUPLICATE_CONNECTOR_TYPE: ${manifest.type} is registered by more than one manifest`,
+      );
+    }
+
+    // Strip a trailing slash so env formatting can't alter the invoke path.
+    const baseUrl = (
+      env[manifest.baseUrlEnv] ?? manifest.defaultBaseUrl
+    ).replace(/\/+$/, "");
     entries.set(manifest.type, {
       manifest,
       baseUrl,
