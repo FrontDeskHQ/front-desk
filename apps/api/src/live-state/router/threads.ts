@@ -530,7 +530,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       type: "issue_created",
       metadata: {
         issueId: entity.id,
-        issueNumber: entity.number,
+        issueShortId: entity.shortId,
         issueLabel: entity.label,
       },
       replicatedStr: null,

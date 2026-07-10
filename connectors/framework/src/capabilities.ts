@@ -47,7 +47,11 @@ export type IssueTrackerCreatePayload = z.infer<
 export interface NormalizedIssue {
   /** Stable, provider-scoped external key (e.g. `github:owner/repo#123`). */
   id: string;
-  number: number;
+  /**
+   * Provider-local short reference, as a string so any tracker fits (GitHub
+   * `"123"`, Jira `"PROJ-123"`, Linear `"ENG-456"`).
+   */
+  shortId: string;
   title: string;
   body: string;
   state: string;

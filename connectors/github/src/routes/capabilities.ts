@@ -122,7 +122,7 @@ export const capabilitiesRoutes = new Elysia().post(
       return {
         entity: {
           id: formatGitHubId(issue.id, target.owner, target.repo),
-          number: issue.number,
+          shortId: String(issue.number),
           title: issue.title,
           body: issue.body ?? "",
           state: issue.state,
