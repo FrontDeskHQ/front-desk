@@ -41,7 +41,7 @@ bun run --filter web deploy       # Deploy to Cloudflare
 bun run --filter worker dev       # Dev mode with hot reload
 bun run --filter worker start     # Run worker process
 
-# Integration apps (discord, slack, github)
+# Connector apps (discord, slack, github) — live under connectors/
 bun run --filter discord dev
 bun run --filter slack dev
 bun run --filter github dev
@@ -77,7 +77,7 @@ User/Integration → API (Live-State) → PostgreSQL
 - **api** (`apps/api`): Express server with Live-State real-time sync. Entry: `src/index.ts`
 - **web** (`apps/web`): TanStack Start frontend with file-based routing. Entry: `src/router.tsx`
 - **worker** (`apps/worker`): BullMQ job processor for thread ingestion pipeline. Entry: `src/worker.ts`
-- **discord/slack/github** (`apps/*`): Integration bots that sync external messages to FrontDesk threads
+- **discord/slack/github** (`connectors/*`): Integration bots that sync external messages to FrontDesk threads
 
 ### Packages
 

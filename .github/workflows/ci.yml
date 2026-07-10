@@ -34,4 +34,4 @@ jobs:
         run: bun typecheck
 
       - name: Build apps
-        run: bun --filter "./apps/*" build
+        run: bun --filter "./apps/*" --filter "./connectors/*" build
