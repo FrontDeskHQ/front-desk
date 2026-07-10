@@ -1,4 +1,5 @@
 import { buildRegistry, type Capability } from "@connectors/framework";
+import type { ServerDB } from "@live-state/sync/server";
 import { schema } from "../live-state/schema";
 
 /**
@@ -14,8 +15,7 @@ export const connectorRegistry = buildRegistry();
  * invoked call still routes by a concrete target/integration.
  */
 export async function orgHasCapability(
-  // biome-ignore lint/suspicious/noExplicitAny: live-state db handle
-  db: any,
+  db: Pick<ServerDB<typeof schema>, "find">,
   organizationId: string,
   capability: Capability,
 ): Promise<boolean> {
@@ -23,7 +23,7 @@ export async function orgHasCapability(
     await db.find(schema.integration, {
       where: { organizationId, enabled: true },
     }),
-  ) as { type: string }[];
+  );
 
   return connectorRegistry.hasCapability(
     integrations.map((integration) => integration.type),
