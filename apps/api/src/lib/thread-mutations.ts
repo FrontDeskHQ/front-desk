@@ -4,6 +4,7 @@ import { PRIORITY_LABELS, threadReadSchema } from "@workspace/schemas/signals";
 import { addDays } from "date-fns";
 import { z } from "zod";
 import { schema } from "../live-state/schema";
+import { syncLinkedIssueState } from "./capability-dispatch";
 import { statusActivityMetadata } from "./signals/activity";
 import { runRecordActivity } from "./update-mutations";
 
@@ -66,6 +67,7 @@ export const unlinkPullRequestInputSchema = z.object({
   userName: z.string().optional(),
 });
 
+export const STATUS_CLOSED = 3;
 export const STATUS_DUPLICATED = 4;
 
 export const markDuplicateInputSchema = z.object({
@@ -169,7 +171,7 @@ const resolveAssignedUserName = async (
 type ThreadRow = InferLiveObject<typeof schema.thread>;
 
 export const runSetThreadStatus = async (
-  db: ThreadWriteDb,
+  db: ThreadWriteDb & Pick<ServerDB<typeof schema>, "find">,
   input: z.infer<typeof setStatusInputSchema>,
   actor: {
     userId: string | null;
@@ -193,6 +195,19 @@ export const runSetThreadStatus = async (
   }
 
   await db.thread.update(input.threadId, { status: input.status });
+
+  // Keep a linked external issue in sync with the thread's closed state. Only
+  // fires when the thread crosses the closed boundary; routed by the linked
+  // issue's owning integration (best-effort, never blocks the status change).
+  const wasClosed = oldStatus === STATUS_CLOSED;
+  const isClosed = input.status === STATUS_CLOSED;
+  if (thread.externalIssueId && wasClosed !== isClosed) {
+    await syncLinkedIssueState(db, {
+      organizationId: input.organizationId,
+      externalIssueId: thread.externalIssueId,
+      closed: isClosed,
+    });
+  }
 
   const shouldRecordActivity =
     actor.userId !== null || options?.recordActivity === true;

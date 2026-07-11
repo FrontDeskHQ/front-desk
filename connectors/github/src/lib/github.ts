@@ -70,6 +70,66 @@ export const createIssue = async (
   }
 };
 
+export const setIssueState = async (
+  installationId: number,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  state: "open" | "closed"
+) => {
+  try {
+    const octokit = await getOctokit(installationId);
+    const { data } = await octokit.request(
+      "PATCH /repos/{owner}/{repo}/issues/{issue_number}",
+      {
+        owner,
+        repo,
+        issue_number: issueNumber,
+        state,
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+    return data;
+  } catch (error) {
+    console.error(`Error setting issue state:`, error);
+    throw error;
+  }
+};
+
+/**
+ * Post a comment on an issue or pull request. GitHub models PR comments through
+ * the issues comments endpoint, so this covers both.
+ */
+export const addComment = async (
+  installationId: number,
+  owner: string,
+  repo: string,
+  issueNumber: number,
+  body: string
+) => {
+  try {
+    const octokit = await getOctokit(installationId);
+    const { data } = await octokit.request(
+      "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
+      {
+        owner,
+        repo,
+        issue_number: issueNumber,
+        body,
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+      }
+    );
+    return data;
+  } catch (error) {
+    console.error(`Error adding comment:`, error);
+    throw error;
+  }
+};
+
 export const fetchPullRequests = async (
   installationId: number,
   owner: string,

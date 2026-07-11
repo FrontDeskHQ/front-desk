@@ -17,13 +17,13 @@ export interface ConnectorManifest {
 }
 
 /**
- * GitHub connector manifest. Declares `issue-tracker`; `pr-tracker` follows in
- * FRO-193. Kept here (dependency-free) rather than in the connector app so the
- * core can import it without pulling in octokit or creating a workspace cycle.
+ * GitHub connector manifest. Declares both `issue-tracker` and `pr-tracker`.
+ * Kept here (dependency-free) rather than in the connector app so the core can
+ * import it without pulling in octokit or creating a workspace cycle.
  */
 export const githubManifest: ConnectorManifest = {
   type: "github",
-  capabilities: ["issue-tracker"],
+  capabilities: ["issue-tracker", "pr-tracker"],
   baseUrlEnv: "BASE_GITHUB_SERVER_URL",
   defaultBaseUrl: "http://localhost:3334",
 };

@@ -12,6 +12,9 @@ export type SignalExecutionDb = Pick<
   | "autonomousAction"
   | "insert"
   | "transaction"
+  // `find` backs capability dispatch: resolving a linked/mirrored external
+  // entity's owning integration (issue-state sync, PR link).
+  | "find"
 >;
 
 export type ExecutionContext = {
