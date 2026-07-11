@@ -168,16 +168,15 @@ export function IssuesSection({
     }) => {
       if (!currentOrg) throw new Error("No organization selected");
 
-      const result = await fetchClient.mutate.thread.createGithubIssue({
+      const result = await fetchClient.mutate.thread.createIssue({
         organizationId: currentOrg.id,
         threadId,
         title: title.trim(),
         body,
-        owner,
-        repo,
+        target: { owner, repo },
       });
 
-      if (!result?.issue?.id || !result?.issue?.number || !result?.issue?.url) {
+      if (!result?.issue?.id || !result?.issue?.shortId || !result?.issue?.url) {
         throw new Error("Invalid response from GitHub API");
       }
 
@@ -191,7 +190,9 @@ export function IssuesSection({
       // row arrives shortly after via the GitHub webhook upsert.
       setOptimisticIssue({
         externalKey: result.issue.id,
-        number: result.issue.number,
+        // The mirror row is GitHub-shaped (numeric `number`); parse the neutral
+        // `shortId` back to an int here in the GitHub-specific UI.
+        number: Number(result.issue.shortId),
         title: result.issue.title || variables.title,
         repoFullName: repo.fullName,
       });

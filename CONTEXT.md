@@ -60,6 +60,19 @@ A deterministic, no-LLM helper (not a pipeline processor) that action-emitting p
 
 A receipt of work the Agent performed without human approval. Stored in `autonomousAction`. Carries an undo affordance when the action is reversible by construction.
 
+### Connector
+
+The reusable provider code (Discord, Slack, GitHub) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides; the FrontDesk core interacts with those capabilities generically and never references a named provider. Distinct from an [integration](#integration), which is *one org's installed instance* of a connector.
+_Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
+
+### Capability
+
+A role a [connector](#connector) can play, expressed as a typed interface (a bundle of methods) the connector opts into implementing. Planned kinds: support entry point, issue tracker, PR tracker, team notification center. A connector may implement any number of them (GitHub = issue tracker + PR tracker; Slack = support entry point + notification center; Discord = support entry point only). The core asks "does this org have an integration whose connector provides capability X?" rather than naming a provider.
+
+### Integration
+
+One org's installed, configured instance of a [connector](#connector). A row in the `integration` table (`type`, `enabled`, `configStr`), scoped by `organizationId`. "Integration" is the *installed connection*, not the code that powers it (that is the [connector](#connector)) and not the role it plays (that is a [capability](#capability)).
+
 ### Thread
 
 The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record *where it came from* (Discord channel, Slack message, portal) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).

@@ -3,7 +3,12 @@ import "./env";
 import { startBackfillWorker } from "./jobs/backfill";
 import { startReconcileWorker } from "./jobs/reconcile";
 import { app as githubApp } from "./lib/github";
-import { issuesRoutes, pullRequestsRoutes, setupRoutes } from "./routes";
+import {
+  capabilitiesRoutes,
+  issuesRoutes,
+  pullRequestsRoutes,
+  setupRoutes,
+} from "./routes";
 import { getPort } from "./utils";
 import { setupWebhooks } from "./webhooks";
 
@@ -12,6 +17,7 @@ startBackfillWorker();
 startReconcileWorker();
 
 const app = new Elysia()
+  .use(capabilitiesRoutes)
   .use(issuesRoutes)
   .use(pullRequestsRoutes)
   .use(setupRoutes)

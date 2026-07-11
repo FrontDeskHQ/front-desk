@@ -1,0 +1,23 @@
+{
+  "name": "@connectors/framework",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "author": "front-desk",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --fix .",
+    "typecheck": "tsc --noEmit",
+    "format": "bun biome format ./src --fix"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "typescript": "^5.7.0"
+  }
+}

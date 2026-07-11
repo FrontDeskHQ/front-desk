@@ -27,6 +27,7 @@
     "node": ">=20.18.0"
   },
   "dependencies": {
+    "@connectors/framework": "workspace:*",
     "@live-state/sync": "catalog:",
     "@octokit/webhooks": "^14.0.0",
     "@workspace/schemas": "workspace:*",
