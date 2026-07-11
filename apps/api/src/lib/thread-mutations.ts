@@ -199,8 +199,9 @@ export const runSetThreadStatus = async (
   // Keep a linked external issue in sync with the thread's closed state. Only
   // fires when the thread crosses the closed boundary; routed by the linked
   // issue's owning integration (best-effort, never blocks the status change).
-  const wasClosed = oldStatus === STATUS_CLOSED;
-  const isClosed = input.status === STATUS_CLOSED;
+  // Statuses at or beyond `closed` (e.g. `duplicated`) count as closed.
+  const wasClosed = oldStatus >= STATUS_CLOSED;
+  const isClosed = input.status >= STATUS_CLOSED;
   if (thread.externalIssueId && wasClosed !== isClosed) {
     await syncLinkedIssueState(db, {
       organizationId: input.organizationId,

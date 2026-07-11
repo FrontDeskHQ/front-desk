@@ -11,8 +11,10 @@ import type { ActionHandler } from "../types";
 
 export const linkPrHandler: ActionHandler<LinkPrAction> = {
   async apply(action, ctx) {
-    const thread = await ctx.db.thread.one(ctx.threadId).get();
-    if (!thread || thread.organizationId !== ctx.organizationId) {
+    const thread = await ctx.db.thread
+      .first({ id: ctx.threadId, organizationId: ctx.organizationId })
+      .get();
+    if (!thread) {
       throw new Error("THREAD_NOT_FOUND");
     }
 
@@ -31,6 +33,12 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
     )[0];
     if (!entity) {
       throw new Error("LINK_PR_ENTITY_NOT_MIRRORED");
+    }
+
+    // Already linked to this PR — no-op, mirroring the manual link mutation.
+    // Guards a retry/replay from re-posting the back-reference comment.
+    if (thread.externalPrId === entity.externalKey) {
+      return;
     }
 
     const target = await resolveEntityCapabilityTarget(

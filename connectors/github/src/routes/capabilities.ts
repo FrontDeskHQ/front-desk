@@ -1,8 +1,9 @@
 import {
   CAPABILITY_INVOKE_PATH,
   CAPABILITY_INVOKE_SECRET_HEADER,
-  capabilityEntityRefSchema,
   invokeEnvelopeSchema,
+  issueTrackerSetStatePayloadSchema,
+  prTrackerLinkPayloadSchema,
 } from "@connectors/framework";
 import { formatGitHubId } from "@workspace/schemas/external-issue";
 import Elysia from "elysia";
@@ -39,18 +40,10 @@ const createIssuePayloadSchema = z.object({
   target: createIssueTargetSchema,
 });
 
-const setStatePayloadSchema = z.object({
-  entity: capabilityEntityRefSchema,
-  state: z.enum(["open", "closed"]),
-});
-
-const linkPayloadSchema = z.object({
-  entity: capabilityEntityRefSchema,
-  thread: z.object({
-    url: z.string(),
-    title: z.string().default(""),
-  }),
-});
+// Reuse the framework's exported contracts so the connector can't drift from
+// the schemas the core dispatches against.
+const setStatePayloadSchema = issueTrackerSetStatePayloadSchema;
+const linkPayloadSchema = prTrackerLinkPayloadSchema;
 
 /** A handled response: an HTTP status plus the JSON body to return. */
 type HandlerResult = { status: number; body: unknown };

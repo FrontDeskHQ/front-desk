@@ -76,8 +76,8 @@ export const capabilityEntityRefSchema = z.object({
   externalKey: z.string().min(1),
   /** Repository the entity lives in, e.g. `owner/repo`. */
   repoFullName: z.string().min(1),
-  /** Provider-local entity number (issue/PR number). */
-  number: z.number().int(),
+  /** Provider-local entity number (issue/PR number); always ≥ 1. */
+  number: z.number().int().positive(),
   /** Canonical external URL of the entity. */
   url: z.string(),
 });
