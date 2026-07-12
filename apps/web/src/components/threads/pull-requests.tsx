@@ -13,6 +13,7 @@ import { useAtomValue } from "jotai/react";
 import { GitPullRequest, X } from "lucide-react";
 import { useState } from "react";
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { mutate, query } from "~/lib/live-state";
 import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
 import { LinkedPrSuggestionsSection } from "./linked-pr-suggestions-section";
@@ -36,12 +37,8 @@ export function PullRequestsSection({
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const [search, setSearch] = useState("");
 
-  const githubIntegration = useLiveQuery(
-    query.integration.first({
-      organizationId: currentOrg?.id,
-      type: "github",
-    }),
-  );
+  // Gate the whole section on the capability, not on a named provider.
+  const hasPrTracker = useOrgCapability("pr-tracker");
 
   // Reactive mirror of the org's pull requests, synced via Live-State. Replaces
   // the on-demand `thread.fetchGithubPullRequests` fetch.
@@ -86,7 +83,7 @@ export function PullRequestsSection({
     });
   };
 
-  if (!githubIntegration || !githubIntegration.enabled) return null;
+  if (!hasPrTracker) return null;
 
   return (
     <div className="flex flex-col gap-2">

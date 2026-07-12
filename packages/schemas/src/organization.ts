@@ -35,6 +35,12 @@ export const organizationSettingsSchema = z.object({
     .catch("trial")
     .default("trial"),
   subscriptionStatus: z.string().nullable().default(null),
+  // Per-capability primary integration: a `capability → integrationId` map used
+  // where target-routing doesn't apply (e.g. agent-initiated entity creation
+  // with no implied target). Keys are connector capabilities (`issue-tracker`,
+  // …); kept as an open string map so schemas stays free of a framework
+  // dependency. The API validates the capability and integration on write.
+  capabilityPrimary: z.record(z.string(), z.string()).optional(),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
@@ -49,4 +55,25 @@ export const safeParseOrgSettings = (
   } catch {
     return organizationSettingsSchema.parse({});
   }
+};
+
+/**
+ * Reads a capability's pinned primary integration id directly from raw settings,
+ * without validating the rest of the object. Mirrors the write path, which
+ * preserves unknown/invalid sibling keys — an unrelated bad field must not cause
+ * a validly pinned primary to be silently dropped.
+ */
+export const readCapabilityPrimary = (
+  settings: unknown,
+  capability: string,
+): string | undefined => {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return undefined;
+  }
+  const primary = (settings as Record<string, unknown>).capabilityPrimary;
+  if (!primary || typeof primary !== "object" || Array.isArray(primary)) {
+    return undefined;
+  }
+  const value = (primary as Record<string, unknown>)[capability];
+  return typeof value === "string" ? value : undefined;
 };
