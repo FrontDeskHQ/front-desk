@@ -1,12 +1,21 @@
+import { typesProvidingCapability } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import { Badge } from "@workspace/ui/components/badge";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { cn } from "@workspace/ui/lib/utils";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { useIntegrationWarnings } from "~/lib/hooks/query/use-integration-warnings";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
-import { query } from "~/lib/live-state";
+import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
@@ -113,6 +122,75 @@ To get started, connect your GitHub account and select the repository you want t
   // },
 ];
 
+const integrationLabel = (type: string): string =>
+  integrationOptions.find((option) => option.id === type)?.label ?? type;
+
+/**
+ * Picks the org's primary issue-tracker — the target used when none is implied
+ * (e.g. an agent-initiated issue create). Gated on the capability, not a named
+ * provider, so it lists whichever enabled integrations provide `issue-tracker`.
+ */
+function PrimaryIssueTrackerSection({
+  organizationId,
+  integrations,
+  isUserOwner,
+}: {
+  organizationId: string;
+  integrations: { id: string; type: string; enabled: boolean }[];
+  isUserOwner: boolean;
+}) {
+  const org = useLiveQuery(query.organization.first({ id: organizationId }));
+
+  const providerTypes = new Set(typesProvidingCapability("issue-tracker"));
+  const trackers = integrations.filter(
+    (integration) => integration.enabled && providerTypes.has(integration.type),
+  );
+
+  // Nothing to route through, or nobody's allowed to change it — hide the control.
+  if (!isUserOwner || trackers.length === 0) return null;
+
+  const primaryId = safeParseOrgSettings(org?.settings).capabilityPrimary?.[
+    "issue-tracker"
+  ];
+  // Default the selection to the first tracker when none is pinned yet.
+  const selected =
+    trackers.find((tracker) => tracker.id === primaryId)?.id ?? trackers[0].id;
+
+  return (
+    <div className="p-4 flex flex-col gap-4 w-full">
+      <h2 className="text-base">Issue tracking</h2>
+      <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-4">
+        <div className="text-sm">Primary issue tracker</div>
+        <div className="text-muted-foreground text-sm">
+          Where the Agent opens issues when a thread doesn't already point at a
+          specific target. You can still pick any target by hand.
+        </div>
+        <Select
+          value={selected}
+          onValueChange={(value) =>
+            mutate.organization.setCapabilityPrimary({
+              organizationId,
+              capability: "issue-tracker",
+              integrationId: value as string,
+            })
+          }
+        >
+          <SelectTrigger className="w-64 mt-1">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {trackers.map((tracker) => (
+              <SelectItem key={tracker.id} value={tracker.id}>
+                {integrationLabel(tracker.type)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 function RouteComponent() {
   const { activeOrganization } = useOrganizationSwitcher();
   const { integrations: integrationLimits } = usePlanLimits();
@@ -216,6 +294,13 @@ function RouteComponent() {
       {integrationLimits.hasReachedLimit && <LimitCallout className="mb-4" />}
       {renderIntegrationGroup("Active integrations", activeIntegrations)}
       {renderIntegrationGroup("Available integrations", availableIntegrations)}
+      {activeOrganization?.id && (
+        <PrimaryIssueTrackerSection
+          organizationId={activeOrganization.id}
+          integrations={allIntegrations ?? []}
+          isUserOwner={isUserOwner}
+        />
+      )}
     </>
   );
 }

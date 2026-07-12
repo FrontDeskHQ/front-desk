@@ -46,6 +46,7 @@ import { Github, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
 
@@ -83,6 +84,11 @@ export function IssuesSection({
     null,
   );
 
+  // Gate the whole section on the capability, not on a named provider.
+  const hasIssueTracker = useOrgCapability("issue-tracker");
+
+  // Provider-aware config read (repo enumeration) is allowed by design: the
+  // connect/config control plane stays provider-specific. Gating above is not.
   const githubIntegration = useLiveQuery(
     query.integration.first({
       organizationId: currentOrg?.id,
@@ -176,7 +182,11 @@ export function IssuesSection({
         target: { owner, repo },
       });
 
-      if (!result?.issue?.id || !result?.issue?.shortId || !result?.issue?.url) {
+      if (
+        !result?.issue?.id ||
+        !result?.issue?.shortId ||
+        !result?.issue?.url
+      ) {
         throw new Error("Invalid response from GitHub API");
       }
 
@@ -261,7 +271,7 @@ export function IssuesSection({
     });
   };
 
-  if (!githubIntegration || !githubIntegration.enabled) return null;
+  if (!hasIssueTracker) return null;
 
   return (
     <div className="flex flex-col gap-2">

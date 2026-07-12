@@ -30,3 +30,35 @@ export const githubManifest: ConnectorManifest = {
 
 /** All known connector manifests. */
 export const manifests: ConnectorManifest[] = [githubManifest];
+
+/**
+ * The integration `type`s whose manifest declares `capability`. Pure and
+ * env-free (unlike the boot-time {@link ConnectorRegistry}, which resolves host
+ * URLs from `process.env`), so it is safe to call from the browser: the web
+ * client uses it to answer "which providers can offer this?" for gating.
+ */
+export function typesProvidingCapability(
+  capability: Capability,
+  manifestList: ConnectorManifest[] = manifests,
+): string[] {
+  return manifestList
+    .filter((manifest) => manifest.capabilities.includes(capability))
+    .map((manifest) => manifest.type);
+}
+
+/**
+ * Whether any of `enabledTypes` provides `capability`. Env-free, client-safe
+ * mirror of {@link ConnectorRegistry.hasCapability} — answers "can we offer
+ * this?"; a specific invoked call still routes by a concrete target.
+ */
+export function typesHaveCapability(
+  enabledTypes: Iterable<string>,
+  capability: Capability,
+  manifestList: ConnectorManifest[] = manifests,
+): boolean {
+  const providers = new Set(typesProvidingCapability(capability, manifestList));
+  for (const type of enabledTypes) {
+    if (providers.has(type)) return true;
+  }
+  return false;
+}

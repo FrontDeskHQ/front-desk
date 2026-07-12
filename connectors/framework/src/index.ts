@@ -25,6 +25,8 @@ export {
   type ConnectorManifest,
   githubManifest,
   manifests,
+  typesHaveCapability,
+  typesProvidingCapability,
 } from "./manifest";
 export {
   buildRegistry,

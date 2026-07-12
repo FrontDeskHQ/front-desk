@@ -35,6 +35,12 @@ export const organizationSettingsSchema = z.object({
     .catch("trial")
     .default("trial"),
   subscriptionStatus: z.string().nullable().default(null),
+  // Per-capability primary integration: a `capability → integrationId` map used
+  // where target-routing doesn't apply (e.g. agent-initiated entity creation
+  // with no implied target). Keys are connector capabilities (`issue-tracker`,
+  // …); kept as an open string map so schemas stays free of a framework
+  // dependency. The API validates the capability and integration on write.
+  capabilityPrimary: z.record(z.string(), z.string()).optional(),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
