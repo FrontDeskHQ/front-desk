@@ -354,8 +354,12 @@ export const router = createRouter({
             // `capabilityPrimary` is intentionally excluded: it must go through
             // `setCapabilityPrimary`, which validates the capability and that the
             // pinned integration is enabled, configured, and provides it.
+            // `.partial()` so a stripped patch can't materialize schema
+            // defaults (timezone, digest, plan) and silently reset existing
+            // settings — only the keys actually sent are merged.
             settings: organizationSettingsSchema
               .omit({ capabilityPrimary: true })
+              .partial()
               .optional(),
           })
           .refine(
