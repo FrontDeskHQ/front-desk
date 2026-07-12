@@ -1,11 +1,17 @@
 export {
   CAPABILITIES,
   type Capability,
+  type CapabilityEntityRef,
+  capabilityEntityRefSchema,
   type IssueTrackerCreatePayload,
   type IssueTrackerCreateResult,
+  type IssueTrackerSetStatePayload,
   isCapability,
   issueTrackerCreatePayloadSchema,
+  issueTrackerSetStatePayloadSchema,
   type NormalizedIssue,
+  type PrTrackerLinkPayload,
+  prTrackerLinkPayloadSchema,
 } from "./capabilities";
 export {
   CAPABILITY_INVOKE_PATH,
