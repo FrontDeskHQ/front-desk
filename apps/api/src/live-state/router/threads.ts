@@ -1,6 +1,6 @@
 // TODO refactor with new live-state mental model
 import { invokeCapability, type NormalizedIssue } from "@connectors/framework";
-import { safeParseOrgSettings } from "@workspace/schemas/organization";
+import { readCapabilityPrimary } from "@workspace/schemas/organization";
 import { ulid } from "ulid";
 import z from "zod";
 import {
@@ -476,9 +476,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     // When no target is implied (agent-initiated create, humans pin nothing),
     // fall back to the org's primary issue-tracker before the first provider.
     // Humans can still pin any target freely via `integrationId`.
-    const primaryIssueTrackerId = safeParseOrgSettings(
+    const primaryIssueTrackerId = readCapabilityPrimary(
       enabledIntegrations[0]?.organization?.settings,
-    ).capabilityPrimary?.["issue-tracker"];
+      "issue-tracker",
+    );
 
     const integration = req.input.integrationId
       ? enabledIntegrations.find(

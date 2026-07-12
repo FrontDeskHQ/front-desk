@@ -291,6 +291,12 @@ export const router = createRouter({
         ) {
           throw new Error("INTEGRATION_NOT_FOUND");
         }
+        // An integration can be enabled before it's configured; pinning an
+        // unconfigured one would route agent creates to a target that fails at
+        // dispatch, so require a config here too.
+        if (!integration.configStr) {
+          throw new Error("INTEGRATION_NOT_CONFIGURED");
+        }
         const entry = connectorRegistry.getByType(integration.type);
         if (!entry?.manifest.capabilities.includes(capability)) {
           throw new Error("CAPABILITY_NOT_PROVIDED");
@@ -345,7 +351,12 @@ export const router = createRouter({
             logoUrl: z.string().nullable().optional(),
             socials: z.string().nullable().optional(),
             customInstructions: z.string().nullable().optional(),
-            settings: organizationSettingsSchema.optional(),
+            // `capabilityPrimary` is intentionally excluded: it must go through
+            // `setCapabilityPrimary`, which validates the capability and that the
+            // pinned integration is enabled, configured, and provides it.
+            settings: organizationSettingsSchema
+              .omit({ capabilityPrimary: true })
+              .optional(),
           })
           .refine(
             (input) => {

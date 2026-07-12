@@ -56,3 +56,24 @@ export const safeParseOrgSettings = (
     return organizationSettingsSchema.parse({});
   }
 };
+
+/**
+ * Reads a capability's pinned primary integration id directly from raw settings,
+ * without validating the rest of the object. Mirrors the write path, which
+ * preserves unknown/invalid sibling keys — an unrelated bad field must not cause
+ * a validly pinned primary to be silently dropped.
+ */
+export const readCapabilityPrimary = (
+  settings: unknown,
+  capability: string,
+): string | undefined => {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return undefined;
+  }
+  const primary = (settings as Record<string, unknown>).capabilityPrimary;
+  if (!primary || typeof primary !== "object" || Array.isArray(primary)) {
+    return undefined;
+  }
+  const value = (primary as Record<string, unknown>)[capability];
+  return typeof value === "string" ? value : undefined;
+};

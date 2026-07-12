@@ -136,14 +136,24 @@ function PrimaryIssueTrackerSection({
   isUserOwner,
 }: {
   organizationId: string;
-  integrations: { id: string; type: string; enabled: boolean }[];
+  integrations: {
+    id: string;
+    type: string;
+    enabled: boolean;
+    configStr: string | null;
+  }[];
   isUserOwner: boolean;
 }) {
   const org = useLiveQuery(query.organization.first({ id: organizationId }));
 
   const providerTypes = new Set(typesProvidingCapability("issue-tracker"));
+  // Only offer configured integrations — an enabled-but-unconfigured tracker
+  // can't actually receive an issue, so pinning it would break agent creates.
   const trackers = integrations.filter(
-    (integration) => integration.enabled && providerTypes.has(integration.type),
+    (integration) =>
+      integration.enabled &&
+      integration.configStr &&
+      providerTypes.has(integration.type),
   );
 
   // Nothing to route through, or nobody's allowed to change it — hide the control.
