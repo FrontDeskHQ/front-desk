@@ -14,6 +14,7 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as NowAllowedRouteImport } from './routes/now-allowed'
+import { Route as ExploreOneLinerRouteImport } from './routes/explore-one-liner'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
@@ -85,6 +86,11 @@ const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
 const NowAllowedRoute = NowAllowedRouteImport.update({
   id: '/now-allowed',
   path: '/now-allowed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExploreOneLinerRoute = ExploreOneLinerRouteImport.update({
+  id: '/explore-one-liner',
+  path: '/explore-one-liner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRouteRoute = AppRouteRouteImport.update({
@@ -351,6 +357,7 @@ const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppWorkspaceMainRouteRouteWithChildren
+  '/explore-one-liner': typeof ExploreOneLinerRoute
   '/now-allowed': typeof NowAllowedRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
@@ -402,6 +409,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
+  '/explore-one-liner': typeof ExploreOneLinerRoute
   '/now-allowed': typeof NowAllowedRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
@@ -452,6 +460,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_public': typeof PublicRouteRouteWithChildren
   '/app': typeof AppRouteRouteWithChildren
+  '/explore-one-liner': typeof ExploreOneLinerRoute
   '/now-allowed': typeof NowAllowedRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
@@ -507,6 +516,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/app'
+    | '/explore-one-liner'
     | '/now-allowed'
     | '/robots.txt'
     | '/sign-in'
@@ -558,6 +568,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
+    | '/explore-one-liner'
     | '/now-allowed'
     | '/robots.txt'
     | '/sign-in'
@@ -607,6 +618,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_public'
     | '/app'
+    | '/explore-one-liner'
     | '/now-allowed'
     | '/robots.txt'
     | '/sign-in'
@@ -662,6 +674,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
   AppRouteRoute: typeof AppRouteRouteWithChildren
+  ExploreOneLinerRoute: typeof ExploreOneLinerRoute
   NowAllowedRoute: typeof NowAllowedRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignInRoute: typeof SignInRoute
@@ -706,6 +719,13 @@ declare module '@tanstack/react-router' {
       path: '/now-allowed'
       fullPath: '/now-allowed'
       preLoaderRoute: typeof NowAllowedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/explore-one-liner': {
+      id: '/explore-one-liner'
+      path: '/explore-one-liner'
+      fullPath: '/explore-one-liner'
+      preLoaderRoute: typeof ExploreOneLinerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -1205,6 +1225,7 @@ const SupportSlugRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
+  ExploreOneLinerRoute: ExploreOneLinerRoute,
   NowAllowedRoute: NowAllowedRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SignInRoute: SignInRoute,
