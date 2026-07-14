@@ -1,31 +1,84 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { cn } from "@workspace/ui/lib/utils";
-import { useEffect, useState } from "react";
+import { Avatar } from "@workspace/ui/components/avatar";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@workspace/ui/components/breadcrumb";
+import { Button } from "@workspace/ui/components/button";
+import { CardHeader } from "@workspace/ui/components/card";
+import {
+  PriorityIndicator,
+  PriorityText,
+  StatusIndicator,
+  StatusText,
+} from "@workspace/ui/components/indicator";
+import { LabelBadge } from "@workspace/ui/components/label-badge";
+import { Separator } from "@workspace/ui/components/separator";
+import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import { CircleUser, MoreHorizontalIcon, PlusIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { ToolbarActions } from "~/components/threads/thread-toolbar/toolbar-actions";
 
 export const Route = createFileRoute("/explore-one-liner")({
   component: RouteComponent,
 });
 
 /**
- * TEMP exploration — base version.
- * Left: the one-liner. Right: a high-fidelity Slack thread that auto-plays
- * a real scenario. The active part of the sentence highlights as the story moves:
- *   01 picks up      → a message lands in #support
- *   02 replies       → Pedro (APP) — FrontDesk sending as you
+ * TEMP exploration — one-liner + dual mocks.
+ * Top: the one-liner. Below: FrontDesk thread (full-width 16:9) with the
+ * Slack thread floating over the bottom-right corner. Both share the same
+ * phase script:
+ *   01 picks up      → a message lands
+ *   02 replies       → Agent replies in Pedro's voice
  *   03 pulls you in  → customer pushes back → you jump in personally
  */
 
 /* Scripted phases. `hl` = which sentence part is lit (0/1/2). */
 const PHASES = [
   { hl: 0, dur: 900 }, //  customer typing
-  { hl: 0, dur: 1300 }, // customer message (from Slack)
+  { hl: 0, dur: 1300 }, // customer message
   { hl: 1, dur: 1100 }, // Agent typing
-  { hl: 1, dur: 2400 }, // Agent doc-based reply
+  { hl: 1, dur: 2400 }, // Agent reply
   { hl: 2, dur: 900 }, //  customer typing again
   { hl: 2, dur: 2000 }, // churn-risk reply
   { hl: 2, dur: 2800 }, // human pulled in
   { hl: 2, dur: 1200 }, // hold, then loop
 ] as const;
+
+const NOW = Date.now();
+
+const MOCK = {
+  title: "Webhook stopped firing — orders not syncing",
+  shortId: 1842,
+} as const;
+
+const MESSAGES = {
+  customer: {
+    author: "Jordan Chen",
+    time: new Date(NOW - 1000 * 60 * 4),
+    body: "Hey — our webhook stopped firing this morning and orders aren't syncing.",
+  },
+  agent: {
+    author: "Pedro",
+    time: new Date(NOW - 1000 * 60 * 3),
+    body: "Thanks for flagging! That usually means your signing secret rotated. Here's how to update it and replay the missed events:",
+    link: "docs.acme.co/webhooks/signing-secret",
+  },
+  pushback: {
+    author: "Jordan Chen",
+    time: new Date(NOW - 1000 * 60 * 2),
+    body: "Tried that — still nothing, and orders are piling up. If this isn't fixed today we'll have to move off the product.",
+  },
+  human: {
+    author: "Pedro",
+    time: new Date(NOW - 1000 * 30),
+    body: "Got it — this needs a closer look. Digging into the webhook logs now; I'll follow up shortly.",
+  },
+} as const;
 
 function RouteComponent() {
   const [phase, setPhase] = useState(0);
@@ -49,49 +102,57 @@ function RouteComponent() {
         @keyframes blink { 0%,100% { opacity:.25; } 50% { opacity:1; } }
       `}</style>
 
-      <div className="grid w-full max-w-6xl items-center gap-12 md:grid-cols-2 lg:gap-20">
-        {/* ---------- LEFT: the one-liner ---------- */}
-        <div>
-          <p className="font-mono text-xs text-foreground-tertiary">FrontDesk</p>
+      <div className="flex w-full max-w-7xl flex-col gap-12">
+        {/* ---------- ONE-LINER ---------- */}
+        <div className="max-w-3xl">
+          <p className="font-mono text-xs text-foreground-tertiary">
+            FrontDesk
+          </p>
           <h1 className="mt-4 text-3xl leading-tight font-light tracking-tight md:text-[2.75rem]">
             <Part active={hl === 0}>picks up</Part> every conversation,{" "}
             <Part active={hl === 1}>replies in your voice</Part>, and{" "}
             <Part active={hl === 2}>pulls you in</Part> only when it matters.
           </h1>
 
-          {/* stage ticks — reinforce, don't hide */}
-          <div className="mt-8 flex gap-6 text-xs">
-            {["Nothing waits on you", "Care, automated", "You stay in control"].map(
-              (tag, i) => (
-                <div key={tag} className="flex items-center gap-2">
-                  <span
-                    className={cn(
-                      "font-mono transition-colors",
-                      hl === i
-                        ? "text-foreground-primary"
-                        : "text-foreground-tertiary/60",
-                    )}
-                  >
-                    {`0${i + 1}`}
-                  </span>
-                  <span
-                    className={cn(
-                      "transition-colors",
-                      hl === i
-                        ? "text-foreground-secondary"
-                        : "text-foreground-tertiary/50",
-                    )}
-                  >
-                    {tag}
-                  </span>
-                </div>
-              ),
-            )}
+          <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs">
+            {[
+              "Nothing waits on you",
+              "Care, automated",
+              "You stay in control",
+            ].map((tag, i) => (
+              <div key={tag} className="flex items-center gap-2">
+                <span
+                  className={cn(
+                    "font-mono transition-colors",
+                    hl === i
+                      ? "text-foreground-primary"
+                      : "text-foreground-tertiary/60",
+                  )}
+                >
+                  {`0${i + 1}`}
+                </span>
+                <span
+                  className={cn(
+                    "transition-colors",
+                    hl === i
+                      ? "text-foreground-secondary"
+                      : "text-foreground-tertiary/50",
+                  )}
+                >
+                  {tag}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* ---------- RIGHT: Slack thread mock ---------- */}
-        <SlackThread phase={phase} />
+        {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
+        <div className="relative w-full">
+          <FrontDeskThread phase={phase} />
+          <div className="pointer-events-none absolute right-4 bottom-4 z-10 w-[min(100%-2rem,22rem)] shadow-2xl sm:right-6 sm:bottom-6 sm:w-96 md:w-[26rem]">
+            <SlackThread phase={phase} />
+          </div>
+        </div>
       </div>
     </main>
   );
@@ -118,6 +179,10 @@ function Part({
   );
 }
 
+const NOOP = () => {};
+
+/* ======================== Slack mock ======================== */
+
 /** High-fidelity Slack thread panel — app color tokens, Slack layout. */
 function SlackThread({ phase }: { phase: number }) {
   const replyCount =
@@ -125,13 +190,12 @@ function SlackThread({ phase }: { phase: number }) {
 
   return (
     <div
-      className="overflow-hidden rounded-xl border border-border-secondary bg-background-primary text-foreground-primary shadow-sm"
+      className="overflow-hidden rounded-md border border-border-secondary bg-background-primary text-foreground-primary shadow-sm"
       style={{
         fontFamily:
           'Lato, Slack-Lato, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
       }}
     >
-      {/* Thread header — matches Slack's side panel */}
       <div className="flex h-[49px] items-center justify-between border-b border-border-secondary px-4">
         <div className="flex items-center gap-2">
           <span className="text-[18px] font-black tracking-tight">Thread</span>
@@ -149,17 +213,14 @@ function SlackThread({ phase }: { phase: number }) {
         </button>
       </div>
 
-      {/* Messages — all slots always mounted so height stays stable */}
       <div className="flex flex-col pt-2">
-        {/* Parent message */}
-        <MessageSlot typing={phase === 0} who="jordan" visible={phase >= 1}>
+        <SlackMessageSlot typing={phase === 0} who="jordan" visible={phase >= 1}>
           <SlackMessage who="jordan" name="Jordan Chen" time="9:41 AM">
             Hey — our webhook stopped firing this morning and orders aren&apos;t
             syncing 😕
           </SlackMessage>
-        </MessageSlot>
+        </SlackMessageSlot>
 
-        {/* Reply divider — reserved even before first reply */}
         <div
           className={cn(
             "flex items-center gap-3 px-5 py-2",
@@ -172,32 +233,28 @@ function SlackThread({ phase }: { phase: number }) {
           <div className="h-px flex-1 bg-border-secondary" />
         </div>
 
-        {/* Reply 1 — Pedro doc reply */}
-        <MessageSlot typing={phase === 2} who="pedro" visible={phase >= 3}>
+        <SlackMessageSlot typing={phase === 2} who="pedro" visible={phase >= 3}>
           <SlackMessage who="pedro" name="Pedro" time="9:41 AM" app>
             Thanks for flagging! That usually means your signing secret
             rotated. Here&apos;s how to update it and replay the missed events:
             <SlackLink>docs.acme.co/webhooks/signing-secret</SlackLink>
           </SlackMessage>
-        </MessageSlot>
+        </SlackMessageSlot>
 
-        {/* Reply 2 — customer pushback */}
-        <MessageSlot typing={phase === 4} who="jordan" visible={phase >= 5}>
+        <SlackMessageSlot typing={phase === 4} who="jordan" visible={phase >= 5}>
           <SlackMessage who="jordan" name="Jordan Chen" time="9:42 AM">
             Tried that — still nothing, and orders are piling up. If this
             isn&apos;t fixed today we&apos;ll have to move off the product.
           </SlackMessage>
-        </MessageSlot>
+        </SlackMessageSlot>
 
-        {/* Reply 3 — Pedro jumps in */}
-        <MessageSlot typing={false} who="pedro" visible={phase >= 6}>
+        <SlackMessageSlot typing={false} who="pedro" visible={phase >= 6}>
           <SlackMessage who="pedro" name="Pedro" time="9:42 AM" app>
             Got it — this needs a closer look. Digging into the webhook logs
             now; I&apos;ll follow up shortly.
           </SlackMessage>
-        </MessageSlot>
+        </SlackMessageSlot>
 
-        {/* Composer */}
         <div className="px-3 pt-1 pb-3">
           <div className="overflow-hidden rounded-lg border border-border-tertiary shadow-sm">
             <div className="px-3 pt-2.5 pb-1.5 text-[15px] text-foreground-tertiary/60">
@@ -230,8 +287,7 @@ function SlackThread({ phase }: { phase: number }) {
   );
 }
 
-/** Keeps message height reserved; overlays typing while waiting. */
-function MessageSlot({
+function SlackMessageSlot({
   visible,
   typing,
   who,
@@ -245,11 +301,11 @@ function MessageSlot({
   return (
     <div className="relative">
       <div className={cn(visible ? "fade-up" : "invisible")}>{children}</div>
-      {typing && (
+      {typing ? (
         <div className="absolute inset-x-0 top-0">
           <SlackTyping who={who} />
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
@@ -275,11 +331,11 @@ function SlackMessage({
           <span className="text-[15px] font-black text-foreground-primary">
             {name}
           </span>
-          {app && (
+          {app ? (
             <span className="relative -top-px rounded-[2px] bg-foreground-primary/10 px-1 py-px text-[10px] font-bold text-foreground-primary uppercase leading-[14px]">
               APP
             </span>
-          )}
+          ) : null}
           <span className="text-[12px] font-normal text-foreground-tertiary">
             {time}
           </span>
@@ -503,5 +559,273 @@ function SendIcon() {
         strokeLinejoin="round"
       />
     </svg>
+  );
+}
+
+/* ======================== FrontDesk mock ======================== */
+
+/** Design canvas for the FrontDesk preview — full desktop thread, then scaled. */
+const FD_DESIGN_W = 1280;
+const FD_DESIGN_H = 720; // 16:9
+
+/** High-fidelity FrontDesk thread — real components, frozen for demo. */
+function FrontDeskThread({ phase }: { phase: number }) {
+  const status = phase >= 6 ? 1 : 0;
+  const priority = phase >= 5 ? 4 : 2;
+  const assigned = phase >= 6;
+
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+
+    const update = () => {
+      setScale(el.clientWidth / FD_DESIGN_W);
+    };
+    update();
+
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={frameRef}
+      className="pointer-events-none relative w-full aspect-video select-none overflow-hidden rounded-md border border-border-secondary bg-background-primary shadow-sm"
+    >
+      <div
+        className="absolute top-0 left-0 flex origin-top-left"
+        style={{
+          width: FD_DESIGN_W,
+          height: FD_DESIGN_H,
+          transform: `scale(${scale})`,
+          // Avoid a flash of full-size content before first measure
+          visibility: scale > 0 ? "visible" : "hidden",
+        }}
+      >
+        {/* Main column */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <CardHeader className="shrink-0 border-b border-border-secondary py-2.5">
+            <div className="flex w-full items-center justify-between gap-2">
+              <Breadcrumb>
+                <BreadcrumbList>
+                  <BreadcrumbItem>
+                    <BreadcrumbLink className="text-muted-foreground">
+                      Threads
+                    </BreadcrumbLink>
+                  </BreadcrumbItem>
+                  <BreadcrumbSeparator />
+                  <BreadcrumbItem>
+                    <BreadcrumbPage className="flex max-w-xl items-center gap-1.5 truncate">
+                      <span className="truncate">{MOCK.title}</span>
+                      <span className="font-normal text-foreground-secondary tabular-nums">
+                        #{MOCK.shortId}
+                      </span>
+                    </BreadcrumbPage>
+                  </BreadcrumbItem>
+                </BreadcrumbList>
+              </Breadcrumb>
+              <Button variant="ghost" size="sm" tabIndex={-1} aria-hidden>
+                <MoreHorizontalIcon />
+              </Button>
+            </div>
+          </CardHeader>
+
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+            <div className="flex-1 overflow-y-auto overscroll-none">
+              <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 p-8">
+                <div className={cn(phase >= 1 ? "fade-up" : "invisible")}>
+                  <MockThreadHeader
+                    title={MOCK.title}
+                    author={MESSAGES.customer.author}
+                    time={MESSAGES.customer.time}
+                    body={MESSAGES.customer.body}
+                  />
+                </div>
+
+                <div
+                  className={cn(
+                    "flex flex-col gap-3",
+                    phase < 3 ? "invisible" : "fade-up",
+                  )}
+                >
+                  <Separator />
+                  <h2 className="py-1 text-base">Replies</h2>
+                </div>
+
+                <div className={cn(phase >= 3 ? "fade-up" : "invisible")}>
+                  <MockThreadReply
+                    author={MESSAGES.agent.author}
+                    time={MESSAGES.agent.time}
+                    body={MESSAGES.agent.body}
+                    link={MESSAGES.agent.link}
+                    badge="Agent"
+                  />
+                </div>
+
+                <div className={cn(phase >= 5 ? "fade-up" : "invisible")}>
+                  <MockThreadReply
+                    author={MESSAGES.pushback.author}
+                    time={MESSAGES.pushback.time}
+                    body={MESSAGES.pushback.body}
+                  />
+                </div>
+
+                <div className={cn(phase >= 6 ? "fade-up" : "invisible")}>
+                  <MockThreadReply
+                    author={MESSAGES.human.author}
+                    time={MESSAGES.human.time}
+                    body={MESSAGES.human.body}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="sticky bottom-0 flex w-full justify-center px-8 pb-4">
+              <ToolbarActions
+                mode={null}
+                isResolved={false}
+                onToggleReply={NOOP}
+                onToggleSupportIntelligence={NOOP}
+                onResolve={NOOP}
+                onNext={NOOP}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Sidebar — always visible at design size */}
+        <div className="flex w-64 shrink-0 flex-col gap-4 border-l bg-muted/25 p-4">
+          <div className="flex flex-col gap-2">
+            <div className="text-xs text-muted-foreground">Properties</div>
+            <div className="flex flex-col gap-1.5">
+              <div className="flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm">
+                <div className="flex size-4 items-center justify-center">
+                  <StatusIndicator status={status} />
+                </div>
+                <StatusText status={status} />
+              </div>
+              <div className="flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm">
+                <div className="flex size-4 items-center justify-center">
+                  <PriorityIndicator priority={priority} />
+                </div>
+                <PriorityText priority={priority} />
+              </div>
+              <div
+                className={cn(
+                  "flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm transition-colors",
+                  assigned ? "text-primary" : "text-muted-foreground",
+                )}
+              >
+                <div className="flex size-4 items-center justify-center">
+                  {assigned ? (
+                    <Avatar variant="user" size="md" fallback="Pedro" />
+                  ) : (
+                    <CircleUser className="size-4" />
+                  )}
+                </div>
+                {assigned ? "Pedro" : "Unassigned"}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <div className="text-xs text-foreground-secondary">Labels</div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <LabelBadge name="Webhooks" color="#60A5FA" />
+              {phase >= 5 ? (
+                <span className="fade-up">
+                  <LabelBadge name="Churn risk" color="#F87171" />
+                </span>
+              ) : null}
+              <div className="flex size-6 items-center justify-center">
+                <PlusIcon className="size-4 text-foreground-secondary" />
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Visual twin of ThreadHeader — no TipTap. */
+function MockThreadHeader({
+  title,
+  author,
+  time,
+  body,
+}: {
+  title: string;
+  author: string;
+  time: Date;
+  body: string;
+}) {
+  return (
+    <div className="flex flex-col gap-3">
+      <h1 className="text-2xl font-semibold text-foreground">{title}</h1>
+      <div className="flex flex-col gap-3 rounded-md py-1 pt-0">
+        <div className="flex items-start gap-3">
+          <Avatar variant="user" size="lg" fallback={author} />
+          <div className="flex flex-col gap-0.75">
+            <p className="box-trim-both text-sm">{author}</p>
+            <span className="box-trim-both text-xs text-foreground-secondary">
+              {formatRelativeTime(time)}
+            </span>
+          </div>
+        </div>
+        <p className="text-sm leading-relaxed text-foreground-secondary">
+          {body}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** Visual twin of ThreadReply — no TipTap. */
+function MockThreadReply({
+  author,
+  time,
+  body,
+  link,
+  badge,
+}: {
+  author: string;
+  time: Date;
+  body: string;
+  link?: string;
+  badge?: string;
+}) {
+  return (
+    <div className="relative flex items-start gap-2.5 rounded-md p-2">
+      {badge ? (
+        <span className="absolute top-2 right-2 rounded bg-foreground-primary/8 px-1.5 py-0.5 text-[10px] font-medium tracking-wide text-foreground-secondary uppercase">
+          {badge}
+        </span>
+      ) : null}
+      <Avatar variant="user" size="lg" fallback={author} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <div className="flex items-baseline gap-2">
+          <p className="box-trim-both text-sm">{author}</p>
+          <p className="box-trim-both text-xs text-foreground-secondary">
+            {formatRelativeTime(time)}
+          </p>
+        </div>
+        <p className="text-sm leading-relaxed text-foreground-secondary">
+          {body}
+          {link ? (
+            <>
+              {" "}
+              <span className="text-(--label-color-blue) underline underline-offset-2">
+                {link}
+              </span>
+            </>
+          ) : null}
+        </p>
+      </div>
+    </div>
   );
 }
