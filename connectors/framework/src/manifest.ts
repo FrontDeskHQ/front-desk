@@ -28,8 +28,22 @@ export const githubManifest: ConnectorManifest = {
   defaultBaseUrl: "http://localhost:3334",
 };
 
+/**
+ * Discord connector manifest. Declares the emitting `support-entry-point`
+ * capability. Discord is emitting-only (it runs as a gateway bot and delivers
+ * outbound via pull-based replication, per ADR-0009), so it exposes no invoke
+ * HTTP endpoint; `baseUrlEnv`/`defaultBaseUrl` are unused for it and kept only
+ * to satisfy the shared manifest shape.
+ */
+export const discordManifest: ConnectorManifest = {
+  type: "discord",
+  capabilities: ["support-entry-point"],
+  baseUrlEnv: "BASE_DISCORD_SERVER_URL",
+  defaultBaseUrl: "http://localhost:3335",
+};
+
 /** All known connector manifests. */
-export const manifests: ConnectorManifest[] = [githubManifest];
+export const manifests: ConnectorManifest[] = [githubManifest, discordManifest];
 
 /**
  * The integration `type`s whose manifest declares `capability`. Pure and

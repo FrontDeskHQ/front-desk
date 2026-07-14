@@ -31,6 +31,7 @@ import { agentChatRoute } from "./router/agent-chat";
 import autonomousActionRoute from "./router/autonomous-action";
 import documentationSourcesRoute from "./router/documentation-sources";
 import externalEntityRoute from "./router/external-entity";
+import { ingestRoute } from "./router/ingest";
 import integrationRoute from "./router/integration";
 import labelsRoute from "./router/labels";
 import messageRoute from "./router/message";
@@ -908,6 +909,8 @@ export const router = createRouter({
     // Mirror of external issues/PRs. Default mutators are disabled; writes go
     // through the route's custom `upsert` / `softDelete` procedures.
     externalEntity: externalEntityRoute,
+    // Emitting-side (`support-entry-point`) ingest — connector → core.
+    ingest: ingestRoute,
     thread: threadsRoute,
     update: updateRoute,
     message: messageRoute,

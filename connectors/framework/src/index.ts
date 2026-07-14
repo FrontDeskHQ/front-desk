@@ -12,6 +12,14 @@ export {
   type NormalizedIssue,
   type PrTrackerLinkPayload,
   prTrackerLinkPayloadSchema,
+  type SupportEntryPointAuthor,
+  type SupportEntryPointIngestPayload,
+  type SupportEntryPointMessage,
+  type SupportEntryPointThread,
+  supportEntryPointAuthorSchema,
+  supportEntryPointIngestSchema,
+  supportEntryPointMessageSchema,
+  supportEntryPointThreadSchema,
 } from "./capabilities";
 export {
   CAPABILITY_INVOKE_PATH,
@@ -23,6 +31,7 @@ export {
 } from "./invoke";
 export {
   type ConnectorManifest,
+  discordManifest,
   githubManifest,
   manifests,
   typesHaveCapability,
