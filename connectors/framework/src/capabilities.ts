@@ -69,8 +69,14 @@ export type SupportEntryPointThread = z.infer<
  * serializes it for storage. */
 export const supportEntryPointMessageSchema = z.object({
   externalMessageId: z.string().min(1),
-  body: z.union([z.string(), z.any()]),
-  createdAt: z.coerce.date(),
+  // Plain string or TipTap JSON; require it to be present so a malformed event
+  // is rejected instead of persisted as the literal string "undefined".
+  body: z.unknown().refine((value) => value !== undefined, {
+    message: "body is required",
+  }),
+  // Accept a Date (in-process) or string (over the wire); reject null so a
+  // malformed event is not coerced to the Unix epoch and misordered.
+  createdAt: z.union([z.date(), z.string()]).pipe(z.coerce.date()),
 });
 
 export type SupportEntryPointMessage = z.infer<

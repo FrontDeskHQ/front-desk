@@ -64,9 +64,15 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
           });
         }
 
-        // Locate the thread for this external thread within the org.
+        // Locate the thread for this external thread within the org. Scope by
+        // provider too: two providers can mint the same raw external id, and
+        // conflating them would append messages to the wrong conversation.
         const existingThread = await trx.thread
-          .first({ organizationId, externalId: externalThreadId })
+          .first({
+            organizationId,
+            externalId: externalThreadId,
+            externalOrigin: provider,
+          })
           .get();
 
         // Append path.
