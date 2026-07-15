@@ -24,6 +24,88 @@ export const isCapability = (value: string): value is Capability =>
   (CAPABILITIES as readonly string[]).includes(value);
 
 /**
+ * `support-entry-point` capability — the emitting leg (connector → core).
+ *
+ * A connector translates a provider event into these neutral shapes and calls
+ * the core's `mutate.ingest` procedure. The core owns normalization: idempotent
+ * create-vs-append keyed on `(organizationId, externalThreadId,
+ * externalMessageId)`, author find-or-create, and the `provider:` prefixing
+ * convention. The connector keeps only the un-liftable provider work — event
+ * translation and resolving a raw user id → display name.
+ *
+ * See `docs/adr/0009-emitting-side-connector-retrofit.md`.
+ */
+
+/** Neutral author identity. `externalId` is the raw provider user id (the core
+ * prefixes it with `provider:` to form the author `metaId`); the connector
+ * resolves `name` from the provider. */
+export const supportEntryPointAuthorSchema = z.object({
+  externalId: z.string().min(1),
+  name: z.string().min(1),
+  avatarUrl: z.string().optional(),
+});
+
+export type SupportEntryPointAuthor = z.infer<
+  typeof supportEntryPointAuthorSchema
+>;
+
+/**
+ * Creation-only thread descriptor. Optional: the core decides create-vs-append
+ * by whether a thread already exists for `externalThreadId`, so on an append the
+ * descriptor is ignored. It is required (its `title`) the first time an external
+ * thread is seen — the core hard-errors on an unknown external thread with no
+ * descriptor rather than create a titleless thread.
+ */
+export const supportEntryPointThreadSchema = z.object({
+  title: z.string().min(1),
+  externalMetadata: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type SupportEntryPointThread = z.infer<
+  typeof supportEntryPointThreadSchema
+>;
+
+/** A single inbound message. `body` is TipTap JSON or a plain string; the core
+ * serializes it for storage. */
+export const supportEntryPointMessageSchema = z.object({
+  externalMessageId: z.string().min(1),
+  // Plain string or TipTap JSON; require it to be present so a malformed event
+  // is rejected instead of persisted as the literal string "undefined".
+  body: z.unknown().refine((value) => value !== undefined, {
+    message: "body is required",
+  }),
+  // Accept a Date (in-process) or string (over the wire); reject null so a
+  // malformed event is not coerced to the Unix epoch and misordered.
+  createdAt: z.union([z.date(), z.string()]).pipe(z.coerce.date()),
+});
+
+export type SupportEntryPointMessage = z.infer<
+  typeof supportEntryPointMessageSchema
+>;
+
+/**
+ * The full `ingest` payload. `externalThreadId` is always present — it is both
+ * the append target and part of the idempotency key — while the richer `thread`
+ * descriptor is attached only for creation. `isBackfill` suppresses downstream
+ * pipeline triggers only; it does not change normalization.
+ */
+export const supportEntryPointIngestSchema = z.object({
+  organizationId: z.string().min(1),
+  /** Integration `type` of the emitting connector, e.g. `"discord"`. Becomes
+   * the thread's `externalOrigin` and the author `metaId` prefix. */
+  provider: z.string().min(1),
+  externalThreadId: z.string().min(1),
+  thread: supportEntryPointThreadSchema.optional(),
+  message: supportEntryPointMessageSchema,
+  author: supportEntryPointAuthorSchema,
+  isBackfill: z.boolean().default(false),
+});
+
+export type SupportEntryPointIngestPayload = z.infer<
+  typeof supportEntryPointIngestSchema
+>;
+
+/**
  * `issue-tracker` capability — invoked method contracts.
  *
  * `create`: open a new issue on a target sub-resource. The `target` is an
