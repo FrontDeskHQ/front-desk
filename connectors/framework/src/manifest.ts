@@ -53,7 +53,7 @@ export const slackManifest: ConnectorManifest = {
   type: "slack",
   capabilities: ["support-entry-point"],
   baseUrlEnv: "BASE_SLACK_SERVER_URL",
-  defaultBaseUrl: "http://localhost:3336",
+  defaultBaseUrl: "http://localhost:3011",
 };
 
 /** All known connector manifests. */

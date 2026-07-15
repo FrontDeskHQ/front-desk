@@ -763,15 +763,24 @@ app.message(
     const author = await resolveSlackAuthor(client, message.user);
     const messageText = "text" in message ? message.text : undefined;
 
-    // Slack thread-root detection: a message with no `thread_ts` is a channel
-    // root, so attach the thread descriptor. Replies omit it and the core
-    // appends to the existing thread. `externalThreadId` is the root `ts` in
-    // both cases — the reply carries it as `thread_ts`.
+    // `externalThreadId` is the root `ts` in both cases — the reply carries it
+    // as `thread_ts`.
     const externalThreadId = isFirstMessage ? message.ts : message.thread_ts;
     if (!externalThreadId) return;
 
-    // One idempotent ingest call: the core creates the thread on the root
-    // message and appends thereafter (no timing heuristic, no dedup here).
+    // Always attach a thread descriptor, like the Discord connector: the core
+    // ignores it once the thread exists (append path), so it only bootstraps a
+    // thread when one doesn't yet exist. This makes ingest resilient to Slack's
+    // non-guaranteed delivery order — a reply that arrives before its root no
+    // longer hard-errors, it creates the thread with a channel-name fallback
+    // title instead. A root message still titles the thread from its own text.
+    const threadTitle = isFirstMessage
+      ? slackThreadTitle(messageText, channelName)
+      : channelName;
+
+    // One idempotent ingest call: the core creates the thread on the first
+    // message it sees for `externalThreadId` and appends thereafter (no timing
+    // heuristic, no dedup here).
     const { thread, created } = await ingestSlackMessage({
       organizationId: integration.organizationId,
       externalThreadId,
@@ -779,9 +788,7 @@ app.message(
       ts: message.ts,
       text: messageText || "",
       author,
-      threadTitle: isFirstMessage
-        ? slackThreadTitle(messageText, channelName)
-        : undefined,
+      threadTitle,
     });
 
     if (!thread) return;
@@ -819,7 +826,10 @@ app.message(
             text: portalText,
             blocks: portalBlocks,
             channel: message.channel,
-            thread_ts: message.ts,
+            // Nest under the root, not this event's `ts`: when a reply bootstraps
+            // the thread, `message.ts` is the reply — the portal message must
+            // still thread onto the root (`externalThreadId`).
+            thread_ts: externalThreadId,
           });
 
           void (async () => {
