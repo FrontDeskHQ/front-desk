@@ -11,21 +11,21 @@
   "exports": {
     "./router": {
       "types": "./src/live-state/router.ts",
-      "import": "./dist/live-state/router.js",
-      "require": "./dist/live-state/router.js"
+      "import": "./src/live-state/router.ts",
+      "default": "./src/live-state/router.ts"
     },
     "./schema": {
       "types": "./src/live-state/schema.ts",
-      "import": "./dist/live-state/schema.js",
-      "require": "./dist/live-state/schema.js"
+      "import": "./src/live-state/schema.ts",
+      "default": "./src/live-state/schema.ts"
     },
     "./plugins/subdomain-oauth": {
       "types": "./src/lib/plugins/subdomain-oauth.ts"
     },
     "./queue": {
       "types": "./src/lib/queue.ts",
-      "import": "./dist/lib/queue.js",
-      "require": "./dist/lib/queue.js"
+      "import": "./src/lib/queue.ts",
+      "default": "./src/lib/queue.ts"
     }
   },
   "scripts": {

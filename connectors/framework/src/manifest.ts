@@ -42,8 +42,26 @@ export const discordManifest: ConnectorManifest = {
   defaultBaseUrl: "http://localhost:3335",
 };
 
+/**
+ * Slack connector manifest. Declares the emitting `support-entry-point`
+ * capability. Like Discord, Slack is emitting-only — it runs as a Bolt app and
+ * delivers outbound via pull-based replication (per ADR-0009) — so it exposes no
+ * invoke HTTP endpoint; `baseUrlEnv`/`defaultBaseUrl` are unused for it and kept
+ * only to satisfy the shared manifest shape.
+ */
+export const slackManifest: ConnectorManifest = {
+  type: "slack",
+  capabilities: ["support-entry-point"],
+  baseUrlEnv: "BASE_SLACK_SERVER_URL",
+  defaultBaseUrl: "http://localhost:3336",
+};
+
 /** All known connector manifests. */
-export const manifests: ConnectorManifest[] = [githubManifest, discordManifest];
+export const manifests: ConnectorManifest[] = [
+  githubManifest,
+  discordManifest,
+  slackManifest,
+];
 
 /**
  * The integration `type`s whose manifest declares `capability`. Pure and
