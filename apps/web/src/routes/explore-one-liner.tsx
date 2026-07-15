@@ -8,8 +8,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@workspace/ui/components/breadcrumb";
-import { Button } from "@workspace/ui/components/button";
-import { CardHeader } from "@workspace/ui/components/card";
+import { ActionButton, Button } from "@workspace/ui/components/button";
+import {
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import {
   PriorityIndicator,
   PriorityText,
@@ -19,8 +22,15 @@ import {
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { Separator } from "@workspace/ui/components/separator";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
-import { CircleUser, MoreHorizontalIcon, PlusIcon } from "lucide-react";
+import {
+  Activity,
+  CircleUser,
+  MessagesSquare,
+  MoreHorizontalIcon,
+  PlusIcon,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ActionRow } from "~/components/signals/action-row";
 import { ToolbarActions } from "~/components/threads/thread-toolbar/toolbar-actions";
 
 export const Route = createFileRoute("/explore-one-liner")({
@@ -29,12 +39,12 @@ export const Route = createFileRoute("/explore-one-liner")({
 
 /**
  * TEMP exploration — one-liner + dual mocks.
- * Top: the one-liner. Below: FrontDesk thread (full-width 16:9) with the
+ * Top: the one-liner. Below: FrontDesk UI (full-width 16:9) with the
  * Slack thread floating over the bottom-right corner. Both share the same
  * phase script:
- *   01 picks up      → a message lands
- *   02 replies       → Agent replies in Pedro's voice
- *   03 pulls you in  → customer pushes back → you jump in personally
+ *   01 picks up      → a message lands (thread view)
+ *   02 replies       → Agent replies in Pedro's voice (thread view)
+ *   03 pulls you in  → Signals page + new signal pop-in (human action)
  */
 
 /* Scripted phases. `hl` = which sentence part is lit (0/1/2). */
@@ -43,10 +53,10 @@ const PHASES = [
   { hl: 0, dur: 1300 }, // customer message
   { hl: 1, dur: 1100 }, // Agent typing
   { hl: 1, dur: 2400 }, // Agent reply
-  { hl: 2, dur: 900 }, //  customer typing again
-  { hl: 2, dur: 2000 }, // churn-risk reply
-  { hl: 2, dur: 2800 }, // human pulled in
-  { hl: 2, dur: 1200 }, // hold, then loop
+  { hl: 2, dur: 900 }, //  customer typing again → switch to Signals, signal pops in
+  { hl: 2, dur: 2000 }, // churn-risk reply in Slack
+  { hl: 2, dur: 3600 }, // hold on signal
+  { hl: 2, dur: 1600 }, // hold, then loop
 ] as const;
 
 const NOW = Date.now();
@@ -100,6 +110,14 @@ function RouteComponent() {
         @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
         .fade-up { animation: fadeUp .4s ease-out both; }
         @keyframes blink { 0%,100% { opacity:.25; } 50% { opacity:1; } }
+        @keyframes popIn {
+          from { opacity: 0; transform: translateY(10px) scale(0.97); }
+          to { opacity: 1; transform: none; }
+        }
+        .pop-in { animation: popIn .5s cubic-bezier(0.23, 1, 0.32, 1) both; }
+        @media (prefers-reduced-motion: reduce) {
+          .fade-up, .pop-in { animation: none; }
+        }
       `}</style>
 
       <div className="flex w-full max-w-7xl flex-col gap-12">
@@ -148,7 +166,7 @@ function RouteComponent() {
 
         {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
         <div className="relative w-full">
-          <FrontDeskThread phase={phase} />
+          <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
           <div className="pointer-events-none absolute right-4 bottom-4 z-10 w-[min(100%-2rem,22rem)] shadow-2xl sm:right-6 sm:bottom-6 sm:w-96 md:w-[26rem]">
             <SlackThread phase={phase} />
           </div>
@@ -185,8 +203,8 @@ const NOOP = () => {};
 
 /** High-fidelity Slack thread panel — app color tokens, Slack layout. */
 function SlackThread({ phase }: { phase: number }) {
-  const replyCount =
-    (phase >= 3 ? 1 : 0) + (phase >= 5 ? 1 : 0) + (phase >= 6 ? 1 : 0);
+  // Agent handles the first reply; pushback stays open — human acts via Signals.
+  const replyCount = (phase >= 3 ? 1 : 0) + (phase >= 5 ? 1 : 0);
 
   return (
     <div
@@ -245,13 +263,6 @@ function SlackThread({ phase }: { phase: number }) {
           <SlackMessage who="jordan" name="Jordan Chen" time="9:42 AM">
             Tried that — still nothing, and orders are piling up. If this
             isn&apos;t fixed today we&apos;ll have to move off the product.
-          </SlackMessage>
-        </SlackMessageSlot>
-
-        <SlackMessageSlot typing={false} who="pedro" visible={phase >= 6}>
-          <SlackMessage who="pedro" name="Pedro" time="9:42 AM" app>
-            Got it — this needs a closer look. Digging into the webhook logs
-            now; I&apos;ll follow up shortly.
           </SlackMessage>
         </SlackMessageSlot>
 
@@ -568,12 +579,7 @@ function SendIcon() {
 const FD_DESIGN_W = 1280;
 const FD_DESIGN_H = 720; // 16:9
 
-/** High-fidelity FrontDesk thread — real components, frozen for demo. */
-function FrontDeskThread({ phase }: { phase: number }) {
-  const status = phase >= 6 ? 1 : 0;
-  const priority = phase >= 5 ? 4 : 2;
-  const assigned = phase >= 6;
-
+function useDesignScale() {
   const frameRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
 
@@ -591,159 +597,329 @@ function FrontDeskThread({ phase }: { phase: number }) {
     return () => ro.disconnect();
   }, []);
 
+  return { frameRef, scale };
+}
+
+function DesignFrame({ children }: { children: React.ReactNode }) {
+  const { frameRef, scale } = useDesignScale();
+
   return (
     <div
       ref={frameRef}
       className="pointer-events-none relative w-full aspect-video select-none overflow-hidden rounded-md border border-border-secondary bg-background-primary shadow-sm"
     >
       <div
-        className="absolute top-0 left-0 flex origin-top-left"
+        className="absolute top-0 left-0 origin-top-left"
         style={{
           width: FD_DESIGN_W,
           height: FD_DESIGN_H,
           transform: `scale(${scale})`,
-          // Avoid a flash of full-size content before first measure
           visibility: scale > 0 ? "visible" : "hidden",
         }}
       >
-        {/* Main column */}
-        <div className="flex min-w-0 flex-1 flex-col">
-          <CardHeader className="shrink-0 border-b border-border-secondary py-2.5">
-            <div className="flex w-full items-center justify-between gap-2">
-              <Breadcrumb>
-                <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink className="text-muted-foreground">
-                      Threads
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage className="flex max-w-xl items-center gap-1.5 truncate">
-                      <span className="truncate">{MOCK.title}</span>
-                      <span className="font-normal text-foreground-secondary tabular-nums">
-                        #{MOCK.shortId}
-                      </span>
-                    </BreadcrumbPage>
-                  </BreadcrumbItem>
-                </BreadcrumbList>
-              </Breadcrumb>
-              <Button variant="ghost" size="sm" tabIndex={-1} aria-hidden>
-                <MoreHorizontalIcon />
-              </Button>
-            </div>
-          </CardHeader>
+        {children}
+      </div>
+    </div>
+  );
+}
 
-          <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="flex-1 overflow-y-auto overscroll-none">
-              <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 p-8">
-                <div className={cn(phase >= 1 ? "fade-up" : "invisible")}>
-                  <MockThreadHeader
-                    title={MOCK.title}
-                    author={MESSAGES.customer.author}
-                    time={MESSAGES.customer.time}
-                    body={MESSAGES.customer.body}
-                  />
-                </div>
+/**
+ * App shell with a persistent left sidebar. Main content swaps between the
+ * thread view (01/02) and Signals (03).
+ */
+function FrontDeskApp({
+  phase,
+  page,
+}: {
+  phase: number;
+  page: "threads" | "signals";
+}) {
+  return (
+    <DesignFrame>
+      <div className="flex h-full w-full overflow-hidden bg-background-secondary">
+        <MockAppSidebar active={page} />
+        <div className="relative m-2 ml-0 flex min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-border-secondary bg-background-primary shadow-sm">
+          {page === "signals" ? (
+            <SignalsMain />
+          ) : (
+            <ThreadMain phase={phase} />
+          )}
+        </div>
+      </div>
+    </DesignFrame>
+  );
+}
 
-                <div
-                  className={cn(
-                    "flex flex-col gap-3",
-                    phase < 3 ? "invisible" : "fade-up",
-                  )}
-                >
-                  <Separator />
-                  <h2 className="py-1 text-base">Replies</h2>
-                </div>
+function MockAppSidebar({ active }: { active: "threads" | "signals" }) {
+  return (
+    <div className="flex w-52 shrink-0 flex-col gap-4 p-3">
+      <div className="flex items-center gap-2 px-1.5 py-1">
+        <Avatar variant="org" size="md" fallback="Acme" />
+        <span className="truncate text-sm font-semibold">Acme</span>
+      </div>
+      <nav className="flex flex-col gap-0.5 px-1">
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+            active === "signals"
+              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70",
+          )}
+        >
+          <Activity className="size-4" />
+          Signals
+        </div>
+        <div
+          className={cn(
+            "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
+            active === "threads"
+              ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
+              : "text-sidebar-foreground/70",
+          )}
+        >
+          <MessagesSquare className="size-4" />
+          Threads
+        </div>
+      </nav>
+    </div>
+  );
+}
 
-                <div className={cn(phase >= 3 ? "fade-up" : "invisible")}>
-                  <MockThreadReply
-                    author={MESSAGES.agent.author}
-                    time={MESSAGES.agent.time}
-                    body={MESSAGES.agent.body}
-                    link={MESSAGES.agent.link}
-                    badge="Agent"
-                  />
-                </div>
+/**
+ * Signals page for phase 03 — brief beat after switch, then the card pops in.
+ * No empty state; just the greeting while we wait.
+ */
+function SignalsMain() {
+  const [showCard, setShowCard] = useState(false);
 
-                <div className={cn(phase >= 5 ? "fade-up" : "invisible")}>
-                  <MockThreadReply
-                    author={MESSAGES.pushback.author}
-                    time={MESSAGES.pushback.time}
-                    body={MESSAGES.pushback.body}
-                  />
-                </div>
+  useEffect(() => {
+    const t = setTimeout(() => setShowCard(true), 700);
+    return () => clearTimeout(t);
+  }, []);
 
-                <div className={cn(phase >= 6 ? "fade-up" : "invisible")}>
-                  <MockThreadReply
-                    author={MESSAGES.human.author}
-                    time={MESSAGES.human.time}
-                    body={MESSAGES.human.body}
-                  />
-                </div>
+  return (
+    <>
+      <CardHeader className="shrink-0 border-b border-border-secondary">
+        <CardTitle>Signals</CardTitle>
+      </CardHeader>
+
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden py-10">
+        <div className="mx-auto flex w-full max-w-4xl flex-col gap-3 px-8">
+          <div className="fade-up px-1 text-2xl text-foreground-primary">
+            Good afternoon, Pedro.
+          </div>
+          {showCard ? (
+            <>
+              <div className="fade-up px-1 text-lg text-foreground-primary">
+                Here&apos;s 1 thing that requires your attention
+              </div>
+              <div className="pop-in mt-1">
+                <MockSignalCard />
+              </div>
+            </>
+          ) : null}
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Visual twin of a ThreadReadCard — Agent requesting human action. */
+function MockSignalCard() {
+  return (
+    <ActionRow.Root tier="red">
+      <ActionRow.Header>
+        <div className="flex items-center gap-2 pr-10 text-sm text-foreground-primary">
+          <Avatar
+            variant="user"
+            size="md"
+            fallback={MESSAGES.customer.author}
+          />
+          <span className="truncate font-medium">{MOCK.title}</span>
+          <span className="shrink-0 font-normal text-foreground-secondary tabular-nums">
+            #{MOCK.shortId}
+          </span>
+          <ActionRow.Meta>Just now</ActionRow.Meta>
+        </div>
+        <div className="flex flex-col gap-1.5 pl-1">
+          <div className="flex items-start gap-1.5 text-sm text-foreground-secondary">
+            <span
+              aria-hidden
+              className="mt-0.5 ml-[6px] h-3.5 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-foreground-tertiary/75"
+            />
+            <span>
+              Jordan tried the signing-secret fix — still nothing. Orders are
+              piling up; they&apos;ll leave if this isn&apos;t fixed today.
+            </span>
+          </div>
+          <div className="flex items-start gap-1.5 text-sm text-foreground-primary">
+            <span
+              aria-hidden
+              className="mt-0.5 ml-[6px] h-3.5 w-2.5 shrink-0 rounded-bl-md border-b-2 border-l-2 border-foreground-tertiary/75"
+            />
+            <span>
+              Take this one — reply personally and dig into the webhook logs.
+            </span>
+          </div>
+        </div>
+        <ActionRow.TopActions>
+          <ActionRow.Dismiss onClick={NOOP} label="Dismiss" />
+        </ActionRow.TopActions>
+      </ActionRow.Header>
+      <ActionRow.Actions>
+        <ActionButton size="sm" variant="primary" tabIndex={-1} aria-hidden>
+          Reply
+        </ActionButton>
+      </ActionRow.Actions>
+    </ActionRow.Root>
+  );
+}
+
+/** High-fidelity FrontDesk thread — real components, frozen for demo. */
+function ThreadMain({ phase }: { phase: number }) {
+  const status = phase >= 6 ? 1 : 0;
+  const priority = phase >= 5 ? 4 : 2;
+  const assigned = phase >= 6;
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      {/* Main column */}
+      <div className="flex min-w-0 flex-1 flex-col">
+        <CardHeader className="shrink-0 border-b border-border-secondary py-2.5">
+          <div className="flex w-full items-center justify-between gap-2">
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink className="text-muted-foreground">
+                    Threads
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="flex max-w-xl items-center gap-1.5 truncate">
+                    <span className="truncate">{MOCK.title}</span>
+                    <span className="font-normal text-foreground-secondary tabular-nums">
+                      #{MOCK.shortId}
+                    </span>
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+            <Button variant="ghost" size="sm" tabIndex={-1} aria-hidden>
+              <MoreHorizontalIcon />
+            </Button>
+          </div>
+        </CardHeader>
+
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+          <div className="flex-1 overflow-y-auto overscroll-none">
+            <div className="mx-auto flex w-full max-w-5xl flex-col gap-3 p-8">
+              <div className={cn(phase >= 1 ? "fade-up" : "invisible")}>
+                <MockThreadHeader
+                  title={MOCK.title}
+                  author={MESSAGES.customer.author}
+                  time={MESSAGES.customer.time}
+                  body={MESSAGES.customer.body}
+                />
+              </div>
+
+              <div
+                className={cn(
+                  "flex flex-col gap-3",
+                  phase < 3 ? "invisible" : "fade-up",
+                )}
+              >
+                <Separator />
+                <h2 className="py-1 text-base">Replies</h2>
+              </div>
+
+              <div className={cn(phase >= 3 ? "fade-up" : "invisible")}>
+                <MockThreadReply
+                  author={MESSAGES.agent.author}
+                  time={MESSAGES.agent.time}
+                  body={MESSAGES.agent.body}
+                  link={MESSAGES.agent.link}
+                  badge="Agent"
+                />
+              </div>
+
+              <div className={cn(phase >= 5 ? "fade-up" : "invisible")}>
+                <MockThreadReply
+                  author={MESSAGES.pushback.author}
+                  time={MESSAGES.pushback.time}
+                  body={MESSAGES.pushback.body}
+                />
+              </div>
+
+              <div className={cn(phase >= 6 ? "fade-up" : "invisible")}>
+                <MockThreadReply
+                  author={MESSAGES.human.author}
+                  time={MESSAGES.human.time}
+                  body={MESSAGES.human.body}
+                />
               </div>
             </div>
+          </div>
 
-            <div className="sticky bottom-0 flex w-full justify-center px-8 pb-4">
-              <ToolbarActions
-                mode={null}
-                isResolved={false}
-                onToggleReply={NOOP}
-                onToggleSupportIntelligence={NOOP}
-                onResolve={NOOP}
-                onNext={NOOP}
-              />
+          <div className="sticky bottom-0 flex w-full justify-center px-8 pb-4">
+            <ToolbarActions
+              mode={null}
+              isResolved={false}
+              onToggleReply={NOOP}
+              onToggleSupportIntelligence={NOOP}
+              onResolve={NOOP}
+              onNext={NOOP}
+            />
+          </div>
+        </div>
+      </div>
+
+      {/* Thread properties sidebar */}
+      <div className="flex w-64 shrink-0 flex-col gap-4 border-l bg-muted/25 p-4">
+        <div className="flex flex-col gap-2">
+          <div className="text-xs text-muted-foreground">Properties</div>
+          <div className="flex flex-col gap-1.5">
+            <div className="flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm">
+              <div className="flex size-4 items-center justify-center">
+                <StatusIndicator status={status} />
+              </div>
+              <StatusText status={status} />
+            </div>
+            <div className="flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm">
+              <div className="flex size-4 items-center justify-center">
+                <PriorityIndicator priority={priority} />
+              </div>
+              <PriorityText priority={priority} />
+            </div>
+            <div
+              className={cn(
+                "flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm transition-colors",
+                assigned ? "text-primary" : "text-muted-foreground",
+              )}
+            >
+              <div className="flex size-4 items-center justify-center">
+                {assigned ? (
+                  <Avatar variant="user" size="md" fallback="Pedro" />
+                ) : (
+                  <CircleUser className="size-4" />
+                )}
+              </div>
+              {assigned ? "Pedro" : "Unassigned"}
             </div>
           </div>
         </div>
 
-        {/* Sidebar — always visible at design size */}
-        <div className="flex w-64 shrink-0 flex-col gap-4 border-l bg-muted/25 p-4">
-          <div className="flex flex-col gap-2">
-            <div className="text-xs text-muted-foreground">Properties</div>
-            <div className="flex flex-col gap-1.5">
-              <div className="flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm">
-                <div className="flex size-4 items-center justify-center">
-                  <StatusIndicator status={status} />
-                </div>
-                <StatusText status={status} />
-              </div>
-              <div className="flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm">
-                <div className="flex size-4 items-center justify-center">
-                  <PriorityIndicator priority={priority} />
-                </div>
-                <PriorityText priority={priority} />
-              </div>
-              <div
-                className={cn(
-                  "flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm transition-colors",
-                  assigned ? "text-primary" : "text-muted-foreground",
-                )}
-              >
-                <div className="flex size-4 items-center justify-center">
-                  {assigned ? (
-                    <Avatar variant="user" size="md" fallback="Pedro" />
-                  ) : (
-                    <CircleUser className="size-4" />
-                  )}
-                </div>
-                {assigned ? "Pedro" : "Unassigned"}
-              </div>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <div className="text-xs text-foreground-secondary">Labels</div>
-            <div className="flex flex-wrap items-center gap-1.5">
-              <LabelBadge name="Webhooks" color="#60A5FA" />
-              {phase >= 5 ? (
-                <span className="fade-up">
-                  <LabelBadge name="Churn risk" color="#F87171" />
-                </span>
-              ) : null}
-              <div className="flex size-6 items-center justify-center">
-                <PlusIcon className="size-4 text-foreground-secondary" />
-              </div>
+        <div className="flex flex-col gap-2">
+          <div className="text-xs text-foreground-secondary">Labels</div>
+          <div className="flex flex-wrap items-center gap-1.5">
+            <LabelBadge name="Webhooks" color="#60A5FA" />
+            {phase >= 5 ? (
+              <span className="fade-up">
+                <LabelBadge name="Churn risk" color="#F87171" />
+              </span>
+            ) : null}
+            <div className="flex size-6 items-center justify-center">
+              <PlusIcon className="size-4 text-foreground-secondary" />
             </div>
           </div>
         </div>
