@@ -1213,7 +1213,6 @@ export const convertToThread = (data: FakeThreadData): Thread => {
     authorId: "author_eval",
     createdAt,
     deletedAt: null,
-    discordChannelId: null,
     externalIssueId: null,
     externalPrId: null,
     status: 0,

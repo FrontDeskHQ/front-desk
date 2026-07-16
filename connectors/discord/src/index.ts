@@ -633,8 +633,7 @@ client.on("messageCreate", async (message) => {
 /**
  * Resolve the Discord channel a normalized thread maps to, or `null` if this
  * connector can't currently deliver to it (no matching guild in cache, etc.).
- * The channel id lives on `thread.externalId` (guarded by `externalOrigin`),
- * no longer on the deprecated `discordChannelId` column ingest stopped writing.
+ * The channel id lives on `thread.externalId`, guarded by `externalOrigin`.
  */
 const resolveDiscordChannel = async (thread: {
   organizationId?: string;

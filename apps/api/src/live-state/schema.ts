@@ -56,8 +56,6 @@ const thread = object("thread", {
   authorId: reference("author.id"),
   createdAt: timestamp(),
   deletedAt: timestamp().nullable(),
-  /** @deprecated use externalId and externalOrigin instead */
-  discordChannelId: string().nullable(),
   // Link to a mirrored externalEntity by its externalKey (`provider:owner/repo#number`).
   externalIssueId: string().nullable(),
   externalPrId: string().nullable(),

@@ -84,7 +84,6 @@ const threadCreateInputSchema = z.object({
   id: z.string().optional(),
   createdAt: z.coerce.date().optional(),
   status: z.number().int().min(0).max(4).optional(),
-  discordChannelId: z.string().nullable().optional(),
   externalId: z.string().nullable().optional(),
   externalOrigin: z.string().nullable().optional(),
   externalMetadataStr: z.string().nullable().optional(),
@@ -104,7 +103,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       req.input.id !== undefined ||
       req.input.createdAt !== undefined ||
       req.input.status !== undefined ||
-      req.input.discordChannelId !== undefined ||
       req.input.externalId !== undefined ||
       req.input.externalOrigin !== undefined ||
       req.input.externalMetadataStr !== undefined ||
@@ -195,7 +193,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         assignedUserId: null,
         createdAt: req.input.createdAt ?? new Date(),
         deletedAt: null,
-        discordChannelId: req.input.discordChannelId ?? null,
         externalIssueId: null,
         externalPrId: null,
         externalId: req.input.externalId ?? null,

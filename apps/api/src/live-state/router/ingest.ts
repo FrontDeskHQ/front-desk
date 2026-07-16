@@ -119,9 +119,6 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
           assignedUserId: null,
           createdAt: message.createdAt,
           deletedAt: null,
-          // Provider-neutral: the deprecated discord-specific column is left
-          // unset; outbound delivery reads `externalId`/`externalOrigin`.
-          discordChannelId: null,
           externalIssueId: null,
           externalPrId: null,
           externalId: externalThreadId,
