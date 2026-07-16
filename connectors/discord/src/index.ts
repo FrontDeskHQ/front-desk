@@ -1,7 +1,11 @@
-import type { InferLiveObject } from "@live-state/sync";
+import {
+  buildPortalThreadUrl,
+  type OutboundMessage,
+  type OutboundUpdate,
+  startOutboundReplication,
+} from "@connectors/framework/runtime";
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
-import type { schema } from "api/schema";
 import {
   ChannelType,
   Client,
@@ -52,16 +56,6 @@ const sleep = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-
-const buildPortalThreadUrl = (
-  baseUrl: string,
-  organizationSlug: string,
-  threadId: string,
-) => {
-  const baseUrlObj = new URL(baseUrl);
-  const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-  return `${baseUrlObj.protocol}//${organizationSlug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
-};
 
 // TODO(signals-overhaul): related-threads polling used the dropped `suggestion`
 // table. Rebuild on top of the new pipeline (issue 06 synthesis or a fresh
@@ -335,14 +329,7 @@ const handleIntegrationChanges = async (
       // Migration: if syncedChannels is undefined, initialize from current selectedChannels
       // This prevents false trigger on first deploy with new code
       if (settings.syncedChannels === undefined) {
-        const latestIntegration = await fetchClient.query.integration.byId({
-          id: integration.id,
-        });
-        await updateSyncedChannels(
-          integration.id,
-          latestIntegration?.configStr ?? integration.configStr,
-          [...currentChannels],
-        );
+        await updateSyncedChannels(integration.id, [...currentChannels]);
         continue;
       }
 
@@ -364,24 +351,13 @@ const handleIntegrationChanges = async (
       if (addedChannels.length === 0) {
         // Persist cleanup only (no new channels to add)
         if (hadCleanup) {
-          const latestIntegration = await fetchClient.query.integration.byId({
-            id: integration.id,
-          });
-          await updateSyncedChannels(
-            integration.id,
-            latestIntegration?.configStr ?? null,
-            [...syncedChannels],
-          );
+          await updateSyncedChannels(integration.id, [...syncedChannels]);
         }
         continue;
       }
 
-      // Consolidate cleanup + add into a single update; use fresh config to avoid overwriting concurrent changes
+      // Consolidate cleanup + add into a single update
       const finalSynced = [...syncedChannels, ...addedChannels];
-      const latestIntegration = await fetchClient.query.integration.byId({
-        id: integration.id,
-      });
-      const freshConfigStr = latestIntegration?.configStr ?? null;
 
       // Check if backfill feature is enabled for this organization
       const { isEnabled: isBackfillEnabled } = reflagClient
@@ -392,7 +368,7 @@ const handleIntegrationChanges = async (
           `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
         );
         // Still mark as synced so we don't re-check on restart
-        await updateSyncedChannels(integration.id, freshConfigStr, finalSynced);
+        await updateSyncedChannels(integration.id, finalSynced);
         continue;
       }
 
@@ -411,7 +387,7 @@ const handleIntegrationChanges = async (
 
       // Add new channels to syncedChannels immediately (at backfill START)
       // BullMQ handles retries for in-progress jobs
-      await updateSyncedChannels(integration.id, freshConfigStr, finalSynced);
+      await updateSyncedChannels(integration.id, finalSynced);
 
       // Initialize/accumulate backfill status
       await withBackfillLock(integration.id, async () => {
@@ -654,76 +630,69 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-const handleMessages = async (
-  messages: InferLiveObject<
-    (typeof schema)["message"],
-    { thread: true; author: { include: { user: true } } }
-  >[],
-) => {
-  for (const message of messages) {
-    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const organizationId = message.thread?.organizationId;
-    if (!organizationId) continue;
-    const integration = await fetchClient.query.integration.forOrg({
-      organizationId,
-      type: "discord",
+/**
+ * Resolve the Discord channel a normalized thread maps to, or `null` if this
+ * connector can't currently deliver to it (no matching guild in cache, etc.).
+ * The channel id lives on `thread.externalId` (guarded by `externalOrigin`),
+ * no longer on the deprecated `discordChannelId` column ingest stopped writing.
+ */
+const resolveDiscordChannel = async (thread: {
+  organizationId?: string;
+  externalOrigin?: string | null;
+  externalId?: string | null;
+}) => {
+  const organizationId = thread?.organizationId;
+  if (!organizationId) return null;
+
+  const integration = await fetchClient.query.integration.forOrg({
+    organizationId,
+    type: "discord",
+  });
+  if (!integration || !integration.configStr) return null;
+
+  const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+  const guildId = parsedConfig?.guildId;
+  if (!guildId) return null;
+
+  const channelId =
+    thread.externalOrigin === "discord" ? thread.externalId : null;
+  if (!channelId) return null;
+
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) return null;
+
+  return guild.channels.cache.get(channelId) ?? null;
+};
+
+/**
+ * Deliver one outbound reply to Discord via the channel webhook. Returns the
+ * webhook message id to round-trip, or `null` to leave it for the next pass.
+ */
+const deliverDiscordMessage = async (
+  message: OutboundMessage,
+): Promise<string | null> => {
+  const channel = await resolveDiscordChannel(message.thread);
+  if (!channel) return null;
+
+  try {
+    const webhookClient = await getOrCreateWebhook(channel as TextChannel);
+    const webhookMessage = await webhookClient.send({
+      content: stringify(safeParseJSON(message.content), {
+        heading: true,
+        horizontalRule: true,
+      }),
+      threadId: channel.id,
+      username: message.author.name,
+      avatarURL: message.author?.user?.image ?? undefined,
     });
-
-    if (!integration || !integration.configStr) continue;
-
-    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
-
-    if (!parsedConfig) continue;
-
-    const guildId = parsedConfig.guildId;
-
-    if (!guildId) continue;
-
-    // The Discord channel id lives on `externalId` (guarded by `externalOrigin`),
-    // no longer on the deprecated `discordChannelId` column that ingest stopped
-    // writing.
-    const channelId =
-      message.thread.externalOrigin === "discord"
-        ? message.thread.externalId
-        : null;
-
-    if (!channelId) continue;
-
-    const guild = client.guilds.cache.get(guildId);
-
-    if (!guild) continue;
-
-    const channel = guild.channels.cache.get(channelId);
-
-    if (!channel) continue;
-
-    try {
-      const webhookClient = await getOrCreateWebhook(channel as TextChannel);
-      const webhookMessage = await webhookClient.send({
-        content: stringify(safeParseJSON(message.content), {
-          heading: true,
-          horizontalRule: true,
-        }),
-        threadId: channel.id,
-        username: message.author.name,
-        avatarURL: message.author?.user?.image ?? undefined,
-      });
-      store.mutate.message.setExternalMessageId({
-        messageId: message.id,
-        externalMessageId: webhookMessage.id,
-      });
-    } catch (error) {
-      console.error("Error sending webhook message:", error);
-    }
+    return webhookMessage.id;
+  } catch (error) {
+    console.error("Error sending webhook message:", error);
+    return null;
   }
 };
 
-const formatUpdateMessage = (
-  update: InferLiveObject<
-    (typeof schema)["update"],
-    { thread: true; user: true }
-  >,
-): string => {
+const formatUpdateMessage = (update: OutboundUpdate): string => {
   let metadata: any = null;
   if (update.metadataStr) {
     try {
@@ -756,75 +725,21 @@ const formatUpdateMessage = (
   return `**${userName}** updated the thread`;
 };
 
-const handlingUpdates = new Set<string>();
+/**
+ * Deliver one outbound thread update to Discord as a bot message. Returns the
+ * message id to round-trip, or `null` to leave it un-replicated. The framework's
+ * outbound helper owns the replicated-check and in-flight dedup.
+ */
+const deliverDiscordUpdate = async (
+  update: OutboundUpdate,
+): Promise<string | null> => {
+  const channel = await resolveDiscordChannel(update.thread);
+  if (!channel) return null;
 
-const handleUpdates = async (
-  updates: InferLiveObject<
-    (typeof schema)["update"],
-    { thread: true; user: true }
-  >[],
-) => {
-  for (const update of updates) {
-    const replicated = update.replicatedStr
-      ? JSON.parse(update.replicatedStr)
-      : {};
-    if (replicated.discord) continue;
-
-    if (handlingUpdates.has(update.id)) continue;
-
-    handlingUpdates.add(update.id);
-
-    try {
-      // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-      const organizationId = update.thread?.organizationId;
-      if (!organizationId) continue;
-      const integration = await fetchClient.query.integration.forOrg({
-        organizationId,
-        type: "discord",
-      });
-
-      if (!integration || !integration.configStr) continue;
-
-      const parsedConfig = safeParseIntegrationSettings(integration.configStr);
-
-      if (!parsedConfig) continue;
-
-      const guildId = parsedConfig.guildId;
-
-      if (!guildId) continue;
-
-      const channelId =
-        update.thread.externalOrigin === "discord"
-          ? update.thread.externalId
-          : null;
-
-      if (!channelId) continue;
-
-      const guild = client.guilds.cache.get(guildId);
-
-      if (!guild) continue;
-
-      const channel = guild.channels.cache.get(channelId);
-
-      if (!channel) continue;
-
-      const updateMessage = formatUpdateMessage(update);
-      const botMessage = await (channel as TextChannel).send({
-        content: updateMessage,
-      });
-      await fetchClient.mutate.update.markReplicated({
-        updateId: update.id,
-        replicatedStr: JSON.stringify({
-          ...replicated,
-          discord: botMessage.id,
-        }),
-      });
-    } catch (error) {
-      console.error("Error sending update bot message:", error);
-    } finally {
-      handlingUpdates.delete(update.id);
-    }
-  }
+  const botMessage = await (channel as TextChannel).send({
+    content: formatUpdateMessage(update),
+  });
+  return botMessage.id;
 };
 
 client.on("error", (error) => {
@@ -916,51 +831,15 @@ client.once("ready", async () => {
 });
 
 setTimeout(async () => {
-  // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
-  await handleMessages(
-    await store.query.message
-      .where({
-        externalMessageId: null,
-        thread: {
-          externalOrigin: "discord",
-          externalId: { $not: null },
-        },
-      })
-      .include({ thread: true, author: { include: { user: true } } })
-      .get(),
-  );
-  store.query.message
-    .where({
-      externalMessageId: null,
-      thread: {
-        externalOrigin: "discord",
-        externalId: { $not: null },
-      },
-    })
-    .include({ thread: true, author: { include: { user: true } } })
-    .subscribe(handleMessages);
-
-  // Handle updates for threads linked to Discord
-  const updates = await store.query.update
-    .where({
-      thread: {
-        externalOrigin: "discord",
-        externalId: { $not: null },
-      },
-    })
-    .include({ thread: true, user: true })
-    .get();
-
-  await handleUpdates(updates);
-  store.query.update
-    .where({
-      thread: {
-        externalOrigin: "discord",
-        externalId: { $not: null },
-      },
-    })
-    .include({ thread: true, user: true })
-    .subscribe(handleUpdates);
+  // Watch un-replicated outbound messages/updates for Discord threads and
+  // deliver them; the framework owns the round-trip of external message ids.
+  await startOutboundReplication({
+    store,
+    fetchClient,
+    provider: DISCORD_PROVIDER,
+    deliverMessage: deliverDiscordMessage,
+    deliverUpdate: deliverDiscordUpdate,
+  });
 
   // Subscribe to Discord integrations to trigger backfill when channels are added
   store.query.integration

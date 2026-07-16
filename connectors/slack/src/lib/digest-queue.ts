@@ -1,43 +1,25 @@
+import {
+  createWorker,
+  type Job,
+  type Worker,
+} from "@connectors/framework/runtime";
 import type { KnownBlock, WebClient } from "@slack/web-api";
 import {
   type DigestNotifyJobData,
   digestNotifyJobDataSchema,
 } from "@workspace/schemas/digest";
 import { formatRelativeTime } from "@workspace/utils/format";
-import { type Job, Worker } from "bullmq";
-import Redis, { type RedisOptions } from "ioredis";
 import "../env";
 
 const DIGEST_NOTIFY_QUEUE = "digest-notify";
 const MAX_ITEMS_PER_SECTION = 5;
 
 function escapeMrkdwn(text: string): string {
-  return text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
-
-const getRedisConnection = (): Redis => {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  }
-
-  const redisConfig: RedisOptions = {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: process.env.REDIS_PORT
-      ? Number.parseInt(process.env.REDIS_PORT, 10)
-      : 6379,
-    maxRetriesPerRequest: null,
-  };
-
-  if (process.env.REDIS_PASSWORD) {
-    redisConfig.password = process.env.REDIS_PASSWORD;
-  }
-
-  if (process.env.REDIS_DB) {
-    redisConfig.db = Number.parseInt(process.env.REDIS_DB, 10);
-  }
-
-  return new Redis(redisConfig);
-};
 
 let digestWorker: Worker<DigestNotifyJobData> | null = null;
 
@@ -49,7 +31,7 @@ export const initializeDigestWorker = (
     return digestWorker;
   }
 
-  digestWorker = new Worker<DigestNotifyJobData>(
+  digestWorker = createWorker<DigestNotifyJobData>(
     DIGEST_NOTIFY_QUEUE,
     async (job: Job<DigestNotifyJobData>) => {
       const parsed = digestNotifyJobDataSchema.safeParse(job.data);
@@ -100,7 +82,6 @@ export const initializeDigestWorker = (
       }
     },
     {
-      connection: getRedisConnection(),
       concurrency: 1,
     },
   );

@@ -1,6 +1,12 @@
 import "./env";
 
-import type { InferLiveObject } from "@live-state/sync";
+import {
+  buildPortalThreadUrl,
+  type OutboundMessage,
+  type OutboundUpdate,
+  safeParseJSON,
+  startOutboundReplication,
+} from "@connectors/framework/runtime";
 import type {
   AllMiddlewareArgs,
   AuthorizeResult,
@@ -11,7 +17,7 @@ import { WebClient } from "@slack/web-api";
 import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse";
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
-import type { schema } from "api/schema";
+import { z } from "zod";
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
@@ -30,6 +36,9 @@ import {
   updateSyncedChannels,
   withBackfillLock,
 } from "./lib/utils";
+
+/** Thread `externalMetadataStr` shape — a non-empty Slack channel id. */
+const externalMetadataSchema = z.object({ channelId: z.string().min(1) });
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -148,22 +157,6 @@ const app = new App({
   },
 });
 
-const safeParseJSON = (raw: string) => {
-  try {
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object" && "content" in parsed) {
-      return (parsed as { content?: unknown }).content ?? [];
-    }
-  } catch {}
-  return [
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: String(raw) }],
-    },
-  ];
-};
-
 type RelatedThreadLink = {
   threadId: string;
   name: string | null;
@@ -176,16 +169,6 @@ const sleep = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-
-const buildPortalThreadUrl = (
-  baseUrl: string,
-  organizationSlug: string,
-  threadId: string,
-) => {
-  const baseUrlObj = new URL(baseUrl);
-  const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-  return `${baseUrlObj.protocol}//${organizationSlug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
-};
 
 // TODO(signals-overhaul): related-threads polling used the dropped `suggestion`
 // table. Rebuild on the new pipeline before re-enabling the related-threads
@@ -477,7 +460,9 @@ const backfillChannel = async (
     // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
     let queuedCount = 0;
     await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration.byId({ id: integrationId });
+      const integration = await fetchClient.query.integration.byId({
+        id: integrationId,
+      });
       const currentSettings = safeParseIntegrationSettings(
         integration?.configStr ?? null,
       );
@@ -529,7 +514,9 @@ const backfillChannel = async (
 
     // Determine if there are more pages
     const budgetExhausted = await (async () => {
-      const integration = await fetchClient.query.integration.byId({ id: integrationId });
+      const integration = await fetchClient.query.integration.byId({
+        id: integrationId,
+      });
       const settings = safeParseIntegrationSettings(
         integration?.configStr ?? null,
       );
@@ -544,7 +531,9 @@ const backfillChannel = async (
     if (!hasMorePages || budgetExhausted) {
       // This channel is done discovering — decrement channelsDiscovering
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration.byId({ id: integrationId });
+        const integration = await fetchClient.query.integration.byId({
+          id: integrationId,
+        });
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );
@@ -669,7 +658,9 @@ const handleIntegrationChanges = async (
 
       // Initialize/accumulate backfill status
       await withBackfillLock(integration.id, async () => {
-        const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
+        const latestIntegration = await fetchClient.query.integration.byId({
+          id: integration.id,
+        });
         const latestSettings = safeParseIntegrationSettings(
           latestIntegration?.configStr ?? null,
         );
@@ -874,82 +865,82 @@ app.message(
   },
 );
 
-const handleMessages = async (
-  messages: InferLiveObject<
-    (typeof schema)["message"],
-    { thread: true; author: { include: { user: true } } }
-  >[],
-) => {
-  for (const message of messages) {
-    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
-      .first({
-        organizationId: message.thread?.organizationId,
-        type: "slack",
-      })
-      .get();
+/**
+ * Resolve the Slack workspace client + channel/thread a normalized thread maps
+ * to, or `null` if this connector can't currently deliver to it. The parent
+ * channel id lives in the thread's `externalMetadataStr`; the thread ts on
+ * `externalId`.
+ */
+const resolveSlackTarget = async (thread: {
+  organizationId?: string;
+  externalId?: string | null;
+  externalMetadataStr?: string | null;
+}): Promise<{
+  client: WebClient;
+  channelId: string;
+  threadTs: string;
+} | null> => {
+  const integration = store.query.integration
+    .first({ organizationId: thread?.organizationId, type: "slack" })
+    .get();
+  if (!integration || !integration.configStr) return null;
 
-    if (!integration || !integration.configStr) continue;
+  const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+  const teamId = parsedConfig?.teamId;
+  if (!teamId) return null;
 
-    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+  const threadTs = thread.externalId;
+  if (!threadTs) return null;
 
-    if (!parsedConfig) continue;
-
-    const teamId = parsedConfig.teamId;
-
-    if (!teamId) continue;
-
-    const threadTs = message.thread.externalId;
-
-    if (!threadTs) continue;
-
-    let channelId: string | null = null;
-    if (message.thread.externalMetadataStr) {
-      try {
-        const metadata = JSON.parse(message.thread.externalMetadataStr) as {
-          channelId?: string;
-        };
-        channelId = metadata.channelId ?? null;
-      } catch (error) {
-        console.error("Error parsing externalMetadataStr:", error);
-      }
-    }
-
-    if (!channelId) continue;
-
+  let channelId: string | null = null;
+  if (thread.externalMetadataStr) {
     try {
-      const client = await getClientForTeam(teamId);
-      if (!client) continue;
-
-      const result = await client.chat.postMessage({
-        channel: channelId,
-        text: stringify(safeParseJSON(message.content), {
-          heading: true,
-          horizontalRule: true,
-        }),
-        thread_ts: threadTs,
-        username: message.author.name,
-        icon_url: message.author?.user?.image ?? undefined,
-      });
-
-      if (result.ok && result.ts) {
-        store.mutate.message.setExternalMessageId({
-          messageId: message.id,
-          externalMessageId: result.ts,
-        });
-      }
+      const metadata = externalMetadataSchema.parse(
+        JSON.parse(thread.externalMetadataStr),
+      );
+      channelId = metadata.channelId;
     } catch (error) {
-      console.error("Error sending Slack message:", error);
+      console.error("Error parsing externalMetadataStr:", error);
     }
+  }
+  if (!channelId) return null;
+
+  const client = await getClientForTeam(teamId);
+  if (!client) return null;
+
+  return { client, channelId, threadTs };
+};
+
+/**
+ * Deliver one outbound reply to Slack. Returns the message `ts` to round-trip,
+ * or `null` to leave it for the next pass.
+ */
+const deliverSlackMessage = async (
+  message: OutboundMessage,
+): Promise<string | null> => {
+  const target = await resolveSlackTarget(message.thread);
+  if (!target) return null;
+
+  try {
+    const result = await target.client.chat.postMessage({
+      channel: target.channelId,
+      text: stringify(safeParseJSON(message.content), {
+        heading: true,
+        horizontalRule: true,
+      }),
+      thread_ts: target.threadTs,
+      username: message.author.name,
+      icon_url: message.author?.user?.image ?? undefined,
+    });
+
+    return result.ok && result.ts ? result.ts : null;
+  } catch (error) {
+    console.error("Error sending Slack message:", error);
+    return null;
   }
 };
 
-const formatUpdateMessage = (
-  update: InferLiveObject<
-    (typeof schema)["update"],
-    { thread: true; user: true }
-  >,
-): string => {
+const formatUpdateMessage = (update: OutboundUpdate): string => {
   let metadata: Record<string, unknown> | null = null;
   if (update.metadataStr) {
     try {
@@ -982,89 +973,24 @@ const formatUpdateMessage = (
   return `*${userName}* updated the thread`;
 };
 
-const handlingUpdates = new Set<string>();
+/**
+ * Deliver one outbound thread update to Slack as a threaded message. Returns the
+ * message `ts` to round-trip, or `null` to leave it un-replicated. The
+ * framework's outbound helper owns the replicated-check and in-flight dedup.
+ */
+const deliverSlackUpdate = async (
+  update: OutboundUpdate,
+): Promise<string | null> => {
+  const target = await resolveSlackTarget(update.thread);
+  if (!target) return null;
 
-const handleUpdates = async (
-  updates: InferLiveObject<
-    (typeof schema)["update"],
-    { thread: true; user: true }
-  >[],
-) => {
-  for (const update of updates) {
-    const replicated = update.replicatedStr
-      ? JSON.parse(update.replicatedStr)
-      : {};
-    if (replicated.slack) continue;
+  const result = await target.client.chat.postMessage({
+    channel: target.channelId,
+    text: formatUpdateMessage(update),
+    thread_ts: target.threadTs,
+  });
 
-    if (handlingUpdates.has(update.id)) continue;
-
-    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const integration = store.query.integration
-      .first({
-        organizationId: update.thread?.organizationId,
-        type: "slack",
-      })
-      .get();
-
-    if (!integration || !integration.configStr) continue;
-
-    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
-
-    if (!parsedConfig) continue;
-
-    const teamId = parsedConfig.teamId;
-
-    if (!teamId) continue;
-
-    const threadTs = update.thread.externalId;
-
-    if (!threadTs) continue;
-
-    let channelId: string | null = null;
-    if (update.thread.externalMetadataStr) {
-      try {
-        const metadata = JSON.parse(update.thread.externalMetadataStr) as {
-          channelId?: string;
-        };
-        channelId = metadata.channelId ?? null;
-      } catch (error) {
-        console.error("Error parsing externalMetadataStr:", error);
-      }
-    }
-
-    if (!channelId) continue;
-
-    handlingUpdates.add(update.id);
-
-    try {
-      const client = await getClientForTeam(teamId);
-      if (!client) {
-        handlingUpdates.delete(update.id);
-        continue;
-      }
-
-      const updateMessage = formatUpdateMessage(update);
-      const result = await client.chat.postMessage({
-        channel: channelId,
-        text: updateMessage,
-        thread_ts: threadTs,
-      });
-
-      if (result.ok && result.ts) {
-        await fetchClient.mutate.update.markReplicated({
-          updateId: update.id,
-          replicatedStr: JSON.stringify({
-            ...replicated,
-            slack: result.ts,
-          }),
-        });
-      }
-    } catch (error) {
-      console.error("Error sending update bot message:", error);
-    } finally {
-      handlingUpdates.delete(update.id);
-    }
-  }
+  return result.ok && result.ts ? result.ts : null;
 };
 
 (async () => {
@@ -1084,7 +1010,9 @@ const handleUpdates = async (
     processThread: backfillThread,
     onThreadBackfillComplete: async (integrationId: string) => {
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration.byId({ id: integrationId });
+        const integration = await fetchClient.query.integration.byId({
+          id: integrationId,
+        });
         const settings = safeParseIntegrationSettings(
           integration?.configStr ?? null,
         );
@@ -1120,54 +1048,17 @@ const handleUpdates = async (
   initializeDigestWorker(getClientForTeam);
 
   setTimeout(async () => {
-    // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
-    await handleMessages(
-      await store.query.message
-        .where({
-          externalMessageId: null,
-          thread: {
-            externalOrigin: "slack",
-            externalId: { $not: null },
-            externalMetadataStr: { $not: null },
-          },
-        })
-        .include({ thread: true, author: { include: { user: true } } })
-        .get(),
-    );
-    store.query.message
-      .where({
-        externalMessageId: null,
-        thread: {
-          externalOrigin: "slack",
-          externalId: { $not: null },
-          externalMetadataStr: { $not: null },
-        },
-      })
-      .include({ thread: true, author: { include: { user: true } } })
-      .subscribe(handleMessages);
-
-    const updates = await store.query.update
-      .where({
-        thread: {
-          externalOrigin: "slack",
-          externalId: { $not: null },
-          externalMetadataStr: { $not: null },
-        },
-      })
-      .include({ thread: true, user: true })
-      .get();
-
-    await handleUpdates(updates);
-    store.query.update
-      .where({
-        thread: {
-          externalOrigin: "slack",
-          externalId: { $not: null },
-          externalMetadataStr: { $not: null },
-        },
-      })
-      .include({ thread: true, user: true })
-      .subscribe(handleUpdates);
+    // Watch un-replicated outbound messages/updates for Slack threads and
+    // deliver them; the framework owns the round-trip of external message ids.
+    // Slack additionally requires the parent channel id in externalMetadataStr.
+    await startOutboundReplication({
+      store,
+      fetchClient,
+      provider: "slack",
+      threadFilter: { externalMetadataStr: { $not: null } },
+      deliverMessage: deliverSlackMessage,
+      deliverUpdate: deliverSlackUpdate,
+    });
 
     // Subscribe to Slack integrations to trigger backfill when channels are added
     store.query.integration
