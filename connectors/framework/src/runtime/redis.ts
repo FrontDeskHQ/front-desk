@@ -22,6 +22,16 @@ const parseRedisUrl = (url: string): RedisOptions => {
   if (db) options.db = Number.parseInt(db, 10);
   if (parsed.protocol === "rediss:") options.tls = {};
 
+  // Carry query options through (e.g. `?family=6` for IPv6), matching ioredis's
+  // own URL parsing which copies search params onto the connection options.
+  // Numeric-looking values are coerced so `family`/`connectTimeout`/etc. arrive
+  // as numbers rather than strings.
+  for (const [key, value] of parsed.searchParams) {
+    (options as Record<string, unknown>)[key] = /^\d+$/.test(value)
+      ? Number.parseInt(value, 10)
+      : value;
+  }
+
   return options;
 };
 
