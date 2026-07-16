@@ -34,6 +34,7 @@ export {
   discordManifest,
   githubManifest,
   manifests,
+  slackManifest,
   typesHaveCapability,
   typesProvidingCapability,
 } from "./manifest";

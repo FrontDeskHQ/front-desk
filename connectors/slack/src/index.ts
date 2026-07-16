@@ -12,7 +12,6 @@ import type { MessageElement } from "@slack/web-api/dist/types/response/Conversa
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
 import type { schema } from "api/schema";
-import { ulid } from "ulid";
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
@@ -283,13 +282,19 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
   }
 };
 
+/** Integration `type` / `support-entry-point` provider key for this connector. */
+const SLACK_PROVIDER = "slack";
+
 /**
- * Resolve Slack user info for integration author metaId
+ * Resolve a raw Slack user id → display name. This is the un-liftable provider
+ * work (an async Slack API lookup) that stays in the connector per ADR-0009; it
+ * feeds the neutral `author` descriptor whose `externalId` the core prefixes
+ * with `provider:` to form the author `metaId`.
  */
 const resolveSlackAuthor = async (
   client: WebClient,
   slackUserId: string,
-): Promise<{ id: string; name: string }> => {
+): Promise<{ externalId: string; name: string }> => {
   let userName = "Unknown";
   try {
     const userInfo = await client.users.info({ user: slackUserId });
@@ -303,48 +308,72 @@ const resolveSlackAuthor = async (
     );
   }
 
-  return { id: `slack:${slackUserId}`, name: userName };
+  return { externalId: slackUserId, name: userName };
 };
 
 const ensureThreadTitle = (title: string) =>
   title.length >= 3 ? title : title.padEnd(3, ".");
 
 /**
- * Backfill a single message into the database
+ * Translate a Slack message into a `support-entry-point` ingest call. The core
+ * owns create-vs-append, `externalMessageId` dedup, author identity and
+ * `provider:` prefixing; the connector only supplies neutral shapes.
+ *
+ * Slack's thread-root detection rides the optional `thread` descriptor: unlike
+ * Discord (which cheaply knows the channel title and attaches it every time),
+ * Slack only knows a message is a thread root when it carries no `thread_ts`, so
+ * `threadTitle` is passed only then. On a reply the descriptor is omitted and the
+ * core appends to the thread it already has for `externalThreadId`.
  */
-const backfillMessage = async (
-  client: WebClient,
-  msg: MessageElement,
-  threadId: string,
-  organizationId: string,
-): Promise<void> => {
-  // Skip bot messages
-  if (msg.bot_id || !msg.user || !msg.ts) return;
-
-  const author = await resolveSlackAuthor(client, msg.user);
-  const messageContent = msg.text || "";
-
-  await fetchClient.mutate.message.create({
-    id: ulid().toLowerCase(),
-    threadId,
-    organizationId,
-    author,
-    content: parse(messageContent),
-    createdAt: new Date(Number.parseFloat(msg.ts) * 1000),
-    origin: "slack",
-    isBackfill: true,
-    externalMessageId: msg.ts,
+const ingestSlackMessage = (args: {
+  organizationId: string;
+  externalThreadId: string;
+  channelId: string;
+  ts: string;
+  text: string;
+  author: { externalId: string; name: string };
+  threadTitle?: string;
+  isBackfill?: boolean;
+}) =>
+  fetchClient.mutate.ingest.ingest({
+    organizationId: args.organizationId,
+    provider: SLACK_PROVIDER,
+    externalThreadId: args.externalThreadId,
+    thread: args.threadTitle
+      ? {
+          title: ensureThreadTitle(args.threadTitle),
+          externalMetadata: { channelId: args.channelId },
+        }
+      : undefined,
+    message: {
+      externalMessageId: args.ts,
+      body: parse(args.text || ""),
+      createdAt: new Date(Number.parseFloat(args.ts) * 1000),
+    },
+    author: {
+      externalId: args.author.externalId,
+      name: args.author.name,
+    },
+    isBackfill: args.isBackfill ?? false,
   });
-};
+
+/** First 100 chars of the root message, falling back to a channel-based title. */
+const slackThreadTitle = (rootText: string | undefined, fallback: string) =>
+  rootText && rootText.length > 0 ? rootText.substring(0, 100) : fallback;
 
 /**
- * Create a new thread with all its messages
+ * Backfill a single Slack thread and its messages through `mutate.ingest`. The
+ * ingest procedure is idempotent (create-vs-append + `externalMessageId` dedup
+ * owned by the core), so this one path covers both a first-time thread and a
+ * re-added channel — no connector-side `byExternalId` / thread-existence checks.
+ * The Slack root message (its `ts` equals `threadTs`) carries the thread
+ * descriptor; the replies omit it and append.
  */
-const createThreadWithMessages = async (
+const backfillThread = async (
   client: WebClient,
   channelId: string,
   threadTs: string,
-  teamId: string,
+  _teamId: string,
   organizationId: string,
 ): Promise<void> => {
   // Fetch all messages in the thread using conversations.replies with pagination
@@ -371,149 +400,44 @@ const createThreadWithMessages = async (
     cursor = replies.response_metadata?.next_cursor;
   } while (cursor);
 
-  if (messages.length === 0) {
-    console.log(`    [Slack] No messages found for thread ${threadTs}`);
-    return;
-  }
-
-  const parentMessage = messages[0];
-
-  // Skip if parent message is from a bot
-  if (parentMessage.bot_id || !parentMessage.user) {
+  // conversations.replies returns the root message first; the thread cannot be
+  // created without it. If the root is a bot/system message, skip the whole
+  // thread rather than hand the core a message for an unknown thread with no
+  // descriptor (which it would reject).
+  const rootMessage = messages[0];
+  if (!rootMessage || rootMessage.bot_id || !rootMessage.user) {
     console.log(`    [Slack] Skipping bot thread ${threadTs}`);
     return;
   }
 
-  const author = await resolveSlackAuthor(
-    client,
-    parentMessage.user,
-  );
+  const sortedMessages = messages
+    .filter(
+      (m): m is MessageElement & { ts: string; user: string } =>
+        !m.bot_id && !!m.user && !!m.ts,
+    )
+    .sort((a, b) => Number.parseFloat(a.ts) - Number.parseFloat(b.ts));
 
-  const threadName = ensureThreadTitle(
-    parentMessage.text && parentMessage.text.length > 0
-      ? parentMessage.text.substring(0, 100)
-      : "Slack Thread",
-  );
-
-  const threadId = ulid().toLowerCase();
-  const parentTs = parentMessage.ts ?? threadTs;
-  const parentContent = parentMessage.text || "";
-
-  await fetchClient.mutate.thread.create({
-    id: threadId,
-    organizationId,
-    title: threadName,
-    message: parse(parentContent),
-    author,
-    createdAt: new Date(Number.parseFloat(threadTs) * 1000),
-    externalId: threadTs,
-    externalOrigin: "slack",
-    externalMetadataStr: JSON.stringify({ channelId }),
-    firstMessage: {
-      createdAt: new Date(Number.parseFloat(parentTs) * 1000),
-      origin: "slack",
+  // Ingest in chronological order: the root (ts === threadTs) creates the thread
+  // with its descriptor, the rest append. The core dedups any already-ingested
+  // message, so re-added channels only add what's missing.
+  for (const msg of sortedMessages) {
+    const author = await resolveSlackAuthor(client, msg.user);
+    const isRoot = msg.ts === threadTs;
+    await ingestSlackMessage({
+      organizationId,
+      externalThreadId: threadTs,
+      channelId,
+      ts: msg.ts,
+      text: msg.text || "",
+      author,
+      threadTitle: isRoot
+        ? slackThreadTitle(msg.text, "Slack Thread")
+        : undefined,
       isBackfill: true,
-      externalMessageId: parentTs,
-    },
-  });
-
-  console.log(`    [Slack] Created thread: ${threadName.substring(0, 50)}...`);
-
-  for (const msg of messages.slice(1)) {
-    await backfillMessage(client, msg, threadId, organizationId);
-  }
-
-  console.log(
-    `    [Slack] Synced ${messages.filter((m) => !m.bot_id && m.user).length} messages`,
-  );
-};
-
-/**
- * Backfill missing messages for an existing thread
- */
-const backfillMissingMessages = async (
-  client: WebClient,
-  channelId: string,
-  threadTs: string,
-  existingThread: { id: string },
-  organizationId: string,
-): Promise<void> => {
-  // Fetch all messages in the thread with pagination
-  const messages: MessageElement[] = [];
-  let cursor: string | undefined;
-
-  do {
-    const replies = await client.conversations.replies({
-      channel: channelId,
-      ts: threadTs,
-      limit: 200,
-      cursor,
     });
-
-    if (!replies.ok || !replies.messages) {
-      break;
-    }
-
-    messages.push(...replies.messages);
-    cursor = replies.response_metadata?.next_cursor;
-  } while (cursor);
-
-  if (messages.length === 0) {
-    return;
   }
 
-  let syncedCount = 0;
-  for (const msg of messages) {
-    if (!msg.ts || msg.bot_id || !msg.user) continue;
-
-    // Check if message already exists
-    const existingMessage = await fetchClient.query.message.byExternalId({ externalMessageId: msg.ts, threadId: existingThread.id });
-
-    if (!existingMessage) {
-      await backfillMessage(client, msg, existingThread.id, organizationId);
-      syncedCount++;
-    }
-  }
-
-  if (syncedCount > 0) {
-    console.log(
-      `    [Slack] Synced ${syncedCount} missing messages for thread ${threadTs}`,
-    );
-  }
-};
-
-/**
- * Backfill a single thread (check if exists, create or update)
- */
-const backfillThread = async (
-  client: WebClient,
-  channelId: string,
-  threadTs: string,
-  teamId: string,
-  organizationId: string,
-): Promise<void> => {
-  // Check if thread already exists
-  const existingThread = await fetchClient.query.thread.byExternalId({ externalId: threadTs, organizationId, externalOrigin: "slack" });
-
-  if (existingThread) {
-    // Thread exists, backfill missing messages
-    await backfillMissingMessages(
-      client,
-      channelId,
-      threadTs,
-      existingThread,
-      organizationId,
-    );
-  } else {
-    // Create new thread with all messages
-    await createThreadWithMessages(
-      client,
-      channelId,
-      threadTs,
-      teamId,
-      organizationId,
-    );
-  }
+  console.log(`    [Slack] Synced ${sortedMessages.length} messages`);
 };
 
 /**
@@ -551,6 +475,7 @@ const backfillChannel = async (
       .map((msg) => msg.ts!);
 
     // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
+    let queuedCount = 0;
     await withBackfillLock(integrationId, async () => {
       const integration = await fetchClient.query.integration.byId({ id: integrationId });
       const currentSettings = safeParseIntegrationSettings(
@@ -594,10 +519,12 @@ const backfillChannel = async (
           },
         );
       }
+
+      queuedCount = threadsToQueue.length;
     });
 
     console.log(
-      `  [Slack] Queued ${threadsToQueue.length} threads for backfill from channel ${channelId}`,
+      `  [Slack] Queued ${queuedCount} threads for backfill from channel ${channelId}`,
     );
 
     // Determine if there are more pages
@@ -799,8 +726,6 @@ app.message(
 
     const isFirstMessage = !("thread_ts" in message);
 
-    let threadId: string | null = null;
-
     const conversation = await client.conversations.info({
       channel: message.channel,
     });
@@ -835,139 +760,117 @@ app.message(
       return;
     }
 
-    const userInfo = await client.users.info({
-      user: message.user,
+    const author = await resolveSlackAuthor(client, message.user);
+    const messageText = "text" in message ? message.text : undefined;
+
+    // `externalThreadId` is the root `ts` in both cases — the reply carries it
+    // as `thread_ts`.
+    const externalThreadId = isFirstMessage ? message.ts : message.thread_ts;
+    if (!externalThreadId) return;
+
+    // Always attach a thread descriptor, like the Discord connector: the core
+    // ignores it once the thread exists (append path), so it only bootstraps a
+    // thread when one doesn't yet exist. This makes ingest resilient to Slack's
+    // non-guaranteed delivery order — a reply that arrives before its root no
+    // longer hard-errors, it creates the thread with a channel-name fallback
+    // title instead. A root message still titles the thread from its own text.
+    const threadTitle = isFirstMessage
+      ? slackThreadTitle(messageText, channelName)
+      : channelName;
+
+    // One idempotent ingest call: the core creates the thread on the first
+    // message it sees for `externalThreadId` and appends thereafter (no timing
+    // heuristic, no dedup here).
+    const { thread, created } = await ingestSlackMessage({
+      organizationId: integration.organizationId,
+      externalThreadId,
+      channelId: message.channel,
+      ts: message.ts,
+      text: messageText || "",
+      author,
+      threadTitle,
     });
 
-    if (!userInfo.ok || !userInfo.user) return;
+    if (!thread) return;
+    const threadId = thread.id;
 
-    const userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
+    // The portal-link reply is posted once, when the thread is first created.
+    if (!created) return;
 
-    const author = {
-      id: `slack:${message.user}`,
-      name: userName,
-    };
-
-    if (isFirstMessage) {
-      threadId = ulid().toLowerCase();
-      const messageText = "text" in message ? message.text : undefined;
-      const threadName = ensureThreadTitle(
-        (messageText && messageText.length > 0
-          ? messageText.substring(0, 100)
-          : channelName) || channelName,
-      );
-
-      await fetchClient.mutate.thread.create({
-        id: threadId,
-        organizationId: integration.organizationId,
-        title: threadName,
-        message: parse(messageText || ""),
-        author,
-        createdAt: new Date(parseFloat(message.ts) * 1000),
-        externalId: message.ts,
-        externalOrigin: "slack",
-        externalMetadataStr: JSON.stringify({ channelId: message.channel }),
-        firstMessage: {
-          createdAt: new Date(parseFloat(message.ts) * 1000),
-          origin: "slack",
-          externalMessageId: message.ts,
-        },
+    try {
+      const organization = await fetchClient.query.organization.byId({
+        id: integration.organizationId,
       });
 
-      try {
-        const organization = await fetchClient.query.organization.byId({ id: integration.organizationId });
+      if (organization?.slug) {
+        const showPortalMessage =
+          integrationSettings?.showPortalMessage !== false;
 
-        if (organization?.slug) {
-          const showPortalMessage =
-            integrationSettings?.showPortalMessage !== false;
+        if (showPortalMessage) {
+          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+          const portalUrl = buildPortalThreadUrl(
+            baseUrl,
+            organization.slug,
+            threadId,
+          );
+          const portalText = buildPortalBotText({
+            portalUrl,
+            relatedThreadLinks: [],
+          });
+          const portalBlocks = buildPortalBotBlocks({
+            portalUrl,
+            relatedThreadLinks: [],
+          });
 
-          if (showPortalMessage) {
-            const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-            const portalUrl = buildPortalThreadUrl(
-              baseUrl,
-              organization.slug,
-              threadId,
-            );
-            const portalText = buildPortalBotText({
-              portalUrl,
-              relatedThreadLinks: [],
-            });
-            const portalBlocks = buildPortalBotBlocks({
-              portalUrl,
-              relatedThreadLinks: [],
-            });
+          const postResult = await say({
+            text: portalText,
+            blocks: portalBlocks,
+            channel: message.channel,
+            // Nest under the root, not this event's `ts`: when a reply bootstraps
+            // the thread, `message.ts` is the reply — the portal message must
+            // still thread onto the root (`externalThreadId`).
+            thread_ts: externalThreadId,
+          });
 
-            const postResult = await say({
-              text: portalText,
-              blocks: portalBlocks,
-              channel: message.channel,
-              thread_ts: message.ts,
-            });
+          void (async () => {
+            try {
+              await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
 
-            void (async () => {
-              try {
-                await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
+              const relatedThreadLinks = await getRelatedThreadLinks({
+                organizationId: integration.organizationId,
+                organizationSlug: organization.slug,
+                threadId,
+                baseUrl,
+              });
 
-                const relatedThreadLinks = await getRelatedThreadLinks({
-                  organizationId: integration.organizationId,
-                  organizationSlug: organization.slug,
-                  threadId,
-                  baseUrl,
-                });
+              if (relatedThreadLinks.length === 0) return;
 
-                if (relatedThreadLinks.length === 0) return;
+              const updatedText = buildPortalBotText({
+                portalUrl,
+                relatedThreadLinks,
+              });
+              const updatedBlocks = buildPortalBotBlocks({
+                portalUrl,
+                relatedThreadLinks,
+              });
 
-                const updatedText = buildPortalBotText({
-                  portalUrl,
-                  relatedThreadLinks,
-                });
-                const updatedBlocks = buildPortalBotBlocks({
-                  portalUrl,
-                  relatedThreadLinks,
-                });
+              if (!postResult?.ts) return;
 
-                if (!postResult?.ts) return;
-
-                await client.chat.update({
-                  channel: message.channel,
-                  ts: postResult.ts,
-                  text: updatedText,
-                  blocks: updatedBlocks,
-                });
-              } catch (error) {
-                console.error("Error updating portal link message:", error);
-              }
-            })();
-          }
+              await client.chat.update({
+                channel: message.channel,
+                ts: postResult.ts,
+                text: updatedText,
+                blocks: updatedBlocks,
+              });
+            } catch (error) {
+              console.error("Error updating portal link message:", error);
+            }
+          })();
         }
-      } catch (error) {
-        console.error("Error sending portal link message:", error);
       }
-    } else {
-      const thread = store.query.thread
-        .first({
-          externalId: message.thread_ts,
-          externalOrigin: "slack",
-        })
-        .get();
-
-      if (!thread) return;
-
-      threadId = thread.id;
+    } catch (error) {
+      console.error("Error sending portal link message:", error);
     }
-
-    if (!threadId || isFirstMessage) return;
-
-    const messageText = "text" in message ? message.text : "";
-    store.mutate.message.create({
-      threadId,
-      organizationId: integration.organizationId,
-      author,
-      content: parse(messageText || ""),
-      createdAt: new Date(parseFloat(message.ts) * 1000),
-      origin: "slack",
-      externalMessageId: message.ts,
-    });
   },
 );
 
