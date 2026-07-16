@@ -17,6 +17,7 @@ import { WebClient } from "@slack/web-api";
 import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse";
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
+import { z } from "zod";
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
@@ -35,6 +36,9 @@ import {
   updateSyncedChannels,
   withBackfillLock,
 } from "./lib/utils";
+
+/** Thread `externalMetadataStr` shape — a non-empty Slack channel id. */
+const externalMetadataSchema = z.object({ channelId: z.string().min(1) });
 
 const app = new App({
   signingSecret: process.env.SLACK_SIGNING_SECRET,
@@ -891,10 +895,10 @@ const resolveSlackTarget = async (thread: {
   let channelId: string | null = null;
   if (thread.externalMetadataStr) {
     try {
-      const metadata = JSON.parse(thread.externalMetadataStr) as {
-        channelId?: string;
-      };
-      channelId = metadata.channelId ?? null;
+      const metadata = externalMetadataSchema.parse(
+        JSON.parse(thread.externalMetadataStr),
+      );
+      channelId = metadata.channelId;
     } catch (error) {
       console.error("Error parsing externalMetadataStr:", error);
     }

@@ -1,6 +1,10 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { schema } from "api/schema";
+import { z } from "zod";
 import type { LiveStateFetchClient, LiveStateStore } from "./live-state";
+
+/** The per-provider replicated-marker map stored on `update.replicatedStr`. */
+const replicatedSchema = z.record(z.string(), z.unknown());
 
 /** Outbound message row, with the includes every connector needs to deliver it. */
 export type OutboundMessage = InferLiveObject<
@@ -93,9 +97,16 @@ export const startOutboundReplication = async ({
 
   const handleUpdates = async (updates: OutboundUpdate[]) => {
     for (const update of updates) {
-      const replicated = update.replicatedStr
-        ? JSON.parse(update.replicatedStr)
-        : {};
+      let replicated: Record<string, unknown> = {};
+      if (update.replicatedStr) {
+        try {
+          replicated = replicatedSchema.parse(JSON.parse(update.replicatedStr));
+        } catch (error) {
+          // A malformed row must not reject the whole pass — skip it.
+          console.error("[outbound] invalid replicatedStr, skipping:", error);
+          continue;
+        }
+      }
       if (replicated[provider]) continue;
       if (handlingUpdates.has(update.id)) continue;
 

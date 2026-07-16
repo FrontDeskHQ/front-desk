@@ -1,3 +1,4 @@
+import { z } from "zod";
 import type { LiveStateFetchClient } from "./live-state";
 
 export type BackfillStatus = {
@@ -7,21 +8,21 @@ export type BackfillStatus = {
   channelsDiscovering: number;
 };
 
+const settingsRecordSchema = z.record(z.string(), z.unknown());
+
 /**
  * Parse an opaque `integration.configStr` into a plain object for a generic
  * read-modify-write. Backfill orchestration only merges a couple of keys, so it
- * deliberately does not go through the connector's typed settings schema.
+ * deliberately does not go through the connector's typed settings schema — but
+ * it still validates the value is a plain record and throws otherwise, so a
+ * malformed blob or JSON array aborts the write instead of clobbering the
+ * settings with only the merged key.
  */
 const parseSettingsRecord = (
   configStr: string | null,
 ): Record<string, unknown> => {
   if (!configStr) return {};
-  try {
-    const parsed = JSON.parse(configStr);
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
+  return settingsRecordSchema.parse(JSON.parse(configStr));
 };
 
 /**
