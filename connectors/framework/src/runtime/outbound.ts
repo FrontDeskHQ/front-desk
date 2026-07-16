@@ -57,14 +57,24 @@ export const startOutboundReplication = async ({
   deliverMessage,
   deliverUpdate,
 }: OutboundReplicationOptions) => {
+  // Provider invariants are spread last so a caller-supplied `threadFilter`
+  // cannot override `externalOrigin`/`externalId` and pull another provider's rows.
   const threadWhere = {
+    ...threadFilter,
     externalOrigin: provider,
     externalId: { $not: null },
-    ...threadFilter,
   };
+
+  // In-flight guards: a delivery can outlive the next emission of the same row,
+  // and rows are marked replicated via the async fetch client, so dedup here.
+  const handlingMessages = new Set<string>();
+  const handlingUpdates = new Set<string>();
 
   const handleMessages = async (messages: OutboundMessage[]) => {
     for (const message of messages) {
+      if (handlingMessages.has(message.id)) continue;
+
+      handlingMessages.add(message.id);
       try {
         const externalMessageId = await deliverMessage(message);
         if (externalMessageId) {
@@ -75,13 +85,11 @@ export const startOutboundReplication = async ({
         }
       } catch (error) {
         console.error("[outbound] message delivery failed:", error);
+      } finally {
+        handlingMessages.delete(message.id);
       }
     }
   };
-
-  // In-flight guard: a delivery can outlive the next emission of the same row,
-  // and updates are marked replicated via the async fetch client, so dedup here.
-  const handlingUpdates = new Set<string>();
 
   const handleUpdates = async (updates: OutboundUpdate[]) => {
     for (const update of updates) {

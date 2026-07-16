@@ -89,17 +89,17 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
     });
   };
 
-  /** Trial/free orgs cap backfill at 100 threads; paid orgs are uncapped. */
+  /**
+   * Trial/free orgs cap backfill at 100 threads; only the paid `pro` plan is
+   * uncapped. `starter` and `beta-feedback` are free plans, so they stay capped.
+   */
   const getBackfillLimit = async (
     organizationId: string,
   ): Promise<number | null> => {
     const subscription = await fetchClient.query.subscription.forOrg({
       organizationId,
     });
-    if (!subscription || subscription.plan === "trial") {
-      return 100;
-    }
-    return null;
+    return subscription?.plan === "pro" ? null : 100;
   };
 
   return {

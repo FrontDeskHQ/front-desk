@@ -10,34 +10,6 @@ import Redis, { type RedisOptions } from "ioredis";
 export type { Job, Queue, Worker } from "bullmq";
 
 /**
- * BullMQ connection descriptor: prefer `REDIS_URL`, fall back to discrete
- * host/port/password/db env vars. Passed as `connection` to a Queue/Worker,
- * where BullMQ builds and manages the underlying ioredis instance itself.
- */
-export type RedisConnection =
-  | { url: string }
-  | { host: string; port?: number; password?: string; db?: number };
-
-/**
- * Resolve the shared connection descriptor from the environment. Replaces the
- * per-connector `getRedisConnection` copies (discord/slack).
- */
-export const getRedisConnection = (): RedisConnection => {
-  if (process.env.REDIS_URL) {
-    return { url: process.env.REDIS_URL };
-  }
-
-  return {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: process.env.REDIS_PORT
-      ? Number.parseInt(process.env.REDIS_PORT, 10)
-      : 6379,
-    password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB ? Number.parseInt(process.env.REDIS_DB, 10) : 0,
-  };
-};
-
-/**
  * Create an owned ioredis instance configured for BullMQ
  * (`maxRetriesPerRequest: null` is required when passing an instance, rather
  * than a descriptor, to a Queue/Worker). Replaces github's `createRedisConnection`.
@@ -73,7 +45,7 @@ export const createQueue = <T>(
   name: string,
   options?: Omit<QueueOptions, "connection">,
 ): Queue<T> =>
-  new Queue<T>(name, { connection: getRedisConnection(), ...options });
+  new Queue<T>(name, { connection: createRedisConnection(), ...options });
 
 /**
  * Create a BullMQ Worker wired to the shared connection. The processor and any
@@ -85,6 +57,6 @@ export const createWorker = <T, R = unknown>(
   options?: Omit<WorkerOptions, "connection">,
 ): Worker<T, R> =>
   new Worker<T, R>(name, processor, {
-    connection: getRedisConnection(),
+    connection: createRedisConnection(),
     ...options,
   });

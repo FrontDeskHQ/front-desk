@@ -21,10 +21,8 @@ export {
   createQueue,
   createRedisConnection,
   createWorker,
-  getRedisConnection,
   type Job,
   type Queue,
-  type RedisConnection,
   type Worker,
 } from "./redis";
 export {
