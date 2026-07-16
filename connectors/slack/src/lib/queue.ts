@@ -1,22 +1,11 @@
+import {
+  createQueue,
+  createWorker,
+  type Job,
+  type Worker,
+} from "@connectors/framework/runtime";
 import type { WebClient } from "@slack/web-api";
-import { type Job, Queue, Worker } from "bullmq";
 import "../env";
-
-// Redis connection configuration
-const getRedisConnection = () => {
-  if (process.env.REDIS_URL) {
-    return { url: process.env.REDIS_URL };
-  }
-
-  return {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: process.env.REDIS_PORT
-      ? Number.parseInt(process.env.REDIS_PORT, 10)
-      : 6379,
-    password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB ? Number.parseInt(process.env.REDIS_DB, 10) : 0,
-  };
-};
 
 // Job data types adapted for Slack
 export type BackfillChannelJobData = {
@@ -46,8 +35,7 @@ export type BackfillChannelResult = {
 };
 
 // Queue instance
-export const backfillQueue = new Queue<BackfillJobData>("slack-backfill", {
-  connection: getRedisConnection(),
+export const backfillQueue = createQueue<BackfillJobData>("slack-backfill", {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -94,7 +82,7 @@ export const initializeBackfillWorker = (
     return backfillWorker;
   }
 
-  backfillWorker = new Worker<BackfillJobData>(
+  backfillWorker = createWorker<BackfillJobData>(
     "slack-backfill",
     async (job: Job<BackfillJobData>) => {
       const { data } = job;
@@ -143,7 +131,6 @@ export const initializeBackfillWorker = (
       }
     },
     {
-      connection: getRedisConnection(),
       concurrency: 1, // Process 1 job at a time (more conservative for Slack)
       limiter: {
         max: 5, // Max 5 jobs

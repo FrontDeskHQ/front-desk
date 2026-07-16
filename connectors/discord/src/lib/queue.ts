@@ -1,4 +1,9 @@
-import { type Job, Queue, Worker } from "bullmq";
+import {
+  createQueue,
+  createWorker,
+  type Job,
+  type Worker,
+} from "@connectors/framework/runtime";
 import type {
   Client,
   ForumChannel,
@@ -6,22 +11,6 @@ import type {
   ThreadChannel,
 } from "discord.js";
 import "../env";
-
-// Redis connection configuration
-const getRedisConnection = () => {
-  if (process.env.REDIS_URL) {
-    return { url: process.env.REDIS_URL };
-  }
-
-  return {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: process.env.REDIS_PORT
-      ? Number.parseInt(process.env.REDIS_PORT, 10)
-      : 6379,
-    password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB ? Number.parseInt(process.env.REDIS_DB, 10) : 0,
-  };
-};
 
 // Job data types
 export type BackfillChannelJobData = {
@@ -51,8 +40,7 @@ export type BackfillChannelResult = {
 };
 
 // Queue instance
-export const backfillQueue = new Queue<BackfillJobData>("discord-backfill", {
-  connection: getRedisConnection(),
+export const backfillQueue = createQueue<BackfillJobData>("discord-backfill", {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
@@ -94,7 +82,7 @@ export const initializeBackfillWorker = (
     return backfillWorker;
   }
 
-  backfillWorker = new Worker<BackfillJobData>(
+  backfillWorker = createWorker<BackfillJobData>(
     "discord-backfill",
     async (job: Job<BackfillJobData>) => {
       const { data } = job;
@@ -153,7 +141,6 @@ export const initializeBackfillWorker = (
       }
     },
     {
-      connection: getRedisConnection(),
       concurrency: 2, // Process 2 jobs at a time
       limiter: {
         max: 10, // Max 10 jobs

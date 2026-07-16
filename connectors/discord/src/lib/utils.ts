@@ -1,104 +1,23 @@
+import {
+  createBackfillHelpers,
+  createSettingsParser,
+} from "@connectors/framework/runtime";
 import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import type { Message } from "discord.js";
-import type z from "zod";
 import { fetchClient } from "./live-state";
 
-export const safeParseIntegrationSettings = (
-  configStr: string | null,
-): z.infer<typeof discordIntegrationSchema> | undefined => {
-  if (!configStr) return undefined;
-  try {
-    return discordIntegrationSchema.parse(JSON.parse(configStr));
-  } catch {
-    return undefined;
-  }
-};
+export { safeParseJSON } from "@connectors/framework/runtime";
 
-export const updateBackfillStatus = async (
-  integrationId: string,
-  configStr: string | null,
-  backfill: {
-    processed: number;
-    total: number;
-    limit: number | null;
-    channelsDiscovering: number;
-  } | null,
-) => {
-  const current = safeParseIntegrationSettings(configStr) ?? {};
-  await fetchClient.mutate.integration.updateInstallation({
-    integrationId,
-    configStr: JSON.stringify({ ...current, backfill }),
-  });
-};
+export const { safeParseIntegrationSettings } = createSettingsParser(
+  discordIntegrationSchema,
+);
 
-export const updateSyncedChannels = async (
-  integrationId: string,
-  configStr: string | null,
-  syncedChannels: string[],
-) => {
-  const current = safeParseIntegrationSettings(configStr) ?? {};
-  await fetchClient.mutate.integration.updateInstallation({
-    integrationId,
-    configStr: JSON.stringify({ ...current, syncedChannels }),
-  });
-};
-
-export const getBackfillLimit = async (
-  organizationId: string,
-): Promise<number | null> => {
-  const subscription = await fetchClient.query.subscription.forOrg({
-    organizationId,
-  });
-  if (!subscription || subscription.plan === "trial") {
-    return 100;
-  }
-  return null;
-};
-
-// Per-integration async mutex to serialize backfill status read-modify-write operations
-const backfillLocks = new Map<string, Promise<void>>();
-
-export const withBackfillLock = async <T>(
-  integrationId: string,
-  fn: () => Promise<T>,
-): Promise<T> => {
-  const existing = backfillLocks.get(integrationId) ?? Promise.resolve();
-  let resolve: () => void;
-  const next = new Promise<void>((r) => {
-    resolve = r;
-  });
-  backfillLocks.set(integrationId, next);
-
-  try {
-    await existing;
-    return await fn();
-  } finally {
-    resolve!();
-    if (backfillLocks.get(integrationId) === next) {
-      backfillLocks.delete(integrationId);
-    }
-  }
-};
-
-export const safeParseJSON = (raw: string) => {
-  try {
-    const parsed = JSON.parse(raw);
-    // Accept common shapes produced by our editor:
-    if (Array.isArray(parsed)) return parsed;
-    if (parsed && typeof parsed === "object" && "content" in parsed) {
-      // e.g. a full doc { type: 'doc', content: [...] }
-      // Normalize to content[] to match our usage.
-      return (parsed as any).content ?? [];
-    }
-  } catch {}
-  // Fallback: wrap plain text in a single paragraph node.
-  return [
-    {
-      type: "paragraph",
-      content: [{ type: "text", text: String(raw) }],
-    },
-  ];
-};
+export const {
+  withBackfillLock,
+  updateBackfillStatus,
+  updateSyncedChannels,
+  getBackfillLimit,
+} = createBackfillHelpers(fetchClient);
 
 export const parseContentAsMarkdown = (message: Message): string => {
   let content = message.content;

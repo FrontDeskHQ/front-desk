@@ -1,5 +1,7 @@
+import { createRedisConnection } from "@connectors/framework/runtime";
 import { Queue } from "bullmq";
-import Redis from "ioredis";
+
+export { createRedisConnection } from "@connectors/framework/runtime";
 
 /**
  * Queue + connection for the github app's own BullMQ jobs. Integration apps own
@@ -43,42 +45,6 @@ export type BackfillJobData = {
  * auth + paging inputs); kept as a distinct type for intent.
  */
 export type ReconcileRepoJobData = BackfillJobData;
-
-/**
- * Create a Redis connection configured for BullMQ (`maxRetriesPerRequest: null`
- * is required by both Queue and Worker). Mirrors the worker app's connection
- * resolution: prefer `REDIS_URL`, fall back to discrete host/port/etc.
- */
-export const createRedisConnection = (): Redis => {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  }
-
-  const redisConfig: {
-    host: string;
-    port?: number;
-    password?: string;
-    db?: number;
-    maxRetriesPerRequest: null;
-  } = {
-    host: process.env.REDIS_HOST ?? "localhost",
-    maxRetriesPerRequest: null,
-  };
-
-  if (process.env.REDIS_PORT) {
-    redisConfig.port = Number.parseInt(process.env.REDIS_PORT, 10);
-  }
-
-  if (process.env.REDIS_PASSWORD) {
-    redisConfig.password = process.env.REDIS_PASSWORD;
-  }
-
-  if (process.env.REDIS_DB) {
-    redisConfig.db = Number.parseInt(process.env.REDIS_DB, 10);
-  }
-
-  return new Redis(redisConfig);
-};
 
 let queue: Queue<BackfillJobData> | null = null;
 
@@ -141,7 +107,7 @@ export const ensureReconcileScheduler = async () => {
         removeOnComplete: { count: 20, age: 7 * 24 * 3600 },
         removeOnFail: { count: 50 },
       },
-    }
+    },
   );
 };
 

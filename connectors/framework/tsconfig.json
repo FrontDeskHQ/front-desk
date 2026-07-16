@@ -1,8 +1,8 @@
 {
   "compilerOptions": {
-    "declaration": true,
     "esModuleInterop": true,
     "isolatedModules": true,
+    "jsx": "react-jsx",
     "lib": ["es2022"],
     "module": "preserve",
     "moduleDetection": "force",
