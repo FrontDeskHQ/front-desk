@@ -1,8 +1,9 @@
 // TODO refactor with new live-state mental model
+import type { PrIndexJobData } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
-import { enqueueGithubBackfill } from "../../lib/queue";
+import { enqueueGithubBackfill, enqueuePrIndex } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -91,7 +92,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       const { organizationId, externalKey } = req.input;
       const now = new Date();
 
-      return db.transaction(async ({ trx }) => {
+      const id = await db.transaction(async ({ trx }) => {
         const existing = Object.values(
           await trx.find(schema.externalEntity, {
             where: { organizationId, externalKey },
@@ -107,15 +108,41 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           return existing.id;
         }
 
-        const id = ulid().toLowerCase();
+        const newId = ulid().toLowerCase();
         await trx.insert(schema.externalEntity, {
-          id,
+          id: newId,
           ...req.input,
           lastSyncedAt: now,
           deletedAt: null,
         });
-        return id;
+        return newId;
       });
+
+      // Keep the PR vector index current on every mirror write (webhook,
+      // backfill, reconcile). Index-only: the worker derives eligibility and
+      // re-embeds; it never fans out `pr_matched` reads (FRO-203). Fire-and-log
+      // so an indexing hiccup never fails the mirror write.
+      if (req.input.type === "pull_request") {
+        const jobData: PrIndexJobData = {
+          organizationId,
+          externalEntityId: id,
+          externalKey,
+          provider: req.input.provider,
+          repoFullName: req.input.repoFullName,
+          number: req.input.number,
+          url: req.input.url,
+          title: req.input.title,
+          body: req.input.body,
+          headRef: req.input.headRef,
+          state: req.input.state,
+          draft: req.input.draft,
+        };
+        enqueuePrIndex(jobData).catch((error) => {
+          console.error(`Failed to enqueue PR index for ${externalKey}:`, error);
+        });
+      }
+
+      return id;
     }),
 
     /**
@@ -132,7 +159,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
 
       const { organizationId, externalKey } = req.input;
 
-      return db.transaction(async ({ trx }) => {
+      const deleted = await db.transaction(async ({ trx }) => {
         const existing = Object.values(
           await trx.find(schema.externalEntity, {
             where: { organizationId, externalKey },
@@ -146,8 +173,36 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           deletedAt: now,
           lastSyncedAt: now,
         });
-        return existing.id;
+        return { id: existing.id, type: existing.type };
       });
+
+      // Drop the PR vector when its mirror row is removed (PR deleted /
+      // transferred out) so stale points can't surface in similarity search.
+      if (deleted && deleted.type === "pull_request") {
+        const jobData: PrIndexJobData = {
+          organizationId,
+          externalEntityId: deleted.id,
+          externalKey,
+          provider: "",
+          repoFullName: "",
+          number: 0,
+          url: "",
+          title: "",
+          body: null,
+          headRef: null,
+          state: "closed",
+          draft: null,
+          deleted: true,
+        };
+        enqueuePrIndex(jobData).catch((error) => {
+          console.error(
+            `Failed to enqueue PR index delete for ${externalKey}:`,
+            error,
+          );
+        });
+      }
+
+      return deleted?.id ?? null;
     }),
 
     /**

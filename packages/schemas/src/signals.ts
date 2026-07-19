@@ -385,6 +385,43 @@ export const threadReadJobDataSchema = z.object({
 });
 export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
 
+// --- PR embedding index (FRO-203) -----------------------------------------
+
+/**
+ * Contract for a `pr-index` job: the API enqueues one after every mirror write
+ * that touches an [external pull request](../../CONTEXT.md); the worker embeds
+ * it (title + body + head ref) and upserts it into the PR vector index with an
+ * `eligible` flag (open, non-draft). This channel is **index-only** — it never
+ * fans out `pr_matched` thread reads (that push path is separate).
+ *
+ * The worker derives eligibility itself from `state`/`draft` rather than
+ * trusting a precomputed flag, so the mirror row stays the single source of
+ * truth. `deleted` signals the mirror row was soft-deleted (issue/PR removed or
+ * transferred out) and the vector should be dropped.
+ */
+export const prIndexJobDataSchema = z.object({
+  organizationId: z.string(),
+  /** Mirror row id (`externalEntity.id`); stored on the vector so a push-side
+   * match can resolve it back to a `PrMatchCandidate.prId`. */
+  externalEntityId: z.string(),
+  /** Provider-agnostic key `provider:owner/repo#number`; the vector's identity. */
+  externalKey: z.string(),
+  provider: z.string(),
+  repoFullName: z.string(),
+  number: z.number(),
+  url: z.string(),
+  title: z.string(),
+  body: z.string().nullable(),
+  headRef: z.string().nullable(),
+  /** Upstream PR state ("open" | "closed"); drives eligibility. */
+  state: z.string(),
+  /** Draft flag; a draft PR is never eligible. */
+  draft: z.boolean().nullable(),
+  /** Mirror row was soft-deleted — drop the vector instead of embedding. */
+  deleted: z.boolean().optional(),
+});
+export type PrIndexJobData = z.infer<typeof prIndexJobDataSchema>;
+
 // --- Status labels (kept) -------------------------------------------------
 
 export const STATUS_LABELS: Record<number, string> = {
