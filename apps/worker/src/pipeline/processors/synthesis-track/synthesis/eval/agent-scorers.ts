@@ -9,6 +9,7 @@ type Out = {
   raw: SynthesisRawActionSet;
   toolCalls: {
     read_thread: number;
+    read_pr: number;
     search_documentation: number;
     read_documentation_page: number;
   };
@@ -141,6 +142,12 @@ export const minimumToolCalls = createScorer<In, Out, Expected>({
       failures.push(`read_thread<${minimums.read_thread}`);
     }
     if (
+      typeof minimums.read_pr === "number" &&
+      output.toolCalls.read_pr < minimums.read_pr
+    ) {
+      failures.push(`read_pr<${minimums.read_pr}`);
+    }
+    if (
       typeof minimums.search_documentation === "number" &&
       output.toolCalls.search_documentation < minimums.search_documentation
     ) {
@@ -256,6 +263,22 @@ export const unrepliedThreadReplyCoupling = createScorer<In, Out, Expected>({
     }
 
     return { score: 1, metadata: { primaryKinds } };
+  },
+});
+
+export const atMostOneLinkPr = createScorer<In, Out, Expected>({
+  name: "At Most One Link PR",
+  description:
+    "A thread links a single PR: at most one link_pr across primary + alternatives (FRO-204).",
+  scorer: ({ output }) => {
+    const linkPrCount = [
+      ...output.raw.primary,
+      ...(output.raw.alternatives ?? []),
+    ].filter((action) => action.kind === "link_pr").length;
+    return {
+      score: linkPrCount <= 1 ? 1 : 0,
+      metadata: { linkPrCount },
+    };
   },
 });
 

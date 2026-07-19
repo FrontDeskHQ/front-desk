@@ -1,6 +1,9 @@
 import { tool } from "ai";
 import z from "zod";
-import { fetchThreadWithRelations } from "../../../../lib/database/client";
+import {
+  fetchMirroredPrByUrl,
+  fetchThreadWithRelations,
+} from "../../../../lib/database/client";
 import {
   readDocumentationPage,
   searchDocumentation,
@@ -62,6 +65,44 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
             priority: thread.priority,
             createdAt: thread.createdAt,
             messages: toOrderedMessages(thread),
+          },
+        };
+      },
+    }),
+
+    read_pr: tool({
+      description:
+        "Read a mirrored pull request by its URL (same organization only) to " +
+        "verify a candidate link before emitting link_pr. Returns the PR title, " +
+        "body, state, draft/merged flags, branch refs, author, and labels.",
+      inputSchema: z.object({
+        prUrl: z.string(),
+      }),
+      execute: async ({ prUrl }) => {
+        const pr = await fetchMirroredPrByUrl(organizationId, prUrl);
+
+        if (!pr) {
+          return {
+            found: false,
+            reason: "not_mirrored",
+          };
+        }
+
+        return {
+          found: true,
+          pr: {
+            url: pr.url,
+            repoFullName: pr.repoFullName,
+            number: pr.number,
+            title: pr.title,
+            body: pr.body,
+            state: pr.state,
+            draft: pr.draft,
+            merged: pr.merged,
+            headRef: pr.headRef,
+            baseRef: pr.baseRef,
+            authorLogin: pr.authorLogin,
+            labels: pr.labels,
           },
         };
       },

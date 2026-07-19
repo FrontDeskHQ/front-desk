@@ -79,6 +79,33 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     }),
 
     /**
+     * A single non-deleted mirrored pull request by canonical URL — the
+     * synthesis `read_pr` tool's depth-verification lookup (FRO-204). Keyed by
+     * URL to mirror the link-PR handler, which routes by the same canonical URL
+     * the `link_pr` action carries. Internal (worker) use only.
+     */
+    prByUrl: query(
+      z.object({
+        organizationId: z.string(),
+        url: z.string(),
+      }),
+    ).handler(async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+      return (
+        Object.values(
+          await db.find(schema.externalEntity, {
+            where: {
+              organizationId: req.input.organizationId,
+              url: req.input.url,
+              type: "pull_request",
+              deletedAt: null,
+            },
+          }),
+        )[0] ?? null
+      );
+    }),
+
+    /**
      * Insert or update the mirror row identified by
      * `(organizationId, externalKey)`. Refreshes `lastSyncedAt` and clears any
      * previous `deletedAt` (a live event means the entity exists again).

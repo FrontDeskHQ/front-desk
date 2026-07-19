@@ -6,6 +6,7 @@ import type { createSynthesisTools } from "../tools";
 import { synthesizeThreadRead } from "../synthesize";
 import { synthesisAgentDataset, type SynthesisAgentEvalInput } from "./agent-dataset";
 import {
+  atMostOneLinkPr,
   forbiddenPrimaryKinds,
   minimumToolCalls,
   nonEmptyPrimaryWhenExpected,
@@ -21,6 +22,7 @@ type SynthesisTools = ReturnType<typeof createSynthesisTools>;
 
 type ToolOutput<T> = T extends Tool<infer _I, infer O> ? O : never;
 type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
+type ReadPrOutput = ToolOutput<SynthesisTools["read_pr"]>;
 
 const createMockTools = (
   fixtures: SynthesisAgentEvalInput["toolFixtures"],
@@ -28,12 +30,14 @@ const createMockTools = (
   tools: SynthesisTools;
   counters: {
     read_thread: number;
+    read_pr: number;
     search_documentation: number;
     read_documentation_page: number;
   };
 } => {
   const counters = {
     read_thread: 0,
+    read_pr: 0,
     search_documentation: 0,
     read_documentation_page: 0,
   };
@@ -62,6 +66,16 @@ const createMockTools = (
             })),
           },
         };
+      },
+    }),
+    read_pr: tool({
+      description: "Read a mirrored PR from mocked fixtures.",
+      inputSchema: z.object({ prUrl: z.string() }),
+      execute: async ({ prUrl }): Promise<ReadPrOutput> => {
+        counters.read_pr++;
+        const pr = fixtures.prsByUrl?.[prUrl];
+        if (!pr) return { found: false, reason: "not_mirrored" };
+        return { found: true, pr };
       },
     }),
     search_documentation: tool({
@@ -134,5 +148,6 @@ evalite("Synthesis Agent (Model In Loop)", {
     minimumToolCalls,
     reasoningUserSafe,
     unrepliedThreadReplyCoupling,
+    atMostOneLinkPr,
   ],
 });

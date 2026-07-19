@@ -10,8 +10,8 @@ export type SynthesisEvalCase = {
   };
   expected: {
     shouldBeNull: boolean;
-    primaryKinds: Array<"reply" | "mark_duplicate" | "close">;
-    alternativesKinds: Array<"reply" | "mark_duplicate" | "close">;
+    primaryKinds: Array<"reply" | "mark_duplicate" | "link_pr" | "close">;
+    alternativesKinds: Array<"reply" | "mark_duplicate" | "link_pr" | "close">;
     sourceInputMessageId: string | null;
   };
 };
@@ -174,7 +174,8 @@ export const synthesisDataset: SynthesisEvalCase[] = [
           { kind: "mark_duplicate", targetThreadId: "t-123" },
           {
             kind: "reply",
-            draftMarkdown: "Thanks for reporting this — it matches an existing thread we are tracking.",
+            draftMarkdown:
+              "Thanks for reporting this — it matches an existing thread we are tracking.",
           },
         ],
         alternatives: [{ kind: "close" }],
@@ -220,6 +221,88 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       primaryKinds: ["close"],
       alternativesKinds: ["reply"],
       sourceInputMessageId: "m5",
+    },
+  },
+  {
+    name: "link_pr primary keeps only the first across primary and alternatives",
+    input: {
+      output: {
+        summary: "Customer hit a bug fixed by an open PR",
+        recommendation: "Link the pull request that fixes this.",
+        reasoning: "The open PR addresses the reported crash.",
+        primary: [
+          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/1" },
+        ],
+        alternatives: [
+          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/2" },
+        ],
+        urgencyScore: 40,
+        sourceInputMessageId: "m9",
+      },
+      messageIds: ["m9"],
+      fallbackSourceInputMessageId: "m9",
+      hasTeamReply: true,
+    },
+    expected: {
+      shouldBeNull: false,
+      primaryKinds: ["link_pr"],
+      alternativesKinds: [],
+      sourceInputMessageId: "m9",
+    },
+  },
+  {
+    name: "standalone link_pr on unreplied thread is dropped to null",
+    input: {
+      output: {
+        summary: "Customer reported a bug an open PR fixes",
+        recommendation: "Link the pull request that fixes this.",
+        reasoning: "The open PR resolves the report, but nobody has replied.",
+        primary: [
+          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/3" },
+        ],
+        alternatives: [],
+        urgencyScore: 45,
+        sourceInputMessageId: "m10",
+      },
+      messageIds: ["m10"],
+      fallbackSourceInputMessageId: "m10",
+      hasTeamReply: false,
+    },
+    expected: {
+      shouldBeNull: true,
+      primaryKinds: [],
+      alternativesKinds: [],
+      sourceInputMessageId: null,
+    },
+  },
+  {
+    name: "link_pr coupled with reply on unreplied thread orders link_pr first",
+    input: {
+      output: {
+        summary: "Customer reported a bug an open PR fixes",
+        recommendation: "Link the pull request and let the customer know.",
+        reasoning: "The open PR resolves the report; acknowledge the customer.",
+        primary: [
+          {
+            kind: "reply",
+            draftMarkdown:
+              "Thanks for the detailed report — a fix for this is already in review and we'll let you know as soon as it ships.",
+          },
+          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/4" },
+        ],
+        alternatives: [],
+        urgencyScore: 50,
+        sourceInputMessageId: "m11",
+      },
+      messageIds: ["m11"],
+      fallbackSourceInputMessageId: "m11",
+      hasTeamReply: false,
+    },
+    expected: {
+      shouldBeNull: false,
+      primaryKinds: ["link_pr", "reply"],
+      alternativesKinds: [],
+      sourceInputMessageId: "m11",
     },
   },
 ];
