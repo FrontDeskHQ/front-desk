@@ -7,7 +7,22 @@ import {
 } from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
+import { enqueuePrMatch } from "../lib/queue";
 import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
+
+/**
+ * Pull-request actions that warrant a push-side thread match (FRO-205): the PR
+ * became newly matchable — opened, reopened, undrafted, or its title/body was
+ * edited. Deliberately excludes `synchronize` (new commits don't change the
+ * semantic content we match on) and close/draft transitions (those make it
+ * ineligible). A draft PR is filtered out again below by the eligibility check.
+ */
+const PR_MATCH_ACTIONS = new Set([
+  "opened",
+  "reopened",
+  "ready_for_review",
+  "edited",
+]);
 
 /**
  * Resolve the FrontDesk organization that owns a GitHub installation by
@@ -180,6 +195,26 @@ export const setupWebhooks = () => {
 
       if (action === "closed") {
         resolveLinkedThreads(fields, { merged: fields.merged ?? false });
+      }
+
+      // Push-side discovery (FRO-205): when an eligible (open, non-draft) PR
+      // becomes newly matchable, embed it and fan out `pr_matched` reads to
+      // similar active threads. The worker owns the embed/search/fan-out; this
+      // only kicks it off. Excludes `synchronize` and close/draft transitions.
+      if (
+        PR_MATCH_ACTIONS.has(action) &&
+        fields.state === "open" &&
+        fields.draft !== true
+      ) {
+        await enqueuePrMatch({
+          organizationId,
+          externalKey: fields.externalKey,
+          title: fields.title,
+          body: fields.body,
+          headRef: fields.headRef,
+          state: fields.state,
+          draft: fields.draft,
+        });
       }
     } catch (error) {
       console.error("[GitHub] Error handling pull_request webhook:", error);

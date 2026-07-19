@@ -1,4 +1,5 @@
 import { createRedisConnection } from "@connectors/framework/runtime";
+import type { PrMatchJobData } from "@workspace/schemas/signals";
 import { Queue } from "bullmq";
 
 export { createRedisConnection } from "@connectors/framework/runtime";
@@ -125,5 +126,54 @@ export const enqueueRepoReconcile = async (data: ReconcileRepoJobData) => {
     backoff: { type: "exponential", delay: 10_000 },
     removeOnComplete: { count: 100, age: 24 * 3600 },
     removeOnFail: { count: 200 },
+  });
+};
+
+/**
+ * PR push-side match queue (FRO-205). The github connector produces onto it from
+ * the pull-request webhook; the worker (apps/worker) owns the processor —
+ * signals/embedding is the worker's domain, not this app's. Keep the queue and
+ * job names in sync with the consumer (`PR_MATCH_QUEUE` in apps/worker).
+ */
+const PR_MATCH_QUEUE = "pr-match";
+const PR_MATCH_JOB_NAME = "match-pr";
+
+let prMatchQueue: Queue<PrMatchJobData> | null = null;
+
+const getPrMatchQueue = (): Queue<PrMatchJobData> => {
+  if (!prMatchQueue) {
+    prMatchQueue = new Queue<PrMatchJobData>(PR_MATCH_QUEUE, {
+      connection: createRedisConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { type: "exponential", delay: 5000 },
+      },
+    });
+  }
+  return prMatchQueue;
+};
+
+/**
+ * Enqueue a push-side match for a PR. One pending job per PR
+ * (`pr-match:{externalKey}`) coalesces a burst of webhook events (open → edit)
+ * into a single embed + search: any prior non-active job for the same PR is
+ * dropped so the latest content wins, matching `enqueuePrIndex`'s scheme.
+ */
+export const enqueuePrMatch = async (data: PrMatchJobData) => {
+  const q = getPrMatchQueue();
+  const jobId = `pr-match:${data.externalKey}`;
+
+  const existing = await q.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "active") {
+      await existing.remove();
+    }
+  }
+
+  await q.add(PR_MATCH_JOB_NAME, data, {
+    jobId,
+    removeOnComplete: { count: 100, age: 24 * 3600 },
+    removeOnFail: { count: 500 },
   });
 };

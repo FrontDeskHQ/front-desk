@@ -3,9 +3,16 @@ import type { PrIndexJobData } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
-import { enqueueGithubBackfill, enqueuePrIndex } from "../../lib/queue";
+import {
+  enqueueGithubBackfill,
+  enqueuePrIndex,
+  enqueueThreadRead,
+} from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
+
+/** Thread statuses a push-side PR match may light up: Open (0), In progress (1). */
+const PR_MATCH_ACTIVE_STATUSES = new Set([0, 1]);
 
 /**
  * Org-scoped mirror of external issues/PRs.
@@ -103,6 +110,77 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           }),
         )[0] ?? null
       );
+    }),
+
+    /**
+     * Fan out `pr_matched` thread reads for a push-side PR match (FRO-205). The
+     * worker's `match-pr` job passes the similar-thread candidates it found in
+     * the vector index; this resolves the PR from the mirror, filters the
+     * candidates to *unlinked* Open / In-progress threads (the DB is the source
+     * of truth — a vector payload's status can lag), and enqueues one
+     * `pr_matched` read per survivor. Synthesis decides whether to emit
+     * `link_pr` (ADR 0006). Internal (worker) use only.
+     */
+    fanOutPrMatch: mutation(
+      z.object({
+        organizationId: z.string(),
+        externalKey: z.string(),
+        matches: z.array(
+          z.object({ threadId: z.string(), score: z.number().min(0).max(1) }),
+        ),
+      }),
+    ).handler(async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+
+      const { organizationId, externalKey, matches } = req.input;
+      if (matches.length === 0) return { enqueued: 0 };
+
+      const pr = Object.values(
+        await db.find(schema.externalEntity, {
+          where: {
+            organizationId,
+            externalKey,
+            type: "pull_request",
+            deletedAt: null,
+          },
+        }),
+      )[0];
+      // PR gone (closed-and-deleted / transferred out) since the match ran.
+      if (!pr) return { enqueued: 0 };
+
+      const threads = new Map(
+        Object.values(
+          await db.find(schema.thread, {
+            where: { id: { $in: matches.map((m) => m.threadId) } },
+          }),
+        ).map((thread) => [thread.id, thread]),
+      );
+
+      let enqueued = 0;
+      for (const { threadId, score } of matches) {
+        const thread = threads.get(threadId);
+        // Skip threads that are gone, closed/resolved, or already PR-linked.
+        if (
+          !thread ||
+          !PR_MATCH_ACTIVE_STATUSES.has(thread.status) ||
+          thread.externalPrId
+        ) {
+          continue;
+        }
+
+        const jobId = await enqueueThreadRead(threadId, {
+          kind: "pr_matched",
+          prMatched: {
+            prId: pr.id,
+            url: pr.url,
+            title: pr.title,
+            score,
+          },
+        });
+        if (jobId) enqueued += 1;
+      }
+
+      return { enqueued };
     }),
 
     /**

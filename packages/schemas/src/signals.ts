@@ -443,6 +443,34 @@ export type PrIndexJobData = z.infer<typeof prIndexJobDataSchema>;
 /** The upsert (embed-and-index) variant, narrowed from a non-`deleted` job. */
 export type PrIndexUpsertJobData = z.infer<typeof prIndexUpsertSchema>;
 
+// --- PR push-side match (FRO-205) -----------------------------------------
+
+/**
+ * Contract for a `match-pr` job: GitHub webhooks enqueue one when an eligible
+ * PR opens / reopens / is marked ready-for-review / is edited (not on
+ * `synchronize`). The worker embeds the PR (title + body + head ref), searches
+ * for similar Open / In-progress unlinked [threads](../../CONTEXT.md), and fans
+ * out a `pr_matched` thread read per strong match (ADR 0006 trigger channel).
+ *
+ * This is the *push* side of PR↔thread discovery — distinct from the index-only
+ * `pr-index` channel (FRO-203), which keeps the vector current but never fans
+ * out reads. The worker re-derives eligibility from `state` / `draft` so a
+ * stale enqueue for a since-closed / re-drafted PR is dropped.
+ */
+export const prMatchJobDataSchema = z.object({
+  organizationId: z.string(),
+  /** Provider-agnostic key `provider:owner/repo#number`; the PR's identity. */
+  externalKey: z.string(),
+  title: z.string(),
+  body: z.string().nullable(),
+  headRef: z.string().nullable(),
+  /** Upstream PR state ("open" | "closed"); drives eligibility. */
+  state: z.string(),
+  /** Draft flag; a draft PR is never eligible. */
+  draft: z.boolean().nullable(),
+});
+export type PrMatchJobData = z.infer<typeof prMatchJobDataSchema>;
+
 // --- Status labels (kept) -------------------------------------------------
 
 export const STATUS_LABELS: Record<number, string> = {
