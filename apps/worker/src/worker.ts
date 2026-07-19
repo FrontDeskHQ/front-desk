@@ -77,7 +77,7 @@ const connection = getRedisConnection();
  * synthesis processor.
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
-  const { threadId, kind } = job.data;
+  const { threadId, kind, prMatched } = job.data;
 
   if (!threadId) {
     throw new Error("No threadId provided");
@@ -85,10 +85,15 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
 
   log.info(
     "worker.thread-pipeline",
-    `Processing job ${job.id} (thread=${threadId}, kind=${kind})`,
+    `Processing job ${job.id} (thread=${threadId}, kind=${kind}${
+      prMatched ? `, pr=${prMatched.prId}` : ""
+    })`,
   );
 
-  const result = await executePipeline({ threadIds: [threadId] });
+  const result = await executePipeline({
+    threadIds: [threadId],
+    trigger: { kind, ...(prMatched ? { prMatched } : {}) },
+  });
 
   const successRate =
     result.summary.totalThreads > 0

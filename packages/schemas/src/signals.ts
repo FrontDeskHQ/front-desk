@@ -352,9 +352,36 @@ export const threadReadKindSchema = z.enum([
 ]);
 export type ThreadReadKind = z.infer<typeof threadReadKindSchema>;
 
+/**
+ * Candidate PR pushed by a `pr_matched` trigger. This is a *fuzzy* push-side
+ * similarity match (see ADR 0006) — synthesis treats it as a lead, not a
+ * confirmed link. `prId` is the mirrored FrontDesk PR row id; `score` is the
+ * cosine similarity of the match (0–1).
+ */
+export const prMatchCandidateSchema = z.object({
+  prId: z.string(),
+  url: z.string(),
+  title: z.string(),
+  score: z.number().min(0).max(1),
+});
+export type PrMatchCandidate = z.infer<typeof prMatchCandidateSchema>;
+
+/**
+ * The trigger-context channel (ADR 0006): the cause of a pipeline run plus any
+ * payload it pushed. Kept separate from `hints` so synthesis can distinguish a
+ * push-side `pr_matched` candidate from a pull-side `related_prs` hint.
+ */
+export const threadReadTriggerSchema = z.object({
+  kind: threadReadKindSchema,
+  prMatched: prMatchCandidateSchema.optional(),
+});
+export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
+
 export const threadReadJobDataSchema = z.object({
   threadId: z.string(),
   kind: threadReadKindSchema,
+  /** Candidate PR carried by a `pr_matched` trigger; preserved across merges. */
+  prMatched: prMatchCandidateSchema.optional(),
 });
 export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
 
