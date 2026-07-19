@@ -246,15 +246,17 @@ export const enqueuePrIndex = async (
     return null;
   }
 
-  // Latest mirror state wins: a pending re-index for the same PR is replaced by
-  // this newer one (BullMQ ignores `add` for an existing jobId, so drop the
-  // stale job first). Cheap because the worker skips re-embedding on unchanged
-  // content anyway.
+  // Latest mirror state wins: any prior re-index for the same PR is replaced by
+  // this newer one (BullMQ ignores `add` for an existing jobId — across *all*
+  // states, including completed/failed — so drop the stale job first). We remove
+  // in every state except `active`, where the processor is mid-run and removal is
+  // unsafe; that window is narrow and the worker's content-hash dedup mitigates
+  // it. Cheap because the worker skips re-embedding on unchanged content anyway.
   const jobId = `pr-index:${data.externalKey}`;
   const existing = await q.getJob(jobId);
   if (existing) {
     const state = await existing.getState();
-    if (state === "delayed" || state === "waiting") {
+    if (state !== "active") {
       await existing.remove();
     }
   }

@@ -16,8 +16,10 @@ export const PR_MATCH_THRESHOLD = 0.85;
 
 /**
  * A mirrored [external pull request](../../../../CONTEXT.md) as stored in the
- * vector index. The point is keyed deterministically by `externalKey`, so a
- * re-index overwrites in place rather than accumulating duplicates.
+ * vector index. The point is keyed deterministically by
+ * `(organizationId, externalKey)` — the mirror row's real identity — so a
+ * re-index overwrites in place rather than accumulating duplicates, and the same
+ * upstream PR mirrored under two orgs stays on distinct points.
  */
 export interface PrPayload {
   /** Provider-agnostic key `provider:owner/repo#number`. */
@@ -41,11 +43,18 @@ export interface PrPayload {
 
 /**
  * Deterministic Qdrant point id for a PR. Qdrant point ids must be an unsigned
- * integer or a UUID string; we hash the `externalKey` and format the digest as a
- * UUID so the same PR always lands on the same point (idempotent upsert).
+ * integer or a UUID string; we hash the mirror row's identity
+ * (`organizationId:externalKey`) and format the digest as a UUID so the same PR
+ * always lands on the same point (idempotent upsert) while two orgs mirroring the
+ * same upstream PR never collide.
  */
-export const prPointId = (externalKey: string): string => {
-  const hex = createHash("sha256").update(externalKey).digest("hex");
+export const prPointId = (
+  organizationId: string,
+  externalKey: string,
+): string => {
+  const hex = createHash("sha256")
+    .update(`${organizationId}:${externalKey}`)
+    .digest("hex");
   return [
     hex.slice(0, 8),
     hex.slice(8, 12),
@@ -107,11 +116,12 @@ export const ensurePrsCollection = async (): Promise<boolean> => {
 
 /** Fetch the stored point for a PR, or null when it was never indexed. */
 export const getPrPoint = async (
+  organizationId: string,
   externalKey: string,
 ): Promise<{ payload: PrPayload } | null> => {
   try {
     const points = await qdrantClient.retrieve(PRS_COLLECTION, {
-      ids: [prPointId(externalKey)],
+      ids: [prPointId(organizationId, externalKey)],
       with_payload: true,
     });
     const point = points[0];
@@ -133,7 +143,7 @@ export const upsertPrVector = async (
       wait: true,
       points: [
         {
-          id: prPointId(payload.externalKey),
+          id: prPointId(payload.organizationId, payload.externalKey),
           vector,
           payload: payload as unknown as Record<string, unknown>,
         },
@@ -152,6 +162,7 @@ export const upsertPrVector = async (
  * embed-relevant content unchanged.
  */
 export const setPrEligibility = async (
+  organizationId: string,
   externalKey: string,
   eligible: boolean,
   updatedAt: number,
@@ -159,7 +170,7 @@ export const setPrEligibility = async (
   try {
     await qdrantClient.setPayload(PRS_COLLECTION, {
       wait: true,
-      points: [prPointId(externalKey)],
+      points: [prPointId(organizationId, externalKey)],
       payload: { eligible, updatedAt },
     });
     return true;
@@ -170,11 +181,14 @@ export const setPrEligibility = async (
 };
 
 /** Remove a PR's point (mirror row deleted / transferred out). */
-export const deletePrVector = async (externalKey: string): Promise<boolean> => {
+export const deletePrVector = async (
+  organizationId: string,
+  externalKey: string,
+): Promise<boolean> => {
   try {
     await qdrantClient.delete(PRS_COLLECTION, {
       wait: true,
-      points: [prPointId(externalKey)],
+      points: [prPointId(organizationId, externalKey)],
     });
     return true;
   } catch (error) {

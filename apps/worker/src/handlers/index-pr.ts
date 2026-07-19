@@ -75,13 +75,13 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
 
   // Mirror row removed: drop the vector and stop.
   if (data.deleted) {
-    await deletePrVector(externalKey);
+    await deletePrVector(organizationId, externalKey);
     log.info("worker.pr-index", `Deleted PR vector ${externalKey}`);
     return { externalKey, action: "deleted" as const };
   }
 
   const eligible = data.state === "open" && data.draft !== true;
-  const existing = await getPrPoint(externalKey);
+  const existing = await getPrPoint(organizationId, externalKey);
 
   // Ineligible and never indexed — nothing searchable to store or exclude.
   if (!eligible && !existing) {
@@ -99,7 +99,7 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
   // Content unchanged since the last index: no re-embed needed. Flip the
   // eligibility flag (and refresh updatedAt) on the existing point in place.
   if (existing && existing.payload.contentHash === contentHash) {
-    await setPrEligibility(externalKey, eligible, now);
+    await setPrEligibility(organizationId, externalKey, eligible, now);
     log.info(
       "worker.pr-index",
       `Refreshed PR ${externalKey} eligibility=${eligible} (no re-embed)`,
