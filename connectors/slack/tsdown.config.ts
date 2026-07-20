@@ -10,5 +10,5 @@ export default defineConfig({
   clean: true,
   dts: false,
   platform: "node",
-  noExternal: [/^@workspace\//],
+  noExternal: [/^@workspace\//, /^@connectors\//],
 });
