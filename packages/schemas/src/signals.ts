@@ -396,16 +396,24 @@ export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
  *
  * The worker derives eligibility itself from `state`/`draft` rather than
  * trusting a precomputed flag, so the mirror row stays the single source of
- * truth. `deleted` signals the mirror row was soft-deleted (issue/PR removed or
- * transferred out) and the vector should be dropped.
+ * truth. A `deleted` job signals the mirror row was soft-deleted (issue/PR
+ * removed or transferred out) and the vector should be dropped — it carries
+ * only the identity fields, since none of the embed content is meaningful for a
+ * delete.
  */
-export const prIndexJobDataSchema = z.object({
+const prIndexIdentity = {
   organizationId: z.string(),
   /** Mirror row id (`externalEntity.id`); stored on the vector so a push-side
    * match can resolve it back to a `PrMatchCandidate.prId`. */
   externalEntityId: z.string(),
   /** Provider-agnostic key `provider:owner/repo#number`; the vector's identity. */
   externalKey: z.string(),
+};
+
+/** Upsert variant: embed the PR and (re)index it with a derived `eligible` flag. */
+export const prIndexUpsertSchema = z.object({
+  ...prIndexIdentity,
+  deleted: z.literal(false).optional(),
   provider: z.string(),
   repoFullName: z.string(),
   number: z.number(),
@@ -417,10 +425,21 @@ export const prIndexJobDataSchema = z.object({
   state: z.string(),
   /** Draft flag; a draft PR is never eligible. */
   draft: z.boolean().nullable(),
-  /** Mirror row was soft-deleted — drop the vector instead of embedding. */
-  deleted: z.boolean().optional(),
 });
+
+/** Delete variant: drop the vector. Carries only identity — no embed content. */
+export const prIndexDeleteSchema = z.object({
+  ...prIndexIdentity,
+  deleted: z.literal(true),
+});
+
+export const prIndexJobDataSchema = z.union([
+  prIndexUpsertSchema,
+  prIndexDeleteSchema,
+]);
 export type PrIndexJobData = z.infer<typeof prIndexJobDataSchema>;
+/** The upsert (embed-and-index) variant, narrowed from a non-`deleted` job. */
+export type PrIndexUpsertJobData = z.infer<typeof prIndexUpsertSchema>;
 
 // --- Status labels (kept) -------------------------------------------------
 

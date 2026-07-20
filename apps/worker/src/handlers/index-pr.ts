@@ -1,6 +1,9 @@
 import { createHash } from "node:crypto";
 import { google } from "@ai-sdk/google";
-import type { PrIndexJobData } from "@workspace/schemas/signals";
+import type {
+  PrIndexJobData,
+  PrIndexUpsertJobData,
+} from "@workspace/schemas/signals";
 import { log } from "@workspace/utils/logging";
 import { embed } from "ai";
 import type { Job } from "bullmq";
@@ -20,7 +23,7 @@ const embeddingModel = google.embedding(EMBEDDING_MODEL);
  * FRO-201). The head ref (branch name) is a strong, terse signal
  * (e.g. `fix/oauth-token-refresh`) worth its own line.
  */
-const buildEmbedText = (data: PrIndexJobData): string =>
+const buildEmbedText = (data: PrIndexUpsertJobData): string =>
   [
     `title: ${data.title}`,
     data.body ? `body: ${data.body}` : null,

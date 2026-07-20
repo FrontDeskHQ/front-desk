@@ -183,15 +183,6 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           organizationId,
           externalEntityId: deleted.id,
           externalKey,
-          provider: "",
-          repoFullName: "",
-          number: 0,
-          url: "",
-          title: "",
-          body: null,
-          headRef: null,
-          state: "closed",
-          draft: null,
           deleted: true,
         };
         enqueuePrIndex(jobData).catch((error) => {
