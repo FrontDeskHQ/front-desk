@@ -96,7 +96,7 @@ _Avoid_: "cache" (implies disposable/expiry; the mirror is durable and queried a
 
 ### PR index
 
-The vector index of mirrored [external pull requests](#external-pull-request), kept in step with the [mirror](#mirror) so PR↔thread similarity can be searched. Each indexed PR carries an **`eligible`** flag — true only while the PR is *open and non-draft* — and search filters to eligible PRs. Every mirror write (webhook, backfill, drift reconciliation) refreshes the index; close / convert-to-draft flips `eligible` false, reopen / ready_for_review / content edits refresh it. Indexing is **index-only**: it never enqueues a `pr_matched` [trigger](#trigger). The index feeds both discovery paths — the push-side match (PR → similar threads) and the pull-side `related_prs` [hint](#read-hint) (thread → similar PRs). A PR is embedded from its *title + body + head ref*.
+The vector index of mirrored [external pull requests](#external-pull-request), kept in step with the [mirror](#mirror) so PR↔thread similarity can be searched. Each indexed PR carries an **`eligible`** flag — true only while the PR is *open and non-draft* — and search filters to eligible PRs. Every mirror write (webhook, backfill, drift reconciliation) refreshes the index; close / convert-to-draft flips `eligible` false, reopen / ready_for_review / content edits refresh it. Indexing is **index-only**: it never enqueues a `pr_matched` [trigger](#trigger). This PR only *maintains* the index — it implements neither discovery flow. The index is intended to feed two future consumers: the push-side match (PR → similar threads) and the pull-side `related_prs` [hint](#read-hint) (thread → similar PRs). A PR is embedded from its *title + body + head ref*.
 
 ### Flagged ambiguities
 
