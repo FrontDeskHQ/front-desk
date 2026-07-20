@@ -427,8 +427,10 @@ export const prIndexUpsertSchema = z.object({
   draft: z.boolean().nullable(),
 });
 
-/** Delete variant: drop the vector. Carries only identity — no embed content. */
-export const prIndexDeleteSchema = z.object({
+/** Delete variant: drop the vector. Carries only identity — no embed content.
+ * Strict so a payload with stray embed keys fails instead of silently parsing
+ * as an identity-only delete. */
+export const prIndexDeleteSchema = z.strictObject({
   ...prIndexIdentity,
   deleted: z.literal(true),
 });
