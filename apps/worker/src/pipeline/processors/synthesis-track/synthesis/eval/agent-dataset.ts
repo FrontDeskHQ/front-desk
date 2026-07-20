@@ -57,6 +57,8 @@ export type SynthesisAgentEvalCase = {
       search_documentation?: number;
       read_documentation_page?: number;
     };
+    /** When set, every emitted link_pr.prUrl must equal this exact URL. */
+    expectedLinkPrUrl?: string;
     forbiddenReplyPhrases?: string[];
   };
 };
@@ -777,6 +779,7 @@ const synthesisAgentDatasetCases: Array<
       mustIncludePrimaryKinds: ["link_pr"],
       requiresReplyDraft: false,
       minToolCalls: { read_pr: 1 },
+      expectedLinkPrUrl: "https://github.com/acme/api/pull/482",
     },
   },
   {
@@ -836,6 +839,7 @@ const synthesisAgentDatasetCases: Array<
       mustIncludePrimaryKinds: ["link_pr", "reply"],
       requiresReplyDraft: true,
       minToolCalls: { read_pr: 1 },
+      expectedLinkPrUrl: "https://github.com/acme/api/pull/511",
     },
   },
   {

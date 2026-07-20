@@ -7,7 +7,10 @@ import type { SynthesisRawActionSet } from "./synthesize";
 
 const allowedKinds = new Set(["reply", "mark_duplicate", "link_pr", "close"]);
 
-const normalizeAction = (action: Action): Action | null => {
+const normalizeAction = (
+  action: Action,
+  verifiedPrUrls?: Set<string>,
+): Action | null => {
   if (!allowedKinds.has(action.kind)) return null;
 
   if (action.kind === "reply") {
@@ -24,6 +27,8 @@ const normalizeAction = (action: Action): Action | null => {
   if (action.kind === "link_pr") {
     const prUrl = action.prUrl.trim();
     if (prUrl.length === 0) return null;
+    // When verified URLs are provided, reject link_pr that bypassed read_pr.
+    if (verifiedPrUrls && !verifiedPrUrls.has(prUrl)) return null;
     return { kind: "link_pr", prUrl };
   }
 
@@ -42,20 +47,26 @@ export const normalizeSynthesisRawActionSet = ({
   messageIds,
   fallbackSourceInputMessageId,
   hasTeamReply,
+  verifiedPrUrls,
 }: {
   output: SynthesisRawActionSet;
   messageIds: Set<string>;
   fallbackSourceInputMessageId: string;
   hasTeamReply: boolean;
+  /**
+   * PR URLs returned by successful `read_pr` calls. When set, any `link_pr`
+   * whose URL is not in this set is dropped (defense in depth vs synthesize).
+   */
+  verifiedPrUrls?: Set<string>;
 }): ThreadRead | null => {
   let primary = output.primary
-    .map((action) => normalizeAction(action as Action))
+    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
     .filter((action): action is Action => action !== null);
 
   if (primary.length === 0) return null;
 
   let alternatives = (output.alternatives ?? [])
-    .map((action) => normalizeAction(action as Action))
+    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
     .filter((action): action is Action => action !== null);
 
   // At most one link_pr across the whole action set (design lock, FRO-204): a

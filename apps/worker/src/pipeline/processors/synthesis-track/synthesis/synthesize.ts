@@ -10,6 +10,10 @@ import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, stepCountIs } from "ai";
 import z from "zod";
 import type { ParsedSummary } from "../../../../types";
+import {
+  collectVerifiedPrUrlsFromToolSteps,
+  filterLinkPrToVerifiedUrls,
+} from "./link-pr-verification";
 
 const synthesisActionSchema = z.discriminatedUnion("kind", [
   replyActionSchema,
@@ -197,12 +201,23 @@ Return a single valid JSON object with exactly this shape:
 `;
 
   const baseModel = google("gemini-2.5-flash");
-  const { text } = await generateText({
+  const { text, steps } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
     prompt,
     tools,
     stopWhen: stepCountIs(8),
   });
 
-  return parseRawActionSetFromText(text);
+  const raw = parseRawActionSetFromText(text);
+  // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
+  // Prompt instructions alone cannot authorize an external PR link.
+  const verifiedPrUrls = collectVerifiedPrUrlsFromToolSteps(steps);
+  return {
+    ...raw,
+    primary: filterLinkPrToVerifiedUrls(raw.primary, verifiedPrUrls),
+    alternatives: filterLinkPrToVerifiedUrls(
+      raw.alternatives ?? [],
+      verifiedPrUrls,
+    ),
+  };
 };

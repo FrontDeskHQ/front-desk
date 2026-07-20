@@ -7,6 +7,8 @@ export type SynthesisEvalCase = {
     messageIds: string[];
     fallbackSourceInputMessageId: string;
     hasTeamReply: boolean;
+    /** When set, link_pr URLs not in this list are dropped during normalize. */
+    verifiedPrUrls?: string[];
   };
   expected: {
     shouldBeNull: boolean;
@@ -303,6 +305,64 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       primaryKinds: ["link_pr", "reply"],
       alternativesKinds: [],
       sourceInputMessageId: "m11",
+    },
+  },
+  {
+    name: "unverified link_pr is dropped when verifiedPrUrls is provided",
+    input: {
+      output: {
+        summary: "Customer hit a bug",
+        recommendation: "Link the pull request that fixes this.",
+        reasoning: "Model invented a PR URL without reading it.",
+        primary: [
+          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/999" },
+          {
+            kind: "reply",
+            draftMarkdown:
+              "Thanks for the report — a fix for this is already in review.",
+          },
+        ],
+        alternatives: [],
+        urgencyScore: 40,
+        sourceInputMessageId: "m12",
+      },
+      messageIds: ["m12"],
+      fallbackSourceInputMessageId: "m12",
+      hasTeamReply: true,
+      // Successfully read a different PR — the fabricated URL must not pass.
+      verifiedPrUrls: ["https://github.com/acme/api/pull/482"],
+    },
+    expected: {
+      shouldBeNull: false,
+      primaryKinds: ["reply"],
+      alternativesKinds: [],
+      sourceInputMessageId: "m12",
+    },
+  },
+  {
+    name: "standalone unverified link_pr becomes null when verifiedPrUrls is provided",
+    input: {
+      output: {
+        summary: "Customer hit a bug",
+        recommendation: "Link the pull request that fixes this.",
+        reasoning: "Model emitted link_pr without a successful read_pr.",
+        primary: [
+          { kind: "link_pr", prUrl: "https://github.com/evil/repo/pull/1" },
+        ],
+        alternatives: [],
+        urgencyScore: 40,
+        sourceInputMessageId: "m13",
+      },
+      messageIds: ["m13"],
+      fallbackSourceInputMessageId: "m13",
+      hasTeamReply: true,
+      verifiedPrUrls: [],
+    },
+    expected: {
+      shouldBeNull: true,
+      primaryKinds: [],
+      alternativesKinds: [],
+      sourceInputMessageId: null,
     },
   },
 ];

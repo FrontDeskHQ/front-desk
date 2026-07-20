@@ -282,6 +282,38 @@ export const atMostOneLinkPr = createScorer<In, Out, Expected>({
   },
 });
 
+export const expectedLinkPrUrl = createScorer<In, Out, Expected>({
+  name: "Expected Link PR URL",
+  description:
+    "When expectedLinkPrUrl is set, every emitted link_pr must use that exact URL (from read_pr).",
+  scorer: ({ output, expected }) => {
+    const expectedUrl = expected?.expectedLinkPrUrl;
+    if (!expectedUrl) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+
+    const linkPrUrls = [
+      ...output.raw.primary,
+      ...(output.raw.alternatives ?? []),
+    ]
+      .filter((action) => action.kind === "link_pr")
+      .map((action) => (action.kind === "link_pr" ? action.prUrl : ""));
+
+    if (linkPrUrls.length === 0) {
+      return {
+        score: 0,
+        metadata: { reason: "missing_link_pr", expectedUrl },
+      };
+    }
+
+    const mismatches = linkPrUrls.filter((url) => url !== expectedUrl);
+    return {
+      score: mismatches.length === 0 ? 1 : 0,
+      metadata: { expectedUrl, linkPrUrls, mismatches },
+    };
+  },
+});
+
 export const reasoningUserSafe = createScorer<In, Out, Expected>({
   name: "Reasoning User Safe",
   description:

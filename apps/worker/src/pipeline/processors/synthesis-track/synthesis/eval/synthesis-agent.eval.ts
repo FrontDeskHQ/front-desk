@@ -7,6 +7,7 @@ import { synthesizeThreadRead } from "../synthesize";
 import { synthesisAgentDataset, type SynthesisAgentEvalInput } from "./agent-dataset";
 import {
   atMostOneLinkPr,
+  expectedLinkPrUrl,
   forbiddenPrimaryKinds,
   minimumToolCalls,
   nonEmptyPrimaryWhenExpected,
@@ -149,5 +150,6 @@ evalite("Synthesis Agent (Model In Loop)", {
     reasoningUserSafe,
     unrepliedThreadReplyCoupling,
     atMostOneLinkPr,
+    expectedLinkPrUrl,
   ],
 });
