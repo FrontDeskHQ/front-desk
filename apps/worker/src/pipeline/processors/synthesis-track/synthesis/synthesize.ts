@@ -12,7 +12,7 @@ import z from "zod";
 import type { ParsedSummary } from "../../../../types";
 import {
   collectVerifiedPrUrlsFromToolSteps,
-  filterLinkPrToVerifiedUrls,
+  filterActionSetToVerifiedLinkPr,
 } from "./link-pr-verification";
 
 const synthesisActionSchema = z.discriminatedUnion("kind", [
@@ -210,14 +210,17 @@ Return a single valid JSON object with exactly this shape:
 
   const raw = parseRawActionSetFromText(text);
   // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
-  // Prompt instructions alone cannot authorize an external PR link.
+  // Prompt instructions alone cannot authorize an external PR link. If primary
+  // loses a link_pr, discard the set so recommendation stays consistent.
   const verifiedPrUrls = collectVerifiedPrUrlsFromToolSteps(steps);
+  const filtered = filterActionSetToVerifiedLinkPr(
+    raw.primary,
+    raw.alternatives ?? [],
+    verifiedPrUrls,
+  );
   return {
     ...raw,
-    primary: filterLinkPrToVerifiedUrls(raw.primary, verifiedPrUrls),
-    alternatives: filterLinkPrToVerifiedUrls(
-      raw.alternatives ?? [],
-      verifiedPrUrls,
-    ),
+    primary: filtered.primary,
+    alternatives: filtered.alternatives,
   };
 };

@@ -308,7 +308,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
     },
   },
   {
-    name: "unverified link_pr is dropped when verifiedPrUrls is provided",
+    name: "unverified primary link_pr becomes null (avoids stale recommendation)",
     input: {
       output: {
         summary: "Customer hit a bug",
@@ -330,13 +330,15 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       fallbackSourceInputMessageId: "m12",
       hasTeamReply: true,
       // Successfully read a different PR — the fabricated URL must not pass.
+      // Dropping only link_pr would leave a stale "Link the PR" recommendation
+      // over a reply-only primary, so the whole set is discarded.
       verifiedPrUrls: ["https://github.com/acme/api/pull/482"],
     },
     expected: {
-      shouldBeNull: false,
-      primaryKinds: ["reply"],
+      shouldBeNull: true,
+      primaryKinds: [],
       alternativesKinds: [],
-      sourceInputMessageId: "m12",
+      sourceInputMessageId: null,
     },
   },
   {

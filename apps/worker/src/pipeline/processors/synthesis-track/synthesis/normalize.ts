@@ -59,6 +59,19 @@ export const normalizeSynthesisRawActionSet = ({
    */
   verifiedPrUrls?: Set<string>;
 }): ThreadRead | null => {
+  // If verified-link filtering would drop a primary link_pr, treat as no action
+  // — recommendation (and often the reply draft) assume that link and would be stale.
+  if (
+    verifiedPrUrls &&
+    output.primary.some(
+      (action) =>
+        action.kind === "link_pr" &&
+        !verifiedPrUrls.has((action.prUrl ?? "").trim()),
+    )
+  ) {
+    return null;
+  }
+
   let primary = output.primary
     .map((action) => normalizeAction(action as Action, verifiedPrUrls))
     .filter((action): action is Action => action !== null);

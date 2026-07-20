@@ -40,3 +40,25 @@ export const filterLinkPrToVerifiedUrls = <
     const prUrl = action.prUrl?.trim() ?? "";
     return prUrl.length > 0 && verifiedPrUrls.has(prUrl);
   });
+
+/**
+ * Filter `link_pr` to verified URLs. If primary loses any `link_pr`, discard the
+ * whole action set — recommendation (and often the reply draft) were written
+ * assuming that link and would be stale relative to remaining actions.
+ */
+export const filterActionSetToVerifiedLinkPr = <
+  T extends { kind: string; prUrl?: string },
+>(
+  primary: T[],
+  alternatives: T[],
+  verifiedPrUrls: Set<string>,
+): { primary: T[]; alternatives: T[] } => {
+  const filteredPrimary = filterLinkPrToVerifiedUrls(primary, verifiedPrUrls);
+  if (filteredPrimary.length !== primary.length) {
+    return { primary: [], alternatives: [] };
+  }
+  return {
+    primary: filteredPrimary,
+    alternatives: filterLinkPrToVerifiedUrls(alternatives, verifiedPrUrls),
+  };
+};
