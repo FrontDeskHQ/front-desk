@@ -94,6 +94,10 @@ _Avoid_: "PR" alone when ambiguous, "merge request".
 FrontDesk's local, read-only replica of authoritative external data ([external issues](#external-issue) and [external pull requests](#external-pull-request)). The external system is the source of truth; the mirror is only ever updated *from* it (webhooks + backfill + drift reconciliation), never written canonically from our side. Actions taken in FrontDesk go out to the external system and round-trip back into the mirror. Used as a verb ("we mirror the repo's issues") and a noun ("the mirror").
 _Avoid_: "cache" (implies disposable/expiry; the mirror is durable and queried as primary), "sync copy".
 
+### PR index
+
+The vector index of mirrored [external pull requests](#external-pull-request), kept in step with the [mirror](#mirror) so PR↔thread similarity can be searched. Each indexed PR carries an **`eligible`** flag — true only while the PR is *open and non-draft* — and search filters to eligible PRs. Every mirror write (webhook, backfill, drift reconciliation) refreshes the index; close / convert-to-draft flips `eligible` false, reopen / ready_for_review / content edits refresh it. Indexing is **index-only**: it never enqueues a `pr_matched` [trigger](#trigger). This PR only *maintains* the index — it implements neither discovery flow. The index is intended to feed two future consumers: the push-side match (PR → similar threads) and the pull-side `related_prs` [hint](#read-hint) (thread → similar PRs). A PR is embedded from its *title + body + head ref*.
+
 ### Flagged ambiguities
 
 **"External" is overloaded.** On a thread, `externalId` / `externalOrigin` mean *where the thread itself originated* (Discord channel, Slack message). This is **not** the same as a linked [external issue](#external-issue) / [external pull request](#external-pull-request), which is a separate developer-system entity the thread points to. When the origin is meant, say "thread origin"; when the linked entity is meant, say "external issue / pull request".

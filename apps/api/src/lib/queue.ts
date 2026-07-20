@@ -1,4 +1,5 @@
 import type {
+  PrIndexJobData,
   PrMatchCandidate,
   ThreadReadJobData,
   ThreadReadKind,
@@ -17,6 +18,8 @@ export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const THREAD_READ_JOB_NAME = "thread-read";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
+const PR_INDEX_QUEUE = "pr-index";
+const PR_INDEX_JOB_NAME = "index-pr";
 
 const DEFAULT_DEBOUNCE_MS = (() => {
   const raw = process.env.THREAD_READ_DEBOUNCE_MS;
@@ -196,6 +199,72 @@ export const enqueueCrawlDocumentation = async (
 
   const job = await queue.add("crawl-documentation", data, {
     jobId: `crawl-${data.documentationSourceId}`,
+  });
+
+  return job.id ?? null;
+};
+
+// PR embedding index queue (FRO-203)
+//
+// The worker owns the PR vector index (embedding + Qdrant live only there); the
+// API is the single mirror choke point (`externalEntity.upsert`), so it enqueues
+// an index job after every PR mirror write. Index-only: this never fans out
+// `pr_matched` thread reads. One pending job per PR (`pr-index:{externalKey}`)
+// coalesces a burst of mirror events into a single re-embed.
+
+let prIndexQueue: Queue<PrIndexJobData> | null = null;
+
+const getPrIndexQueue = (): Queue<PrIndexJobData> | null => {
+  if (prIndexQueue) {
+    return prIndexQueue;
+  }
+
+  connection ??= createRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  prIndexQueue = new Queue<PrIndexJobData>(PR_INDEX_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 5000 },
+    },
+  });
+  return prIndexQueue;
+};
+
+export const enqueuePrIndex = async (
+  data: PrIndexJobData,
+): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
+  const q = getPrIndexQueue();
+  if (!q) {
+    return null;
+  }
+
+  // Latest mirror state wins: any prior re-index for the same PR is replaced by
+  // this newer one (BullMQ ignores `add` for an existing jobId — across *all*
+  // states, including completed/failed — so drop the stale job first). We remove
+  // in every state except `active`, where the processor is mid-run and removal is
+  // unsafe; that window is narrow and the worker's content-hash dedup mitigates
+  // it. Cheap because the worker skips re-embedding on unchanged content anyway.
+  const jobId = `pr-index:${data.externalKey}`;
+  const existing = await q.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "active") {
+      await existing.remove();
+    }
+  }
+
+  const job = await q.add(PR_INDEX_JOB_NAME, data, {
+    jobId,
+    removeOnComplete: { count: 100, age: 24 * 3600 },
+    removeOnFail: { count: 500 },
   });
 
   return job.id ?? null;

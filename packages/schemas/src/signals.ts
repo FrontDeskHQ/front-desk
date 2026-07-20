@@ -385,6 +385,64 @@ export const threadReadJobDataSchema = z.object({
 });
 export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
 
+// --- PR embedding index (FRO-203) -----------------------------------------
+
+/**
+ * Contract for a `pr-index` job: the API enqueues one after every mirror write
+ * that touches an [external pull request](../../CONTEXT.md); the worker embeds
+ * it (title + body + head ref) and upserts it into the PR vector index with an
+ * `eligible` flag (open, non-draft). This channel is **index-only** — it never
+ * fans out `pr_matched` thread reads (that push path is separate).
+ *
+ * The worker derives eligibility itself from `state`/`draft` rather than
+ * trusting a precomputed flag, so the mirror row stays the single source of
+ * truth. A `deleted` job signals the mirror row was soft-deleted (issue/PR
+ * removed or transferred out) and the vector should be dropped — it carries
+ * only the identity fields, since none of the embed content is meaningful for a
+ * delete.
+ */
+const prIndexIdentity = {
+  organizationId: z.string(),
+  /** Mirror row id (`externalEntity.id`); stored on the vector so a push-side
+   * match can resolve it back to a `PrMatchCandidate.prId`. */
+  externalEntityId: z.string(),
+  /** Provider-agnostic key `provider:owner/repo#number`; the vector's identity. */
+  externalKey: z.string(),
+};
+
+/** Upsert variant: embed the PR and (re)index it with a derived `eligible` flag. */
+export const prIndexUpsertSchema = z.object({
+  ...prIndexIdentity,
+  deleted: z.literal(false).optional(),
+  provider: z.string(),
+  repoFullName: z.string(),
+  number: z.number(),
+  url: z.string(),
+  title: z.string(),
+  body: z.string().nullable(),
+  headRef: z.string().nullable(),
+  /** Upstream PR state ("open" | "closed"); drives eligibility. */
+  state: z.string(),
+  /** Draft flag; a draft PR is never eligible. */
+  draft: z.boolean().nullable(),
+});
+
+/** Delete variant: drop the vector. Carries only identity — no embed content.
+ * Strict so a payload with stray embed keys fails instead of silently parsing
+ * as an identity-only delete. */
+export const prIndexDeleteSchema = z.strictObject({
+  ...prIndexIdentity,
+  deleted: z.literal(true),
+});
+
+export const prIndexJobDataSchema = z.union([
+  prIndexUpsertSchema,
+  prIndexDeleteSchema,
+]);
+export type PrIndexJobData = z.infer<typeof prIndexJobDataSchema>;
+/** The upsert (embed-and-index) variant, narrowed from a non-`deleted` job. */
+export type PrIndexUpsertJobData = z.infer<typeof prIndexUpsertSchema>;
+
 // --- Status labels (kept) -------------------------------------------------
 
 export const STATUS_LABELS: Record<number, string> = {

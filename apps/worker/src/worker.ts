@@ -1,8 +1,12 @@
+import type {
+  PrIndexJobData,
+  ThreadReadJobData,
+} from "@workspace/schemas/signals";
+import { initSharedLogger, log } from "@workspace/utils/logging";
 import { type Job, Worker } from "bullmq";
 import Redis from "ioredis";
-import type { ThreadReadJobData } from "@workspace/schemas/signals";
-import { initSharedLogger, log } from "@workspace/utils/logging";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
+import { handleIndexPr } from "./handlers/index-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
@@ -12,6 +16,7 @@ import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
+const PR_INDEX_QUEUE = "pr-index";
 
 const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -144,10 +149,7 @@ threadPipelineWorker.on("completed", (job) => {
 });
 
 threadPipelineWorker.on("failed", (job, err) => {
-  log.error(
-    "worker.thread-pipeline",
-    `Job ${job?.id} failed: ${err.message}`,
-  );
+  log.error("worker.thread-pipeline", `Job ${job?.id} failed: ${err.message}`);
   log.error("worker.thread-pipeline", formatError(err));
 });
 
@@ -186,10 +188,39 @@ crawlDocWorker.on("failed", (job, err) => {
 });
 
 crawlDocWorker.on("error", (err) => {
-  log.error(
-    "worker.crawl-documentation",
-    `Worker error: ${formatError(err)}`,
-  );
+  log.error("worker.crawl-documentation", `Worker error: ${formatError(err)}`);
+});
+
+// Create PR embedding index worker (FRO-203). Index-only: keeps the PR vector
+// index in step with the mirror; never fans out `pr_matched` reads.
+const prIndexWorker = new Worker<PrIndexJobData>(
+  PR_INDEX_QUEUE,
+  handleIndexPr,
+  {
+    connection,
+    autorun: false,
+    concurrency: 3,
+    removeOnComplete: {
+      count: 100,
+      age: 24 * 3600,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  },
+);
+
+prIndexWorker.on("completed", (job) => {
+  log.info("worker.pr-index", `Job ${job.id} completed`);
+});
+
+prIndexWorker.on("failed", (job, err) => {
+  log.error("worker.pr-index", `Job ${job?.id} failed: ${err.message}`);
+  log.error("worker.pr-index", formatError(err));
+});
+
+prIndexWorker.on("error", (err) => {
+  log.error("worker.pr-index", `Worker error: ${formatError(err)}`);
 });
 
 // Initialize and start
@@ -201,14 +232,17 @@ const initialize = async () => {
   log.info("worker", "Processors registered");
 
   // Ensure Qdrant collections exist
-  const [threadsReady, messagesReady, documentationReady, prsReady] = await Promise.all([
-    ensureThreadsCollection(),
-    ensureMessagesCollection(),
-    ensureDocumentationCollection(),
-    ensurePrsCollection(),
-  ]);
+  const [threadsReady, messagesReady, documentationReady, prsReady] =
+    await Promise.all([
+      ensureThreadsCollection(),
+      ensureMessagesCollection(),
+      ensureDocumentationCollection(),
+      ensurePrsCollection(),
+    ]);
   if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
-    throw new Error("Qdrant collections are not ready; refusing to start workers");
+    throw new Error(
+      "Qdrant collections are not ready; refusing to start workers",
+    );
   }
 
   log.info("worker", "Qdrant collections ready");
@@ -216,6 +250,7 @@ const initialize = async () => {
   // Start workers now that collections are ready
   threadPipelineWorker.run();
   crawlDocWorker.run();
+  prIndexWorker.run();
 
   log.info("worker", "Listening for jobs");
 };
@@ -223,7 +258,11 @@ const initialize = async () => {
 // Graceful shutdown
 const handleShutdown = async () => {
   log.info("worker", "Shutting down workers");
-  await Promise.all([threadPipelineWorker.close(), crawlDocWorker.close()]);
+  await Promise.all([
+    threadPipelineWorker.close(),
+    crawlDocWorker.close(),
+    prIndexWorker.close(),
+  ]);
   await connection.quit();
   log.info("worker", "Workers shut down successfully");
   process.exit(0);
