@@ -98,6 +98,9 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         summarize?.summary ? summaryHashInput(summarize.summary) : "",
         JSON.stringify(duplicate?.evidence ?? null),
         JSON.stringify(relatedDocs?.evidence ?? null),
+        // Trigger channel (ADR 0006): a pushed PR candidate must re-run
+        // synthesis even when thread content is unchanged.
+        JSON.stringify(jobContext.input.trigger?.prMatched ?? null),
       ].join("|");
 
       return computeSha256(hashInput);
@@ -164,6 +167,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
             })),
             summary: summarize?.summary ?? null,
             hints,
+            trigger: jobContext.input.trigger ?? null,
             hasTeamReply,
           },
           tools,

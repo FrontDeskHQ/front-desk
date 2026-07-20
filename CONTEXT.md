@@ -34,11 +34,11 @@ A [processor](#processor) that prepares raw thread data for everything downstrea
 
 ### Read hint
 
-Evidence about a thread, computed eagerly by a [hint processor](#hint-processor) and read by [synthesis](#synthesis). A hint is *evidence, not an action*: "thread #482 looks like a duplicate, score 0.91", "these three docs are relevant". Synthesis — not the hint processor — decides whether that evidence becomes an action. Hints provide **breadth** (always-on detectors that surface leads); synthesis tools provide **depth** (on-demand investigation of a lead). Persisted per-processor so synthesis sees a complete bag even when individual hint processors skip on unchanged inputs.
+Evidence about a thread, computed eagerly by a [hint processor](#hint-processor) and read by [synthesis](#synthesis). A hint is *evidence, not an action*: "thread #482 looks like a duplicate, score 0.91", "these three docs are relevant", "these open PRs look related". Synthesis — not the hint processor — decides whether that evidence becomes an action. Hints provide **breadth** (always-on detectors that surface leads); synthesis tools provide **depth** (on-demand investigation of a lead). Persisted per-processor so synthesis sees a complete bag even when individual hint processors skip on unchanged inputs.
 
 ### Hint processor
 
-A [processor](#processor) that produces zero or one [read hint](#read-hint) for a thread. The two hints today are *duplicate* and *related-docs*. A hint processor only gathers and scores evidence; it never proposes a concrete action. Each owns its own input dependencies and skips when its prior hint is still valid.
+A [processor](#processor) that produces zero or one [read hint](#read-hint) for a thread. The hints today are *duplicate* and *related-docs*; *related-PRs* is the pull-side counterpart to the `pr_matched` [trigger](#trigger) (thread → similar [external pull requests](#external-pull-request)). A hint processor only gathers and scores evidence; it never proposes a concrete action. Each owns its own input dependencies and skips when its prior hint is still valid.
 
 ### Processor
 
@@ -46,7 +46,9 @@ A unit of work in the pipeline with declared dependencies, run in dependency ord
 
 ### Trigger
 
-The cause of a pipeline run, and an *orthogonal* input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes the matched PR), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: *what detectors found* (hints) and *why I am running, with what* (trigger). The trigger kind also drives which hints are invalidated and recomputed.
+The cause of a pipeline run, and an *orthogonal* input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes the candidate [external pull request](#external-pull-request)), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: *what detectors found* (hints) and *why I am running, with what* (trigger). The trigger kind also drives which hints are invalidated and recomputed.
+
+`pr_matched` is **not** an authoritative link. It fires when a newly observed [external pull request](#external-pull-request) is found similar to one or more [threads](#thread) (e.g. embedding search); synthesis still decides whether to propose `link_pr`. Deterministic linking (e.g. a FrontDesk thread URL already present on the PR) is a separate path that does not produce a [thread read](#thread-read).
 
 ### Synthesis
 

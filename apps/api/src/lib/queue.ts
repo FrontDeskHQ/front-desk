@@ -1,4 +1,5 @@
 import type {
+  PrMatchCandidate,
   ThreadReadJobData,
   ThreadReadKind,
 } from "@workspace/schemas/signals";
@@ -91,7 +92,11 @@ const getThreadPipelineQueue = (): Queue<ThreadReadJobData> | null => {
 
 export const enqueueThreadRead = async (
   threadId: string,
-  opts: { kind: ThreadReadKind } & EnqueueThreadReadOptions,
+  opts: {
+    kind: ThreadReadKind;
+    /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
+    prMatched?: PrMatchCandidate;
+  } & EnqueueThreadReadOptions,
 ): Promise<string | null> => {
   if (WORKER_JOBS_DISABLED) {
     return null;
@@ -109,13 +114,28 @@ export const enqueueThreadRead = async (
   // and invalidate synthesis-track idempotency keys before enqueueing. For now
   // it falls through to the normal-dedup path so the surface compiles.
   const jobId = `thread:${threadId}:read`;
-  const data: ThreadReadJobData = { threadId, kind: opts.kind };
+  const data: ThreadReadJobData = {
+    threadId,
+    kind: opts.kind,
+    ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
+  };
 
   const existing = await q.getJob(jobId);
   if (existing) {
     const state = await existing.getState();
     if (state === "delayed" || state === "waiting") {
-      await existing.updateData(data);
+      // Coalesce onto the single pending job (ADR 0006). The latest cause wins
+      // for `kind` (it drives cadence/hash-invalidation), but never drop a PR
+      // payload a prior `pr_matched` trigger pushed: keep the existing candidate
+      // when this enqueue carries none, so both surfaces reach synthesis.
+      const merged: ThreadReadJobData = {
+        threadId,
+        kind: opts.kind,
+        ...((opts.prMatched ?? existing.data.prMatched)
+          ? { prMatched: opts.prMatched ?? existing.data.prMatched }
+          : {}),
+      };
+      await existing.updateData(merged);
       return existing.id ?? jobId;
     }
   }
