@@ -5,9 +5,12 @@ import {
 } from "@workspace/schemas/signals";
 import type { SynthesisRawActionSet } from "./synthesize";
 
-const allowedKinds = new Set(["reply", "mark_duplicate", "close"]);
+const allowedKinds = new Set(["reply", "mark_duplicate", "link_pr", "close"]);
 
-const normalizeAction = (action: Action): Action | null => {
+const normalizeAction = (
+  action: Action,
+  verifiedPrUrls?: Set<string>,
+): Action | null => {
   if (!allowedKinds.has(action.kind)) return null;
 
   if (action.kind === "reply") {
@@ -19,6 +22,14 @@ const normalizeAction = (action: Action): Action | null => {
   if (action.kind === "mark_duplicate") {
     if (!action.targetThreadId.trim()) return null;
     return { kind: "mark_duplicate", targetThreadId: action.targetThreadId };
+  }
+
+  if (action.kind === "link_pr") {
+    const prUrl = action.prUrl.trim();
+    if (prUrl.length === 0) return null;
+    // When verified URLs are provided, reject link_pr that bypassed read_pr.
+    if (verifiedPrUrls && !verifiedPrUrls.has(prUrl)) return null;
+    return { kind: "link_pr", prUrl };
   }
 
   return { kind: "close" };
@@ -36,25 +47,60 @@ export const normalizeSynthesisRawActionSet = ({
   messageIds,
   fallbackSourceInputMessageId,
   hasTeamReply,
+  verifiedPrUrls,
 }: {
   output: SynthesisRawActionSet;
   messageIds: Set<string>;
   fallbackSourceInputMessageId: string;
   hasTeamReply: boolean;
+  /**
+   * PR URLs returned by successful `read_pr` calls. When set, any `link_pr`
+   * whose URL is not in this set is dropped (defense in depth vs synthesize).
+   */
+  verifiedPrUrls?: Set<string>;
 }): ThreadRead | null => {
+  // If verified-link filtering would drop a primary link_pr, treat as no action
+  // — recommendation (and often the reply draft) assume that link and would be stale.
+  if (
+    verifiedPrUrls &&
+    output.primary.some(
+      (action) =>
+        action.kind === "link_pr" &&
+        !verifiedPrUrls.has((action.prUrl ?? "").trim()),
+    )
+  ) {
+    return null;
+  }
+
   let primary = output.primary
-    .map((action) => normalizeAction(action as Action))
+    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
     .filter((action): action is Action => action !== null);
 
   if (primary.length === 0) return null;
 
   let alternatives = (output.alternatives ?? [])
-    .map((action) => normalizeAction(action as Action))
+    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
     .filter((action): action is Action => action !== null);
+
+  // At most one link_pr across the whole action set (design lock, FRO-204): a
+  // thread links a single PR. Keep the first — primary takes precedence over
+  // alternatives — and drop any further link_pr entries.
+  let linkPrSeen = false;
+  const dedupeLinkPr = (actions: Action[]): Action[] =>
+    actions.filter((action) => {
+      if (action.kind !== "link_pr") return true;
+      if (linkPrSeen) return false;
+      linkPrSeen = true;
+      return true;
+    });
+  primary = dedupeLinkPr(primary);
+  alternatives = dedupeLinkPr(alternatives);
 
   if (!hasTeamReply) {
     alternatives = alternatives.filter((action) => action.kind === "reply");
-    const primaryHasNonReply = primary.some((action) => action.kind !== "reply");
+    const primaryHasNonReply = primary.some(
+      (action) => action.kind !== "reply",
+    );
     const primaryHasReply = primary.some((action) => action.kind === "reply");
     if (primaryHasNonReply && !primaryHasReply) {
       return null;

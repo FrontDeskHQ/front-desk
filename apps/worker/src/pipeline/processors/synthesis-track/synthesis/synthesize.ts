@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import type { Hints, ThreadReadTrigger } from "@workspace/schemas/signals";
 import {
   closeActionSchema,
+  linkPrActionSchema,
   markDuplicateActionSchema,
   replyActionSchema,
 } from "@workspace/schemas/signals";
@@ -9,10 +10,15 @@ import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, stepCountIs } from "ai";
 import z from "zod";
 import type { ParsedSummary } from "../../../../types";
+import {
+  collectVerifiedPrUrlsFromToolSteps,
+  filterActionSetToVerifiedLinkPr,
+} from "./link-pr-verification";
 
 const synthesisActionSchema = z.discriminatedUnion("kind", [
   replyActionSchema,
   markDuplicateActionSchema,
+  linkPrActionSchema,
   closeActionSchema,
 ]);
 
@@ -92,8 +98,8 @@ export const synthesizeThreadRead = async (
 
   // Trigger-context channel (ADR 0006), kept separate from the hint bag. A
   // `pr_matched` trigger pushes a candidate PR — a fuzzy similarity match, not a
-  // confirmed link. Surface it as a lead; acting on it (link_pr) is not yet part
-  // of this agent's vocabulary.
+  // confirmed link. Surface it as a lead the agent must verify with read_pr
+  // before it may emit link_pr.
   const prMatched = input.trigger?.prMatched;
   const triggerBlock = prMatched
     ? `## Trigger context (why this run happened)
@@ -103,7 +109,7 @@ This run was triggered by a push-side pull-request match. A candidate PR was pus
 - url: <pr_url>${prMatched.url}</pr_url>
 - match score: ${prMatched.score.toFixed(2)} (fuzzy similarity, 0-1)
 
-This is a lead, not a confirmed link — a separate detector found it similar to this thread. Weigh it as evidence about what the thread concerns; do not treat it as authoritative.
+This is a lead, not a confirmed link — a separate detector found it similar to this thread. Read it with read_pr and confirm it actually resolves or addresses this thread before you propose link_pr. Do not treat the match as authoritative.
 `
     : "";
 
@@ -112,15 +118,18 @@ This is a lead, not a confirmed link — a separate detector found it similar to
 You must produce an unfiltered raw action set using only this vocabulary:
 - reply (requires draftMarkdown)
 - mark_duplicate (requires targetThreadId)
+- link_pr (requires prUrl) — link a mirrored pull request that resolves or addresses this thread
 - close
 
 Use hints as evidence leads, not as final decisions. Investigate with tools before taking substantive actions.
 
 Requirements:
 - If duplicate evidence exists, verify by reading the target thread with read_thread before choosing mark_duplicate.
-- Prefer no action over weak/conflicting evidence. If no substantive move is justified, return an empty primary array.
+- Before emitting link_pr, you MUST verify the candidate PR with read_pr and confirm from its contents that it genuinely resolves or addresses this thread. Never emit link_pr for a PR you have not read, and use the exact prUrl returned by read_pr.
+- Emit at most one link_pr across primary and alternatives combined — a thread links a single PR.
+- Prefer no action over weak/conflicting evidence. If no substantive move is justified, return an empty primary array. A weak or unrelated PR lead is not grounds for link_pr.
 - sourceInputMessageId must be one of the provided message ids and should usually be the latest inbound message.
-- Do not emit link_pr, apply_label, set_status, or any fields outside schema.
+- Do not emit apply_label, set_status, or any fields outside schema.
 
 ## Unreplied threads (support has not messaged yet)
 
@@ -128,12 +137,12 @@ hasTeamReply: ${input.hasTeamReply}
 
 When hasTeamReply is false, the customer has written but no teammate has replied on this thread yet.
 
-- **Primary:** If you include mark_duplicate or close, you must also include a reply in the same primary array. Order reversibles first: \`[mark_duplicate, reply]\` or \`[close, reply]\`. The reply should briefly acknowledge the customer (thank them, explain the duplicate link, or confirm closure) — never leave them without a first response.
-- **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone mark_duplicate or close in alternatives — the human would execute those without replying.
+- **Primary:** If you include mark_duplicate, link_pr, or close, you must also include a reply in the same primary array. Order the other action first: \`[mark_duplicate, reply]\`, \`[link_pr, reply]\`, or \`[close, reply]\`. The reply should briefly acknowledge the customer (thank them, explain the duplicate link, note the linked PR, or confirm closure) — never leave them without a first response.
+- **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone mark_duplicate, link_pr, or close in alternatives — the human would execute those without replying.
 - **Reply-only primary** is fine when that is the best move (no bundling required).
 - **Empty primary** is still allowed when no substantive move is justified.
 
-When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close or mark_duplicate).
+When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close, mark_duplicate, or link_pr).
 
 ## summary, recommendation, and reasoning (critical)
 
@@ -145,6 +154,7 @@ When hasTeamReply is true, alternatives may be any allowed action kind (includin
 
 - mark_duplicate: "This is a duplicate of [target thread name](thread:targetThreadId)." Use the exact \`targetThreadId\` from primary and the name from read_thread when available.
 - reply: a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
+- link_pr: a link imperative naming the PR, e.g. "Link the pull request that fixes this and let the customer know a fix is on the way."
 - close: a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
 - empty primary: state that no substantive move is justified, e.g. "No reply, duplicate link, or close is justified yet."
 
@@ -183,20 +193,34 @@ Return a single valid JSON object with exactly this shape:
   "summary": string (one sentence: customer situation only, no imperative),
   "recommendation": string (one imperative sentence tied to primary; use [name](thread:id) for duplicate targets),
   "reasoning": string (user-facing evidence; no internal terms, scores, or raw ids),
-  "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
-  "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "close" }>,
+  "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "link_pr", "prUrl": string } | { "kind": "close" }>,
+  "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "link_pr", "prUrl": string } | { "kind": "close" }>,
   "urgencyScore": number (0-100),
   "sourceInputMessageId": string
 }
 `;
 
   const baseModel = google("gemini-2.5-flash");
-  const { text } = await generateText({
+  const { text, steps } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
     prompt,
     tools,
     stopWhen: stepCountIs(8),
   });
 
-  return parseRawActionSetFromText(text);
+  const raw = parseRawActionSetFromText(text);
+  // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
+  // Prompt instructions alone cannot authorize an external PR link. If primary
+  // loses a link_pr, discard the set so recommendation stays consistent.
+  const verifiedPrUrls = collectVerifiedPrUrlsFromToolSteps(steps);
+  const filtered = filterActionSetToVerifiedLinkPr(
+    raw.primary,
+    raw.alternatives ?? [],
+    verifiedPrUrls,
+  );
+  return {
+    ...raw,
+    primary: filtered.primary,
+    alternatives: filtered.alternatives,
+  };
 };

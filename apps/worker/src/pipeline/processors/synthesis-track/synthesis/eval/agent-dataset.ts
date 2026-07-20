@@ -26,21 +26,44 @@ export type SynthesisAgentEvalCase = {
     >;
     docsSearchHitsByQuery?: Record<string, DocumentationSearchHit[]>;
     docsPageChunksByUrl?: Record<string, DocumentationPageChunk[]>;
+    /** Mirrored PRs keyed by URL, served by the mocked `read_pr` tool. */
+    prsByUrl?: Record<
+      string,
+      {
+        url: string;
+        repoFullName: string;
+        number: number;
+        title: string;
+        body: string | null;
+        state: string;
+        draft: boolean | null;
+        merged: boolean | null;
+        headRef: string | null;
+        baseRef: string | null;
+        authorLogin: string | null;
+        labels: string[];
+      }
+    >;
   };
   expected: {
-    mustIncludePrimaryKinds: Array<"reply" | "mark_duplicate" | "close">;
-    mustExcludePrimaryKinds?: Array<"reply" | "mark_duplicate" | "close">;
+    mustIncludePrimaryKinds: SynthesisActionKind[];
+    mustExcludePrimaryKinds?: SynthesisActionKind[];
     allowEmptyPrimary?: boolean;
     requiresReplyDraft: boolean;
     replyMustContainAny?: string[];
     minToolCalls?: {
       read_thread?: number;
+      read_pr?: number;
       search_documentation?: number;
       read_documentation_page?: number;
     };
+    /** When set, every emitted link_pr.prUrl must equal this exact URL. */
+    expectedLinkPrUrl?: string;
     forbiddenReplyPhrases?: string[];
   };
 };
+
+type SynthesisActionKind = "reply" | "mark_duplicate" | "link_pr" | "close";
 
 export type SynthesisAgentEvalInput = {
   synthesisInput: SynthesizeThreadReadInput;
@@ -689,6 +712,193 @@ const synthesisAgentDatasetCases: Array<
         "confirmed refund",
         "already issued",
       ],
+    },
+  },
+  {
+    name: "verified pr_matched lead on replied thread should link the pr",
+    input: {
+      threadId: "t17",
+      threadName: "Webhook retries drop the idempotency key",
+      sourceInputMessageId: "t17m2",
+      hasTeamReply: true,
+      threadMessages: [
+        {
+          id: "t17m1",
+          authorId: "c17",
+          createdAt: now,
+          content:
+            "Your webhook retries drop the Idempotency-Key header, so our billing endpoint double-charges on retry.",
+        },
+        {
+          id: "t17m2",
+          authorId: "agent17",
+          createdAt: now,
+          content:
+            "Thanks — we've reproduced the double-charge on retry and are working on a fix.",
+        },
+      ],
+      summary: {
+        title: "Webhook retries omit the idempotency key",
+        shortDescription:
+          "Retried webhook deliveries drop Idempotency-Key, causing duplicate billing side effects.",
+        keywords: ["webhook", "retry", "idempotency"],
+        entities: ["webhooks", "billing"],
+        expectedAction: "engineering fix",
+      },
+      hints: {},
+      trigger: {
+        kind: "pr_matched",
+        prMatched: {
+          prId: "pr17",
+          url: "https://github.com/acme/api/pull/482",
+          title: "Preserve Idempotency-Key header across webhook retries",
+          score: 0.91,
+        },
+      },
+    },
+    toolFixtures: {
+      threads: { t17: mkThread("t17", "Webhook retries drop the idempotency key") },
+      prsByUrl: {
+        "https://github.com/acme/api/pull/482": {
+          url: "https://github.com/acme/api/pull/482",
+          repoFullName: "acme/api",
+          number: 482,
+          title: "Preserve Idempotency-Key header across webhook retries",
+          body: "Webhook retry logic rebuilt the request without copying the Idempotency-Key header, so downstream billing endpoints treated each retry as a new request and double-charged. This copies the original idempotency key onto every retry attempt and adds a regression test.",
+          state: "open",
+          draft: false,
+          merged: false,
+          headRef: "fix/webhook-idempotency-key",
+          baseRef: "main",
+          authorLogin: "dev-alice",
+          labels: ["bug", "billing"],
+        },
+      },
+    },
+    expected: {
+      mustIncludePrimaryKinds: ["link_pr"],
+      requiresReplyDraft: false,
+      minToolCalls: { read_pr: 1 },
+      expectedLinkPrUrl: "https://github.com/acme/api/pull/482",
+    },
+  },
+  {
+    name: "unreplied pr_matched lead must couple link_pr with a reply",
+    input: {
+      threadId: "t18",
+      threadName: "CSV export truncates rows past 10k",
+      sourceInputMessageId: "t18m1",
+      hasTeamReply: false,
+      threadMessages: [
+        {
+          id: "t18m1",
+          authorId: "c18",
+          createdAt: now,
+          content:
+            "Exporting our contacts to CSV silently stops at 10,000 rows — the rest are missing from the file.",
+        },
+      ],
+      summary: {
+        title: "CSV export truncated at 10k rows",
+        shortDescription: "Contact CSV export drops every row past the 10,000th.",
+        keywords: ["csv", "export", "pagination"],
+        entities: ["export"],
+        expectedAction: "engineering fix",
+      },
+      hints: {},
+      trigger: {
+        kind: "pr_matched",
+        prMatched: {
+          prId: "pr18",
+          url: "https://github.com/acme/api/pull/511",
+          title: "Paginate CSV export beyond the 10k row cap",
+          score: 0.9,
+        },
+      },
+    },
+    toolFixtures: {
+      threads: { t18: mkThread("t18", "CSV export truncates rows past 10k") },
+      prsByUrl: {
+        "https://github.com/acme/api/pull/511": {
+          url: "https://github.com/acme/api/pull/511",
+          repoFullName: "acme/api",
+          number: 511,
+          title: "Paginate CSV export beyond the 10k row cap",
+          body: "The CSV export query used a hard LIMIT of 10000, so large accounts lost every row past the cap. This streams the export in pages until the full result set is written.",
+          state: "open",
+          draft: false,
+          merged: false,
+          headRef: "fix/csv-export-pagination",
+          baseRef: "main",
+          authorLogin: "dev-bob",
+          labels: ["bug"],
+        },
+      },
+    },
+    expected: {
+      mustIncludePrimaryKinds: ["link_pr", "reply"],
+      requiresReplyDraft: true,
+      minToolCalls: { read_pr: 1 },
+      expectedLinkPrUrl: "https://github.com/acme/api/pull/511",
+    },
+  },
+  {
+    name: "weak unrelated pr lead should refuse link_pr",
+    input: {
+      threadId: "t19",
+      threadName: "How do I change my billing email?",
+      sourceInputMessageId: "t19m1",
+      hasTeamReply: false,
+      threadMessages: [
+        {
+          id: "t19m1",
+          authorId: "c19",
+          createdAt: now,
+          content:
+            "Where in settings can I update the email address that invoices are sent to?",
+        },
+      ],
+      summary: {
+        title: "Changing the billing email address",
+        shortDescription: "Customer asks how to update the invoice recipient email.",
+        keywords: ["billing", "email", "settings"],
+        entities: ["billing"],
+        expectedAction: "how-to answer",
+      },
+      hints: {},
+      trigger: {
+        kind: "pr_matched",
+        prMatched: {
+          prId: "pr19",
+          url: "https://github.com/acme/api/pull/523",
+          title: "Add dark mode to the analytics dashboard",
+          score: 0.86,
+        },
+      },
+    },
+    toolFixtures: {
+      threads: { t19: mkThread("t19", "How do I change my billing email?") },
+      prsByUrl: {
+        "https://github.com/acme/api/pull/523": {
+          url: "https://github.com/acme/api/pull/523",
+          repoFullName: "acme/web",
+          number: 523,
+          title: "Add dark mode to the analytics dashboard",
+          body: "Introduces a dark theme toggle for the analytics dashboard and persists the choice per user. No billing or account-settings changes.",
+          state: "open",
+          draft: false,
+          merged: false,
+          headRef: "feat/dashboard-dark-mode",
+          baseRef: "main",
+          authorLogin: "dev-carol",
+          labels: ["feature", "ui"],
+        },
+      },
+    },
+    expected: {
+      mustIncludePrimaryKinds: ["reply"],
+      mustExcludePrimaryKinds: ["link_pr"],
+      requiresReplyDraft: true,
     },
   },
 ];

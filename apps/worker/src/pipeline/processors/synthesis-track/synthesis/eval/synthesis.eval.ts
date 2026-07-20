@@ -23,6 +23,9 @@ evalite("Synthesis Normalize", {
       messageIds: new Set(input.messageIds),
       fallbackSourceInputMessageId: input.fallbackSourceInputMessageId,
       hasTeamReply: input.hasTeamReply,
+      verifiedPrUrls: input.verifiedPrUrls
+        ? new Set(input.verifiedPrUrls)
+        : undefined,
     });
     reportTrace({
       start,

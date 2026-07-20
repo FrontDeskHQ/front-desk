@@ -32,6 +32,33 @@ export const fetchThreadWithRelations = async (
 };
 
 /**
+ * A mirrored pull request as returned by the API's `prByUrl` query — the
+ * depth-verification payload for synthesis' `read_pr` tool (FRO-204).
+ */
+export type MirroredPr = NonNullable<
+  Awaited<ReturnType<typeof fetchClient.query.externalEntity.prByUrl>>
+>;
+
+/**
+ * Fetch a single mirrored pull request by its canonical URL, scoped to the org.
+ * Returns null when the PR was never mirrored (or has been soft-deleted).
+ */
+export const fetchMirroredPrByUrl = async (
+  organizationId: string,
+  url: string,
+): Promise<MirroredPr | null> => {
+  try {
+    return await fetchClient.query.externalEntity.prByUrl({
+      organizationId,
+      url,
+    });
+  } catch (error) {
+    console.error(`Failed to fetch mirrored PR ${url}:`, error);
+    return null;
+  }
+};
+
+/**
  * Fetch multiple threads with their messages and labels
  */
 export const fetchThreadsWithRelations = async (
@@ -55,4 +82,3 @@ export const fetchThreadsWithRelations = async (
 
   return threads;
 };
-
