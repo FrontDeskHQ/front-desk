@@ -154,14 +154,24 @@ const getPrMatchQueue = (): Queue<PrMatchJobData> => {
 };
 
 /**
- * Enqueue a push-side match for a PR. One pending job per PR
- * (`pr-match:{externalKey}`) coalesces a burst of webhook events (open → edit)
- * into a single embed + search: any prior non-active job for the same PR is
- * dropped so the latest content wins, matching `enqueuePrIndex`'s scheme.
+ * Enqueue a push-side match for a PR. One pending job per PR — scoped by
+ * `(organizationId, externalKey)` so orgs sharing a repo don't coalesce onto
+ * each other's match (`externalKey` is `provider:owner/repo#number`, not
+ * org-unique) — coalesces a burst of webhook events (open → edit) into a single
+ * embed + search: any prior non-active job for the same PR is dropped so the
+ * latest content wins, matching `enqueuePrIndex`'s scheme.
+ *
+ * BullMQ reserves `:` as a Redis key separator and rejects it in custom job
+ * ids, so the parts are joined with `_` and `externalKey`'s `:` is replaced
+ * (its `_`s escaped first) to keep the id injective — the same scheme the
+ * backfill/reconcile ids use.
  */
 export const enqueuePrMatch = async (data: PrMatchJobData) => {
   const q = getPrMatchQueue();
-  const jobId = `pr-match:${data.externalKey}`;
+  const safeExternalKey = data.externalKey
+    .replaceAll("_", "__")
+    .replaceAll(":", "_");
+  const jobId = `pr-match_${data.organizationId}_${safeExternalKey}`;
 
   const existing = await q.getJob(jobId);
   if (existing) {
