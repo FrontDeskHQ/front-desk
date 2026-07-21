@@ -293,19 +293,12 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     // Drop the PR vector when its mirror row is removed (PR deleted /
     // transferred out) so stale points can't surface in similarity search.
     if (deleted && deleted.type === "pull_request") {
+      // Delete variant carries identity only (see prIndexDeleteSchema) — the
+      // embed content is meaningless for a drop.
       const jobData: PrIndexJobData = {
         organizationId,
         externalEntityId: deleted.id,
         externalKey,
-        provider: "",
-        repoFullName: "",
-        number: 0,
-        url: "",
-        title: "",
-        body: null,
-        headRef: null,
-        state: "closed",
-        draft: null,
         deleted: true,
       };
       enqueuePrIndex(jobData).catch((error) => {

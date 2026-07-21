@@ -4,12 +4,14 @@ import type {
   HintSlot,
   Hints,
   RelatedDocsEvidence,
+  RelatedPrsEvidence,
 } from "@workspace/schemas/signals";
 import { fetchClient } from "./database/client";
 
 type SlotEvidenceMap = {
   duplicate: DuplicateEvidence;
   related_docs: RelatedDocsEvidence;
+  related_prs: RelatedPrsEvidence;
 };
 
 export async function readHintBag(threadId: string): Promise<Hints> {
@@ -44,6 +46,18 @@ export async function writeHintSlot<K extends HintKind>(
       threadId,
       organizationId,
       kind: "duplicate",
+      slot,
+    });
+  } else if (kind === "related_prs") {
+    const slot: HintSlot<RelatedPrsEvidence> = {
+      evidence: evidence as RelatedPrsEvidence | null,
+      hash,
+      computedAt,
+    };
+    await fetchClient.mutate.thread.writeHintSlot({
+      threadId,
+      organizationId,
+      kind: "related_prs",
       slot,
     });
   } else {

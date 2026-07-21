@@ -17,6 +17,7 @@ import type {
 import type { SummarizeOutput } from "../../summarize";
 import type { DuplicateProcessorOutput } from "../duplicate/processor";
 import type { RelatedDocsProcessorOutput } from "../related_docs/processor";
+import type { RelatedPrsProcessorOutput } from "../related_prs/processor";
 import { normalizeSynthesisRawActionSet } from "./normalize";
 import { synthesizeThreadRead } from "./synthesize";
 import { createSynthesisTools } from "./tools";
@@ -63,7 +64,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
   {
     name: "synthesis",
 
-    dependencies: ["summarize", "duplicate", "related_docs"],
+    dependencies: ["summarize", "duplicate", "related_docs", "related_prs"],
 
     getIdempotencyKey(threadId: string): string {
       return `synthesis:${threadId}`;
@@ -88,6 +89,11 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           "related_docs",
           threadId,
         );
+      const relatedPrs =
+        jobContext.getProcessorOutput<RelatedPrsProcessorOutput>(
+          "related_prs",
+          threadId,
+        );
 
       const hashInput = [
         thread.id,
@@ -98,6 +104,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         summarize?.summary ? summaryHashInput(summarize.summary) : "",
         JSON.stringify(duplicate?.evidence ?? null),
         JSON.stringify(relatedDocs?.evidence ?? null),
+        JSON.stringify(relatedPrs?.evidence ?? null),
         // Trigger channel (ADR 0006): a pushed PR candidate must re-run
         // synthesis even when thread content is unchanged.
         JSON.stringify(jobContext.input.trigger?.prMatched ?? null),

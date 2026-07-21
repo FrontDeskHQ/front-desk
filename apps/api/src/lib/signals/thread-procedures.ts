@@ -5,6 +5,7 @@ import {
   type InlineSuggestion,
   inlineSuggestionSchema,
   relatedDocsHintSlotSchema,
+  relatedPrsHintSlotSchema,
   type ThreadRead,
 } from "@workspace/schemas/signals";
 import { z } from "zod";
@@ -341,6 +342,12 @@ export const writeHintSlotInputSchema = z.discriminatedUnion("kind", [
     organizationId: z.string(),
     kind: z.literal("related_docs"),
     slot: relatedDocsHintSlotSchema,
+  }),
+  z.object({
+    threadId: z.string(),
+    organizationId: z.string(),
+    kind: z.literal("related_prs"),
+    slot: relatedPrsHintSlotSchema,
   }),
 ]);
 
