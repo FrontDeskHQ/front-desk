@@ -1,5 +1,6 @@
 import type {
   PrIndexJobData,
+  PrMatchJobData,
   ThreadReadJobData,
 } from "@workspace/schemas/signals";
 import { initSharedLogger, log } from "@workspace/utils/logging";
@@ -7,6 +8,7 @@ import { type Job, Worker } from "bullmq";
 import Redis from "ioredis";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleIndexPr } from "./handlers/index-pr";
+import { handleMatchPr } from "./handlers/match-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
@@ -17,6 +19,7 @@ import { registerDefaultProcessors } from "./pipeline/processors/registration";
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
+const PR_MATCH_QUEUE = "pr-match";
 
 const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -223,6 +226,35 @@ prIndexWorker.on("error", (err) => {
   log.error("worker.pr-index", `Worker error: ${formatError(err)}`);
 });
 
+// Create PR push-side match worker (FRO-205). Embeds an eligible PR, searches
+// for similar Open / In-progress threads, and fans out `pr_matched` reads for
+// the unlinked ones.
+const prMatchWorker = new Worker<PrMatchJobData>(PR_MATCH_QUEUE, handleMatchPr, {
+  connection,
+  autorun: false,
+  concurrency: 3,
+  removeOnComplete: {
+    count: 100,
+    age: 24 * 3600,
+  },
+  removeOnFail: {
+    count: 500,
+  },
+});
+
+prMatchWorker.on("completed", (job) => {
+  log.info("worker.match-pr", `Job ${job.id} completed`);
+});
+
+prMatchWorker.on("failed", (job, err) => {
+  log.error("worker.match-pr", `Job ${job?.id} failed: ${err.message}`);
+  log.error("worker.match-pr", formatError(err));
+});
+
+prMatchWorker.on("error", (err) => {
+  log.error("worker.match-pr", `Worker error: ${formatError(err)}`);
+});
+
 // Initialize and start
 const initialize = async () => {
   log.info("worker", "Initializing worker");
@@ -251,6 +283,7 @@ const initialize = async () => {
   threadPipelineWorker.run();
   crawlDocWorker.run();
   prIndexWorker.run();
+  prMatchWorker.run();
 
   log.info("worker", "Listening for jobs");
 };
@@ -262,6 +295,7 @@ const handleShutdown = async () => {
     threadPipelineWorker.close(),
     crawlDocWorker.close(),
     prIndexWorker.close(),
+    prMatchWorker.close(),
   ]);
   await connection.quit();
   log.info("worker", "Workers shut down successfully");

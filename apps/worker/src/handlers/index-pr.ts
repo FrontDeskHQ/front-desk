@@ -1,12 +1,8 @@
 import { createHash } from "node:crypto";
-import { google } from "@ai-sdk/google";
-import type {
-  PrIndexJobData,
-  PrIndexUpsertJobData,
-} from "@workspace/schemas/signals";
+import type { PrIndexJobData } from "@workspace/schemas/signals";
 import { log } from "@workspace/utils/logging";
-import { embed } from "ai";
 import type { Job } from "bullmq";
+import { buildPrEmbedText, generatePrEmbedding } from "../lib/pr-embedding";
 import {
   deletePrVector,
   getPrPoint,
@@ -15,52 +11,8 @@ import {
   upsertPrVector,
 } from "../lib/qdrant/pull-requests";
 
-const EMBEDDING_MODEL = "gemini-embedding-001";
-const embeddingModel = google.embedding(EMBEDDING_MODEL);
-
-/**
- * Text embedded for PR similarity: title + body + head ref (design lock,
- * FRO-201). The head ref (branch name) is a strong, terse signal
- * (e.g. `fix/oauth-token-refresh`) worth its own line.
- */
-const buildEmbedText = (data: PrIndexUpsertJobData): string =>
-  [
-    `title: ${data.title}`,
-    data.body ? `body: ${data.body}` : null,
-    data.headRef ? `head: ${data.headRef}` : null,
-  ]
-    .filter(Boolean)
-    .join("\n")
-    .trim();
-
 const computeSha256 = (data: string): string =>
   createHash("sha256").update(data).digest("hex");
-
-/**
- * Generate a normalized embedding vector. Uses SEMANTIC_SIMILARITY (matching the
- * thread index) so PR and thread vectors live in a comparable space for
- * cross-searches.
- */
-const generateEmbedding = async (text: string): Promise<number[] | null> => {
-  if (!text || text.trim().length === 0) {
-    return null;
-  }
-
-  const { embedding } = await embed({
-    model: embeddingModel,
-    value: text,
-    providerOptions: {
-      google: { taskType: "SEMANTIC_SIMILARITY" },
-    },
-  });
-
-  const norm = Math.hypot(...embedding);
-  if (!Number.isFinite(norm) || norm === 0) {
-    console.warn("PR embedding normalization failed: invalid norm", norm);
-    return embedding;
-  }
-  return embedding.map((value) => value / norm);
-};
 
 /**
  * Index-only handler for the `pr-index` queue (FRO-203). Keeps the PR vector
@@ -95,7 +47,7 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
     return { externalKey, action: "skipped" as const };
   }
 
-  const embedText = buildEmbedText(data);
+  const embedText = buildPrEmbedText(data);
   const contentHash = computeSha256(embedText);
   const now = Date.now();
 
@@ -111,7 +63,7 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
   }
 
   // New PR or edited content: embed and upsert the full point.
-  const embedding = await generateEmbedding(embedText);
+  const embedding = await generatePrEmbedding(embedText);
   if (!embedding) {
     throw new Error(`Failed to embed PR ${externalKey}`);
   }
