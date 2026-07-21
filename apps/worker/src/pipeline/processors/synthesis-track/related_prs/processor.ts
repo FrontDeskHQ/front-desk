@@ -48,6 +48,15 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
       return `related_prs:${threadId}`;
     },
 
+    // Linking a PR sets `externalPrId` without changing the thread embedding, so
+    // `embed` skips and the deps-skip fast path would otherwise never re-run us
+    // to clear a stale hint. Force the normal hash-based check for linked
+    // threads: `computeHash` returns the "linked" hash, which differs from the
+    // last summary-based hash and re-runs `execute` to clear the slot.
+    runsWhenDependenciesSkipped(context: ProcessorExecuteContext): boolean {
+      return Boolean(context.thread.externalPrId);
+    },
+
     computeHash(context: ProcessorExecuteContext): string {
       const { context: jobContext, thread, threadId } = context;
       // A thread that already links a PR never produces evidence; keep its hash
@@ -113,7 +122,9 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
         }
 
         // Same vector space as the push side: thread embedding against eligible
-        // PRs above the shared match threshold, ranked, top N.
+        // PRs above the shared match threshold, ranked, top N. A backend failure
+        // throws (see `searchSimilarPrs`) so we fall through to the catch and
+        // leave the prior hint untouched instead of clearing a valid lead.
         const hits = await searchSimilarPrs(embedOutput.embedding, {
           organizationId: thread.organizationId,
           scoreThreshold: PR_MATCH_THRESHOLD,
