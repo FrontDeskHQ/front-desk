@@ -24,7 +24,7 @@ function RouteComponent() {
           menuOpen && "border-0 bg-transparent",
         )}
       >
-        <div className="flex items-center h-full w-full max-w-6xl justify-between">
+        <div className="flex items-center h-full w-full max-w-[90rem] justify-between">
           <div className="flex gap-px">
             <Link to="/" className="flex items-center gap-2 mr-4">
               <Logo>
@@ -74,7 +74,7 @@ function RouteComponent() {
       <div
         className={`fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden ${menuOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
       >
-        <nav className="flex flex-col gap-2 w-full max-w-6xl p-4">
+        <nav className="flex flex-col gap-2 w-full max-w-[90rem] p-4">
           <Link
             to="/"
             hash="pricing"
@@ -96,7 +96,7 @@ function RouteComponent() {
       </div>
       <Outlet />
       <HorizontalLine variant="full" />
-      <footer className="col-span-full grid grid-cols-12 border-x max-w-6xl">
+      <footer className="col-span-full grid grid-cols-12 border-x max-w-[90rem] w-full">
         <div className="col-span-full grid grid-cols-6 px-4 py-12">
           <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
             <div className="flex gap-2">

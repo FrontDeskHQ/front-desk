@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { OneLinerSection } from "~/components/landing-page/one-liner-section";
 
 export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
@@ -6,18 +7,9 @@ export const Route = createFileRoute("/_public/")({
 
 function RouteComponent() {
   return (
-    <main>
-      {/* 0. Hero */}
-      <section id="hero" className="p-8">
-        <h1>Care for every customer. Even when you can't keep up.</h1>
-        <p>
-          The Agent picks up every conversation, replies in your voice, and
-          pulls you in only when it matters.
-        </p>
-        <p>
-          <a href="#cta">See it handle a thread</a>
-        </p>
-      </section>
+    <main className="mx-auto w-full max-w-[90rem]">
+      {/* 0. Hero — one-liner + animated demo */}
+      <OneLinerSection />
 
       {/* 1. The tension */}
       <section id="tension" className="p-8">
@@ -39,37 +31,7 @@ function RouteComponent() {
         </p>
       </section>
 
-      {/* 2. The one-liner — three parts */}
-      <section id="one-liner" className="p-8">
-        <p>
-          FrontDesk <strong>picks up</strong>
-          <sup>01</sup> every conversation, <strong>replies</strong>
-          <sup>02</sup> in your voice, and <strong>pulls you in</strong>
-          <sup>03</sup> only when it matters.
-        </p>
-        <div>
-          <article>
-            <h3>
-              <span>01</span> Picks up
-            </h3>
-            <p>Nothing waits on you.</p>
-          </article>
-          <article>
-            <h3>
-              <span>02</span> Replies in your voice
-            </h3>
-            <p>Care, automated.</p>
-          </article>
-          <article>
-            <h3>
-              <span>03</span> Pulls you in
-            </h3>
-            <p>You stay in control.</p>
-          </article>
-        </div>
-      </section>
-
-      {/* 3. Section 01 — Picks up every conversation */}
+      {/* 2. Section 01 — Picks up every conversation */}
       <section id="picks-up" className="p-8">
         <p>01</p>
         <h2>Picks up every conversation.</h2>
@@ -96,7 +58,7 @@ function RouteComponent() {
         </ul>
       </section>
 
-      {/* 4. Section 02 — Replies in your voice */}
+      {/* 3. Section 02 — Replies in your voice */}
       <section id="replies" className="p-8">
         <p>02</p>
         <h2>Replies in your voice.</h2>
@@ -124,7 +86,7 @@ function RouteComponent() {
         </ul>
       </section>
 
-      {/* 5. Section 03 — Pulls you in only when it matters */}
+      {/* 4. Section 03 — Pulls you in only when it matters */}
       <section id="pulls-you-in" className="p-8">
         <p>03</p>
         <h2>Pulls you in only when it matters.</h2>
@@ -151,7 +113,7 @@ function RouteComponent() {
         </ul>
       </section>
 
-      {/* 6. Proof — slots only until real */}
+      {/* 5. Proof — slots only until real */}
       <section id="proof" className="p-8">
         <h2>Proof</h2>
         <p>Testimonial — [TBD]</p>
@@ -159,7 +121,7 @@ function RouteComponent() {
         <p>Trust — [TBD]</p>
       </section>
 
-      {/* 7. Closing CTA */}
+      {/* 6. Closing CTA */}
       <section id="cta" className="p-8">
         <h2>Keep caring. At any scale.</h2>
         <p>
