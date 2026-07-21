@@ -155,7 +155,10 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const threads = new Map(
       Object.values(
         await db.find(schema.thread, {
-          where: { id: { $in: matches.map((m) => m.threadId) } },
+          where: {
+            id: { $in: matches.map((m) => m.threadId) },
+            organizationId,
+          },
         }),
       ).map((thread) => [thread.id, thread]),
     );
