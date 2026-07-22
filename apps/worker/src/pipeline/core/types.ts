@@ -64,6 +64,18 @@ export interface ProcessorDefinition<TOutput = unknown> {
    */
   computeHash(context: ProcessorExecuteContext): string;
 
+  /**
+   * When all of a processor's dependencies were skipped, the orchestrator
+   * fast-paths this processor to "skipped" on idempotency-key existence alone,
+   * without consulting {@link computeHash}. That assumes a processor's output is
+   * a pure function of its declared dependencies. Return `true` here to opt out
+   * and route the thread through the normal hash-based check instead — required
+   * when the processor also reads thread state outside its declared deps (e.g.
+   * `related_prs` must clear its hint once `externalPrId` is set, even though
+   * linking a PR does not change the embedding its `embed` dependency produces).
+   */
+  runsWhenDependenciesSkipped?(context: ProcessorExecuteContext): boolean;
+
   execute(context: ProcessorExecuteContext): Promise<ProcessorResult<TOutput>>;
 }
 

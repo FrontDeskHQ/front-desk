@@ -267,6 +267,29 @@ export const relatedDocsEvidenceSchema = z.object({
 });
 export type RelatedDocsEvidence = z.infer<typeof relatedDocsEvidenceSchema>;
 
+/**
+ * A single eligible PR the pull-side `related_prs` hint (FRO-206) found similar
+ * to the thread. `url` is what synthesis passes to read_pr / link_pr; `prId` is
+ * the mirror row id so downstream can resolve the FrontDesk PR row.
+ */
+export const relatedPrEvidenceItemSchema = z.object({
+  /** Provider-agnostic key `provider:owner/repo#number`. */
+  externalKey: z.string(),
+  /** Mirror row id (`externalEntity.id`). */
+  prId: z.string(),
+  url: z.string(),
+  title: z.string(),
+  repoFullName: z.string(),
+  number: z.number(),
+  score: z.number().min(0).max(1),
+});
+export type RelatedPrEvidenceItem = z.infer<typeof relatedPrEvidenceItemSchema>;
+
+export const relatedPrsEvidenceSchema = z.object({
+  prs: z.array(relatedPrEvidenceItemSchema),
+});
+export type RelatedPrsEvidence = z.infer<typeof relatedPrsEvidenceSchema>;
+
 export type HintSlot<E> = {
   evidence: E | null;
   hash: string;
@@ -276,9 +299,10 @@ export type HintSlot<E> = {
 export type Hints = {
   duplicate?: HintSlot<DuplicateEvidence>;
   related_docs?: HintSlot<RelatedDocsEvidence>;
+  related_prs?: HintSlot<RelatedPrsEvidence>;
 };
 
-export const HINT_KINDS = ["duplicate", "related_docs"] as const;
+export const HINT_KINDS = ["duplicate", "related_docs", "related_prs"] as const;
 export type HintKind = (typeof HINT_KINDS)[number];
 export const hintKindSchema = z.enum(HINT_KINDS);
 
@@ -292,6 +316,9 @@ const hintSlotSchema = <E extends z.ZodTypeAny>(evidence: E) =>
 export const duplicateHintSlotSchema = hintSlotSchema(duplicateEvidenceSchema);
 export const relatedDocsHintSlotSchema = hintSlotSchema(
   relatedDocsEvidenceSchema,
+);
+export const relatedPrsHintSlotSchema = hintSlotSchema(
+  relatedPrsEvidenceSchema,
 );
 
 // --- Autonomy -------------------------------------------------------------

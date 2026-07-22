@@ -218,6 +218,11 @@ export interface SimilarPrResult {
  * Rank PRs by similarity to a query vector (a thread embedding on the pull side,
  * a PR embedding on the push side), filtered to the org and — by default —
  * eligible PRs only.
+ *
+ * Unlike the best-effort mutators above, this **throws** on backend failure
+ * rather than returning `[]`: an empty result means "no matching PRs", and a
+ * caller that persists a hint must be able to tell that apart from a transient
+ * Qdrant error so it never clears a valid lead on a failed search.
  */
 export const searchSimilarPrs = async (
   vector: number[],
@@ -231,39 +236,34 @@ export const searchSimilarPrs = async (
     excludeExternalKeys = [],
   } = options;
 
-  try {
-    const mustConditions: Array<{
-      key: string;
-      match: { value: string | number | boolean };
-    }> = [{ key: "organizationId", match: { value: organizationId } }];
+  const mustConditions: Array<{
+    key: string;
+    match: { value: string | number | boolean };
+  }> = [{ key: "organizationId", match: { value: organizationId } }];
 
-    if (eligibleOnly) {
-      mustConditions.push({ key: "eligible", match: { value: true } });
-    }
-
-    const mustNotConditions = excludeExternalKeys.map((key) => ({
-      key: "externalKey",
-      match: { value: key },
-    }));
-
-    const results = await qdrantClient.search(PRS_COLLECTION, {
-      vector,
-      limit,
-      score_threshold: scoreThreshold,
-      filter: {
-        must: mustConditions,
-        must_not: mustNotConditions.length > 0 ? mustNotConditions : undefined,
-      },
-      with_payload: true,
-    });
-
-    return results.map((result) => ({
-      externalKey: (result.payload as unknown as PrPayload).externalKey,
-      score: result.score,
-      payload: result.payload as unknown as PrPayload,
-    }));
-  } catch (error) {
-    console.error("Failed to search similar PRs:", error);
-    return [];
+  if (eligibleOnly) {
+    mustConditions.push({ key: "eligible", match: { value: true } });
   }
+
+  const mustNotConditions = excludeExternalKeys.map((key) => ({
+    key: "externalKey",
+    match: { value: key },
+  }));
+
+  const results = await qdrantClient.search(PRS_COLLECTION, {
+    vector,
+    limit,
+    score_threshold: scoreThreshold,
+    filter: {
+      must: mustConditions,
+      must_not: mustNotConditions.length > 0 ? mustNotConditions : undefined,
+    },
+    with_payload: true,
+  });
+
+  return results.map((result) => ({
+    externalKey: (result.payload as unknown as PrPayload).externalKey,
+    score: result.score,
+    payload: result.payload as unknown as PrPayload,
+  }));
 };

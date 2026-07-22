@@ -75,7 +75,8 @@ const executeProcessor = async (
 
     if (
       dependencies.length > 0 &&
-      context.wereAllProcessorsSkipped(dependencies, threadId)
+      context.wereAllProcessorsSkipped(dependencies, threadId) &&
+      !processor.runsWhenDependenciesSkipped?.({ context, thread, threadId })
     ) {
       threadsWithAllDepsSkipped.push(threadId);
     } else {
