@@ -1,5 +1,6 @@
-import { fetchClient } from "../../lib/database/client";
 import { ulid } from "ulid";
+
+import { fetchClient } from "../../lib/database/client";
 import type {
   PipelineJobMetadata,
   PipelineStatus,
@@ -13,22 +14,22 @@ const PIPELINE_NAME = "thread-pipeline";
  */
 export const createPipelineJob = async (
   threadIds: string[],
-  options?: PipelineJobMetadata["options"],
+  options?: PipelineJobMetadata["options"]
 ): Promise<string> => {
   const jobId = ulid().toLowerCase();
   const now = new Date();
 
   const metadata: PipelineJobMetadata = {
-    threadIds,
     options,
+    threadIds,
   };
 
   await fetchClient.mutate.pipelineJob.create({
+    createdAt: now,
     id: jobId,
+    metadataStr: JSON.stringify(metadata),
     name: PIPELINE_NAME,
     status: "pending",
-    metadataStr: JSON.stringify(metadata),
-    createdAt: now,
     updatedAt: now,
   });
 
@@ -41,7 +42,7 @@ export const createPipelineJob = async (
 export const updatePipelineJobStatus = async (
   jobId: string,
   status: PipelineStatus,
-  additionalMetadata?: Partial<PipelineJobMetadata>,
+  additionalMetadata?: Partial<PipelineJobMetadata>
 ): Promise<boolean> => {
   try {
     const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
@@ -54,9 +55,7 @@ export const updatePipelineJobStatus = async (
     await fetchClient.mutate.pipelineJob.patch({
       jobId,
       status,
-      ...(additionalMetadata
-        ? { metadataPatch: additionalMetadata }
-        : {}),
+      ...(additionalMetadata ? { metadataPatch: additionalMetadata } : {}),
       updatedAt: new Date(),
     });
 
@@ -72,7 +71,7 @@ export const updatePipelineJobStatus = async (
  */
 export const completePipelineJob = async (
   jobId: string,
-  result: PipelineExecutionResult,
+  result: PipelineExecutionResult
 ): Promise<boolean> => {
   try {
     const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
@@ -84,11 +83,11 @@ export const completePipelineJob = async (
 
     await fetchClient.mutate.pipelineJob.patch({
       jobId,
-      status: result.status,
       metadataPatch: {
-        turns: result.turns,
         summary: result.summary,
+        turns: result.turns,
       },
+      status: result.status,
       updatedAt: new Date(),
     });
 
@@ -104,7 +103,7 @@ export const completePipelineJob = async (
  */
 export const failPipelineJob = async (
   jobId: string,
-  error: string,
+  error: string
 ): Promise<boolean> => {
   try {
     const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
@@ -116,14 +115,14 @@ export const failPipelineJob = async (
 
     await fetchClient.mutate.pipelineJob.patch({
       jobId,
-      status: "failed",
       metadataPatch: { error },
+      status: "failed",
       updatedAt: new Date(),
     });
 
     return true;
-  } catch (error) {
-    console.error(`Error failing pipeline job ${jobId}:`, error);
+  } catch (persistError) {
+    console.error(`Error failing pipeline job ${jobId}:`, persistError);
     return false;
   }
 };
@@ -132,7 +131,7 @@ export const failPipelineJob = async (
  * Get a pipeline job by ID
  */
 export const getPipelineJob = async (
-  jobId: string,
+  jobId: string
 ): Promise<{
   id: string;
   name: string;
@@ -149,11 +148,11 @@ export const getPipelineJob = async (
     }
 
     return {
+      createdAt: job.createdAt,
       id: job.id,
+      metadata: job.metadataStr ? JSON.parse(job.metadataStr) : {},
       name: job.name,
       status: job.status,
-      metadata: job.metadataStr ? JSON.parse(job.metadataStr) : {},
-      createdAt: job.createdAt,
       updatedAt: job.updatedAt,
     };
   } catch (error) {

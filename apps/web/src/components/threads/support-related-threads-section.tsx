@@ -3,10 +3,11 @@ import { Link } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { ChevronRightIcon } from "lucide-react";
+
 import { fetchClient } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
-type RelatedThread = {
+interface RelatedThread {
   id: string;
   name: string;
   shortId: number | null;
@@ -18,13 +19,13 @@ type RelatedThread = {
       image?: string | null;
     } | null;
   } | null;
-};
+}
 
-type SupportRelatedThreadsSectionProps = {
+interface SupportRelatedThreadsSectionProps {
   threadId: string;
   organizationId: string;
   slug: string;
-};
+}
 
 export const SupportRelatedThreadsSection = ({
   threadId,
@@ -32,7 +33,7 @@ export const SupportRelatedThreadsSection = ({
   slug,
 }: SupportRelatedThreadsSectionProps) => {
   const { data: relatedThreads = [] } = useQuery<RelatedThread[]>({
-    queryKey: ["related-threads", threadId, organizationId],
+    enabled: !!threadId && !!organizationId,
     queryFn: async (): Promise<RelatedThread[]> => {
       if (!threadId || !organizationId) {
         return [];
@@ -50,7 +51,7 @@ export const SupportRelatedThreadsSection = ({
         return [];
       }
     },
-    enabled: !!threadId && !!organizationId,
+    queryKey: ["related-threads", threadId, organizationId],
   });
 
   if (relatedThreads.length === 0) {
@@ -69,7 +70,7 @@ export const SupportRelatedThreadsSection = ({
             render={
               <Link
                 to="/support/$slug/threads/$id"
-                params={{ slug, id: buildThreadParam(relatedThread) }}
+                params={{ id: buildThreadParam(relatedThread), slug }}
               />
             }
           >

@@ -2,11 +2,12 @@ import type { UrgencyTier } from "@workspace/schemas/signals";
 import { ActionButton } from "@workspace/ui/components/button";
 import { PriorityIndicator } from "@workspace/ui/components/indicator";
 import { X } from "lucide-react";
-import { createContext, type ReactNode, use } from "react";
+import { createContext, use } from "react";
+import type { ReactNode } from "react";
 
-type ActionRowContextValue = {
+interface ActionRowContextValue {
   tier: UrgencyTier;
-};
+}
 
 const ActionRowContext = createContext<ActionRowContextValue | null>(null);
 
@@ -37,15 +38,15 @@ function Header({ children }: { children: ReactNode }) {
 }
 
 const TIER_PRIORITY: Record<UrgencyTier, number> = {
-  red: 3,
   orange: 2,
+  red: 3,
   yellow: 1,
 };
 
 function Tag() {
   const { tier } = useActionRow();
   return (
-    <span role="img" aria-label={`urgency: ${tier}`} className="shrink-0">
+    <span aria-label={`urgency: ${tier}`} className="shrink-0">
       <PriorityIndicator priority={TIER_PRIORITY[tier]} />
     </span>
   );
@@ -111,15 +112,15 @@ function Dismiss({
 }
 
 export const ActionRow = {
-  Root,
+  Actions,
+  Dismiss,
   Header,
-  Tag,
-  Title,
   Meta,
   Reason,
-  Actions,
+  Root,
+  Tag,
+  Title,
   TopActions,
-  Dismiss,
 };
 
 export function ActionRowSkeleton() {

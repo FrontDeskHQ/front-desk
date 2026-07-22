@@ -16,6 +16,7 @@ import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
+
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { SyncStatus } from "~/components/integration-settings/sync-status";
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
@@ -24,34 +25,35 @@ import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { activateDiscord } from "~/lib/integrations/activate";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/discord/",
+  "/app/_workspace/settings/organization/integration/discord/"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Discord Integration - FrontDesk",
-          description: "Configure Discord integration",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Discord Integration - FrontDesk",
+        description: "Configure Discord integration",
+      }),
+    ],
+  }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "discord",
-)!;
+  (option) => option.id === "discord"
+);
+if (!integrationDetails) {
+  throw new Error("Discord integration option not found");
+}
 
 function RouteComponent() {
   const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "discord" }),
+    query.integration.first({ organizationId: activeOrg?.id, type: "discord" })
   );
 
   const { integrations } = usePlanLimits("discord");
@@ -59,52 +61,51 @@ function RouteComponent() {
   const parsedConfig: ReturnType<
     typeof discordIntegrationSchema.safeParse
   > | null = (() => {
-    if (!integration?.configStr) return null;
+    if (!integration?.configStr) {
+      return null;
+    }
     try {
       return discordIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr),
+        JSON.parse(integration.configStr)
       );
     } catch {
       return {
         // TODO: this wont be required once we have a proper JSON type in live-state
         // keep shape compatible with safeParse result
-        success: false,
+        success: false as const,
         error: new Error("Invalid JSON in integration.configStr"),
-      } as any;
+      } as ReturnType<typeof discordIntegrationSchema.safeParse>;
     }
   })();
 
   const updateIntegration = useCallback(
-    (
-      config: z.input<typeof discordIntegrationSchema>,
-      enabled: boolean = true,
-    ) => {
+    (config: z.input<typeof discordIntegrationSchema>, enabled = true) => {
       if (integration) {
         mutate.integration.updateInstallation({
-          integrationId: integration.id,
-          enabled,
-          updatedAt: new Date(),
           configStr: JSON.stringify({
-            ...(parsedConfig?.data ?? {}),
+            ...parsedConfig?.data,
             ...config,
           }),
+          enabled,
+          integrationId: integration.id,
+          updatedAt: new Date(),
         });
       } else if (activeOrg?.id) {
         mutate.integration.connectInstallation({
+          configStr: JSON.stringify({
+            ...parsedConfig?.data,
+            ...config,
+          }),
+          createdAt: new Date(),
+          enabled,
           id: ulid().toLowerCase(),
           organizationId: activeOrg?.id,
           type: "discord",
-          enabled,
-          createdAt: new Date(),
           updatedAt: new Date(),
-          configStr: JSON.stringify({
-            ...(parsedConfig?.data ?? {}),
-            ...config,
-          }),
         });
       }
     },
-    [integration, activeOrg, parsedConfig?.data],
+    [integration, activeOrg, parsedConfig?.data]
   );
 
   const handleEnableDiscord = async () => {
@@ -118,9 +119,9 @@ function RouteComponent() {
     }
 
     await activateDiscord({
-      organizationId: activeOrg.id,
-      existingIntegrationId: integration?.id,
       existingConfig: parsedConfig?.data ?? undefined,
+      existingIntegrationId: integration?.id,
+      organizationId: activeOrg.id,
       posthog,
     });
   };
@@ -130,7 +131,7 @@ function RouteComponent() {
 
     console.error(
       "Invalid Discord integration configuration",
-      parsedConfig.error,
+      parsedConfig.error
     );
 
     return (
@@ -192,13 +193,7 @@ function RouteComponent() {
         </div>
         <Card className="bg-muted/30">
           <CardContent>
-            {!integration?.enabled ? (
-              <>
-                <TruncatedText>
-                  <RichText content={integrationDetails.fullDescription} />
-                </TruncatedText>
-              </>
-            ) : (
+            {integration?.enabled ? (
               <>
                 <div className="flex gap-8 items-center justify-between">
                   <div className="flex flex-col">
@@ -250,11 +245,20 @@ function RouteComponent() {
                   </Button>
                 </div>
               </>
+            ) : (
+              <>
+                <TruncatedText>
+                  <RichText content={integrationDetails.fullDescription} />
+                </TruncatedText>
+              </>
             )}
           </CardContent>
         </Card>
         {integration?.enabled && (
-          <SyncStatus backfill={parsedConfig?.data?.backfill} integrationType="discord" />
+          <SyncStatus
+            backfill={parsedConfig?.data?.backfill}
+            integrationType="discord"
+          />
         )}
       </div>
     </>

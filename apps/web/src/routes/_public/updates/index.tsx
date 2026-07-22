@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import browserCollections from "fumadocs-mdx:collections/browser";
 import { Sparkles } from "lucide-react";
+
 import { source } from "~/lib/source";
 
 const loader = createServerFn({
@@ -11,7 +12,7 @@ const loader = createServerFn({
 
   const sortedPages = pages
     .filter((page) => page.data.publishedAt) // Only include pages with publishedAt dates
-    .sort((a, b) => {
+    .toSorted((a, b) => {
       const dateA = new Date(a.data.publishedAt as string).getTime();
       const dateB = new Date(b.data.publishedAt as string).getTime();
       return dateB - dateA; // Descending order (newest first)
@@ -19,21 +20,21 @@ const loader = createServerFn({
 
   return {
     pages: sortedPages.map((page) => ({
+      image: (page.data.image as string) ?? "",
       path: page.path,
-      title: page.data.title,
       publishedAt: (page.data.publishedAt as string) ?? "",
       summary: (page.data.summary as string) ?? "",
       tag: (page.data.tag as string) ?? "",
-      image: (page.data.image as string) ?? "",
+      title: page.data.title,
     })),
   };
 });
 
 const clientLoader = browserCollections.updates.createClientLoader({
-  component({ default: MDX }) {
+  component({ default: MdxComponent }) {
     return (
       <div className="customProse">
-        <MDX />
+        <MdxComponent />
       </div>
     );
   },
@@ -45,7 +46,7 @@ export const Route = createFileRoute("/_public/updates/")({
     const data = await loader();
     // Preload all pages
     await Promise.all(
-      data.pages.map((page) => clientLoader.preload(page.path)),
+      data.pages.map((page) => clientLoader.preload(page.path))
     );
     return data;
   },
@@ -89,8 +90,8 @@ function RouteComponent() {
                     />
                     <div className="text-sm text-muted-foreground font-mono mb-2">
                       {new Date(page.publishedAt).toLocaleDateString("en-US", {
-                        month: "long",
                         day: "numeric",
+                        month: "long",
                         year: "numeric",
                       })}
                     </div>

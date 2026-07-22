@@ -8,6 +8,7 @@ import {
   SkipForward,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
 import { demoThreads } from "./mock/data";
 import { MockAppFrame } from "./mock/mock-app-frame";
 import { MockPortalSlide } from "./mock/pages/portal-slide";
@@ -15,9 +16,9 @@ import { MockThreadsSlide } from "./mock/pages/threads-slide";
 
 const SLIDE_DURATION_MS = 10_000;
 const DEV_CONTROLS_VISIBLE = false; // Set to true to show dev controls
-const TIME_STEP_MS = 1_000; // 1 second for advance/rewind
+const TIME_STEP_MS = 1000; // 1 second for advance/rewind
 
-type Slide = {
+interface Slide {
   id: number;
   label: string;
   icon: typeof Inbox;
@@ -25,13 +26,10 @@ type Slide = {
     elapsedMs: number;
     slideDurationMs: number;
   }) => React.ReactNode;
-};
+}
 
 const slides: Slide[] = [
   {
-    id: 0,
-    label: "Unified inbox",
-    icon: Inbox,
     content: ({ elapsedMs, slideDurationMs }) => (
       <MockThreadsSlide
         threads={demoThreads}
@@ -39,11 +37,11 @@ const slides: Slide[] = [
         slideDurationMs={slideDurationMs}
       />
     ),
+    icon: Inbox,
+    id: 0,
+    label: "Unified inbox",
   },
   {
-    id: 1,
-    label: "Public support",
-    icon: BookOpenText,
     content: ({ elapsedMs, slideDurationMs }) => (
       <MockPortalSlide
         threads={demoThreads}
@@ -51,6 +49,9 @@ const slides: Slide[] = [
         slideDurationMs={slideDurationMs}
       />
     ),
+    icon: BookOpenText,
+    id: 1,
+    label: "Public support",
   },
 ];
 
@@ -111,7 +112,7 @@ export const ProductDemo = () => {
 
     const newElapsed = Math.min(
       currentElapsed + TIME_STEP_MS,
-      SLIDE_DURATION_MS,
+      SLIDE_DURATION_MS
     );
     pausedElapsedRef.current = newElapsed;
     const newProgress = (newElapsed / SLIDE_DURATION_MS) * 100;

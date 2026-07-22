@@ -9,11 +9,13 @@ import {
 import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, stepCountIs } from "ai";
 import z from "zod";
+
 import type { ParsedSummary } from "../../../../types";
 import {
   collectVerifiedPrUrlsFromToolSteps,
   filterActionSetToVerifiedLinkPr,
 } from "./link-pr-verification";
+import type { createSynthesisTools } from "./tools";
 
 const synthesisActionSchema = z.discriminatedUnion("kind", [
   replyActionSchema,
@@ -23,26 +25,26 @@ const synthesisActionSchema = z.discriminatedUnion("kind", [
 ]);
 
 const synthesisRawActionSetSchema = z.object({
-  summary: z.string(),
-  recommendation: z.string().trim().min(1),
-  reasoning: z.string(),
-  primary: z.array(synthesisActionSchema),
   alternatives: z.array(synthesisActionSchema).default([]),
-  urgencyScore: z.number().min(0).max(100),
+  primary: z.array(synthesisActionSchema),
+  reasoning: z.string(),
+  recommendation: z.string().trim().min(1),
   sourceInputMessageId: z.string(),
+  summary: z.string(),
+  urgencyScore: z.number().min(0).max(100),
 });
 
 export type SynthesisRawActionSet = z.infer<typeof synthesisRawActionSetSchema>;
 
-export type SynthesizeThreadReadInput = {
+export interface SynthesizeThreadReadInput {
   threadId: string;
   threadName: string | null;
-  threadMessages: Array<{
+  threadMessages: {
     id: string;
     content: string;
     authorId: string;
     createdAt: string;
-  }>;
+  }[];
   /** True when a teammate has already posted on this thread. */
   hasTeamReply: boolean;
   summary: ParsedSummary | null;
@@ -53,7 +55,7 @@ export type SynthesizeThreadReadInput = {
    */
   trigger?: ThreadReadTrigger | null;
   sourceInputMessageId: string;
-};
+}
 
 const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
   const trimmed = text.trim();
@@ -64,29 +66,30 @@ const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
     return synthesisRawActionSetSchema.parse(parsed);
   } catch (error) {
     console.error("Failed to parse synthesis output", {
+      candidateLength: candidate.length,
       error,
       rawTextLength: text.length,
-      candidateLength: candidate.length,
     });
     throw new Error(
       `Synthesis output parsing failed: ${
         error instanceof Error ? error.message : String(error)
       }`,
+      { cause: error }
     );
   }
 };
 
 export const synthesizeThreadRead = async (
   input: SynthesizeThreadReadInput,
-  tools: ReturnType<typeof import("./tools").createSynthesisTools>,
-  ai?: ReturnType<typeof createAILogger>,
+  tools: ReturnType<typeof createSynthesisTools>,
+  ai?: ReturnType<typeof createAILogger>
 ): Promise<SynthesisRawActionSet> => {
   const transcript =
     input.threadMessages.length > 0
       ? input.threadMessages
           .map(
             (message, index) =>
-              `${index + 1}. [messageId=${message.id}] ${message.content}`,
+              `${index + 1}. [messageId=${message.id}] ${message.content}`
           )
           .join("\n")
       : "(none)";
@@ -206,8 +209,8 @@ Return a single valid JSON object with exactly this shape:
   const { text, steps } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
     prompt,
-    tools,
     stopWhen: stepCountIs(8),
+    tools,
   });
 
   const raw = parseRawActionSetFromText(text);
@@ -218,11 +221,11 @@ Return a single valid JSON object with exactly this shape:
   const filtered = filterActionSetToVerifiedLinkPr(
     raw.primary,
     raw.alternatives ?? [],
-    verifiedPrUrls,
+    verifiedPrUrls
   );
   return {
     ...raw,
-    primary: filtered.primary,
     alternatives: filtered.alternatives,
+    primary: filtered.primary,
   };
 };

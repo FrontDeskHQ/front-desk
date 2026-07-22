@@ -3,66 +3,67 @@ import type { ServerDB } from "@live-state/sync/server";
 import { PRIORITY_LABELS, threadReadSchema } from "@workspace/schemas/signals";
 import { addDays } from "date-fns";
 import { z } from "zod";
+
 import { schema } from "../live-state/schema";
 import { syncLinkedIssueState } from "./capability-dispatch";
 import { statusActivityMetadata } from "./signals/activity";
 import { runRecordActivity } from "./update-mutations";
 
 export const setStatusInputSchema = z.object({
-  threadId: z.string(),
+  activityMetadata: z.record(z.string(), z.unknown()).optional(),
   organizationId: z.string(),
-  status: z.number().int().min(0).max(4),
-  source: z.string().optional(),
-  userId: z.string().optional(),
-  userName: z.string().optional(),
   /** Internal API key only — insert timeline row without a session actor. */
   recordActivity: z.boolean().optional(),
-  activityMetadata: z.record(z.string(), z.unknown()).optional(),
   replicatedStr: z.string().optional(),
+  source: z.string().optional(),
+  status: z.number().int().min(0).max(4),
+  threadId: z.string(),
+  userId: z.string().optional(),
+  userName: z.string().optional(),
 });
 
 export const setPriorityInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
   priority: z.number().int().min(0).max(4),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
 
 export const assignUserInputSchema = z.object({
-  threadId: z.string(),
-  organizationId: z.string(),
   assignedUserId: z.string().nullable(),
+  organizationId: z.string(),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
 
 export const linkIssueInputSchema = z.object({
-  threadId: z.string(),
-  organizationId: z.string(),
   externalIssueId: z.string().min(1),
+  organizationId: z.string(),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
 
 export const unlinkIssueInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
 
 export const linkPullRequestInputSchema = z.object({
-  threadId: z.string(),
-  organizationId: z.string(),
   externalPrId: z.string().min(1),
+  organizationId: z.string(),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
 
 export const unlinkPullRequestInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
@@ -71,11 +72,11 @@ export const STATUS_CLOSED = 3;
 export const STATUS_DUPLICATED = 4;
 
 export const markDuplicateInputSchema = z.object({
-  threadId: z.string(),
-  organizationId: z.string(),
   duplicateOfThreadId: z.string().min(1),
   duplicateOfThreadName: z.string().optional(),
+  organizationId: z.string(),
   source: z.string().optional(),
+  threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
 });
@@ -83,19 +84,19 @@ export const markDuplicateInputSchema = z.object({
 export const THREAD_DELETION_GRACE_DAYS = 30;
 
 export const archiveThreadInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
+  threadId: z.string(),
 });
 
 export const restoreThreadInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
+  threadId: z.string(),
 });
 
 export const setAgentReadInputSchema = z.object({
-  threadId: z.string(),
-  organizationId: z.string(),
   agentRead: threadReadSchema.nullable(),
+  organizationId: z.string(),
+  threadId: z.string(),
 });
 
 type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
@@ -103,33 +104,32 @@ type ThreadWriteDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
 type ThreadAssignDb = ThreadWriteDb &
   Pick<ServerDB<typeof schema>, "organizationUser">;
 
-type ThreadIssueLinkDb = ThreadWriteDb &
-  Pick<ServerDB<typeof schema>, "find">;
+type ThreadIssueLinkDb = ThreadWriteDb & Pick<ServerDB<typeof schema>, "find">;
 
 type ExternalEntityKind = "issue" | "pull_request";
 
 const externalEntityLinkConfig = {
   issue: {
-    threadField: "externalIssueId" as const,
-    updateType: "issue_changed" as const,
     entityType: "issue" as const,
     metadataKeys: {
-      oldId: "oldIssueId",
       newId: "newIssueId",
-      oldLabel: "oldIssueLabel",
       newLabel: "newIssueLabel",
+      oldId: "oldIssueId",
+      oldLabel: "oldIssueLabel",
     },
+    threadField: "externalIssueId" as const,
+    updateType: "issue_changed" as const,
   },
   pull_request: {
-    threadField: "externalPrId" as const,
-    updateType: "pr_changed" as const,
     entityType: "pull_request" as const,
     metadataKeys: {
-      oldId: "oldPrId",
       newId: "newPrId",
-      oldLabel: "oldPrLabel",
       newLabel: "newPrLabel",
+      oldId: "oldPrId",
+      oldLabel: "oldPrLabel",
     },
+    threadField: "externalPrId" as const,
+    updateType: "pr_changed" as const,
   },
 } satisfies Record<
   ExternalEntityKind,
@@ -146,22 +146,27 @@ const externalEntityLinkConfig = {
   }
 >;
 
-const priorityActivityMetadata = (oldPriority: number, newPriority: number) => ({
-  oldPriority,
+const priorityActivityMetadata = (
+  oldPriority: number,
+  newPriority: number
+) => ({
   newPriority,
-  oldPriorityLabel: PRIORITY_LABELS[oldPriority] ?? null,
   newPriorityLabel: PRIORITY_LABELS[newPriority] ?? null,
+  oldPriority,
+  oldPriorityLabel: PRIORITY_LABELS[oldPriority] ?? null,
 });
 
 const resolveAssignedUserName = async (
   db: Pick<ServerDB<typeof schema>, "organizationUser">,
   organizationId: string,
-  userId: string | null,
+  userId: string | null
 ) => {
-  if (!userId) return null;
+  if (!userId) {
+    return null;
+  }
 
   const orgUser = await db.organizationUser
-    .first({ organizationId, userId, enabled: true })
+    .first({ enabled: true, organizationId, userId })
     .include({ user: true })
     .get();
 
@@ -180,11 +185,10 @@ export const runSetThreadStatus = async (
   options?: {
     preloadedThread?: ThreadRow;
     recordActivity?: boolean;
-  },
+  }
 ) => {
   const thread =
-    options?.preloadedThread ??
-    (await db.thread.one(input.threadId).get());
+    options?.preloadedThread ?? (await db.thread.one(input.threadId).get());
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }
@@ -204,9 +208,9 @@ export const runSetThreadStatus = async (
   const isClosed = input.status >= STATUS_CLOSED;
   if (thread.externalIssueId && wasClosed !== isClosed) {
     await syncLinkedIssueState(db, {
-      organizationId: input.organizationId,
-      externalIssueId: thread.externalIssueId,
       closed: isClosed,
+      externalIssueId: thread.externalIssueId,
+      organizationId: input.organizationId,
     });
   }
 
@@ -215,24 +219,24 @@ export const runSetThreadStatus = async (
 
   if (shouldRecordActivity) {
     await runRecordActivity(db, {
-      threadId: input.threadId,
-      organizationId: input.organizationId,
-      userId: actor.userId,
-      userName: actor.userName,
-      type: "status_changed",
       metadata: {
         ...statusActivityMetadata(oldStatus, input.status),
         ...(input.source ? { source: input.source } : {}),
-        ...(input.activityMetadata ?? {}),
+        ...input.activityMetadata,
       },
+      organizationId: input.organizationId,
       replicatedStr: input.replicatedStr ?? JSON.stringify({}),
+      threadId: input.threadId,
+      type: "status_changed",
+      userId: actor.userId,
+      userName: actor.userName,
     });
   }
 
   return {
-    thread: { ...thread, status: input.status },
-    oldStatus,
     newStatus: input.status,
+    oldStatus,
+    thread: { ...thread, status: input.status },
   };
 };
 
@@ -242,7 +246,7 @@ export const runSetThreadPriority = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) => {
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
@@ -258,17 +262,17 @@ export const runSetThreadPriority = async (
 
   if (actor.userId !== null) {
     await runRecordActivity(db, {
-      threadId: input.threadId,
+      metadata: priorityActivityMetadata(oldPriority, input.priority),
       organizationId: input.organizationId,
+      threadId: input.threadId,
+      type: "priority_changed",
       userId: actor.userId,
       userName: actor.userName,
-      type: "priority_changed",
-      metadata: priorityActivityMetadata(oldPriority, input.priority),
     });
   }
 
   const updated = await db.thread.one(input.threadId).get();
-  return { thread: updated, oldPriority, newPriority: input.priority };
+  return { newPriority: input.priority, oldPriority, thread: updated };
 };
 
 export const runAssignThreadUser = async (
@@ -277,7 +281,7 @@ export const runAssignThreadUser = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) => {
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
@@ -293,9 +297,9 @@ export const runAssignThreadUser = async (
   if (newAssignedUserId !== null) {
     const assignee = await db.organizationUser
       .first({
+        enabled: true,
         organizationId: input.organizationId,
         userId: newAssignedUserId,
-        enabled: true,
       })
       .get();
     if (!assignee) {
@@ -314,17 +318,17 @@ export const runAssignThreadUser = async (
 
   if (actor.userId !== null) {
     await runRecordActivity(db, {
-      threadId: input.threadId,
+      metadata: {
+        newAssignedUserId,
+        newAssignedUserName,
+        oldAssignedUserId,
+        oldAssignedUserName,
+      },
       organizationId: input.organizationId,
+      threadId: input.threadId,
+      type: "assigned_changed",
       userId: actor.userId,
       userName: actor.userName,
-      type: "assigned_changed",
-      metadata: {
-        oldAssignedUserId,
-        newAssignedUserId,
-        oldAssignedUserName,
-        newAssignedUserName,
-      },
     });
   }
 
@@ -333,9 +337,9 @@ export const runAssignThreadUser = async (
     .include({ assignedUser: true })
     .get();
   return {
-    thread: updated,
-    oldAssignedUserId,
     newAssignedUserId,
+    oldAssignedUserId,
+    thread: updated,
   };
 };
 
@@ -343,17 +347,21 @@ const resolveExternalEntityLabel = async (
   db: Pick<ServerDB<typeof schema>, "find">,
   organizationId: string,
   externalKey: string | null,
-  type: ExternalEntityKind,
+  type: ExternalEntityKind
 ) => {
-  if (!externalKey) return null;
+  if (!externalKey) {
+    return null;
+  }
 
   const entity = Object.values(
     await db.find(schema.externalEntity, {
-      where: { organizationId, externalKey, type },
-    }),
+      where: { externalKey, organizationId, type },
+    })
   )[0];
 
-  if (!entity) return null;
+  if (!entity) {
+    return null;
+  }
   return `${entity.repoFullName}#${entity.number}`;
 };
 
@@ -368,7 +376,7 @@ const runLinkExternalEntity = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) => {
   const config = externalEntityLinkConfig[kind];
   const thread = await db.thread.one(input.threadId).get();
@@ -386,13 +394,13 @@ const runLinkExternalEntity = async (
       db,
       input.organizationId,
       oldId,
-      config.entityType,
+      config.entityType
     ),
     resolveExternalEntityLabel(
       db,
       input.organizationId,
       input.externalId,
-      config.entityType,
+      config.entityType
     ),
   ]);
 
@@ -402,17 +410,17 @@ const runLinkExternalEntity = async (
 
   if (actor.userId !== null) {
     await runRecordActivity(db, {
-      threadId: input.threadId,
-      organizationId: input.organizationId,
-      userId: actor.userId,
-      userName: actor.userName,
-      type: config.updateType,
       metadata: {
         [config.metadataKeys.oldId]: oldId,
         [config.metadataKeys.newId]: input.externalId,
         [config.metadataKeys.oldLabel]: oldLabel,
         [config.metadataKeys.newLabel]: newLabel,
       },
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+      type: config.updateType,
+      userId: actor.userId,
+      userName: actor.userName,
     });
   }
 
@@ -434,7 +442,7 @@ const runUnlinkExternalEntity = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) => {
   const config = externalEntityLinkConfig[kind];
   const thread = await db.thread.one(input.threadId).get();
@@ -451,24 +459,24 @@ const runUnlinkExternalEntity = async (
     db,
     input.organizationId,
     oldId,
-    config.entityType,
+    config.entityType
   );
 
   await db.thread.update(input.threadId, { [config.threadField]: null });
 
   if (actor.userId !== null) {
     await runRecordActivity(db, {
-      threadId: input.threadId,
-      organizationId: input.organizationId,
-      userId: actor.userId,
-      userName: actor.userName,
-      type: config.updateType,
       metadata: {
         [config.metadataKeys.oldId]: oldId,
         [config.metadataKeys.newId]: null,
         [config.metadataKeys.oldLabel]: oldLabel,
         [config.metadataKeys.newLabel]: null,
       },
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+      type: config.updateType,
+      userId: actor.userId,
+      userName: actor.userName,
     });
   }
 
@@ -486,13 +494,18 @@ export const runLinkIssue = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) =>
-  runLinkExternalEntity(db, "issue", {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
-    externalId: input.externalIssueId,
-  }, actor);
+  runLinkExternalEntity(
+    db,
+    "issue",
+    {
+      externalId: input.externalIssueId,
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+    },
+    actor
+  );
 
 export const runUnlinkIssue = async (
   db: ThreadIssueLinkDb,
@@ -500,12 +513,17 @@ export const runUnlinkIssue = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) =>
-  runUnlinkExternalEntity(db, "issue", {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
-  }, actor);
+  runUnlinkExternalEntity(
+    db,
+    "issue",
+    {
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+    },
+    actor
+  );
 
 export const runLinkPullRequest = async (
   db: ThreadIssueLinkDb,
@@ -513,13 +531,18 @@ export const runLinkPullRequest = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) =>
-  runLinkExternalEntity(db, "pull_request", {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
-    externalId: input.externalPrId,
-  }, actor);
+  runLinkExternalEntity(
+    db,
+    "pull_request",
+    {
+      externalId: input.externalPrId,
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+    },
+    actor
+  );
 
 export const runUnlinkPullRequest = async (
   db: ThreadIssueLinkDb,
@@ -527,12 +550,17 @@ export const runUnlinkPullRequest = async (
   actor: {
     userId: string | null;
     userName: string | null;
-  },
+  }
 ) =>
-  runUnlinkExternalEntity(db, "pull_request", {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
-  }, actor);
+  runUnlinkExternalEntity(
+    db,
+    "pull_request",
+    {
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+    },
+    actor
+  );
 
 export const runMarkDuplicate = async (
   db: ThreadWriteDb,
@@ -543,7 +571,7 @@ export const runMarkDuplicate = async (
   },
   options?: {
     preloadedThread?: ThreadRow;
-  },
+  }
 ) => {
   if (input.duplicateOfThreadId === input.threadId) {
     throw new Error("CANNOT_MARK_DUPLICATE_OF_SELF");
@@ -578,23 +606,23 @@ export const runMarkDuplicate = async (
   const duplicateOfThreadName = input.duplicateOfThreadName ?? target.name;
 
   await runRecordActivity(db, {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
-    userId: actor.userId,
-    userName: actor.userName,
-    type: "marked_duplicate",
     metadata: {
       duplicateOfThreadId: input.duplicateOfThreadId,
       duplicateOfThreadName,
       ...(input.source ? { source: input.source } : {}),
     },
+    organizationId: input.organizationId,
+    threadId: input.threadId,
+    type: "marked_duplicate",
+    userId: actor.userId,
+    userName: actor.userName,
   });
 
   return {
-    thread: { ...thread, status: STATUS_DUPLICATED },
-    oldStatus,
     duplicateOfThreadId: input.duplicateOfThreadId,
     duplicateOfThreadName,
+    oldStatus,
+    thread: { ...thread, status: STATUS_DUPLICATED },
   };
 };
 
@@ -603,7 +631,7 @@ export const runArchiveThread = async (
   input: z.infer<typeof archiveThreadInputSchema>,
   options?: {
     preloadedThread?: ThreadRow;
-  },
+  }
 ) => {
   const thread =
     options?.preloadedThread ??
@@ -614,7 +642,7 @@ export const runArchiveThread = async (
     throw new Error("THREAD_NOT_FOUND");
   }
 
-  if (thread.deletedAt != null) {
+  if (thread.deletedAt !== null && thread.deletedAt !== undefined) {
     return { thread, unchanged: true as const };
   }
 
@@ -622,8 +650,8 @@ export const runArchiveThread = async (
   await db.thread.update(input.threadId, { deletedAt });
 
   return {
-    thread: { ...thread, deletedAt },
     deletedAt,
+    thread: { ...thread, deletedAt },
   };
 };
 
@@ -632,7 +660,7 @@ export const runRestoreThread = async (
   input: z.infer<typeof restoreThreadInputSchema>,
   options?: {
     preloadedThread?: ThreadRow;
-  },
+  }
 ) => {
   const thread =
     options?.preloadedThread ??
@@ -643,7 +671,7 @@ export const runRestoreThread = async (
     throw new Error("THREAD_NOT_FOUND");
   }
 
-  if (thread.deletedAt == null) {
+  if (thread.deletedAt === null || thread.deletedAt === undefined) {
     return { thread, unchanged: true as const };
   }
 
@@ -659,11 +687,10 @@ export const runSetAgentRead = async (
   input: z.infer<typeof setAgentReadInputSchema>,
   options?: {
     preloadedThread?: ThreadRow;
-  },
+  }
 ) => {
   const thread =
-    options?.preloadedThread ??
-    (await db.thread.one(input.threadId).get());
+    options?.preloadedThread ?? (await db.thread.one(input.threadId).get());
   if (!thread || thread.organizationId !== input.organizationId) {
     throw new Error("THREAD_NOT_FOUND");
   }

@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { z } from "zod";
+
 import { fetchPullRequests } from "../lib/github";
 
 const getPullRequestsQuerySchema = z.object({
@@ -29,7 +30,7 @@ export const pullRequestsRoutes = new Elysia({
       repo,
       state
     );
-    return { pullRequests, count: pullRequests.length };
+    return { count: pullRequests.length, pullRequests };
   } catch (error) {
     console.error("Error fetching pull requests:", error);
     set.status = 500;

@@ -1,4 +1,5 @@
 import type { CloseAction } from "@workspace/schemas/signals";
+
 import { runSetThreadStatus } from "../../thread-mutations";
 import {
   clearCompensateSnapshot,
@@ -18,7 +19,9 @@ export const closeHandler: ActionHandler<CloseAction> = {
     }
 
     const previousStatus = thread.status ?? 0;
-    if (previousStatus === STATUS_CLOSED) return;
+    if (previousStatus === STATUS_CLOSED) {
+      return;
+    }
 
     if (getCompensateSnapshot(ctx, snapshotKey()) === undefined) {
       setCompensateSnapshot(ctx, snapshotKey(), { previousStatus });
@@ -27,35 +30,37 @@ export const closeHandler: ActionHandler<CloseAction> = {
     await runSetThreadStatus(
       ctx.db,
       {
-        threadId: ctx.threadId,
         organizationId: ctx.organizationId,
-        status: STATUS_CLOSED,
         source: "agent_read",
+        status: STATUS_CLOSED,
+        threadId: ctx.threadId,
       },
       {
         userId: ctx.actorUserId,
         userName: ctx.actorUserName,
       },
-      { preloadedThread: thread },
+      { preloadedThread: thread }
     );
   },
 
   async compensate(_action, ctx) {
     const snapshot = getCompensateSnapshot<{ previousStatus: number }>(
       ctx,
-      snapshotKey(),
+      snapshotKey()
     );
-    if (!snapshot) return;
+    if (!snapshot) {
+      return;
+    }
 
     await runSetThreadStatus(
       ctx.db,
       {
-        threadId: ctx.threadId,
         organizationId: ctx.organizationId,
-        status: snapshot.previousStatus,
         source: "agent_read",
+        status: snapshot.previousStatus,
+        threadId: ctx.threadId,
       },
-      { userId: null, userName: null },
+      { userId: null, userName: null }
     );
     clearCompensateSnapshot(ctx, snapshotKey());
   },

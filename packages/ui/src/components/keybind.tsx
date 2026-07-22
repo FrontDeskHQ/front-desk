@@ -17,20 +17,20 @@ export const Keybind = ({
 
   const replacements = useMemo<Record<string, string>>(
     () => ({
-      mod: isMac ? "⌘" : "ctrl",
-      shift: "⇧",
       alt: isMac ? "⌥" : "alt",
-      cmd: isMac ? "⌘" : "ctrl",
-      option: isMac ? "⌥" : "alt",
-      enter: "↵",
-      space: "␣",
       backspace: "⌫",
-      delete: "⌦",
-      tab: "⇥",
-      escape: "esc",
+      cmd: isMac ? "⌘" : "ctrl",
       ctrl: "ctrl",
+      delete: "⌦",
+      enter: "↵",
+      escape: "esc",
+      mod: isMac ? "⌘" : "ctrl",
+      option: isMac ? "⌥" : "alt",
+      shift: "⇧",
+      space: "␣",
+      tab: "⇥",
     }),
-    [isMac],
+    [isMac]
   );
 
   return (
@@ -40,7 +40,7 @@ export const Keybind = ({
           key={key}
           className={cn(
             "text-xs border-muted-foreground/20 text-muted-foreground rounded-xs h-5 min-w-5 px-1 flex items-center justify-center border font-family",
-            className,
+            className
           )}
         >
           {replacements[key] || key.toUpperCase()}
@@ -77,7 +77,7 @@ export const KeybindIsolation = forwardRef<
   };
 
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: this div is intentionally used to capture and stop keydown event propagation
+    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- stops keydown propagation for nested inputs
     <div ref={ref} className={className} onKeyDown={handleKeyDown} {...props}>
       {children}
     </div>

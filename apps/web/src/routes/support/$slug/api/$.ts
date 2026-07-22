@@ -1,21 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { getRequestHeaders } from "@tanstack/react-start/server";
 
-const getApiUrl = () => {
-  return import.meta.env.VITE_API_URL ?? "http://localhost:3333";
-};
+const getApiUrl = () => import.meta.env.VITE_API_URL ?? "http://localhost:3333";
 
 const getRequestTimeout = () => {
   const timeout = import.meta.env.VITE_API_TIMEOUT;
-  return timeout ? parseInt(timeout, 10) : 30000;
+  return timeout ? Number.parseInt(timeout, 10) : 30_000;
 };
 
 export const Route = createFileRoute("/support/$slug/api/$")({
   server: {
     handlers: {
-      ANY: async ({ request, params }) => {
-        return handleProxy(request, params);
-      },
+      ANY: async ({ request, params }) => handleProxy(request, params),
     },
   },
 });
@@ -38,13 +34,13 @@ const handleProxy = async (
 
   if (!apiPath) {
     return new Response(JSON.stringify({ error: "API path is required" }), {
+      headers: {
+        "Access-Control-Allow-Credentials": "true",
+        "Access-Control-Allow-Origin": clientOrigin,
+        "Content-Type": "application/json",
+      },
       status: 400,
       statusText: "Bad Request",
-      headers: {
-        "Content-Type": "application/json",
-        "Access-Control-Allow-Origin": clientOrigin,
-        "Access-Control-Allow-Credentials": "true",
-      },
     });
   }
 
@@ -68,8 +64,8 @@ const handleProxy = async (
   });
 
   const fetchOptions: RequestInit = {
-    method: request.method,
     headers,
+    method: request.method,
     redirect: "manual",
   };
 
@@ -123,9 +119,9 @@ const handleProxy = async (
     const responseBody = await response.arrayBuffer();
 
     return new Response(responseBody, {
+      headers: responseHeaders,
       status: response.status,
       statusText: response.statusText,
-      headers: responseHeaders,
     });
   } catch (error) {
     clearTimeout(timeoutId);
@@ -140,13 +136,13 @@ const handleProxy = async (
         message: error instanceof Error ? error.message : "Unknown error",
       }),
       {
+        headers: {
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Origin": clientOrigin,
+          "Content-Type": "application/json",
+        },
         status: isTimeout ? 504 : 502,
         statusText: isTimeout ? "Gateway Timeout" : "Bad Gateway",
-        headers: {
-          "Content-Type": "application/json",
-          "Access-Control-Allow-Origin": clientOrigin,
-          "Access-Control-Allow-Credentials": "true",
-        },
       }
     );
   }

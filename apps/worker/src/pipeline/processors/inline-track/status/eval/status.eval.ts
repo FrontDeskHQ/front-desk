@@ -1,5 +1,6 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
+
 import { inferStatus } from "../infer";
 import { statusInfererDataset } from "./dataset";
 import {
@@ -17,6 +18,7 @@ evalite("Status Inferer", {
         expectedConfidenceBucket: c.expectedConfidenceBucket,
       },
     })),
+  scorers: [statusExactMatch, noSpuriousEmission, confidenceCalibration],
   task: async (input) => {
     const start = Date.now();
     const result = await inferStatus(input);
@@ -36,5 +38,4 @@ evalite("Status Inferer", {
     });
     return result;
   },
-  scorers: [statusExactMatch, noSpuriousEmission, confidenceCalibration],
 });

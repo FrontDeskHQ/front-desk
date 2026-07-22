@@ -1,6 +1,7 @@
 import { getRouteApi } from "@tanstack/react-router";
 import { useAtom } from "jotai/react";
 import { useEffect } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { reflagClient } from "~/lib/feature-flag";
 
@@ -22,7 +23,7 @@ export const useOrganizationSwitcher = () => {
         name: activeOrganization?.name,
       },
     });
-  }, [organizationUsers, activeOrganization]);
+  }, [organizationUsers, activeOrganization, setActiveOrganization]);
 
-  return { organizationUsers, activeOrganization, setActiveOrganization };
+  return { activeOrganization, organizationUsers, setActiveOrganization };
 };

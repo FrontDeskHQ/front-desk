@@ -1,16 +1,15 @@
-import { type Job, Worker } from "bullmq";
+import { Worker } from "bullmq";
+import type { Job } from "bullmq";
+
 import {
   buildIssueFields,
   buildPullRequestFields,
-  type RepoRef,
   upsertExternalEntity,
 } from "../lib/external-entity";
+import type { RepoRef } from "../lib/external-entity";
 import { getOctokit } from "../lib/github";
-import {
-  BACKFILL_QUEUE,
-  type BackfillJobData,
-  createRedisConnection,
-} from "../lib/queue";
+import { BACKFILL_QUEUE, createRedisConnection } from "../lib/queue";
+import type { BackfillJobData } from "../lib/queue";
 
 const PER_PAGE = 100;
 
@@ -22,9 +21,14 @@ const PER_PAGE = 100;
  */
 const MAX_CONSECUTIVE_FAILURES = 10;
 
-type BackfillTally = { upserted: number; failed: number };
+interface BackfillTally {
+  upserted: number;
+  failed: number;
+}
 
-class SystemicBackfillError extends Error {}
+class SystemicBackfillError extends Error {
+  name = "SystemicBackfillError";
+}
 
 /**
  * Page every issue in the repo and upsert it into the mirror. The issues
@@ -41,22 +45,24 @@ const backfillIssues = async (
   data: BackfillJobData,
   repo: RepoRef
 ): Promise<BackfillTally> => {
-  const tally: BackfillTally = { upserted: 0, failed: 0 };
+  const tally: BackfillTally = { failed: 0, upserted: 0 };
   let consecutiveFailures = 0;
 
   const iterator = octokit.paginate.iterator(
     "GET /repos/{owner}/{repo}/issues",
     {
       owner: data.owner,
+      per_page: PER_PAGE,
       repo: data.repo,
       state: "all",
-      per_page: PER_PAGE,
     }
   );
 
   for await (const { data: page } of iterator) {
     for (const issue of page) {
-      if (issue.pull_request) continue;
+      if (issue.pull_request) {
+        continue;
+      }
       try {
         await upsertExternalEntity(
           data.organizationId,
@@ -94,16 +100,16 @@ const backfillPullRequests = async (
   data: BackfillJobData,
   repo: RepoRef
 ): Promise<BackfillTally> => {
-  const tally: BackfillTally = { upserted: 0, failed: 0 };
+  const tally: BackfillTally = { failed: 0, upserted: 0 };
   let consecutiveFailures = 0;
 
   const iterator = octokit.paginate.iterator(
     "GET /repos/{owner}/{repo}/pulls",
     {
       owner: data.owner,
+      per_page: PER_PAGE,
       repo: data.repo,
       state: "all",
-      per_page: PER_PAGE,
     }
   );
 
@@ -142,11 +148,11 @@ const backfillPullRequests = async (
  * the job-level exponential backoff configured on the queue.
  */
 export const handleBackfillJob = async (job: Job<BackfillJobData>) => {
-  const data = job.data;
+  const { data } = job;
   const repo: RepoRef = {
-    owner: data.owner,
-    name: data.repo,
     fullName: data.fullName,
+    name: data.repo,
+    owner: data.owner,
   };
 
   console.log(
@@ -164,7 +170,7 @@ export const handleBackfillJob = async (job: Job<BackfillJobData>) => {
       `(${pullRequests.failed} failed)`
   );
 
-  return { repoFullName: data.fullName, issues, pullRequests };
+  return { issues, pullRequests, repoFullName: data.fullName };
 };
 
 /**
@@ -172,12 +178,16 @@ export const handleBackfillJob = async (job: Job<BackfillJobData>) => {
  * listeners.
  */
 export const startBackfillWorker = (): Worker<BackfillJobData> => {
-  const worker = new Worker<BackfillJobData>(BACKFILL_QUEUE, handleBackfillJob, {
-    connection: createRedisConnection(),
-    concurrency: 2,
-    removeOnComplete: { count: 50, age: 24 * 3600 },
-    removeOnFail: { count: 200 },
-  });
+  const worker = new Worker<BackfillJobData>(
+    BACKFILL_QUEUE,
+    handleBackfillJob,
+    {
+      concurrency: 2,
+      connection: createRedisConnection(),
+      removeOnComplete: { age: 24 * 3600, count: 50 },
+      removeOnFail: { count: 200 },
+    }
+  );
 
   worker.on("completed", (job) => {
     console.log(`[GitHub] Backfill job ${job.id} completed`);

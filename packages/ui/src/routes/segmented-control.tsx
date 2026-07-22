@@ -5,37 +5,37 @@ import {
 } from "@workspace/ui/components/segmented-control";
 import { LayoutGrid, List, Table } from "lucide-react";
 import { useState } from "react";
+
 import {
   Anatomy,
-  type ComponentMeta,
   Demo,
   DocPage,
   DocSection,
   PropsTable,
 } from "./-components/doc-kit";
+import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
-  name: "Segmented Control",
-  status: "stable",
   description:
     "A single-select control for choosing one option from a small set of mutually exclusive, parallel choices laid out inline.",
   import:
     'import { SegmentedControl, SegmentedControlItem } from "@workspace/ui/components/segmented-control";',
-  whenToUse: [
-    "Picking exactly one of 2–5 short, parallel options (e.g. an autonomy level: Off / Suggest / Auto).",
-    "The choice is a form value that drives state elsewhere, and all options should stay visible.",
-  ],
+  name: "Segmented Control",
+  related: ["ToggleGroup", "Tabs", "RadioGroup", "Select"],
+  status: "stable",
   whenNotToUse: [
     "Multiple options can be on at once — use ToggleGroup with `multiple`.",
     "Switching which content panel is shown — use Tabs.",
     "More than ~5 options, or long labels — use Select.",
   ],
-  related: ["ToggleGroup", "Tabs", "RadioGroup", "Select"],
+  whenToUse: [
+    "Picking exactly one of 2–5 short, parallel options (e.g. an autonomy level: Off / Suggest / Auto).",
+    "The choice is a form value that drives state elsewhere, and all options should stay visible.",
+  ],
 };
 
 export const Route = createFileRoute(
-  // biome-ignore lint/suspicious/noExplicitAny: route tree is generated after adding new route files
-  "/segmented-control" as any,
+  "/segmented-control" as unknown as "/segmented-control"
 )({
   component: RouteComponent,
 });
@@ -203,39 +203,39 @@ function RouteComponent() {
         <PropsTable
           rows={[
             {
+              description: "Selected segment value (controlled).",
               name: "value",
               type: "string",
-              description: "Selected segment value (controlled).",
             },
             {
+              description: "Initially selected segment value (uncontrolled).",
               name: "defaultValue",
               type: "string",
-              description: "Initially selected segment value (uncontrolled).",
             },
             {
-              name: "onValueChange",
-              type: "(value: string, details) => void",
               description:
                 "Fired with the newly selected value. Never fires empty — one segment is always selected.",
+              name: "onValueChange",
+              type: "(value: string, details) => void",
             },
             {
-              name: "size",
-              type: '"sm" | "md" | "lg"',
               default: '"md"',
               description:
                 "Control height and text size, shared with all items.",
+              name: "size",
+              type: '"sm" | "md" | "lg"',
             },
             {
-              name: "orientation",
-              type: '"horizontal" | "vertical"',
               default: '"horizontal"',
               description: "Layout axis and arrow-key navigation direction.",
+              name: "orientation",
+              type: '"horizontal" | "vertical"',
             },
             {
-              name: "disabled",
-              type: "boolean",
               default: "false",
               description: "Disable the entire control.",
+              name: "disabled",
+              type: "boolean",
             },
           ]}
         />
@@ -248,22 +248,22 @@ function RouteComponent() {
         <PropsTable
           rows={[
             {
-              name: "value",
-              type: "string",
               description:
                 "Identifies the segment; matched against the control value.",
+              name: "value",
+              type: "string",
             },
             {
-              name: "disabled",
-              type: "boolean",
               default: "false",
               description: "Disable this segment only.",
+              name: "disabled",
+              type: "boolean",
             },
             {
-              name: "render",
-              type: "ReactElement | function",
               description:
                 "Base UI render prop — substitute the underlying element (e.g. a Link).",
+              name: "render",
+              type: "ReactElement | function",
             },
           ]}
         />

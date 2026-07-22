@@ -6,7 +6,7 @@
 export const buildPortalThreadUrl = (
   baseUrl: string,
   organizationSlug: string,
-  threadId: string,
+  threadId: string
 ): string => {
   const baseUrlObj = new URL(baseUrl);
   const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";

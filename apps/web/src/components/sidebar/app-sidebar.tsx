@@ -17,7 +17,9 @@ import {
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
 import { Activity, MessagesSquare, Search } from "lucide-react";
+
 import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
+
 import { OrgSwitcher } from "./organization-switcher";
 
 interface Item {
@@ -31,15 +33,12 @@ interface Item {
 
 const items: Item[] = [
   {
+    icon: Activity,
+    route: "/app/_workspace/_main/signal/",
     title: "Signals",
     url: "/app/signal/",
-    route: "/app/_workspace/_main/signal/",
-    icon: Activity,
   },
   {
-    title: "Threads",
-    url: "/app/threads/",
-    route: "/app/_workspace/_main/threads/",
     icon: MessagesSquare,
     items: [
       {
@@ -53,6 +52,9 @@ const items: Item[] = [
         route: "/app/_workspace/_main/threads/assigned",
       },
     ],
+    route: "/app/_workspace/_main/threads/",
+    title: "Threads",
+    url: "/app/threads/",
   },
 ];
 
@@ -86,7 +88,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                   <SidebarMenuButton
                     asChild
                     data-active={matches.some(
-                      (match) => match.routeId === item.route,
+                      (match) => match.routeId === item.route
                     )}
                   >
                     <Link to={item.url}>
@@ -101,7 +103,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                           <SidebarMenuSubButton
                             asChild
                             isActive={matches.some(
-                              (match) => match.routeId === subItem.route,
+                              (match) => match.routeId === subItem.route
                             )}
                           >
                             <Link to={subItem.url}>

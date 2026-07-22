@@ -1,11 +1,12 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
+
 import { nextAgentReadAfterExecution, persistAgentRead } from "./agent-read";
 import { getOrgActionAutonomy } from "./autonomy";
 import { fetchClient } from "./database/client";
 
 const keepForRead = (
   action: Action,
-  autonomy: Awaited<ReturnType<typeof getOrgActionAutonomy>>,
+  autonomy: Awaited<ReturnType<typeof getOrgActionAutonomy>>
 ) => autonomy[action.kind] !== "off";
 
 /**
@@ -16,7 +17,7 @@ const keepForRead = (
 export const applySynthesisAutonomy = async (
   threadId: string,
   organizationId: string,
-  rawActionSet: ThreadRead | null,
+  rawActionSet: ThreadRead | null
 ): Promise<ThreadRead | null> => {
   if (!rawActionSet) {
     await persistAgentRead(threadId, organizationId, null);
@@ -26,10 +27,10 @@ export const applySynthesisAutonomy = async (
   const autonomy = await getOrgActionAutonomy(organizationId);
 
   const primary = rawActionSet.primary.filter((action) =>
-    keepForRead(action, autonomy),
+    keepForRead(action, autonomy)
   );
   const alternatives = (rawActionSet.alternatives ?? []).filter((action) =>
-    keepForRead(action, autonomy),
+    keepForRead(action, autonomy)
   );
 
   if (primary.length === 0) {
@@ -39,15 +40,15 @@ export const applySynthesisAutonomy = async (
 
   const filteredRead: ThreadRead = {
     ...rawActionSet,
-    primary,
     alternatives,
+    primary,
   };
 
   const autoActions = primary.filter(
-    (action) => autonomy[action.kind] === "auto",
+    (action) => autonomy[action.kind] === "auto"
   );
   const suggestPrimary = primary.filter(
-    (action) => autonomy[action.kind] === "suggest",
+    (action) => autonomy[action.kind] === "suggest"
   );
 
   let finalPrimary = suggestPrimary;
@@ -55,14 +56,14 @@ export const applySynthesisAutonomy = async (
   if (autoActions.length > 0) {
     try {
       const result = await fetchClient.mutate.thread.executeAutonomousBundle({
-        threadId,
-        organizationId,
         actions: autoActions,
+        organizationId,
+        threadId,
       });
 
       const afterAuto = nextAgentReadAfterExecution(
         { ...filteredRead, primary: autoActions },
-        result,
+        result
       );
 
       if (afterAuto?.primary.length) {
@@ -76,7 +77,7 @@ export const applySynthesisAutonomy = async (
       // when the original call already succeeded.
       console.error(
         `Autonomous bundle failed for thread ${threadId}; keeping auto actions in read:`,
-        error,
+        error
       );
       finalPrimary = [...autoActions, ...suggestPrimary];
     }

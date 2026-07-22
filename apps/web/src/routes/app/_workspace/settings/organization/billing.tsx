@@ -20,6 +20,7 @@ import { addDays, format, formatDistanceToNowStrict, isAfter } from "date-fns";
 import type { DodoPayments } from "dodopayments/client";
 import { useAtomValue } from "jotai/react";
 import { useEffect, useState } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
 import { fetchClient, query } from "~/lib/live-state";
@@ -32,19 +33,17 @@ import {
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/billing",
+  "/app/_workspace/settings/organization/billing"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Billing - FrontDesk",
-          description: "Manage your subscription and billing",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Billing - FrontDesk",
+        description: "Manage your subscription and billing",
+      }),
+    ],
+  }),
 });
 
 function RouteComponent() {
@@ -57,14 +56,15 @@ function RouteComponent() {
   const isOwner =
     organizationUsers?.some(
       (orgUser) =>
-        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner",
+        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner"
     ) ?? false;
 
   // Billing identifiers (customerId/subscriptionId) are owner-only and no longer
   // synced into the local store; fetch the full subscription on demand.
   const [subscription, setSubscription] = useState<
-    Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>> | undefined
-  >(undefined);
+    | Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>>
+    | undefined
+  >();
 
   useEffect(() => {
     if (!isOwner || !currentOrg?.id) {
@@ -77,10 +77,14 @@ function RouteComponent() {
     fetchClient.query.subscription
       .forOrg({ organizationId: currentOrg.id })
       .then((result) => {
-        if (!cancelled) setSubscription(result);
+        if (!cancelled) {
+          setSubscription(result);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSubscription(undefined);
+        if (!cancelled) {
+          setSubscription(undefined);
+        }
       });
     return () => {
       cancelled = true;
@@ -90,9 +94,9 @@ function RouteComponent() {
   const seats =
     useLiveQuery(
       query.organizationUser.where({
-        organizationId: currentOrg?.id,
         enabled: true,
-      }),
+        organizationId: currentOrg?.id,
+      })
     )?.length ?? 1;
 
   const [isLoading, setIsLoading] = useState(true);
@@ -114,7 +118,9 @@ function RouteComponent() {
       });
   }, [subscription?.customerId]);
 
-  if (!currentOrg) return null;
+  if (!currentOrg) {
+    return null;
+  }
 
   const proTrialEndDate = subscription?.createdAt
     ? addDays(new Date(subscription.createdAt), 14)
@@ -138,11 +144,11 @@ function RouteComponent() {
               <div className="text-muted-foreground">
                 Your Pro free trial{" "}
                 {proTrialEndDate &&
-                  (!trialEnded
-                    ? `ends ${formatDistanceToNowStrict(proTrialEndDate, {
+                  (trialEnded
+                    ? "ended"
+                    : `ends ${formatDistanceToNowStrict(proTrialEndDate, {
                         addSuffix: true,
-                      })}`
-                    : "ended")}
+                      })}`)}
                 .
               </div>
             </CardContent>
@@ -204,14 +210,18 @@ function RouteComponent() {
                         <AlertDialogCancel>Cancel</AlertDialogCancel>
                         <AlertDialogAction
                           onClick={async () => {
-                            if (!subscription) return;
-                            if (!subscription.customerId) return;
+                            if (!subscription) {
+                              return;
+                            }
+                            if (!subscription.customerId) {
+                              return;
+                            }
 
                             await updateSubscription({
                               data: {
                                 customerId: subscription.customerId,
                                 plan: "starter",
-                                seats: seats,
+                                seats,
                               },
                             });
                           }}
@@ -227,22 +237,30 @@ function RouteComponent() {
                 !subscription?.subscriptionId && (
                   <Button
                     onClick={async () => {
-                      if (!subscription) return;
-                      if (!subscription.customerId) return;
+                      if (!subscription) {
+                        return;
+                      }
+                      if (!subscription.customerId) {
+                        return;
+                      }
 
                       const session = await createCheckoutSession({
                         data: {
                           customerId: subscription.customerId,
                           plan: "starter",
-                          seats: seats,
+                          seats,
                         },
                       });
 
-                      if (!session) return;
+                      if (!session) {
+                        return;
+                      }
 
                       const checkoutUrl = session.checkout_url;
 
-                      if (!checkoutUrl) return;
+                      if (!checkoutUrl) {
+                        return;
+                      }
 
                       window.location.href = checkoutUrl;
                     }}
@@ -293,14 +311,18 @@ function RouteComponent() {
                       <AlertDialogCancel>Cancel</AlertDialogCancel>
                       <AlertDialogAction
                         onClick={async () => {
-                          if (!subscription) return;
-                          if (!subscription.customerId) return;
+                          if (!subscription) {
+                            return;
+                          }
+                          if (!subscription.customerId) {
+                            return;
+                          }
 
                           await updateSubscription({
                             data: {
                               customerId: subscription.customerId,
                               plan: "pro",
-                              seats: seats,
+                              seats,
                             },
                           });
                         }}
@@ -314,22 +336,30 @@ function RouteComponent() {
               {plan !== "pro" && !subscription?.subscriptionId && (
                 <Button
                   onClick={async () => {
-                    if (!subscription) return;
-                    if (!subscription.customerId) return;
+                    if (!subscription) {
+                      return;
+                    }
+                    if (!subscription.customerId) {
+                      return;
+                    }
 
                     const session = await createCheckoutSession({
                       data: {
                         customerId: subscription.customerId,
                         plan: "pro",
-                        seats: seats,
+                        seats,
                       },
                     });
 
-                    if (!session) return;
+                    if (!session) {
+                      return;
+                    }
 
                     const checkoutUrl = session.checkout_url;
 
-                    if (!checkoutUrl) return;
+                    if (!checkoutUrl) {
+                      return;
+                    }
 
                     window.location.href = checkoutUrl;
                   }}
@@ -385,7 +415,7 @@ function RouteComponent() {
                           ? "text-green-700"
                           : invoice.status === "failed"
                             ? "text-red-700"
-                            : "text-yellow-700",
+                            : "text-yellow-700"
                       )}
                     >
                       {invoice.status === "succeeded"
@@ -424,9 +454,9 @@ function RouteComponent() {
                       className="text-red-700 dark:hover:text-red-700"
                       disabled={subscription?.status === "cancelled"}
                     >
-                      {subscription?.status !== "cancelled"
-                        ? "Cancel subscription"
-                        : "Already cancelled"}
+                      {subscription?.status === "cancelled"
+                        ? "Already cancelled"
+                        : "Cancel subscription"}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
@@ -444,7 +474,9 @@ function RouteComponent() {
                       <AlertDialogAction
                         variant="destructive"
                         onClick={async () => {
-                          if (!subscription?.customerId) return;
+                          if (!subscription?.customerId) {
+                            return;
+                          }
                           await cancelSubscription({
                             data: {
                               customerId: subscription.customerId,

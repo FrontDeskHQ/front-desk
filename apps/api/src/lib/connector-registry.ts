@@ -1,5 +1,7 @@
-import { buildRegistry, type Capability } from "@connectors/framework";
+import { buildRegistry } from "@connectors/framework";
+import type { Capability } from "@connectors/framework";
 import type { ServerDB } from "@live-state/sync/server";
+
 import { schema } from "../live-state/schema";
 
 /**
@@ -24,16 +26,16 @@ export const connectorInvokeSecret = process.env.DISCORD_BOT_KEY ?? null;
 export async function orgHasCapability(
   db: Pick<ServerDB<typeof schema>, "find">,
   organizationId: string,
-  capability: Capability,
+  capability: Capability
 ): Promise<boolean> {
   const integrations = Object.values(
     await db.find(schema.integration, {
-      where: { organizationId, enabled: true },
-    }),
+      where: { enabled: true, organizationId },
+    })
   );
 
   return connectorRegistry.hasCapability(
     integrations.map((integration) => integration.type),
-    capability,
+    capability
   );
 }

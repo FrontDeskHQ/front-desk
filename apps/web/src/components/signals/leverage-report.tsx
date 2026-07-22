@@ -1,9 +1,10 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
-import { Skeleton } from "@workspace/ui/components/skeleton";
+import { Skeleton as SkeletonUI } from "@workspace/ui/components/skeleton";
 import { cn } from "@workspace/ui/lib/utils";
 import type { PostHog } from "posthog-js";
 import { useEffect, useMemo } from "react";
+
 import { query } from "~/lib/live-state";
 import {
   markSnapshotSeenThisSession,
@@ -27,19 +28,19 @@ const SINCE_VISIT_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 type ReceiptKind = "apply_label" | "set_status" | "mark_duplicate" | "link_pr";
 const TILE_CAPTION: Record<ReceiptKind, string> = {
   apply_label: "Threads labeled",
-  set_status: "Status updates",
-  mark_duplicate: "Duplicates linked",
   link_pr: "PRs linked",
+  mark_duplicate: "Duplicates linked",
+  set_status: "Status updates",
 };
 const RECEIPT_KINDS: ReadonlySet<string> = new Set(Object.keys(TILE_CAPTION));
 
-type Props = {
+interface Props {
   organizationId: string;
   organizationCreatedAt: Date | null;
   userId: string;
   userName: string;
   posthog: PostHog | null;
-};
+}
 
 export function LeverageReport({
   organizationId,
@@ -49,18 +50,19 @@ export function LeverageReport({
   posthog,
 }: Props) {
   const allActions = useLiveQuery(
-    query.autonomousAction.where({ organizationId, undoneAt: null }),
+    query.autonomousAction.where({ organizationId, undoneAt: null })
   );
 
   const visit = useMemo(
     () => readSignalsVisit(organizationId, userId),
-    [organizationId, userId],
+    [organizationId, userId]
   );
   const [windowStart, mode] = useMemo(() => {
     const now = Date.now();
     const previous = visit.previousVisitAt?.getTime() ?? null;
     if (
-      previous != null &&
+      previous !== null &&
+      previous !== undefined &&
       now - previous >= SINCE_VISIT_MIN_MS &&
       now - previous <= SINCE_VISIT_MAX_MS &&
       !visit.seenThisSession
@@ -71,7 +73,9 @@ export function LeverageReport({
   }, [visit]);
 
   const orgDaysOld = useMemo(() => {
-    if (!organizationCreatedAt) return null;
+    if (!organizationCreatedAt) {
+      return null;
+    }
     return (
       (Date.now() - organizationCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
     );
@@ -86,7 +90,7 @@ export function LeverageReport({
     const filterFromStart = (start: Date) =>
       allActions
         ? allActions.filter(
-            (a) => new Date(a.appliedAt).getTime() >= start.getTime(),
+            (a) => new Date(a.appliedAt).getTime() >= start.getTime()
           )
         : [];
 
@@ -97,45 +101,57 @@ export function LeverageReport({
       mode === "since-visit"
     ) {
       return {
+        effectiveHeadingMode: "last-24h" as const,
         inWindow: filterFromStart(last24hStart),
         reportWindowStart: last24hStart,
-        effectiveHeadingMode: "last-24h" as const,
       };
     }
     return {
+      effectiveHeadingMode: mode,
       inWindow: primary,
       reportWindowStart: windowStart,
-      effectiveHeadingMode: mode,
     };
   }, [allActions, windowStart, mode]);
 
   const isNewOrg =
-    (orgDaysOld == null || orgDaysOld < NEW_ORG_DAY_THRESHOLD) &&
+    (orgDaysOld === null ||
+      orgDaysOld === undefined ||
+      orgDaysOld < NEW_ORG_DAY_THRESHOLD) &&
     (allActions?.length ?? 0) < NEW_ORG_ACTION_THRESHOLD;
 
   const isRenderable = !!allActions && !isNewOrg && inWindow.length > 0;
 
   useEffect(() => {
     const t = setTimeout(() => {
-      if (isRenderable) markSnapshotSeenThisSession(organizationId, userId);
+      if (isRenderable) {
+        markSnapshotSeenThisSession(organizationId, userId);
+      }
       markVisited(organizationId, userId);
     }, 2000);
     return () => clearTimeout(t);
   }, [isRenderable, organizationId, userId]);
 
-  if (!allActions) return <LeverageReport.Skeleton />;
-  if (isNewOrg) return null;
+  if (!allActions) {
+    return <LeverageReport.Skeleton />;
+  }
+  if (isNewOrg) {
+    return null;
+  }
 
   const grouped = new Map<ReceiptKind, number>();
   for (const a of inWindow) {
-    if (!RECEIPT_KINDS.has(a.signalType)) continue;
+    if (!RECEIPT_KINDS.has(a.signalType)) {
+      continue;
+    }
     const k = a.signalType as ReceiptKind;
     grouped.set(k, (grouped.get(k) ?? 0) + 1);
   }
 
-  if (inWindow.length === 0) return null;
+  if (inWindow.length === 0) {
+    return null;
+  }
 
-  const sorted = [...grouped.entries()].sort((a, b) => b[1] - a[1]);
+  const sorted = [...grouped.entries()].toSorted((a, b) => b[1] - a[1]);
   const named = sorted.slice(0, MAX_NAMED_TILES);
   const overflow = sorted.slice(MAX_NAMED_TILES);
   const otherCount = overflow.reduce((sum, [, c]) => sum + c, 0);
@@ -145,11 +161,13 @@ export function LeverageReport({
     | { kind: "other"; count: number };
 
   const tiles: Tile[] = named.map(([type, count]) => ({
+    count,
     kind: "named" as const,
     type,
-    count,
   }));
-  if (otherCount > 0) tiles.push({ kind: "other", count: otherCount });
+  if (otherCount > 0) {
+    tiles.push({ kind: "other", count: otherCount });
+  }
 
   const greeting = greetingFor(new Date());
   const firstName = userName.trim().split(/\s+/)[0] ?? userName;
@@ -171,7 +189,7 @@ export function LeverageReport({
       <div
         className={cn(
           "grid grid-cols-6 grid-rows-2 gap-2 auto-rows-fr",
-          "min-h-[180px]",
+          "min-h-[180px]"
         )}
       >
         {tiles.map((tile, i) => {
@@ -184,13 +202,13 @@ export function LeverageReport({
             <div
               className={cn(
                 "flex h-full w-full flex-col justify-between rounded-lg border border-border bg-card transition-colors hover:bg-accent",
-                isHero ? "p-4" : "p-3",
+                isHero ? "p-4" : "p-3"
               )}
             >
               <div
                 className={cn(
                   "text-foreground-primary font-semibold leading-none",
-                  isHero ? "text-5xl" : "text-3xl",
+                  isHero ? "text-5xl" : "text-3xl"
                 )}
               >
                 {tile.count}
@@ -198,7 +216,7 @@ export function LeverageReport({
               <div
                 className={cn(
                   "text-foreground-secondary",
-                  isHero ? "text-base" : "text-xs",
+                  isHero ? "text-base" : "text-xs"
                 )}
               >
                 {caption}
@@ -224,9 +242,9 @@ export function LeverageReport({
               }}
               onClick={() =>
                 posthog?.capture("signal:report_link_clicked", {
-                  signal_type: tile.type,
                   count: tile.count,
                   organization_id: organizationId,
+                  signal_type: tile.type,
                 })
               }
               className={cn(span, "block")}
@@ -242,45 +260,61 @@ export function LeverageReport({
 
 function greetingFor(date: Date): string {
   const h = date.getHours();
-  if (h < 5) return "Working late";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
+  if (h < 5) {
+    return "Working late";
+  }
+  if (h < 12) {
+    return "Good morning";
+  }
+  if (h < 18) {
+    return "Good afternoon";
+  }
   return "Good evening";
 }
 
 // 6-col x 2-row bento (12 cells). Tile sizes scale with rank (sorted by count).
 function tileSpan(total: number, index: number): string {
-  if (total === 1) return "col-span-6 row-span-2";
-  if (total === 2) return "col-span-3 row-span-2";
+  if (total === 1) {
+    return "col-span-6 row-span-2";
+  }
+  if (total === 2) {
+    return "col-span-3 row-span-2";
+  }
   if (total === 3) {
-    if (index === 0) return "col-span-3 row-span-2";
+    if (index === 0) {
+      return "col-span-3 row-span-2";
+    }
     return "col-span-3 row-span-1";
   }
   if (total === 4) {
-    if (index < 2) return "col-span-2 row-span-2";
+    if (index < 2) {
+      return "col-span-2 row-span-2";
+    }
     return "col-span-2 row-span-1";
   }
   if (total === 5) {
-    if (index === 0) return "col-span-2 row-span-2";
+    if (index === 0) {
+      return "col-span-2 row-span-2";
+    }
     return "col-span-2 row-span-1";
   }
   // total === 6
   return "col-span-2 row-span-1";
 }
 
-LeverageReport.Skeleton = function LeverageReportSkeleton() {
+LeverageReport.Skeleton = function Skeleton() {
   return (
     <div className="flex w-full max-w-4xl mx-auto flex-col gap-3">
       <div className="px-1">
-        <Skeleton className="h-4 w-48" />
-        <Skeleton className="mt-1.5 h-3 w-72" />
+        <SkeletonUI className="h-4 w-48" />
+        <SkeletonUI className="mt-1.5 h-3 w-72" />
       </div>
       <div className="grid grid-cols-6 grid-rows-2 gap-2 auto-rows-fr min-h-[180px]">
-        <Skeleton className="col-span-2 row-span-2" />
-        <Skeleton className="col-span-2 row-span-1" />
-        <Skeleton className="col-span-2 row-span-1" />
-        <Skeleton className="col-span-2 row-span-1" />
-        <Skeleton className="col-span-2 row-span-1" />
+        <SkeletonUI className="col-span-2 row-span-2" />
+        <SkeletonUI className="col-span-2 row-span-1" />
+        <SkeletonUI className="col-span-2 row-span-1" />
+        <SkeletonUI className="col-span-2 row-span-1" />
+        <SkeletonUI className="col-span-2 row-span-1" />
       </div>
     </div>
   );

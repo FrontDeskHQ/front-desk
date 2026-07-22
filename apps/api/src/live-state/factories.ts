@@ -1,4 +1,5 @@
 import { routeFactory } from "@live-state/sync/server";
+
 import type { schema } from "./schema";
 
 export const publicRoute = routeFactory<typeof schema>();

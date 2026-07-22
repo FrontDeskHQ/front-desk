@@ -33,13 +33,13 @@ const RECONCILE_CRON = "0 4 * * *";
  * Data for a repo backfill: everything the processor needs to authenticate as
  * the installation and page the repo's issues/PRs.
  */
-export type BackfillJobData = {
+export interface BackfillJobData {
   organizationId: string;
   installationId: number;
   owner: string;
   repo: string;
   fullName: string;
-};
+}
 
 /**
  * Data for a single-repo reconcile. Structurally identical to a backfill (same
@@ -75,10 +75,10 @@ const safeFullName = (fullName: string): string =>
 export const enqueueRepoBackfill = async (data: BackfillJobData) => {
   const jobId = `backfill_${data.organizationId}_${safeFullName(data.fullName)}`;
   await getQueue().add(BACKFILL_JOB_NAME, data, {
-    jobId,
     attempts: 3,
-    backoff: { type: "exponential", delay: 10_000 },
-    removeOnComplete: { count: 50, age: 24 * 3600 },
+    backoff: { delay: 10_000, type: "exponential" },
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 50 },
     removeOnFail: { count: 200 },
   });
 };
@@ -105,10 +105,10 @@ export const ensureReconcileScheduler = async () => {
     {
       name: RECONCILE_DISPATCH_JOB_NAME,
       opts: {
-        removeOnComplete: { count: 20, age: 7 * 24 * 3600 },
+        removeOnComplete: { age: 7 * 24 * 3600, count: 20 },
         removeOnFail: { count: 50 },
       },
-    },
+    }
   );
 };
 
@@ -121,10 +121,10 @@ export const ensureReconcileScheduler = async () => {
 export const enqueueRepoReconcile = async (data: ReconcileRepoJobData) => {
   const jobId = `reconcile_${data.organizationId}_${safeFullName(data.fullName)}`;
   await getReconcileQueue().add(RECONCILE_REPO_JOB_NAME, data, {
-    jobId,
     attempts: 3,
-    backoff: { type: "exponential", delay: 10_000 },
-    removeOnComplete: { count: 100, age: 24 * 3600 },
+    backoff: { delay: 10_000, type: "exponential" },
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 100 },
     removeOnFail: { count: 200 },
   });
 };
@@ -146,7 +146,7 @@ const getPrMatchQueue = (): Queue<PrMatchJobData> => {
       connection: createRedisConnection(),
       defaultJobOptions: {
         attempts: 3,
-        backoff: { type: "exponential", delay: 5000 },
+        backoff: { delay: 5000, type: "exponential" },
       },
     });
   }
@@ -183,7 +183,7 @@ export const enqueuePrMatch = async (data: PrMatchJobData) => {
 
   await q.add(PR_MATCH_JOB_NAME, data, {
     jobId,
-    removeOnComplete: { count: 100, age: 24 * 3600 },
+    removeOnComplete: { age: 24 * 3600, count: 100 },
     removeOnFail: { count: 500 },
   });
 };

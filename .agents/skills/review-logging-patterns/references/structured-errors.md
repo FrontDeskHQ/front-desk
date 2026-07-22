@@ -6,12 +6,12 @@ Structured errors provide context that helps developers understand **what** happ
 
 ```typescript
 // ❌ Useless errors
-throw new Error('Something went wrong')
-throw new Error('Failed')
-throw new Error('Invalid input')
+throw new Error("Something went wrong");
+throw new Error("Failed");
+throw new Error("Invalid input");
 
 // ❌ Missing context
-throw new Error('Payment failed')  // Why? How do I fix it?
+throw new Error("Payment failed"); // Why? How do I fix it?
 ```
 
 When these errors reach your logs or monitoring, you have no idea:
@@ -24,20 +24,21 @@ When these errors reach your logs or monitoring, you have no idea:
 ## Structured Error Anatomy
 
 ```typescript
-import { createError } from 'evlog'
+import { createError } from "evlog";
 
 throw createError({
-  message: 'Payment failed',              // What happened
-  status: 402,                            // HTTP status code
-  why: 'Card declined by issuer',         // Why it happened
-  fix: 'Try a different payment method',  // How to fix it
-  link: 'https://docs.example.com/...',   // More information
-  cause: originalError,                   // Original error
-  internal: {                             // Optional: backend / logs only
-    correlationId: 'pay_abc',
-    processorCode: 'card_declined',
+  message: "Payment failed", // What happened
+  status: 402, // HTTP status code
+  why: "Card declined by issuer", // Why it happened
+  fix: "Try a different payment method", // How to fix it
+  link: "https://docs.example.com/...", // More information
+  cause: originalError, // Original error
+  internal: {
+    // Optional: backend / logs only
+    correlationId: "pay_abc",
+    processorCode: "card_declined",
   },
-})
+});
 ```
 
 ### `internal` (backend-only)
@@ -82,14 +83,14 @@ User-facing description of what went wrong.
 
 ```typescript
 // ✅ Good - clear, actionable
-message: 'Failed to sync repository'
-message: 'Unable to process payment'
-message: 'User not found'
+message: "Failed to sync repository";
+message: "Unable to process payment";
+message: "User not found";
 
 // ❌ Bad - vague, unhelpful
-message: 'Error'
-message: 'Something went wrong'
-message: 'Failed'
+message: "Error";
+message: "Something went wrong";
+message: "Failed";
 ```
 
 ### `why` - Why It Happened
@@ -98,13 +99,13 @@ Technical explanation for debugging.
 
 ```typescript
 // ✅ Good - specific, technical
-why: 'GitHub API rate limit exceeded (403)'
-why: 'Card declined by issuer: insufficient_funds'
-why: 'No user with ID "user_123" exists in database'
+why: "GitHub API rate limit exceeded (403)";
+why: "Card declined by issuer: insufficient_funds";
+why: 'No user with ID "user_123" exists in database';
 
 // ❌ Bad - just restating the message
-why: 'It failed'
-why: 'Error occurred'
+why: "It failed";
+why: "Error occurred";
 ```
 
 ### `fix` - How to Fix It
@@ -113,13 +114,13 @@ Actionable steps to resolve the issue.
 
 ```typescript
 // ✅ Good - specific actions
-fix: 'Wait 1 hour or use a different API token'
-fix: 'Use a different payment method or contact your bank'
-fix: 'Check the user ID and try again'
+fix: "Wait 1 hour or use a different API token";
+fix: "Use a different payment method or contact your bank";
+fix: "Check the user ID and try again";
 
 // ❌ Bad - not actionable
-fix: 'Fix the error'
-fix: 'Try again'
+fix: "Fix the error";
+fix: "Try again";
 ```
 
 ### `link` - More Information
@@ -128,9 +129,9 @@ Documentation URL for detailed troubleshooting.
 
 ```typescript
 // ✅ Good - specific documentation
-link: 'https://docs.github.com/en/rest/rate-limit'
-link: 'https://docs.stripe.com/declines/codes'
-link: 'https://your-app.com/docs/errors/user-not-found'
+link: "https://docs.github.com/en/rest/rate-limit";
+link: "https://docs.stripe.com/declines/codes";
+link: "https://your-app.com/docs/errors/user-not-found";
 ```
 
 ### `cause` - Original Error
@@ -157,32 +158,32 @@ try {
 ```typescript
 // Rate limiting
 throw createError({
-  message: 'GitHub sync temporarily unavailable',
+  message: "GitHub sync temporarily unavailable",
   status: 429,
-  why: 'API rate limit exceeded (5000/hour)',
-  fix: 'Wait until rate limit resets or use authenticated requests',
-  link: 'https://docs.github.com/en/rest/rate-limit',
+  why: "API rate limit exceeded (5000/hour)",
+  fix: "Wait until rate limit resets or use authenticated requests",
+  link: "https://docs.github.com/en/rest/rate-limit",
   cause: error,
-})
+});
 
 // Authentication
 throw createError({
-  message: 'Unable to connect to Stripe',
+  message: "Unable to connect to Stripe",
   status: 503,
-  why: 'Invalid API key provided',
-  fix: 'Check STRIPE_SECRET_KEY environment variable',
-  link: 'https://docs.stripe.com/keys',
+  why: "Invalid API key provided",
+  fix: "Check STRIPE_SECRET_KEY environment variable",
+  link: "https://docs.stripe.com/keys",
   cause: error,
-})
+});
 
 // Network
 throw createError({
-  message: 'Failed to fetch user data',
+  message: "Failed to fetch user data",
   status: 504,
-  why: 'Connection timeout after 30s',
-  fix: 'Check network connectivity and try again',
+  why: "Connection timeout after 30s",
+  fix: "Check network connectivity and try again",
   cause: error,
-})
+});
 ```
 
 ### Validation Errors
@@ -190,28 +191,28 @@ throw createError({
 ```typescript
 // Missing required field
 throw createError({
-  message: 'Invalid checkout request',
+  message: "Invalid checkout request",
   status: 400,
   why: 'Required field "email" is missing',
-  fix: 'Include a valid email address in the request body',
-  link: 'https://your-api.com/docs/checkout#request-body',
-})
+  fix: "Include a valid email address in the request body",
+  link: "https://your-api.com/docs/checkout#request-body",
+});
 
 // Invalid format
 throw createError({
-  message: 'Invalid email format',
+  message: "Invalid email format",
   status: 422,
   why: `"${email}" is not a valid email address`,
-  fix: 'Provide an email in the format user@example.com',
-})
+  fix: "Provide an email in the format user@example.com",
+});
 
 // Business rule violation
 throw createError({
-  message: 'Cannot cancel subscription',
+  message: "Cannot cancel subscription",
   status: 409,
-  why: 'Subscription has already been cancelled',
-  fix: 'No action needed - subscription is already inactive',
-})
+  why: "Subscription has already been cancelled",
+  fix: "No action needed - subscription is already inactive",
+});
 ```
 
 ### Database Errors
@@ -219,41 +220,41 @@ throw createError({
 ```typescript
 // Not found
 throw createError({
-  message: 'User not found',
+  message: "User not found",
   status: 404,
   why: `No user with ID "${userId}" exists`,
-  fix: 'Verify the user ID is correct',
-})
+  fix: "Verify the user ID is correct",
+});
 
 // Constraint violation
 throw createError({
-  message: 'Cannot create duplicate account',
+  message: "Cannot create duplicate account",
   status: 409,
   why: `User with email "${email}" already exists`,
-  fix: 'Use a different email or log in to existing account',
-  link: 'https://your-app.com/login',
-})
+  fix: "Use a different email or log in to existing account",
+  link: "https://your-app.com/login",
+});
 
 // Connection
 throw createError({
-  message: 'Database unavailable',
+  message: "Database unavailable",
   status: 503,
-  why: 'Connection pool exhausted',
-  fix: 'Reduce concurrent connections or increase pool size',
+  why: "Connection pool exhausted",
+  fix: "Reduce concurrent connections or increase pool size",
   cause: error,
-})
+});
 ```
 
 ### Permission Errors
 
 ```typescript
 throw createError({
-  message: 'Access denied',
+  message: "Access denied",
   status: 403,
   why: 'User lacks "admin" role required for this action',
-  fix: 'Contact an administrator to request access',
-  link: 'https://your-app.com/docs/permissions',
-})
+  fix: "Contact an administrator to request access",
+  link: "https://your-app.com/docs/permissions",
+});
 ```
 
 ## Transformation Examples
@@ -265,11 +266,11 @@ async function processPayment(cart, user) {
   try {
     return await stripe.charges.create({
       amount: cart.total,
-      currency: 'usd',
+      currency: "usd",
       source: user.paymentMethodId,
-    })
+    });
   } catch (error) {
-    throw new Error('Payment failed')  // ❌ No context
+    throw new Error("Payment failed"); // ❌ No context
   }
 }
 ```
@@ -281,38 +282,38 @@ async function processPayment(cart, user) {
   try {
     return await stripe.charges.create({
       amount: cart.total,
-      currency: 'usd',
+      currency: "usd",
       source: user.paymentMethodId,
-    })
+    });
   } catch (error) {
     throw createError({
-      message: 'Payment failed',
+      message: "Payment failed",
       why: getStripeErrorReason(error),
       fix: getStripeErrorFix(error),
-      link: 'https://docs.stripe.com/declines/codes',
+      link: "https://docs.stripe.com/declines/codes",
       cause: error,
-    })
+    });
   }
 }
 
 function getStripeErrorReason(error) {
   const reasons = {
-    card_declined: 'Card was declined by the issuer',
-    insufficient_funds: 'Card has insufficient funds',
-    expired_card: 'Card has expired',
+    card_declined: "Card was declined by the issuer",
+    insufficient_funds: "Card has insufficient funds",
+    expired_card: "Card has expired",
     // ...
-  }
-  return reasons[error.code] ?? `Stripe error: ${error.code}`
+  };
+  return reasons[error.code] ?? `Stripe error: ${error.code}`;
 }
 
 function getStripeErrorFix(error) {
   const fixes = {
-    card_declined: 'Try a different payment method or contact your bank',
-    insufficient_funds: 'Use a different card or add funds',
-    expired_card: 'Update your card details with a valid expiration date',
+    card_declined: "Try a different payment method or contact your bank",
+    insufficient_funds: "Use a different card or add funds",
+    expired_card: "Update your card details with a valid expiration date",
     // ...
-  }
-  return fixes[error.code] ?? 'Contact support with error code'
+  };
+  return fixes[error.code] ?? "Contact support with error code";
 }
 ```
 
@@ -325,24 +326,24 @@ Structured errors integrate seamlessly with wide events:
 // Nuxt: useLogger and createError are auto-imported
 // Nitro v3: import { useLogger } from 'evlog/nitro/v3'
 // Nitro v2: import { useLogger } from 'evlog/nitro'
-import { createError } from 'evlog'
+import { createError } from "evlog";
 
 export default defineEventHandler(async (event) => {
-  const log = useLogger(event)
+  const log = useLogger(event);
 
   try {
     // ... business logic ...
   } catch (error) {
     // EvlogError fields are automatically captured
-    log.error(error, { step: 'payment' })
+    log.error(error, { step: "payment" });
     throw createError({
-      message: 'Payment failed',
+      message: "Payment failed",
       why: error.message,
-      fix: 'Try a different payment method',
-    })
+      fix: "Try a different payment method",
+    });
   }
   // emit() called automatically
-})
+});
 ```
 
 The wide event will include:
@@ -392,12 +393,12 @@ evlog errors work with any Nitro-powered framework. When thrown in an API route,
 ```typescript
 // Backend - just throw
 throw createError({
-  message: 'Payment failed',
+  message: "Payment failed",
   status: 402,
-  why: 'Card declined',
-  fix: 'Try another card',
-  link: 'https://docs.example.com/payments',
-})
+  why: "Card declined",
+  fix: "Try another card",
+  link: "https://docs.example.com/payments",
+});
 
 // HTTP Response:
 // Status: 402
@@ -413,24 +414,24 @@ throw createError({
 Use `parseError()` to extract all fields at the top level:
 
 ```typescript
-import { parseError } from 'evlog'
+import { parseError } from "evlog";
 
 try {
-  await $fetch('/api/checkout')
+  await $fetch("/api/checkout");
 } catch (err) {
-  const error = parseError(err)
+  const error = parseError(err);
 
   // Direct access: error.message, error.why, error.fix, error.link
   toast.add({
     title: error.message,
     description: error.why,
-    color: 'error',
+    color: "error",
     actions: error.link
-      ? [{ label: 'Learn more', onClick: () => window.open(error.link) }]
+      ? [{ label: "Learn more", onClick: () => window.open(error.link) }]
       : undefined,
-  })
+  });
 
-  if (error.fix) console.info(`💡 Fix: ${error.fix}`)
+  if (error.fix) console.info(`💡 Fix: ${error.fix}`);
 }
 ```
 
@@ -441,7 +442,7 @@ try {
 Common patterns -- adapt fields to each specific case:
 
 | Pattern | Status | Fields |
-|---------|--------|--------|
+| --- | --- | --- |
 | Resource not found | 404 | `why`: what's missing, `fix`: verify identifier |
 | External service failure | 503 | `why`: service error, `fix`: actionable step, `link`: service docs, `cause`: original error |
 | Validation failure | 400 | `why`: what's invalid, `fix`: expected format |

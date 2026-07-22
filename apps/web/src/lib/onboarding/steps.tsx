@@ -3,45 +3,46 @@ import { ConnectIntegrationContent } from "~/components/onboarding/step-content/
 import { CreateLabelsContent } from "~/components/onboarding/step-content/create-labels";
 import { InviteTeamContent } from "~/components/onboarding/step-content/invite-team";
 import { ResolveThreadContent } from "~/components/onboarding/step-content/resolve-thread";
+
 import type { OnboardingContext, OnboardingStep } from "./types";
 
 export const onboardingSteps: OnboardingStep[] = [
   {
-    id: "connect-integration",
-    title: "Connect an integration",
     description: "Connect Discord, Slack, or GitHub to start receiving threads",
-    popoverContent: <ConnectIntegrationContent />,
+    id: "connect-integration",
     isComplete: (context: OnboardingContext) =>
       context.integrations?.some((i) => i.enabled) ?? false,
+    popoverContent: <ConnectIntegrationContent />,
+    title: "Connect an integration",
   },
   {
-    id: "invite-team",
-    title: "Invite your team",
     description: "Collaborate with your team members",
-    popoverContent: <InviteTeamContent />,
+    id: "invite-team",
     isComplete: (context: OnboardingContext) => (context.teamMembers ?? 0) > 1,
+    popoverContent: <InviteTeamContent />,
+    title: "Invite your team",
   },
   {
-    id: "change-thread-property",
-    title: "Change a thread property",
     description: "Update a thread's status, priority, or assignee",
-    popoverContent: <ChangeThreadPropertyContent />,
+    id: "change-thread-property",
     isComplete: (context: OnboardingContext) =>
       context.hasModifiedThread ?? false,
+    popoverContent: <ChangeThreadPropertyContent />,
+    title: "Change a thread property",
   },
   {
-    id: "create-labels",
-    title: "Create labels",
     description: "Organize your threads with custom labels",
-    popoverContent: <CreateLabelsContent />,
+    id: "create-labels",
     isComplete: (context: OnboardingContext) => (context.labels ?? 0) > 0,
+    popoverContent: <CreateLabelsContent />,
+    title: "Create labels",
   },
   {
-    id: "resolve-thread",
-    title: "Resolve a thread",
     description: "Mark a thread as resolved when the issue is handled",
-    popoverContent: <ResolveThreadContent />,
+    id: "resolve-thread",
     isComplete: (context: OnboardingContext) =>
       context.hasResolvedThread ?? false,
+    popoverContent: <ResolveThreadContent />,
+    title: "Resolve a thread",
   },
 ];

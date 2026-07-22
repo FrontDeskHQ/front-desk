@@ -16,7 +16,7 @@ export const ensureMessagesCollection = async (): Promise<boolean> => {
   try {
     const collections = await qdrantClient.getCollections();
     const collectionExists = collections.collections.some(
-      (c) => c.name === MESSAGES_COLLECTION,
+      (c) => c.name === MESSAGES_COLLECTION
     );
 
     if (collectionExists) {
@@ -24,14 +24,14 @@ export const ensureMessagesCollection = async (): Promise<boolean> => {
     }
 
     await qdrantClient.createCollection(MESSAGES_COLLECTION, {
-      vectors: {
-        dense: { size: MESSAGE_EMBEDDING_DIMENSIONS, distance: "Cosine" },
+      optimizers_config: {
+        indexing_threshold: 0,
       },
       sparse_vectors: {
         bm25: { modifier: "idf" },
       },
-      optimizers_config: {
-        indexing_threshold: 0,
+      vectors: {
+        dense: { distance: "Cosine", size: MESSAGE_EMBEDDING_DIMENSIONS },
       },
     });
 
@@ -59,23 +59,23 @@ export const ensureMessagesCollection = async (): Promise<boolean> => {
 };
 
 export const upsertMessageVectorsBatch = async (
-  points: Array<{
+  points: {
     id: string;
     vector: {
       dense: number[];
       bm25: { text: string; model: "qdrant/bm25" };
     };
     payload: MessagePayload;
-  }>,
+  }[]
 ): Promise<boolean> => {
   try {
     await qdrantClient.upsert(MESSAGES_COLLECTION, {
-      wait: true,
       points: points.map((point) => ({
         id: point.id,
         vector: point.vector,
         payload: point.payload as unknown as Record<string, unknown>,
       })),
+      wait: true,
     });
     return true;
   } catch (error) {
@@ -85,20 +85,20 @@ export const upsertMessageVectorsBatch = async (
 };
 
 export const deleteMessageVectorsByThread = async (
-  threadId: string,
+  threadId: string
 ): Promise<boolean> => {
   try {
     await qdrantClient.delete(MESSAGES_COLLECTION, {
-      wait: true,
       filter: {
         must: [{ key: "threadId", match: { value: threadId } }],
       },
+      wait: true,
     });
     return true;
   } catch (error) {
     console.error(
       `Failed to delete message vectors for thread ${threadId}:`,
-      error,
+      error
     );
     return false;
   }
@@ -111,14 +111,14 @@ export const deleteMessageVectorsByThread = async (
  */
 export const deleteStaleMessageVectors = async (
   threadId: string,
-  keepMessageIds: string[],
+  keepMessageIds: string[]
 ): Promise<boolean> => {
   try {
     const filter: {
-      must: Array<
+      must: (
         | { key: string; match: { value: string } }
         | { key: string; match: { except: string[] } }
-      >;
+      )[];
     } = {
       must: [{ key: "threadId", match: { value: threadId } }],
     };
@@ -131,14 +131,14 @@ export const deleteStaleMessageVectors = async (
     }
 
     await qdrantClient.delete(MESSAGES_COLLECTION, {
-      wait: true,
       filter,
+      wait: true,
     });
     return true;
   } catch (error) {
     console.error(
       `Failed to delete stale message vectors for thread ${threadId}:`,
-      error,
+      error
     );
     return false;
   }

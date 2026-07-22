@@ -1,12 +1,13 @@
 import { z } from "zod";
+
 import type { LiveStateFetchClient } from "./live-state";
 
-export type BackfillStatus = {
+export interface BackfillStatus {
   processed: number;
   total: number;
   limit: number | null;
   channelsDiscovering: number;
-};
+}
 
 const settingsRecordSchema = z.record(z.string(), z.unknown());
 
@@ -19,9 +20,11 @@ const settingsRecordSchema = z.record(z.string(), z.unknown());
  * settings with only the merged key.
  */
 const parseSettingsRecord = (
-  configStr: string | null,
+  configStr: string | null
 ): Record<string, unknown> => {
-  if (!configStr) return {};
+  if (!configStr) {
+    return {};
+  }
   return settingsRecordSchema.parse(JSON.parse(configStr));
 };
 
@@ -39,12 +42,12 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
   /** Serialize backfill status read-modify-write operations per integration. */
   const withBackfillLock = async <T>(
     integrationId: string,
-    fn: () => Promise<T>,
+    fn: () => Promise<T>
   ): Promise<T> => {
     const existing = backfillLocks.get(integrationId) ?? Promise.resolve();
-    let resolve!: () => void;
-    const next = new Promise<void>((r) => {
-      resolve = r;
+    let releaseLock!: () => void;
+    const next = new Promise<void>((resolve) => {
+      releaseLock = resolve;
     });
     backfillLocks.set(integrationId, next);
 
@@ -52,7 +55,7 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
       await existing;
       return await fn();
     } finally {
-      resolve();
+      releaseLock();
       if (backfillLocks.get(integrationId) === next) {
         backfillLocks.delete(integrationId);
       }
@@ -63,12 +66,12 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
   const updateBackfillStatus = async (
     integrationId: string,
     configStr: string | null,
-    backfill: BackfillStatus | null,
+    backfill: BackfillStatus | null
   ) => {
     const current = parseSettingsRecord(configStr);
     await fetchClient.mutate.integration.updateInstallation({
-      integrationId,
       configStr: JSON.stringify({ ...current, backfill }),
+      integrationId,
     });
   };
 
@@ -78,15 +81,15 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
    */
   const updateSyncedChannels = async (
     integrationId: string,
-    syncedChannels: string[],
+    syncedChannels: string[]
   ) => {
     const latest = await fetchClient.query.integration.byId({
       id: integrationId,
     });
     const current = parseSettingsRecord(latest?.configStr ?? null);
     await fetchClient.mutate.integration.updateInstallation({
-      integrationId,
       configStr: JSON.stringify({ ...current, syncedChannels }),
+      integrationId,
     });
   };
 
@@ -95,7 +98,7 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
    * uncapped. `starter` and `beta-feedback` are free plans, so they stay capped.
    */
   const getBackfillLimit = async (
-    organizationId: string,
+    organizationId: string
   ): Promise<number | null> => {
     const subscription = await fetchClient.query.subscription.forOrg({
       organizationId,
@@ -104,9 +107,9 @@ export const createBackfillHelpers = (fetchClient: LiveStateFetchClient) => {
   };
 
   return {
-    withBackfillLock,
+    getBackfillLimit,
     updateBackfillStatus,
     updateSyncedChannels,
-    getBackfillLimit,
+    withBackfillLock,
   };
 };

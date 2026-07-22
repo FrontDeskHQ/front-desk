@@ -8,9 +8,11 @@ import type { z } from "zod";
  */
 export const createSettingsParser = <S extends z.ZodTypeAny>(schema: S) => {
   const safeParseIntegrationSettings = (
-    configStr: string | null,
+    configStr: string | null
   ): z.infer<S> | undefined => {
-    if (!configStr) return undefined;
+    if (!configStr) {
+      return undefined;
+    }
     try {
       return schema.parse(JSON.parse(configStr));
     } catch {
@@ -30,7 +32,9 @@ export const safeParseJSON = (raw: string) => {
   try {
     const parsed = JSON.parse(raw);
     // Accept common shapes produced by our editor:
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
     if (parsed && typeof parsed === "object" && "content" in parsed) {
       // e.g. a full doc { type: 'doc', content: [...] }
       // Normalize to content[] to match our usage.
@@ -40,8 +44,8 @@ export const safeParseJSON = (raw: string) => {
   // Fallback: wrap plain text in a single paragraph node.
   return [
     {
-      type: "paragraph",
       content: [{ type: "text", text: String(raw) }],
+      type: "paragraph",
     },
   ];
 };

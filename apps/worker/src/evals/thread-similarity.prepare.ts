@@ -1,5 +1,8 @@
+import {
+  ensureThreadsCollection,
+  upsertThreadVector,
+} from "../lib/qdrant/threads";
 import { batchEmbedThread } from "../pipeline/processors/embed";
-import { ensureThreadsCollection, upsertThreadVector } from "../lib/qdrant/threads";
 import {
   buildThreadSimilarityDataset,
   convertToThread,
@@ -8,7 +11,7 @@ import {
 
 const parseSummaryValue = (lines: string[], prefix: string): string => {
   const match = lines.find((line) =>
-    line.toLowerCase().startsWith(prefix.toLowerCase()),
+    line.toLowerCase().startsWith(prefix.toLowerCase())
   );
   if (!match) {
     return "";
@@ -38,17 +41,17 @@ const parseSummary = (summary: string) => {
     .filter(Boolean);
 
   return {
-    title,
-    shortDescription,
-    keywords,
     entities,
     expectedAction,
+    keywords,
+    shortDescription,
+    title,
   };
 };
 
 const buildPayload = (
   thread: ReturnType<typeof convertToThread>,
-  summary: string,
+  summary: string
 ) => {
   const parsed = parseSummary(summary);
   const labelNames =
@@ -59,20 +62,20 @@ const buildPayload = (
   const createdAt = thread.createdAt?.getTime?.() ?? Date.now();
 
   return {
-    threadId: thread.id,
-    organizationId: TEST_ORGANIZATION_ID,
-    title: parsed.title || thread.name || "Untitled",
-    shortDescription:
-      parsed.shortDescription || firstMessage || "No summary available.",
-    keywords: parsed.keywords,
+    assignedUserId: thread.assignedUserId ?? null,
+    authorId: thread.authorId ?? "author_eval",
+    createdAt,
     entities: parsed.entities,
     expectedAction: parsed.expectedAction || "triage",
-    status: thread.status ?? 0,
-    priority: thread.priority ?? 0,
-    authorId: thread.authorId ?? "author_eval",
-    assignedUserId: thread.assignedUserId ?? null,
+    keywords: parsed.keywords,
     labels: labelNames,
-    createdAt,
+    organizationId: TEST_ORGANIZATION_ID,
+    priority: thread.priority ?? 0,
+    shortDescription:
+      parsed.shortDescription || firstMessage || "No summary available.",
+    status: thread.status ?? 0,
+    threadId: thread.id,
+    title: parsed.title || thread.name || "Untitled",
     updatedAt: Date.now(),
   };
 };
@@ -127,7 +130,11 @@ const main = async (): Promise<void> => {
 
     const payload = buildPayload(thread, result.summary);
     const pointId = crypto.randomUUID();
-    const upserted = await upsertThreadVector(pointId, result.embedding, payload);
+    const upserted = await upsertThreadVector(
+      pointId,
+      result.embedding,
+      payload
+    );
 
     if (!upserted) {
       errorCount += 1;

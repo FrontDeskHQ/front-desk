@@ -1,4 +1,5 @@
 import { createScorer } from "evalite";
+
 import type { InferStatusResult } from "../infer";
 import type { StatusInfererTestCase } from "./dataset";
 
@@ -10,8 +11,8 @@ export const statusExactMatch = createScorer<
   InferStatusResult,
   Pick<StatusInfererTestCase, "expectedStatus">
 >({
-  name: "Status Exact Match",
   description: "Predicted status equals the expected one (null counts).",
+  name: "Status Exact Match",
   scorer: ({ output, expected }) => {
     const expectedStatus = expected?.expectedStatus ?? null;
     const score = output.status === expectedStatus ? 1 : 0;
@@ -30,9 +31,9 @@ export const noSpuriousEmission = createScorer<
   InferStatusResult,
   Pick<StatusInfererTestCase, "expectedStatus">
 >({
-  name: "No Spurious Emission",
   description:
     "Penalize when the model returns the current status with non-trivial confidence.",
+  name: "No Spurious Emission",
   scorer: ({ input, output }) => {
     if (output.status === null) return { score: 1 };
     if (output.status !== input.currentStatus) return { score: 1 };
@@ -57,8 +58,8 @@ export const confidenceCalibration = createScorer<
   InferStatusResult,
   Pick<StatusInfererTestCase, "expectedConfidenceBucket" | "expectedStatus">
 >({
-  name: "Confidence Calibration",
   description: "Confidence is well-calibrated against the expected bucket.",
+  name: "Confidence Calibration",
   scorer: ({ output, expected }) => {
     if (!expected) return { score: 0 };
     const { expectedConfidenceBucket } = expected;

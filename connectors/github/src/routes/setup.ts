@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { z } from "zod";
+
 import { getOctokit } from "../lib/github";
 import { fetchClient } from "../lib/live-state";
 import { enqueueRepoBackfill } from "../lib/queue";
@@ -64,19 +65,19 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
 
       const repos = installationRepos.map((repo) => ({
         fullName: repo.full_name,
-        owner: repo.owner.login,
         name: repo.name,
+        owner: repo.owner.login,
       }));
 
       await fetchClient.mutate.integration.updateInstallation({
-        integrationId: integration.id,
-        enabled: true,
-        updatedAt: new Date(),
         configStr: JSON.stringify({
           ...config,
           installationId,
           repos,
         }),
+        enabled: true,
+        integrationId: integration.id,
+        updatedAt: new Date(),
       });
 
       // Mirror each in-scope repo's full issue/PR history. Idempotent and
@@ -86,11 +87,11 @@ export const setupRoutes = new Elysia({ prefix: "/api/github" }).get(
       const enqueueResults = await Promise.allSettled(
         repos.map((repo) =>
           enqueueRepoBackfill({
-            organizationId: orgId,
+            fullName: repo.fullName,
             installationId,
+            organizationId: orgId,
             owner: repo.owner,
             repo: repo.name,
-            fullName: repo.fullName,
           })
         )
       );

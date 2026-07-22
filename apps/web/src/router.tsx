@@ -2,12 +2,13 @@ import { QueryClient } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import qs from "qs";
+
 import { DefaultCatchBoundary } from "./components/DefaultCatchBoundary";
 import { NotFound } from "./components/NotFound";
 import { routeTree } from "./routeTree.gen";
 
 const baseUrl = new URL(
-  import.meta.env.VITE_BASE_URL ?? "http://localhost:3000",
+  import.meta.env.VITE_BASE_URL ?? "http://localhost:3000"
 );
 const baseHostname = baseUrl.hostname;
 
@@ -15,12 +16,13 @@ export function getRouter() {
   const queryClient = new QueryClient();
 
   const router = createTanStackRouter({
-    routeTree,
-    defaultPreload: "intent",
+    context: { queryClient },
     defaultErrorComponent: DefaultCatchBoundary,
     defaultNotFoundComponent: () => <NotFound />,
-    scrollRestoration: true,
-    context: { queryClient },
+    defaultPreload: "intent",
+    parseSearch: (search) => {
+      return qs.parse(search.slice(1));
+    },
     rewrite: {
       // Rewrite incoming URLs so that subdomains for orgs become path segments
       // e.g. acme-inc.tryfrontdesk.app -> tryfrontdesk.app/support/acme-inc/threads
@@ -29,7 +31,7 @@ export function getRouter() {
 
         const suffixRegex = new RegExp(`\\.?${baseHostname}$`);
         const subdomain = hostname.replace(suffixRegex, "");
-        if (!subdomain) return undefined;
+        if (!subdomain) return;
 
         url.hostname = baseHostname;
         url.pathname = `/support/${subdomain}${url.pathname}`;
@@ -54,18 +56,17 @@ export function getRouter() {
         return url;
       },
     },
+    routeTree,
+    scrollRestoration: true,
     stringifySearch: (search) => {
       const searchStr = qs.stringify(search, { arrayFormat: "brackets" });
       return searchStr ? `?${searchStr}` : "";
     },
-    parseSearch: (search) => {
-      return qs.parse(search.slice(1));
-    },
   });
 
   setupRouterSsrQueryIntegration({
-    router,
     queryClient,
+    router,
   });
 
   return router;

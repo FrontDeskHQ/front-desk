@@ -16,6 +16,7 @@ import { Check, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
+
 import { useCommandMenu } from "~/lib/commands/hooks";
 import type { Command, DirectCommand, PageCommand } from "~/lib/commands/types";
 
@@ -63,7 +64,7 @@ export const CommandMenu = () => {
         setSearch("");
       }, 100);
     }
-  }, [open, resetNavigation]);
+  }, [open, resetNavigation, setSearch]);
 
   // Trigger animation on navigation
   useEffect(() => {
@@ -85,9 +86,15 @@ export const CommandMenu = () => {
 
   // Check if command is visible (defaults to true)
   const isCommandVisible = (command: Command): boolean => {
-    if (command.visible === undefined) return true;
-    if (typeof command.visible === "boolean") return command.visible;
-    if (typeof command.visible === "function") return command.visible(registry);
+    if (command.visible === undefined) {
+      return true;
+    }
+    if (typeof command.visible === "boolean") {
+      return command.visible;
+    }
+    if (typeof command.visible === "function") {
+      return command.visible(registry);
+    }
     return true;
   };
 
@@ -96,13 +103,15 @@ export const CommandMenu = () => {
 
   // Filter commands by search query
   const filterCommand = (command: Command) => {
-    if (!search) return true;
+    if (!search) {
+      return true;
+    }
     const searchLower = search.toLowerCase();
     return (
       (typeof command.label === "string" &&
         command.label.toLowerCase().includes(searchLower)) ||
       command.keywords?.some((keyword) =>
-        keyword.toLowerCase().includes(searchLower),
+        keyword.toLowerCase().includes(searchLower)
       )
     );
   };
@@ -127,8 +136,8 @@ export const CommandMenu = () => {
     }
   });
 
-  const sortedPageGroups = Object.keys(pageGrouped).sort((a, b) =>
-    a.localeCompare(b),
+  const sortedPageGroups = Object.keys(pageGrouped).toSorted((a, b) =>
+    a.localeCompare(b)
   );
 
   // Filter context and global commands separately (when not on a page)
@@ -170,30 +179,28 @@ export const CommandMenu = () => {
   });
 
   // Sort grouped commands alphabetically
-  const sortedContextGroups = Object.keys(contextGrouped).sort((a, b) =>
-    a.localeCompare(b),
+  const sortedContextGroups = Object.keys(contextGrouped).toSorted((a, b) =>
+    a.localeCompare(b)
   );
-  const sortedGlobalGroups = Object.keys(globalGrouped).sort((a, b) =>
-    a.localeCompare(b),
+  const sortedGlobalGroups = Object.keys(globalGrouped).toSorted((a, b) =>
+    a.localeCompare(b)
   );
 
-  const renderCommand = (command: Command) => {
-    return (
-      <CommandItem
-        key={command.id}
-        disabled={command.disabled}
-        onSelect={() => handleCommandSelect(command)}
-      >
-        {command.icon}
-        <span>{command.label}</span>
-        <CommandTrail>
-          {command.checked && <Check className="text-foreground-secondary" />}
-          {command.shortcut && <CommandShortcut keybind={command.shortcut} />}
-          {(command as PageCommand).pageId && <ChevronRight />}
-        </CommandTrail>
-      </CommandItem>
-    );
-  };
+  const renderCommand = (command: Command) => (
+    <CommandItem
+      key={command.id}
+      disabled={command.disabled}
+      onSelect={() => handleCommandSelect(command)}
+    >
+      {command.icon}
+      <span>{command.label}</span>
+      <CommandTrail>
+        {command.checked && <Check className="text-foreground-secondary" />}
+        {command.shortcut && <CommandShortcut keybind={command.shortcut} />}
+        {(command as PageCommand).pageId && <ChevronRight />}
+      </CommandTrail>
+    </CommandItem>
+  );
 
   return (
     <CommandDialog
@@ -235,7 +242,7 @@ export const CommandMenu = () => {
             {sortedPageGroups.map((groupName) => (
               <CommandGroup key={groupName} heading={groupName}>
                 {pageGrouped[groupName].map((command) =>
-                  renderCommand(command),
+                  renderCommand(command)
                 )}
               </CommandGroup>
             ))}
@@ -252,7 +259,7 @@ export const CommandMenu = () => {
             {sortedContextGroups.map((groupName) => (
               <CommandGroup key={groupName} heading={groupName}>
                 {contextGrouped[groupName].map((command) =>
-                  renderCommand(command),
+                  renderCommand(command)
                 )}
               </CommandGroup>
             ))}
@@ -266,7 +273,7 @@ export const CommandMenu = () => {
             {sortedGlobalGroups.map((groupName) => (
               <CommandGroup key={groupName} heading={groupName}>
                 {globalGrouped[groupName].map((command) =>
-                  renderCommand(command),
+                  renderCommand(command)
                 )}
               </CommandGroup>
             ))}

@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import qs from "qs";
 import { z } from "zod";
+
 import { fetchClient } from "~/lib/live-state";
 
 const slackCallbackSchema = z.object({
@@ -15,8 +16,8 @@ export const Route = createFileRoute(
     handlers: {
       GET: async ({ request }) => {
         const rawQs = qs.parse(request.url.split("?")[1] ?? "", {
-          plainObjects: true,
           allowPrototypes: false,
+          plainObjects: true,
         });
         try {
           const data = slackCallbackSchema.parse(rawQs);
@@ -46,7 +47,7 @@ export const Route = createFileRoute(
             }
 
             const SLACK_CLIENT_ID = import.meta.env.VITE_SLACK_CLIENT_ID;
-            const SLACK_CLIENT_SECRET = process.env.SLACK_CLIENT_SECRET;
+            const { SLACK_CLIENT_SECRET } = process.env;
 
             if (!SLACK_CLIENT_ID || !SLACK_CLIENT_SECRET) {
               throw new Error("SLACK_CREDENTIALS_NOT_CONFIGURED");
@@ -59,25 +60,25 @@ export const Route = createFileRoute(
             const tokenResponse = await fetch(
               "https://slack.com/api/oauth.v2.access",
               {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/x-www-form-urlencoded",
-                },
                 body: new URLSearchParams({
                   client_id: SLACK_CLIENT_ID,
                   client_secret: SLACK_CLIENT_SECRET,
                   code: data.code,
                   redirect_uri: redirectUri,
                 }),
+                headers: {
+                  "Content-Type": "application/x-www-form-urlencoded",
+                },
+                method: "POST",
               }
             );
 
             const tokenData = await tokenResponse.json();
             const tokenResponseSchema = z.object({
-              ok: z.boolean(),
               access_token: z.string(),
-              team: z.object({ id: z.string() }),
               error: z.string().optional(),
+              ok: z.boolean(),
+              team: z.object({ id: z.string() }),
             });
             const parsedToken = tokenResponseSchema.safeParse(tokenData);
 
@@ -106,15 +107,15 @@ export const Route = createFileRoute(
             const installation = tokenData;
 
             await fetchClient.mutate.integration.updateInstallation({
-              integrationId: integration.id,
-              enabled: true,
-              updatedAt: new Date(),
               configStr: JSON.stringify({
                 ...config,
                 teamId,
                 accessToken,
                 installation,
               }),
+              enabled: true,
+              integrationId: integration.id,
+              updatedAt: new Date(),
             });
           }
         } catch (error) {

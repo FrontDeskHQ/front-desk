@@ -4,12 +4,13 @@ import {
 } from "@connectors/framework/runtime";
 import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import type { Message } from "discord.js";
+
 import { fetchClient } from "./live-state";
 
 export { safeParseJSON } from "@connectors/framework/runtime";
 
 export const { safeParseIntegrationSettings } = createSettingsParser(
-  discordIntegrationSchema,
+  discordIntegrationSchema
 );
 
 export const {
@@ -20,7 +21,7 @@ export const {
 } = createBackfillHelpers(fetchClient);
 
 export const parseContentAsMarkdown = (message: Message): string => {
-  let content = message.content;
+  let { content } = message;
 
   // Replace user mentions: <@userId> or <@!userId> with @Username
   for (const [userId, user] of message.mentions.users) {

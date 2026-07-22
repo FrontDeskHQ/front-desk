@@ -9,17 +9,11 @@
 
 ## Language
 
-**Order**:
-{A one or two sentence description of the term}
-_Avoid_: Purchase, transaction
+**Order**: {A one or two sentence description of the term} _Avoid_: Purchase, transaction
 
-**Invoice**:
-A request for payment sent to a customer after delivery.
-_Avoid_: Bill, payment request
+**Invoice**: A request for payment sent to a customer after delivery. _Avoid_: Bill, payment request
 
-**Customer**:
-A person or organization that places orders.
-_Avoid_: Client, buyer, account
+**Customer**: A person or organization that places orders. _Avoid_: Client, buyer, account
 ```
 
 ## Rules

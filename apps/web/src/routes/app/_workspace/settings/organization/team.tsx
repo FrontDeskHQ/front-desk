@@ -30,24 +30,23 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/team",
+  "/app/_workspace/settings/organization/team"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Team - FrontDesk",
-          description: "Manage your team members",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Team - FrontDesk",
+        description: "Manage your team members",
+      }),
+    ],
+  }),
 });
 
 const roleOptions = [
@@ -62,24 +61,26 @@ function RouteComponent() {
 
   const organizationUsers = useLiveQuery(
     query.organizationUser
-      .where({ organizationId: currentOrg?.id, enabled: true })
-      .include({ user: true }),
+      .where({ enabled: true, organizationId: currentOrg?.id })
+      .include({ user: true })
   );
 
   const invites = useLiveQuery(
-    query.invite.where({ organizationId: currentOrg?.id, active: true }),
+    query.invite.where({ active: true, organizationId: currentOrg?.id })
   );
 
   const { user: currentUser } = Route.useRouteContext();
 
   const selfOrgUser = organizationUsers?.find(
-    (orgUser) => orgUser.user.id === currentUser?.id,
+    (orgUser) => orgUser.user.id === currentUser?.id
   );
 
   const [inviteValue, setInviteValue] = useState<string | null>(null);
   const [isPending, asyncAction] = useAsyncAction();
 
-  if (!currentOrg || !selfOrgUser) return null;
+  if (!currentOrg || !selfOrgUser) {
+    return null;
+  }
 
   return (
     <div className="p-4 flex flex-col gap-4 w-full">
@@ -136,7 +137,7 @@ function RouteComponent() {
                         className={cn(
                           "text-red-700 w-24 dark:hover:text-red-500",
                           orgUser.user.id === currentUser?.id &&
-                            "opacity-0 pointer-events-none",
+                            "opacity-0 pointer-events-none"
                         )}
                       >
                         Remove
@@ -159,8 +160,8 @@ function RouteComponent() {
                           variant="destructive"
                           onClick={() => {
                             mutate.organizationUser.updateMember({
-                              organizationUserId: orgUser.id,
                               enabled: false,
+                              organizationUserId: orgUser.id,
                             });
                           }}
                         >
@@ -236,13 +237,15 @@ function RouteComponent() {
           <Button
             disabled={!inviteValue}
             onClick={async () => {
-              if (!inviteValue || !currentOrg?.id) return;
+              if (!inviteValue || !currentOrg?.id) {
+                return;
+              }
 
               asyncAction(() =>
                 fetchClient.mutate.organizationUser.inviteUser({
-                  organizationId: currentOrg.id,
                   email: inviteValue.split(",").map((email) => email.trim()),
-                }),
+                  organizationId: currentOrg.id,
+                })
               ).then(() => {
                 setInviteValue(null);
                 posthog?.capture("organization_invite_send");

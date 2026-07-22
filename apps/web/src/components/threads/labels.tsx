@@ -1,7 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
-  type BaseItem,
   Combobox,
   ComboboxContent,
   ComboboxCreatableItem,
@@ -12,12 +11,14 @@ import {
   ComboboxTrigger,
   prepareCreatableItems,
 } from "@workspace/ui/components/combobox";
+import type { BaseItem } from "@workspace/ui/components/combobox";
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue } from "jotai/react";
 import { PlusIcon, TagIcon } from "lucide-react";
 import { useState } from "react";
 import { ulid } from "ulid";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 
@@ -29,7 +30,7 @@ interface LabelsSectionProps {
   threadId: string;
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
@@ -43,31 +44,31 @@ export function LabelsSection({
 
   const allLabels = useLiveQuery(
     query.label.where({
-      organizationId: currentOrg?.id,
       enabled: true,
-    }),
+      organizationId: currentOrg?.id,
+    })
   );
 
   const threadLabels = useLiveQuery(
     query.threadLabel
       .where({
-        threadId: threadId,
+        threadId,
         label: {
           enabled: true,
         },
       })
       .include({
         label: true,
-      }),
+      })
   );
 
   const items =
     allLabels?.map(
       (label): LabelItem => ({
-        value: label.id,
-        label: label.name,
         color: label.color,
-      }),
+        label: label.name,
+        value: label.id,
+      })
     ) ?? [];
 
   const itemsForView = prepareCreatableItems(items, search, true);
@@ -88,48 +89,50 @@ export function LabelsSection({
           }
           onValueChange={async (next) => {
             const creatableSelection = next.find((item) =>
-              item.startsWith("create:"),
+              item.startsWith("create:")
             );
 
             if (creatableSelection) {
               const newItem = creatableSelection.replace("create:", "");
-              if (!currentOrg?.id) return;
+              if (!currentOrg?.id) {
+                return;
+              }
 
               const labelId = ulid().toLowerCase();
               const threadLabelId = ulid().toLowerCase();
 
               mutate.label.createAndAttachToThread({
-                organizationId: currentOrg.id,
-                threadId,
-                name: newItem,
                 color: "var(--label-color-red)",
                 labelId,
+                name: newItem,
+                organizationId: currentOrg.id,
+                threadId,
                 threadLabelId,
               });
             } else {
               const nextLabelSet = new Set(
-                next.filter((i) => !i.startsWith("create:")),
+                next.filter((i) => !i.startsWith("create:"))
               );
 
               const currentLabelSet = new Set(
                 threadLabels
                   ?.filter((tl) => tl.enabled)
-                  .map((tl) => tl.label.id) ?? [],
+                  .map((tl) => tl.label.id) ?? []
               );
 
               // Create a map of labelId -> threadLabel for quick lookup
               const threadLabelMap = new Map(
-                threadLabels?.map((tl) => [tl.label.id, tl]) ?? [],
+                threadLabels?.map((tl) => [tl.label.id, tl]) ?? []
               );
 
               // Labels to add (in next but not in current)
-              const labelsToAdd = Array.from(nextLabelSet).filter(
-                (labelId) => !currentLabelSet.has(labelId),
+              const labelsToAdd = [...nextLabelSet].filter(
+                (labelId) => !currentLabelSet.has(labelId)
               );
 
               // Labels to remove (in current but not in next)
-              const labelsToRemove = Array.from(currentLabelSet).filter(
-                (labelId) => !nextLabelSet.has(labelId),
+              const labelsToRemove = [...currentLabelSet].filter(
+                (labelId) => !nextLabelSet.has(labelId)
               );
 
               // Add labels
@@ -137,9 +140,9 @@ export function LabelsSection({
                 const label = allLabels?.find((l) => l.id === labelId);
 
                 mutate.label.attachToThread({
-                  threadId,
-                  labelId,
                   id: ulid().toLowerCase(),
+                  labelId,
+                  threadId,
                 });
 
                 captureThreadEvent("thread:label_add", {
@@ -179,7 +182,7 @@ export function LabelsSection({
                 className={cn(
                   "justify-start text-sm px-2 w-full py-1 max-w-40 has-[>svg]:px-2",
                   activeLabels?.length &&
-                    "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent",
+                    "hover:bg-transparent active:bg-transparent h-auto max-w-none dark:hover:bg-transparent dark:active:bg-transparent"
                 )}
                 tooltip="Add labels"
                 keybind="l"

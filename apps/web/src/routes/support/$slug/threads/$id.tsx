@@ -1,3 +1,4 @@
+import type { InferLiveObject } from "@live-state/sync";
 import {
   createFileRoute,
   getRouteApi,
@@ -27,8 +28,10 @@ import {
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { Separator } from "@workspace/ui/components/separator";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
+import type { schema } from "api/schema";
 import { CircleUser } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
+
 import { SupportRelatedThreadsSection } from "~/components/threads/support-related-threads-section";
 import { ThreadHeader } from "~/components/threads/thread-header";
 import { ThreadReply } from "~/components/threads/thread-reply";
@@ -37,8 +40,29 @@ import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { buildThreadParam, parseThreadParam } from "~/utils/thread";
 
+type SupportThreadMessage = InferLiveObject<
+  typeof schema.message,
+  { author: true }
+>;
+type SupportThreadUpdate = InferLiveObject<typeof schema.update>;
+type TimelineMessageItem = SupportThreadMessage & { itemType: "message" };
+type TimelineUpdateItem = SupportThreadUpdate & { itemType: "update" };
+
 export const Route = createFileRoute("/support/$slug/threads/$id")({
   component: RouteComponent,
+
+  head: ({ loaderData }) => {
+    const orgName = loaderData?.headData?.organizationName ?? "Support";
+    const threadName = loaderData?.headData?.threadName ?? "Thread";
+    return {
+      meta: [
+        ...seo({
+          title: `${threadName} - ${orgName} - Support`,
+          description: `Support thread: ${threadName}`,
+        }),
+      ],
+    };
+  },
 
   loader: async ({ params, context }) => {
     const parsed = parseThreadParam(params.id);
@@ -63,18 +87,6 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
       },
     };
   },
-  head: ({ loaderData }) => {
-    const orgName = loaderData?.headData?.organizationName ?? "Support";
-    const threadName = loaderData?.headData?.threadName ?? "Thread";
-    return {
-      meta: [
-        ...seo({
-          title: `${threadName} - ${orgName} - Support`,
-          description: `Support thread: ${threadName}`,
-        }),
-      ],
-    };
-  },
 });
 
 function RouteComponent() {
@@ -87,10 +99,10 @@ function RouteComponent() {
     const canonical = buildThreadParam(thread);
     if (rawParam !== canonical) {
       route.navigate({
-        to: "/support/$slug/threads/$id",
-        params: { slug: organization.slug, id: canonical },
         hash: (prev) => prev ?? "",
+        params: { id: canonical, slug: organization.slug },
         replace: true,
+        to: "/support/$slug/threads/$id",
       });
     }
   }, [rawParam, thread, organization.slug, route]);
@@ -101,39 +113,43 @@ function RouteComponent() {
 
   const allItems = thread
     ? [
-        ...(thread?.messages ?? []).map((msg) => ({
-          ...msg,
-          itemType: "message" as const,
-        })),
-        ...(thread?.updates ?? []).map((update) => ({
-          ...update,
-          itemType: "update" as const,
-        })),
-      ].sort((a, b) => a.id.localeCompare(b.id))
+        ...(thread?.messages ?? []).map(
+          (msg): TimelineMessageItem => ({
+            ...msg,
+            itemType: "message",
+          })
+        ),
+        ...(thread?.updates ?? []).map(
+          (update): TimelineUpdateItem => ({
+            ...update,
+            itemType: "update",
+          })
+        ),
+      ].toSorted((a, b) => a.id.localeCompare(b.id))
     : [];
 
   const firstMessageIndex = allItems.findIndex(
-    (item) => item.itemType === "message",
+    (item) => item.itemType === "message"
   );
   const firstItem =
-    firstMessageIndex >= 0 ? allItems[firstMessageIndex] : undefined;
+    firstMessageIndex === -1 ? undefined : allItems[firstMessageIndex];
   const restItems = allItems.filter((_, index) => index !== firstMessageIndex);
 
   type ReplyGroup =
-    | { type: "updates"; key: string; items: any[] }
-    | { type: "message"; key: string; item: any };
+    | { type: "updates"; key: string; items: TimelineUpdateItem[] }
+    | { type: "message"; key: string; item: TimelineMessageItem };
 
   const replyGroups: ReplyGroup[] = [];
   for (const item of restItems) {
     if (item.itemType === "update") {
-      const last = replyGroups[replyGroups.length - 1];
+      const last = replyGroups.at(-1);
       if (last?.type === "updates") {
         last.items.push(item);
         continue;
       }
-      replyGroups.push({ type: "updates", key: item.id, items: [item] });
+      replyGroups.push({ items: [item], key: item.id, type: "updates" });
     } else {
-      replyGroups.push({ type: "message", key: item.id, item });
+      replyGroups.push({ item, key: item.id, type: "message" });
     }
   }
 
@@ -175,7 +191,7 @@ function RouteComponent() {
   }, [highlightAnswer]);
 
   const answerMessage = thread?.messages.find(
-    (message) => message.markedAsAnswer,
+    (message) => message.markedAsAnswer
   );
   const isThreadAuthor = Boolean(user && thread?.author?.userId === user.id);
 
@@ -249,14 +265,16 @@ function RouteComponent() {
             {user ? (
               <Editor
                 onSubmit={async (value) => {
-                  if (!user) return;
+                  if (!user) {
+                    return;
+                  }
 
                   await fetchClient.mutate.message.create({
-                    threadId: thread.id,
                     content: value,
+                    organizationId: thread.organizationId,
+                    threadId: thread.id,
                     userId: user.id,
                     userName: user.name,
-                    organizationId: thread.organizationId,
                   });
 
                   // TODO: Find out how to only invalidate this route

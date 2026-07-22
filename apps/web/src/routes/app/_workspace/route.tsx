@@ -18,6 +18,7 @@ import { addDays, isAfter } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useState } from "react";
+
 import { Toolbar } from "~/components/devtools/toolbar";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { reflagClient } from "~/lib/feature-flag";
@@ -35,18 +36,15 @@ export type WindowWithCachedOrgUsers = Window & {
   };
 };
 export const Route = createFileRoute("/app/_workspace")({
-  component: RouteComponent,
-  beforeLoad: async ({ context }) => {
+  beforeLoad: async ({ context: _context }) => {
     let orgUsers =
-      typeof window !== "undefined"
-        ? (window as WindowWithCachedOrgUsers).cachedOrgUsers
-        : undefined;
+      typeof window === "undefined"
+        ? undefined
+        : (window as WindowWithCachedOrgUsers).cachedOrgUsers;
 
     if (orgUsers) {
       return orgUsers;
     }
-
-    const user = context.user;
 
     orgUsers = {
       organizationUsers: await fetchClient.query.organizationUser
@@ -69,6 +67,7 @@ export const Route = createFileRoute("/app/_workspace")({
 
     return orgUsers;
   },
+  component: RouteComponent,
 });
 
 function RouteComponent() {
@@ -103,12 +102,13 @@ function RouteComponent() {
   const isOwner =
     organizationUsers?.some(
       (orgUser) =>
-        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner",
+        orgUser.organizationId === currentOrg?.id && orgUser.role === "owner"
     ) ?? false;
 
   const [subscription, setSubscription] = useState<
-    Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>> | undefined
-  >(undefined);
+    | Awaited<ReturnType<typeof fetchClient.query.subscription.forOrg>>
+    | undefined
+  >();
 
   useEffect(() => {
     if (!isOwner || !currentOrg?.id) {
@@ -121,10 +121,14 @@ function RouteComponent() {
     fetchClient.query.subscription
       .forOrg({ organizationId: currentOrg.id })
       .then((result) => {
-        if (!cancelled) setSubscription(result);
+        if (!cancelled) {
+          setSubscription(result);
+        }
       })
       .catch(() => {
-        if (!cancelled) setSubscription(undefined);
+        if (!cancelled) {
+          setSubscription(undefined);
+        }
       });
     return () => {
       cancelled = true;
@@ -134,9 +138,9 @@ function RouteComponent() {
   const seats =
     useLiveQuery(
       query.organizationUser.where({
-        organizationId: currentOrg?.id,
         enabled: true,
-      }),
+        organizationId: currentOrg?.id,
+      })
     )?.length ?? 1;
 
   const proTrialEndDate = subscription?.createdAt
@@ -159,7 +163,9 @@ function RouteComponent() {
   const [isSubscribing, setIsSubscribing] = useState(false);
 
   const handleSubscribe = async (planType: "starter" | "pro") => {
-    if (!subscription?.customerId) return;
+    if (!subscription?.customerId) {
+      return;
+    }
     setIsSubscribing(true);
 
     try {
@@ -167,7 +173,7 @@ function RouteComponent() {
         data: {
           customerId: subscription.customerId,
           plan: planType,
-          seats: seats,
+          seats,
         },
       });
 

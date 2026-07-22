@@ -1,11 +1,7 @@
-import {
-  type Processor,
-  Queue,
-  type QueueOptions,
-  Worker,
-  type WorkerOptions,
-} from "bullmq";
-import Redis, { type RedisOptions } from "ioredis";
+import { Queue, Worker } from "bullmq";
+import type { Processor, QueueOptions, WorkerOptions } from "bullmq";
+import Redis from "ioredis";
+import type { RedisOptions } from "ioredis";
 
 export type { Job, Queue, Worker } from "bullmq";
 
@@ -14,13 +10,23 @@ const parseRedisUrl = (url: string): RedisOptions => {
   const parsed = new URL(url);
   const options: RedisOptions = { host: parsed.hostname };
 
-  if (parsed.port) options.port = Number.parseInt(parsed.port, 10);
-  if (parsed.username) options.username = decodeURIComponent(parsed.username);
-  if (parsed.password) options.password = decodeURIComponent(parsed.password);
+  if (parsed.port) {
+    options.port = Number.parseInt(parsed.port, 10);
+  }
+  if (parsed.username) {
+    options.username = decodeURIComponent(parsed.username);
+  }
+  if (parsed.password) {
+    options.password = decodeURIComponent(parsed.password);
+  }
 
   const db = parsed.pathname.replace(/^\//, "");
-  if (db) options.db = Number.parseInt(db, 10);
-  if (parsed.protocol === "rediss:") options.tls = {};
+  if (db) {
+    options.db = Number.parseInt(db, 10);
+  }
+  if (parsed.protocol === "rediss:") {
+    options.tls = {};
+  }
 
   // Carry query options through (e.g. `?family=6` for IPv6), matching ioredis's
   // own URL parsing which copies search params onto the connection options.
@@ -78,7 +84,7 @@ export const createRedisConnection = (): Redis =>
  */
 export const createQueue = <T>(
   name: string,
-  options?: Omit<QueueOptions, "connection">,
+  options?: Omit<QueueOptions, "connection">
 ): Queue<T> =>
   new Queue<T>(name, { connection: getRedisConnectionOptions(), ...options });
 
@@ -90,7 +96,7 @@ export const createQueue = <T>(
 export const createWorker = <T, R = unknown>(
   name: string,
   processor: Processor<T, R>,
-  options?: Omit<WorkerOptions, "connection">,
+  options?: Omit<WorkerOptions, "connection">
 ): Worker<T, R> =>
   new Worker<T, R>(name, processor, {
     connection: getRedisConnectionOptions(),

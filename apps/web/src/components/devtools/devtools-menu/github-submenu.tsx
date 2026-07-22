@@ -3,6 +3,7 @@
 import { MenuItem } from "@workspace/ui/components/menu";
 import { useAtomValue } from "jotai/react";
 import { toast } from "sonner";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 
@@ -24,10 +25,10 @@ const SyncGithubMenuItem = () => {
       toast.success(
         `Queued backfill for ${result.enqueued}/${result.repos} repositor${
           result.repos === 1 ? "y" : "ies"
-        }`,
+        }`
       );
-    } catch (err) {
-      console.error("[GitHub] Manual sync failed:", err);
+    } catch (error) {
+      console.error("[GitHub] Manual sync failed:", error);
       toast.error("Failed to start sync");
     }
   };
@@ -42,6 +43,4 @@ const SyncGithubMenuItem = () => {
   );
 };
 
-export const GithubSubmenu = () => {
-  return <SyncGithubMenuItem />;
-};
+export const GithubSubmenu = () => <SyncGithubMenuItem />;

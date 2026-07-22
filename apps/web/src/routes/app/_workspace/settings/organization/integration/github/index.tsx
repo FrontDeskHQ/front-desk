@@ -12,38 +12,40 @@ import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { ulid } from "ulid";
+
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/github/",
+  "/app/_workspace/settings/organization/integration/github/"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "GitHub Integration - FrontDesk",
-          description: "Configure GitHub integration",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "GitHub Integration - FrontDesk",
+        description: "Configure GitHub integration",
+      }),
+    ],
+  }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "github",
-)!;
+  (option) => option.id === "github"
+);
+if (!integrationDetails) {
+  throw new Error("GitHub integration option not found");
+}
 
 const generateStateToken = (): string => {
   const array = new Uint8Array(32);
   crypto.getRandomValues(array);
   return Array.from(array, (byte) => byte.toString(16).padStart(2, "0")).join(
-    "",
+    ""
   );
 };
 
@@ -51,7 +53,7 @@ function RouteComponent() {
   const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "github" }),
+    query.integration.first({ organizationId: activeOrg?.id, type: "github" })
   );
   if (!activeOrg) {
     return null;
@@ -60,15 +62,17 @@ function RouteComponent() {
   const parsedConfig: ReturnType<
     typeof githubIntegrationSchema.safeParse
   > | null = (() => {
-    if (!integration?.configStr) return null;
+    if (!integration?.configStr) {
+      return null;
+    }
     try {
       return githubIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr),
+        JSON.parse(integration.configStr)
       );
     } catch {
       return {
-        success: false,
         error: new Error("Invalid JSON in integration.configStr"),
+        success: false,
       } as ReturnType<typeof githubIntegrationSchema.safeParse>;
     }
   })();
@@ -90,26 +94,26 @@ function RouteComponent() {
 
     if (integration) {
       await fetchClient.mutate.integration.updateInstallation({
-        integrationId: integration.id,
-        enabled: false,
-        updatedAt: new Date(),
         configStr: JSON.stringify({
-          ...(parsedConfig?.data ?? {}),
+          ...parsedConfig?.data,
           csrfToken,
         }),
+        enabled: false,
+        integrationId: integration.id,
+        updatedAt: new Date(),
       });
     } else if (activeOrg?.id) {
       await fetchClient.mutate.integration.connectInstallation({
+        configStr: JSON.stringify({
+          ...parsedConfig?.data,
+          csrfToken,
+        }),
+        createdAt: new Date(),
+        enabled: false,
         id: ulid().toLowerCase(),
         organizationId: activeOrg?.id,
         type: "github",
-        enabled: false,
         updatedAt: new Date(),
-        createdAt: new Date(),
-        configStr: JSON.stringify({
-          ...(parsedConfig?.data ?? {}),
-          csrfToken,
-        }),
       });
     }
 
@@ -117,7 +121,7 @@ function RouteComponent() {
     // The state parameter will be passed back in the callback
     const state = `${activeOrg?.id}_${csrfToken}`;
     const githubAppInstallUrl = `https://github.com/apps/${GITHUB_APP_SLUG}/installations/new?state=${encodeURIComponent(
-      state,
+      state
     )}`;
 
     posthog?.capture("integration_enable", {
@@ -133,7 +137,7 @@ function RouteComponent() {
   if (parsedConfig && !parsedConfig.success) {
     console.error(
       "Invalid GitHub integration configuration",
-      parsedConfig.error,
+      parsedConfig.error
     );
 
     return (
@@ -187,11 +191,7 @@ function RouteComponent() {
         </div>
         <Card className="bg-muted/30">
           <CardContent>
-            {!integration?.enabled ? (
-              <TruncatedText>
-                <RichText content={integrationDetails.fullDescription} />
-              </TruncatedText>
-            ) : (
+            {integration?.enabled ? (
               <>
                 <div className="flex flex-col gap-2">
                   <div>Connected Repositories</div>
@@ -227,6 +227,10 @@ function RouteComponent() {
                   </Button>
                 </div>
               </>
+            ) : (
+              <TruncatedText>
+                <RichText content={integrationDetails.fullDescription} />
+              </TruncatedText>
             )}
           </CardContent>
         </Card>

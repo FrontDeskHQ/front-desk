@@ -1,9 +1,6 @@
 # 0005 — Read hints are evidence; synthesis is a tool-using agent
 
-**Status:** Accepted
-**Date:** 2026-05-28
-**Supersedes:** [ADR 0004](./0004-synthesis-candidate-persistence.md)
-**Amends:** [ADR 0002](./0002-two-track-candidate-pipeline.md)
+**Status:** Accepted **Date:** 2026-05-28 **Supersedes:** [ADR 0004](./0004-synthesis-candidate-persistence.md) **Amends:** [ADR 0002](./0002-two-track-candidate-pipeline.md)
 
 ## Context
 
@@ -11,22 +8,22 @@
 
 In practice that model drifted into something heavier than intended:
 
-- Generators had to know how to *construct* actions (`mark_duplicate{targetThreadId}`, `reply{draftMarkdown}`), duplicating judgement that belongs in one place.
+- Generators had to know how to _construct_ actions (`mark_duplicate{targetThreadId}`, `reply{draftMarkdown}`), duplicating judgement that belongs in one place.
 - A `draft` generator producing a full reply, and a `close` generator deciding closure, are not "candidates" — they are the synthesis decision itself, made in the wrong place.
 - The synthesis LLM was a dumb composer: it could only rank what generators handed it, and could not chase a lead a generator never anticipated.
-- `thread.synthesisCandidates` persisted *concrete actions*, coupling storage to the action vocabulary.
+- `thread.synthesisCandidates` persisted _concrete actions_, coupling storage to the action vocabulary.
 
 ## Decision
 
 Recast the synthesis track around **evidence** and a **tool-using synthesis agent**.
 
-**Read hints are evidence, not actions.** A [hint processor](../../CONTEXT.md) gathers and scores evidence only — "thread #482 looks like a duplicate, score 0.91", "these docs are relevant" — and never proposes a concrete action. The hint set today is `duplicate` and `related_docs`. `thread.synthesisCandidates` becomes `thread.hints`, shaped as evidence slots rather than `Action` slots; the per-processor skip+rehydrate mechanism from ADR 0004 is retained (its *mechanism* was right; its *content* was wrong).
+**Read hints are evidence, not actions.** A [hint processor](../../CONTEXT.md) gathers and scores evidence only — "thread #482 looks like a duplicate, score 0.91", "these docs are relevant" — and never proposes a concrete action. The hint set today is `duplicate` and `related_docs`. `thread.synthesisCandidates` becomes `thread.hints`, shaped as evidence slots rather than `Action` slots; the per-processor skip+rehydrate mechanism from ADR 0004 is retained (its _mechanism_ was right; its _content_ was wrong).
 
 **Synthesis is a tool-using agent.** It reads the complete hint bag plus thread state, and uses tools to investigate leads **in depth** (fetch the full duplicate thread, read a PR, re-query docs with a refined term) before emitting actions. Division of labour: hints give **breadth** (always-on, cheap detectors that surface leads); tools give **depth** (on-demand investigation). Tools are also the fallback when a hint is missing, which is why the "complete deterministic bag" guarantee from ADR 0004 is no longer load-bearing — though we keep persistence to avoid recomputing expensive hints.
 
 **Synthesis owns all substantive action decisions.** It emits the raw action set (`reply`, `close`, `mark_duplicate`, `link_pr`) — one primary (possibly compound) and optional pick-one alternatives. The `draft` and `close` generators are deleted; synthesis writes the draft and decides closure itself. `duplicate` is rewritten from an action-candidate generator into an evidence emitter.
 
-This **amends** ADR 0002: its inline/synthesis *track split* stands, but the synthesis track is no longer "candidate generators + composing call." It **supersedes** ADR 0004: persistence stays, but stores evidence, not actions.
+This **amends** ADR 0002: its inline/synthesis _track split_ stands, but the synthesis track is no longer "candidate generators + composing call." It **supersedes** ADR 0004: persistence stays, but stores evidence, not actions.
 
 ## Consequences
 

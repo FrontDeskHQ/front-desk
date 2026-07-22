@@ -3,11 +3,10 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
-  type ActionKind,
-  type AutonomyLevel,
   getDefaultActionAutonomy,
   REVERSIBLE_ACTIONS,
 } from "@workspace/schemas/signals";
+import type { ActionKind, AutonomyLevel } from "@workspace/schemas/signals";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
@@ -30,24 +29,23 @@ import {
 import { useAtomValue } from "jotai/react";
 import { useMemo, useState } from "react";
 import { z } from "zod";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/support-intelligence",
+  "/app/_workspace/settings/organization/support-intelligence"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Support Intelligence Settings - FrontDesk",
-          description: "Configure your Support Intelligence Agent",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Support Intelligence Settings - FrontDesk",
+        description: "Configure your Support Intelligence Agent",
+      }),
+    ],
+  }),
 });
 
 const formSchema = z.object({
@@ -64,16 +62,13 @@ function RouteComponent() {
       query.organizationUser.first({
         organizationId: currentOrg?.id,
         userId: user.id,
-      }),
+      })
     )?.role === "owner";
 
   const { Field, handleSubmit, store } = useForm({
     defaultValues: {
       customInstructions: org?.customInstructions ?? "",
     } as z.infer<typeof formSchema>,
-    validators: {
-      onSubmit: formSchema,
-    },
     onSubmit: async ({ value }) => {
       if (!currentOrg?.id) return;
 
@@ -82,13 +77,18 @@ function RouteComponent() {
         customInstructions: value.customInstructions || null,
       });
     },
+    validators: {
+      onSubmit: formSchema,
+    },
   });
 
-  const nonPersistentIsDirty = useStore(store, (s) => {
-    return Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue);
-  });
+  const nonPersistentIsDirty = useStore(store, (s) =>
+    Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue)
+  );
 
-  if (!org) return null;
+  if (!org) {
+    return null;
+  }
 
   return (
     <div className="p-4 flex flex-col gap-8 w-full">
@@ -155,11 +155,11 @@ const AUTONOMY_LEVELS: AutonomyLevel[] = ["off", "suggest", "auto"];
 // Mode-neutral labels for the autonomy settings, keyed on the new Action
 // vocabulary (synthesis-track + inline-track).
 const AUTONOMY_ACTION_LABEL: Record<ActionKind, string> = {
-  reply: "Reply drafting",
-  mark_duplicate: "Duplicate threads",
-  link_pr: "PR linking",
-  close: "Closing threads",
   apply_label: "Thread labeling",
+  close: "Closing threads",
+  link_pr: "PR linking",
+  mark_duplicate: "Duplicate threads",
+  reply: "Reply drafting",
   set_status: "Status changes",
 };
 
@@ -174,7 +174,7 @@ function AutomationCard({
 }) {
   const initial = useMemo(() => {
     const parsed = safeParseOrgSettings(settings);
-    return { ...getDefaultActionAutonomy(), ...(parsed.actionAutonomy ?? {}) };
+    return { ...getDefaultActionAutonomy(), ...parsed.actionAutonomy };
   }, [settings]);
 
   const [pending, setPending] = useState<
@@ -182,7 +182,7 @@ function AutomationCard({
   >({});
 
   const visibleTypes = (Object.keys(initial) as ActionKind[]).filter(
-    (k) => !HIDDEN_ACTION_KINDS.has(k),
+    (k) => !HIDDEN_ACTION_KINDS.has(k)
   );
 
   const dirty = Object.keys(pending).length > 0;
@@ -191,24 +191,26 @@ function AutomationCard({
     setPending((prev) => {
       const next = { ...prev };
       if (initial[actionKind] === level) {
-        delete next[actionKind];
-      } else {
-        next[actionKind] = level;
+        const { [actionKind]: _removed, ...rest } = next;
+        return rest;
       }
+      next[actionKind] = level;
       return next;
     });
   };
 
   const handleSave = () => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      return;
+    }
     for (const [actionKind, level] of Object.entries(pending) as [
       ActionKind,
       AutonomyLevel,
     ][]) {
       mutate.organization.setActionAutonomy({
-        organizationId,
         actionKind,
         level,
+        organizationId,
       });
     }
     setPending({});
@@ -243,7 +245,9 @@ function AutomationCard({
                   <SegmentedControl
                     value={current}
                     onValueChange={(next) => {
-                      if (next === "auto" && locked) return;
+                      if (next === "auto" && locked) {
+                        return;
+                      }
                       handleChange(t, next as AutonomyLevel);
                     }}
                     disabled={!isUserOwner}

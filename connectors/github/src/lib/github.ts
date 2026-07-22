@@ -1,21 +1,21 @@
 import { App } from "octokit";
+
 import { getGitHubConfig } from "../utils";
 
 const config = getGitHubConfig();
 
 export const app = new App({
   appId: config.appId,
-  privateKey: config.privateKey,
-  webhooks: { secret: config.webhookSecret },
   oauth: {
     clientId: config.clientId,
     clientSecret: config.clientSecret,
   },
+  privateKey: config.privateKey,
+  webhooks: { secret: config.webhookSecret },
 });
 
-export const getOctokit = async (installationId: number) => {
-  return await app.getInstallationOctokit(installationId);
-};
+export const getOctokit = async (installationId: number) =>
+  await app.getInstallationOctokit(installationId);
 
 export const fetchIssues = async (
   installationId: number,
@@ -26,13 +26,13 @@ export const fetchIssues = async (
   try {
     const octokit = await getOctokit(installationId);
     const { data } = await octokit.request("GET /repos/{owner}/{repo}/issues", {
-      owner,
-      repo,
-      state,
-      per_page: 100,
       headers: {
         "X-GitHub-Api-Version": "2022-11-28",
       },
+      owner,
+      per_page: 100,
+      repo,
+      state,
     });
 
     return data.filter((issue) => !issue.pull_request);
@@ -54,13 +54,13 @@ export const createIssue = async (
     const { data } = await octokit.request(
       "POST /repos/{owner}/{repo}/issues",
       {
-        owner,
-        repo,
-        title,
         body,
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
         },
+        owner,
+        repo,
+        title,
       }
     );
     return data;
@@ -82,13 +82,13 @@ export const setIssueState = async (
     const { data } = await octokit.request(
       "PATCH /repos/{owner}/{repo}/issues/{issue_number}",
       {
-        owner,
-        repo,
-        issue_number: issueNumber,
-        state,
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
         },
+        issue_number: issueNumber,
+        owner,
+        repo,
+        state,
       }
     );
     return data;
@@ -114,13 +114,13 @@ export const addComment = async (
     const { data } = await octokit.request(
       "POST /repos/{owner}/{repo}/issues/{issue_number}/comments",
       {
-        owner,
-        repo,
-        issue_number: issueNumber,
         body,
         headers: {
           "X-GitHub-Api-Version": "2022-11-28",
         },
+        issue_number: issueNumber,
+        owner,
+        repo,
       }
     );
     return data;
@@ -139,13 +139,13 @@ export const fetchPullRequests = async (
   try {
     const octokit = await getOctokit(installationId);
     const { data } = await octokit.request("GET /repos/{owner}/{repo}/pulls", {
-      owner,
-      repo,
-      state,
-      per_page: 100,
       headers: {
         "X-GitHub-Api-Version": "2022-11-28",
       },
+      owner,
+      per_page: 100,
+      repo,
+      state,
     });
     return data;
   } catch (error) {

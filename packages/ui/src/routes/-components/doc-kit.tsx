@@ -22,18 +22,18 @@ import * as React from "react";
 
 export type ComponentStatus = "stable" | "beta" | "deprecated";
 
-export type PropRow = {
+export interface PropRow {
   name: string;
   type: string;
   default?: string;
   description: string;
-};
+}
 
 /**
  * Machine-readable summary of a component. Exported from every docs route as
  * `meta` so agents can read intent and API without parsing JSX.
  */
-export type ComponentMeta = {
+export interface ComponentMeta {
   /** Display name, e.g. "Button". */
   name: string;
   /** Lifecycle status, surfaced as a badge. */
@@ -48,15 +48,15 @@ export type ComponentMeta = {
   whenNotToUse: string[];
   /** Related component names for cross-linking. */
   related?: string[];
-};
+}
 
 const statusVariant: Record<
   ComponentStatus,
   "success" | "warning" | "secondary"
 > = {
-  stable: "success",
   beta: "warning",
   deprecated: "secondary",
+  stable: "success",
 };
 
 export function DocPage({
@@ -122,7 +122,7 @@ function Guidance({
           <li key={item} className="flex gap-2">
             <span
               className={cn(
-                tone === "positive" ? "text-emerald-500" : "text-red-500",
+                tone === "positive" ? "text-emerald-500" : "text-red-500"
               )}
               aria-hidden
             >
@@ -177,7 +177,7 @@ export function Demo({
       <div
         className={cn(
           "flex flex-wrap items-center gap-4 border-dashed border-b p-6",
-          className,
+          className
         )}
       >
         {children}

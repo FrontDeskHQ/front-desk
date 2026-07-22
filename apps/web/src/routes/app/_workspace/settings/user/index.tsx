@@ -12,28 +12,27 @@ import {
 } from "@workspace/ui/components/form";
 import { Input } from "@workspace/ui/components/input";
 import { z } from "zod";
+
 import { mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/_workspace/settings/user/")({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "User Settings - FrontDesk",
-          description: "Manage your user profile settings",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "User Settings - FrontDesk",
+        description: "Manage your user profile settings",
+      }),
+    ],
+  }),
 });
 
 const userProfileSchema = z.object({
-  userName: z.string(),
   userEmail: z.string(),
   userImage: z.instanceof(File).optional(),
+  userName: z.string(),
 });
 
 function RouteComponent() {
@@ -46,9 +45,6 @@ function RouteComponent() {
       userName: user?.name ?? "",
       userEmail: user?.email ?? "",
     } as z.infer<typeof userProfileSchema>,
-    validators: {
-      onSubmit: userProfileSchema,
-    },
     onSubmit: async ({ value }) => {
       if (!user?.id) return;
 
@@ -70,13 +66,18 @@ function RouteComponent() {
         image: imageUrl,
       });
     },
+    validators: {
+      onSubmit: userProfileSchema,
+    },
   });
 
-  const nonPersistentIsDirty = useStore(store, (s) => {
-    return Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue);
-  });
+  const nonPersistentIsDirty = useStore(store, (s) =>
+    Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue)
+  );
 
-  if (!user) return null;
+  if (!user) {
+    return null;
+  }
 
   return (
     <form

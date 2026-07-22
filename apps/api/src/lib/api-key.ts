@@ -1,7 +1,9 @@
+import process from "node:process";
+
 import { createKeys } from "keypal";
 import { KyselyStore } from "keypal/kysely";
-import process from "node:process";
 import { Pool } from "pg";
+
 import { storage } from "../live-state/storage";
 
 // TODO - FRO-105: Move this to live-state schema
@@ -50,9 +52,13 @@ initializeApiKeysTable().catch((error) => {
 });
 
 export const publicKeys = createKeys({
+  autoTrackUsage: true,
+  cache: true,
   prefix: "fd_pk_",
   storage: new KyselyStore({
-    db: storage.internalDB as any,
+    db: storage.internalDB as unknown as ConstructorParameters<
+      typeof KyselyStore
+    >[0]["db"],
     table: "public_api_keys",
     schema: {
       apiKeyColumns: {
@@ -60,8 +66,6 @@ export const publicKeys = createKeys({
       },
     },
   }),
-  cache: true,
-  autoTrackUsage: true,
 });
 
 if (
@@ -72,12 +76,14 @@ if (
 }
 
 export const privateKeys = createKeys({
+  autoTrackUsage: true,
+  cache: true,
   prefix: "fd_sk_",
+  salt: process.env.API_KEY_SALT,
   storage: new KyselyStore({
-    db: storage.internalDB as any,
+    db: storage.internalDB as unknown as ConstructorParameters<
+      typeof KyselyStore
+    >[0]["db"],
     table: "private_api_keys",
   }),
-  cache: true,
-  autoTrackUsage: true,
-  salt: process.env.API_KEY_SALT,
 });

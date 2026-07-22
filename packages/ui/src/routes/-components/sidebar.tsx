@@ -22,7 +22,7 @@ import { ChevronRight } from "lucide-react";
 const navSectionTriggerClassName = cn(
   "text-sidebar-foreground/70 ring-sidebar-ring flex h-8 w-full shrink-0 items-center gap-2 rounded-md px-2 text-left text-xs font-medium outline-hidden transition-[margin,opacity] duration-200 ease-linear hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2",
   "group-data-[collapsible=icon]:-mt-8 group-data-[collapsible=icon]:opacity-0",
-  "data-[state=open]:[&>svg]:rotate-90",
+  "data-[state=open]:[&>svg]:rotate-90"
 );
 
 const NavSectionChevron = () => (

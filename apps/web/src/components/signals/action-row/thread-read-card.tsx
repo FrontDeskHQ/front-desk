@@ -4,14 +4,16 @@ import { Link } from "@tanstack/react-router";
 import {
   ACTION_KIND_LABEL,
   ACTION_KIND_VERB,
-  type Action,
-  type InlineSuggestion,
-  type ReplyAction,
   STATUS_LABELS,
-  type ThreadRead,
   fingerprintAgentRead,
   sanitizeAgentReadReasoning,
   urgencyTierFromScore,
+} from "@workspace/schemas/signals";
+import type {
+  Action,
+  InlineSuggestion,
+  ReplyAction,
+  ThreadRead,
 } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
@@ -34,18 +36,20 @@ import type { schema } from "api/schema";
 import { Brain, Check, X } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
+
 import { ThreadSummaryHoverCard } from "~/components/chips";
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
+
 import { ActionRow } from "./action-row";
 import {
-  type ActorContext,
   acceptInlineSuggestion,
   acceptThreadRead,
   dismissInlineSuggestion,
   dismissThreadRead,
 } from "./handlers";
+import type { ActorContext } from "./handlers";
 import { SignalReplyDraftEditor } from "./signal-reply-draft-editor";
 
 export type ThreadWithRelations = InferLiveObject<
@@ -56,10 +60,10 @@ export type ThreadWithRelations = InferLiveObject<
   }
 >;
 
-type Props = {
+interface Props {
   thread: ThreadWithRelations & { agentRead: ThreadRead };
   ctx: ActorContext;
-};
+}
 
 function ThreadRef({ thread }: { thread: ThreadWithRelations }) {
   return (
@@ -76,7 +80,7 @@ function ThreadRef({ thread }: { thread: ThreadWithRelations }) {
           src={thread.author?.user?.image ?? undefined}
         />
         <span className="text-foreground-primary">{thread.name}</span>
-        {thread.shortId != null && (
+        {thread.shortId !== null && (
           <span className="text-foreground-secondary tabular-nums">
             #{thread.shortId}
           </span>
@@ -86,11 +90,14 @@ function ThreadRef({ thread }: { thread: ThreadWithRelations }) {
   );
 }
 
-type SelectedAction = { action: Action; index: number };
+interface SelectedAction {
+  action: Action;
+  index: number;
+}
 
 function primaryReplyAction(primary: Action[]): ReplyAction | undefined {
   return primary.find(
-    (action): action is ReplyAction => action.kind === "reply",
+    (action): action is ReplyAction => action.kind === "reply"
   );
 }
 
@@ -114,15 +121,17 @@ const treeContentClassName =
  */
 function orderReplyFirst(
   primary: Action[],
-  selected: ReadonlySet<number>,
+  selected: ReadonlySet<number>
 ): SelectedAction[] {
   return primary
     .map((action, index): SelectedAction => ({ action, index }))
     .filter(({ index }) => selected.has(index))
-    .sort((a, b) => {
+    .toSorted((a, b) => {
       const aReply = a.action.kind === "reply" ? 0 : 1;
       const bReply = b.action.kind === "reply" ? 0 : 1;
-      if (aReply !== bReply) return aReply - bReply;
+      if (aReply !== bReply) {
+        return aReply - bReply;
+      }
       return a.index - b.index;
     });
 }
@@ -134,9 +143,11 @@ function orderReplyFirst(
  */
 function compoundButtonLabel(
   ordered: SelectedAction[],
-  replyEditorOpen: boolean,
+  replyEditorOpen: boolean
 ): string {
-  if (ordered.length === 0) return "Select an action";
+  if (ordered.length === 0) {
+    return "Select an action";
+  }
 
   const verbAt = (entry: SelectedAction, position: number): string => {
     if (entry.action.kind === "reply" && replyEditorOpen) {
@@ -146,12 +157,16 @@ function compoundButtonLabel(
   };
 
   const first = capitalize(verbAt(ordered[0], 0));
-  if (ordered.length === 1) return first;
-  if (ordered.length === 2) return `${first} and ${verbAt(ordered[1], 1)}`;
+  if (ordered.length === 1) {
+    return first;
+  }
+  if (ordered.length === 2) {
+    return `${first} and ${verbAt(ordered[1], 1)}`;
+  }
   return `${first} and do ${ordered.length - 1} actions`;
 }
 
-type CompoundActionButtonProps = {
+interface CompoundActionButtonProps {
   label: string;
   /** Hard-disabled (e.g. busy executing): blocks the trigger entirely. */
   disabled: boolean;
@@ -168,7 +183,7 @@ type CompoundActionButtonProps = {
   lockedIndex: number;
   disableToggles: boolean;
   onToggle: (index: number) => void;
-};
+}
 
 function CompoundActionButton({
   label,
@@ -286,12 +301,12 @@ function InlineSuggestionsRow({
     const result: ResolvedInlineSuggestion[] = [];
     for (const suggestion of suggestions) {
       if (suggestion.action.kind === "set_status") {
-        const status = suggestion.action.status;
+        const { status } = suggestion.action;
         result.push({
-          suggestion,
           kind: "status",
           name: STATUS_LABELS[status] ?? `Status ${status}`,
           status,
+          suggestion,
         });
       } else {
         const label = labelById.get(suggestion.action.labelId);
@@ -299,25 +314,27 @@ function InlineSuggestionsRow({
           // Keep the suggestion dismissible even when its label was deleted,
           // disabled, or hasn't loaded yet — otherwise it becomes a stuck row.
           result.push({
-            suggestion,
+            color: "var(--muted-foreground)",
             kind: "label",
             name: "Unknown label",
-            color: "var(--muted-foreground)",
+            suggestion,
           });
           continue;
         }
         result.push({
-          suggestion,
+          color: label.color,
           kind: "label",
           name: label.name,
-          color: label.color,
+          suggestion,
         });
       }
     }
     return result;
   }, [labels, suggestions]);
 
-  if (resolved.length === 0) return null;
+  if (resolved.length === 0) {
+    return null;
+  }
 
   const chipContent = (item: ResolvedInlineSuggestion) => (
     <>
@@ -416,7 +433,9 @@ function InlineSuggestionsRow({
 
 function AgentReadReasoningTrigger({ reasoning }: { reasoning: string }) {
   const trimmed = sanitizeAgentReadReasoning(reasoning);
-  if (!trimmed) return null;
+  if (!trimmed) {
+    return null;
+  }
 
   return (
     <HoverCard>
@@ -464,18 +483,18 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   const read = thread.agentRead;
   const readFingerprint = fingerprintAgentRead(read);
   const replyIndex = read.primary.findIndex(
-    (action) => action.kind === "reply",
+    (action) => action.kind === "reply"
   );
   const isCompound = read.primary.length > 1;
   const [selectedIndices, setSelectedIndices] = useState<Set<number>>(
-    () => new Set(read.primary.map((_, index) => index)),
+    () => new Set(read.primary.map((_, index) => index))
   );
   const [replyDraft, setReplyDraft] = useState(() =>
-    primaryReplyDraftMarkdown(read.primary),
+    primaryReplyDraftMarkdown(read.primary)
   );
   const [replyEditorRevision, setReplyEditorRevision] = useState(0);
   const inlineSuggestions = (thread.inlineSuggestions ?? []).filter(
-    (suggestion) => !suggestion.dismissedAt,
+    (suggestion) => !suggestion.dismissedAt
   );
 
   useEffect(() => {
@@ -487,10 +506,10 @@ export function ThreadReadCard({ thread, ctx }: Props) {
 
   const orderedSelected = useMemo(
     () => orderReplyFirst(read.primary, selectedIndices),
-    [read.primary, selectedIndices],
+    [read.primary, selectedIndices]
   );
   const selectionIncludesReply =
-    replyIndex >= 0 && selectedIndices.has(replyIndex);
+    replyIndex !== -1 && selectedIndices.has(replyIndex);
 
   // When the primary bundle is a lone reply, a reply-only alternative is
   // redundant — it offers the same "just reply" as the primary — so drop it.
@@ -503,22 +522,24 @@ export function ThreadReadCard({ thread, ctx }: Props) {
         .map((alternative, index) => ({ alternative, index }))
         .filter(
           ({ alternative }) =>
-            !(primaryIsJustReply && alternative.kind === "reply"),
+            !(primaryIsJustReply && alternative.kind === "reply")
         ),
-    [read.alternatives, primaryIsJustReply],
+    [read.alternatives, primaryIsJustReply]
   );
 
   const handleAcceptSelected = async (replyDraftValue?: string) => {
-    const indices = [...selectedIndices].sort((a, b) => a - b);
-    if (indices.length === 0) return;
+    const indices = [...selectedIndices].toSorted((a, b) => a - b);
+    if (indices.length === 0) {
+      return;
+    }
     setBusyKey("primary");
     try {
       await acceptThreadRead({
-        threadId: thread.id,
-        read,
-        selection: { primaryActionIndices: indices },
         ctx,
+        read,
         replyDraft: replyDraftValue,
+        selection: { primaryActionIndices: indices },
+        threadId: thread.id,
       });
       setReplyTarget(null);
     } catch (error) {
@@ -548,7 +569,9 @@ export function ThreadReadCard({ thread, ctx }: Props) {
 
   const handleSendReply = () => {
     const trimmed = replyDraft.trim();
-    if (trimmed.length === 0) return;
+    if (trimmed.length === 0) {
+      return;
+    }
     if (replyTarget?.kind === "alternative") {
       void handleAcceptAlternative(replyTarget.index, trimmed);
       return;
@@ -558,27 +581,32 @@ export function ThreadReadCard({ thread, ctx }: Props) {
 
   const toggleAction = (index: number) => {
     // The primary reply stays locked-in while its editor is expanded.
-    if (editingPrimaryReply && index === replyIndex) return;
+    if (editingPrimaryReply && index === replyIndex) {
+      return;
+    }
     setSelectedIndices((prev) => {
       const next = new Set(prev);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(index)) {
+        next.delete(index);
+      } else {
+        next.add(index);
+      }
       return next;
     });
   };
 
   const handleAcceptAlternative = async (
     alternativeIndex: number,
-    replyDraftValue?: string,
+    replyDraftValue?: string
   ) => {
     setBusyKey(`alt:${alternativeIndex}`);
     try {
       await acceptThreadRead({
-        threadId: thread.id,
-        read,
-        selection: { alternativeIndex },
         ctx,
+        read,
         replyDraft: replyDraftValue,
+        selection: { alternativeIndex },
+        threadId: thread.id,
       });
       setReplyTarget(null);
     } catch (error) {
@@ -593,7 +621,7 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   const handleAlternativeClick = (alternativeIndex: number) => {
     const alternative = read.alternatives?.[alternativeIndex];
     if (alternative?.kind === "reply") {
-      setReplyTarget({ kind: "alternative", index: alternativeIndex });
+      setReplyTarget({ index: alternativeIndex, kind: "alternative" });
       setReplyDraft(alternative.draftMarkdown ?? "");
       setReplyEditorRevision((revision) => revision + 1);
       return;
@@ -605,9 +633,9 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     setBusyKey("dismiss");
     try {
       await dismissThreadRead({
-        threadId: thread.id,
-        read,
         ctx,
+        read,
+        threadId: thread.id,
       });
     } catch (error) {
       toast.error(formatErrorMessage(error));
@@ -620,9 +648,9 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     setBusyKey(`inline:accept:${suggestion.id}`);
     try {
       await acceptInlineSuggestion({
-        threadId: thread.id,
-        suggestion,
         ctx,
+        suggestion,
+        threadId: thread.id,
       });
     } catch {
       toast.error("Could not apply this inline suggestion.");
@@ -635,9 +663,9 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     setBusyKey(`inline:dismiss:${suggestion.id}`);
     try {
       await dismissInlineSuggestion({
-        threadId: thread.id,
-        suggestion,
         ctx,
+        suggestion,
+        threadId: thread.id,
       });
     } catch {
       toast.error("Could not dismiss this inline suggestion.");

@@ -7,7 +7,6 @@ metadata:
   version: "1.0.0"
 ---
 
-
 # Vercel React Best Practices
 
 Comprehensive performance optimization guide for React applications, maintained by Vercel. Contains 60 rules across 7 categories, prioritized by impact to guide automated refactoring and code generation.
@@ -15,6 +14,7 @@ Comprehensive performance optimization guide for React applications, maintained 
 ## When to Apply
 
 Reference these guidelines when:
+
 - Writing new React components or routes
 - Implementing data fetching (client or server-side)
 - Reviewing code for performance issues
@@ -23,15 +23,15 @@ Reference these guidelines when:
 
 ## Rule Categories by Priority
 
-| Priority | Category | Impact | Prefix |
-|----------|----------|--------|--------|
-| 1 | Eliminating Waterfalls | CRITICAL | `async-` |
-| 2 | Bundle Size Optimization | CRITICAL | `bundle-` |
-| 3 | Client-Side Data Fetching | MEDIUM-HIGH | `client-` |
-| 4 | Re-render Optimization | MEDIUM | `rerender-` |
-| 5 | Rendering Performance | MEDIUM | `rendering-` |
-| 6 | JavaScript Performance | LOW-MEDIUM | `js-` |
-| 7 | Advanced Patterns | LOW | `advanced-` |
+| Priority | Category                  | Impact      | Prefix       |
+| -------- | ------------------------- | ----------- | ------------ |
+| 1        | Eliminating Waterfalls    | CRITICAL    | `async-`     |
+| 2        | Bundle Size Optimization  | CRITICAL    | `bundle-`    |
+| 3        | Client-Side Data Fetching | MEDIUM-HIGH | `client-`    |
+| 4        | Re-render Optimization    | MEDIUM      | `rerender-`  |
+| 5        | Rendering Performance     | MEDIUM      | `rendering-` |
+| 6        | JavaScript Performance    | LOW-MEDIUM  | `js-`        |
+| 7        | Advanced Patterns         | LOW         | `advanced-`  |
 
 ## Quick Reference
 
@@ -126,6 +126,7 @@ rules/bundle-barrel-imports.md
 ```
 
 Each rule file contains:
+
 - Brief explanation of why it matters
 - Incorrect code example with explanation
 - Correct code example with explanation

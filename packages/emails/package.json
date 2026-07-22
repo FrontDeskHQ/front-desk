@@ -1,24 +1,24 @@
 {
   "name": "@workspace/emails",
   "version": "1.0.0",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "exports": {
+    "./transactional/*": "./src/transactional/*.tsx"
+  },
   "scripts": {
     "email:dev": "email dev -d ./src/transactional -p 3100",
     "typecheck": "tsc --noEmit"
-  },
-  "devDependencies": {
-    "@react-email/preview-server": "^5.1.0",
-    "@types/node": "^24.7.0",
-    "@types/react": "catalog:",
-    "react-email": "4.3.0"
   },
   "dependencies": {
     "@react-email/components": "0.5.6",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
-  "exports": {
-    "./transactional/*": "./src/transactional/*.tsx"
+  "devDependencies": {
+    "@react-email/preview-server": "^5.1.0",
+    "@types/node": "^24.7.0",
+    "@types/react": "catalog:",
+    "react-email": "4.3.0"
   }
 }

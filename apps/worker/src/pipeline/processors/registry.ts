@@ -5,7 +5,9 @@ import type { ProcessorDefinition } from "../core/types";
  */
 export class CircularDependencyError extends Error {
   constructor(processors: string[]) {
-    super(`Circular dependency detected involving processors: ${processors.join(", ")}`);
+    super(
+      `Circular dependency detected involving processors: ${processors.join(", ")}`
+    );
     this.name = "CircularDependencyError";
   }
 }
@@ -15,7 +17,9 @@ export class CircularDependencyError extends Error {
  */
 export class UnknownDependencyError extends Error {
   constructor(processor: string, dependency: string) {
-    super(`Processor "${processor}" depends on unknown processor "${dependency}"`);
+    super(
+      `Processor "${processor}" depends on unknown processor "${dependency}"`
+    );
     this.name = "UnknownDependencyError";
   }
 }
@@ -26,14 +30,16 @@ export class UnknownDependencyError extends Error {
  * Manages processor registration and dependency resolution.
  */
 export class ProcessorRegistry {
-  private processors: Map<string, ProcessorDefinition> = new Map();
+  private processors = new Map<string, ProcessorDefinition>();
 
   /**
    * Register a processor
    */
   register(processor: ProcessorDefinition): void {
     if (this.processors.has(processor.name)) {
-      console.warn(`Processor "${processor.name}" is already registered, replacing`);
+      console.warn(
+        `Processor "${processor.name}" is already registered, replacing`
+      );
     }
     this.processors.set(processor.name, processor);
   }
@@ -56,14 +62,14 @@ export class ProcessorRegistry {
    * Get all registered processor names
    */
   getNames(): string[] {
-    return Array.from(this.processors.keys());
+    return [...this.processors.keys()];
   }
 
   /**
    * Get all registered processors
    */
   getAll(): ProcessorDefinition[] {
-    return Array.from(this.processors.values());
+    return [...this.processors.values()];
   }
 
   /**
@@ -96,10 +102,12 @@ export class ProcessorRegistry {
       // Find all processors whose dependencies are satisfied
       for (const name of remaining) {
         const processor = this.processors.get(name);
-        if (!processor) continue;
+        if (!processor) {
+          continue;
+        }
 
         const allDependenciesMet = processor.dependencies.every((dep) =>
-          completed.has(dep),
+          completed.has(dep)
         );
 
         if (allDependenciesMet) {
@@ -109,7 +117,7 @@ export class ProcessorRegistry {
 
       // If no processors can be scheduled, there's a circular dependency
       if (turn.length === 0) {
-        throw new CircularDependencyError(Array.from(remaining));
+        throw new CircularDependencyError([...remaining]);
       }
 
       // Schedule this turn

@@ -6,10 +6,14 @@
   "compatibility_flags": ["nodejs_compat"],
   "assets": {
     "directory": ".open-next/assets",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
   },
   "build": {
     "command": "bun --filter docs build:cloudflare",
-    "watch_dir": ["apps/docs/src/*", "apps/docs/content/*", "packages/ui/src/*"]
-  }
+    "watch_dir": [
+      "apps/docs/src/*",
+      "apps/docs/content/*",
+      "packages/ui/src/*",
+    ],
+  },
 }

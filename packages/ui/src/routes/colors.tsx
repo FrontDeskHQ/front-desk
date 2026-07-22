@@ -1,135 +1,132 @@
-import { Button } from "@/components/button";
-import { CopyInput } from "@/components/copy-value";
 import { createFileRoute } from "@tanstack/react-router";
 import Color from "colorjs.io";
 import { useTheme } from "next-themes";
 import type { ReactNode } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/button";
+import { CopyInput } from "@/components/copy-value";
+
 export const Route = createFileRoute("/colors")({
   component: RouteComponent,
 });
 
-type ThemeSwatch = {
+interface ThemeSwatch {
   token: string;
   utility: string;
   swatchClassName: string;
-};
+}
 
-type CssVarSwatch = {
+interface CssVarSwatch {
   name: string;
   varRef: string;
   swatchClassName: string;
-};
+}
 
 const SURFACE_SCALE: ThemeSwatch[] = [
   {
+    swatchClassName: "bg-background-primary",
     token: "background-primary",
     utility: "bg-background-primary",
-    swatchClassName: "bg-background-primary",
   },
   {
+    swatchClassName: "bg-background-secondary",
     token: "background-secondary",
     utility: "bg-background-secondary",
-    swatchClassName: "bg-background-secondary",
   },
   {
+    swatchClassName: "bg-background-tertiary",
     token: "background-tertiary",
     utility: "bg-background-tertiary",
-    swatchClassName: "bg-background-tertiary",
   },
   {
+    swatchClassName: "bg-background-quaternary",
     token: "background-quaternary",
     utility: "bg-background-quaternary",
-    swatchClassName: "bg-background-quaternary",
   },
 ];
 
 const FOREGROUND_SCALE: ThemeSwatch[] = [
   {
+    swatchClassName: "bg-foreground-primary",
     token: "foreground-primary",
     utility: "text-foreground-primary",
-    swatchClassName: "bg-foreground-primary",
   },
   {
+    swatchClassName: "bg-foreground-secondary",
     token: "foreground-secondary",
     utility: "text-foreground-secondary",
-    swatchClassName: "bg-foreground-secondary",
   },
   {
+    swatchClassName: "bg-foreground-tertiary",
     token: "foreground-tertiary",
     utility: "text-foreground-tertiary",
-    swatchClassName: "bg-foreground-tertiary",
   },
 ];
 
 const BORDER_SCALE: ThemeSwatch[] = [
   {
+    swatchClassName: "border-2 border-border-primary bg-background-primary",
     token: "border-primary",
     utility: "border-border-primary",
-    swatchClassName:
-      "border-2 border-border-primary bg-background-primary",
   },
   {
+    swatchClassName: "border-2 border-border-secondary bg-background-primary",
     token: "border-secondary",
     utility: "border-border-secondary",
-    swatchClassName:
-      "border-2 border-border-secondary bg-background-primary",
   },
   {
+    swatchClassName: "border-2 border-border-tertiary bg-background-primary",
     token: "border-tertiary",
     utility: "border-border-tertiary",
-    swatchClassName:
-      "border-2 border-border-tertiary bg-background-primary",
   },
   {
+    swatchClassName: "border-2 border-border-quaternary bg-background-primary",
     token: "border-quaternary",
     utility: "border-border-quaternary",
-    swatchClassName:
-      "border-2 border-border-quaternary bg-background-primary",
   },
 ];
 
 const LABEL_CSS_VARS: CssVarSwatch[] = [
   {
     name: "label-color-red",
-    varRef: "var(--label-color-red)",
     swatchClassName: "bg-[var(--label-color-red)]",
+    varRef: "var(--label-color-red)",
   },
   {
     name: "label-color-orange",
-    varRef: "var(--label-color-orange)",
     swatchClassName: "bg-[var(--label-color-orange)]",
+    varRef: "var(--label-color-orange)",
   },
   {
     name: "label-color-yellow",
-    varRef: "var(--label-color-yellow)",
     swatchClassName: "bg-[var(--label-color-yellow)]",
+    varRef: "var(--label-color-yellow)",
   },
   {
     name: "label-color-green",
-    varRef: "var(--label-color-green)",
     swatchClassName: "bg-[var(--label-color-green)]",
+    varRef: "var(--label-color-green)",
   },
   {
     name: "label-color-teal",
-    varRef: "var(--label-color-teal)",
     swatchClassName: "bg-[var(--label-color-teal)]",
+    varRef: "var(--label-color-teal)",
   },
   {
     name: "label-color-blue",
-    varRef: "var(--label-color-blue)",
     swatchClassName: "bg-[var(--label-color-blue)]",
+    varRef: "var(--label-color-blue)",
   },
   {
     name: "label-color-purple",
-    varRef: "var(--label-color-purple)",
     swatchClassName: "bg-[var(--label-color-purple)]",
+    varRef: "var(--label-color-purple)",
   },
   {
     name: "label-color-pink",
-    varRef: "var(--label-color-pink)",
     swatchClassName: "bg-[var(--label-color-pink)]",
+    varRef: "var(--label-color-pink)",
   },
 ];
 
@@ -187,25 +184,26 @@ const colorFromComputed = (raw: string): Color | null => {
 };
 
 const resolveRawCssColor = (
-  raw: string,
+  raw: string
 ): { hex: string; oklch: string } | null => {
   const color = colorFromComputed(raw);
   if (!color) {
     return null;
   }
   const oklch = color.to("oklch").toString({ precision: 4 });
-  const hexRaw = color.to("srgb").toString({ format: "hex", collapse: false });
+  const hexRaw = color.to("srgb").toString({ collapse: false, format: "hex" });
   return { hex: normalizeHexWithAlpha(hexRaw), oklch };
 };
 
 const useSampledColor = (
   sample: "background" | "border",
-  refreshKey: string | undefined,
+  refreshKey: string | undefined
 ) => {
   const swatchRef = useRef<HTMLDivElement>(null);
-  const [resolved, setResolved] = useState<{ hex: string; oklch: string } | null>(
-    null,
-  );
+  const [resolved, setResolved] = useState<{
+    hex: string;
+    oklch: string;
+  } | null>(null);
 
   useLayoutEffect(() => {
     const el = swatchRef.current;
@@ -215,8 +213,7 @@ const useSampledColor = (
 
     const read = () => {
       const cs = getComputedStyle(el);
-      const raw =
-        sample === "border" ? cs.borderTopColor : cs.backgroundColor;
+      const raw = sample === "border" ? cs.borderTopColor : cs.backgroundColor;
       setResolved(resolveRawCssColor(raw));
     };
 
@@ -228,8 +225,8 @@ const useSampledColor = (
 
     const mo = new MutationObserver(read);
     mo.observe(document.documentElement, {
-      attributes: true,
       attributeFilter: ["class", "style"],
+      attributes: true,
     });
 
     return () => {
@@ -239,7 +236,7 @@ const useSampledColor = (
     };
   }, [sample, refreshKey]);
 
-  return { swatchRef, resolved };
+  return { resolved, swatchRef };
 };
 
 const HexOklchCopyRow = ({
@@ -377,19 +374,17 @@ const TokenSection = ({
   title: string;
   description?: string;
   children: ReactNode;
-}) => {
-  return (
-    <section className="flex flex-col gap-4">
-      <div>
-        <h2 className="text-base font-medium">{title}</h2>
-        {description ? (
-          <p className="mt-1 text-sm text-foreground-secondary">{description}</p>
-        ) : null}
-      </div>
-      {children}
-    </section>
-  );
-};
+}) => (
+  <section className="flex flex-col gap-4">
+    <div>
+      <h2 className="text-base font-medium">{title}</h2>
+      {description ? (
+        <p className="mt-1 text-sm text-foreground-secondary">{description}</p>
+      ) : null}
+    </div>
+    {children}
+  </section>
+);
 
 function RouteComponent() {
   return (
@@ -402,11 +397,12 @@ function RouteComponent() {
             globals.css
           </code>{" "}
           (<span className="font-mono text-xs">@theme inline</span>
-          ). Use the suggested Tailwind utilities for ramps; label colors use CSS
-          variables only. Values are read from computed styles; conversions use{" "}
-          <span className="font-mono text-xs">colorjs.io</span> (dev dependency).
-          Hex is normalized to <span className="font-mono text-xs">#RRGGBBAA</span>{" "}
-          (alpha <span className="font-mono text-xs">ff</span> when fully opaque).
+          ). Use the suggested Tailwind utilities for ramps; label colors use
+          CSS variables only. Values are read from computed styles; conversions
+          use <span className="font-mono text-xs">colorjs.io</span> (dev
+          dependency). Hex is normalized to{" "}
+          <span className="font-mono text-xs">#RRGGBBAA</span> (alpha{" "}
+          <span className="font-mono text-xs">ff</span> when fully opaque).
         </p>
       </div>
 
@@ -416,7 +412,11 @@ function RouteComponent() {
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {SURFACE_SCALE.map((row) => (
-            <ThemeSwatchCard key={row.token} row={row} colorSample="background" />
+            <ThemeSwatchCard
+              key={row.token}
+              row={row}
+              colorSample="background"
+            />
           ))}
         </div>
       </TokenSection>
@@ -427,7 +427,11 @@ function RouteComponent() {
       >
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {FOREGROUND_SCALE.map((row) => (
-            <ThemeSwatchCard key={row.token} row={row} colorSample="background" />
+            <ThemeSwatchCard
+              key={row.token}
+              row={row}
+              colorSample="background"
+            />
           ))}
         </div>
       </TokenSection>

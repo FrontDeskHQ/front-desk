@@ -7,6 +7,7 @@
 
 import { useLiveQuery } from "@live-state/sync/client";
 import { useAtomValue } from "jotai/react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -14,7 +15,7 @@ import { query } from "~/lib/live-state";
  * The subset of an `externalEntity` mirror row the link UI displays and searches
  * over. Mirrors the columns written by the GitHub integration's upsert.
  */
-export type MirrorEntity = {
+export interface MirrorEntity {
   id: string;
   externalKey: string;
   type: string;
@@ -31,17 +32,23 @@ export type MirrorEntity = {
   draft: boolean | null;
   headRef: string | null;
   baseRef: string | null;
-};
+}
 
 export type PullRequestState = "draft" | "open" | "closed" | "merged";
 
 /** Derives the display state for a mirrored pull request. */
 export const getPullRequestState = (
-  entity: Pick<MirrorEntity, "state" | "merged" | "draft">,
+  entity: Pick<MirrorEntity, "state" | "merged" | "draft">
 ): PullRequestState => {
-  if (entity.draft) return "draft";
-  if (entity.merged) return "merged";
-  if (entity.state === "closed") return "closed";
+  if (entity.draft) {
+    return "draft";
+  }
+  if (entity.merged) {
+    return "merged";
+  }
+  if (entity.state === "closed") {
+    return "closed";
+  }
   return "open";
 };
 
@@ -63,10 +70,12 @@ export const entityMatchesQuery = (
     | "labels"
     | "assignees"
   >,
-  query: string,
+  searchQuery: string
 ): boolean => {
-  const normalized = query.trim().toLowerCase();
-  if (!normalized) return true;
+  const normalized = searchQuery.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
 
   const haystack = [
     `#${entity.number}`,
@@ -85,11 +94,11 @@ export const entityMatchesQuery = (
 };
 
 /** Repo + number lookup for surfaces that only have a GitHub URL, not an `externalKey`. */
-export type MirrorEntityRef = {
+export interface MirrorEntityRef {
   type: "issue" | "pull_request";
   repoFullName: string;
   number: number;
-};
+}
 
 type MirrorEntityRow = Pick<
   MirrorEntity,
@@ -112,22 +121,22 @@ type MirrorEntityRow = Pick<
 >;
 
 const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
-  id: row.id,
-  externalKey: row.externalKey,
-  type: row.type,
-  number: row.number,
-  repoFullName: row.repoFullName,
-  url: row.url,
-  title: row.title,
-  body: row.body,
-  state: row.state,
-  authorLogin: row.authorLogin,
   assignees: row.assignees,
+  authorLogin: row.authorLogin,
+  baseRef: row.baseRef,
+  body: row.body,
+  draft: row.draft,
+  externalKey: row.externalKey,
+  headRef: row.headRef,
+  id: row.id,
   labels: row.labels,
   merged: row.merged,
-  draft: row.draft,
-  headRef: row.headRef,
-  baseRef: row.baseRef,
+  number: row.number,
+  repoFullName: row.repoFullName,
+  state: row.state,
+  title: row.title,
+  type: row.type,
+  url: row.url,
 });
 
 /**
@@ -136,18 +145,20 @@ const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
  * historical events can still resolve a label when the entity remains mirrored.
  */
 export const useMirrorEntityByKey = (
-  externalKey: string | null,
+  externalKey: string | null
 ): MirrorEntity | undefined => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
   const row = useLiveQuery(
     query.externalEntity.first({
-      organizationId: currentOrg?.id,
       externalKey: externalKey ?? undefined,
-    }),
+      organizationId: currentOrg?.id,
+    })
   );
 
-  if (!externalKey || !currentOrg?.id || !row) return undefined;
+  if (!externalKey || !currentOrg?.id || !row) {
+    return undefined;
+  }
   return toMirrorEntity(row);
 };
 
@@ -156,34 +167,38 @@ export const useMirrorEntityByKey = (
  * that only know `owner/repo` and the human-visible issue/PR number.
  */
 export const useMirrorEntityByRef = (
-  ref: MirrorEntityRef | null,
+  ref: MirrorEntityRef | null
 ): MirrorEntity | undefined => {
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
   const row = useLiveQuery(
     query.externalEntity.first({
-      organizationId: currentOrg?.id,
-      type: ref?.type,
-      repoFullName: ref?.repoFullName,
-      number: ref?.number,
       deletedAt: null,
-    }),
+      number: ref?.number,
+      organizationId: currentOrg?.id,
+      repoFullName: ref?.repoFullName,
+      type: ref?.type,
+    })
   );
 
-  if (!ref || !currentOrg?.id || !row) return undefined;
+  if (!ref || !currentOrg?.id || !row) {
+    return undefined;
+  }
   return toMirrorEntity(row);
 };
 
 /** Display label for a mirrored issue or PR (`owner/repo#number`). */
 export const formatMirrorEntityLabel = (
-  entity: Pick<MirrorEntity, "repoFullName" | "number">,
+  entity: Pick<MirrorEntity, "repoFullName" | "number">
 ): string => `${entity.repoFullName}#${entity.number}`;
 
 /** Prefer a live mirror label; fall back to the baked snapshot when absent. */
 export const resolveMirrorEntityLabel = (
   entity: MirrorEntity | undefined,
-  fallback: string | null | undefined,
+  fallback: string | null | undefined
 ): string | null => {
-  if (entity) return formatMirrorEntityLabel(entity);
+  if (entity) {
+    return formatMirrorEntityLabel(entity);
+  }
   return fallback ?? null;
 };

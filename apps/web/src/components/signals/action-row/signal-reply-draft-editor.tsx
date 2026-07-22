@@ -1,18 +1,16 @@
-import {
-  EditableRichText,
-  type JSONContent,
-} from "@workspace/ui/components/blocks/tiptap";
+import { EditableRichText } from "@workspace/ui/components/blocks/tiptap";
+import type { JSONContent } from "@workspace/ui/components/blocks/tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
 import { PenLineIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback } from "react";
 
-type Props = {
+interface Props {
   open: boolean;
   draft: string;
   contentKey: string;
   onDraftChange: (draft: string) => void;
-};
+}
 
 export function SignalReplyDraftEditor({
   open,
@@ -24,7 +22,7 @@ export function SignalReplyDraftEditor({
     (value: JSONContent[]) => {
       onDraftChange(stringify(value));
     },
-    [onDraftChange],
+    [onDraftChange]
   );
 
   return (

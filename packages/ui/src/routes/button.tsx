@@ -1,6 +1,7 @@
-import { Button } from "@/components/button";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
+
+import { Button } from "@/components/button";
 
 export const Route = createFileRoute("/button")({
   component: RouteComponent,

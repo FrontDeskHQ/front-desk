@@ -13,9 +13,10 @@ import {
 } from "@workspace/ui/components/sheet";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
 import { client } from "~/lib/live-state";
 
-type EventLogEntry = {
+interface EventLogEntry {
   id: string;
   timestamp: Date;
   type:
@@ -35,7 +36,7 @@ type EventLogEntry = {
     | "optimistic-applied"
     | "optimistic-undone";
   data?: unknown;
-};
+}
 
 export const LiveStateLog = () => {
   const [events, setEvents] = useState<EventLogEntry[]>([]);
@@ -47,7 +48,6 @@ export const LiveStateLog = () => {
 
   const virtualizer = useVirtualizer({
     count: events.length,
-    getScrollElement: () => parentRef.current,
     estimateSize: (index) => {
       const event = events[index];
       if (!event) return 24;
@@ -62,8 +62,9 @@ export const LiveStateLog = () => {
       }
       return 24;
     },
-    overscan: 5,
     getItemKey: (index) => events[index]?.id ?? index.toString(),
+    getScrollElement: () => parentRef.current,
+    overscan: 5,
   });
 
   // Recalculate virtualizer when expanded events change
@@ -76,42 +77,47 @@ export const LiveStateLog = () => {
       setEvents((prev) => [
         ...prev,
         {
+          data,
           id: `event-${eventIdRef.current++}`,
           timestamp: new Date(),
           type,
-          data,
         },
       ]);
     };
 
     const unsubscribe = client.addEventListener((event) => {
       switch (event.type) {
-        case "CONNECTION_STATE_CHANGE":
+        case "CONNECTION_STATE_CHANGE": {
           addEvent(event.open ? "open" : "close", { open: event.open });
           break;
-        case "MESSAGE_RECEIVED":
+        }
+        case "MESSAGE_RECEIVED": {
           addEvent("message-received", event.message);
           break;
-        case "CLIENT_STORAGE_LOADED":
+        }
+        case "CLIENT_STORAGE_LOADED": {
           addEvent("storage-loaded", {
             resource: event.resource,
             itemCount: event.itemCount,
           });
           break;
-        case "DATA_LOAD_REQUESTED":
+        }
+        case "DATA_LOAD_REQUESTED": {
           addEvent("data-load-requested", {
             query: event.query,
             subscriptionId: event.subscriptionId,
           });
           break;
-        case "DATA_LOAD_REPLY":
+        }
+        case "DATA_LOAD_REPLY": {
           addEvent("data-load-reply", {
             resource: event.resource,
             itemCount: event.itemCount,
             subscriptionId: event.subscriptionId,
           });
           break;
-        case "MUTATION_SENT":
+        }
+        case "MUTATION_SENT": {
           addEvent("mutation-sent", {
             mutationId: event.mutationId,
             resource: event.resource,
@@ -120,7 +126,8 @@ export const LiveStateLog = () => {
             optimistic: event.optimistic,
           });
           break;
-        case "MUTATION_RECEIVED":
+        }
+        case "MUTATION_RECEIVED": {
           addEvent("mutation-received", {
             mutationId: event.mutationId,
             resource: event.resource,
@@ -128,38 +135,44 @@ export const LiveStateLog = () => {
             procedure: event.procedure,
           });
           break;
-        case "MUTATION_REJECTED":
+        }
+        case "MUTATION_REJECTED": {
           addEvent("mutation-rejected", {
             mutationId: event.mutationId,
             resource: event.resource,
           });
           break;
-        case "SUBSCRIPTION_CREATED":
+        }
+        case "SUBSCRIPTION_CREATED": {
           addEvent("subscription-created", {
             query: event.query,
             subscriptionKey: event.subscriptionKey,
             subscriberCount: event.subscriberCount,
           });
           break;
-        case "SUBSCRIPTION_REMOVED":
+        }
+        case "SUBSCRIPTION_REMOVED": {
           addEvent("subscription-removed", {
             query: event.query,
             subscriptionKey: event.subscriptionKey,
           });
           break;
-        case "QUERY_EXECUTED":
+        }
+        case "QUERY_EXECUTED": {
           addEvent("query-executed", {
             query: event.query,
             resultCount: event.resultCount,
           });
           break;
-        case "STORE_STATE_UPDATED":
+        }
+        case "STORE_STATE_UPDATED": {
           addEvent("store-updated", {
             resource: event.resource,
             itemCount: event.itemCount,
           });
           break;
-        case "OPTIMISTIC_MUTATION_APPLIED":
+        }
+        case "OPTIMISTIC_MUTATION_APPLIED": {
           addEvent("optimistic-applied", {
             mutationId: event.mutationId,
             resource: event.resource,
@@ -168,7 +181,8 @@ export const LiveStateLog = () => {
             pendingMutations: event.pendingMutations,
           });
           break;
-        case "OPTIMISTIC_MUTATION_UNDONE":
+        }
+        case "OPTIMISTIC_MUTATION_UNDONE": {
           addEvent("optimistic-undone", {
             mutationId: event.mutationId,
             resource: event.resource,
@@ -176,6 +190,10 @@ export const LiveStateLog = () => {
             pendingMutations: event.pendingMutations,
           });
           break;
+        }
+        default: {
+          break;
+        }
       }
     });
 
@@ -201,7 +219,9 @@ export const LiveStateLog = () => {
   // Track scroll position to determine if we should auto-scroll
   useEffect(() => {
     const scrollElement = parentRef.current;
-    if (!scrollElement) return;
+    if (!scrollElement) {
+      return;
+    }
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = scrollElement;
@@ -213,50 +233,65 @@ export const LiveStateLog = () => {
     return () => scrollElement.removeEventListener("scroll", handleScroll);
   }, [isOpen]);
 
-  const formatTimestamp = (date: Date) => {
-    return date.toLocaleTimeString("en-US", {
+  const formatTimestamp = (date: Date) =>
+    date.toLocaleTimeString("en-US", {
       hour12: false,
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
       fractionalSecondDigits: 3,
     });
-  };
 
   const getEventTypeColor = (type: EventLogEntry["type"]) => {
     switch (type) {
-      case "open":
+      case "open": {
         return "text-green-500";
-      case "close":
+      }
+      case "close": {
         return "text-yellow-500";
-      case "message-received":
+      }
+      case "message-received": {
         return "text-blue-500";
-      case "storage-loaded":
+      }
+      case "storage-loaded": {
         return "text-cyan-500";
-      case "data-load-requested":
+      }
+      case "data-load-requested": {
         return "text-indigo-500";
-      case "data-load-reply":
+      }
+      case "data-load-reply": {
         return "text-purple-500";
-      case "mutation-sent":
+      }
+      case "mutation-sent": {
         return "text-orange-500";
-      case "mutation-received":
+      }
+      case "mutation-received": {
         return "text-amber-500";
-      case "mutation-rejected":
+      }
+      case "mutation-rejected": {
         return "text-red-500";
-      case "subscription-created":
+      }
+      case "subscription-created": {
         return "text-emerald-500";
-      case "subscription-removed":
+      }
+      case "subscription-removed": {
         return "text-pink-500";
-      case "query-executed":
+      }
+      case "query-executed": {
         return "text-violet-500";
-      case "store-updated":
+      }
+      case "store-updated": {
         return "text-teal-500";
-      case "optimistic-applied":
+      }
+      case "optimistic-applied": {
         return "text-lime-500";
-      case "optimistic-undone":
+      }
+      case "optimistic-undone": {
         return "text-rose-500";
-      default:
+      }
+      default: {
         return "text-foreground";
+      }
     }
   };
 
@@ -312,13 +347,15 @@ export const LiveStateLog = () => {
             <div
               style={{
                 height: `${virtualizer.getTotalSize()}px`,
-                width: "100%",
                 position: "relative",
+                width: "100%",
               }}
             >
               {virtualizer.getVirtualItems().map((virtualItem) => {
                 const event = events[virtualItem.index];
-                if (!event) return null;
+                if (!event) {
+                  return null;
+                }
 
                 const isExpanded = expandedEvents.has(event.id);
                 const hasData = event.data !== undefined;
@@ -329,11 +366,11 @@ export const LiveStateLog = () => {
                     data-index={virtualItem.index}
                     ref={virtualizer.measureElement}
                     style={{
+                      left: 0,
                       position: "absolute",
                       top: 0,
-                      left: 0,
-                      width: "100%",
                       transform: `translateY(${virtualItem.start}px)`,
+                      width: "100%",
                     }}
                   >
                     <div className="flex gap-2 text-xs font-mono items-start pb-1">

@@ -1,5 +1,6 @@
 import { Mesh, Program, Renderer, RenderTarget, Triangle } from "ogl";
 import { useEffect, useId, useRef } from "react";
+
 import { cn } from "../lib/utils";
 
 export const HorizontalLine = ({
@@ -18,7 +19,7 @@ export const HorizontalLine = ({
       className={cn(
         "w-full col-span-full text-border",
         variant === "outer" ? "-translate-y-px" : "h-px",
-        className,
+        className
       )}
     >
       {variant === "full" ? (
@@ -419,20 +420,22 @@ export default function Dither({
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    if (!canvasRef.current || !containerRef.current) return;
+    if (!canvasRef.current || !containerRef.current) {
+      return;
+    }
 
     const canvas = canvasRef.current;
     const container = containerRef.current;
 
     // Initialize renderer
     const renderer = new Renderer({
-      canvas,
-      width: container.clientWidth,
-      height: container.clientHeight,
-      dpr: window.devicePixelRatio,
       alpha: false,
+      canvas,
+      dpr: window.devicePixelRatio,
+      height: container.clientHeight,
+      width: container.clientWidth,
     });
-    const gl = renderer.gl;
+    const { gl } = renderer;
     gl.clearColor(0, 0, 0, 0);
 
     // Create geometry - full screen triangle
@@ -440,44 +443,44 @@ export default function Dither({
 
     // Wave program uniforms
     const waveUniforms = {
-      time: { value: 0 },
+      enableMouseInteraction: { value: enableMouseInteraction ? 1 : 0 },
+      mousePos: { value: [0, 0] },
+      mouseRadius: { value: mouseRadius },
       resolution: { value: [gl.canvas.width, gl.canvas.height] },
-      waveSpeed: { value: waveSpeed },
-      waveFrequency: { value: waveFrequency },
+      time: { value: 0 },
       waveAmplitude: { value: waveAmplitude },
       waveColor: { value: [...waveColor] },
-      mousePos: { value: [0, 0] },
-      enableMouseInteraction: { value: enableMouseInteraction ? 1 : 0 },
-      mouseRadius: { value: mouseRadius },
+      waveFrequency: { value: waveFrequency },
+      waveSpeed: { value: waveSpeed },
     };
 
     // Wave program
     const waveProgram = new Program(gl, {
-      vertex: waveVertexShader,
       fragment: waveFragmentShader,
       uniforms: waveUniforms,
+      vertex: waveVertexShader,
     });
 
     const waveMesh = new Mesh(gl, { geometry, program: waveProgram });
 
     // Create render target for post-processing
     const renderTarget = new RenderTarget(gl, {
-      width: gl.canvas.width,
       height: gl.canvas.height,
+      width: gl.canvas.width,
     });
 
     // Dither post-process program
     const ditherUniforms = {
-      tMap: { value: renderTarget.texture },
-      resolution: { value: [gl.canvas.width, gl.canvas.height] },
       colorNum: { value: colorNum },
       pixelSize: { value: pixelSize },
+      resolution: { value: [gl.canvas.width, gl.canvas.height] },
+      tMap: { value: renderTarget.texture },
     };
 
     const ditherProgram = new Program(gl, {
-      vertex: ditherVertexShader,
       fragment: ditherFragmentShader,
       uniforms: ditherUniforms,
+      vertex: ditherVertexShader,
     });
 
     const ditherMesh = new Mesh(gl, { geometry, program: ditherProgram });
@@ -486,7 +489,9 @@ export default function Dither({
     const mousePos = [0, 0];
 
     const handlePointerMove = (e: PointerEvent) => {
-      if (!enableMouseInteraction) return;
+      if (!enableMouseInteraction) {
+        return;
+      }
       const rect = canvas.getBoundingClientRect();
       const dpr = window.devicePixelRatio;
       mousePos[0] = (e.clientX - rect.left) * dpr;
@@ -496,10 +501,12 @@ export default function Dither({
     // Handle resize
     const handleResize = () => {
       const rect = container.getBoundingClientRect();
-      const width = rect.width;
-      const height = rect.height;
+      const { width } = rect;
+      const { height } = rect;
 
-      if (width === 0 || height === 0) return;
+      if (width === 0 || height === 0) {
+        return;
+      }
 
       canvas.width = width * window.devicePixelRatio;
       canvas.height = height * window.devicePixelRatio;
@@ -589,12 +596,12 @@ export default function Dither({
         ref={canvasRef}
         className="block"
         style={{
-          width: "100%",
-          height: "100%",
           display: "block",
+          height: "100%",
+          left: 0,
           position: "absolute",
           top: 0,
-          left: 0,
+          width: "100%",
         }}
       />
     </div>

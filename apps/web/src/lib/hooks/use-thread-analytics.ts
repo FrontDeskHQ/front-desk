@@ -5,7 +5,11 @@ import { useCallback } from "react";
 
 type Thread = InferLiveObject<
   typeof schema.thread,
-  { organization: true; messages: { include: { author: true } }; assignedUser: true }
+  {
+    organization: true;
+    messages: { include: { author: true } };
+    assignedUser: true;
+  }
 >;
 
 export function useThreadAnalytics(thread: Thread | undefined) {

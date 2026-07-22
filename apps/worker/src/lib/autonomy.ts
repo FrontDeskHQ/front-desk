@@ -1,35 +1,33 @@
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
-import {
-  type ActionKind,
-  type AutonomyLevel,
-  getDefaultActionAutonomy,
-} from "@workspace/schemas/signals";
+import { getDefaultActionAutonomy } from "@workspace/schemas/signals";
+import type { ActionKind, AutonomyLevel } from "@workspace/schemas/signals";
+
 import { fetchClient } from "./database/client";
 
-type OrgRow = {
+interface OrgRow {
   id: string;
   settings: unknown;
-};
+}
 
 export async function getOrgActionAutonomy(
-  organizationId: string,
+  organizationId: string
 ): Promise<Record<ActionKind, AutonomyLevel>> {
   const org = (await fetchClient.query.organization.byId({
     id: organizationId,
   })) as OrgRow | undefined;
   const parsed = safeParseOrgSettings(org?.settings);
-  return { ...getDefaultActionAutonomy(), ...(parsed.actionAutonomy ?? {}) };
+  return { ...getDefaultActionAutonomy(), ...parsed.actionAutonomy };
 }
 
 export async function getLabelAutonomyMode(
-  organizationId: string,
+  organizationId: string
 ): Promise<AutonomyLevel> {
   const map = await getOrgActionAutonomy(organizationId);
   return map.apply_label;
 }
 
 export async function getStatusAutonomyMode(
-  organizationId: string,
+  organizationId: string
 ): Promise<AutonomyLevel> {
   const map = await getOrgActionAutonomy(organizationId);
   return map.set_status;

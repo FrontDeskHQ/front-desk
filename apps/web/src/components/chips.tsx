@@ -17,7 +17,8 @@ import {
 import { Separator } from "@workspace/ui/components/separator";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import {
   ArrowRight,
   CircleCheck,
@@ -28,26 +29,29 @@ import {
   GitPullRequestClosed,
   GitPullRequestDraft,
 } from "lucide-react";
+
 import {
   getPullRequestState,
-  type MirrorEntity,
-  type PullRequestState,
   useMirrorEntityByRef,
+} from "~/components/threads/external-entities";
+import type {
+  MirrorEntity,
+  PullRequestState,
 } from "~/components/threads/external-entities";
 
 const threadChipVariants = cva(
   "flex items-center w-fit gap-1.5 cursor-default text-xs border h-6 rounded-sm px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 bg-foreground-tertiary/15 hover:bg-foreground-tertiary/25 transition-colors",
   {
-    variants: {
-      disabled: {
-        true: "opacity-50 pointer-events-none",
-        false: "",
-      },
-    },
     defaultVariants: {
       disabled: false,
     },
-  },
+    variants: {
+      disabled: {
+        false: "",
+        true: "opacity-50 pointer-events-none",
+      },
+    },
+  }
 );
 
 type ThreadChipThread = InferLiveObject<
@@ -86,7 +90,7 @@ export function ThreadChip({
         src={thread.author?.user?.image ?? undefined}
       />
       <span className="text-foreground-primary">{thread.name}</span>
-      {thread.shortId != null && (
+      {thread.shortId !== null && (
         <span className="text-foreground-secondary tabular-nums">
           #{thread.shortId}
         </span>
@@ -101,7 +105,7 @@ export function ThreadSummaryCard({ thread }: { thread: ThreadSummaryThread }) {
       <div className="flex flex-col gap-1">
         <div className="font-medium text-sm flex items-center gap-1.5">
           <span className="text-foreground-primary">{thread.name}</span>
-          {thread.shortId != null && (
+          {thread.shortId !== null && (
             <span className="text-foreground-secondary tabular-nums font-normal">
               #{thread.shortId}
             </span>
@@ -192,25 +196,25 @@ const pullRequestStateConfig: Record<
   PullRequestState,
   { label: string; icon: typeof GitPullRequest; className: string }
 > = {
-  open: {
-    label: "Open",
-    icon: GitPullRequest,
-    className: "text-green-600 dark:text-green-500",
-  },
   closed: {
-    label: "Closed",
-    icon: GitPullRequestClosed,
     className: "text-red-600 dark:text-red-500",
-  },
-  merged: {
-    label: "Merged",
-    icon: GitMerge,
-    className: "text-purple-600 dark:text-purple-500",
+    icon: GitPullRequestClosed,
+    label: "Closed",
   },
   draft: {
-    label: "Draft",
-    icon: GitPullRequestDraft,
     className: "text-foreground-secondary",
+    icon: GitPullRequestDraft,
+    label: "Draft",
+  },
+  merged: {
+    className: "text-purple-600 dark:text-purple-500",
+    icon: GitMerge,
+    label: "Merged",
+  },
+  open: {
+    className: "text-green-600 dark:text-green-500",
+    icon: GitPullRequest,
+    label: "Open",
   },
 };
 
@@ -275,7 +279,9 @@ function ExternalEntityMetadataGrid({
 }
 
 function ExternalEntityLabelList({ labels }: { labels: string[] }) {
-  if (labels.length === 0) return null;
+  if (labels.length === 0) {
+    return null;
+  }
 
   return (
     <>
@@ -339,7 +345,9 @@ function ExternalEntitySummaryHoverCard({
 }
 
 function PrBranchSubtitle({ entity }: { entity: MirrorEntity }) {
-  if (!entity.headRef && !entity.baseRef) return null;
+  if (!entity.headRef && !entity.baseRef) {
+    return null;
+  }
 
   return (
     <div className="flex min-w-0 items-center gap-1 text-sm text-muted-foreground font-mono">
@@ -413,21 +421,20 @@ const issueStateConfig: Record<
   IssueState,
   { label: string; icon: typeof CircleDot; className: string }
 > = {
-  open: {
-    label: "Open",
-    icon: CircleDot,
-    className: "text-green-600 dark:text-green-500",
-  },
   closed: {
-    label: "Closed",
-    icon: CircleCheck,
     className: "text-purple-600 dark:text-purple-500",
+    icon: CircleCheck,
+    label: "Closed",
+  },
+  open: {
+    className: "text-green-600 dark:text-green-500",
+    icon: CircleDot,
+    label: "Open",
   },
 };
 
-const getIssueState = (
-  entity: Pick<MirrorEntity, "state">,
-): IssueState => (entity.state === "closed" ? "closed" : "open");
+const getIssueState = (entity: Pick<MirrorEntity, "state">): IssueState =>
+  entity.state === "closed" ? "closed" : "open";
 
 function IssueStateIndicator({ state }: { state: IssueState }) {
   const { label, icon: Icon, className } = issueStateConfig[state];
@@ -465,9 +472,9 @@ export function IssueChip({
     url: string;
   }) {
   const entity = useMirrorEntityByRef({
-    type: "issue",
-    repoFullName: `${owner}/${repo}`,
     number,
+    repoFullName: `${owner}/${repo}`,
+    type: "issue",
   });
 
   if (entity) {
@@ -493,7 +500,9 @@ export function IssueChip({
     );
 
     return (
-      <ExternalEntitySummaryHoverCard summary={<IssueSummaryCard entity={entity} />}>
+      <ExternalEntitySummaryHoverCard
+        summary={<IssueSummaryCard entity={entity} />}
+      >
         {chip}
       </ExternalEntitySummaryHoverCard>
     );
@@ -532,9 +541,9 @@ export function PrChip({
     url: string;
   }) {
   const entity = useMirrorEntityByRef({
-    type: "pull_request",
-    repoFullName: `${owner}/${repo}`,
     number,
+    repoFullName: `${owner}/${repo}`,
+    type: "pull_request",
   });
 
   if (entity) {
@@ -560,7 +569,9 @@ export function PrChip({
     );
 
     return (
-      <ExternalEntitySummaryHoverCard summary={<PrSummaryCard entity={entity} />}>
+      <ExternalEntitySummaryHoverCard
+        summary={<PrSummaryCard entity={entity} />}
+      >
         {chip}
       </ExternalEntitySummaryHoverCard>
     );

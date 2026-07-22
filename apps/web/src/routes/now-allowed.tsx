@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
+
 import { useLogout } from "~/lib/hooks/auth";
 
 export const Route = createFileRoute("/now-allowed")({

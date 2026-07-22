@@ -20,7 +20,7 @@ function ConnectorArrow({
       className="shrink-0 w-8 md:w-12 self-center text-foreground-secondary"
       initial={{ opacity: 0 }}
       animate={isInView ? { opacity: 1 } : undefined}
-      transition={{ duration: 0.3, delay }}
+      transition={{ delay, duration: 0.3 }}
     >
       <defs>
         <clipPath id={`arrow-clip-${id}`}>
@@ -49,11 +49,11 @@ function ConnectorArrow({
         clipPath={`url(#arrow-clip-${id})`}
         animate={isInView ? { x: [-10, 48] } : undefined}
         transition={{
-          duration: 1.8,
           delay: delay + 0.5,
+          duration: 1.8,
+          ease: "linear",
           repeat: Infinity,
           repeatDelay: 2,
-          ease: "linear",
         }}
       />
       {/* Arrowhead */}
@@ -64,7 +64,7 @@ function ConnectorArrow({
 
 export function CloseLoopVisual() {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const isInView = useInView(ref, { margin: "-10%", once: true });
 
   return (
     <div
@@ -73,9 +73,9 @@ export function CloseLoopVisual() {
     >
       {/* Stage 1: Thread */}
       <motion.div
-        initial={{ opacity: 0, x: -15, filter: "blur(8px)" }}
+        initial={{ filter: "blur(8px)", opacity: 0, x: -15 }}
         animate={
-          isInView ? { opacity: 1, x: 0, filter: "blur(0px)" } : undefined
+          isInView ? { filter: "blur(0px)", opacity: 1, x: 0 } : undefined
         }
         transition={{ duration: 0.4 }}
         className="shrink-0 rounded-lg border bg-background-primary p-3 shadow-sm w-36 md:w-44"
@@ -93,11 +93,11 @@ export function CloseLoopVisual() {
 
       {/* Stage 2: Linear ticket */}
       <motion.div
-        initial={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+        initial={{ filter: "blur(8px)", opacity: 0, y: 10 }}
         animate={
-          isInView ? { opacity: 1, y: 0, filter: "blur(0px)" } : undefined
+          isInView ? { filter: "blur(0px)", opacity: 1, y: 0 } : undefined
         }
-        transition={{ duration: 0.4, delay: 0.6 }}
+        transition={{ delay: 0.6, duration: 0.4 }}
         className="shrink-0 rounded-lg border bg-background-primary p-3 shadow-sm w-36 md:w-44"
       >
         <div className="flex items-center gap-1.5 mb-1">
@@ -116,11 +116,11 @@ export function CloseLoopVisual() {
 
       {/* Stage 3: Resolved */}
       <motion.div
-        initial={{ opacity: 0, x: 15, filter: "blur(8px)" }}
+        initial={{ filter: "blur(8px)", opacity: 0, x: 15 }}
         animate={
-          isInView ? { opacity: 1, x: 0, filter: "blur(0px)" } : undefined
+          isInView ? { filter: "blur(0px)", opacity: 1, x: 0 } : undefined
         }
-        transition={{ duration: 0.4, delay: 1.2 }}
+        transition={{ delay: 1.2, duration: 0.4 }}
         className="shrink-0 rounded-lg border bg-background-primary p-3 shadow-sm w-36 md:w-44"
       >
         <div className="text-xs text-foreground-secondary mb-1">Thread</div>

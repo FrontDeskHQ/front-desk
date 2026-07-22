@@ -1,6 +1,7 @@
 import type { PrMatchJobData } from "@workspace/schemas/signals";
 import { log } from "@workspace/utils/logging";
 import type { Job } from "bullmq";
+
 import { fetchClient } from "../lib/database/client";
 import { buildPrEmbedText, generatePrEmbedding } from "../lib/pr-embedding";
 import { PR_MATCH_THRESHOLD } from "../lib/qdrant/pull-requests";
@@ -24,16 +25,16 @@ const MATCH_LIMIT = 10;
  * PR is dropped instead of matching a dead PR.
  */
 export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
-  const data = job.data;
+  const { data } = job;
   const { organizationId, externalKey } = data;
 
   const eligible = data.state === "open" && data.draft !== true;
   if (!eligible) {
     log.info(
       "worker.match-pr",
-      `Skipped ineligible PR ${externalKey} (state=${data.state}, draft=${data.draft})`,
+      `Skipped ineligible PR ${externalKey} (state=${data.state}, draft=${data.draft})`
     );
-    return { externalKey, action: "skipped" as const };
+    return { action: "skipped" as const, externalKey };
   }
 
   const embedText = buildPrEmbedText(data);
@@ -43,29 +44,29 @@ export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
   }
 
   const matches = await searchSimilarThreads(embedding, {
-    organizationId,
-    statusFilter: ACTIVE_STATUSES,
-    scoreThreshold: PR_MATCH_THRESHOLD,
     limit: MATCH_LIMIT,
+    organizationId,
+    scoreThreshold: PR_MATCH_THRESHOLD,
+    statusFilter: ACTIVE_STATUSES,
   });
 
   if (matches.length === 0) {
     log.info("worker.match-pr", `No similar threads for PR ${externalKey}`);
-    return { externalKey, action: "matched" as const, enqueued: 0 };
+    return { action: "matched" as const, enqueued: 0, externalKey };
   }
 
   // The API owns the authoritative unlinked-thread filter (the vector payload's
   // status can lag the mirror) and the thread-read enqueue with its ADR-0006
   // coalescing, so hand it the raw candidates and let it fan out.
   const { enqueued } = await fetchClient.mutate.externalEntity.fanOutPrMatch({
-    organizationId,
     externalKey,
     matches: matches.map((m) => ({ threadId: m.threadId, score: m.score })),
+    organizationId,
   });
 
   log.info(
     "worker.match-pr",
-    `PR ${externalKey}: ${matches.length} similar thread(s), ${enqueued} pr_matched read(s) enqueued`,
+    `PR ${externalKey}: ${matches.length} similar thread(s), ${enqueued} pr_matched read(s) enqueued`
   );
-  return { externalKey, action: "matched" as const, enqueued };
+  return { action: "matched" as const, enqueued, externalKey };
 };

@@ -1,5 +1,6 @@
 import type { RelatedDocEvidenceItem } from "@workspace/schemas/signals";
 import { createScorer } from "evalite";
+
 import type { RelatedDocsTestCase } from "./dataset";
 
 type In = RelatedDocsTestCase["input"];
@@ -10,8 +11,8 @@ export const relatedDocsRanking = createScorer<
   RelatedDocEvidenceItem[],
   Expected
 >({
-  name: "Related Docs Ranking",
   description: "Ordered docIds match expected relevance ranking.",
+  name: "Related Docs Ranking",
   scorer: ({ output, expected }) => {
     const expectedDocIds = expected?.docIds ?? [];
     const actual = output.map((doc) => doc.docId);

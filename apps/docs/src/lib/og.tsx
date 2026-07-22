@@ -23,7 +23,7 @@ async function loadInterFont(): Promise<ArrayBuffer> {
 }
 
 export async function generateOGImage(
-  options: GenerateProps & ImageResponseOptions,
+  options: GenerateProps & ImageResponseOptions
 ): Promise<ImageResponse> {
   const {
     title,
@@ -39,16 +39,14 @@ export async function generateOGImage(
 
   return new ImageResponse(
     generate({
-      title,
       description,
       icon,
-      site,
-      primaryTextColor,
       primaryColor,
+      primaryTextColor,
+      site,
+      title,
     }),
     {
-      width: 1200,
-      height: 630,
       fonts: [
         {
           name: "Inter",
@@ -69,8 +67,10 @@ export async function generateOGImage(
           weight: 800,
         },
       ],
+      height: 630,
+      width: 1200,
       ...rest,
-    },
+    }
   );
 }
 
@@ -92,8 +92,8 @@ const FrontDeskLogo = () => (
 );
 
 export function generate({
-  primaryColor,
-  primaryTextColor,
+  primaryColor: _primaryColor,
+  primaryTextColor: _primaryTextColor,
   ...props
 }: GenerateProps): ReactElement {
   const defaultIcon = props.icon || <FrontDeskLogo />;
@@ -102,23 +102,23 @@ export function generate({
   return (
     <div
       style={{
+        backgroundColor: "#0F0F0F",
+        color: "#fbfbfb",
         display: "flex",
         flexDirection: "column",
-        width: "100%",
         height: "100%",
-        color: "#fbfbfb",
         padding: "64px",
         position: "relative",
-        backgroundColor: "#0F0F0F",
+        width: "100%",
       }}
     >
       <svg
         width="1200"
         height="630"
         style={{
+          left: 0,
           position: "absolute",
           top: 0,
-          left: 0,
         }}
       >
         <defs>
@@ -133,29 +133,29 @@ export function generate({
         style={{
           display: "flex",
           flexDirection: "column",
-          position: "relative",
-          zIndex: 1,
           height: "100%",
           justifyContent: "space-between",
+          position: "relative",
+          zIndex: 1,
         }}
       >
         <div
           style={{
+            alignItems: "center",
+            color: "#ebebeb",
             display: "flex",
             flexDirection: "row",
-            alignItems: "center",
             gap: "20px",
-            color: "#ebebeb",
           }}
         >
           {defaultIcon}
           <p
             style={{
+              color: "#ebebeb",
+              fontFamily: "Inter",
               fontSize: "48px",
               fontWeight: 500,
               margin: 0,
-              color: "#ebebeb",
-              fontFamily: "Inter",
             }}
           >
             {defaultSite}
@@ -171,12 +171,12 @@ export function generate({
         >
           <p
             style={{
-              fontWeight: 800,
-              fontSize: "72px",
-              margin: 0,
               color: "#fbfbfb",
-              lineHeight: "1.1",
               fontFamily: "Inter",
+              fontSize: "72px",
+              fontWeight: 800,
+              lineHeight: "1.1",
+              margin: 0,
             }}
           >
             {props.title}
@@ -184,11 +184,11 @@ export function generate({
           {props.description && (
             <p
               style={{
-                fontSize: "40px",
                 color: "rgba(251, 251, 251, 0.7)",
-                margin: 0,
-                lineHeight: "1.3",
                 fontFamily: "Inter",
+                fontSize: "40px",
+                lineHeight: "1.3",
+                margin: 0,
               }}
             >
               {props.description}

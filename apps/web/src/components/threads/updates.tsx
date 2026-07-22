@@ -9,6 +9,7 @@ import {
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Bot, CircleUserIcon, CopySlash, Github, Tag } from "lucide-react";
+
 import { ThreadChipWithSummary } from "~/components/chips";
 import {
   resolveMirrorEntityLabel,
@@ -18,8 +19,8 @@ import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
 const getMetadataString = (
-  metadata: { [key: string]: unknown } | null,
-  key: string,
+  metadata: Record<string, unknown> | null,
+  key: string
 ): string | null => {
   const value = metadata?.[key];
   return typeof value === "string" ? value : null;
@@ -27,30 +28,30 @@ const getMetadataString = (
 
 const useResolvedMirrorLabel = (
   externalKey: string | null,
-  metadata: { [key: string]: unknown } | null,
-  fallbackKey: string,
+  metadata: Record<string, unknown> | null,
+  fallbackKey: string
 ): string | null => {
   const entity = useMirrorEntityByKey(externalKey);
   return resolveMirrorEntityLabel(
     entity,
-    getMetadataString(metadata, fallbackKey),
+    getMetadataString(metadata, fallbackKey)
   );
 };
 
 const IssueChangedUpdateText = ({
   metadata,
 }: {
-  metadata: { [key: string]: unknown } | null;
+  metadata: Record<string, unknown> | null;
 }) => {
   const oldIssueLabel = useResolvedMirrorLabel(
     getMetadataString(metadata, "oldIssueId"),
     metadata,
-    "oldIssueLabel",
+    "oldIssueLabel"
   );
   const newIssueLabel = useResolvedMirrorLabel(
     getMetadataString(metadata, "newIssueId"),
     metadata,
-    "newIssueLabel",
+    "newIssueLabel"
   );
 
   if (!oldIssueLabel && newIssueLabel) {
@@ -86,18 +87,18 @@ const PrChangedUpdateText = ({
   metadata,
   verbPrefix,
 }: {
-  metadata: { [key: string]: unknown } | null;
+  metadata: Record<string, unknown> | null;
   verbPrefix: string;
 }) => {
   const oldPrLabel = useResolvedMirrorLabel(
     getMetadataString(metadata, "oldPrId"),
     metadata,
-    "oldPrLabel",
+    "oldPrLabel"
   );
   const newPrLabel = useResolvedMirrorLabel(
     getMetadataString(metadata, "newPrId"),
     metadata,
-    "newPrLabel",
+    "newPrLabel"
   );
 
   if (!oldPrLabel && newPrLabel) {
@@ -132,12 +133,12 @@ const PrChangedUpdateText = ({
 const IssueCreatedUpdateText = ({
   metadata,
 }: {
-  metadata: { [key: string]: unknown } | null;
+  metadata: Record<string, unknown> | null;
 }) => {
   const issueLabel = useResolvedMirrorLabel(
     getMetadataString(metadata, "issueId"),
     metadata,
-    "issueLabel",
+    "issueLabel"
   );
 
   return (
@@ -157,7 +158,7 @@ export function Update({
   user?: { id: string; name: string };
   connectTop?: boolean;
 }) {
-  let metadata: any = null;
+  let metadata: Record<string, unknown> | null = null;
   if (update.metadataStr) {
     try {
       metadata = JSON.parse(update.metadataStr);
@@ -167,14 +168,19 @@ export function Update({
   }
 
   const assignedUser = useLiveQuery(
-    query.user.first({ id: metadata?.newAssignedUserId }),
+    query.user.first({
+      id:
+        typeof metadata?.newAssignedUserId === "string"
+          ? metadata.newAssignedUserId
+          : undefined,
+    })
   );
 
   const duplicateThread = useLiveQuery(
     query.thread.first({ id: metadata?.duplicateOfThreadId }).include({
-      author: { include: { user: true } },
       assignedUser: { include: { user: true } },
-    }),
+      author: { include: { user: true } },
+    })
   );
 
   const isAutonomous = metadata?.source === "autonomous";

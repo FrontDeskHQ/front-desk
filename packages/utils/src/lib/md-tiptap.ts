@@ -1,5 +1,3 @@
-/** biome-ignore-all lint/suspicious/noExplicitAny: Too much type work - PRs welcome */
-/** biome-ignore-all lint/style/noNonNullAssertion: Too much type work - PRs welcome */
 import type { JSONContent } from "@tiptap/react";
 import type {
   Blockquote,
@@ -12,7 +10,6 @@ import type {
   Paragraph,
   PhrasingContent,
   RootContent,
-  RootContentMap,
   Text,
 } from "mdast";
 import remarkGfm from "remark-gfm";
@@ -25,18 +22,18 @@ const mdastTextsToTipTap = (
 ): JSONContent => {
   if (node.type === "inlineCode") {
     return {
-      type: "text",
-      text: (node as InlineCode).value,
       marks: [
         {
           type: "code",
         },
       ],
+      text: (node as InlineCode).value,
+      type: "text",
     };
   }
 
   if (node.type === "strong") {
-    return mdastTextsToTipTap(node.children[0] as any, [
+    return mdastTextsToTipTap(node.children[0] as PhrasingContent, [
       ...(marks ?? []),
       {
         type: "bold",
@@ -44,7 +41,7 @@ const mdastTextsToTipTap = (
     ]);
   }
   if (node.type === "emphasis") {
-    return mdastTextsToTipTap(node.children[0] as any, [
+    return mdastTextsToTipTap(node.children[0] as PhrasingContent, [
       ...(marks ?? []),
       {
         type: "italic",
@@ -52,7 +49,7 @@ const mdastTextsToTipTap = (
     ]);
   }
   if (node.type === "delete") {
-    return mdastTextsToTipTap(node.children[0] as any, [
+    return mdastTextsToTipTap(node.children[0] as PhrasingContent, [
       ...(marks ?? []),
       {
         type: "strike",
@@ -61,26 +58,24 @@ const mdastTextsToTipTap = (
   }
 
   if (node.type === "link") {
-    return mdastTextsToTipTap(node.children[0] as any, [
+    return mdastTextsToTipTap(node.children[0] as PhrasingContent, [
       {
-        type: "link",
         attrs: {
           href: (node as Link).url,
         },
+        type: "link",
       },
     ]);
   }
 
   return {
-    type: "text",
     marks,
     text: (node as Text).value,
+    type: "text",
   };
 };
 
-const mdastToTipTap: {
-  [key in RootContent["type"]]: (node: RootContentMap[key]) => JSONContent;
-} & Record<string, (node: any) => JSONContent> = {
+const mdastToTipTap = {
   text: mdastTextsToTipTap,
   emphasis: mdastTextsToTipTap,
   strong: mdastTextsToTipTap,
@@ -89,36 +84,30 @@ const mdastToTipTap: {
   link: mdastTextsToTipTap,
 
   paragraph: (node: Paragraph): JSONContent => ({
+    content: node.children.map((child) => convertMdastNode(child)),
     type: "paragraph",
-    content: node.children.map((child) =>
-      mdastToTipTap[child.type](child as any)
-    ),
   }),
 
   heading: (node: Heading): JSONContent => ({
-    type: "heading",
     attrs: {
       level: node.depth,
     },
-    content: node.children.map((child) =>
-      mdastToTipTap[child.type](child as any)
-    ),
+    content: node.children.map((child) => convertMdastNode(child)),
+    type: "heading",
   }),
 
   blockquote: (node: Blockquote): JSONContent => ({
+    content: node.children.map((child) => convertMdastNode(child)),
     type: "blockquote",
-    content: node.children.map((child) =>
-      mdastToTipTap[child.type](child as any)
-    ),
   }),
 
   // TODO parse language
   code: (node: Code): JSONContent => ({
-    type: "codeBlock",
     attrs: {
       language: null,
     },
-    ...(node.value ? { content: [{ type: "text", text: node.value }] } : {}),
+    type: "codeBlock",
+    ...(node.value ? { content: [{ text: node.value, type: "text" }] } : {}),
   }),
 
   break: (): JSONContent => ({
@@ -126,23 +115,19 @@ const mdastToTipTap: {
   }),
 
   list: (node: List): JSONContent => ({
-    type: node.ordered ? "orderedList" : "bulletList",
     attrs: node.start
       ? {
           start: node.start,
           type: null,
         }
       : {},
-    content: node.children.map((child) =>
-      mdastToTipTap[child.type](child as any)
-    ),
+    content: node.children.map((child) => convertMdastNode(child)),
+    type: node.ordered ? "orderedList" : "bulletList",
   }),
 
   listItem: (node: ListItem): JSONContent => ({
+    content: node.children.map((child) => convertMdastNode(child)),
     type: "listItem",
-    content: node.children.map((child) =>
-      mdastToTipTap[child.type](child as any)
-    ),
   }),
 
   thematicBreak: () => ({
@@ -200,12 +185,22 @@ const mdastToTipTap: {
   }),
 };
 
+function convertMdastNode(node: RootContent): JSONContent {
+  const converter = (
+    mdastToTipTap as Record<string, (node: unknown) => JSONContent>
+  )[node.type];
+  if (!converter) {
+    throw new Error("Function not implemented.");
+  }
+  return converter(node);
+}
+
 export const parse = (str: string): JSONContent[] => {
   const doc = unified().use(remarkParse).use(remarkGfm).parse(str);
 
   return doc.children.flatMap((child) => {
     try {
-      return [mdastToTipTap[child.type](child as any)];
+      return [convertMdastNode(child)];
     } catch {
       return [];
     }

@@ -1,18 +1,22 @@
 const slugifyThreadName = (name: string): string => {
   const words = name
     .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replaceAll(/[\u0300-\u036F]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
+    .replaceAll(/[^a-z0-9\s-]/g, "")
     .split(/[\s-]+/)
     .filter(Boolean);
 
   let out = "";
   for (let i = 0; i < Math.min(words.length, 8); i++) {
     const word = words[i];
-    if (!word) continue;
+    if (!word) {
+      continue;
+    }
     const next = out ? `${out}-${word}` : word;
-    if (next.length > 64) break;
+    if (next.length > 64) {
+      break;
+    }
     out = next;
   }
   return out;
@@ -33,7 +37,7 @@ export const buildThreadUrl = ({
 }): string => {
   const base = webUrl.replace(/\/$/, "");
   const param =
-    shortId == null
+    shortId === null
       ? threadId
       : (() => {
           const slug = slugifyThreadName(title);

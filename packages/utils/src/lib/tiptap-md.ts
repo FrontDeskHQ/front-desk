@@ -23,18 +23,18 @@ import { unified } from "unified";
 
 const markToMdastType: Record<string, PhrasingContent["type"]> = {
   bold: "strong",
-  italic: "emphasis",
-  strike: "delete",
   code: "inlineCode",
+  italic: "emphasis",
   link: "link",
+  strike: "delete",
 };
 
 const markPrecedence: Record<string, number> = {
-  link: 0,
   bold: 1,
-  italic: 2,
-  strike: 3,
   code: 4,
+  italic: 2,
+  link: 0,
+  strike: 3,
 };
 
 const convertTextMarks = (
@@ -45,13 +45,19 @@ const convertTextMarks = (
     return text;
   }
 
-  const [mark, ...rest] = [...marks].sort(
+  const sortedMarks = [...(marks ?? [])].sort(
     (a, b) =>
       (markPrecedence[a?.type ?? ""] ?? 99) -
       (markPrecedence[b?.type ?? ""] ?? 99)
   );
+  const [mark, ...rest] = sortedMarks;
 
-  const type = markToMdastType[mark!.type];
+  const markType = mark?.type;
+  if (!markType) {
+    return text;
+  }
+
+  const type = markToMdastType[markType];
 
   if (!type) {
     return convertTextMarks(rest, text);
@@ -65,15 +71,15 @@ const convertTextMarks = (
   }
   if (type === "link") {
     return {
-      type,
-      url: mark!.attrs?.href as string,
       children: [convertTextMarks(rest, text)],
+      type,
+      url: (mark.attrs?.href as string | undefined) ?? "",
     } satisfies Link;
   }
 
   return {
-    type,
     children: [convertTextMarks(rest, text)],
+    type,
   } as PhrasingContent;
 };
 
@@ -81,27 +87,6 @@ const tipTapToMdast: Record<
   string,
   (node: JSONContent, ignore?: Record<string, boolean>) => Node
 > = {
-  paragraph: (node, ignore) =>
-    ({
-      type: "paragraph",
-      children: (node.content?.flatMap((child) => {
-        const result = ignoreOrTiptapToMdast(child, ignore);
-        return result ? [result] : [];
-      }) ?? []) as PhrasingContent[],
-    }) satisfies Paragraph,
-  text: (node) =>
-    convertTextMarks(node.marks, {
-      type: "text",
-      value: node.text!,
-    } satisfies Text),
-  heading: (node, ignore) =>
-    ({
-      type: "heading",
-      depth: Math.max(1, Math.min(4, node.attrs?.level ?? 1)) as Level,
-      children: (node.content?.map((child) =>
-        ignoreOrTiptapToMdast(child, ignore)
-      ) ?? []) as PhrasingContent[],
-    }) satisfies Heading,
   blockquote: (node, ignore) =>
     ({
       type: "blockquote",
@@ -109,18 +94,6 @@ const tipTapToMdast: Record<
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as BlockContent[],
     }) satisfies Blockquote,
-  codeBlock: (node) =>
-    ({
-      type: "code",
-      value: node.content?.[0]?.text ?? "",
-    }) satisfies Code,
-  listItem: (node, ignore) =>
-    ({
-      type: "listItem",
-      children: (node.content?.map((child) =>
-        ignoreOrTiptapToMdast(child, ignore)
-      ) ?? []) as BlockContent[],
-    }) satisfies ListItem,
   bulletList: (node, ignore) =>
     ({
       type: "list",
@@ -129,6 +102,30 @@ const tipTapToMdast: Record<
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as ListItem[],
     }) satisfies List,
+  codeBlock: (node) =>
+    ({
+      type: "code",
+      value: node.content?.[0]?.text ?? "",
+    }) satisfies Code,
+  heading: (node, ignore) =>
+    ({
+      type: "heading",
+      depth: Math.max(1, Math.min(4, node.attrs?.level ?? 1)) as Level,
+      children: (node.content?.map((child) =>
+        ignoreOrTiptapToMdast(child, ignore)
+      ) ?? []) as PhrasingContent[],
+    }) satisfies Heading,
+  horizontalRule: () =>
+    ({
+      type: "thematicBreak",
+    }) satisfies ThematicBreak,
+  listItem: (node, ignore) =>
+    ({
+      type: "listItem",
+      children: (node.content?.map((child) =>
+        ignoreOrTiptapToMdast(child, ignore)
+      ) ?? []) as BlockContent[],
+    }) satisfies ListItem,
   orderedList: (node, ignore) =>
     ({
       type: "list",
@@ -138,20 +135,41 @@ const tipTapToMdast: Record<
         ignoreOrTiptapToMdast(child, ignore)
       ) ?? []) as ListItem[],
     }) satisfies List,
-
-  horizontalRule: () =>
+  paragraph: (node, ignore) =>
     ({
-      type: "thematicBreak",
-    }) satisfies ThematicBreak,
+      type: "paragraph",
+      children: (node.content?.flatMap((child) => {
+        const result = ignoreOrTiptapToMdast(child, ignore);
+        return result ? [result] : [];
+      }) ?? []) as PhrasingContent[],
+    }) satisfies Paragraph,
+  text: (node) => {
+    if (!node.text) {
+      return {
+        type: "text",
+        value: "",
+      } satisfies Text;
+    }
+
+    return convertTextMarks(node.marks, {
+      type: "text",
+      value: node.text,
+    } satisfies Text);
+  },
 };
 
 const ignoreOrTiptapToMdast = (
   node: JSONContent,
   ignore?: Record<string, boolean>
 ) => {
-  const tipTapToMdastNode = tipTapToMdast[node.type!]?.(node, ignore);
-  if (ignore?.[node.type!]) {
-    return tipTapToMdast["paragraph"]?.(node, ignore);
+  const nodeType = node.type;
+  if (!nodeType) {
+    return undefined;
+  }
+
+  const tipTapToMdastNode = tipTapToMdast[nodeType]?.(node, ignore);
+  if (ignore?.[nodeType]) {
+    return tipTapToMdast.paragraph?.(node, ignore);
   }
   return tipTapToMdastNode;
 };
@@ -177,5 +195,5 @@ export const stringify = (
   return unified()
     .use(remarkStringify)
     .use(remarkGfm)
-    .stringify({ type: "root", children: mdast } as Root);
+    .stringify({ children: mdast, type: "root" } as Root);
 };

@@ -1,30 +1,31 @@
 import "./env";
-
-import "./lib/api-key";
-
 import process from "node:process";
+
 import { Webhooks } from "@dodopayments/express";
 import { expressAdapter, server } from "@live-state/sync/server";
 import expressWs from "@wll8/express-ws";
+import type { OrganizationSettings } from "@workspace/schemas/organization";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
+import type { Express, RequestHandler } from "express";
+
 import { publicKeys } from "./lib/api-key";
 import { auth } from "./lib/auth";
 import { parsePortalOrganizationSlug } from "./lib/authorize";
 import { reflagClient } from "./lib/feature-flag";
 import { portalAuth } from "./lib/portal-auth";
-import { runMigrations } from "./live-state/migrations";
 import { liveStateHooks } from "./live-state/hooks";
+import { runMigrations } from "./live-state/migrations";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
 
-const { app } = expressWs(express() as any);
+const { app } = expressWs(express() as unknown as Express);
 
 const resolvePortalOrganizationId = async (
   headers: Record<string, string>,
-  portalSession: unknown,
+  portalSession: unknown
 ): Promise<string | undefined> => {
   if (!portalSession) {
     return undefined;
@@ -38,17 +39,17 @@ const resolvePortalOrganizationId = async (
   const organization = Object.values(
     await storage.find(schema.organization, {
       where: { slug },
-    }),
+    })
   )[0];
 
   return organization?.id;
 };
 
 const corsOptions = {
-  origin: "*",
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
   allowedHeaders: ["Content-Type", "Authorization", "x-public-api-key"],
   credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
+  origin: "*",
 };
 
 app.use(cors(corsOptions));
@@ -57,9 +58,11 @@ app.use(cors(corsOptions));
 // before we run data migrations or start the server. The Server constructor
 // fires storage.init asynchronously without awaiting it, so we pre-init here
 // to guarantee tables exist by the time runMigrations runs.
-await (storage as unknown as {
-  init: (schema: unknown) => Promise<void>;
-}).init(schema);
+await (
+  storage as unknown as {
+    init: (schema: unknown) => Promise<void>;
+  }
+).init(schema);
 
 /**
  * Mirror non-sensitive billing state (plan/status) onto `organization.settings`
@@ -68,14 +71,16 @@ await (storage as unknown as {
  */
 const mirrorPlanToOrgSettings = async (
   organizationId: string,
-  patch: { plan?: string; status?: string | null },
+  patch: { plan?: string; status?: string | null }
 ) => {
   const org = Object.values(
     await storage.find(schema.organization, {
       where: { id: organizationId },
-    }),
+    })
   )[0];
-  if (!org) return;
+  if (!org) {
+    return;
+  }
 
   const rawSettings =
     org.settings &&
@@ -87,20 +92,15 @@ const mirrorPlanToOrgSettings = async (
   await storage.update(schema.organization, organizationId, {
     settings: {
       ...rawSettings,
-      ...(patch.plan !== undefined ? { plan: patch.plan } : {}),
-      ...(patch.status !== undefined
-        ? { subscriptionStatus: patch.status }
-        : {}),
-      // biome-ignore lint/suspicious/noExplicitAny: settings JSON is opaque here
-    } as any,
+      ...(patch.plan === undefined ? {} : { plan: patch.plan }),
+      ...(patch.status === undefined
+        ? {}
+        : { subscriptionStatus: patch.status }),
+    } as OrganizationSettings,
   });
 };
 
 const lsServer = server({
-  router,
-  storage,
-  schema,
-  hooks: liveStateHooks,
   contextProvider: async ({
     transport,
     headers,
@@ -143,7 +143,7 @@ const lsServer = server({
         const orgUsers = Object.values(
           await storage.find(schema.organizationUser, {
             where: { userId: session.user.id, enabled: true },
-          }),
+          })
         );
         return { ...session, orgUsers };
       }
@@ -190,14 +190,14 @@ const lsServer = server({
       const orgUsers = Object.values(
         await storage.find(schema.organizationUser, {
           where: { userId: session.user.id, enabled: true },
-        }),
+        })
       );
       return { ...session, orgUsers };
     }
 
     const portalOrganizationId = await resolvePortalOrganizationId(
       headers,
-      portalSession,
+      portalSession
     );
 
     return {
@@ -206,6 +206,10 @@ const lsServer = server({
       portalOrganizationId,
     };
   },
+  hooks: liveStateHooks,
+  router,
+  schema,
+  storage,
 });
 
 app.all("/api/auth/*", toNodeHandler(auth));
@@ -218,14 +222,13 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(
     "/api/webhook",
     Webhooks({
-      webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY as string,
       onSubscriptionActive: async (payload) => {
         const subscription = Object.values(
           await storage.find(schema.subscription, {
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
 
         if (!subscription) return;
@@ -242,7 +245,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
         if (!plan) return;
 
         await storage.update(schema.subscription, subscription.id, {
-          plan: plan,
+          plan,
           status: "active",
           updatedAt: new Date(),
           subscriptionId: payload.data.subscription_id,
@@ -254,13 +257,32 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           status: "active",
         });
       },
+      onSubscriptionCancelled: async (payload) => {
+        const subscription = Object.values(
+          await storage.find(schema.subscription, {
+            where: {
+              customerId: payload.data.customer.customer_id,
+            },
+          })
+        )?.[0];
+        if (!subscription) return;
+
+        await storage.update(schema.subscription, subscription.id, {
+          status: "cancelled",
+          updatedAt: new Date(),
+        });
+
+        await mirrorPlanToOrgSettings(subscription.organizationId, {
+          status: "cancelled",
+        });
+      },
       onSubscriptionExpired: async (payload) => {
         const subscription = Object.values(
           await storage.find(schema.subscription, {
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
         if (!subscription) return;
 
@@ -279,7 +301,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
             where: {
               customerId: payload.data.customer.customer_id,
             },
-          }),
+          })
         )?.[0];
 
         if (!subscription) return;
@@ -297,7 +319,7 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
 
         await storage.update(schema.subscription, subscription.id, {
           status: payload.data.status,
-          plan: plan,
+          plan,
           seats: payload.data.quantity ?? 1,
           updatedAt: new Date(),
           subscriptionId: payload.data.subscription_id,
@@ -308,29 +330,11 @@ process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
           status: payload.data.status,
         });
       },
-      onSubscriptionCancelled: async (payload) => {
-        const subscription = Object.values(
-          await storage.find(schema.subscription, {
-            where: {
-              customerId: payload.data.customer.customer_id,
-            },
-          }),
-        )?.[0];
-        if (!subscription) return;
-
-        await storage.update(schema.subscription, subscription.id, {
-          status: "cancelled",
-          updatedAt: new Date(),
-        });
-
-        await mirrorPlanToOrgSettings(subscription.organizationId, {
-          status: "cancelled",
-        });
-      },
-    }) as any,
+      webhookKey: process.env.DODO_PAYMENTS_WEBHOOK_KEY as string,
+    }) as unknown as RequestHandler
   );
 
-expressAdapter(app as any, lsServer, {
+expressAdapter(app as unknown as Express, lsServer, {
   basePath: "/api/ls",
 });
 

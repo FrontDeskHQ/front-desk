@@ -1,4 +1,5 @@
 import { createHash } from "node:crypto";
+
 import { qdrantClient } from "./client";
 
 // v2: FRO-203 reshaped the payload (eligibility + content hash, keyed by
@@ -50,7 +51,7 @@ export interface PrPayload {
  */
 export const prPointId = (
   organizationId: string,
-  externalKey: string,
+  externalKey: string
 ): string => {
   const hex = createHash("sha256")
     .update(`${organizationId}:${externalKey}`)
@@ -68,7 +69,7 @@ export const ensurePrsCollection = async (): Promise<boolean> => {
   try {
     const collections = await qdrantClient.getCollections();
     const collectionExists = collections.collections.some(
-      (c) => c.name === PRS_COLLECTION,
+      (c) => c.name === PRS_COLLECTION
     );
 
     if (collectionExists) {
@@ -76,12 +77,12 @@ export const ensurePrsCollection = async (): Promise<boolean> => {
     }
 
     await qdrantClient.createCollection(PRS_COLLECTION, {
-      vectors: {
-        size: PR_EMBEDDING_DIMENSIONS,
-        distance: "Cosine",
-      },
       optimizers_config: {
         indexing_threshold: 0,
+      },
+      vectors: {
+        distance: "Cosine",
+        size: PR_EMBEDDING_DIMENSIONS,
       },
     });
 
@@ -117,7 +118,7 @@ export const ensurePrsCollection = async (): Promise<boolean> => {
 /** Fetch the stored point for a PR, or null when it was never indexed. */
 export const getPrPoint = async (
   organizationId: string,
-  externalKey: string,
+  externalKey: string
 ): Promise<{ payload: PrPayload } | null> => {
   try {
     const points = await qdrantClient.retrieve(PRS_COLLECTION, {
@@ -125,7 +126,9 @@ export const getPrPoint = async (
       with_payload: true,
     });
     const point = points[0];
-    if (!point) return null;
+    if (!point) {
+      return null;
+    }
     return { payload: point.payload as unknown as PrPayload };
   } catch (error) {
     console.error(`Failed to retrieve PR vector ${externalKey}:`, error);
@@ -136,11 +139,10 @@ export const getPrPoint = async (
 /** Upsert the full PR point (vector + payload). Used when content changes. */
 export const upsertPrVector = async (
   vector: number[],
-  payload: PrPayload,
+  payload: PrPayload
 ): Promise<boolean> => {
   try {
     await qdrantClient.upsert(PRS_COLLECTION, {
-      wait: true,
       points: [
         {
           id: prPointId(payload.organizationId, payload.externalKey),
@@ -148,6 +150,7 @@ export const upsertPrVector = async (
           payload: payload as unknown as Record<string, unknown>,
         },
       ],
+      wait: true,
     });
     return true;
   } catch (error) {
@@ -165,13 +168,13 @@ export const setPrEligibility = async (
   organizationId: string,
   externalKey: string,
   eligible: boolean,
-  updatedAt: number,
+  updatedAt: number
 ): Promise<boolean> => {
   try {
     await qdrantClient.setPayload(PRS_COLLECTION, {
-      wait: true,
-      points: [prPointId(organizationId, externalKey)],
       payload: { eligible, updatedAt },
+      points: [prPointId(organizationId, externalKey)],
+      wait: true,
     });
     return true;
   } catch (error) {
@@ -183,12 +186,12 @@ export const setPrEligibility = async (
 /** Remove a PR's point (mirror row deleted / transferred out). */
 export const deletePrVector = async (
   organizationId: string,
-  externalKey: string,
+  externalKey: string
 ): Promise<boolean> => {
   try {
     await qdrantClient.delete(PRS_COLLECTION, {
-      wait: true,
       points: [prPointId(organizationId, externalKey)],
+      wait: true,
     });
     return true;
   } catch (error) {
@@ -226,7 +229,7 @@ export interface SimilarPrResult {
  */
 export const searchSimilarPrs = async (
   vector: number[],
-  options: SimilarPrSearchOptions,
+  options: SimilarPrSearchOptions
 ): Promise<SimilarPrResult[]> => {
   const {
     organizationId,
@@ -236,10 +239,10 @@ export const searchSimilarPrs = async (
     excludeExternalKeys = [],
   } = options;
 
-  const mustConditions: Array<{
+  const mustConditions: {
     key: string;
     match: { value: string | number | boolean };
-  }> = [{ key: "organizationId", match: { value: organizationId } }];
+  }[] = [{ key: "organizationId", match: { value: organizationId } }];
 
   if (eligibleOnly) {
     mustConditions.push({ key: "eligible", match: { value: true } });
@@ -251,19 +254,19 @@ export const searchSimilarPrs = async (
   }));
 
   const results = await qdrantClient.search(PRS_COLLECTION, {
-    vector,
-    limit,
-    score_threshold: scoreThreshold,
     filter: {
       must: mustConditions,
       must_not: mustNotConditions.length > 0 ? mustNotConditions : undefined,
     },
+    limit,
+    score_threshold: scoreThreshold,
+    vector,
     with_payload: true,
   });
 
   return results.map((result) => ({
     externalKey: (result.payload as unknown as PrPayload).externalKey,
-    score: result.score,
     payload: result.payload as unknown as PrPayload,
+    score: result.score,
   }));
 };

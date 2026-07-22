@@ -12,7 +12,7 @@ export const Route = createFileRoute("/support/$slug/robots.txt")({
       GET: async ({ params }) => {
         try {
           const url = getRequestUrl();
-          const hostname = url.hostname;
+          const { hostname } = url;
 
           // Check if accessed via subdomain (e.g., org-slug.tryfrontdesk.app)
           const suffixRegex = new RegExp(`\\.?${baseHostname}$`);
@@ -36,8 +36,8 @@ Sitemap: ${sitemapUrl}
 
           return new Response(robotsContent, {
             headers: {
-              "Content-Type": "text/plain",
               "Cache-Control": "public, max-age=3600",
+              "Content-Type": "text/plain",
             },
           });
         } catch {
@@ -52,8 +52,8 @@ Sitemap: ${sitemapUrl}
 
           return new Response(robotsContent, {
             headers: {
-              "Content-Type": "text/plain",
               "Cache-Control": "public, max-age=3600",
+              "Content-Type": "text/plain",
             },
           });
         }
@@ -61,4 +61,3 @@ Sitemap: ${sitemapUrl}
     },
   },
 });
-

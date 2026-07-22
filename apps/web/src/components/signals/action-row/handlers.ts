@@ -1,17 +1,20 @@
 import {
   ACTION_KIND_LABEL,
-  type Action,
   fingerprintAgentRead,
-  type InlineSuggestion,
-  type ThreadRead,
 } from "@workspace/schemas/signals";
+import type {
+  Action,
+  InlineSuggestion,
+  ThreadRead,
+} from "@workspace/schemas/signals";
+
 import { mutate } from "~/lib/live-state";
 
-export type ActorContext = {
+export interface ActorContext {
   user: { id: string; name: string };
   organizationId: string;
   posthog: { capture: (e: string, p?: Record<string, unknown>) => void } | null;
-};
+}
 
 type ReadSelection =
   | "primary"
@@ -20,21 +23,29 @@ type ReadSelection =
 
 const resolveSelectedActions = (
   read: ThreadRead,
-  selection: ReadSelection,
+  selection: ReadSelection
 ): Action[] => {
-  if (selection === "primary") return read.primary;
+  if (selection === "primary") {
+    return read.primary;
+  }
   if ("alternativeIndex" in selection) {
     const alternative = read.alternatives?.[selection.alternativeIndex];
     return alternative ? [alternative] : [];
   }
   return selection.primaryActionIndices
     .map((index) => read.primary[index])
-    .filter((action): action is Action => action != null);
+    .filter(
+      (action): action is Action => action !== null && action !== undefined
+    );
 };
 
 const formatSelection = (selection?: ReadSelection): string | undefined => {
-  if (selection === undefined) return undefined;
-  if (selection === "primary") return "primary";
+  if (selection === undefined) {
+    return undefined;
+  }
+  if (selection === "primary") {
+    return "primary";
+  }
   if ("alternativeIndex" in selection) {
     return `alternative:${selection.alternativeIndex}`;
   }
@@ -51,17 +62,17 @@ const captureReadEvent = (
     threadId: string;
     read: ThreadRead;
     selection?: ReadSelection;
-  },
+  }
 ) => {
   ctx.posthog?.capture(event, {
-    thread_id: payload.threadId,
-    organization_id: ctx.organizationId,
-    read_fingerprint: fingerprintAgentRead(payload.read),
-    primary_action_kinds: payload.read.primary.map((action) => action.kind),
     alternative_action_kinds: (payload.read.alternatives ?? []).map(
-      (action) => action.kind,
+      (action) => action.kind
     ),
+    organization_id: ctx.organizationId,
+    primary_action_kinds: payload.read.primary.map((action) => action.kind),
+    read_fingerprint: fingerprintAgentRead(payload.read),
     selection: formatSelection(payload.selection),
+    thread_id: payload.threadId,
   });
 };
 
@@ -74,25 +85,25 @@ export async function acceptThreadRead(input: {
 }) {
   const readFingerprint = fingerprintAgentRead(input.read);
   await mutate.thread.acceptRead({
-    threadId: input.threadId,
     organizationId: input.ctx.organizationId,
-    selection: input.selection,
     readFingerprint,
     replyDraft: input.replyDraft,
+    selection: input.selection,
+    threadId: input.threadId,
   });
 
   const selectedActions = resolveSelectedActions(input.read, input.selection);
 
   captureReadEvent(input.ctx, "signal:read_accept", {
-    threadId: input.threadId,
     read: input.read,
     selection: input.selection,
+    threadId: input.threadId,
   });
 
   input.ctx.posthog?.capture("signal:read_accept_actions", {
-    thread_id: input.threadId,
-    organization_id: input.ctx.organizationId,
     action_labels: summarizeActionKinds(selectedActions),
+    organization_id: input.ctx.organizationId,
+    thread_id: input.threadId,
   });
 }
 
@@ -103,14 +114,14 @@ export async function dismissThreadRead(input: {
 }) {
   const readFingerprint = fingerprintAgentRead(input.read);
   await mutate.thread.dismissRead({
-    threadId: input.threadId,
     organizationId: input.ctx.organizationId,
     readFingerprint,
+    threadId: input.threadId,
   });
 
   captureReadEvent(input.ctx, "signal:read_dismiss", {
-    threadId: input.threadId,
     read: input.read,
+    threadId: input.threadId,
   });
 }
 
@@ -120,16 +131,16 @@ export async function acceptInlineSuggestion(input: {
   ctx: ActorContext;
 }) {
   await mutate.thread.acceptInlineSuggestion({
-    threadId: input.threadId,
     organizationId: input.ctx.organizationId,
     suggestionId: input.suggestion.id,
+    threadId: input.threadId,
   });
 
   input.ctx.posthog?.capture("signal:inline_suggestion_accept", {
-    thread_id: input.threadId,
+    action_kind: input.suggestion.action.kind,
     organization_id: input.ctx.organizationId,
     suggestion_id: input.suggestion.id,
-    action_kind: input.suggestion.action.kind,
+    thread_id: input.threadId,
   });
 }
 
@@ -139,15 +150,15 @@ export async function dismissInlineSuggestion(input: {
   ctx: ActorContext;
 }) {
   await mutate.thread.dismissInlineSuggestion({
-    threadId: input.threadId,
     organizationId: input.ctx.organizationId,
     suggestionId: input.suggestion.id,
+    threadId: input.threadId,
   });
 
   input.ctx.posthog?.capture("signal:inline_suggestion_dismiss", {
-    thread_id: input.threadId,
+    action_kind: input.suggestion.action.kind,
     organization_id: input.ctx.organizationId,
     suggestion_id: input.suggestion.id,
-    action_kind: input.suggestion.action.kind,
+    thread_id: input.threadId,
   });
 }

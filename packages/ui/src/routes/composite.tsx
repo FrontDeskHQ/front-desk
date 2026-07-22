@@ -1,10 +1,8 @@
-import { Composite, CompositeItem } from "@/components/composite";
 import { createFileRoute } from "@tanstack/react-router";
 
-export const Route = createFileRoute(
-  // biome-ignore lint/suspicious/noExplicitAny: route tree is generated after adding new route files
-  "/composite" as any,
-)({
+import { Composite, CompositeItem } from "@/components/composite";
+
+export const Route = createFileRoute("/composite" as unknown as "/composite")({
   component: RouteComponent,
 });
 

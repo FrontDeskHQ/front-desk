@@ -1,19 +1,20 @@
 # 0002 — Two-track candidate pipeline
 
-**Status:** Accepted (synthesis-track internals amended by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md))
-**Date:** 2026-05-25
+**Status:** Accepted (synthesis-track internals amended by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md)) **Date:** 2026-05-25
 
-> **Amended (2026-05-28).** The inline/synthesis *track split* below still holds. The synthesis track's internals do not: candidate generators that emit concrete `Action`s + a single composing LLM call are replaced by evidence-emitting hint processors + a tool-using synthesis agent. See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
+> **Amended (2026-05-28).** The inline/synthesis _track split_ below still holds. The synthesis track's internals do not: candidate generators that emit concrete `Action`s + a single composing LLM call are replaced by evidence-emitting hint processors + a tool-using synthesis agent. See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
 
 ## Context
 
 Previous design had a single candidate-generation stage feeding the synthesis LLM call: label classifier, status inferer, duplicate search, draft writer all produced candidates; synthesis composed them into a single output.
 
 That model conflated two kinds of work:
+
 - **Metadata enrichments** (label, status) — cheap, classifier-driven, no composition needed. Want to surface as discrete chips the user accepts or dismisses individually.
 - **Substantive next moves** (reply, mark duplicate, link PR, close) — require LLM judgement to compose into a coherent recommendation. Want a single ranked read.
 
 Storing label/status as `secondaries` on a thread read forced two side-effects:
+
 1. They had no home when no thread read existed (the "label-only" case).
 2. They couldn't be individually dismissed without per-action state inside `suggestedActions`.
 
@@ -24,6 +25,7 @@ Storing label/status as `secondaries` on a thread read forced two side-effects:
 Split candidate generators into two independent tracks.
 
 **Inline track** — runs label classifier and status inferer. Writes directly to `thread.inlineSuggestions`. No LLM gate. Each generator decides its own cadence:
+
 - Label: once on first inbound message + on manual re-read.
 - Status: on every inbound message (conversation-sensitive).
 

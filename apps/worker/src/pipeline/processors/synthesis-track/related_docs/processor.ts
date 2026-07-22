@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+
 import type { RelatedDocsEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
+
 import { searchDocumentation } from "../../../../lib/qdrant/search-documentation";
 import { writeHintSlot } from "../../../../lib/read-hints";
 import type { ParsedSummary } from "../../../../types";
@@ -12,9 +14,9 @@ import type {
 import type { SummarizeOutput } from "../../summarize";
 import { toRelatedDocsEvidence } from "./find";
 
-export type RelatedDocsProcessorOutput = {
+export interface RelatedDocsProcessorOutput {
   evidence: RelatedDocsEvidence | null;
-};
+}
 
 const summaryHashInput = (summary: ParsedSummary): string =>
   Object.entries(summary)
@@ -36,26 +38,20 @@ const computeSha256 = (data: string): string =>
 
 export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutput> =
   {
-    name: "related_docs",
-
-    dependencies: ["embed"],
-
-    getIdempotencyKey(threadId: string): string {
-      return `related_docs:${threadId}`;
-    },
-
     computeHash(context: ProcessorExecuteContext): string {
       const { context: jobContext, threadId } = context;
       const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
         "summarize",
-        threadId,
+        threadId
       );
       if (!summarize) return computeSha256("");
       return computeSha256(summaryHashInput(summarize.summary));
     },
 
+    dependencies: ["embed"],
+
     async execute(
-      context: ProcessorExecuteContext,
+      context: ProcessorExecuteContext
     ): Promise<ProcessorResult<RelatedDocsProcessorOutput>> {
       const { context: jobContext, thread, threadId } = context;
       const requestLog = createLogger({
@@ -70,10 +66,10 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
       try {
         const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
           "summarize",
-          threadId,
+          threadId
         );
         const hash = computeSha256(
-          summarize ? summaryHashInput(summarize.summary) : "",
+          summarize ? summaryHashInput(summarize.summary) : ""
         );
 
         const query = summarize ? buildSearchQuery(summarize.summary) : "";
@@ -93,7 +89,7 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
           thread.organizationId,
           "related_docs",
           evidence,
-          hash,
+          hash
         );
 
         return {
@@ -106,14 +102,20 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
         const message = error instanceof Error ? error.message : String(error);
         console.error(
           `Related docs processor failed for thread ${threadId}:`,
-          error,
+          error
         );
         requestLog.error(
-          `Related docs failed for thread ${threadId}: ${message}`,
+          `Related docs failed for thread ${threadId}: ${message}`
         );
         return { threadId, success: false, error: message };
       } finally {
         requestLog.emit({ status });
       }
     },
+
+    getIdempotencyKey(threadId: string): string {
+      return `related_docs:${threadId}`;
+    },
+
+    name: "related_docs",
   };

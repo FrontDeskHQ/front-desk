@@ -21,7 +21,7 @@ function RouteComponent() {
       <header
         className={cn(
           "h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background-primary/90 transition-colors",
-          menuOpen && "border-0 bg-transparent",
+          menuOpen && "border-0 bg-transparent"
         )}
       >
         <div className="flex items-center h-full w-full max-w-6xl justify-between">
@@ -46,7 +46,8 @@ function RouteComponent() {
                 <a
                   href="https://support.tryfrontdesk.app"
                   target="_blank"
-                  rel="noopener"
+                  rel="noreferrer"
+                  aria-label="Community"
                 />
               }
             >
@@ -86,7 +87,7 @@ function RouteComponent() {
           <a
             href="https://support.tryfrontdesk.app"
             target="_blank"
-            rel="noopener"
+            rel="noreferrer"
             className="py-2 text-lg"
             onClick={() => setMenuOpen(false)}
           >

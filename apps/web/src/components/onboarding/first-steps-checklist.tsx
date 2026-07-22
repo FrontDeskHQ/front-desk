@@ -14,41 +14,42 @@ import {
   HoverCardTrigger,
 } from "@workspace/ui/components/hover-card";
 import { Progress } from "@workspace/ui/components/progress";
-import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@workspace/ui/components/sidebar";
+import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 import {
   Cable,
   Check,
   CheckCircle,
-  type LucideIcon,
   Ellipsis,
   Minus,
   SlidersHorizontal,
   Tag,
   Users,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+
 import type { OnboardingStep } from "~/lib/onboarding/types";
 import { useOnboarding } from "~/lib/onboarding/use-onboarding";
 
-type HoverCardPayload = {
+interface HoverCardPayload {
   step: OnboardingStep & { isCompleted: boolean };
-};
+}
 
 const hoverCardHandle = createHoverCardHandle<HoverCardPayload>();
 
 const getStepIcon = (stepId: string): LucideIcon => {
   const iconMap: Record<string, LucideIcon> = {
-    "connect-integration": Cable,
-    "invite-team": Users,
     "change-thread-property": SlidersHorizontal,
+    "connect-integration": Cable,
     "create-labels": Tag,
+    "invite-team": Users,
     "resolve-thread": CheckCircle,
   };
   return iconMap[stepId] ?? SlidersHorizontal;
@@ -64,8 +65,11 @@ export function FirstStepsChecklist() {
 
   const matches = useMatches();
 
+  const hoverCardOpenRef = useRef(hoverCardOpen);
+  hoverCardOpenRef.current = hoverCardOpen;
+
   useEffect(() => {
-    if (hoverCardOpen) {
+    if (hoverCardOpenRef.current) {
       setHoverCardOpen(false);
     }
   }, [matches]);
@@ -178,7 +182,7 @@ export function FirstStepsChecklist() {
                             <SidebarMenuButton
                               className={cn(
                                 "gap-3 justify-between",
-                                step.isCompleted && "text-muted-foreground",
+                                step.isCompleted && "text-muted-foreground"
                               )}
                               onClick={handleClick}
                             />
@@ -193,7 +197,7 @@ export function FirstStepsChecklist() {
                             <div
                               className={cn(
                                 "truncate grow shrink",
-                                step.isCompleted && "line-through",
+                                step.isCompleted && "line-through"
                               )}
                             >
                               {step.title}

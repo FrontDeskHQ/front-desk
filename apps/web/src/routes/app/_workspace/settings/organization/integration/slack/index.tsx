@@ -15,7 +15,9 @@ import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
 import type { z } from "zod";
-import { type ChannelOption, ChannelPicker } from "~/components/channel-picker";
+
+import { ChannelPicker } from "~/components/channel-picker";
+import type { ChannelOption } from "~/components/channel-picker";
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { SyncStatus } from "~/components/integration-settings/sync-status";
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
@@ -24,34 +26,35 @@ import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
 import { activateSlack } from "~/lib/integrations/activate";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+
 import { integrationOptions } from "..";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/slack/",
+  "/app/_workspace/settings/organization/integration/slack/"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Slack Integration - FrontDesk",
-          description: "Configure Slack integration",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Slack Integration - FrontDesk",
+        description: "Configure Slack integration",
+      }),
+    ],
+  }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
-  (option) => option.id === "slack",
-)!;
+  (option) => option.id === "slack"
+);
+if (!integrationDetails) {
+  throw new Error("Slack integration option not found");
+}
 
 function RouteComponent() {
   const posthog = usePostHog();
   const activeOrg = useAtomValue(activeOrganizationAtom);
   const integration = useLiveQuery(
-    query.integration.first({ organizationId: activeOrg?.id, type: "slack" }),
+    query.integration.first({ organizationId: activeOrg?.id, type: "slack" })
   );
 
   const { integrations } = usePlanLimits("slack");
@@ -59,10 +62,12 @@ function RouteComponent() {
   const parsedConfig: ReturnType<
     typeof slackIntegrationSchema.safeParse
   > | null = (() => {
-    if (!integration?.configStr) return null;
+    if (!integration?.configStr) {
+      return null;
+    }
     try {
       return slackIntegrationSchema.safeParse(
-        JSON.parse(integration.configStr),
+        JSON.parse(integration.configStr)
       );
     } catch {
       return {
@@ -75,36 +80,33 @@ function RouteComponent() {
   })();
 
   const updateIntegration = useCallback(
-    (
-      config: z.input<typeof slackIntegrationSchema>,
-      enabled: boolean = true,
-    ) => {
+    (config: z.input<typeof slackIntegrationSchema>, enabled = true) => {
       if (integration) {
         mutate.integration.updateInstallation({
-          integrationId: integration.id,
-          enabled,
-          updatedAt: new Date(),
           configStr: JSON.stringify({
-            ...(parsedConfig?.data ?? {}),
+            ...parsedConfig?.data,
             ...config,
           }),
+          enabled,
+          integrationId: integration.id,
+          updatedAt: new Date(),
         });
       } else if (activeOrg?.id) {
         mutate.integration.connectInstallation({
+          configStr: JSON.stringify({
+            ...parsedConfig?.data,
+            ...config,
+          }),
+          createdAt: new Date(),
+          enabled,
           id: ulid().toLowerCase(),
           organizationId: activeOrg?.id,
           type: "slack",
-          enabled,
-          createdAt: new Date(),
           updatedAt: new Date(),
-          configStr: JSON.stringify({
-            ...(parsedConfig?.data ?? {}),
-            ...config,
-          }),
         });
       }
     },
-    [integration, activeOrg, parsedConfig?.data],
+    [integration, activeOrg, parsedConfig?.data]
   );
 
   const handleEnableSlack = async () => {
@@ -118,9 +120,9 @@ function RouteComponent() {
     }
 
     await activateSlack({
-      organizationId: activeOrg.id,
-      existingIntegrationId: integration?.id,
       existingConfig: parsedConfig?.data ?? undefined,
+      existingIntegrationId: integration?.id,
+      organizationId: activeOrg.id,
       posthog,
     });
   };
@@ -130,7 +132,7 @@ function RouteComponent() {
 
     console.error(
       "Invalid Slack integration configuration",
-      parsedConfig.error,
+      parsedConfig.error
     );
 
     return (
@@ -192,13 +194,7 @@ function RouteComponent() {
         </div>
         <Card className="bg-muted/30">
           <CardContent>
-            {!integration?.enabled ? (
-              <>
-                <TruncatedText>
-                  <RichText content={integrationDetails.fullDescription} />
-                </TruncatedText>
-              </>
-            ) : (
+            {integration?.enabled ? (
               <>
                 <div className="flex gap-8 items-center justify-between">
                   <div className="flex flex-col">
@@ -223,10 +219,11 @@ function RouteComponent() {
                         await fetchClient.mutate.integration.fetchSlackChannels(
                           {
                             organizationId: activeOrg.id,
-                            ...(slackTeamId != null
-                              ? { teamId: String(slackTeamId) }
-                              : {}),
-                          },
+                            ...(slackTeamId === null ||
+                            slackTeamId === undefined
+                              ? {}
+                              : { teamId: String(slackTeamId) }),
+                          }
                         );
                       return result.channels.map((c) => ({
                         id: c.id,
@@ -235,7 +232,7 @@ function RouteComponent() {
                       }));
                     }}
                     value={(parsedConfig?.data?.selectedChannels ?? []).map(
-                      (c): ChannelOption => ({ id: c.id, name: c.name }),
+                      (c): ChannelOption => ({ id: c.id, name: c.name })
                     )}
                     onChange={(channels) => {
                       updateIntegration({
@@ -280,6 +277,12 @@ function RouteComponent() {
                     Disable
                   </Button>
                 </div>
+              </>
+            ) : (
+              <>
+                <TruncatedText>
+                  <RichText content={integrationDetails.fullDescription} />
+                </TruncatedText>
               </>
             )}
           </CardContent>

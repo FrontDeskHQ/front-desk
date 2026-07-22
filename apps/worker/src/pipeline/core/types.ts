@@ -1,5 +1,7 @@
 import type { ThreadReadTrigger } from "@workspace/schemas/signals";
+
 import type { Thread } from "../../types";
+import type { JobContext } from "./context";
 
 export interface ProcessorSuccessResult<T = unknown> {
   threadId: string;
@@ -48,7 +50,7 @@ export interface PipelineJobInput {
 }
 
 export interface ProcessorExecuteContext {
-  context: import("./context").JobContext;
+  context: JobContext;
   thread: Thread;
   threadId: string;
 }
@@ -82,10 +84,10 @@ export interface ProcessorDefinition<TOutput = unknown> {
 export interface TurnSummary {
   turnNumber: number;
   processors: string[];
-  results: Array<{
+  results: {
     processor: string;
     threadResults: ProcessorResult[];
-  }>;
+  }[];
   duration: number;
 }
 

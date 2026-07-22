@@ -1,10 +1,12 @@
+import { createHash } from "node:crypto";
+
 import { google } from "@ai-sdk/google";
 import type { InferLiveObject } from "@live-state/sync";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import type { schema } from "api/schema";
-import { createHash } from "node:crypto";
 import z from "zod";
+
 import { AI_PRICING } from "../../lib/ai-pricing";
 import type { ParsedSummary } from "../../types";
 import type {
@@ -19,7 +21,7 @@ export interface SummarizeOutput {
 
 const MAX_RETRIES = 5;
 const INITIAL_RETRY_DELAY_MS = 1000;
-const MAX_RETRY_DELAY_MS = 10000;
+const MAX_RETRY_DELAY_MS = 10_000;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -59,37 +61,37 @@ const isRetryableError = (error: unknown): boolean => {
 };
 
 const getRetryDelay = (attempt: number, isRateLimit: boolean): number => {
-  const baseDelay = INITIAL_RETRY_DELAY_MS * Math.pow(2, attempt);
+  const baseDelay = INITIAL_RETRY_DELAY_MS * 2 ** attempt;
   const delay = isRateLimit ? baseDelay * 2 : baseDelay;
   return Math.min(delay, MAX_RETRY_DELAY_MS);
 };
 
 export const summarySchema = z.object({
-  title: z
-    .string()
+  entities: z
+    .array(z.string())
     .describe(
-      "A normalized, canonical problem statement. Should match semantically similar issues regardless of original wording. No ticket-style prefixes.",
+      "Technical components, features, systems, or products directly involved. Not actions or descriptions."
     ),
-  shortDescription: z
+  expectedAction: z
     .string()
     .describe(
-      "The distilled core problem with only essential context. 2-3 sentences. Avoid circumstantial details.",
+      "The category of resolution needed (e.g., 'configuration guidance', 'bug fix', 'feature explanation', 'documentation')."
     ),
   keywords: z
     .array(z.string())
     .max(7)
     .describe(
-      "Canonical terms that identify the problem category. Use normalized vocabulary. Max 5-7 terms that would match similar issues.",
+      "Canonical terms that identify the problem category. Use normalized vocabulary. Max 5-7 terms that would match similar issues."
     ),
-  entities: z
-    .array(z.string())
-    .describe(
-      "Technical components, features, systems, or products directly involved. Not actions or descriptions.",
-    ),
-  expectedAction: z
+  shortDescription: z
     .string()
     .describe(
-      "The category of resolution needed (e.g., 'configuration guidance', 'bug fix', 'feature explanation', 'documentation').",
+      "The distilled core problem with only essential context. 2-3 sentences. Avoid circumstantial details."
+    ),
+  title: z
+    .string()
+    .describe(
+      "A normalized, canonical problem statement. Should match semantically similar issues regardless of original wording. No ticket-style prefixes."
     ),
 });
 
@@ -98,11 +100,11 @@ export const summarizeThread = async (
     typeof schema.thread,
     { messages: true; labels: { include: { label: true } } }
   >,
-  ai?: ReturnType<typeof createAILogger>,
+  ai?: ReturnType<typeof createAILogger>
 ): Promise<ParsedSummary> => {
   console.log(`Summarizing thread ${thread.id}`);
-  const firstMessage = thread.messages?.sort((a, b) =>
-    a.id.localeCompare(b.id),
+  const firstMessage = thread.messages?.toSorted((a, b) =>
+    a.id.localeCompare(b.id)
   )[0];
   const activeLabels = thread.labels
     ?.filter((l) => l.label?.enabled)
@@ -174,11 +176,11 @@ Think: "If another user has the exact same underlying problem with different wor
 
       console.log(`Summary for thread ${thread.id}`);
       return {
-        title: output.title,
-        shortDescription: output.shortDescription,
-        keywords: output.keywords,
         entities: output.entities,
         expectedAction: output.expectedAction,
+        keywords: output.keywords,
+        shortDescription: output.shortDescription,
+        title: output.title,
       };
     } catch (error) {
       lastError = error;
@@ -189,7 +191,7 @@ Think: "If another user has the exact same underlying problem with different wor
       if (!isRetryable) {
         console.error(
           `Non-retryable error summarizing thread ${thread.id}:`,
-          error,
+          error
         );
         throw error;
       }
@@ -197,7 +199,7 @@ Think: "If another user has the exact same underlying problem with different wor
       if (isLastAttempt) {
         console.error(
           `Failed to summarize thread ${thread.id} after ${MAX_RETRIES} attempts:`,
-          error,
+          error
         );
         throw error;
       }
@@ -207,7 +209,7 @@ Think: "If another user has the exact same underlying problem with different wor
       console.warn(
         `Thread ${thread.id} summary attempt ${
           attempt + 1
-        }/${MAX_RETRIES} failed (${errorType} error), retrying in ${delay}ms...`,
+        }/${MAX_RETRIES} failed (${errorType} error), retrying in ${delay}ms...`
       );
 
       await sleep(delay);
@@ -217,31 +219,22 @@ Think: "If another user has the exact same underlying problem with different wor
   throw lastError || new Error("Failed to summarize thread");
 };
 
-const computeSha256 = (data: string): string => {
-  return createHash("sha256").update(data).digest("hex");
-};
+const computeSha256 = (data: string): string =>
+  createHash("sha256").update(data).digest("hex");
 
 export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
-  name: "summarize",
-
-  dependencies: [],
-
-  getIdempotencyKey(threadId: string): string {
-    return `summarize:${threadId}`;
-  },
-
   computeHash(context: ProcessorExecuteContext): string {
     const { thread } = context;
 
-    const firstMessage = thread.messages?.sort((a, b) =>
-      a.id.localeCompare(b.id),
+    const firstMessage = thread.messages?.toSorted((a, b) =>
+      a.id.localeCompare(b.id)
     )[0];
 
     const labelNames = thread.labels
       ?.filter((l) => l.label?.enabled)
       .map((l) => l.label?.name)
       .filter(Boolean)
-      .sort()
+      .toSorted()
       .join(",");
 
     const hashInput = [
@@ -253,8 +246,10 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
     return computeSha256(hashInput);
   },
 
+  dependencies: [],
+
   async execute(
-    context: ProcessorExecuteContext,
+    context: ProcessorExecuteContext
   ): Promise<ProcessorResult<SummarizeOutput>> {
     const { thread, threadId } = context;
     const requestLog = createLogger({
@@ -288,10 +283,10 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
       status = 500;
       console.error(
         `Summarize processor failed for thread ${threadId}:`,
-        error,
+        error
       );
       requestLog.error(
-        `Summarize failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Summarize failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`
       );
       return {
         threadId,
@@ -302,4 +297,10 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
       requestLog.emit({ status });
     }
   },
+
+  getIdempotencyKey(threadId: string): string {
+    return `summarize:${threadId}`;
+  },
+
+  name: "summarize",
 };

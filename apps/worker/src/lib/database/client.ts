@@ -1,24 +1,25 @@
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
+
 import type { Thread } from "../../types";
 
 /**
  * Fetch client for database operations
  */
 export const fetchClient = createFetchClient<Router>({
-  url: process.env.LIVE_STATE_API_URL ?? "http://localhost:3333/api/ls",
-  schema,
   credentials: async () => ({
     "x-discord-bot-key": process.env.DISCORD_BOT_KEY ?? "",
   }),
+  schema,
+  url: process.env.LIVE_STATE_API_URL ?? "http://localhost:3333/api/ls",
 });
 
 /**
  * Fetch a thread with its messages and labels
  */
 export const fetchThreadWithRelations = async (
-  threadId: string,
+  threadId: string
 ): Promise<Thread | null> => {
   try {
     const threads = await fetchClient.query.thread.byIds({ ids: [threadId] });
@@ -45,7 +46,7 @@ export type MirroredPr = NonNullable<
  */
 export const fetchMirroredPrByUrl = async (
   organizationId: string,
-  url: string,
+  url: string
 ): Promise<MirroredPr | null> => {
   try {
     return await fetchClient.query.externalEntity.prByUrl({
@@ -62,7 +63,7 @@ export const fetchMirroredPrByUrl = async (
  * Fetch multiple threads with their messages and labels
  */
 export const fetchThreadsWithRelations = async (
-  threadIds: string[],
+  threadIds: string[]
 ): Promise<Map<string, Thread>> => {
   const threads = new Map<string, Thread>();
 

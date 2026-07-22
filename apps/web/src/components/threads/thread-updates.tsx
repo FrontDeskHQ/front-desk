@@ -1,5 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { schema } from "api/schema";
+
 import { Update } from "~/components/threads/updates";
 
 type UpdateItem = InferLiveObject<typeof schema.update, { user: true }>;

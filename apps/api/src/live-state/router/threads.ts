@@ -1,8 +1,10 @@
 // TODO refactor with new live-state mental model
-import { invokeCapability, type NormalizedIssue } from "@connectors/framework";
+import { invokeCapability } from "@connectors/framework";
+import type { NormalizedIssue } from "@connectors/framework";
 import { readCapabilityPrimary } from "@workspace/schemas/organization";
 import { ulid } from "ulid";
 import z from "zod";
+
 import {
   assertInternalKeyForIntegrationFields,
   authorize,
@@ -67,27 +69,27 @@ const integrationAuthorSchema = z.object({
 });
 
 const integrationFirstMessageSchema = z.object({
-  id: z.string().optional(),
   createdAt: z.coerce.date().optional(),
-  origin: z.string().nullable().optional(),
   externalMessageId: z.string().nullable().optional(),
+  id: z.string().optional(),
   isBackfill: z.boolean().optional(),
+  origin: z.string().nullable().optional(),
 });
 
 const threadCreateInputSchema = z.object({
-  organizationId: z.string().optional(),
-  title: z.string().min(3),
-  message: z.union([z.string(), z.any()]),
   author: integrationAuthorSchema.optional(),
+  createdAt: z.coerce.date().optional(),
+  externalId: z.string().nullable().optional(),
+  externalMetadataStr: z.string().nullable().optional(),
+  externalOrigin: z.string().nullable().optional(),
+  firstMessage: integrationFirstMessageSchema.optional(),
+  id: z.string().optional(),
+  message: z.union([z.string(), z.any()]),
+  organizationId: z.string().optional(),
+  status: z.number().int().min(0).max(4).optional(),
+  title: z.string().min(3),
   userId: z.string().optional(),
   userName: z.string().optional(),
-  id: z.string().optional(),
-  createdAt: z.coerce.date().optional(),
-  status: z.number().int().min(0).max(4).optional(),
-  externalId: z.string().nullable().optional(),
-  externalOrigin: z.string().nullable().optional(),
-  externalMetadataStr: z.string().nullable().optional(),
-  firstMessage: integrationFirstMessageSchema.optional(),
 });
 
 export default publicRoute.withProcedures(({ mutation, query }) => ({
@@ -109,9 +111,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       req.input.firstMessage !== undefined;
 
     const createFlow = authorizeThreadCreate(req, {
-      organizationId,
-      inputUserId: req.input.userId,
       hasIntegrationOnlyFields,
+      inputUserId: req.input.userId,
+      organizationId,
     });
 
     if (createFlow === "workspace" && !req.input.author) {
@@ -121,7 +123,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const content = serializeMessageContent(req.input.message);
 
     const threadId = req.input.id ?? ulid().toLowerCase();
-    const firstMessage = req.input.firstMessage;
+    const { firstMessage } = req.input;
 
     await db.transaction(async ({ trx }) => {
       let authorId: string | undefined;
@@ -135,10 +137,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         const existingAuthor = Object.values(
           await trx.find(schema.author, {
             where: {
-              userId,
               organizationId,
+              userId,
             },
-          }),
+          })
         );
 
         authorId = existingAuthor[0]?.id;
@@ -147,10 +149,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           authorId = ulid().toLowerCase();
           await trx.insert(schema.author, {
             id: authorId,
-            userId,
             metaId: null,
             name: userName,
             organizationId,
+            userId,
           });
         }
       } else if (req.input.author) {
@@ -159,9 +161,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           await trx.find(schema.author, {
             where: {
               metaId: req.input.author.id,
-              organizationId: organizationId,
+              organizationId,
             },
-          }),
+          })
         );
 
         authorId = existingAuthor[0]?.id;
@@ -170,9 +172,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           authorId = ulid().toLowerCase();
           await trx.insert(schema.author, {
             id: authorId,
-            name: req.input.author.name,
-            organizationId: organizationId,
             metaId: req.input.author.id,
+            name: req.input.author.name,
+            organizationId,
             userId: null,
           });
         }
@@ -184,60 +186,60 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
       // Create thread
       await trx.insert(schema.thread, {
-        id: threadId,
-        name: req.input.title,
-        organizationId: organizationId,
-        authorId: authorId,
-        status: req.input.status ?? 0,
-        priority: 0,
         assignedUserId: null,
+        authorId,
         createdAt: req.input.createdAt ?? new Date(),
         deletedAt: null,
-        externalIssueId: null,
-        externalPrId: null,
         externalId: req.input.externalId ?? null,
-        externalOrigin: req.input.externalOrigin ?? null,
+        externalIssueId: null,
         externalMetadataStr: req.input.externalMetadataStr ?? null,
+        externalOrigin: req.input.externalOrigin ?? null,
+        externalPrId: null,
+        id: threadId,
+        name: req.input.title,
+        organizationId,
+        priority: 0,
         shortId,
+        status: req.input.status ?? 0,
       });
 
       // Create first message
       await trx.insert(schema.message, {
-        id: firstMessage?.id ?? ulid().toLowerCase(),
-        authorId: authorId,
-        content: content,
-        threadId: threadId,
+        authorId,
+        content,
         createdAt: firstMessage?.createdAt ?? new Date(),
-        origin: firstMessage?.origin ?? null,
         externalMessageId: firstMessage?.externalMessageId ?? null,
+        id: firstMessage?.id ?? ulid().toLowerCase(),
         isBackfill: firstMessage?.isBackfill ?? false,
+        origin: firstMessage?.origin ?? null,
+        threadId,
       });
     });
 
     const thread = Object.values(
       await db.find(schema.thread, {
-        where: { id: threadId },
         include: {
           author: true,
           messages: {
             include: { author: true },
           },
         },
-      }),
+        where: { id: threadId },
+      })
     )[0];
 
     return thread;
   }),
   list: query(
     z.object({
-      organizationId: z.string(),
-      status: z.number().optional(),
-      priority: z.number().optional(),
       assignedUserId: z.string().nullable().optional(),
       cursor: z.string().optional(),
-      limit: z.number().min(1).max(50).default(10),
       direction: z.enum(["asc", "desc"]).default("desc"),
-    }),
+      limit: z.number().min(1).max(50).default(10),
+      organizationId: z.string(),
+      priority: z.number().optional(),
+      status: z.number().optional(),
+    })
   ).handler(async ({ req, db }) => {
     const {
       organizationId,
@@ -251,32 +253,32 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     // authorize(req, { organizationId });
 
-    let query = db.thread.where({
-      organizationId,
+    let threadQuery = db.thread.where({
       deletedAt: null,
+      organizationId,
     });
 
     if (status !== undefined) {
-      query = query.where({ status });
+      threadQuery = threadQuery.where({ status });
     }
     if (priority !== undefined) {
-      query = query.where({ priority });
+      threadQuery = threadQuery.where({ priority });
     }
     if (assignedUserId !== undefined) {
-      query = query.where({ assignedUserId });
+      threadQuery = threadQuery.where({ assignedUserId });
     }
 
     if (cursor) {
       const op = direction === "desc" ? "$lt" : "$gt";
-      query = query.where({ id: { [op]: cursor } });
+      threadQuery = threadQuery.where({ id: { [op]: cursor } });
     }
 
-    const rows = await query
+    const rows = await threadQuery
       .include({
-        messages: { include: { author: true } },
-        author: true,
         assignedUser: true,
+        author: true,
         labels: { include: { label: true } },
+        messages: { include: { author: true } },
       })
       .orderBy("id", direction)
       .limit(limit + 1)
@@ -286,11 +288,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const threads = hasMore ? rows.slice(0, limit) : rows;
 
     const nextCursor =
-      hasMore && threads.length > 0
-        ? (threads[threads.length - 1]?.id ?? null)
-        : null;
+      hasMore && threads.length > 0 ? (threads.at(-1)?.id ?? null) : null;
 
-    return { threads, nextCursor };
+    return { nextCursor, threads };
   }),
 
   /**
@@ -302,41 +302,41 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   detail: query(
     z
       .object({
-        id: z.string().optional(),
-        shortId: z.number().optional(),
-        organizationId: z.string().optional(),
-        onlyDeleted: z.boolean().optional(),
         deletedBefore: z.coerce.date().optional(),
+        id: z.string().optional(),
+        onlyDeleted: z.boolean().optional(),
+        organizationId: z.string().optional(),
+        shortId: z.number().optional(),
       })
       .refine(
         (input) => input.id !== undefined || input.shortId !== undefined,
-        { message: "THREAD_SELECTOR_REQUIRED" },
+        { message: "THREAD_SELECTOR_REQUIRED" }
       )
       .refine(
         (input) =>
           input.shortId === undefined || input.organizationId !== undefined,
-        { message: "SHORT_ID_REQUIRES_ORGANIZATION" },
-      ),
+        { message: "SHORT_ID_REQUIRES_ORGANIZATION" }
+      )
   ).handler(async ({ req, db }) => {
     const { id, shortId, organizationId, onlyDeleted, deletedBefore } =
       req.input;
 
     const rows = await db.thread
       .where({
-        ...(id !== undefined ? { id } : {}),
-        ...(shortId !== undefined ? { shortId } : {}),
-        ...(organizationId !== undefined ? { organizationId } : {}),
+        ...(id === undefined ? {} : { id }),
+        ...(shortId === undefined ? {} : { shortId }),
+        ...(organizationId === undefined ? {} : { organizationId }),
         deletedAt: onlyDeleted
           ? { $not: null, ...(deletedBefore ? { $lt: deletedBefore } : {}) }
           : null,
       })
       .include({
-        author: true,
-        organization: true,
-        messages: { include: { author: true } },
         assignedUser: true,
-        updates: { include: { user: true } },
+        author: true,
         labels: { include: { label: true } },
+        messages: { include: { author: true } },
+        organization: true,
+        updates: { include: { user: true } },
       })
       .get();
 
@@ -347,8 +347,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   listAll: query().handler(async ({ db }) =>
     db.thread
       .where({ deletedAt: null })
-      .include({ organization: true, messages: true })
-      .get(),
+      .include({ messages: true, organization: true })
+      .get()
   ),
 
   /** Thread lookup by external (platform) id — integration bot dedupe. */
@@ -359,7 +359,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       // collide across organizations.
       organizationId: z.string(),
       externalOrigin: z.string().optional(),
-    }),
+    })
   ).handler(async ({ req, db }) => {
     const { externalId, organizationId, externalOrigin } = req.input;
     return Object.values(
@@ -367,9 +367,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         where: {
           externalId,
           organizationId,
-          ...(externalOrigin !== undefined ? { externalOrigin } : {}),
+          ...(externalOrigin === undefined ? {} : { externalOrigin }),
         },
-      }),
+      })
     )[0];
   }),
 
@@ -379,15 +379,17 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
    */
   byIds: query(z.object({ ids: z.array(z.string()) })).handler(
     async ({ req, db }) => {
-      if (req.input.ids.length === 0) return [];
+      if (req.input.ids.length === 0) {
+        return [];
+      }
       return db.thread
         .where({ id: { $in: req.input.ids } })
         .include({
-          messages: true,
           labels: { include: { label: true } },
+          messages: true,
         })
         .get();
-    },
+    }
   ),
 
   // TODO(signals-overhaul issue 10): rewrite against thread.agentRead /
@@ -395,12 +397,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   // The suggestion table backing this was dropped in issue 02; returns [] now.
   fetchRelatedThreads: mutation(
     z.object({
-      threadId: z.string(),
       organizationId: z.string(),
-    }),
-  ).handler(async () => {
-    return [];
-  }),
+      threadId: z.string(),
+    })
+  ).handler(async () => []),
   /**
    * @deprecated The web client now reads issues reactively from the
    * org-scoped `externalEntity` mirror (synced via Live-State). This on-demand
@@ -412,10 +412,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     z.object({
       organizationId: z.string(),
       state: z.enum(["open", "closed", "all"]).optional().default("open"),
-    }),
-  ).handler(async () => {
-    return { issues: [], count: 0 };
-  }),
+    })
+  ).handler(async () => ({ issues: [], count: 0 })),
   /**
    * @deprecated The web client now reads pull requests reactively from the
    * org-scoped `externalEntity` mirror (synced via Live-State). This on-demand
@@ -427,10 +425,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     z.object({
       organizationId: z.string(),
       state: z.enum(["open", "closed", "all"]).optional().default("open"),
-    }),
-  ).handler(async () => {
-    return { pullRequests: [], count: 0 };
-  }),
+    })
+  ).handler(async () => ({ pullRequests: [], count: 0 })),
   createIssue: mutation(
     z.object({
       organizationId: z.string(),
@@ -443,9 +439,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       // Optionally pin a specific issue-tracker integration; otherwise the
       // org's first enabled provider is used.
       integrationId: z.string().optional(),
-    }),
+    })
   ).handler(async ({ req, db }) => {
-    const organizationId = req.input.organizationId;
+    const { organizationId } = req.input;
 
     if (!organizationId) {
       throw new Error("MISSING_ORGANIZATION_ID");
@@ -457,17 +453,27 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     // Resolve the target integration providing the issue-tracker capability
     // from the org's enabled integrations, via the registry.
+    interface EnabledIntegration {
+      id: string;
+      type: string;
+      configStr?: string | null;
+      organization?: {
+        settings: unknown;
+        slug: string;
+      };
+    }
+
     const enabledIntegrations = Object.values(
       await db.find(schema.integration, {
-        where: { organizationId, enabled: true },
         include: { organization: true },
-      }),
-    ) as any[]; // TODO: Remove type assertion when live-state supports includes properly
+        where: { enabled: true, organizationId },
+      })
+    ) as EnabledIntegration[];
 
     const providerTypes = new Set(
       connectorRegistry
         .providersOf("issue-tracker")
-        .map((entry) => entry.manifest.type),
+        .map((entry) => entry.manifest.type)
     );
 
     // When no target is implied (agent-initiated create, humans pin nothing),
@@ -475,17 +481,16 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     // Humans can still pin any target freely via `integrationId`.
     const primaryIssueTrackerId = readCapabilityPrimary(
       enabledIntegrations[0]?.organization?.settings,
-      "issue-tracker",
+      "issue-tracker"
     );
 
     const integration = req.input.integrationId
       ? enabledIntegrations.find(
-          (i) => i.id === req.input.integrationId && providerTypes.has(i.type),
+          (i) => i.id === req.input.integrationId && providerTypes.has(i.type)
         )
       : ((primaryIssueTrackerId
           ? enabledIntegrations.find(
-              (i) =>
-                i.id === primaryIssueTrackerId && providerTypes.has(i.type),
+              (i) => i.id === primaryIssueTrackerId && providerTypes.has(i.type)
             )
           : undefined) ??
         enabledIntegrations.find((i) => providerTypes.has(i.type)));
@@ -512,7 +517,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     }
 
     // Append FrontDesk footer to issue body
-    const orgSlug = integration.organization.slug;
+    const orgSlug = integration.organization?.slug;
+    if (!orgSlug) {
+      throw new Error("ORGANIZATION_NOT_FOUND");
+    }
     const threadPortalUrl = `https://${orgSlug}.tryfrontdesk.app/threads/${thread.id}`;
     const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${threadPortalUrl}).`;
     const body = (req.input.body ?? "") + footer;
@@ -523,29 +531,29 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       entry.invokeUrl,
       {
         capability: "issue-tracker",
-        method: "create",
         config: integration.configStr,
+        method: "create",
         payload: {
-          title: req.input.title,
           body,
           target: req.input.target,
+          title: req.input.title,
         },
       },
-      { secret: connectorInvokeSecret },
+      { secret: connectorInvokeSecret }
     );
 
     await runRecordActivity(db, {
-      threadId: req.input.threadId,
-      organizationId,
-      userId: actor?.userId ?? null,
-      userName: actor?.userName ?? null,
-      type: "issue_created",
       metadata: {
         issueId: entity.id,
-        issueShortId: entity.shortId,
         issueLabel: entity.label,
+        issueShortId: entity.shortId,
       },
+      organizationId,
       replicatedStr: null,
+      threadId: req.input.threadId,
+      type: "issue_created",
+      userId: actor?.userId ?? null,
+      userName: actor?.userName ?? null,
     });
 
     // The created issue propagates into the `externalEntity` mirror via the
@@ -560,35 +568,31 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       requireInternalApiKey(req.context);
 
       return runExecuteAutonomousBundle(db, req.input);
-    },
+    }
   ),
-  acceptRead: mutation(acceptReadInputSchema).handler(async ({ req, db }) => {
-    return runAcceptRead(req, db, req.input);
-  }),
-  dismissRead: mutation(dismissReadInputSchema).handler(async ({ req, db }) => {
-    return runDismissRead(req, db, req.input);
-  }),
+  acceptRead: mutation(acceptReadInputSchema).handler(async ({ req, db }) =>
+    runAcceptRead(req, db, req.input)
+  ),
+  dismissRead: mutation(dismissReadInputSchema).handler(async ({ req, db }) =>
+    runDismissRead(req, db, req.input)
+  ),
   acceptInlineSuggestion: mutation(acceptInlineSuggestionInputSchema).handler(
-    async ({ req, db }) => {
-      return runAcceptInlineSuggestion(req, db, req.input);
-    },
+    async ({ req, db }) => runAcceptInlineSuggestion(req, db, req.input)
   ),
   dismissInlineSuggestion: mutation(dismissInlineSuggestionInputSchema).handler(
-    async ({ req, db }) => {
-      return runDismissInlineSuggestion(req, db, req.input);
-    },
+    async ({ req, db }) => runDismissInlineSuggestion(req, db, req.input)
   ),
   upsertInlineSuggestion: mutation(upsertInlineSuggestionInputSchema).handler(
     async ({ req, db }) => {
       requireInternalApiKey(req.context);
       return runUpsertInlineSuggestion(db, req.input);
-    },
+    }
   ),
   writeHintSlot: mutation(writeHintSlotInputSchema).handler(
     async ({ req, db }) => {
       requireInternalApiKey(req.context);
       return runWriteHintSlot(db, req.input);
-    },
+    }
   ),
   setStatus: mutation(setStatusInputSchema).handler(async ({ req, db }) => {
     if (req.context?.internalApiKey) {
@@ -599,19 +603,19 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           userId: null,
           userName: req.input.userName ?? null,
         },
-        { recordActivity: req.input.recordActivity ?? false },
+        { recordActivity: req.input.recordActivity ?? false }
       );
     }
 
     assertInternalKeyForIntegrationFields(req, {
-      recordActivity: req.input.recordActivity,
       activityMetadata: req.input.activityMetadata,
+      recordActivity: req.input.recordActivity,
       replicatedStr: req.input.replicatedStr,
     });
 
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     const actor = getWorkspaceActor(req);
@@ -623,8 +627,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   }),
   setPriority: mutation(setPriorityInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     const actor = getWorkspaceActor(req);
@@ -636,8 +640,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   }),
   assignUser: mutation(assignUserInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     const actor = getWorkspaceActor(req);
@@ -649,8 +653,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   }),
   linkIssue: mutation(linkIssueInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     const actor = getWorkspaceActor(req);
@@ -662,8 +666,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   }),
   unlinkIssue: mutation(unlinkIssueInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     const actor = getWorkspaceActor(req);
@@ -676,8 +680,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   linkPullRequest: mutation(linkPullRequestInputSchema).handler(
     async ({ req, db }) => {
       authorize(req, {
-        organizationId: req.input.organizationId,
         allowInternalApiKey: false,
+        organizationId: req.input.organizationId,
       });
 
       const actor = getWorkspaceActor(req);
@@ -686,13 +690,13 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         userId: actor.userId,
         userName: actor.userName,
       });
-    },
+    }
   ),
   unlinkPullRequest: mutation(unlinkPullRequestInputSchema).handler(
     async ({ req, db }) => {
       authorize(req, {
-        organizationId: req.input.organizationId,
         allowInternalApiKey: false,
+        organizationId: req.input.organizationId,
       });
 
       const actor = getWorkspaceActor(req);
@@ -701,13 +705,13 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         userId: actor.userId,
         userName: actor.userName,
       });
-    },
+    }
   ),
   markDuplicate: mutation(markDuplicateInputSchema).handler(
     async ({ req, db }) => {
       authorize(req, {
-        organizationId: req.input.organizationId,
         allowInternalApiKey: false,
+        organizationId: req.input.organizationId,
       });
 
       const actor = getWorkspaceActor(req);
@@ -716,12 +720,12 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         userId: actor.userId,
         userName: actor.userName,
       });
-    },
+    }
   ),
   archive: mutation(archiveThreadInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     getWorkspaceActor(req);
@@ -730,8 +734,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   }),
   restore: mutation(restoreThreadInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      organizationId: req.input.organizationId,
       allowInternalApiKey: false,
+      organizationId: req.input.organizationId,
     });
 
     getWorkspaceActor(req);
@@ -743,6 +747,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       requireInternalApiKey(req.context);
 
       return runSetAgentRead(db, req.input);
-    },
+    }
   ),
 }));

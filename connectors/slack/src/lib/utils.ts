@@ -3,10 +3,11 @@ import {
   createSettingsParser,
 } from "@connectors/framework/runtime";
 import { slackIntegrationSchema } from "@workspace/schemas/integration/slack";
+
 import { fetchClient } from "./live-state";
 
 export const { safeParseIntegrationSettings } = createSettingsParser(
-  slackIntegrationSchema,
+  slackIntegrationSchema
 );
 
 export const {

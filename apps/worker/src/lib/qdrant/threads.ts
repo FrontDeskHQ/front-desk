@@ -24,7 +24,7 @@ export const ensureThreadsCollection = async (): Promise<boolean> => {
   try {
     const collections = await qdrantClient.getCollections();
     const collectionExists = collections.collections.some(
-      (c) => c.name === THREADS_COLLECTION,
+      (c) => c.name === THREADS_COLLECTION
     );
 
     if (collectionExists) {
@@ -32,12 +32,12 @@ export const ensureThreadsCollection = async (): Promise<boolean> => {
     }
 
     await qdrantClient.createCollection(THREADS_COLLECTION, {
-      vectors: {
-        size: EMBEDDING_DIMENSIONS,
-        distance: "Cosine",
-      },
       optimizers_config: {
         indexing_threshold: 0,
+      },
+      vectors: {
+        distance: "Cosine",
+        size: EMBEDDING_DIMENSIONS,
       },
     });
 
@@ -87,11 +87,10 @@ export const ensureThreadsCollection = async (): Promise<boolean> => {
 export const upsertThreadVector = async (
   pointId: string,
   vector: number[],
-  payload: ThreadPayload,
+  payload: ThreadPayload
 ): Promise<boolean> => {
   try {
     await qdrantClient.upsert(THREADS_COLLECTION, {
-      wait: true,
       points: [
         {
           id: pointId,
@@ -99,19 +98,20 @@ export const upsertThreadVector = async (
           payload: payload as unknown as Record<string, unknown>,
         },
       ],
+      wait: true,
     });
     return true;
   } catch (error) {
     console.error(
       `Failed to upsert thread vector ${payload.threadId} (pointId: ${pointId}):`,
-      error,
+      error
     );
     return false;
   }
 };
 
 export const deleteThreadVector = async (
-  threadId: string,
+  threadId: string
 ): Promise<boolean> => {
   try {
     const result = await getThreadVector(threadId);
@@ -121,8 +121,8 @@ export const deleteThreadVector = async (
     }
 
     await qdrantClient.delete(THREADS_COLLECTION, {
-      wait: true,
       points: [result.pointId],
+      wait: true,
     });
     return true;
   } catch (error) {
@@ -147,7 +147,7 @@ export interface SimilarThreadResult {
 
 export const searchSimilarThreads = async (
   vector: number[],
-  options: SimilarThreadSearchOptions,
+  options: SimilarThreadSearchOptions
 ): Promise<SimilarThreadResult[]> => {
   const {
     organizationId,
@@ -158,11 +158,11 @@ export const searchSimilarThreads = async (
   } = options;
 
   try {
-    const mustConditions: Array<{
+    const mustConditions: {
       key: string;
       match?: { value: string | number } | { any: (string | number)[] };
       range?: { gte?: number; lte?: number };
-    }> = [{ key: "organizationId", match: { value: organizationId } }];
+    }[] = [{ key: "organizationId", match: { value: organizationId } }];
 
     if (statusFilter && statusFilter.length > 0) {
       mustConditions.push({ key: "status", match: { any: statusFilter } });
@@ -174,20 +174,20 @@ export const searchSimilarThreads = async (
     }));
 
     const results = await qdrantClient.search(THREADS_COLLECTION, {
-      vector,
-      limit,
-      score_threshold: scoreThreshold,
       filter: {
         must: mustConditions,
         must_not: mustNotConditions.length > 0 ? mustNotConditions : undefined,
       },
+      limit,
+      score_threshold: scoreThreshold,
+      vector,
       with_payload: true,
     });
 
     return results.map((result) => ({
-      threadId: (result.payload as unknown as ThreadPayload).threadId,
-      score: result.score,
       payload: result.payload as unknown as ThreadPayload,
+      score: result.score,
+      threadId: (result.payload as unknown as ThreadPayload).threadId,
     }));
   } catch (error) {
     console.error("Failed to search similar threads:", error);
@@ -196,7 +196,7 @@ export const searchSimilarThreads = async (
 };
 
 export const getThreadVector = async (
-  threadId: string,
+  threadId: string
 ): Promise<{
   vector: number[];
   payload: ThreadPayload;
@@ -208,8 +208,8 @@ export const getThreadVector = async (
         must: [{ key: "threadId", match: { value: threadId } }],
       },
       limit: 1,
-      with_vector: true,
       with_payload: true,
+      with_vector: true,
     });
 
     const point = results.points[0];
@@ -218,9 +218,9 @@ export const getThreadVector = async (
     }
 
     return {
-      vector: point.vector as number[],
       payload: point.payload as unknown as ThreadPayload,
       pointId: typeof point.id === "string" ? point.id : String(point.id),
+      vector: point.vector as number[],
     };
   } catch (error) {
     console.error(`Failed to get thread vector ${threadId}:`, error);

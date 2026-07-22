@@ -4,24 +4,26 @@ import { cn } from "@workspace/ui/lib/utils";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { mutate, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
+
 import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
 import { ReplyEditor } from "./reply-editor";
 import { SupportIntelligenceChat } from "./support-intelligence-chat";
 import { ToolbarActions } from "./toolbar-actions";
 
-type ThreadToolbarProps = {
+interface ThreadToolbarProps {
   threadId: string;
   organizationId: string | undefined;
-  threadLabels: Array<{ id: string; label: { id: string } }> | undefined;
+  threadLabels: { id: string; label: { id: string } }[] | undefined;
   currentStatus: number;
   user: { id: string; name: string; image?: string | null };
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
-};
+}
 
 export const ThreadToolbar = ({
   threadId,
@@ -33,23 +35,23 @@ export const ThreadToolbar = ({
 }: ThreadToolbarProps) => {
   const navigate = useNavigate();
   const [mode, setMode] = useState<"reply" | "support-intelligence" | null>(
-    null,
+    null
   );
 
   const suggestionsData = useQuickActionsSuggestions({
-    threadId,
-    organizationId,
-    threadLabels,
     currentStatus,
+    organizationId,
+    threadId,
+    threadLabels,
   });
 
   const threads = useLiveQuery(
     query.thread
       .where({
-        organizationId,
         deletedAt: null,
+        organizationId,
       })
-      .orderBy("createdAt", "desc"),
+      .orderBy("createdAt", "desc")
   );
 
   const handleToggleReply = () => {
@@ -58,7 +60,7 @@ export const ThreadToolbar = ({
 
   const handleToggleSupportIntelligence = () => {
     setMode((prev) =>
-      prev === "support-intelligence" ? null : "support-intelligence",
+      prev === "support-intelligence" ? null : "support-intelligence"
     );
   };
 
@@ -69,32 +71,36 @@ export const ThreadToolbar = ({
   const isResolved = currentStatus === 2;
 
   const handleResolve = () => {
-    if (!organizationId) return;
+    if (!organizationId) {
+      return;
+    }
 
     const newStatus = isResolved ? 0 : 2;
     mutate.thread.setStatus({
-      threadId,
       organizationId,
       status: newStatus,
+      threadId,
       userId: user.id,
       userName: user.name,
     });
     captureThreadEvent("thread:status_change", {
-      oldStatus: currentStatus,
       newStatus,
+      oldStatus: currentStatus,
     });
   };
 
   const handleNext = () => {
-    if (!threads || threads.length === 0) return;
+    if (!threads || threads.length === 0) {
+      return;
+    }
 
     const currentIndex = threads.findIndex((t) => t.id === threadId);
     const nextIndex = currentIndex + 1;
 
     if (nextIndex < threads.length && nextIndex) {
       navigate({
-        to: "/app/threads/$id",
         params: { id: buildThreadParam(threads[nextIndex]) },
+        to: "/app/threads/$id",
       });
     } else {
       toast("No more threads");
@@ -115,14 +121,14 @@ export const ThreadToolbar = ({
         {isPanelOpen && (
           <motion.div
             data-slot="thread-toolbar-panel"
-            initial={{ width: 576, scale: 0.9, opacity: 0 }}
+            initial={{ opacity: 0, scale: 0.9, width: 576 }}
             animate={{
+              opacity: 1,
+              scale: 1,
               width:
                 mode === "reply" || mode === "support-intelligence" ? 768 : 576,
-              scale: 1,
-              opacity: 1,
             }}
-            exit={{ scale: 0.9, opacity: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
             className="origin-bottom bg-background-tertiary rounded-md border border-input overflow-hidden"
           >
@@ -150,7 +156,7 @@ export const ThreadToolbar = ({
                   className={cn(
                     "overflow-hidden bg-background-tertiary",
                     suggestionsData.hasSuggestions &&
-                      "border-t border-input rounded-t-none",
+                      "border-t border-input rounded-t-none"
                   )}
                 >
                   <ReplyEditor
@@ -159,7 +165,7 @@ export const ThreadToolbar = ({
                     user={user}
                     captureThreadEvent={captureThreadEvent}
                     className={cn(
-                      suggestionsData.hasSuggestions && "rounded-t-none!",
+                      suggestionsData.hasSuggestions && "rounded-t-none!"
                     )}
                   />
                 </motion.div>

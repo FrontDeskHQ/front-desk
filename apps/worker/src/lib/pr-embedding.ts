@@ -5,11 +5,11 @@ const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
 
 /** The subset of a PR needed to build its embed text. */
-export type PrEmbedInput = {
+export interface PrEmbedInput {
   title: string;
   body: string | null;
   headRef: string | null;
-};
+}
 
 /**
  * Text embedded for PR similarity: title + body + head ref (design lock,
@@ -33,7 +33,7 @@ export const buildPrEmbedText = (data: PrEmbedInput): string =>
  * cross-searches.
  */
 export const generatePrEmbedding = async (
-  text: string,
+  text: string
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -41,10 +41,10 @@ export const generatePrEmbedding = async (
 
   const { embedding } = await embed({
     model: embeddingModel,
-    value: text,
     providerOptions: {
       google: { taskType: "SEMANTIC_SIMILARITY" },
     },
+    value: text,
   });
 
   const norm = Math.hypot(...embedding);

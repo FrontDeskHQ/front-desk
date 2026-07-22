@@ -18,35 +18,35 @@ import type {
 } from "@workspace/schemas/signals";
 
 const organization = object("organization", {
-  id: id(),
-  name: string(),
-  slug: string().unique().index(),
   createdAt: timestamp(),
-  logoUrl: string().nullable(),
-  socials: string().nullable(),
   customInstructions: string().nullable(),
+  id: id(),
+  logoUrl: string().nullable(),
+  name: string(),
   settings: json<OrganizationSettings>().nullable(),
   shortIdCounter: number().default(0),
+  slug: string().unique().index(),
+  socials: string().nullable(),
 });
 
 const subscription = object("subscription", {
-  id: id(),
+  createdAt: timestamp(),
   customerId: string().nullable(),
-  subscriptionId: string().nullable(),
+  id: id(),
   organizationId: reference("organization.id"),
   plan: string().default("trial"),
-  status: string().nullable(),
   seats: number().default(1),
-  createdAt: timestamp(),
+  status: string().nullable(),
+  subscriptionId: string().nullable(),
   updatedAt: timestamp(),
 });
 
 const organizationUser = object("organizationUser", {
+  enabled: boolean().default(true),
   id: id(),
   organizationId: reference("organization.id"),
-  userId: reference("user.id"),
-  enabled: boolean().default(true),
   role: string().default("user"),
+  userId: reference("user.id"),
 });
 
 const thread = object("thread", {
@@ -72,15 +72,15 @@ const thread = object("thread", {
 });
 
 const message = object("message", {
-  id: id(),
-  threadId: reference("thread.id"),
   authorId: reference("author.id"),
   content: string(),
   createdAt: timestamp(),
-  origin: string().nullable(),
-  isBackfill: boolean().default(false),
   externalMessageId: string().nullable(),
+  id: id(),
+  isBackfill: boolean().default(false),
   markedAsAnswer: boolean().default(false),
+  origin: string().nullable(),
+  threadId: reference("thread.id"),
 });
 
 const author = object("author", {
@@ -97,23 +97,23 @@ const author = object("author", {
 });
 
 const user = object("user", {
-  id: id(),
-  name: string(),
+  createdAt: timestamp(),
   email: string(),
   emailVerified: boolean().default(false),
+  id: id(),
   image: string().nullable(),
-  createdAt: timestamp(),
+  name: string(),
   updatedAt: timestamp(),
 });
 
 const invite = object("invite", {
-  id: id(),
-  organizationId: reference("organization.id"),
+  active: boolean().default(true),
+  createdAt: timestamp(),
   creatorId: reference("user.id"),
   email: string(),
-  createdAt: timestamp(),
   expiresAt: timestamp(),
-  active: boolean().default(true),
+  id: id(),
+  organizationId: reference("organization.id"),
 });
 
 const integration = object("integration", {
@@ -139,73 +139,73 @@ const update = object("update", {
 });
 
 const label = object("label", {
-  id: id(),
-  name: string(),
   color: string(),
   createdAt: timestamp(),
-  updatedAt: timestamp(),
-  organizationId: reference("organization.id"),
   enabled: boolean().default(true),
+  id: id(),
+  name: string(),
+  organizationId: reference("organization.id"),
+  updatedAt: timestamp(),
 });
 
 const threadLabel = object("threadLabel", {
-  id: id(),
-  threadId: reference("thread.id"),
-  labelId: reference("label.id"),
   enabled: boolean().default(true),
+  id: id(),
+  labelId: reference("label.id"),
+  threadId: reference("thread.id"),
 });
 
 // TODO(live-state): composite index (organizationId, appliedAt desc) when supported.
 // Until then, single-column indexes plus query-side orderBy("appliedAt","desc").
 const autonomousAction = object("autonomousAction", {
+  appliedAt: timestamp().index(),
+  entityId: string(),
   id: id(),
+  metadataStr: string().nullable(),
   organizationId: reference("organization.id").index(),
   signalType: string(),
-  entityId: string(),
-  appliedAt: timestamp().index(),
   undoneAt: timestamp().nullable(),
-  metadataStr: string().nullable(),
 });
 
 const onboarding = object("onboarding", {
+  createdAt: timestamp(),
   id: id(),
   organizationId: reference("organization.id"),
-  stepsStr: string().default("{}"), // JSON: { "step-id": { completedAt: "..." } }
   status: string().default("incomplete"), // "incomplete" | "completed" | "skipped"
-  createdAt: timestamp(),
+  stepsStr: string().default("{}"), // JSON: { "step-id": { completedAt: "..." } }
   updatedAt: timestamp(),
 });
 
 const agentChat = object("agentChat", {
-  id: id(),
-  organizationId: reference("organization.id"),
-  userId: reference("user.id"),
-  threadId: reference("thread.id"),
   createdAt: timestamp(),
   draft: string().nullable(),
   draftStatus: string().default("none"),
+  id: id(),
+  organizationId: reference("organization.id"),
+  threadId: reference("thread.id"),
+  userId: reference("user.id"),
 });
 
 const agentChatMessage = object("agentChatMessage", {
-  id: id(),
   agentChatId: reference("agentChat.id"),
-  role: string(),
   content: string(),
-  toolCalls: string().nullable(),
   createdAt: timestamp(),
+  id: id(),
+  role: string(),
+  toolCalls: string().nullable(),
 });
 
 const documentationSource = object("documentationSource", {
-  id: id(),
-  organizationId: reference("organization.id"),
-  name: string(),
   baseUrl: string(),
-  status: string(), // "pending" | "crawling" | "completed" | "failed"
-  lastCrawledAt: timestamp().nullable(),
-  pageCount: number().default(0),
   chunksIndexed: number().default(0),
-  errorStr: string().nullable(),
   createdAt: timestamp(),
+  errorStr: string().nullable(),
+  id: id(),
+  lastCrawledAt: timestamp().nullable(),
+  name: string(),
+  organizationId: reference("organization.id"),
+  pageCount: number().default(0),
+  status: string(), // "pending" | "crawling" | "completed" | "failed"
   updatedAt: timestamp(),
 });
 
@@ -250,18 +250,18 @@ const externalEntity = object("externalEntity", {
 });
 
 const organizationRelations = createRelations(organization, ({ many }) => ({
-  organizationUsers: many(organizationUser, "organizationId"),
-  threads: many(thread, "organizationId"),
-  invites: many(invite, "organizationId"),
-  integrations: many(integration, "organizationId"),
-  subscriptions: many(subscription, "organizationId"),
-  labels: many(label, "organizationId"),
+  agentChats: many(agentChat, "organizationId"),
   authors: many(author, "organizationId"),
   autonomousActions: many(autonomousAction, "organizationId"),
-  onboardings: many(onboarding, "organizationId"),
   documentationSources: many(documentationSource, "organizationId"),
-  agentChats: many(agentChat, "organizationId"),
   externalEntities: many(externalEntity, "organizationId"),
+  integrations: many(integration, "organizationId"),
+  invites: many(invite, "organizationId"),
+  labels: many(label, "organizationId"),
+  onboardings: many(onboarding, "organizationId"),
+  organizationUsers: many(organizationUser, "organizationId"),
+  subscriptions: many(subscription, "organizationId"),
+  threads: many(thread, "organizationId"),
 }));
 
 const subscriptionRelations = createRelations(subscription, ({ one }) => ({
@@ -273,21 +273,21 @@ const organizationUserRelations = createRelations(
   ({ one }) => ({
     organization: one(organization, "organizationId"),
     user: one(user, "userId"),
-  }),
+  })
 );
 
 const threadRelations = createRelations(thread, ({ one, many }) => ({
-  organization: one(organization, "organizationId"),
-  messages: many(message, "threadId"),
   assignedUser: one(user, "assignedUserId"),
   author: one(author, "authorId"),
-  updates: many(update, "threadId"),
   labels: many(threadLabel, "threadId"),
+  messages: many(message, "threadId"),
+  organization: one(organization, "organizationId"),
+  updates: many(update, "threadId"),
 }));
 
 const messageRelations = createRelations(message, ({ one }) => ({
-  thread: one(thread, "threadId"),
   author: one(author, "authorId"),
+  thread: one(thread, "threadId"),
 }));
 
 const authorRelations = createRelations(author, ({ one }) => ({
@@ -295,8 +295,8 @@ const authorRelations = createRelations(author, ({ one }) => ({
 }));
 
 const inviteRelations = createRelations(invite, ({ one }) => ({
-  organization: one(organization, "organizationId"),
   creator: one(user, "creatorId"),
+  organization: one(organization, "organizationId"),
 }));
 
 const integrationRelations = createRelations(integration, ({ one }) => ({
@@ -314,15 +314,15 @@ const labelRelations = createRelations(label, ({ one, many }) => ({
 }));
 
 const threadLabelRelations = createRelations(threadLabel, ({ one }) => ({
-  thread: one(thread, "threadId"),
   label: one(label, "labelId"),
+  thread: one(thread, "threadId"),
 }));
 
 const autonomousActionRelations = createRelations(
   autonomousAction,
   ({ one }) => ({
     organization: one(organization, "organizationId"),
-  }),
+  })
 );
 
 const onboardingRelations = createRelations(onboarding, ({ one }) => ({
@@ -330,24 +330,24 @@ const onboardingRelations = createRelations(onboarding, ({ one }) => ({
 }));
 
 const agentChatRelations = createRelations(agentChat, ({ one, many }) => ({
-  organization: one(organization, "organizationId"),
-  user: one(user, "userId"),
-  thread: one(thread, "threadId"),
   messages: many(agentChatMessage, "agentChatId"),
+  organization: one(organization, "organizationId"),
+  thread: one(thread, "threadId"),
+  user: one(user, "userId"),
 }));
 
 const agentChatMessageRelations = createRelations(
   agentChatMessage,
   ({ one }) => ({
     agentChat: one(agentChat, "agentChatId"),
-  }),
+  })
 );
 
 const documentationSourceRelations = createRelations(
   documentationSource,
   ({ one }) => ({
     organization: one(organization, "organizationId"),
-  }),
+  })
 );
 
 const externalEntityRelations = createRelations(externalEntity, ({ one }) => ({
@@ -356,8 +356,8 @@ const externalEntityRelations = createRelations(externalEntity, ({ one }) => ({
 
 // This is a list of emails that are allowed to access the app - will be removed after the beta.
 const allowlist = object("allowlist", {
-  id: id(),
   email: string().unique().index(),
+  id: id(),
 });
 
 /**
@@ -368,24 +368,24 @@ const allowlist = object("allowlist", {
  */
 
 const pipelineIdempotencyKey = object("pipelineIdempotencyKey", {
+  createdAt: timestamp(),
+  hash: string(),
   id: id(),
   key: string().unique().index(),
-  hash: string(),
-  createdAt: timestamp(),
 });
 
 const pipelineJob = object("pipelineJob", {
+  createdAt: timestamp(),
   id: id(),
+  metadataStr: string().nullable(),
   name: string(),
   status: string(),
-  metadataStr: string().nullable(),
-  createdAt: timestamp(),
   updatedAt: timestamp(),
 });
 
 const migration = object("migration", {
-  id: id(),
   appliedAt: timestamp(),
+  id: id(),
 });
 
 export const schema = createSchema({

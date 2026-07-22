@@ -20,8 +20,8 @@ Sitemap: ${sitemapUrl}
 
           return new Response(robotsContent, {
             headers: {
-              "Content-Type": "text/plain",
               "Cache-Control": "public, max-age=3600",
+              "Content-Type": "text/plain",
             },
           });
         } catch {
@@ -35,8 +35,8 @@ Sitemap: ${sitemapUrl}
 
           return new Response(robotsContent, {
             headers: {
-              "Content-Type": "text/plain",
               "Cache-Control": "public, max-age=3600",
+              "Content-Type": "text/plain",
             },
           });
         }

@@ -1,3 +1,4 @@
+import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
 import { useFlag } from "@reflag/react-sdk";
 import { useMutation } from "@tanstack/react-query";
@@ -21,6 +22,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import type { schema } from "api/schema";
 import { useAtomValue } from "jotai/react";
 import {
   AlertCircle,
@@ -34,27 +36,34 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { Fragment, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
 
+type DocumentationSource = InferLiveObject<typeof schema.documentationSource>;
+
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/documentation",
+  "/app/_workspace/settings/organization/documentation"
 )({
   component: RouteComponent,
 });
 
 const statusVariant = (
-  status: string,
+  status: string
 ): "default" | "success" | "secondary" | "destructive" | "outline" => {
   switch (status) {
-    case "completed":
+    case "completed": {
       return "success";
-    case "crawling":
+    }
+    case "crawling": {
       return "secondary";
-    case "failed":
+    }
+    case "failed": {
       return "destructive";
-    default:
+    }
+    default: {
       return "outline";
+    }
   }
 };
 
@@ -75,18 +84,18 @@ function RouteComponent() {
   const sources = useLiveQuery(
     query.documentationSource.where({
       organizationId: currentOrg?.id,
-    }),
+    })
   );
 
   const filteredSources = (sources ?? []).filter(
-    (s: any) => s.status !== "deleted",
+    (s: DocumentationSource) => s.status !== "deleted"
   );
 
   const addMutation = useMutation({
     mutationFn: async ({
       organizationId,
-      name,
-      baseUrl,
+      name: sourceName,
+      baseUrl: sourceBaseUrl,
     }: {
       organizationId: string;
       name: string;
@@ -94,16 +103,9 @@ function RouteComponent() {
     }) => {
       return fetchClient.mutate.documentationSource.addDocumentationSource({
         organizationId,
-        name,
-        baseUrl,
+        name: sourceName,
+        baseUrl: sourceBaseUrl,
       });
-    },
-    onSuccess: () => {
-      setIsAddPanelOpen(false);
-      setName("");
-      setBaseUrl("");
-      setValidation({ status: "idle" });
-      toast.success("Documentation source added. Crawling will begin shortly.");
     },
     onError: (error) => {
       setValidation({
@@ -114,6 +116,13 @@ function RouteComponent() {
             : "Failed to add documentation source.",
       });
     },
+    onSuccess: () => {
+      setIsAddPanelOpen(false);
+      setName("");
+      setBaseUrl("");
+      setValidation({ status: "idle" });
+      toast.success("Documentation source added. Crawling will begin shortly.");
+    },
   });
 
   const recrawlMutation = useMutation({
@@ -122,13 +131,13 @@ function RouteComponent() {
         id,
       });
     },
-    onSuccess: () => {
-      toast.success("Recrawl started.");
-    },
     onError: (error) => {
       toast.error(
-        error instanceof Error ? error.message : "Failed to start recrawl.",
+        error instanceof Error ? error.message : "Failed to start recrawl."
       );
+    },
+    onSuccess: () => {
+      toast.success("Recrawl started.");
     },
   });
 
@@ -138,15 +147,15 @@ function RouteComponent() {
         id,
       });
     },
-    onSuccess: () => {
-      toast.success("Documentation source deleted.");
-    },
     onError: (error) => {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to delete documentation source.",
+          : "Failed to delete documentation source."
       );
+    },
+    onSuccess: () => {
+      toast.success("Documentation source deleted.");
     },
   });
 
@@ -160,8 +169,9 @@ function RouteComponent() {
       !name.trim() ||
       name.length > 100 ||
       !baseUrl.trim()
-    )
+    ) {
       return;
+    }
 
     setValidation({ status: "validating" });
 
@@ -169,27 +179,29 @@ function RouteComponent() {
       const result =
         await fetchClient.mutate.documentationSource.validateDocumentationSource(
           {
-            organizationId: currentOrg.id,
             baseUrl: baseUrl.trim(),
-          },
+            organizationId: currentOrg.id,
+          }
         );
 
       if (!result.valid) {
-        setValidation({ status: "error", error: result.error });
+        setValidation({ error: result.error, status: "error" });
         return;
       }
 
       setValidation({ status: "valid" });
       addMutation.mutate({
-        organizationId: currentOrg.id,
-        name: name.trim(),
         baseUrl: baseUrl.trim(),
+        name: name.trim(),
+        organizationId: currentOrg.id,
       });
-    } catch (err) {
+    } catch (error) {
       setValidation({
         status: "error",
         error:
-          err instanceof Error ? err.message : "Validation failed unexpectedly",
+          error instanceof Error
+            ? error.message
+            : "Validation failed unexpectedly",
       });
     }
   }, [currentOrg, name, baseUrl, addMutation, isSubmitting]);
@@ -344,7 +356,7 @@ function RouteComponent() {
                   <span className="text-right">Pages</span>
                 </div>
                 <Composite className="col-span-full grid grid-cols-subgrid gap-0">
-                  {filteredSources.map((source: any) => {
+                  {filteredSources.map((source: DocumentationSource) => {
                     const isExpanded = expandedRows.has(source.id);
                     return (
                       <Fragment key={source.id}>
@@ -352,7 +364,7 @@ function RouteComponent() {
                           className={cn(
                             "col-span-full grid grid-cols-subgrid items-center gap-x-4 w-full rounded-none border-0 px-3 py-2.5 text-sm",
                             "border-b border-border/50 last:border-b-0",
-                            isExpanded && "border-b-transparent",
+                            isExpanded && "border-b-transparent"
                           )}
                           aria-expanded={isExpanded}
                           aria-controls={`details-${source.id}`}
@@ -371,7 +383,7 @@ function RouteComponent() {
                           <ChevronDown
                             className={cn(
                               "h-4 w-4 text-muted-foreground transition-transform",
-                              isExpanded ? "rotate-0" : "-rotate-90",
+                              isExpanded ? "rotate-0" : "-rotate-90"
                             )}
                           />
                           <span className="truncate text-left min-w-0">
@@ -408,7 +420,7 @@ function RouteComponent() {
                                     </span>
                                     {source.lastCrawledAt
                                       ? formatRelativeTime(
-                                          new Date(source.lastCrawledAt),
+                                          new Date(source.lastCrawledAt)
                                         )
                                       : "Never"}
                                   </div>

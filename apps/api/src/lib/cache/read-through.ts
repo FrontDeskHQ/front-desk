@@ -1,4 +1,6 @@
-import Keyv, { type KeyvStoreAdapter } from "keyv";
+import { Keyv } from "keyv";
+import type { KeyvStoreAdapter } from "keyv";
+
 import { getRedisConnection } from "./connection.js";
 
 export interface ReadThroughCacheOptions<I, O> {
@@ -53,15 +55,15 @@ export class ReadThroughCache<I, O> {
   private keyGenerator: (input: I) => string;
   private cacheErrors: boolean;
   private errorTtl: number;
-  private revalidationPromises: Map<string, Promise<O>> = new Map();
+  private revalidationPromises = new Map<string, Promise<O>>();
 
   constructor(options: ReadThroughCacheOptions<I, O>) {
     this.namespace = options.namespace;
     this.fetch = options.fetch;
-    this.ttl = options.ttl ?? 3600000; // Default 1 hour
+    this.ttl = options.ttl ?? 3_600_000; // Default 1 hour
     this.swr = options.swr && options.swr > 0 ? options.swr : undefined;
     this.cacheErrors = options.cacheErrors ?? false;
-    this.errorTtl = options.errorTtl ?? Math.max(this.ttl / 10, 60000); // Default 10% of ttl or 1 minute
+    this.errorTtl = options.errorTtl ?? Math.max(this.ttl / 10, 60_000); // Default 10% of ttl or 1 minute
 
     this.keyGenerator =
       options.keyGenerator ??
@@ -185,16 +187,14 @@ export class ReadThroughCache<I, O> {
    * Get multiple values at once
    */
   async getMany(inputs: I[]): Promise<(O | undefined)[]> {
-    return Promise.all(
-      inputs.map((input) => this.get(input).catch(() => undefined))
-    );
+    return Promise.all(inputs.map((input) => this.get(input).catch(() => {})));
   }
 
   /**
    * Set multiple values at once
    */
   async setMany(
-    entries: Array<{ input: I; value: O; ttl?: number }>
+    entries: { input: I; value: O; ttl?: number }[]
   ): Promise<void> {
     await Promise.all(
       entries.map(({ input, value, ttl }) => this.set(input, value, ttl))
@@ -247,6 +247,4 @@ export class ReadThroughCache<I, O> {
  */
 export const createReadThroughCache = <I, O>(
   options: ReadThroughCacheOptions<I, O>
-): ReadThroughCache<I, O> => {
-  return new ReadThroughCache(options);
-};
+): ReadThroughCache<I, O> => new ReadThroughCache(options);

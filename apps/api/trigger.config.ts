@@ -9,14 +9,14 @@ export default defineConfig({
   // See https://trigger.dev/docs/runs/max-duration
   maxDuration: 3600,
   retries: {
-    enabledInDev: true,
     default: {
-      maxAttempts: 3,
-      minTimeoutInMs: 1000,
-      maxTimeoutInMs: 10000,
       factor: 2,
+      maxAttempts: 3,
+      maxTimeoutInMs: 10_000,
+      minTimeoutInMs: 1000,
       randomize: true,
     },
+    enabledInDev: true,
   },
   dirs: ["./src/trigger"],
 });

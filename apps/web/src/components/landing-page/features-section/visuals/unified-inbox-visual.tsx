@@ -12,7 +12,7 @@ const channels = [
 
 export function UnifiedInboxVisual() {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const isInView = useInView(ref, { margin: "-10%", once: true });
 
   return (
     <div
@@ -28,7 +28,7 @@ export function UnifiedInboxVisual() {
               key={channel.label}
               initial={{ opacity: 0, scale: 0.8 }}
               animate={isInView ? { opacity: 1, scale: 1 } : undefined}
-              transition={{ duration: 0.3, delay: i * 0.1 }}
+              transition={{ delay: i * 0.1, duration: 0.3 }}
               className="size-10 rounded-lg border bg-background-primary flex items-center justify-center shadow-sm"
             >
               <Icon className="size-5 text-foreground-secondary" />
@@ -57,7 +57,7 @@ export function UnifiedInboxVisual() {
               className="text-foreground-secondary/40"
               initial={{ pathLength: 0 }}
               animate={isInView ? { pathLength: 1 } : undefined}
-              transition={{ duration: 0.5, delay: 0.5 + i * 0.1 }}
+              transition={{ delay: 0.5 + i * 0.1, duration: 0.5 }}
             />
           );
         })}
@@ -67,7 +67,7 @@ export function UnifiedInboxVisual() {
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={isInView ? { opacity: 1, scale: 1 } : undefined}
-        transition={{ duration: 0.4, delay: 1 }}
+        transition={{ delay: 1, duration: 0.4 }}
         className="shrink-0 rounded-lg border bg-background-primary p-4 shadow-sm flex flex-col items-center gap-2"
       >
         <div className="relative">
@@ -75,7 +75,7 @@ export function UnifiedInboxVisual() {
           <motion.div
             initial={{ scale: 0 }}
             animate={isInView ? { scale: 1 } : undefined}
-            transition={{ type: "spring", bounce: 0.5, delay: 1.3 }}
+            transition={{ bounce: 0.5, delay: 1.3, type: "spring" }}
             className="absolute -top-2 -right-2 size-5 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center"
           >
             4

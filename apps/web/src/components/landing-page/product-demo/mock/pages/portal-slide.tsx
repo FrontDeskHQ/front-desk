@@ -2,11 +2,11 @@ import type { DemoThread } from "../types";
 import { MockPortalPage } from "./portal-page";
 import { MockPortalThreadDetailPage } from "./portal-thread-detail-page";
 
-type MockPortalSlideProps = {
+interface MockPortalSlideProps {
   threads: DemoThread[];
   elapsedMs: number;
   slideDurationMs: number;
-};
+}
 
 export const MockPortalSlide = ({
   threads,
@@ -14,7 +14,9 @@ export const MockPortalSlide = ({
   slideDurationMs,
 }: MockPortalSlideProps) => {
   const selectedThread = threads[1] ?? threads[0];
-  if (!selectedThread) return null;
+  if (!selectedThread) {
+    return null;
+  }
 
   const listDurationMs = slideDurationMs * 0.4;
   const isListView = elapsedMs < listDurationMs;

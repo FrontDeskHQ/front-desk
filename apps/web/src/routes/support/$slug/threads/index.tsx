@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import { createStandardSchemaV1, parseAsStringEnum } from "nuqs";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { buildThreadParam } from "~/utils/thread";
@@ -42,13 +43,17 @@ const searchParams = {
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  validateSearch: createStandardSchemaV1(searchParams, {
-    partialOutput: true,
-  }),
-
-  loaderDeps: ({ search }) => ({
-    dir: search.dir ?? ("desc" as const),
-  }),
+  head: ({ loaderData }) => {
+    const orgName = loaderData?.organizationName ?? "Support";
+    return {
+      meta: [
+        ...seo({
+          title: `${orgName} - Support`,
+          description: `Support threads for ${orgName}`,
+        }),
+      ],
+    };
+  },
 
   loader: async ({ context, deps }) => {
     const { organization } = context;
@@ -66,17 +71,13 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     };
   },
 
-  head: ({ loaderData }) => {
-    const orgName = loaderData?.organizationName ?? "Support";
-    return {
-      meta: [
-        ...seo({
-          title: `${orgName} - Support`,
-          description: `Support threads for ${orgName}`,
-        }),
-      ],
-    };
-  },
+  loaderDeps: ({ search }) => ({
+    dir: search.dir ?? ("desc" as const),
+  }),
+
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
+  }),
 });
 
 function RouteComponent() {
@@ -87,8 +88,20 @@ function RouteComponent() {
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useInfiniteQuery({
-      queryKey: ["support-threads", organization?.id, dir],
       enabled: Boolean(organization?.id),
+      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
+      initialData: loaderData
+        ? {
+            pages: [
+              {
+                threads: loaderData.threads,
+                nextCursor: loaderData.nextCursor,
+              },
+            ],
+            pageParams: [undefined],
+          }
+        : undefined,
+      initialPageParam: undefined as string | undefined,
       queryFn: async ({ pageParam }) => {
         const organizationId = organization?.id;
         if (!organizationId) {
@@ -102,19 +115,7 @@ function RouteComponent() {
           direction: dir,
         });
       },
-      initialPageParam: undefined as string | undefined,
-      getNextPageParam: (lastPage) => lastPage.nextCursor ?? undefined,
-      initialData: loaderData
-        ? {
-            pages: [
-              {
-                threads: loaderData.threads,
-                nextCursor: loaderData.nextCursor,
-              },
-            ],
-            pageParams: [undefined],
-          }
-        : undefined,
+      queryKey: ["support-threads", organization?.id, dir],
     });
 
   const threads = data?.pages.flatMap((page) => page.threads) ?? [];
@@ -136,7 +137,7 @@ function RouteComponent() {
         setScrollMargin(
           parent.getBoundingClientRect().top -
             scrollEl.getBoundingClientRect().top +
-            scrollEl.scrollTop,
+            scrollEl.scrollTop
         );
       }
     };
@@ -148,16 +149,18 @@ function RouteComponent() {
 
   const virtualizer = useVirtualizer({
     count: threads.length,
-    getScrollElement: () => scrollRef.current,
     estimateSize: () => 72,
+    getItemKey: (index) => threads[index]?.id ?? `thread-fallback-${index}`,
+    getScrollElement: () => scrollRef.current,
     overscan: 10,
     scrollMargin,
-    getItemKey: (index) => threads[index]?.id ?? `thread-fallback-${index}`,
   });
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
-    if (!sentinel) return;
+    if (!sentinel) {
+      return;
+    }
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -165,7 +168,7 @@ function RouteComponent() {
           fetchNextPage();
         }
       },
-      { root: scrollRef.current, rootMargin: "200px" },
+      { root: scrollRef.current, rootMargin: "200px" }
     );
 
     observer.observe(sentinel);
@@ -229,31 +232,33 @@ function RouteComponent() {
           <div
             style={{
               height: `${virtualizer.getTotalSize()}px`,
-              width: "100%",
               position: "relative",
+              width: "100%",
             }}
           >
             {virtualizer.getVirtualItems().map((virtualItem) => {
               const thread = threads[virtualItem.index];
-              if (!thread) return null;
+              if (!thread) {
+                return null;
+              }
 
               return (
                 <Link
                   key={thread.id}
                   ref={virtualizer.measureElement}
                   data-index={virtualItem.index}
-                  to={"/support/$slug/threads/$id"}
+                  to="/support/$slug/threads/$id"
                   params={{
-                    slug: organization.slug,
                     id: buildThreadParam(thread),
+                    slug: organization.slug,
                   }}
                   className="max-w-6xl w-full flex flex-col p-3 gap-2 mx-auto hover:bg-muted"
                   resetScroll={false}
                   style={{
-                    position: "absolute",
-                    top: 0,
                     left: 0,
+                    position: "absolute",
                     right: 0,
+                    top: 0,
                     transform: `translateY(${
                       virtualItem.start - scrollMargin
                     }px)`,
@@ -267,7 +272,7 @@ function RouteComponent() {
                         fallback={thread?.author?.name}
                       />
                       <span className="truncate">{thread?.name}</span>
-                      {thread?.shortId != null && (
+                      {thread?.shortId !== null && (
                         <span className="text-foreground-secondary tabular-nums font-normal">
                           #{thread.shortId}
                         </span>
@@ -291,17 +296,11 @@ function RouteComponent() {
                   </div>
                   <div className="flex justify-between gap-2">
                     <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-2xl">
-                      {
-                        thread?.messages?.[thread.messages.length - 1]?.author
-                          ?.name
-                      }
+                      {thread?.messages.at(-1)?.author?.name}
                       :&nbsp;
                       <span className="max-w-full">
                         {getFirstTextContent(
-                          safeParseJSON(
-                            thread?.messages?.[thread.messages.length - 1]
-                              ?.content ?? "",
-                          ),
+                          safeParseJSON(thread?.messages.at(-1)?.content ?? "")
                         )}
                       </span>
                     </span>

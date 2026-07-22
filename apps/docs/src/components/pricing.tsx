@@ -12,8 +12,6 @@ interface PricingProps {
 
 const defaultPlans: PricingPlan[] = [
   {
-    name: "Starter",
-    price: "$9",
     description: "Perfect for small teams getting started with FrontDesk.",
     features: [
       "Unlimited support tickets",
@@ -21,10 +19,10 @@ const defaultPlans: PricingPlan[] = [
       "Public support portal",
       "2 support channels",
     ],
+    name: "Starter",
+    price: "$9",
   },
   {
-    name: "Pro",
-    price: "$24",
     description: "Everything in Starter, plus:",
     features: [
       "Unlimited team members",
@@ -33,6 +31,8 @@ const defaultPlans: PricingPlan[] = [
       "Priority support",
     ],
     highlight: true,
+    name: "Pro",
+    price: "$24",
   },
 ];
 

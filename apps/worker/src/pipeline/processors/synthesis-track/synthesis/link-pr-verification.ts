@@ -4,24 +4,28 @@
  * alone are not a trust boundary (prompt injection / model bypass).
  */
 export const collectVerifiedPrUrlsFromToolSteps = (
-  steps: Array<{
-    toolResults: Array<{
+  steps: {
+    toolResults: {
       toolName: string;
       output: unknown;
-    }>;
-  }>,
+    }[];
+  }[]
 ): Set<string> => {
   const verified = new Set<string>();
 
   for (const step of steps) {
     for (const result of step.toolResults) {
-      if (result.toolName !== "read_pr") continue;
+      if (result.toolName !== "read_pr") {
+        continue;
+      }
       const output = result.output as
         | { found?: boolean; pr?: { url?: string } }
         | null
         | undefined;
       const url = output?.found === true ? output.pr?.url?.trim() : undefined;
-      if (url) verified.add(url);
+      if (url) {
+        verified.add(url);
+      }
     }
   }
 
@@ -33,10 +37,12 @@ export const filterLinkPrToVerifiedUrls = <
   T extends { kind: string; prUrl?: string },
 >(
   actions: T[],
-  verifiedPrUrls: Set<string>,
+  verifiedPrUrls: Set<string>
 ): T[] =>
   actions.filter((action) => {
-    if (action.kind !== "link_pr") return true;
+    if (action.kind !== "link_pr") {
+      return true;
+    }
     const prUrl = action.prUrl?.trim() ?? "";
     return prUrl.length > 0 && verifiedPrUrls.has(prUrl);
   });
@@ -51,14 +57,14 @@ export const filterActionSetToVerifiedLinkPr = <
 >(
   primary: T[],
   alternatives: T[],
-  verifiedPrUrls: Set<string>,
+  verifiedPrUrls: Set<string>
 ): { primary: T[]; alternatives: T[] } => {
   const filteredPrimary = filterLinkPrToVerifiedUrls(primary, verifiedPrUrls);
   if (filteredPrimary.length !== primary.length) {
-    return { primary: [], alternatives: [] };
+    return { alternatives: [], primary: [] };
   }
   return {
-    primary: filteredPrimary,
     alternatives: filterLinkPrToVerifiedUrls(alternatives, verifiedPrUrls),
+    primary: filteredPrimary,
   };
 };

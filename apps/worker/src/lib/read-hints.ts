@@ -6,18 +6,19 @@ import type {
   RelatedDocsEvidence,
   RelatedPrsEvidence,
 } from "@workspace/schemas/signals";
+
 import { fetchClient } from "./database/client";
 
-type SlotEvidenceMap = {
+interface SlotEvidenceMap {
   duplicate: DuplicateEvidence;
   related_docs: RelatedDocsEvidence;
   related_prs: RelatedPrsEvidence;
-};
+}
 
 export async function readHintBag(threadId: string): Promise<Hints> {
   const rows = (await fetchClient.query.thread.byIds({
     ids: [threadId],
-  })) as Array<{ hints: Hints | null }>;
+  })) as { hints: Hints | null }[];
   return rows[0]?.hints ?? {};
 }
 
@@ -32,45 +33,45 @@ export async function writeHintSlot<K extends HintKind>(
   organizationId: string,
   kind: K,
   evidence: SlotEvidenceMap[K] | null,
-  hash: string,
+  hash: string
 ): Promise<void> {
   const computedAt = new Date().toISOString();
 
   if (kind === "duplicate") {
     const slot: HintSlot<DuplicateEvidence> = {
+      computedAt,
       evidence: evidence as DuplicateEvidence | null,
       hash,
-      computedAt,
     };
     await fetchClient.mutate.thread.writeHintSlot({
-      threadId,
-      organizationId,
       kind: "duplicate",
+      organizationId,
       slot,
+      threadId,
     });
   } else if (kind === "related_prs") {
     const slot: HintSlot<RelatedPrsEvidence> = {
+      computedAt,
       evidence: evidence as RelatedPrsEvidence | null,
       hash,
-      computedAt,
     };
     await fetchClient.mutate.thread.writeHintSlot({
-      threadId,
-      organizationId,
       kind: "related_prs",
+      organizationId,
       slot,
+      threadId,
     });
   } else {
     const slot: HintSlot<RelatedDocsEvidence> = {
+      computedAt,
       evidence: evidence as RelatedDocsEvidence | null,
       hash,
-      computedAt,
     };
     await fetchClient.mutate.thread.writeHintSlot({
-      threadId,
-      organizationId,
       kind: "related_docs",
+      organizationId,
       slot,
+      threadId,
     });
   }
 }

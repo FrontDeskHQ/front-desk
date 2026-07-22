@@ -5,11 +5,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * Original version: https://github.com/jakobhoeg/shadcn-chat/blob/47e5f8af020b6eacbd4cbd6ad5f6ff8d60e76aa8/packages/ui/src/components/ui/chat/hooks/useAutoScroll.tsx
  */
 
-type UseAutoScrollOptions = {
+interface UseAutoScrollOptions {
   offset?: number;
   smooth?: boolean;
-  content?: any;
-};
+  content?: unknown;
+}
 
 export function useAutoScroll(options: UseAutoScrollOptions = {}) {
   const { offset = 128, smooth = false, content } = options;
@@ -34,7 +34,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
 
   const scrollToBottom = useCallback(
     (instant?: boolean) => {
-      if (!scrollRef.current) return;
+      if (!scrollRef.current) {
+        return;
+      }
 
       const targetScrollTop =
         scrollRef.current.scrollHeight - scrollRef.current.clientHeight;
@@ -43,8 +45,8 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
         scrollRef.current.scrollTop = targetScrollTop;
       } else {
         scrollRef.current.scrollTo({
-          top: targetScrollTop,
           behavior: smooth ? "smooth" : "auto",
+          top: targetScrollTop,
         });
       }
 
@@ -56,7 +58,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
   );
 
   const handleScroll = useCallback(() => {
-    if (!scrollRef.current) return;
+    if (!scrollRef.current) {
+      return;
+    }
 
     const atBottom = checkIsAtBottom(scrollRef.current);
 
@@ -66,7 +70,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
 
   useEffect(() => {
     const element = scrollRef.current;
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     element.addEventListener("scroll", handleScroll, { passive: true });
     return () => element.removeEventListener("scroll", handleScroll);
@@ -75,7 +81,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
   // biome-ignore lint/correctness/useExhaustiveDependencies: content is required
   useEffect(() => {
     const scrollElement = scrollRef.current;
-    if (!scrollElement) return;
+    if (!scrollElement) {
+      return;
+    }
 
     const currentHeight = scrollElement.scrollHeight;
     const hasNewContent = currentHeight !== lastContentHeight.current;
@@ -92,7 +100,9 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
 
   useEffect(() => {
     const element = scrollRef.current;
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     const resizeObserver = new ResizeObserver(() => {
       if (scrollRef.current && checkIsAtBottom(scrollRef.current)) {
@@ -120,10 +130,10 @@ export function useAutoScroll(options: UseAutoScrollOptions = {}) {
   }, [checkIsAtBottom]);
 
   return {
-    scrollRef,
     contentRef,
-    isAtBottom,
-    scrollToBottom: () => scrollToBottom(false),
     disableAutoScroll,
+    isAtBottom,
+    scrollRef,
+    scrollToBottom: () => scrollToBottom(false),
   };
 }

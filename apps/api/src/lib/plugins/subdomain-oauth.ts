@@ -6,6 +6,7 @@ import {
   getOAuthState,
 } from "better-auth/api";
 import { z } from "zod";
+
 import { schema } from "../../live-state/schema";
 import { storage } from "../../live-state/storage";
 
@@ -16,8 +17,8 @@ import { storage } from "../../live-state/storage";
  */
 const oauthStateSchema = z
   .object({
-    _subdomainOrigin: z.string(),
     _originalCallbackURL: z.string().optional(),
+    _subdomainOrigin: z.string(),
   })
   .passthrough();
 
@@ -27,10 +28,10 @@ const oauthStateSchema = z
  */
 const verificationTokenDataSchema = z
   .object({
-    sessionToken: z.string(),
-    userId: z.string(),
-    subdomain: z.string(),
     callbackURL: z.string(),
+    sessionToken: z.string(),
+    subdomain: z.string(),
+    userId: z.string(),
   })
   .strict();
 
@@ -84,7 +85,6 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
   } = options;
 
   return {
-    id: "subdomain-oauth",
     endpoints: {
       /**
        * Subdomain session endpoint that exchanges a token for a session cookie
@@ -177,50 +177,7 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
         }
       ),
     },
-
     hooks: {
-      before: [
-        {
-          matcher(context) {
-            return context.path?.startsWith("/sign-in/social") ?? false;
-          },
-          handler: createAuthMiddleware(async (ctx) => {
-            if (!ctx.body) return;
-
-            const tenantSlug = ctx.body.additionalData?.[tenantSlugKey] as
-              | string
-              | undefined;
-
-            if (!tenantSlug) {
-              return;
-            }
-
-            const organization = Object.values(
-              await storage.find(schema.organization, {
-                where: {
-                  slug: tenantSlug,
-                },
-              })
-            )?.[0];
-
-            if (!organization) {
-              ctx.context.logger.error("Organization not found");
-              throw new APIError("BAD_REQUEST", {
-                message: "Organization not found",
-              });
-            }
-
-            const originalCallbackURL = ctx.body.callbackURL;
-
-            ctx.body.additionalData = {
-              ...(ctx.body.additionalData || {}),
-              _subdomainOrigin: tenantSlug,
-              _originalCallbackURL: originalCallbackURL,
-            };
-          }),
-        },
-      ],
-
       after: [
         {
           matcher(context) {
@@ -255,9 +212,8 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
 
             if (!setCookieHeader) return;
 
-            const { parseSetCookieHeader } = await import(
-              "better-auth/cookies"
-            );
+            const { parseSetCookieHeader } =
+              await import("better-auth/cookies");
             const cookieName = ctx.context.authCookies.sessionToken.name;
             const parsedCookies = parseSetCookieHeader(setCookieHeader);
             const sessionCookie = parsedCookies.get(cookieName);
@@ -317,6 +273,49 @@ export const subdomainOAuth = (options: SubdomainOAuthOptions) => {
           }),
         },
       ],
+
+      before: [
+        {
+          matcher(context) {
+            return context.path?.startsWith("/sign-in/social") ?? false;
+          },
+          handler: createAuthMiddleware(async (ctx) => {
+            if (!ctx.body) return;
+
+            const tenantSlug = ctx.body.additionalData?.[tenantSlugKey] as
+              | string
+              | undefined;
+
+            if (!tenantSlug) {
+              return;
+            }
+
+            const organization = Object.values(
+              await storage.find(schema.organization, {
+                where: {
+                  slug: tenantSlug,
+                },
+              })
+            )?.[0];
+
+            if (!organization) {
+              ctx.context.logger.error("Organization not found");
+              throw new APIError("BAD_REQUEST", {
+                message: "Organization not found",
+              });
+            }
+
+            const originalCallbackURL = ctx.body.callbackURL;
+
+            ctx.body.additionalData = {
+              ...ctx.body.additionalData,
+              _subdomainOrigin: tenantSlug,
+              _originalCallbackURL: originalCallbackURL,
+            };
+          }),
+        },
+      ],
     },
+    id: "subdomain-oauth",
   } satisfies BetterAuthPlugin;
 };

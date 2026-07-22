@@ -3,7 +3,8 @@
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { Input } from "@workspace/ui/components/input";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { Pencil } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -26,7 +27,7 @@ function BaseAvatar({
       data-slot="avatar"
       className={cn(
         "relative flex size-4 shrink-0 overflow-hidden rounded-full",
-        className,
+        className
       )}
       {...props}
     />
@@ -55,7 +56,7 @@ function BaseAvatarFallback({
       data-slot="avatar-fallback"
       className={cn(
         "bg-indigo-400 flex size-full items-center justify-center text-xs",
-        className,
+        className
       )}
       {...props}
     />
@@ -63,51 +64,38 @@ function BaseAvatarFallback({
 }
 
 const avatarVariants = cva("", {
+  compoundVariants: [
+    {
+      variant: "org",
+      size: ["sm", "md"],
+      className: "rounded-sm",
+    },
+    {
+      variant: "org",
+      size: ["lg", "xl", "xxl"],
+      className: "rounded-md",
+    },
+  ],
+  defaultVariants: {
+    size: "md",
+    variant: "user",
+  },
   variants: {
     size: {
-      sm: "size-3",
-      md: "size-4",
       lg: "size-6",
+      md: "size-4",
+      sm: "size-3",
       xl: "size-8",
       xxl: "size-10",
     },
     variant: {
-      user: "rounded-full",
       org: "",
+      user: "rounded-full",
     },
-  },
-  compoundVariants: [
-    {
-      variant: "org",
-      size: ["sm", "md"],
-      className: "rounded-sm",
-    },
-    {
-      variant: "org",
-      size: ["lg", "xl", "xxl"],
-      className: "rounded-md",
-    },
-  ],
-  defaultVariants: {
-    size: "md",
-    variant: "user",
   },
 });
 
 const avatarFallbackVariants = cva("select-none size-full font-medium", {
-  variants: {
-    size: {
-      sm: "text-[0.5rem]",
-      md: "text-[0.6rem]",
-      lg: "text-base",
-      xl: "text-base",
-      xxl: "text-2xl",
-    },
-    variant: {
-      user: "rounded-full",
-      org: "",
-    },
-  },
   compoundVariants: [
     {
       variant: "org",
@@ -123,6 +111,19 @@ const avatarFallbackVariants = cva("select-none size-full font-medium", {
   defaultVariants: {
     size: "md",
     variant: "user",
+  },
+  variants: {
+    size: {
+      lg: "text-base",
+      md: "text-[0.6rem]",
+      sm: "text-[0.5rem]",
+      xl: "text-base",
+      xxl: "text-2xl",
+    },
+    variant: {
+      org: "",
+      user: "rounded-full",
+    },
   },
 });
 
@@ -139,7 +140,7 @@ function getAvatarCharacter(value: string) {
     return "?";
   }
 
-  const firstCharacter = Array.from(trimmedValue)[0];
+  const firstCharacter = [...trimmedValue][0];
   if (!firstCharacter) {
     return "?";
   }
@@ -150,7 +151,7 @@ function getAvatarCharacter(value: string) {
 function getAvatarColorClass(seed: string) {
   let hash = 0;
   for (const character of seed) {
-    hash = character.charCodeAt(0) + ((hash << 5) - hash);
+    hash = (character.codePointAt(0) ?? 0) + hash * 31;
   }
 
   const paletteIndex = Math.abs(hash) % avatarColorClasses.length;
@@ -160,18 +161,18 @@ function getAvatarColorClass(seed: string) {
 function Avatar({ className, src, alt, variant, size, fallback }: AvatarProps) {
   const fallbackText = typeof fallback === "string" ? fallback : null;
   const fallbackCharacter =
-    fallbackText !== null ? getAvatarCharacter(fallbackText) : fallback;
+    fallbackText === null ? fallback : getAvatarCharacter(fallbackText);
   const fallbackColorClass = getAvatarColorClass(
-    fallbackText ?? alt ?? src ?? "avatar",
+    fallbackText ?? alt ?? src ?? "avatar"
   );
 
   return (
-    <BaseAvatar className={avatarVariants({ size, variant, className })}>
+    <BaseAvatar className={avatarVariants({ className, size, variant })}>
       <BaseAvatarImage src={src ?? undefined} alt={alt ?? undefined} />
       <BaseAvatarFallback
         className={cn(
           avatarFallbackVariants({ size, variant }),
-          fallbackColorClass,
+          fallbackColorClass
         )}
       >
         {fallbackCharacter}
@@ -206,7 +207,9 @@ function AvatarUpload({
   };
 
   useEffect(() => {
-    if (!preview) return;
+    if (!preview) {
+      return;
+    }
     return () => URL.revokeObjectURL(preview);
   }, [preview]);
 

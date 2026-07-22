@@ -2,17 +2,14 @@
   "name": "@connectors/framework",
   "version": "0.0.0",
   "private": true,
-  "type": "module",
   "author": "front-desk",
+  "type": "module",
   "exports": {
     ".": "./src/index.ts",
     "./runtime": "./src/runtime/index.ts"
   },
   "scripts": {
-    "lint": "biome lint .",
-    "lint:fix": "biome lint --fix .",
-    "typecheck": "tsc --noEmit",
-    "format": "bun biome format ./src --fix"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@live-state/sync": "catalog:",
@@ -21,6 +18,10 @@
     "ioredis": "^5.3.2",
     "zod": "catalog:"
   },
+  "devDependencies": {
+    "@types/node": "^22.15.2",
+    "typescript": "^5.7.0"
+  },
   "peerDependencies": {
     "api": "workspace:*"
   },
@@ -28,9 +29,5 @@
     "api": {
       "optional": true
     }
-  },
-  "devDependencies": {
-    "@types/node": "^22.15.2",
-    "typescript": "^5.7.0"
   }
 }

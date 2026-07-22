@@ -22,10 +22,10 @@ export interface ConnectorManifest {
  * import it without pulling in octokit or creating a workspace cycle.
  */
 export const githubManifest: ConnectorManifest = {
-  type: "github",
-  capabilities: ["issue-tracker", "pr-tracker"],
   baseUrlEnv: "BASE_GITHUB_SERVER_URL",
+  capabilities: ["issue-tracker", "pr-tracker"],
   defaultBaseUrl: "http://localhost:3334",
+  type: "github",
 };
 
 /**
@@ -36,10 +36,10 @@ export const githubManifest: ConnectorManifest = {
  * to satisfy the shared manifest shape.
  */
 export const discordManifest: ConnectorManifest = {
-  type: "discord",
-  capabilities: ["support-entry-point"],
   baseUrlEnv: "BASE_DISCORD_SERVER_URL",
+  capabilities: ["support-entry-point"],
   defaultBaseUrl: "http://localhost:3335",
+  type: "discord",
 };
 
 /**
@@ -50,10 +50,10 @@ export const discordManifest: ConnectorManifest = {
  * only to satisfy the shared manifest shape.
  */
 export const slackManifest: ConnectorManifest = {
-  type: "slack",
-  capabilities: ["support-entry-point"],
   baseUrlEnv: "BASE_SLACK_SERVER_URL",
+  capabilities: ["support-entry-point"],
   defaultBaseUrl: "http://localhost:3011",
+  type: "slack",
 };
 
 /** All known connector manifests. */
@@ -71,7 +71,7 @@ export const manifests: ConnectorManifest[] = [
  */
 export function typesProvidingCapability(
   capability: Capability,
-  manifestList: ConnectorManifest[] = manifests,
+  manifestList: ConnectorManifest[] = manifests
 ): string[] {
   return manifestList
     .filter((manifest) => manifest.capabilities.includes(capability))
@@ -86,11 +86,13 @@ export function typesProvidingCapability(
 export function typesHaveCapability(
   enabledTypes: Iterable<string>,
   capability: Capability,
-  manifestList: ConnectorManifest[] = manifests,
+  manifestList: ConnectorManifest[] = manifests
 ): boolean {
   const providers = new Set(typesProvidingCapability(capability, manifestList));
   for (const type of enabledTypes) {
-    if (providers.has(type)) return true;
+    if (providers.has(type)) {
+      return true;
+    }
   }
   return false;
 }

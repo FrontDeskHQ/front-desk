@@ -65,11 +65,11 @@ During active CLI development, use `bun run --filter cli dev thread create ...` 
 
 Each entry requires three fields:
 
-| Field | Type | Notes |
-|-------|------|-------|
-| `title` | string | Min 3 chars. Specific, customer-voice subject line |
-| `author` | string | Display name only (e.g. `"Michael Chen"`) |
-| `message` | string | Opening message body — plain text, first person |
+| Field     | Type   | Notes                                              |
+| --------- | ------ | -------------------------------------------------- |
+| `title`   | string | Min 3 chars. Specific, customer-voice subject line |
+| `author`  | string | Display name only (e.g. `"Michael Chen"`)          |
+| `message` | string | Opening message body — plain text, first person    |
 
 ```json
 [
@@ -157,8 +157,21 @@ Stdout is always JSON:
 
 ```json
 {
-  "created": [{ "id": "...", "title": "...", "shortId": 42, "url": "http://localhost:3000/support/acme/threads/42-..." }],
-  "failed": [{ "index": 2, "title": "...", "error": "Title must be at least 3 characters" }]
+  "created": [
+    {
+      "id": "...",
+      "title": "...",
+      "shortId": 42,
+      "url": "http://localhost:3000/support/acme/threads/42-..."
+    }
+  ],
+  "failed": [
+    {
+      "index": 2,
+      "title": "...",
+      "error": "Title must be at least 3 characters"
+    }
+  ]
 }
 ```
 

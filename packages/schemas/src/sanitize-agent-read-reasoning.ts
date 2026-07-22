@@ -28,13 +28,15 @@ const SENTENCE_WITH_INTERNAL_RE =
 
 const collapseWhitespace = (text: string): string =>
   text
-    .replace(/\s{2,}/g, " ")
-    .replace(/\n{3,}/g, "\n\n")
+    .replaceAll(/\s{2,}/g, " ")
+    .replaceAll(/\n{3,}/g, "\n\n")
     .trim();
 
 export const sanitizeAgentReadReasoning = (reasoning: string): string => {
   let text = reasoning.trim();
-  if (!text) return "";
+  if (!text) {
+    return "";
+  }
 
   text = text
     .replace(THREAD_MARKDOWN_LINK_RE, "$1")

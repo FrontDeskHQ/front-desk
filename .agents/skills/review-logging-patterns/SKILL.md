@@ -21,12 +21,12 @@ Review and improve logging patterns in TypeScript/JavaScript codebases. Transfor
 
 ## Quick Reference
 
-| Working on...           | Resource                                                           |
-| ----------------------- | ------------------------------------------------------------------ |
-| Wide events patterns    | [references/wide-events.md](references/wide-events.md)             |
-| Error handling          | [references/structured-errors.md](references/structured-errors.md) |
-| Code review checklist   | [references/code-review.md](references/code-review.md)             |
-| Drain pipeline          | [references/drain-pipeline.md](references/drain-pipeline.md)       |
+| Working on... | Resource |
+| --- | --- |
+| Wide events patterns | [references/wide-events.md](references/wide-events.md) |
+| Error handling | [references/structured-errors.md](references/structured-errors.md) |
+| Code review checklist | [references/code-review.md](references/code-review.md) |
+| Drain pipeline | [references/drain-pipeline.md](references/drain-pipeline.md) |
 
 ## Installation
 
@@ -43,12 +43,12 @@ npm install evlog
 ```typescript
 // nuxt.config.ts
 export default defineNuxtConfig({
-  modules: ['evlog/nuxt'],
+  modules: ["evlog/nuxt"],
   evlog: {
-    env: { service: 'my-app' },
-    include: ['/api/**'],
+    env: { service: "my-app" },
+    include: ["/api/**"],
   },
-})
+});
 ```
 
 All evlog functions (`useLogger`, `createError`, `parseError`, `log`) are **auto-imported** — no import statements needed.
@@ -56,21 +56,21 @@ All evlog functions (`useLogger`, `createError`, `parseError`, `log`) are **auto
 ```typescript
 // server/api/checkout.post.ts — no imports needed
 export default defineEventHandler(async (event) => {
-  const log = useLogger(event)
-  log.set({ user: { id: user.id, plan: user.plan } })
-  return { success: true }
-})
+  const log = useLogger(event);
+  log.set({ user: { id: user.id, plan: user.plan } });
+  return { success: true };
+});
 ```
 
 Drain, enrich, and tail sampling use Nitro hooks in server plugins:
 
 ```typescript
 // server/plugins/evlog-drain.ts
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
 export default defineNitroPlugin((nitroApp) => {
-  nitroApp.hooks.hook('evlog:drain', createAxiomDrain())
-})
+  nitroApp.hooks.hook("evlog:drain", createAxiomDrain());
+});
 ```
 
 Client transport (auto-configured Vue plugin):
@@ -90,101 +90,111 @@ Client-side: `log`, `setIdentity`, `clearIdentity` are auto-imported in componen
 
 ```typescript
 // lib/evlog.ts
-import type { DrainContext } from 'evlog'
-import { createEvlog } from 'evlog/next'
-import { createUserAgentEnricher, createRequestSizeEnricher } from 'evlog/enrichers'
-import { createDrainPipeline } from 'evlog/pipeline'
+import type { DrainContext } from "evlog";
+import { createEvlog } from "evlog/next";
+import {
+  createUserAgentEnricher,
+  createRequestSizeEnricher,
+} from "evlog/enrichers";
+import { createDrainPipeline } from "evlog/pipeline";
 
-const enrichers = [createUserAgentEnricher(), createRequestSizeEnricher()]
-const pipeline = createDrainPipeline<DrainContext>({ batch: { size: 50, intervalMs: 5000 } })
-const drain = pipeline(createAxiomDrain({ dataset: 'logs', token: process.env.AXIOM_TOKEN! }))
+const enrichers = [createUserAgentEnricher(), createRequestSizeEnricher()];
+const pipeline = createDrainPipeline<DrainContext>({
+  batch: { size: 50, intervalMs: 5000 },
+});
+const drain = pipeline(
+  createAxiomDrain({ dataset: "logs", token: process.env.AXIOM_TOKEN! })
+);
 
 export const { withEvlog, useLogger, log, createError } = createEvlog({
-  service: 'my-app',
+  service: "my-app",
   sampling: {
     rates: { info: 10 },
     keep: [{ status: 400 }, { duration: 1000 }],
   },
   routes: {
-    '/api/auth/**': { service: 'auth-service' },
-    '/api/checkout/**': { service: 'checkout-service' },
+    "/api/auth/**": { service: "auth-service" },
+    "/api/checkout/**": { service: "checkout-service" },
   },
   keep: (ctx) => {
-    const user = ctx.context.user as { premium?: boolean } | undefined
-    if (user?.premium) ctx.shouldKeep = true
+    const user = ctx.context.user as { premium?: boolean } | undefined;
+    if (user?.premium) ctx.shouldKeep = true;
   },
   enrich: (ctx) => {
-    for (const enricher of enrichers) enricher(ctx)
+    for (const enricher of enrichers) enricher(ctx);
   },
   drain,
-})
+});
 ```
 
 **Step 2: Wrap route handlers** with `withEvlog()`:
 
 ```typescript
 // app/api/checkout/route.ts
-import { withEvlog, useLogger } from '@/lib/evlog'
+import { withEvlog, useLogger } from "@/lib/evlog";
 
 export const POST = withEvlog(async (request: Request) => {
-  const log = useLogger()  // Zero arguments — uses AsyncLocalStorage
-  log.set({ user: { id: 'user_123', plan: 'enterprise' } })
-  log.set({ cart: { items: 3, total: 14999 } })
-  return Response.json({ success: true })
-})
+  const log = useLogger(); // Zero arguments — uses AsyncLocalStorage
+  log.set({ user: { id: "user_123", plan: "enterprise" } });
+  log.set({ cart: { items: 3, total: 14999 } });
+  return Response.json({ success: true });
+});
 ```
 
 **Step 3: Server Actions** — same `withEvlog()` wrapper:
 
 ```typescript
 // app/actions.ts
-'use server'
-import { withEvlog, useLogger } from '@/lib/evlog'
+"use server";
+import { withEvlog, useLogger } from "@/lib/evlog";
 
 export const checkout = withEvlog(async (formData: FormData) => {
-  const log = useLogger()
-  log.set({ action: 'checkout', source: 'server-action' })
-  return { success: true }
-})
+  const log = useLogger();
+  log.set({ action: "checkout", source: "server-action" });
+  return { success: true };
+});
 ```
 
 **Step 4: Middleware** (optional — sets `x-request-id` + timing headers):
 
 ```typescript
 // proxy.ts
-import { evlogMiddleware } from 'evlog/next'
-export const proxy = evlogMiddleware()
-export const config = { matcher: ['/api/:path*'] }
+import { evlogMiddleware } from "evlog/next";
+export const proxy = evlogMiddleware();
+export const config = { matcher: ["/api/:path*"] };
 ```
 
 **Step 5: Client Provider** — wrap root layout:
 
 ```tsx
 // app/layout.tsx
-import { EvlogProvider } from 'evlog/next/client'
+import { EvlogProvider } from "evlog/next/client";
 
 export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
       <body>
-        <EvlogProvider service="my-app" transport={{ enabled: true, endpoint: '/api/evlog/ingest' }}>
+        <EvlogProvider
+          service="my-app"
+          transport={{ enabled: true, endpoint: "/api/evlog/ingest" }}
+        >
           {children}
         </EvlogProvider>
       </body>
     </html>
-  )
+  );
 }
 ```
 
 **Step 6: Client logging** — in any client component:
 
 ```tsx
-'use client'
-import { log, setIdentity, clearIdentity } from 'evlog/next/client'
+"use client";
+import { log, setIdentity, clearIdentity } from "evlog/next/client";
 
-setIdentity({ userId: 'usr_123' })
-log.info({ action: 'checkout_click' })
-clearIdentity()
+setIdentity({ userId: "usr_123" });
+log.info({ action: "checkout_click" });
+clearIdentity();
 ```
 
 **Step 7 (optional): Instrumentation** — startup + global `onRequestError` (SSR/RSC errors outside `withEvlog`). Use `defineNodeInstrumentation(() => import('./lib/evlog'))` in root `instrumentation.ts` to gate Node + cache the import, **or** write `register`/`onRequestError` manually — both are valid. For custom logic, wrap evlog’s `register`/`onRequestError` inside `lib/evlog.ts` (compose with your own init or metrics), then re-export.
@@ -195,23 +205,26 @@ Export `createInstrumentation()` from `lib/evlog.ts` alongside `createEvlog()`. 
 
 ```typescript
 // app/api/evlog/ingest/route.ts
-import { NextRequest } from 'next/server'
+import { NextRequest } from "next/server";
 
-const VALID_LEVELS = ['info', 'error', 'warn', 'debug'] as const
+const VALID_LEVELS = ["info", "error", "warn", "debug"] as const;
 
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin')
-  const host = request.headers.get('host')
+  const origin = request.headers.get("origin");
+  const host = request.headers.get("host");
   if (origin && new URL(origin).host !== host) {
-    return Response.json({ error: 'Invalid origin' }, { status: 403 })
+    return Response.json({ error: "Invalid origin" }, { status: 403 });
   }
-  const body = await request.json()
+  const body = await request.json();
   if (!body?.timestamp || !body?.level || !VALID_LEVELS.includes(body.level)) {
-    return Response.json({ error: 'Invalid payload' }, { status: 400 })
+    return Response.json({ error: "Invalid payload" }, { status: 400 });
   }
-  const { service: _, ...sanitized } = body
-  console.log('[CLIENT LOG]', JSON.stringify({ ...sanitized, service: 'my-app', source: 'client' }))
-  return new Response(null, { status: 204 })
+  const { service: _, ...sanitized } = body;
+  console.log(
+    "[CLIENT LOG]",
+    JSON.stringify({ ...sanitized, service: "my-app", source: "client" })
+  );
+  return new Response(null, { status: 204 });
 }
 ```
 
@@ -219,72 +232,74 @@ export async function POST(request: NextRequest) {
 
 ```typescript
 // src/hooks.server.ts
-import { initLogger } from 'evlog'
-import { createEvlogHooks } from 'evlog/sveltekit'
+import { initLogger } from "evlog";
+import { createEvlogHooks } from "evlog/sveltekit";
 
-initLogger({ env: { service: 'my-app' } })
+initLogger({ env: { service: "my-app" } });
 
-export const { handle, handleError } = createEvlogHooks()
+export const { handle, handleError } = createEvlogHooks();
 ```
 
 Access the logger via `event.locals.log` in route handlers or `useLogger()` from anywhere in the call stack:
 
 ```typescript
 // src/routes/api/users/[id]/+server.ts
-import { json } from '@sveltejs/kit'
+import { json } from "@sveltejs/kit";
 
 export const GET = ({ locals, params }) => {
-  locals.log.set({ user: { id: params.id } })
-  return json({ id: params.id })
-}
+  locals.log.set({ user: { id: params.id } });
+  return json({ id: params.id });
+};
 ```
 
 ```typescript
-import { useLogger } from 'evlog/sveltekit'
+import { useLogger } from "evlog/sveltekit";
 
 async function findUsers() {
-  const log = useLogger()
-  log.set({ db: { query: 'SELECT * FROM users' } })
+  const log = useLogger();
+  log.set({ db: { query: "SELECT * FROM users" } });
 }
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
 export const { handle, handleError } = createEvlogHooks({
-  include: ['/api/**'],
+  include: ["/api/**"],
   drain: createAxiomDrain(),
-  enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
-  keep: (ctx) => {
-    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
+  enrich: (ctx) => {
+    ctx.event.region = process.env.FLY_REGION;
   },
-})
+  keep: (ctx) => {
+    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
+  },
+});
 ```
 
 ### Nitro v3
 
 ```typescript
 // nitro.config.ts
-import { defineConfig } from 'nitro'
-import evlog from 'evlog/nitro/v3'
+import { defineConfig } from "nitro";
+import evlog from "evlog/nitro/v3";
 
 export default defineConfig({
-  modules: [evlog({ env: { service: 'my-api' } })],
-})
+  modules: [evlog({ env: { service: "my-api" } })],
+});
 ```
 
 ```typescript
 // routes/api/checkout.post.ts
-import { defineHandler } from 'nitro/h3'
-import { useLogger } from 'evlog/nitro/v3'
+import { defineHandler } from "nitro/h3";
+import { useLogger } from "evlog/nitro/v3";
 
 export default defineHandler(async (event) => {
-  const log = useLogger(event)
-  log.set({ action: 'checkout' })
-  return { ok: true }
-})
+  const log = useLogger(event);
+  log.set({ action: "checkout" });
+  return { ok: true };
+});
 ```
 
 ### TanStack Start
@@ -293,50 +308,50 @@ TanStack Start uses Nitro v3. Install evlog and add a `nitro.config.ts`:
 
 ```typescript
 // nitro.config.ts
-import { defineConfig } from 'nitro'
-import evlog from 'evlog/nitro/v3'
+import { defineConfig } from "nitro";
+import evlog from "evlog/nitro/v3";
 
 export default defineConfig({
   experimental: { asyncContext: true },
-  modules: [evlog({ env: { service: 'my-app' } })],
-})
+  modules: [evlog({ env: { service: "my-app" } })],
+});
 ```
 
 Add the error handling middleware to `__root.tsx`:
 
 ```typescript
 // src/routes/__root.tsx
-import { createMiddleware } from '@tanstack/react-start'
-import { evlogErrorHandler } from 'evlog/nitro/v3'
+import { createMiddleware } from "@tanstack/react-start";
+import { evlogErrorHandler } from "evlog/nitro/v3";
 
 export const Route = createRootRoute({
   server: {
     middleware: [createMiddleware().server(evlogErrorHandler)],
   },
-})
+});
 ```
 
 Use `useRequest()` from `nitro/context` to access the logger:
 
 ```typescript
-import { useRequest } from 'nitro/context'
-import type { RequestLogger } from 'evlog'
+import { useRequest } from "nitro/context";
+import type { RequestLogger } from "evlog";
 
-const req = useRequest()
-const log = req.context.log as RequestLogger
-log.set({ user: { id: 'user_123' } })
+const req = useRequest();
+const log = req.context.log as RequestLogger;
+log.set({ user: { id: "user_123" } });
 ```
 
 ### Nitro v2
 
 ```typescript
 // nitro.config.ts
-import { defineNitroConfig } from 'nitropack/config'
-import evlog from 'evlog/nitro'
+import { defineNitroConfig } from "nitropack/config";
+import evlog from "evlog/nitro";
 
 export default defineNitroConfig({
-  modules: [evlog({ env: { service: 'my-api' } })],
-})
+  modules: [evlog({ env: { service: "my-api" } })],
+});
 ```
 
 Import `useLogger` from `evlog/nitro` in routes.
@@ -345,8 +360,8 @@ Import `useLogger` from `evlog/nitro` in routes.
 
 ```typescript
 // src/app.module.ts
-import { Module } from '@nestjs/common'
-import { EvlogModule } from 'evlog/nestjs'
+import { Module } from "@nestjs/common";
+import { EvlogModule } from "evlog/nestjs";
 
 @Module({
   imports: [EvlogModule.forRoot()],
@@ -357,27 +372,29 @@ export class AppModule {}
 `EvlogModule.forRoot()` registers a global middleware. Use `useLogger()` to access the request-scoped logger from any controller or service:
 
 ```typescript
-import { useLogger } from 'evlog/nestjs'
+import { useLogger } from "evlog/nestjs";
 
 async function findUsers() {
-  const log = useLogger()
-  log.set({ db: { query: 'SELECT * FROM users' } })
+  const log = useLogger();
+  log.set({ db: { query: "SELECT * FROM users" } });
 }
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
 EvlogModule.forRoot({
-  include: ['/api/**'],
+  include: ["/api/**"],
   drain: createAxiomDrain(),
-  enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
-  keep: (ctx) => {
-    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
+  enrich: (ctx) => {
+    ctx.event.region = process.env.FLY_REGION;
   },
-})
+  keep: (ctx) => {
+    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
+  },
+});
 ```
 
 For async configuration with NestJS DI, use `forRootAsync()`:
@@ -387,72 +404,76 @@ EvlogModule.forRootAsync({
   imports: [ConfigModule],
   inject: [ConfigService],
   useFactory: (config) => ({
-    drain: createAxiomDrain({ token: config.get('AXIOM_TOKEN') }),
+    drain: createAxiomDrain({ token: config.get("AXIOM_TOKEN") }),
   }),
-})
+});
 ```
 
 ### Express
 
 ```typescript
-import express from 'express'
-import { initLogger } from 'evlog'
-import { evlog, useLogger } from 'evlog/express'
+import express from "express";
+import { initLogger } from "evlog";
+import { evlog, useLogger } from "evlog/express";
 
-initLogger({ env: { service: 'my-api' } })
+initLogger({ env: { service: "my-api" } });
 
-const app = express()
-app.use(evlog())
+const app = express();
+app.use(evlog());
 
-app.get('/api/users', (req, res) => {
-  req.log.set({ users: { count: 42 } })
-  res.json({ users: [] })
-})
+app.get("/api/users", (req, res) => {
+  req.log.set({ users: { count: 42 } });
+  res.json({ users: [] });
+});
 ```
 
 Use `useLogger()` to access the logger from anywhere in the call stack without passing `req`:
 
 ```typescript
-import { useLogger } from 'evlog/express'
+import { useLogger } from "evlog/express";
 
 async function findUsers() {
-  const log = useLogger()
-  log.set({ db: { query: 'SELECT * FROM users' } })
+  const log = useLogger();
+  log.set({ db: { query: "SELECT * FROM users" } });
 }
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
-app.use(evlog({
-  include: ['/api/**'],
-  drain: createAxiomDrain(),
-  enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
-  keep: (ctx) => {
-    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
-  },
-}))
+app.use(
+  evlog({
+    include: ["/api/**"],
+    drain: createAxiomDrain(),
+    enrich: (ctx) => {
+      ctx.event.region = process.env.FLY_REGION;
+    },
+    keep: (ctx) => {
+      if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
+    },
+  })
+);
 ```
 
 ### Hono
 
 ```typescript
-import { Hono } from 'hono'
-import { initLogger } from 'evlog'
-import { evlog, type EvlogVariables } from 'evlog/hono'
+import { Hono } from "hono";
+import { initLogger } from "evlog";
+import { evlog, type EvlogVariables } from "evlog/hono";
 
-initLogger({ env: { service: 'my-api' } })
+initLogger({ env: { service: "my-api" } });
 
-const app = new Hono<EvlogVariables>()
-app.use(evlog())
+const app = new Hono<EvlogVariables>();
+app.use(evlog());
 
-app.get('/api/users', (c) => {
-  const log = c.get('log')
-  log.set({ users: { count: 42 } })
-  return c.json({ users: [] })
-})
+app.get("/api/users", (c) => {
+  const log = c.get("log");
+  log.set({ users: { count: 42 } });
+  return c.json({ users: [] });
+});
 ```
 
 Access the logger via `c.get('log')` in handlers. No `useLogger()` — use `c.get('log')` and pass it down explicitly, or use Express/Fastify/Elysia if you need `useLogger()` across async boundaries.
@@ -460,50 +481,59 @@ Access the logger via `c.get('log')` in handlers. No `useLogger()` — use `c.ge
 Structured errors: throw `createError()`, then in `app.onError` use `parseError()` and pass `parsed.status as ContentfulStatusCode` to `c.json()` (Hono types the status argument as `ContentfulStatusCode`, not `number`).
 
 ```typescript
-import { createError, parseError } from 'evlog'
-import type { ContentfulStatusCode } from 'hono/utils/http-status'
+import { createError, parseError } from "evlog";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 app.onError((error, c) => {
-  c.get('log').error(error)
-  const parsed = parseError(error)
+  c.get("log").error(error);
+  const parsed = parseError(error);
   return c.json(
-    { message: parsed.message, why: parsed.why, fix: parsed.fix, link: parsed.link },
-    parsed.status as ContentfulStatusCode,
-  )
-})
+    {
+      message: parsed.message,
+      why: parsed.why,
+      fix: parsed.fix,
+      link: parsed.link,
+    },
+    parsed.status as ContentfulStatusCode
+  );
+});
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
-app.use(evlog({
-  include: ['/api/**'],
-  drain: createAxiomDrain(),
-  enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
-  keep: (ctx) => {
-    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
-  },
-}))
+app.use(
+  evlog({
+    include: ["/api/**"],
+    drain: createAxiomDrain(),
+    enrich: (ctx) => {
+      ctx.event.region = process.env.FLY_REGION;
+    },
+    keep: (ctx) => {
+      if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
+    },
+  })
+);
 ```
 
 ### Fastify
 
 ```typescript
-import Fastify from 'fastify'
-import { initLogger } from 'evlog'
-import { evlog, useLogger } from 'evlog/fastify'
+import Fastify from "fastify";
+import { initLogger } from "evlog";
+import { evlog, useLogger } from "evlog/fastify";
 
-initLogger({ env: { service: 'my-api' } })
+initLogger({ env: { service: "my-api" } });
 
-const app = Fastify({ logger: false })
-await app.register(evlog)
+const app = Fastify({ logger: false });
+await app.register(evlog);
 
-app.get('/api/users', async (request) => {
-  request.log.set({ users: { count: 42 } })
-  return { users: [] }
-})
+app.get("/api/users", async (request) => {
+  request.log.set({ users: { count: 42 } });
+  return { users: [] };
+});
 ```
 
 `request.log` is the evlog wide-event logger (shadows Fastify's built-in pino logger on the request). Fastify's pino logger remains accessible via `fastify.log`.
@@ -511,161 +541,167 @@ app.get('/api/users', async (request) => {
 Use `useLogger()` to access the logger from anywhere in the call stack without passing `request`:
 
 ```typescript
-import { useLogger } from 'evlog/fastify'
+import { useLogger } from "evlog/fastify";
 
 async function findUsers() {
-  const log = useLogger()
-  log.set({ db: { query: 'SELECT * FROM users' } })
+  const log = useLogger();
+  log.set({ db: { query: "SELECT * FROM users" } });
 }
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
 await app.register(evlog, {
-  include: ['/api/**'],
+  include: ["/api/**"],
   drain: createAxiomDrain(),
-  enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
-  keep: (ctx) => {
-    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
+  enrich: (ctx) => {
+    ctx.event.region = process.env.FLY_REGION;
   },
-})
+  keep: (ctx) => {
+    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
+  },
+});
 ```
 
 ### Elysia
 
 ```typescript
-import { Elysia } from 'elysia'
-import { initLogger } from 'evlog'
-import { evlog, useLogger } from 'evlog/elysia'
+import { Elysia } from "elysia";
+import { initLogger } from "evlog";
+import { evlog, useLogger } from "evlog/elysia";
 
-initLogger({ env: { service: 'my-api' } })
+initLogger({ env: { service: "my-api" } });
 
 const app = new Elysia()
   .use(evlog())
-  .get('/api/users', ({ log }) => {
-    log.set({ users: { count: 42 } })
-    return { users: [] }
+  .get("/api/users", ({ log }) => {
+    log.set({ users: { count: 42 } });
+    return { users: [] };
   })
-  .listen(3000)
+  .listen(3000);
 ```
 
 Use `useLogger()` to access the logger from anywhere in the call stack:
 
 ```typescript
-import { useLogger } from 'evlog/elysia'
+import { useLogger } from "evlog/elysia";
 
 async function findUsers() {
-  const log = useLogger()
-  log.set({ db: { query: 'SELECT * FROM users' } })
+  const log = useLogger();
+  log.set({ db: { query: "SELECT * FROM users" } });
 }
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
-app.use(evlog({
-  include: ['/api/**'],
-  drain: createAxiomDrain(),
-  enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
-  keep: (ctx) => {
-    if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
-  },
-}))
+app.use(
+  evlog({
+    include: ["/api/**"],
+    drain: createAxiomDrain(),
+    enrich: (ctx) => {
+      ctx.event.region = process.env.FLY_REGION;
+    },
+    keep: (ctx) => {
+      if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
+    },
+  })
+);
 ```
 
 ### React Router
 
 ```typescript
 // react-router.config.ts
-import type { Config } from '@react-router/dev/config'
+import type { Config } from "@react-router/dev/config";
 
 export default {
   future: {
     v8_middleware: true,
   },
-} satisfies Config
+} satisfies Config;
 ```
 
 ```typescript
 // app/root.tsx
-import { initLogger } from 'evlog'
-import { evlog } from 'evlog/react-router'
+import { initLogger } from "evlog";
+import { evlog } from "evlog/react-router";
 
-initLogger({ env: { service: 'my-api' } })
+initLogger({ env: { service: "my-api" } });
 
-export const middleware: Route.MiddlewareFunction[] = [
-  evlog(),
-]
+export const middleware: Route.MiddlewareFunction[] = [evlog()];
 ```
 
 Access the logger via `context.get(loggerContext)` in loaders and actions:
 
 ```typescript
 // app/routes/api.users.$id.tsx
-import { loggerContext } from 'evlog/react-router'
+import { loggerContext } from "evlog/react-router";
 
 export async function loader({ params, context }: Route.LoaderArgs) {
-  const log = context.get(loggerContext)
-  log.set({ user: { id: params.id } })
-  return { users: [] }
+  const log = context.get(loggerContext);
+  log.set({ user: { id: params.id } });
+  return { users: [] };
 }
 ```
 
 Use `useLogger()` to access the logger from anywhere in the call stack without passing context:
 
 ```typescript
-import { useLogger } from 'evlog/react-router'
+import { useLogger } from "evlog/react-router";
 
 async function findUsers() {
-  const log = useLogger()
-  log.set({ db: { query: 'SELECT * FROM users' } })
+  const log = useLogger();
+  log.set({ db: { query: "SELECT * FROM users" } });
 }
 ```
 
 Full pipeline with drain, enrich, and tail sampling:
 
 ```typescript
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 
 export const middleware: Route.MiddlewareFunction[] = [
   evlog({
-    include: ['/api/**'],
+    include: ["/api/**"],
     drain: createAxiomDrain(),
-    enrich: (ctx) => { ctx.event.region = process.env.FLY_REGION },
+    enrich: (ctx) => {
+      ctx.event.region = process.env.FLY_REGION;
+    },
     keep: (ctx) => {
-      if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true
+      if (ctx.duration && ctx.duration > 2000) ctx.shouldKeep = true;
     },
   }),
-]
+];
 ```
 
 ### Cloudflare Workers
 
 ```typescript
-import { initWorkersLogger, createWorkersLogger } from 'evlog/workers'
+import { initWorkersLogger, createWorkersLogger } from "evlog/workers";
 
-initWorkersLogger({ env: { service: 'edge-api' } })
+initWorkersLogger({ env: { service: "edge-api" } });
 
 export default {
   async fetch(request: Request) {
-    const log = createWorkersLogger(request)
+    const log = createWorkersLogger(request);
     try {
-      log.set({ route: 'health' })
-      const response = new Response('ok', { status: 200 })
-      log.emit({ status: response.status })
-      return response
+      log.set({ route: "health" });
+      const response = new Response("ok", { status: 200 });
+      log.emit({ status: response.status });
+      return response;
     } catch (error) {
-      log.error(error as Error)
-      log.emit({ status: 500 })
-      throw error
+      log.error(error as Error);
+      log.emit({ status: 500 });
+      throw error;
     }
   },
-}
+};
 ```
 
 ### Vite Plugin (any Vite-based framework)
@@ -674,21 +710,22 @@ For any Vite-based project (SvelteKit, Astro, SolidStart, React+Vite, etc.), use
 
 ```typescript
 // vite.config.ts
-import evlog from 'evlog/vite'
+import evlog from "evlog/vite";
 
 export default defineConfig({
   plugins: [
     evlog({
-      service: 'my-app',
-      autoImports: true,           // auto-import log, createEvlogError, parseError
-      strip: ['debug'],            // remove log.debug() in production
-      sourceLocation: true,        // inject file:line in dev + prod
-      client: {                    // client-side logging
-        transport: { endpoint: '/api/logs' },
+      service: "my-app",
+      autoImports: true, // auto-import log, createEvlogError, parseError
+      strip: ["debug"], // remove log.debug() in production
+      sourceLocation: true, // inject file:line in dev + prod
+      client: {
+        // client-side logging
+        transport: { endpoint: "/api/logs" },
       },
     }),
   ],
-})
+});
 ```
 
 Server-side middleware (drain, enrich, keep, routes) is still configured in the framework integration (e.g., `evlog()` middleware for Hono/Express/SvelteKit). The Vite plugin handles build-time DX only.
@@ -696,13 +733,13 @@ Server-side middleware (drain, enrich, keep, routes) is still configured in the 
 ### Standalone TypeScript
 
 ```typescript
-import { initLogger, createRequestLogger } from 'evlog'
+import { initLogger, createRequestLogger } from "evlog";
 
-initLogger({ env: { service: 'my-worker', environment: 'production' } })
+initLogger({ env: { service: "my-worker", environment: "production" } });
 
-const log = createRequestLogger({ jobId: job.id })
-log.set({ source: job.source, recordsSynced: 150 })
-log.emit()  // Manual emit required in standalone
+const log = createRequestLogger({ jobId: job.id });
+log.set({ source: job.source, recordsSynced: 150 });
+log.emit(); // Manual emit required in standalone
 ```
 
 ---
@@ -712,7 +749,7 @@ log.emit()  // Manual emit required in standalone
 All options work in Nuxt (`evlog` key), Nitro (passed to `evlog()`), Next.js (`createEvlog()`), and standalone (`initLogger()`).
 
 | Option | Type | Default | Description |
-|--------|------|---------|-------------|
+| --- | --- | --- | --- |
 | `env.service` / `service` | `string` | `'app'` | Service name in logs |
 | `enabled` | `boolean` | `true` | Global toggle (no-ops when false) |
 | `pretty` | `boolean` | `true` in dev | Pretty tree format vs JSON |
@@ -731,7 +768,7 @@ All options work in Nuxt (`evlog` key), Nitro (passed to `evlog()`), Next.js (`c
 ### Nitro Hooks (Nuxt, Nitro v2/v3)
 
 | Hook | When | Use |
-|------|------|-----|
+| --- | --- | --- |
 | `evlog:drain` | After enrichment | Send events to external services |
 | `evlog:enrich` | After emit, before drain | Add derived context |
 | `evlog:emit:keep` | During emit | Custom tail sampling logic |
@@ -742,7 +779,7 @@ All options work in Nuxt (`evlog` key), Nitro (passed to `evlog()`), Next.js (`c
 ## Drain Adapters
 
 | Adapter | Import | Env Vars |
-|---------|--------|----------|
+| --- | --- | --- |
 | Axiom | `evlog/axiom` | `AXIOM_TOKEN`, `AXIOM_DATASET` |
 | OTLP | `evlog/otlp` | `OTLP_ENDPOINT` (or `OTEL_EXPORTER_OTLP_ENDPOINT`) |
 | HyperDX | `evlog/hyperdx` | `HYPERDX_API_KEY` (optional `HYPERDX_OTLP_ENDPOINT`; defaults to `https://in-otel.hyperdx.io`) |
@@ -759,32 +796,32 @@ Setup pattern per framework:
 
 ```typescript
 // Nuxt/Nitro: server/plugins/evlog-drain.ts
-import { createAxiomDrain } from 'evlog/axiom'
+import { createAxiomDrain } from "evlog/axiom";
 export default defineNitroPlugin((nitroApp) => {
-  nitroApp.hooks.hook('evlog:drain', createAxiomDrain())
-})
+  nitroApp.hooks.hook("evlog:drain", createAxiomDrain());
+});
 
 // Hono / Express / Elysia: pass drain in middleware options
-import { createAxiomDrain } from 'evlog/axiom'
-app.use(evlog({ drain: createAxiomDrain() }))
+import { createAxiomDrain } from "evlog/axiom";
+app.use(evlog({ drain: createAxiomDrain() }));
 
 // Fastify: pass drain in plugin options
-import { createAxiomDrain } from 'evlog/axiom'
-await app.register(evlog, { drain: createAxiomDrain() })
+import { createAxiomDrain } from "evlog/axiom";
+await app.register(evlog, { drain: createAxiomDrain() });
 
 // NestJS: pass drain in module options
-import { createAxiomDrain } from 'evlog/axiom'
-EvlogModule.forRoot({ drain: createAxiomDrain() })
+import { createAxiomDrain } from "evlog/axiom";
+EvlogModule.forRoot({ drain: createAxiomDrain() });
 
 // Next.js: pass drain to createEvlog()
-import { createAxiomDrain } from 'evlog/axiom'
-import { createDrainPipeline } from 'evlog/pipeline'
-const pipeline = createDrainPipeline<DrainContext>({ batch: { size: 50 } })
-const drain = pipeline(createAxiomDrain())
+import { createAxiomDrain } from "evlog/axiom";
+import { createDrainPipeline } from "evlog/pipeline";
+const pipeline = createDrainPipeline<DrainContext>({ batch: { size: 50 } });
+const drain = pipeline(createAxiomDrain());
 // then: createEvlog({ ..., drain })
 
 // Standalone: pass drain to initLogger()
-initLogger({ env: { service: 'my-app' }, drain: createAxiomDrain() })
+initLogger({ env: { service: "my-app" }, drain: createAxiomDrain() });
 ```
 
 See [references/drain-pipeline.md](references/drain-pipeline.md) for batching, retry, and buffer overflow config.
@@ -797,21 +834,21 @@ Built-in: `createUserAgentEnricher()`, `createGeoEnricher()`, `createRequestSize
 
 ```typescript
 // Nuxt/Nitro: server/plugins/evlog-enrich.ts
-import { createUserAgentEnricher, createGeoEnricher } from 'evlog/enrichers'
+import { createUserAgentEnricher, createGeoEnricher } from "evlog/enrichers";
 export default defineNitroPlugin((nitroApp) => {
-  const enrichers = [createUserAgentEnricher(), createGeoEnricher()]
-  nitroApp.hooks.hook('evlog:enrich', (ctx) => {
-    for (const enricher of enrichers) enricher(ctx)
-  })
-})
+  const enrichers = [createUserAgentEnricher(), createGeoEnricher()];
+  nitroApp.hooks.hook("evlog:enrich", (ctx) => {
+    for (const enricher of enrichers) enricher(ctx);
+  });
+});
 
 // Next.js: in lib/evlog.ts
 createEvlog({
   enrich: (ctx) => {
-    for (const enricher of enrichers) enricher(ctx)
-    ctx.event.region = process.env.VERCEL_REGION
+    for (const enricher of enrichers) enricher(ctx);
+    ctx.event.region = process.env.VERCEL_REGION;
   },
-})
+});
 ```
 
 ---
@@ -850,15 +887,15 @@ evlog: {
 
 **Built-in patterns** with smart masking output:
 
-| Pattern | Example Input | Masked Output |
-|---------|---------------|---------------|
-| `creditCard` | `4111111111111111` | `****1111` |
-| `email` | `alice@example.com` | `a***@***.com` |
-| `ipv4` | `192.168.1.100` | `***.***.***.100` |
-| `phone` | `+33 6 12 34 56 78` | `+33 ****5678` |
-| `jwt` | `eyJhbGciOi...` | `eyJ***.***` |
-| `bearer` | `Bearer sk_live_abc...` | `Bearer ***` |
-| `iban` | `FR76 3000 6000 ...189` | `FR76****189` |
+| Pattern      | Example Input           | Masked Output     |
+| ------------ | ----------------------- | ----------------- |
+| `creditCard` | `4111111111111111`      | `****1111`        |
+| `email`      | `alice@example.com`     | `a***@***.com`    |
+| `ipv4`       | `192.168.1.100`         | `***.***.***.100` |
+| `phone`      | `+33 6 12 34 56 78`     | `+33 ****5678`    |
+| `jwt`        | `eyJhbGciOi...`         | `eyJ***.***`      |
+| `bearer`     | `Bearer sk_live_abc...` | `Bearer ***`      |
+| `iban`       | `FR76 3000 6000 ...189` | `FR76****189`     |
 
 Works in all frameworks: Nuxt (`evlog` config), Nitro (`evlog()` module options), Next.js (`createEvlog()`), standalone (`initLogger()`), and all middleware integrations (Hono, Express, Fastify, Elysia, NestJS).
 
@@ -871,15 +908,15 @@ Capture token usage, tool calls, model info, streaming metrics, tool execution t
 ### Basic setup (middleware)
 
 ```typescript
-import { createAILogger } from 'evlog/ai'
+import { createAILogger } from "evlog/ai";
 
-const log = useLogger(event) // or any RequestLogger
-const ai = createAILogger(log)
+const log = useLogger(event); // or any RequestLogger
+const ai = createAILogger(log);
 
 const result = streamText({
-  model: ai.wrap('anthropic/claude-sonnet-4.6'),  // accepts string or model object
+  model: ai.wrap("anthropic/claude-sonnet-4.6"), // accepts string or model object
   messages,
-})
+});
 ```
 
 `ai.wrap()` uses model middleware to transparently capture all LLM calls. Works with `generateText`, `streamText`, and `ToolLoopAgent`.
@@ -889,19 +926,19 @@ const result = streamText({
 For tool execution timing, success/failure tracking, and total generation wall time, add `createEvlogIntegration()`:
 
 ```typescript
-import { createAILogger, createEvlogIntegration } from 'evlog/ai'
+import { createAILogger, createEvlogIntegration } from "evlog/ai";
 
-const ai = createAILogger(log)
+const ai = createAILogger(log);
 
 const agent = new ToolLoopAgent({
-  model: ai.wrap('anthropic/claude-sonnet-4.6'),
+  model: ai.wrap("anthropic/claude-sonnet-4.6"),
   tools: { searchWeb, queryDatabase },
   stopWhen: stepCountIs(5),
   experimental_telemetry: {
     isEnabled: true,
     integrations: [createEvlogIntegration(ai)],
   },
-})
+});
 ```
 
 This adds `ai.tools` (per-tool `{ name, durationMs, success, error? }`) and `ai.totalDurationMs` to the wide event.
@@ -909,14 +946,21 @@ This adds `ai.tools` (per-tool `{ name, durationMs, success, error? }`) and `ai.
 ### Embeddings
 
 ```typescript
-const { embedding, usage } = await embed({ model: embeddingModel, value: query })
-ai.captureEmbed({ usage, model: 'text-embedding-3-small', dimensions: 1536 })
+const { embedding, usage } = await embed({
+  model: embeddingModel,
+  value: query,
+});
+ai.captureEmbed({ usage, model: "text-embedding-3-small", dimensions: 1536 });
 ```
 
 For `embedMany`, pass the batch count:
 
 ```typescript
-ai.captureEmbed({ usage, model: 'text-embedding-3-small', count: documents.length })
+ai.captureEmbed({
+  usage,
+  model: "text-embedding-3-small",
+  count: documents.length,
+});
 ```
 
 ### Cost estimation
@@ -926,10 +970,10 @@ Pass a pricing map to get `ai.estimatedCost` in the wide event:
 ```typescript
 const ai = createAILogger(log, {
   cost: {
-    'claude-sonnet-4.6': { input: 3, output: 15 },
-    'gpt-4o': { input: 2.5, output: 10 },
+    "claude-sonnet-4.6": { input: 3, output: 15 },
+    "gpt-4o": { input: 2.5, output: 10 },
   },
-})
+});
 ```
 
 ### Wide event `ai` field
@@ -939,7 +983,7 @@ Includes: `calls`, `model`, `provider`, `inputTokens`, `outputTokens`, `totalTok
 Anti-patterns to detect:
 
 | Anti-Pattern | Fix |
-|--------------|-----|
+| --- | --- |
 | Manual token tracking in `onFinish` | `ai.wrap()` — middleware captures automatically |
 | `console.log('tokens:', result.usage)` | `ai.wrap()` — structured `ai.*` fields in wide event |
 | No AI observability | Add `createAILogger(log)` + `ai.wrap()` |
@@ -951,39 +995,43 @@ Anti-patterns to detect:
 ## Structured Errors
 
 ```typescript
-import { createError } from 'evlog'  // or auto-imported in Nuxt
+import { createError } from "evlog"; // or auto-imported in Nuxt
 
 // Minimal
-throw createError({ message: 'Database connection failed', status: 500 })
+throw createError({ message: "Database connection failed", status: 500 });
 
 // Standard
-throw createError({ message: 'Payment failed', status: 402, why: 'Card declined by issuer' })
+throw createError({
+  message: "Payment failed",
+  status: 402,
+  why: "Card declined by issuer",
+});
 
 // Complete
 throw createError({
-  message: 'Payment failed',
+  message: "Payment failed",
   status: 402,
-  why: 'Card declined by issuer - insufficient funds',
-  fix: 'Please use a different payment method or contact your bank',
-  link: 'https://docs.example.com/payments/declined',
+  why: "Card declined by issuer - insufficient funds",
+  fix: "Please use a different payment method or contact your bank",
+  link: "https://docs.example.com/payments/declined",
   cause: originalError,
-})
+});
 
 // Backend-only context (wide events / drains — never HTTP body or parseError())
 throw createError({
-  message: 'Not allowed',
+  message: "Not allowed",
   status: 403,
-  why: 'Insufficient permissions',
-  internal: { correlationId: 'req_abc', resourceId: 'proj_123' },
-})
+  why: "Insufficient permissions",
+  internal: { correlationId: "req_abc", resourceId: "proj_123" },
+});
 ```
 
 Frontend — extract user-facing fields with `parseError()` (`internal` is never returned to clients):
 
 ```typescript
-import { parseError } from 'evlog'
+import { parseError } from "evlog";
 
-const error = parseError(err)
+const error = parseError(err);
 // error.message, error.status, error.why, error.fix, error.link
 ```
 
@@ -994,7 +1042,7 @@ See [references/structured-errors.md](references/structured-errors.md) for commo
 ## Anti-Patterns to Detect
 
 | Anti-Pattern | Fix |
-|--------------|-----|
+| --- | --- |
 | Multiple `console.log` in one function | Single wide event with `log.set()` |
 | `throw new Error('...')` | `throw createError({ message, status, why, fix })` |
 | `console.error(e); throw e` | `log.error(e); throw createError(...)` |

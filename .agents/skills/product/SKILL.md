@@ -23,7 +23,7 @@ Always optimize for customer support outcomes with minimal team effort:
 Use industry-established product-led software as quality benchmarks:
 
 - Reference well-known tools with strong UX patterns, even outside customer support.
-- Explain *why* the pattern works (clarity, feedback, speed, trust, discoverability), not just "Tool X does this."
+- Explain _why_ the pattern works (clarity, feedback, speed, trust, discoverability), not just "Tool X does this."
 - Prefer product-led examples where the product teaches itself through UX, progressive disclosure, and fast time-to-value.
 - Adapt patterns to FrontDesk workflows instead of copying them blindly.
 
@@ -154,49 +154,62 @@ Use this template:
 # <Feature Name>
 
 ## Problem
+
 - Who is affected
 - Root cause
 - Why now
 
 ## Goals
+
 - Primary outcome
 - Secondary outcomes
 
 ## Non-goals
+
 - Explicitly out of scope
 
 ## Users and Context
+
 - Primary persona
 - Secondary persona (if any)
 - Trigger moments
 
 ## Proposed UX
+
 ### Entry points
+
 ### Main flow
+
 ### States
+
 - Empty
 - Loading
 - Error
 - Success
 
 ## Existing Feature Connections
+
 - How this extends current FrontDesk behavior
 - Dependencies/integrations with existing surfaces
 
 ## Guardrails
+
 - Permissions
 - Limits/rate or safety constraints
 
 ## Rollout Plan
+
 - MVP scope
 - Follow-up iterations
 
 ## Acceptance Criteria
+
 - [ ] Observable user outcome 1
 - [ ] Observable user outcome 2
 - [ ] No regression to related existing flows
 
 ## Open Questions
+
 - Remaining decisions (if any)
 ```
 

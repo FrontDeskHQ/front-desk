@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { cn } from "@workspace/ui/lib/utils";
+
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { useIntegrationWarnings } from "~/lib/hooks/query/use-integration-warnings";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
@@ -19,19 +20,17 @@ import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/integration/",
+  "/app/_workspace/settings/organization/integration/"
 )({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Integrations - FrontDesk",
-          description: "Manage your integrations",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Integrations - FrontDesk",
+        description: "Manage your integrations",
+      }),
+    ],
+  }),
 });
 
 export const integrationOptions: {
@@ -42,9 +41,14 @@ export const integrationOptions: {
   fullDescription: string;
 }[] = [
   {
-    label: "Discord",
-    id: "discord",
     description: "Sync forum channels and threads from your Discord server",
+    fullDescription: `
+#### Overview
+By using the Discord integration in FrontDesk, you enable your users to reach out for help directly from your Discord server, while your team can respond and manage those conversations from a single shared inbox. This keeps all support channels unified, organized, and consistent—no matter where your customers prefer to reach you.
+
+#### How it works
+To get started, simply add the FrontDesk Discord bot to your server and select which channels you want to use for customer support. When users create a support thread in those channels, it will automatically sync with FrontDesk in real time. Messages sent on Discord will instantly appear in FrontDesk, and replies from your support team in FrontDesk will post back to the corresponding Discord thread. Every synced thread includes full FrontDesk functionality—such as status updates, priority settings, assignee management, and more—so your team can handle Discord conversations with the same efficiency and visibility as any other support channel.
+`,
     icon: (
       <div className="flex items-center justify-center rounded-md bg-[#5865F2] size-9 overflow-clip shrink-0">
         <svg
@@ -60,18 +64,18 @@ export const integrationOptions: {
         </svg>
       </div>
     ),
-    fullDescription: `
-#### Overview
-By using the Discord integration in FrontDesk, you enable your users to reach out for help directly from your Discord server, while your team can respond and manage those conversations from a single shared inbox. This keeps all support channels unified, organized, and consistent—no matter where your customers prefer to reach you.
-
-#### How it works
-To get started, simply add the FrontDesk Discord bot to your server and select which channels you want to use for customer support. When users create a support thread in those channels, it will automatically sync with FrontDesk in real time. Messages sent on Discord will instantly appear in FrontDesk, and replies from your support team in FrontDesk will post back to the corresponding Discord thread. Every synced thread includes full FrontDesk functionality—such as status updates, priority settings, assignee management, and more—so your team can handle Discord conversations with the same efficiency and visibility as any other support channel.
-`,
+    id: "discord",
+    label: "Discord",
   },
   {
-    label: "Slack",
-    id: "slack",
     description: "Sync channels and threads from your Slack workspace",
+    fullDescription: `
+#### Overview
+By using the Slack integration in FrontDesk, you enable your users to reach out for help directly from your Slack workspace, while your team can respond and manage those conversations from a single shared inbox. This keeps all support channels unified, organized, and consistent—no matter where your customers prefer to reach you.
+
+#### How it works
+To get started, simply add the FrontDesk Slack app to your workspace and select which channels you want to use for customer support. When users create a support thread in those channels, it will automatically sync with FrontDesk in real time. Messages sent on Slack will instantly appear in FrontDesk, and replies from your support team in FrontDesk will post back to the corresponding Slack thread. Every synced thread includes full FrontDesk functionality—such as status updates, priority settings, assignee management, and more—so your team can handle Slack conversations with the same efficiency and visibility as any other support channel.
+`,
     icon: (
       <div className="flex items-center justify-center rounded-md bg-[#4A154B] size-9 overflow-clip shrink-0">
         <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white">
@@ -80,18 +84,18 @@ To get started, simply add the FrontDesk Discord bot to your server and select w
         </svg>
       </div>
     ),
-    fullDescription: `
-#### Overview
-By using the Slack integration in FrontDesk, you enable your users to reach out for help directly from your Slack workspace, while your team can respond and manage those conversations from a single shared inbox. This keeps all support channels unified, organized, and consistent—no matter where your customers prefer to reach you.
-
-#### How it works
-To get started, simply add the FrontDesk Slack app to your workspace and select which channels you want to use for customer support. When users create a support thread in those channels, it will automatically sync with FrontDesk in real time. Messages sent on Slack will instantly appear in FrontDesk, and replies from your support team in FrontDesk will post back to the corresponding Slack thread. Every synced thread includes full FrontDesk functionality—such as status updates, priority settings, assignee management, and more—so your team can handle Slack conversations with the same efficiency and visibility as any other support channel.
-`,
+    id: "slack",
+    label: "Slack",
   },
   {
-    label: "GitHub",
-    id: "github",
     description: "Link GitHub issues to your support threads",
+    fullDescription: `
+#### Overview
+By using the GitHub integration in FrontDesk, you can link GitHub issues to your support threads. This allows you to track issues directly from your support conversations.
+
+#### How it works
+To get started, connect your GitHub account and select the repository you want to link. Once configured, you'll be able to link GitHub issues to your threads directly from the thread view.
+`,
     icon: (
       <div className="flex items-center justify-center rounded-md bg-[#24292f] size-9 overflow-clip">
         <svg viewBox="0 0 24 24" className="w-5 h-5" fill="white">
@@ -100,13 +104,8 @@ To get started, simply add the FrontDesk Slack app to your workspace and select 
         </svg>
       </div>
     ),
-    fullDescription: `
-#### Overview
-By using the GitHub integration in FrontDesk, you can link GitHub issues to your support threads. This allows you to track issues directly from your support conversations.
-
-#### How it works
-To get started, connect your GitHub account and select the repository you want to link. Once configured, you'll be able to link GitHub issues to your threads directly from the thread view.
-`,
+    id: "github",
+    label: "GitHub",
   },
   // Uncomment and complete these when their integrations are ready
   // {
@@ -153,11 +152,13 @@ function PrimaryIssueTrackerSection({
     (integration) =>
       integration.enabled &&
       integration.configStr &&
-      providerTypes.has(integration.type),
+      providerTypes.has(integration.type)
   );
 
   // Nothing to route through, or nobody's allowed to change it — hide the control.
-  if (!isUserOwner || trackers.length === 0) return null;
+  if (!isUserOwner || trackers.length === 0) {
+    return null;
+  }
 
   const primaryId = safeParseOrgSettings(org?.settings).capabilityPrimary?.[
     "issue-tracker"
@@ -179,9 +180,9 @@ function PrimaryIssueTrackerSection({
           value={selected}
           onValueChange={(value) =>
             mutate.organization.setCapabilityPrimary({
-              organizationId,
               capability: "issue-tracker",
               integrationId: value as string,
+              organizationId,
             })
           }
         >
@@ -208,17 +209,17 @@ function RouteComponent() {
   const allIntegrations = useLiveQuery(
     query.integration.where({
       organizationId: activeOrganization?.id,
-    }),
+    })
   );
 
   const filteredIntegrationOptions = integrationOptions;
 
   const activeIntegrations = filteredIntegrationOptions.filter((option) =>
-    allIntegrations?.some((i) => i.type === option.id && i.enabled),
+    allIntegrations?.some((i) => i.type === option.id && i.enabled)
   );
 
   const availableIntegrations = filteredIntegrationOptions.filter(
-    (option) => !activeIntegrations.includes(option),
+    (option) => !activeIntegrations.includes(option)
   );
 
   const warnings = useIntegrationWarnings();
@@ -229,14 +230,16 @@ function RouteComponent() {
       query.organizationUser.first({
         organizationId: activeOrganization?.id,
         userId: user.id,
-      }),
+      })
     )?.role === "owner";
 
   const renderIntegrationGroup = (
     label: string,
-    options: typeof integrationOptions,
+    options: typeof integrationOptions
   ) => {
-    if (options.length === 0) return null;
+    if (options.length === 0) {
+      return null;
+    }
     return (
       <div className="p-4 flex flex-col gap-4 w-full" key={label}>
         <h2 className="text-base">{label}</h2>

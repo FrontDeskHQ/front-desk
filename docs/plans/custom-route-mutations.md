@@ -339,7 +339,7 @@ Parent checklist items (`LP-003`–`LP-010`) complete when all child slices unde
 
 | Slice | PR title (suggested) | Scope | Completion |
 | --- | --- | --- | --- |
-| [x] **LP-004-labels** | *(already done)* | `label.*` procedures + web optimistic | Label family complete per matrix |
+| [x] **LP-004-labels** | _(already done)_ | `label.*` procedures + web optimistic | Label family complete per matrix |
 | [x] **LP-004a** | `update.recordActivity` (internal) | `router/update.ts` new procedure; migrate API-internal `db.insert(schema.update)` not owned by `thread.*` | Internal timeline writes use `recordActivity` or thread procedures |
 | [x] **LP-004b** | Slack `update.update` | `apps/slack/src/index.ts` `fetchClient.mutate.update.update` → `update.markReplicated` | Slack has no generic `update.update` |
 | [x] **LP-004c** | Discord `update.update` | `apps/discord/src/index.ts` | Discord has no generic `update.update` |

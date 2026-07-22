@@ -1,15 +1,15 @@
 import { defineConfig } from "tsdown";
 
 export default defineConfig({
+  clean: (process.env.NODE_ENV ?? "development") !== "development",
+  dts: false,
   entry: [
     "./src/index.ts",
     "./src/live-state/router.ts",
     "./src/live-state/schema.ts",
     "./src/lib/queue.ts",
   ],
-  target: "node20.18",
-  clean: (process.env.NODE_ENV ?? "development") !== "development",
-  dts: false,
-  platform: "node",
   noExternal: [/^@workspace\//, /^@connectors\//],
+  platform: "node",
+  target: "node20.18",
 });

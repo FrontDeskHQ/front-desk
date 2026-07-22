@@ -1,4 +1,5 @@
 import { z } from "zod";
+
 import type { Capability } from "./capabilities";
 
 /** Standardized HTTP path every connector host exposes for invoked capabilities. */
@@ -28,8 +29,8 @@ export interface InvokeEnvelope<Payload = unknown> {
 /** Runtime validator for the envelope, for connectors receiving invocations. */
 export const invokeEnvelopeSchema = z.object({
   capability: z.string(),
-  method: z.string(),
   config: z.string().nullable(),
+  method: z.string(),
   payload: z.unknown(),
 });
 
@@ -45,7 +46,7 @@ export const invokeEnvelopeSchema = z.object({
 export async function invokeCapability<Result = unknown>(
   invokeUrl: string,
   envelope: InvokeEnvelope,
-  options: { secret?: string | null } = {},
+  options: { secret?: string | null } = {}
 ): Promise<Result> {
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
@@ -57,15 +58,16 @@ export async function invokeCapability<Result = unknown>(
   let response: Response;
   try {
     response = await fetch(invokeUrl, {
-      method: "POST",
-      headers,
       body: JSON.stringify(envelope),
+      headers,
+      method: "POST",
       signal: AbortSignal.timeout(CAPABILITY_INVOKE_TIMEOUT_MS),
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") {
       throw new Error(
         `CAPABILITY_INVOKE_TIMEOUT: no response after ${CAPABILITY_INVOKE_TIMEOUT_MS}ms`,
+        { cause: error }
       );
     }
     throw error;
@@ -74,7 +76,7 @@ export async function invokeCapability<Result = unknown>(
   if (!response.ok) {
     const detail = await response.text().catch(() => "");
     throw new Error(
-      `CAPABILITY_INVOKE_FAILED: ${response.status} ${detail}`.trim(),
+      `CAPABILITY_INVOKE_FAILED: ${response.status} ${detail}`.trim()
     );
   }
 

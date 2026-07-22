@@ -38,6 +38,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { useState } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -45,23 +46,21 @@ import { DAYS_UNTIL_DELETION, getDaysUntilDeletion } from "~/utils/thread";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/archive/")({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Archive - FrontDesk",
-          description: "View archived threads",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Archive - FrontDesk",
+        description: "View archived threads",
+      }),
+    ],
+  }),
 });
 
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom) || undefined;
 
   const organization = useLiveQuery(
-    query.organization.where({ id: currentOrg?.id }).include({ threads: true }),
+    query.organization.where({ id: currentOrg?.id }).include({ threads: true })
   )?.[0];
 
   //TODO: Add option to sort threads based on expected delete date
@@ -73,13 +72,13 @@ function RouteComponent() {
   ];
 
   const threadsQuery = query.thread.where({
-    organizationId: organization?.id,
     deletedAt: {
-      $not: null,
       $lt: add(new Date(), {
         days: DAYS_UNTIL_DELETION,
       }),
+      $not: null,
     },
+    organizationId: organization?.id,
   });
 
   const [orderBy, setOrderBy] = useState<string>("createdAt");
@@ -89,14 +88,14 @@ function RouteComponent() {
     useLiveQuery(
       threadsQuery
         .include({
-          messages: { include: { author: true } },
-          author: true,
           assignedUser: true,
+          author: true,
+          messages: { include: { author: true } },
         })
         .orderBy(
           orderBy as keyof InferLiveObject<typeof schema.thread>,
-          orderDirection,
-        ),
+          orderDirection
+        )
     ) ?? [];
 
   if (!organization) {
@@ -147,7 +146,7 @@ function RouteComponent() {
                         size="sm"
                         onClick={() =>
                           setOrderDirection(
-                            orderDirection === "asc" ? "desc" : "asc",
+                            orderDirection === "asc" ? "desc" : "asc"
                           )
                         }
                         className="size-8"
@@ -183,7 +182,7 @@ function RouteComponent() {
         {threads?.map((thread) => (
           <Link
             key={thread.id}
-            to={"/app/threads/archive/$id"}
+            to="/app/threads/archive/$id"
             params={{ id: thread.id }}
             className="w-full max-w-5xl flex p-3 gap-2 hover:bg-muted items-center"
           >
@@ -208,8 +207,8 @@ function RouteComponent() {
                   {getFirstTextContent(
                     safeParseJSON(
                       thread?.messages?.[thread?.messages?.length - 1]
-                        ?.content ?? "",
-                    ),
+                        ?.content ?? ""
+                    )
                   )}
                 </span>
               </span>

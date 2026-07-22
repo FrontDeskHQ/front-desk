@@ -37,6 +37,7 @@ import { add } from "date-fns";
 import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import {
@@ -46,18 +47,9 @@ import {
 } from "~/utils/thread";
 
 export const Route = createFileRoute(
-  "/app/_workspace/_main/threads/archive/$id",
+  "/app/_workspace/_main/threads/archive/$id"
 )({
   component: RouteComponent,
-  loader: async ({ params }) => {
-    const { id } = params;
-    const thread = await fetchClient.query.thread.detail({
-      id,
-      onlyDeleted: true,
-      deletedBefore: add(new Date(), { days: DAYS_UNTIL_DELETION }),
-    });
-    return { thread };
-  },
   head: ({ loaderData }) => {
     const thread = loaderData?.thread;
     const threadName = thread?.name ?? "Thread";
@@ -70,6 +62,15 @@ export const Route = createFileRoute(
       ],
     };
   },
+  loader: async ({ params }) => {
+    const { id } = params;
+    const thread = await fetchClient.query.thread.detail({
+      id,
+      onlyDeleted: true,
+      deletedBefore: add(new Date(), { days: DAYS_UNTIL_DELETION }),
+    });
+    return { thread };
+  },
 });
 
 function RouteComponent() {
@@ -81,57 +82,61 @@ function RouteComponent() {
   const thread = useLiveQuery(
     query.thread
       .where({
-        id,
         deletedAt: {
-          $not: null,
           $lt: add(new Date(), {
             days: DAYS_UNTIL_DELETION,
           }),
+          $not: null,
         },
+        id,
       })
       .include({
-        organization: true,
-        messages: { include: { author: true } },
         assignedUser: true,
-      }),
+        messages: { include: { author: true } },
+        organization: true,
+      })
   )?.[0];
 
   const { scrollRef, disableAutoScroll } = useAutoScroll({
-    smooth: false,
-    content: (thread as any)?.messages,
+    content: thread?.messages,
     offset: 264,
+    smooth: false,
   });
 
   const restoreThread = () => {
-    if (!thread?.organizationId) return;
+    if (!thread?.organizationId) {
+      return;
+    }
 
     mutate.thread.restore({
-      threadId: id,
       organizationId: thread.organizationId,
+      threadId: id,
     });
     setShowRestoreDialog(false);
     toast.success("Thread restored", {
-      duration: 10000,
+      duration: 10_000,
       action: {
         label: "See thread",
         onClick: () =>
           navigate({
-            to: "/app/threads/$id",
             params: { id: thread ? buildThreadParam(thread) : id },
+            to: "/app/threads/$id",
           }),
       },
       // TODO: Analyse this when working on the design system
       actionButtonStyle: {
         background: "transparent",
-        color: "hsl(var(--primary))",
         border: "none",
+        color: "hsl(var(--primary))",
         textDecoration: "underline",
       },
     });
     navigate({ to: "/app/threads/archive" });
   };
 
-  if (!thread) return undefined;
+  if (!thread) {
+    return;
+  }
 
   return (
     <div className="flex size-full">
@@ -152,7 +157,7 @@ function RouteComponent() {
                     <BreadcrumbItem>
                       <BreadcrumbPage className="flex items-center gap-1.5">
                         <span>{thread.name}</span>
-                        {thread.shortId != null && (
+                        {thread.shortId !== null && (
                           <span className="text-foreground-secondary tabular-nums font-normal">
                             #{thread.shortId}
                           </span>
@@ -208,22 +213,21 @@ function RouteComponent() {
             onScroll={disableAutoScroll}
             onTouchMove={disableAutoScroll}
           >
-            {(thread as any)?.messages
-              .sort((a: any, b: any) => a.id.localeCompare(b.id))
-              .map((message: any) => (
+            {thread.messages
+              .toSorted((a, b) => a.id.localeCompare(b.id))
+              .map((message) => (
                 <Card
                   key={message.id}
                   className={cn(
                     "relative before:w-[1px] before:h-4 before:left-4 before:absolute before:-top-4 not-first:before:bg-border",
-                    message?.author?.userId === user.id &&
-                      "border-[#2662D9]/20",
+                    message?.author?.userId === user.id && "border-[#2662D9]/20"
                   )}
                 >
                   <CardHeader
                     size="sm"
                     className={cn(
                       message?.author?.userId === user.id &&
-                        "bg-[#2662D9]/15 border-[#2662D9]/20",
+                        "bg-[#2662D9]/15 border-[#2662D9]/20"
                     )}
                   >
                     <CardTitle>

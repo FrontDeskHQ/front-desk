@@ -24,6 +24,7 @@ Read and analyze structured wide-event logs from the local `.evlog/logs/` direct
 Logs are written by evlog's file system drain as `.jsonl` files, organized by date.
 
 **Format detection**: The drain supports two modes:
+
 - **NDJSON** (default, `pretty: false`): One compact JSON object per line. Parse line-by-line.
 - **Pretty** (`pretty: true`): Multi-line indented JSON per event. Parse by reading the entire file and splitting on top-level objects (e.g. `JSON.parse('[' + content.replace(/\}\n\{/g, '},{') + ']')`) or use a streaming JSON parser.
 
@@ -49,24 +50,24 @@ Files are named by date: `2026-03-14.jsonl`. Start with the most recent file.
 The file system drain may not be enabled. Guide the user to set it up:
 
 ```typescript
-import { createFsDrain } from 'evlog/fs'
+import { createFsDrain } from "evlog/fs";
 
 // Nuxt / Nitro: server/plugins/evlog-drain.ts
 export default defineNitroPlugin((nitroApp) => {
-  nitroApp.hooks.hook('evlog:drain', createFsDrain())
-})
+  nitroApp.hooks.hook("evlog:drain", createFsDrain());
+});
 
 // Hono / Express / Elysia: pass in middleware options
-app.use(evlog({ drain: createFsDrain() }))
+app.use(evlog({ drain: createFsDrain() }));
 
 // Fastify: pass in plugin options
-await app.register(evlog, { drain: createFsDrain() })
+await app.register(evlog, { drain: createFsDrain() });
 
 // NestJS: pass in module options
-EvlogModule.forRoot({ drain: createFsDrain() })
+EvlogModule.forRoot({ drain: createFsDrain() });
 
 // Standalone: pass to initLogger
-initLogger({ drain: createFsDrain() })
+initLogger({ drain: createFsDrain() });
 ```
 
 After setup, the user needs to trigger some requests to generate logs, then re-analyze.
@@ -76,7 +77,7 @@ After setup, the user needs to trigger some requests to generate logs, then re-a
 Each line is a self-contained JSON object (wide event). Key fields:
 
 | Field | Type | Description |
-|-------|------|-------------|
+| --- | --- | --- |
 | `timestamp` | `string` | ISO 8601 timestamp |
 | `level` | `string` | `info`, `warn`, `error`, `debug` |
 | `service` | `string` | Service name |

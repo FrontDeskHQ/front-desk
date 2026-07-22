@@ -1,20 +1,16 @@
-import {
-  assertLocalhostApiUrl,
-  getApiUrl,
-  getWebUrl,
-} from "../../lib/env.js";
+import { assertLocalhostApiUrl, getApiUrl, getWebUrl } from "../../lib/env.js";
 import { fetchClient } from "../../lib/live-state.js";
 
-export type OrgListItem = {
+export interface OrgListItem {
   id: string;
   name: string;
   slug: string;
   url: string;
-};
+}
 
-export type OrgListOutput = {
+export interface OrgListOutput {
   organizations: OrgListItem[];
-};
+}
 
 export const runOrgList = async (): Promise<{
   output: OrgListOutput;
@@ -35,7 +31,7 @@ export const runOrgList = async (): Promise<{
   items.sort((a, b) => a.slug.localeCompare(b.slug));
 
   return {
-    output: { organizations: items },
     exitCode: 0,
+    output: { organizations: items },
   };
 };

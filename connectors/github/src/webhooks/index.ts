@@ -1,10 +1,11 @@
 import { statusValues } from "@workspace/ui/components/indicator";
+
 import {
   buildIssueFields,
   buildPullRequestFields,
-  type ExternalEntityFields,
   upsertExternalEntity,
 } from "../lib/external-entity";
+import type { ExternalEntityFields } from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
 import { enqueuePrMatch } from "../lib/queue";
@@ -33,12 +34,16 @@ const PR_MATCH_ACTIONS = new Set([
 const resolveOrganizationId = (
   installationId: number | undefined
 ): string | null => {
-  if (!installationId) return null;
+  if (!installationId) {
+    return null;
+  }
 
   const integrations = store.query.integration.where({ type: "github" }).get();
 
   for (const integration of integrations) {
-    if (!integration.configStr) continue;
+    if (!integration.configStr) {
+      continue;
+    }
     try {
       const config = JSON.parse(integration.configStr);
       if (config.installationId === installationId) {
@@ -82,10 +87,7 @@ const resolveLinkedThreads = (
   }
 
   for (const thread of linkedThreads) {
-    if (
-      thread.status === STATUS_RESOLVED ||
-      thread.status === STATUS_CLOSED
-    ) {
+    if (thread.status === STATUS_RESOLVED || thread.status === STATUS_CLOSED) {
       console.log(
         `[GitHub] Thread ${thread.id} already ${statusValues[thread.status]?.label}, skipping status update`
       );
@@ -100,19 +102,19 @@ const resolveLinkedThreads = (
     );
 
     store.mutate.thread.setStatus({
-      threadId: thread.id,
-      organizationId: thread.organizationId,
-      status: newStatus,
-      source: "github",
-      userName: "GitHub Integration",
-      recordActivity: true,
       activityMetadata: {
         repoFullName: fields.repoFullName,
         ...(fields.type === "issue"
           ? { issueNumber: fields.number }
           : { prNumber: fields.number, merged: meta.merged }),
       },
+      organizationId: thread.organizationId,
+      recordActivity: true,
       replicatedStr: JSON.stringify({ github: true }),
+      source: "github",
+      status: newStatus,
+      threadId: thread.id,
+      userName: "GitHub Integration",
     });
   }
 };
@@ -125,9 +127,9 @@ const repoRefFromWebhook = (repository: {
   name: string;
   full_name: string;
 }) => ({
-  owner: repository.owner.login,
-  name: repository.name,
   fullName: repository.full_name,
+  name: repository.name,
+  owner: repository.owner.login,
 });
 
 export const setupWebhooks = () => {
@@ -136,7 +138,7 @@ export const setupWebhooks = () => {
   // linked threads as a reaction to the mirror change.
   app.webhooks.on("issues", async ({ payload }) => {
     try {
-      const action = payload.action;
+      const { action } = payload;
       const organizationId = resolveOrganizationId(installationIdOf(payload));
 
       if (!organizationId) {
@@ -153,8 +155,8 @@ export const setupWebhooks = () => {
 
       if (action === "deleted" || action === "transferred") {
         await fetchClient.mutate.externalEntity.softDelete({
-          organizationId,
           externalKey: fields.externalKey,
+          organizationId,
         });
         return;
       }
@@ -176,7 +178,7 @@ export const setupWebhooks = () => {
   // here now. Re-enqueuing PR-matched synthesis stays out of scope.
   app.webhooks.on("pull_request", async ({ payload }) => {
     try {
-      const action = payload.action;
+      const { action } = payload;
       const organizationId = resolveOrganizationId(installationIdOf(payload));
 
       if (!organizationId) {
@@ -207,13 +209,13 @@ export const setupWebhooks = () => {
         fields.draft !== true
       ) {
         await enqueuePrMatch({
-          organizationId,
-          externalKey: fields.externalKey,
-          title: fields.title,
           body: fields.body,
-          headRef: fields.headRef,
-          state: fields.state,
           draft: fields.draft,
+          externalKey: fields.externalKey,
+          headRef: fields.headRef,
+          organizationId,
+          state: fields.state,
+          title: fields.title,
         });
       }
     } catch (error) {

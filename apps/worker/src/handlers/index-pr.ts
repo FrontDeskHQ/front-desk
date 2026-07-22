@@ -1,15 +1,17 @@
 import { createHash } from "node:crypto";
+
 import type { PrIndexJobData } from "@workspace/schemas/signals";
 import { log } from "@workspace/utils/logging";
 import type { Job } from "bullmq";
+
 import { buildPrEmbedText, generatePrEmbedding } from "../lib/pr-embedding";
 import {
   deletePrVector,
   getPrPoint,
-  type PrPayload,
   setPrEligibility,
   upsertPrVector,
 } from "../lib/qdrant/pull-requests";
+import type { PrPayload } from "../lib/qdrant/pull-requests";
 
 const computeSha256 = (data: string): string =>
   createHash("sha256").update(data).digest("hex");
@@ -25,14 +27,14 @@ const computeSha256 = (data: string): string =>
  * ready_for_review) just updates the payload flag.
  */
 export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
-  const data = job.data;
+  const { data } = job;
   const { externalKey, organizationId } = data;
 
   // Mirror row removed: drop the vector and stop.
   if (data.deleted) {
     await deletePrVector(organizationId, externalKey);
     log.info("worker.pr-index", `Deleted PR vector ${externalKey}`);
-    return { externalKey, action: "deleted" as const };
+    return { action: "deleted" as const, externalKey };
   }
 
   const eligible = data.state === "open" && data.draft !== true;
@@ -42,9 +44,9 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
   if (!eligible && !existing) {
     log.info(
       "worker.pr-index",
-      `Skipped ineligible, unindexed PR ${externalKey}`,
+      `Skipped ineligible, unindexed PR ${externalKey}`
     );
-    return { externalKey, action: "skipped" as const };
+    return { action: "skipped" as const, externalKey };
   }
 
   const embedText = buildPrEmbedText(data);
@@ -57,9 +59,9 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
     await setPrEligibility(organizationId, externalKey, eligible, now);
     log.info(
       "worker.pr-index",
-      `Refreshed PR ${externalKey} eligibility=${eligible} (no re-embed)`,
+      `Refreshed PR ${externalKey} eligibility=${eligible} (no re-embed)`
     );
-    return { externalKey, action: "eligibility" as const, eligible };
+    return { action: "eligibility" as const, eligible, externalKey };
   }
 
   // New PR or edited content: embed and upsert the full point.
@@ -69,18 +71,18 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
   }
 
   const payload: PrPayload = {
-    externalKey,
+    contentHash,
+    eligible,
     externalEntityId: data.externalEntityId,
+    externalKey,
+    headRef: data.headRef,
+    number: data.number,
     organizationId,
     provider: data.provider,
     repoFullName: data.repoFullName,
-    number: data.number,
-    url: data.url,
     title: data.title,
-    headRef: data.headRef,
-    eligible,
-    contentHash,
     updatedAt: now,
+    url: data.url,
   };
 
   const stored = await upsertPrVector(embedding, payload);
@@ -89,5 +91,5 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
   }
 
   log.info("worker.pr-index", `Indexed PR ${externalKey} eligible=${eligible}`);
-  return { externalKey, action: "indexed" as const, eligible };
+  return { action: "indexed" as const, eligible, externalKey };
 };

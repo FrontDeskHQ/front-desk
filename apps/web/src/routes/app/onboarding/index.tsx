@@ -9,12 +9,23 @@ import { useAsyncAction } from "@workspace/ui/hooks/use-action";
 import { cn } from "@workspace/ui/lib/utils";
 import { ArrowRightIcon, Check } from "lucide-react";
 import { useState } from "react";
+
 import { useLogout } from "~/lib/hooks/auth";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/onboarding/")({
   component: RouteComponent,
+  head: () => {
+    return {
+      meta: [
+        ...seo({
+          title: "Onboarding - FrontDesk",
+          description: "Join your organization or create a new one",
+        }),
+      ],
+    };
+  },
   async loader({ context }) {
     const user = context.user;
 
@@ -41,16 +52,6 @@ export const Route = createFileRoute("/app/onboarding/")({
 
     return {
       invites,
-    };
-  },
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Onboarding - FrontDesk",
-          description: "Join your organization or create a new one",
-        }),
-      ],
     };
   },
 });
@@ -100,7 +101,7 @@ function OnboardingForm() {
                   asyncAction(() =>
                     fetchClient.mutate.invite.accept({
                       id: invite.id,
-                    }),
+                    })
                   ).then(() => {
                     setAcceptedSomeInvite(true);
                   });
@@ -133,7 +134,7 @@ function OnboardingForm() {
       <div
         className={cn(
           "w-full flex justify-end opacity-0 pointer-events-none",
-          acceptedSomeInvite && "opacity-100 pointer-events-auto",
+          acceptedSomeInvite && "opacity-100 pointer-events-auto"
         )}
       >
         <Button render={<Link to="/app" />}>

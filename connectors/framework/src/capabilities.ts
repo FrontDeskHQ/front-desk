@@ -40,9 +40,9 @@ export const isCapability = (value: string): value is Capability =>
  * prefixes it with `provider:` to form the author `metaId`); the connector
  * resolves `name` from the provider. */
 export const supportEntryPointAuthorSchema = z.object({
+  avatarUrl: z.string().optional(),
   externalId: z.string().min(1),
   name: z.string().min(1),
-  avatarUrl: z.string().optional(),
 });
 
 export type SupportEntryPointAuthor = z.infer<
@@ -57,8 +57,8 @@ export type SupportEntryPointAuthor = z.infer<
  * descriptor rather than create a titleless thread.
  */
 export const supportEntryPointThreadSchema = z.object({
-  title: z.string().min(1),
   externalMetadata: z.record(z.string(), z.unknown()).optional(),
+  title: z.string().min(1),
 });
 
 export type SupportEntryPointThread = z.infer<
@@ -90,15 +90,15 @@ export type SupportEntryPointMessage = z.infer<
  * pipeline triggers only; it does not change normalization.
  */
 export const supportEntryPointIngestSchema = z.object({
+  author: supportEntryPointAuthorSchema,
+  externalThreadId: z.string().min(1),
+  isBackfill: z.boolean().default(false),
+  message: supportEntryPointMessageSchema,
   organizationId: z.string().min(1),
   /** Integration `type` of the emitting connector, e.g. `"discord"`. Becomes
    * the thread's `externalOrigin` and the author `metaId` prefix. */
   provider: z.string().min(1),
-  externalThreadId: z.string().min(1),
   thread: supportEntryPointThreadSchema.optional(),
-  message: supportEntryPointMessageSchema,
-  author: supportEntryPointAuthorSchema,
-  isBackfill: z.boolean().default(false),
 });
 
 export type SupportEntryPointIngestPayload = z.infer<
@@ -113,9 +113,9 @@ export type SupportEntryPointIngestPayload = z.infer<
  * `{ owner, repo }`); core forwards it untouched.
  */
 export const issueTrackerCreatePayloadSchema = z.object({
-  title: z.string().min(1),
   body: z.string().default(""),
   target: z.record(z.string(), z.unknown()),
+  title: z.string().min(1),
 });
 
 export type IssueTrackerCreatePayload = z.infer<
@@ -156,10 +156,10 @@ export interface IssueTrackerCreateResult {
 export const capabilityEntityRefSchema = z.object({
   /** Provider-agnostic key: `provider:owner/repo#id` (see formatGitHubId). */
   externalKey: z.string().min(1),
-  /** Repository the entity lives in, e.g. `owner/repo`. */
-  repoFullName: z.string().min(1),
   /** Provider-local entity number (issue/PR number); always ≥ 1. */
   number: z.number().int().positive(),
+  /** Repository the entity lives in, e.g. `owner/repo`. */
+  repoFullName: z.string().min(1),
   /** Canonical external URL of the entity. */
   url: z.string(),
 });
@@ -188,9 +188,9 @@ export type IssueTrackerSetStatePayload = z.infer<
 export const prTrackerLinkPayloadSchema = z.object({
   entity: capabilityEntityRefSchema,
   thread: z.object({
+    title: z.string().default(""),
     /** Portal URL of the linked thread, for the back-reference. */
     url: z.string(),
-    title: z.string().default(""),
   }),
 });
 

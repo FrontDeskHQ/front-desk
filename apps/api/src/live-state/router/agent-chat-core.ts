@@ -107,7 +107,7 @@ export interface SuggestionsContextParams {
 }
 
 export function formatSuggestionsContext(
-  params: SuggestionsContextParams,
+  params: SuggestionsContextParams
 ): string {
   const lines: string[] = [];
 
@@ -115,28 +115,28 @@ export function formatSuggestionsContext(
     lines.push(
       "### Related Threads",
       "These threads were identified as similar to the current thread based on content analysis. You can use the getThread tool with their _id to read their full conversation.",
-      ...params.relatedThreads,
+      ...params.relatedThreads
     );
   }
 
   if (params.suggestedDuplicate) {
     lines.push(
       "### Possible Duplicate",
-      `This thread may be a duplicate of "${params.suggestedDuplicate.threadName}" (_id: ${params.suggestedDuplicate._id})${params.suggestedDuplicate.confidence ? `, confidence: ${params.suggestedDuplicate.confidence}` : ""}${params.suggestedDuplicate.reason ? `. Reason: ${params.suggestedDuplicate.reason}` : ""}`,
+      `This thread may be a duplicate of "${params.suggestedDuplicate.threadName}" (_id: ${params.suggestedDuplicate._id})${params.suggestedDuplicate.confidence ? `, confidence: ${params.suggestedDuplicate.confidence}` : ""}${params.suggestedDuplicate.reason ? `. Reason: ${params.suggestedDuplicate.reason}` : ""}`
     );
   }
 
   if (params.suggestedStatus) {
     lines.push(
       "### Suggested Status Change",
-      `The system suggests changing status to "${params.suggestedStatus.status}"${params.suggestedStatus.reasoning ? `. Reasoning: ${params.suggestedStatus.reasoning}` : ""}`,
+      `The system suggests changing status to "${params.suggestedStatus.status}"${params.suggestedStatus.reasoning ? `. Reasoning: ${params.suggestedStatus.reasoning}` : ""}`
     );
   }
 
   if (params.suggestedLabels && params.suggestedLabels.length > 0) {
     lines.push(
       "### Suggested Labels",
-      `The system suggests adding these labels: ${params.suggestedLabels.join(", ")}`,
+      `The system suggests adding these labels: ${params.suggestedLabels.join(", ")}`
     );
   }
 
@@ -177,7 +177,7 @@ export interface GetThreadResult {
   externalOrigin: string | null;
   messageCount: number;
   note?: string;
-  messages: Array<{ author: string; content: string; createdAt: string }>;
+  messages: { author: string; content: string; createdAt: string }[];
 }
 
 export interface ListThreadsResult {
@@ -212,44 +212,14 @@ export interface AgentChatToolImplementations {
 }
 
 export function buildAgentChatTools(
-  implementations: AgentChatToolImplementations,
+  implementations: AgentChatToolImplementations
 ) {
   return {
-    searchDocumentation: tool({
-      description:
-        "Search the organization's documentation for relevant information. Use this when you need to look up product details, guides, how-to instructions, or technical information to help answer the user's question.",
-      inputSchema: z.object({
-        query: z
-          .string()
-          .describe("The search query to find relevant documentation"),
-      }),
-      execute: implementations.searchDocumentation,
-    }),
     getDraft: tool({
       description:
         "Read the current draft reply. Use this when you need to see the support agent's current draft before making changes.",
       inputSchema: z.object({}),
       execute: implementations.getDraft,
-    }),
-    setDraft: tool({
-      description:
-        "Draft a reply message for the support agent to send to the customer. This replaces the current draft if one exists. The draft will be shown to the agent for review and editing before sending. Use markdown formatting. You MUST call this tool when the user asks to draft, write, reply, or respond. Do not stop after searching without calling this tool.",
-      inputSchema: z.object({
-        content: z
-          .string()
-          .describe("The markdown content of the draft reply message"),
-      }),
-      execute: implementations.setDraft,
-    }),
-    searchThreads: tool({
-      description:
-        "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
-      inputSchema: z.object({
-        query: z
-          .string()
-          .describe("The search query to find relevant support threads"),
-      }),
-      execute: implementations.searchThreads,
     }),
     getThread: tool({
       description:
@@ -279,6 +249,36 @@ export function buildAgentChatTools(
           .describe("Number of threads to return (max 20)"),
       }),
       execute: implementations.listThreads,
+    }),
+    searchDocumentation: tool({
+      description:
+        "Search the organization's documentation for relevant information. Use this when you need to look up product details, guides, how-to instructions, or technical information to help answer the user's question.",
+      inputSchema: z.object({
+        query: z
+          .string()
+          .describe("The search query to find relevant documentation"),
+      }),
+      execute: implementations.searchDocumentation,
+    }),
+    searchThreads: tool({
+      description:
+        "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
+      inputSchema: z.object({
+        query: z
+          .string()
+          .describe("The search query to find relevant support threads"),
+      }),
+      execute: implementations.searchThreads,
+    }),
+    setDraft: tool({
+      description:
+        "Draft a reply message for the support agent to send to the customer. This replaces the current draft if one exists. The draft will be shown to the agent for review and editing before sending. Use markdown formatting. You MUST call this tool when the user asks to draft, write, reply, or respond. Do not stop after searching without calling this tool.",
+      inputSchema: z.object({
+        content: z
+          .string()
+          .describe("The markdown content of the draft reply message"),
+      }),
+      execute: implementations.setDraft,
     }),
   };
 }

@@ -25,13 +25,13 @@ export const generateEmbedding = async (
   try {
     const { embedding } = await embed({
       model: embeddingModel,
-      value: text,
       providerOptions: {
         google: {
           taskType: task,
           ...(outputDimensionality !== undefined && { outputDimensionality }),
         },
       },
+      value: text,
     });
 
     const norm = Math.hypot(...embedding);

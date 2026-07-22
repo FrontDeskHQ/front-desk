@@ -1,4 +1,5 @@
 import type { RelatedPrEvidenceItem } from "@workspace/schemas/signals";
+
 import type { SimilarPrResult } from "../../../../lib/qdrant/pull-requests";
 
 /** How many ranked PRs the hint carries at most. */
@@ -12,7 +13,7 @@ export const RELATED_PRS_LIMIT = 5;
  */
 export function toRelatedPrsEvidence(
   hits: SimilarPrResult[],
-  opts: { limit?: number } = {},
+  opts: { limit?: number } = {}
 ): { prs: RelatedPrEvidenceItem[] } | null {
   const limit = opts.limit ?? RELATED_PRS_LIMIT;
   const prs: RelatedPrEvidenceItem[] = hits
@@ -20,14 +21,16 @@ export function toRelatedPrsEvidence(
     .slice(0, limit)
     .map((hit) => ({
       externalKey: hit.payload.externalKey,
-      prId: hit.payload.externalEntityId,
-      url: hit.payload.url,
-      title: hit.payload.title,
-      repoFullName: hit.payload.repoFullName,
       number: hit.payload.number,
+      prId: hit.payload.externalEntityId,
+      repoFullName: hit.payload.repoFullName,
       score: hit.score,
+      title: hit.payload.title,
+      url: hit.payload.url,
     }));
 
-  if (prs.length === 0) return null;
+  if (prs.length === 0) {
+    return null;
+  }
   return { prs };
 }

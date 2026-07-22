@@ -1,6 +1,6 @@
 import type { SynthesisRawActionSet } from "../synthesize";
 
-export type SynthesisEvalCase = {
+export interface SynthesisEvalCase {
   name: string;
   input: {
     output: SynthesisRawActionSet;
@@ -12,44 +12,49 @@ export type SynthesisEvalCase = {
   };
   expected: {
     shouldBeNull: boolean;
-    primaryKinds: Array<"reply" | "mark_duplicate" | "link_pr" | "close">;
-    alternativesKinds: Array<"reply" | "mark_duplicate" | "link_pr" | "close">;
+    primaryKinds: ("reply" | "mark_duplicate" | "link_pr" | "close")[];
+    alternativesKinds: ("reply" | "mark_duplicate" | "link_pr" | "close")[];
     sourceInputMessageId: string | null;
   };
-};
+}
 
 export const synthesisDataset: SynthesisEvalCase[] = [
   {
-    name: "empty primary becomes null read",
-    input: {
-      output: {
-        summary: "No action needed",
-        recommendation: "No reply, duplicate link, or close is justified yet.",
-        reasoning: "No substantive move is justified.",
-        primary: [],
-        alternatives: [],
-        urgencyScore: 10,
-        sourceInputMessageId: "m2",
-      },
-      messageIds: ["m1", "m2"],
-      fallbackSourceInputMessageId: "m2",
-      hasTeamReply: true,
-    },
     expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
       alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
       sourceInputMessageId: null,
     },
+    input: {
+      fallbackSourceInputMessageId: "m2",
+      hasTeamReply: true,
+      messageIds: ["m1", "m2"],
+      output: {
+        alternatives: [],
+        primary: [],
+        reasoning: "No substantive move is justified.",
+        recommendation: "No reply, duplicate link, or close is justified yet.",
+        sourceInputMessageId: "m2",
+        summary: "No action needed",
+        urgencyScore: 10,
+      },
+    },
+    name: "empty primary becomes null read",
   },
   {
-    name: "reply draft is trimmed and source id is preserved when valid",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: ["reply"],
+      shouldBeNull: false,
+      sourceInputMessageId: "m3",
+    },
     input: {
+      fallbackSourceInputMessageId: "m3",
+      hasTeamReply: true,
+      messageIds: ["m1", "m2", "m3"],
       output: {
-        summary: "Customer reports invoice amount mismatch ",
-        recommendation: "Reply with an explanation of the invoice difference.",
-        reasoning:
-          " Latest inbound asks why the invoice total differs from the expected plan price. ",
+        alternatives: [],
         primary: [
           {
             kind: "reply",
@@ -57,121 +62,121 @@ export const synthesisDataset: SynthesisEvalCase[] = [
               "  Thanks for flagging this. I checked the invoice and the difference is from prorated usage after your mid-cycle plan change. If you want, I can break down each line item with dates so you can verify the total.  ",
           },
         ],
-        alternatives: [],
-        urgencyScore: 55,
+        reasoning:
+          " Latest inbound asks why the invoice total differs from the expected plan price. ",
+        recommendation: "Reply with an explanation of the invoice difference.",
         sourceInputMessageId: "m3",
+        summary: "Customer reports invoice amount mismatch ",
+        urgencyScore: 55,
       },
-      messageIds: ["m1", "m2", "m3"],
-      fallbackSourceInputMessageId: "m3",
-      hasTeamReply: true,
     },
-    expected: {
-      shouldBeNull: false,
-      primaryKinds: ["reply"],
-      alternativesKinds: [],
-      sourceInputMessageId: "m3",
-    },
+    name: "reply draft is trimmed and source id is preserved when valid",
   },
   {
-    name: "invalid source id falls back to latest known message id",
-    input: {
-      output: {
-        summary: "Likely duplicate report",
-        recommendation: "This is a duplicate of an existing thread.",
-        reasoning: "Hint points strongly to an existing thread.",
-        primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
-        alternatives: [{ kind: "close" }],
-        urgencyScore: 72,
-        sourceInputMessageId: "missing-message",
-      },
-      messageIds: ["m7", "m8"],
-      fallbackSourceInputMessageId: "m8",
-      hasTeamReply: true,
-    },
     expected: {
-      shouldBeNull: false,
-      primaryKinds: ["mark_duplicate"],
       alternativesKinds: ["close"],
+      primaryKinds: ["mark_duplicate"],
+      shouldBeNull: false,
       sourceInputMessageId: "m8",
     },
-  },
-  {
-    name: "blank reply draft is dropped and can null the read",
     input: {
-      output: {
-        summary: "No useful reply content",
-        recommendation: "Reply to acknowledge the customer.",
-        reasoning: "Model proposed an empty draft.",
-        primary: [{ kind: "reply", draftMarkdown: "   " }],
-        alternatives: [],
-        urgencyScore: 20,
-        sourceInputMessageId: "m1",
-      },
-      messageIds: ["m1"],
-      fallbackSourceInputMessageId: "m1",
+      fallbackSourceInputMessageId: "m8",
       hasTeamReply: true,
-    },
-    expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
-      alternativesKinds: [],
-      sourceInputMessageId: null,
-    },
-  },
-  {
-    name: "blank duplicate target is dropped and falls back to null",
-    input: {
+      messageIds: ["m7", "m8"],
       output: {
-        summary: "Duplicate target is missing",
-        recommendation: "This is a duplicate of an existing thread.",
-        reasoning: "Model attempted mark_duplicate without a real target id.",
-        primary: [{ kind: "mark_duplicate", targetThreadId: "   " }],
         alternatives: [{ kind: "close" }],
-        urgencyScore: 30,
-        sourceInputMessageId: "m1",
-      },
-      messageIds: ["m1"],
-      fallbackSourceInputMessageId: "m1",
-      hasTeamReply: true,
-    },
-    expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
-      alternativesKinds: [],
-      sourceInputMessageId: null,
-    },
-  },
-  {
-    name: "unreplied mark_duplicate without reply becomes null",
-    input: {
-      output: {
-        summary: "Duplicate without acknowledgment",
-        recommendation: "This is a duplicate of an existing thread.",
-        reasoning: "Should be rejected by normalize.",
         primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
-        alternatives: [{ kind: "close" }],
-        urgencyScore: 50,
-        sourceInputMessageId: "m1",
+        reasoning: "Hint points strongly to an existing thread.",
+        recommendation: "This is a duplicate of an existing thread.",
+        sourceInputMessageId: "missing-message",
+        summary: "Likely duplicate report",
+        urgencyScore: 72,
       },
+    },
+    name: "invalid source id falls back to latest known message id",
+  },
+  {
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
+      sourceInputMessageId: null,
+    },
+    input: {
+      fallbackSourceInputMessageId: "m1",
+      hasTeamReply: true,
       messageIds: ["m1"],
+      output: {
+        alternatives: [],
+        primary: [{ kind: "reply", draftMarkdown: "   " }],
+        reasoning: "Model proposed an empty draft.",
+        recommendation: "Reply to acknowledge the customer.",
+        sourceInputMessageId: "m1",
+        summary: "No useful reply content",
+        urgencyScore: 20,
+      },
+    },
+    name: "blank reply draft is dropped and can null the read",
+  },
+  {
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
+      sourceInputMessageId: null,
+    },
+    input: {
+      fallbackSourceInputMessageId: "m1",
+      hasTeamReply: true,
+      messageIds: ["m1"],
+      output: {
+        alternatives: [{ kind: "close" }],
+        primary: [{ kind: "mark_duplicate", targetThreadId: "   " }],
+        reasoning: "Model attempted mark_duplicate without a real target id.",
+        recommendation: "This is a duplicate of an existing thread.",
+        sourceInputMessageId: "m1",
+        summary: "Duplicate target is missing",
+        urgencyScore: 30,
+      },
+    },
+    name: "blank duplicate target is dropped and falls back to null",
+  },
+  {
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
+      sourceInputMessageId: null,
+    },
+    input: {
       fallbackSourceInputMessageId: "m1",
       hasTeamReply: false,
+      messageIds: ["m1"],
+      output: {
+        alternatives: [{ kind: "close" }],
+        primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
+        reasoning: "Should be rejected by normalize.",
+        recommendation: "This is a duplicate of an existing thread.",
+        sourceInputMessageId: "m1",
+        summary: "Duplicate without acknowledgment",
+        urgencyScore: 50,
+      },
     },
-    expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
-      alternativesKinds: [],
-      sourceInputMessageId: null,
-    },
+    name: "unreplied mark_duplicate without reply becomes null",
   },
   {
-    name: "unreplied mark_duplicate with reply strips close alternative",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: ["mark_duplicate", "reply"],
+      shouldBeNull: false,
+      sourceInputMessageId: "m1",
+    },
     input: {
+      fallbackSourceInputMessageId: "m1",
+      hasTeamReply: false,
+      messageIds: ["m1"],
       output: {
-        summary: "Link duplicate and acknowledge customer",
-        recommendation:
-          "This is a duplicate of an existing thread; reply to acknowledge the customer.",
-        reasoning: "Bundled reply is valid.",
+        alternatives: [{ kind: "close" }],
         primary: [
           { kind: "mark_duplicate", targetThreadId: "t-123" },
           {
@@ -180,30 +185,28 @@ export const synthesisDataset: SynthesisEvalCase[] = [
               "Thanks for reporting this — it matches an existing thread we are tracking.",
           },
         ],
-        alternatives: [{ kind: "close" }],
-        urgencyScore: 60,
+        reasoning: "Bundled reply is valid.",
+        recommendation:
+          "This is a duplicate of an existing thread; reply to acknowledge the customer.",
         sourceInputMessageId: "m1",
+        summary: "Link duplicate and acknowledge customer",
+        urgencyScore: 60,
       },
-      messageIds: ["m1"],
-      fallbackSourceInputMessageId: "m1",
-      hasTeamReply: false,
     },
-    expected: {
-      shouldBeNull: false,
-      primaryKinds: ["mark_duplicate", "reply"],
-      alternativesKinds: [],
-      sourceInputMessageId: "m1",
-    },
+    name: "unreplied mark_duplicate with reply strips close alternative",
   },
   {
-    name: "close primary with trimmed reply alternative is preserved",
+    expected: {
+      alternativesKinds: ["reply"],
+      primaryKinds: ["close"],
+      shouldBeNull: false,
+      sourceInputMessageId: "m5",
+    },
     input: {
+      fallbackSourceInputMessageId: "m5",
+      hasTeamReply: true,
+      messageIds: ["m4", "m5"],
       output: {
-        summary: "Customer confirmed issue resolved",
-        recommendation:
-          "Close the thread — the customer confirmed the issue is resolved.",
-        reasoning: "Latest message says we can close the thread.",
-        primary: [{ kind: "close" }],
         alternatives: [
           {
             kind: "reply",
@@ -211,79 +214,82 @@ export const synthesisDataset: SynthesisEvalCase[] = [
               "  Great, thanks for confirming. I will close this thread now.  ",
           },
         ],
-        urgencyScore: 12,
+        primary: [{ kind: "close" }],
+        reasoning: "Latest message says we can close the thread.",
+        recommendation:
+          "Close the thread — the customer confirmed the issue is resolved.",
         sourceInputMessageId: "m5",
+        summary: "Customer confirmed issue resolved",
+        urgencyScore: 12,
       },
-      messageIds: ["m4", "m5"],
-      fallbackSourceInputMessageId: "m5",
-      hasTeamReply: true,
     },
-    expected: {
-      shouldBeNull: false,
-      primaryKinds: ["close"],
-      alternativesKinds: ["reply"],
-      sourceInputMessageId: "m5",
-    },
+    name: "close primary with trimmed reply alternative is preserved",
   },
   {
-    name: "link_pr primary keeps only the first across primary and alternatives",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: ["link_pr"],
+      shouldBeNull: false,
+      sourceInputMessageId: "m9",
+    },
     input: {
+      fallbackSourceInputMessageId: "m9",
+      hasTeamReply: true,
+      messageIds: ["m9"],
       output: {
-        summary: "Customer hit a bug fixed by an open PR",
-        recommendation: "Link the pull request that fixes this.",
-        reasoning: "The open PR addresses the reported crash.",
-        primary: [
-          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/1" },
-        ],
         alternatives: [
           { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/2" },
         ],
-        urgencyScore: 40,
+        primary: [
+          { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/1" },
+        ],
+        reasoning: "The open PR addresses the reported crash.",
+        recommendation: "Link the pull request that fixes this.",
         sourceInputMessageId: "m9",
+        summary: "Customer hit a bug fixed by an open PR",
+        urgencyScore: 40,
       },
-      messageIds: ["m9"],
-      fallbackSourceInputMessageId: "m9",
-      hasTeamReply: true,
     },
-    expected: {
-      shouldBeNull: false,
-      primaryKinds: ["link_pr"],
-      alternativesKinds: [],
-      sourceInputMessageId: "m9",
-    },
+    name: "link_pr primary keeps only the first across primary and alternatives",
   },
   {
-    name: "standalone link_pr on unreplied thread is dropped to null",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
+      sourceInputMessageId: null,
+    },
     input: {
+      fallbackSourceInputMessageId: "m10",
+      hasTeamReply: false,
+      messageIds: ["m10"],
       output: {
-        summary: "Customer reported a bug an open PR fixes",
-        recommendation: "Link the pull request that fixes this.",
-        reasoning: "The open PR resolves the report, but nobody has replied.",
+        alternatives: [],
         primary: [
           { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/3" },
         ],
-        alternatives: [],
-        urgencyScore: 45,
+        reasoning: "The open PR resolves the report, but nobody has replied.",
+        recommendation: "Link the pull request that fixes this.",
         sourceInputMessageId: "m10",
+        summary: "Customer reported a bug an open PR fixes",
+        urgencyScore: 45,
       },
-      messageIds: ["m10"],
-      fallbackSourceInputMessageId: "m10",
-      hasTeamReply: false,
     },
-    expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
-      alternativesKinds: [],
-      sourceInputMessageId: null,
-    },
+    name: "standalone link_pr on unreplied thread is dropped to null",
   },
   {
-    name: "link_pr coupled with reply on unreplied thread orders link_pr first",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: ["link_pr", "reply"],
+      shouldBeNull: false,
+      sourceInputMessageId: "m11",
+    },
     input: {
+      fallbackSourceInputMessageId: "m11",
+      hasTeamReply: false,
+      messageIds: ["m11"],
       output: {
-        summary: "Customer reported a bug an open PR fixes",
-        recommendation: "Link the pull request and let the customer know.",
-        reasoning: "The open PR resolves the report; acknowledge the customer.",
+        alternatives: [],
         primary: [
           {
             kind: "reply",
@@ -292,23 +298,22 @@ export const synthesisDataset: SynthesisEvalCase[] = [
           },
           { kind: "link_pr", prUrl: "https://github.com/acme/api/pull/4" },
         ],
-        alternatives: [],
-        urgencyScore: 50,
+        reasoning: "The open PR resolves the report; acknowledge the customer.",
+        recommendation: "Link the pull request and let the customer know.",
         sourceInputMessageId: "m11",
+        summary: "Customer reported a bug an open PR fixes",
+        urgencyScore: 50,
       },
-      messageIds: ["m11"],
-      fallbackSourceInputMessageId: "m11",
-      hasTeamReply: false,
     },
-    expected: {
-      shouldBeNull: false,
-      primaryKinds: ["link_pr", "reply"],
-      alternativesKinds: [],
-      sourceInputMessageId: "m11",
-    },
+    name: "link_pr coupled with reply on unreplied thread orders link_pr first",
   },
   {
-    name: "unverified primary link_pr becomes null (avoids stale recommendation)",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
+      sourceInputMessageId: null,
+    },
     input: {
       output: {
         summary: "Customer hit a bug",
@@ -334,37 +339,32 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       // over a reply-only primary, so the whole set is discarded.
       verifiedPrUrls: ["https://github.com/acme/api/pull/482"],
     },
-    expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
-      alternativesKinds: [],
-      sourceInputMessageId: null,
-    },
+    name: "unverified primary link_pr becomes null (avoids stale recommendation)",
   },
   {
-    name: "standalone unverified link_pr becomes null when verifiedPrUrls is provided",
+    expected: {
+      alternativesKinds: [],
+      primaryKinds: [],
+      shouldBeNull: true,
+      sourceInputMessageId: null,
+    },
     input: {
+      fallbackSourceInputMessageId: "m13",
+      hasTeamReply: true,
+      messageIds: ["m13"],
       output: {
-        summary: "Customer hit a bug",
-        recommendation: "Link the pull request that fixes this.",
-        reasoning: "Model emitted link_pr without a successful read_pr.",
+        alternatives: [],
         primary: [
           { kind: "link_pr", prUrl: "https://github.com/evil/repo/pull/1" },
         ],
-        alternatives: [],
-        urgencyScore: 40,
+        reasoning: "Model emitted link_pr without a successful read_pr.",
+        recommendation: "Link the pull request that fixes this.",
         sourceInputMessageId: "m13",
+        summary: "Customer hit a bug",
+        urgencyScore: 40,
       },
-      messageIds: ["m13"],
-      fallbackSourceInputMessageId: "m13",
-      hasTeamReply: true,
       verifiedPrUrls: [],
     },
-    expected: {
-      shouldBeNull: true,
-      primaryKinds: [],
-      alternativesKinds: [],
-      sourceInputMessageId: null,
-    },
+    name: "standalone unverified link_pr becomes null when verifiedPrUrls is provided",
   },
 ];

@@ -1,8 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import {
-  EditableRichText,
-  type JSONContent,
-} from "@workspace/ui/components/blocks/tiptap";
+import { EditableRichText } from "@workspace/ui/components/blocks/tiptap";
+import type { JSONContent } from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import { KeybindIsolation } from "@workspace/ui/components/keybind";
 import { cn } from "@workspace/ui/lib/utils";
@@ -21,21 +19,25 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { z } from "zod";
+
 import { mutate, query } from "~/lib/live-state";
+
 import { AgentMessageContent } from "./agent-message-content";
 
-type ToolCall = {
+interface ToolCall {
   name: string;
   args: unknown;
   status: "calling" | "complete";
   result?: unknown;
-};
+}
 
 function parseToolCalls(raw: string | null): {
   calls: ToolCall[];
   done: boolean;
 } {
-  if (!raw) return { calls: [], done: false };
+  if (!raw) {
+    return { calls: [], done: false };
+  }
   try {
     const parsed = JSON.parse(raw);
     if (Array.isArray(parsed)) {
@@ -58,10 +60,10 @@ const SearchDocumentationArgsSchema = z.object({
 });
 
 const SearchDocumentationMatchSchema = z.object({
-  title: z.string().optional(),
-  url: z.string().optional(),
   content: z.string().optional(),
   section: z.string().optional(),
+  title: z.string().optional(),
+  url: z.string().optional(),
 });
 
 const SetDraftArgsSchema = z.object({
@@ -74,12 +76,12 @@ const SearchThreadsArgsSchema = z.object({
 
 const SearchThreadsResultItemSchema = z.object({
   _id: z.string(),
-  name: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
   author: z.string().optional(),
   createdAt: z.string().optional(),
   matchingMessageSnippet: z.string().optional(),
+  name: z.string(),
+  priority: z.string().optional(),
+  status: z.string().optional(),
 });
 
 const GetThreadArgsSchema = z.object({
@@ -88,11 +90,9 @@ const GetThreadArgsSchema = z.object({
 
 const GetThreadResultSchema = z.object({
   _id: z.string().optional(),
-  name: z.string().optional(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  author: z.string().optional(),
   assignee: z.string().nullable().optional(),
+  author: z.string().optional(),
+  error: z.string().optional(),
   labels: z.array(z.string()).optional(),
   messageCount: z.number().optional(),
   messages: z
@@ -101,59 +101,63 @@ const GetThreadResultSchema = z.object({
         author: z.string(),
         content: z.string(),
         createdAt: z.string(),
-      }),
+      })
     )
     .optional(),
-  error: z.string().optional(),
+  name: z.string().optional(),
+  priority: z.string().optional(),
+  status: z.string().optional(),
 });
 
 const ListThreadsArgsSchema = z.object({
-  status: z.string().optional(),
-  priority: z.string().optional(),
   limit: z.number().optional(),
+  priority: z.string().optional(),
+  status: z.string().optional(),
 });
 
 const ListThreadsResultItemSchema = z.object({
   _id: z.string(),
-  name: z.string(),
-  status: z.string().optional(),
-  priority: z.string().optional(),
-  author: z.string().optional(),
   assignee: z.string().nullable().optional(),
+  author: z.string().optional(),
   createdAt: z.string().optional(),
+  name: z.string(),
+  priority: z.string().optional(),
+  status: z.string().optional(),
 });
 
-type SupportIntelligenceChatProps = {
+interface SupportIntelligenceChatProps {
   threadId: string;
   organizationId: string | undefined;
   user: { id: string; name: string; image?: string | null };
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
   className?: string;
-};
+}
 
 const toolDisplayNames: Record<string, string> = {
-  searchDocumentation: "Searched documentation",
-  setDraft: "Drafted a reply",
   getDraft: "Read current draft",
-  searchThreads: "Searched threads",
   getThread: "Read thread details",
   listThreads: "Listed threads",
+  searchDocumentation: "Searched documentation",
+  searchThreads: "Searched threads",
+  setDraft: "Drafted a reply",
 };
 
-const toolIcons: Record<string, React.ReactNode> = {
-  searchDocumentation: <SearchIcon className="size-3.5" />,
-  setDraft: <PenLineIcon className="size-3.5" />,
+const _toolIcons: Record<string, React.ReactNode> = {
   getDraft: <EyeIcon className="size-3.5" />,
-  searchThreads: <SearchIcon className="size-3.5" />,
   getThread: <FileTextIcon className="size-3.5" />,
   listThreads: <ListIcon className="size-3.5" />,
+  searchDocumentation: <SearchIcon className="size-3.5" />,
+  searchThreads: <SearchIcon className="size-3.5" />,
+  setDraft: <PenLineIcon className="size-3.5" />,
 };
 
 const renderGenericToolPayload = (label: string, payload: unknown) => {
-  if (payload == null) return null;
+  if ((payload ?? null) === null) {
+    return null;
+  }
   return (
     <div className="mb-1">
       <span className="font-semibold">{label}: </span>
@@ -163,14 +167,14 @@ const renderGenericToolPayload = (label: string, payload: unknown) => {
 };
 
 const getSearchDocumentationArgs = (
-  value: unknown,
+  value: unknown
 ): z.infer<typeof SearchDocumentationArgsSchema> | null => {
   const result = SearchDocumentationArgsSchema.safeParse(value);
   return result.success ? result.data : null;
 };
 
 const getSearchDocumentationMatches = (
-  value: unknown,
+  value: unknown
 ): z.infer<typeof SearchDocumentationMatchSchema>[] => {
   const result = z.array(SearchDocumentationMatchSchema).safeParse(value);
   return result.success ? result.data : [];
@@ -238,14 +242,18 @@ const renderSetDraftPayload = (toolCall: ToolCall) => {
 };
 
 const GetDraftResultSchema = z.object({
-  hasDraft: z.boolean(),
   content: z.string().nullable(),
+  hasDraft: z.boolean(),
 });
 
 const renderGetDraftPayload = (toolCall: ToolCall) => {
-  if (toolCall.status !== "complete") return null;
+  if (toolCall.status !== "complete") {
+    return null;
+  }
   const result = GetDraftResultSchema.safeParse(toolCall.result);
-  if (!result.success) return null;
+  if (!result.success) {
+    return null;
+  }
 
   return (
     <div className="space-y-1 font-sans text-xs leading-5">
@@ -354,12 +362,13 @@ const renderGetThreadPayload = (toolCall: ToolCall) => {
           Labels: {result.data.labels.join(", ")}
         </div>
       )}
-      {result.data.messageCount != null && (
-        <div className="text-foreground-secondary">
-          {result.data.messageCount} message
-          {result.data.messageCount !== 1 ? "s" : ""}
-        </div>
-      )}
+      {result.data.messageCount !== null &&
+        result.data.messageCount !== undefined && (
+          <div className="text-foreground-secondary">
+            {result.data.messageCount} message
+            {result.data.messageCount === 1 ? "" : "s"}
+          </div>
+        )}
     </div>
   );
 };
@@ -465,7 +474,7 @@ function ToolCallBlock({ toolCall }: { toolCall: ToolCall }) {
           <ChevronRightIcon
             className={cn(
               "size-3 transition-transform duration-150",
-              expanded && "rotate-90",
+              expanded && "rotate-90"
             )}
           />
         )}
@@ -508,7 +517,7 @@ function BrailleSpinner({ className }: { className?: string }) {
 function ThinkingIndicator() {
   const [frame, setFrame] = useState(0);
   const [text] = useState(
-    () => thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)],
+    () => thinkingTexts[Math.floor(Math.random() * thinkingTexts.length)]
   );
 
   useEffect(() => {
@@ -532,11 +541,11 @@ function MessageGroup({
   showThinking,
 }: {
   role: string;
-  messages: Array<{
+  messages: {
     id: string;
     content: string;
     toolCalls: string | null;
-  }>;
+  }[];
   showThinking?: boolean;
 }) {
   const isAssistant = role === "assistant";
@@ -551,7 +560,7 @@ function MessageGroup({
             className={cn(
               isAssistant
                 ? "flex flex-col gap-2 px-1 [&>*:first-child]:mt-0 [&>*:last-child]:mb-0"
-                : "rounded-lg bg-muted/50 border border-input px-3 py-2",
+                : "rounded-lg bg-muted/50 border border-input px-3 py-2"
             )}
           >
             {toolCalls.map((tc, i) => (
@@ -606,7 +615,9 @@ function DraftEditor({
       clearTimeout(debounceRef.current);
       debounceRef.current = null;
     }
-    if (resolvedRef.current) return;
+    if (resolvedRef.current) {
+      return;
+    }
     mutate.agentChat.updateDraft({
       chatId,
       content: latestMarkdownRef.current,
@@ -628,14 +639,15 @@ function DraftEditor({
         }
       }, 500);
     },
-    [chatId],
+    [chatId]
   );
 
-  useEffect(() => {
-    return () => {
+  useEffect(
+    () => () => {
       flushDraft();
-    };
-  }, [flushDraft]);
+    },
+    [flushDraft]
+  );
 
   const handleAccept = useCallback(() => {
     flushDraft();
@@ -696,18 +708,22 @@ export const SupportIntelligenceChat = ({
   // Find or create agent chat session for this thread
   const agentChats = useLiveQuery(
     query.agentChat.where({
-      threadId,
       organizationId,
+      threadId,
       userId: user.id,
-    }),
+    })
   );
 
   const agentChat = agentChats?.[0];
 
   // Auto-create chat session if none exists
   useEffect(() => {
-    if (isCreatingRef.current) return;
-    if (!agentChats || agentChats.length !== 0 || !organizationId) return;
+    if (isCreatingRef.current) {
+      return;
+    }
+    if (!agentChats || agentChats.length !== 0 || !organizationId) {
+      return;
+    }
 
     isCreatingRef.current = true;
     mutate.agentChat.create({ organizationId, threadId }).finally(() => {
@@ -726,34 +742,36 @@ export const SupportIntelligenceChat = ({
 
   // Group messages by consecutive same-role sequences
   const messageGroups = useMemo(() => {
-    if (!messages || !Array.isArray(messages)) return [];
-    const groups: Array<{
+    if (!messages || !Array.isArray(messages)) {
+      return [];
+    }
+    const groups: {
       role: string;
-      messages: Array<{
+      messages: {
         id: string;
         content: string;
         toolCalls: string | null;
-      }>;
-    }> = [];
+      }[];
+    }[] = [];
 
     for (const msg of messages) {
-      const lastGroup = groups[groups.length - 1];
+      const lastGroup = groups.at(-1);
       if (lastGroup && lastGroup.role === msg.role) {
         lastGroup.messages.push({
-          id: msg.id,
           content: msg.content,
-          toolCalls: (msg as any).toolCalls ?? null,
+          id: msg.id,
+          toolCalls: msg.toolCalls ?? null,
         });
       } else {
         groups.push({
-          role: msg.role,
           messages: [
             {
               id: msg.id,
               content: msg.content,
-              toolCalls: (msg as any).toolCalls ?? null,
+              toolCalls: msg.toolCalls ?? null,
             },
           ],
+          role: msg.role,
         });
       }
     }
@@ -777,7 +795,9 @@ export const SupportIntelligenceChat = ({
   const hasDraft = agentChat?.draftStatus === "active" && agentChat?.draft;
 
   useEffect(() => {
-    if (!hasDraft) return;
+    if (!hasDraft) {
+      return;
+    }
     // Keep scrolling during the draft expand animation so content stays visible
     const raf = { id: 0 };
     const start = performance.now();
@@ -797,7 +817,9 @@ export const SupportIntelligenceChat = ({
   }, []);
 
   const handleSend = async () => {
-    if (!inputValue.trim() || !agentChat || isSending) return;
+    if (!inputValue.trim() || !agentChat || isSending) {
+      return;
+    }
     const message = inputValue.trim();
     setInputValue("");
     setIsSending(true);
@@ -821,13 +843,17 @@ export const SupportIntelligenceChat = ({
   };
 
   const handleAcceptDraft = useCallback(async () => {
-    if (!agentChat) return;
+    if (!agentChat) {
+      return;
+    }
     await mutate.agentChat.acceptDraft({ chatId: agentChat.id });
     captureThreadEvent("thread:si_draft_accepted");
   }, [agentChat, captureThreadEvent]);
 
   const handleDismissDraft = useCallback(async () => {
-    if (!agentChat) return;
+    if (!agentChat) {
+      return;
+    }
     await mutate.agentChat.dismissDraft({ chatId: agentChat.id });
     captureThreadEvent("thread:si_draft_dismissed");
   }, [agentChat, captureThreadEvent]);
@@ -850,7 +876,7 @@ export const SupportIntelligenceChat = ({
           >
             <DraftEditor
               chatId={agentChat.id}
-              draft={agentChat.draft!}
+              draft={agentChat.draft}
               onAccept={handleAcceptDraft}
               onDismiss={handleDismissDraft}
             />
@@ -861,14 +887,14 @@ export const SupportIntelligenceChat = ({
         <div
           className={cn(
             "min-h-0 flex-1 overflow-y-auto p-4 space-y-4",
-            hasDraft && "max-h-[256px]",
+            hasDraft && "max-h-[256px]"
           )}
         >
           {messageGroups.map((group, i) => {
             const isLast = i === messageGroups.length - 1;
             let showThinking = false;
             if (isLast && group.role === "assistant") {
-              const lastMsg = group.messages[group.messages.length - 1];
+              const lastMsg = group.messages.at(-1);
               if (!lastMsg?.content) {
                 const { done } = parseToolCalls(lastMsg?.toolCalls ?? null);
                 showThinking = !done;
@@ -890,7 +916,7 @@ export const SupportIntelligenceChat = ({
       <KeybindIsolation
         className={cn(
           "shrink-0 grow-0 p-3 flex gap-2",
-          messageGroups.length > 0 && "border-t border-input",
+          messageGroups.length > 0 && "border-t border-input"
         )}
       >
         <input

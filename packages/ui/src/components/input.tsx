@@ -1,26 +1,28 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { Keybind, KeybindIsolation } from "@workspace/ui/components/keybind";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 import { useState } from "react";
+
 import { Combobox, ComboboxTextInput } from "./combobox";
 
 const inputVariants = cva(
   "file:text-foreground placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground flex h-9 w-full min-w-0 px-3 py-1 text-base transition-[color,box-shadow] outline-none file:inline-flex file:h-7 file:border-0 file:bg-transparent file:text-sm file:font-medium disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
   {
-    variants: {
-      variant: {
-        default:
-          "dark:bg-input/30 border-input rounded-md border bg-transparent shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-        borderless:
-          "border-0 bg-transparent shadow-none rounded-none focus-visible:ring-0 focus-visible:border-0",
-      },
-    },
     defaultVariants: {
       variant: "default",
     },
-  },
+    variants: {
+      variant: {
+        borderless:
+          "border-0 bg-transparent shadow-none rounded-none focus-visible:ring-0 focus-visible:border-0",
+        default:
+          "dark:bg-input/30 border-input rounded-md border bg-transparent shadow-xs focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
+      },
+    },
+  }
 );
 
 function Input({
@@ -56,15 +58,17 @@ function InputWithSeparator({
 }) {
   const [value, setValue] = useControllableState<string[]>({
     defaultProp: initialValue ?? [],
-    prop: externalValue,
     onChange: onValueChange,
+    prop: externalValue,
   });
   const [inputValue, setInputValue] = useState<string>("");
 
   return (
     <Combobox
-      value={value.map((v) => ({ value: v, label: v }))}
-      onValueChange={(v) => setValue(v.map((v) => v.value))}
+      value={value.map((v) => ({ label: v, value: v }))}
+      onValueChange={(selected) =>
+        setValue(selected.map((entry) => entry.value))
+      }
       multiple
     >
       <ComboboxTextInput
@@ -98,23 +102,23 @@ function InputWithSeparator({
 const Search = React.forwardRef<
   HTMLInputElement,
   React.InputHTMLAttributes<HTMLInputElement>
->(({ className, placeholder = "Search threads...", ...props }, ref) => {
-  return (
-    <KeybindIsolation className="w-full relative">
-      <Input
-        ref={ref}
-        type="search"
-        placeholder={placeholder}
-        className={`h-7 py-0.5 text-sm border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${
-          className || ""
-        }`}
-        {...props}
-      />
-      <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
-        <Keybind keybind="mod-K" />
-      </div>
-    </KeybindIsolation>
-  );
-});
+>(({ className, placeholder = "Search threads...", ...props }, ref) => (
+  <KeybindIsolation className="w-full relative">
+    <Input
+      ref={ref}
+      type="search"
+      placeholder={placeholder}
+      className={`h-7 py-0.5 text-sm border-neutral-800 text-neutral-50 placeholder:text-neutral-400 ${
+        className || ""
+      }`}
+      {...props}
+    />
+    <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+      <Keybind keybind="mod-K" />
+    </div>
+  </KeybindIsolation>
+));
+
+Search.displayName = "Search";
 
 export { Input, InputWithSeparator, Search };

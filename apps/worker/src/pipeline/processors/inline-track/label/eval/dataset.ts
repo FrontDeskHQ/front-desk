@@ -2,12 +2,12 @@ import type { ClassifyLabelInput } from "../classify";
 
 export type ExpectedConfidenceBucket = "high" | "low" | "none";
 
-export type LabelClassifierTestCase = {
+export interface LabelClassifierTestCase {
   name: string;
   input: ClassifyLabelInput;
   expectedLabel: string | null;
   expectedConfidenceBucket: ExpectedConfidenceBucket;
-};
+}
 
 const STANDARD_LABELS = [
   { id: "lbl_bug", name: "bug" },
@@ -23,318 +23,320 @@ const noSummary = null;
 export const labelClassifierDataset: LabelClassifierTestCase[] = [
   // Clear signal — bug
   {
-    name: "clear bug: stack trace + repro",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
     input: {
-      threadName: "App crashes on startup",
       firstMessageContent:
         "Since the last release the app crashes immediately with a NullPointerException at boot. Repro: open the app, splash screen appears, then it closes. Logs attached.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "App crashes on startup",
     },
-    expectedLabel: "lbl_bug",
-    expectedConfidenceBucket: "high",
+    name: "clear bug: stack trace + repro",
   },
   {
-    name: "clear bug: 500 from API",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
     input: {
-      threadName: "POST /threads returns 500",
       firstMessageContent:
         "Every call to POST /threads returns a 500 since this morning. Other endpoints work fine.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "POST /threads returns 500",
     },
-    expectedLabel: "lbl_bug",
-    expectedConfidenceBucket: "high",
+    name: "clear bug: 500 from API",
   },
   // Clear signal — billing
   {
-    name: "clear billing: double charge",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_billing",
     input: {
-      threadName: "Charged twice for the same month",
       firstMessageContent:
         "My card was charged twice on Nov 3rd for the Pro plan. I only have one subscription. Please refund the duplicate charge.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Charged twice for the same month",
     },
-    expectedLabel: "lbl_billing",
-    expectedConfidenceBucket: "high",
+    name: "clear billing: double charge",
   },
   {
-    name: "clear billing: invoice question",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_billing",
     input: {
-      threadName: "Need a VAT invoice for last month",
       firstMessageContent:
         "Can you send me an invoice with our company VAT id on it? Email is finance@acme.com.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Need a VAT invoice for last month",
     },
-    expectedLabel: "lbl_billing",
-    expectedConfidenceBucket: "high",
+    name: "clear billing: invoice question",
   },
   // Clear signal — feature request
   {
-    name: "clear feature request",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_feature_request",
     input: {
-      threadName: "Add CSV export",
       firstMessageContent:
         "It would be great if we could export the threads list to CSV. Right now we can't share data with our analytics team.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Add CSV export",
     },
-    expectedLabel: "lbl_feature_request",
-    expectedConfidenceBucket: "high",
+    name: "clear feature request",
   },
   // Clear signal — account
   {
-    name: "clear account: locked out",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_account",
     input: {
-      threadName: "Can't log in",
       firstMessageContent:
         "I tried to log in this morning and it says my account is locked. I don't see any emails about this. Can you unlock it?",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Can't log in",
     },
-    expectedLabel: "lbl_account",
-    expectedConfidenceBucket: "high",
+    name: "clear account: locked out",
   },
   // Clear signal — docs
   {
-    name: "clear docs: instructions unclear",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_docs",
     input: {
-      threadName: "Webhook setup docs are missing steps",
       firstMessageContent:
         "The webhooks doc page jumps from creating the URL to verifying signatures and doesn't mention the secret rotation step.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Webhook setup docs are missing steps",
     },
-    expectedLabel: "lbl_docs",
-    expectedConfidenceBucket: "high",
+    name: "clear docs: instructions unclear",
   },
   // Clear signal — integration
   {
-    name: "clear integration: Slack not posting",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_integration",
     input: {
-      threadName: "Slack integration stopped working",
       firstMessageContent:
         "Since yesterday the FrontDesk Slack bot stopped posting new threads into #support. The Slack integration is still listed as enabled.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Slack integration stopped working",
     },
-    expectedLabel: "lbl_integration",
-    expectedConfidenceBucket: "high",
+    name: "clear integration: Slack not posting",
   },
   // Ambiguous — null expected
   {
-    name: "ambiguous: greeting",
+    expectedConfidenceBucket: "none",
+    expectedLabel: null,
     input: {
-      threadName: "hello",
       firstMessageContent: "Hi there!",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "hello",
     },
-    expectedLabel: null,
-    expectedConfidenceBucket: "none",
+    name: "ambiguous: greeting",
   },
   {
-    name: "ambiguous: vague complaint",
-    input: {
-      threadName: "Something is wrong",
-      firstMessageContent: "Not sure what's going on but it's not working.",
-      summary: noSummary,
-      orgLabels: STANDARD_LABELS,
-    },
-    expectedLabel: null,
     expectedConfidenceBucket: "low",
+    expectedLabel: null,
+    input: {
+      firstMessageContent: "Not sure what's going on but it's not working.",
+      orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Something is wrong",
+    },
+    name: "ambiguous: vague complaint",
   },
   {
-    name: "ambiguous: thanks-only message",
-    input: {
-      threadName: null,
-      firstMessageContent: "Thanks for the help earlier!",
-      summary: noSummary,
-      orgLabels: STANDARD_LABELS,
-    },
-    expectedLabel: null,
     expectedConfidenceBucket: "none",
+    expectedLabel: null,
+    input: {
+      firstMessageContent: "Thanks for the help earlier!",
+      orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: null,
+    },
+    name: "ambiguous: thanks-only message",
   },
   // Multi-label plausible — should still pick one
   {
-    name: "multi-label: billing bug",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
     input: {
-      threadName: "Subscription page errors out",
       firstMessageContent:
         "When I click 'Manage subscription' the page throws a 500. I'm trying to update my card before it expires.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Subscription page errors out",
     },
-    expectedLabel: "lbl_bug",
-    expectedConfidenceBucket: "high",
+    name: "multi-label: billing bug",
   },
   {
-    name: "multi-label: docs/integration",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_integration",
     input: {
-      threadName: "GitHub integration setup unclear",
       firstMessageContent:
         "The instructions for installing the GitHub app don't say what scopes we need. Tried it and it failed.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "GitHub integration setup unclear",
     },
-    expectedLabel: "lbl_integration",
-    expectedConfidenceBucket: "high",
+    name: "multi-label: docs/integration",
   },
   // No-match: no fitting label
   {
-    name: "no fitting label: HR question",
+    expectedConfidenceBucket: "none",
+    expectedLabel: null,
     input: {
-      threadName: "Job opening?",
       firstMessageContent:
         "Are you hiring senior backend engineers? I saw a post on LinkedIn but the link is broken.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Job opening?",
     },
-    expectedLabel: null,
-    expectedConfidenceBucket: "none",
+    name: "no fitting label: HR question",
   },
   // Already-applied case — covered at processor layer, but include here so the
   // model still picks the same label; the processor's skip path is exercised
   // by the smoke test, not the eval.
   {
-    name: "already-applied billing label still picked by classifier",
-    input: {
-      threadName: "Refund request",
-      firstMessageContent: "Please refund my last invoice; we cancelled the plan.",
-      summary: noSummary,
-      orgLabels: STANDARD_LABELS,
-    },
-    expectedLabel: "lbl_billing",
     expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_billing",
+    input: {
+      firstMessageContent:
+        "Please refund my last invoice; we cancelled the plan.",
+      orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Refund request",
+    },
+    name: "already-applied billing label still picked by classifier",
   },
   // Small label set
   {
-    name: "small label set: only bug + billing",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_billing",
     input: {
-      threadName: "Need a copy of last receipt",
-      firstMessageContent: "Could you resend the receipt for the September payment?",
-      summary: noSummary,
+      firstMessageContent:
+        "Could you resend the receipt for the September payment?",
       orgLabels: [
         { id: "lbl_bug", name: "bug" },
         { id: "lbl_billing", name: "billing" },
       ],
+      summary: noSummary,
+      threadName: "Need a copy of last receipt",
     },
-    expectedLabel: "lbl_billing",
-    expectedConfidenceBucket: "high",
+    name: "small label set: only bug + billing",
   },
 
   // --- Off-topic / decline cases -----------------------------------------
   {
-    name: "off-topic: sales pitch",
+    expectedConfidenceBucket: "none",
+    expectedLabel: null,
     input: {
-      threadName: "Quick question about your roadmap",
       firstMessageContent:
         "Hey, I run growth at Acme. Would love to chat about a partnership and a possible co-marketing campaign. Got 15 minutes this week?",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Quick question about your roadmap",
     },
-    expectedLabel: null,
-    expectedConfidenceBucket: "none",
+    name: "off-topic: sales pitch",
   },
   {
-    name: "off-topic: SEO spam",
+    expectedConfidenceBucket: "none",
+    expectedLabel: null,
     input: {
-      threadName: "Boost your rankings",
       firstMessageContent:
         "I noticed your site could use SEO improvements. We offer guest post placements on DA50+ sites starting at $50.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Boost your rankings",
     },
-    expectedLabel: null,
-    expectedConfidenceBucket: "none",
+    name: "off-topic: SEO spam",
   },
   {
-    name: "off-topic: praise only",
+    expectedConfidenceBucket: "none",
+    expectedLabel: null,
     input: {
-      threadName: "Love the product",
       firstMessageContent:
         "Just wanted to say the new dashboard is amazing. Keep it up!",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Love the product",
     },
-    expectedLabel: null,
-    expectedConfidenceBucket: "none",
+    name: "off-topic: praise only",
   },
   {
-    name: "off-topic: weird single token",
-    input: {
-      threadName: "asdf",
-      firstMessageContent: "test",
-      summary: noSummary,
-      orgLabels: STANDARD_LABELS,
-    },
-    expectedLabel: null,
     expectedConfidenceBucket: "none",
+    expectedLabel: null,
+    input: {
+      firstMessageContent: "test",
+      orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "asdf",
+    },
+    name: "off-topic: weird single token",
   },
 
   // --- Bug-on-surface cases (failure symptom wins) -----------------------
   {
-    name: "bug on integration surface",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
     input: {
-      threadName: "Slack OAuth returns 500",
       firstMessageContent:
         "Connecting Slack works up to the consent screen, then we get a 500 from your callback URL.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Slack OAuth returns 500",
     },
-    expectedLabel: "lbl_bug",
-    expectedConfidenceBucket: "high",
+    name: "bug on integration surface",
   },
   {
-    name: "bug on account surface",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
     input: {
-      threadName: "Password reset link 404s",
       firstMessageContent:
         "I requested a password reset, got the email, but the link in it leads to a 404 page.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Password reset link 404s",
     },
-    expectedLabel: "lbl_bug",
-    expectedConfidenceBucket: "high",
+    name: "bug on account surface",
   },
 
   // --- Genuine surface questions (not bugs) ------------------------------
   {
-    name: "account question: 2FA reset",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_account",
     input: {
-      threadName: "Lost my 2FA device",
       firstMessageContent:
         "I lost my phone and can't get into my account anymore. How do I reset 2FA?",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Lost my 2FA device",
     },
-    expectedLabel: "lbl_account",
-    expectedConfidenceBucket: "high",
+    name: "account question: 2FA reset",
   },
   {
-    name: "integration question: setup walk-through",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_integration",
     input: {
-      threadName: "How do I connect GitHub Enterprise?",
       firstMessageContent:
         "Do you support GitHub Enterprise (self-hosted)? If yes, what URL format should I use?",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "How do I connect GitHub Enterprise?",
     },
-    expectedLabel: "lbl_integration",
-    expectedConfidenceBucket: "high",
+    name: "integration question: setup walk-through",
   },
 
   // --- Multi-label plausible: pick the symptom ---------------------------
   {
     name: "multi-label: docs vs feature_request",
     input: {
-      threadName: "Bulk import is missing from the docs",
       firstMessageContent:
         "I don't see anything about bulk-importing threads via CSV in your help center. Is it documented somewhere or does it not exist yet?",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Bulk import is missing from the docs",
     },
     // Reasonable either way; treat as docs since user is asking about
     // existence rather than requesting the feature outright.
@@ -344,66 +346,65 @@ export const labelClassifierDataset: LabelClassifierTestCase[] = [
 
   // --- Non-English ------------------------------------------------------
   {
-    name: "non-english: bug in spanish",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
     input: {
-      threadName: "La app se cierra al iniciar",
       firstMessageContent:
         "Desde la última actualización, la aplicación se cierra inmediatamente al abrirla. He probado reinstalándola.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "La app se cierra al iniciar",
     },
-    expectedLabel: "lbl_bug",
-    expectedConfidenceBucket: "high",
+    name: "non-english: bug in spanish",
   },
   {
-    name: "non-english: billing in french",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_billing",
     input: {
-      threadName: "Facture du mois dernier",
       firstMessageContent:
         "Pourriez-vous me renvoyer la facture pour octobre? Mon équipe comptabilité en a besoin.",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Facture du mois dernier",
     },
-    expectedLabel: "lbl_billing",
-    expectedConfidenceBucket: "high",
+    name: "non-english: billing in french",
   },
 
   // --- Long, rambling, but clear ----------------------------------------
   {
-    name: "rambling but clear: feature request",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_feature_request",
     input: {
-      threadName: "Some thoughts about exports",
       firstMessageContent:
         "Hey team, hope you're doing well. We've been using the product for about 6 months now and overall it's been great. One thing that's bugging us though is that there's no way to schedule recurring CSV exports. We have a weekly board meeting and currently someone manually exports the data every Monday morning. Would be amazing if we could just set a schedule. Anyway, just wanted to share. Cheers!",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Some thoughts about exports",
     },
-    expectedLabel: "lbl_feature_request",
-    expectedConfidenceBucket: "high",
+    name: "rambling but clear: feature request",
   },
 
   // --- Very short but clear ---------------------------------------------
   {
-    name: "very short: bug",
-    input: {
-      threadName: "500 on login",
-      firstMessageContent: "500 every time I try to log in.",
-      summary: noSummary,
-      orgLabels: STANDARD_LABELS,
-    },
-    expectedLabel: "lbl_bug",
     expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_bug",
+    input: {
+      firstMessageContent: "500 every time I try to log in.",
+      orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "500 on login",
+    },
+    name: "very short: bug",
   },
 
   // --- Ambiguous: low confidence expected -------------------------------
   {
     name: "ambiguous: cancellation reason unclear",
     input: {
-      threadName: "Cancelling",
-      firstMessageContent:
-        "We're cancelling, please confirm.",
-      summary: noSummary,
+      firstMessageContent: "We're cancelling, please confirm.",
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Cancelling",
     },
     // Could be billing (subscription cancellation), could be null. The
     // message is bare; the closest reasonable label is billing but with
@@ -414,15 +415,15 @@ export const labelClassifierDataset: LabelClassifierTestCase[] = [
 
   // --- Account vs login bug edge case -----------------------------------
   {
-    name: "account: locked out, no error mentioned",
+    expectedConfidenceBucket: "high",
+    expectedLabel: "lbl_account",
     input: {
-      threadName: "Locked out of admin console",
       firstMessageContent:
         "I think I got locked out of the admin console after too many failed logins. Can you reset the lockout?",
-      summary: noSummary,
       orgLabels: STANDARD_LABELS,
+      summary: noSummary,
+      threadName: "Locked out of admin console",
     },
-    expectedLabel: "lbl_account",
-    expectedConfidenceBucket: "high",
+    name: "account: locked out, no error mentioned",
   },
 ];

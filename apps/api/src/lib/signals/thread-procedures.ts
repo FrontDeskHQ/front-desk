@@ -2,13 +2,13 @@ import type { ServerDB } from "@live-state/sync/server";
 import {
   actionSchema,
   duplicateHintSlotSchema,
-  type InlineSuggestion,
   inlineSuggestionSchema,
   relatedDocsHintSlotSchema,
   relatedPrsHintSlotSchema,
-  type ThreadRead,
 } from "@workspace/schemas/signals";
+import type { InlineSuggestion, ThreadRead } from "@workspace/schemas/signals";
 import { z } from "zod";
+
 import { schema } from "../../live-state/schema";
 import type { AuthorizeReq } from "../authorize";
 import { authorize, getWorkspaceActor } from "../authorize";
@@ -16,9 +16,9 @@ import {
   assertReadFingerprint,
   deselectedPrimaryActions,
   nextAgentReadAfterExecution,
-  type ReadSelection,
   resolveBundleFromSelection,
 } from "./agent-read";
+import type { ReadSelection } from "./agent-read";
 import { recordAutonomousReceipts } from "./autonomous-receipts";
 import { executeBundle } from "./execute-bundle";
 import { createActionHandlerRegistry } from "./handlers/registry";
@@ -37,41 +37,41 @@ const readSelectionSchema = z.union([
 ]);
 
 export const executeAutonomousBundleInputSchema = z.object({
-  threadId: z.string(),
-  organizationId: z.string(),
   actions: z.array(actionSchema),
+  organizationId: z.string(),
+  threadId: z.string(),
 });
 
 export const acceptReadInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
-  selection: readSelectionSchema,
   readFingerprint: z.string(),
   replyDraft: z.string().optional(),
+  selection: readSelectionSchema,
+  threadId: z.string(),
 });
 
 export const dismissReadInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
   readFingerprint: z.string(),
+  threadId: z.string(),
 });
 
 export const acceptInlineSuggestionInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
   suggestionId: z.string(),
+  threadId: z.string(),
 });
 
 export const dismissInlineSuggestionInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
   suggestionId: z.string(),
+  threadId: z.string(),
 });
 
 const loadThread = async (
   db: Pick<ServerDB<typeof schema>, "thread">,
   threadId: string,
-  organizationId: string,
+  organizationId: string
 ) => {
   const thread = await db.thread.one(threadId).get();
   if (!thread || thread.organizationId !== organizationId) {
@@ -87,26 +87,26 @@ const buildExecutionContext = (
     organizationId: string;
     actorUserId: string | null;
     actorUserName: string | null;
-  },
+  }
 ): ExecutionContext => ({
-  threadId: args.threadId,
-  organizationId: args.organizationId,
   actorUserId: args.actorUserId,
   actorUserName: args.actorUserName,
   db,
+  organizationId: args.organizationId,
+  threadId: args.threadId,
 });
 
 const persistAgentRead = async (
   db: SignalExecutionDb,
   threadId: string,
-  agentRead: ThreadRead | null,
+  agentRead: ThreadRead | null
 ): Promise<void> => {
   await db.thread.update(threadId, { agentRead });
 };
 
 const removeInlineSuggestion = (
   suggestions: InlineSuggestion[],
-  suggestionId: string,
+  suggestionId: string
 ): InlineSuggestion[] =>
   suggestions.filter((suggestion) => suggestion.id !== suggestionId);
 
@@ -117,7 +117,7 @@ const removeInlineSuggestion = (
 // of this. Returns whether the suggestion was present.
 const removeInlineSuggestionAtomically = async (
   db: TransactionalDb,
-  args: { threadId: string; organizationId: string; suggestionId: string },
+  args: { threadId: string; organizationId: string; suggestionId: string }
 ): Promise<boolean> => {
   let existed = false;
   await db.transaction(async ({ trx }) => {
@@ -138,16 +138,16 @@ const removeInlineSuggestionAtomically = async (
 
 export const runExecuteAutonomousBundle = async (
   db: SignalExecutionDb,
-  input: z.infer<typeof executeAutonomousBundleInputSchema>,
+  input: z.infer<typeof executeAutonomousBundleInputSchema>
 ): Promise<ExecutionResult> => {
   await loadThread(db, input.threadId, input.organizationId);
 
   const registry = createActionHandlerRegistry();
   const ctx = buildExecutionContext(db, {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
     actorUserId: null,
     actorUserName: null,
+    organizationId: input.organizationId,
+    threadId: input.threadId,
   });
 
   const result = await executeBundle(input.actions, registry, ctx);
@@ -158,7 +158,7 @@ export const runExecuteAutonomousBundle = async (
 export const runAcceptRead = async (
   req: AuthorizeReq,
   db: SignalExecutionDb,
-  input: z.infer<typeof acceptReadInputSchema>,
+  input: z.infer<typeof acceptReadInputSchema>
 ): Promise<ExecutionResult> => {
   authorize(req, { organizationId: input.organizationId });
 
@@ -176,15 +176,15 @@ export const runAcceptRead = async (
   const bundle = resolveBundleFromSelection(
     thread.agentRead,
     selection,
-    input.replyDraft,
+    input.replyDraft
   );
 
   const registry = createActionHandlerRegistry();
   const ctx = buildExecutionContext(db, {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
     actorUserId,
     actorUserName,
+    organizationId: input.organizationId,
+    threadId: input.threadId,
   });
 
   const result = await executeBundle(bundle, registry, ctx);
@@ -216,7 +216,7 @@ export const runAcceptRead = async (
 export const runDismissRead = async (
   req: AuthorizeReq,
   db: SignalExecutionDb,
-  input: z.infer<typeof dismissReadInputSchema>,
+  input: z.infer<typeof dismissReadInputSchema>
 ): Promise<{ cleared: true }> => {
   authorize(req, { organizationId: input.organizationId });
 
@@ -233,7 +233,7 @@ export const runDismissRead = async (
 export const runAcceptInlineSuggestion = async (
   req: AuthorizeReq,
   db: SignalExecutionDb,
-  input: z.infer<typeof acceptInlineSuggestionInputSchema>,
+  input: z.infer<typeof acceptInlineSuggestionInputSchema>
 ): Promise<ExecutionResult> => {
   authorize(req, { organizationId: input.organizationId });
 
@@ -249,19 +249,19 @@ export const runAcceptInlineSuggestion = async (
 
   const registry = createActionHandlerRegistry();
   const ctx = buildExecutionContext(db, {
-    threadId: input.threadId,
-    organizationId: input.organizationId,
     actorUserId,
     actorUserName,
+    organizationId: input.organizationId,
+    threadId: input.threadId,
   });
 
   const result = await executeBundle([suggestion.action], registry, ctx);
 
   if (!result.failed) {
     await removeInlineSuggestionAtomically(db, {
-      threadId: input.threadId,
       organizationId: input.organizationId,
       suggestionId: suggestion.id,
+      threadId: input.threadId,
     });
   }
 
@@ -271,14 +271,14 @@ export const runAcceptInlineSuggestion = async (
 export const runDismissInlineSuggestion = async (
   req: AuthorizeReq,
   db: SignalExecutionDb,
-  input: z.infer<typeof dismissInlineSuggestionInputSchema>,
+  input: z.infer<typeof dismissInlineSuggestionInputSchema>
 ): Promise<{ dismissed: true }> => {
   authorize(req, { organizationId: input.organizationId });
 
   const existed = await removeInlineSuggestionAtomically(db, {
-    threadId: input.threadId,
     organizationId: input.organizationId,
     suggestionId: input.suggestionId,
+    threadId: input.threadId,
   });
   if (!existed) {
     throw new Error("INLINE_SUGGESTION_NOT_FOUND");
@@ -300,14 +300,14 @@ export const runDismissInlineSuggestion = async (
 type TransactionalDb = Pick<ServerDB<typeof schema>, "transaction">;
 
 export const upsertInlineSuggestionInputSchema = z.object({
-  threadId: z.string(),
   organizationId: z.string(),
   suggestion: inlineSuggestionSchema,
+  threadId: z.string(),
 });
 
 export const runUpsertInlineSuggestion = async (
   db: TransactionalDb,
-  input: z.infer<typeof upsertInlineSuggestionInputSchema>,
+  input: z.infer<typeof upsertInlineSuggestionInputSchema>
 ): Promise<{ upserted: true }> => {
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, input.threadId);
@@ -318,9 +318,9 @@ export const runUpsertInlineSuggestion = async (
     const current = thread.inlineSuggestions ?? [];
     const idx = current.findIndex((s) => s.id === input.suggestion.id);
     const next =
-      idx >= 0
-        ? current.map((s, i) => (i === idx ? input.suggestion : s))
-        : [...current, input.suggestion];
+      idx === -1
+        ? [...current, input.suggestion]
+        : current.map((s, i) => (i === idx ? input.suggestion : s));
 
     await trx.update(schema.thread, input.threadId, {
       inlineSuggestions: next,
@@ -332,28 +332,28 @@ export const runUpsertInlineSuggestion = async (
 
 export const writeHintSlotInputSchema = z.discriminatedUnion("kind", [
   z.object({
-    threadId: z.string(),
-    organizationId: z.string(),
     kind: z.literal("duplicate"),
+    organizationId: z.string(),
     slot: duplicateHintSlotSchema,
+    threadId: z.string(),
   }),
   z.object({
-    threadId: z.string(),
-    organizationId: z.string(),
     kind: z.literal("related_docs"),
+    organizationId: z.string(),
     slot: relatedDocsHintSlotSchema,
+    threadId: z.string(),
   }),
   z.object({
-    threadId: z.string(),
-    organizationId: z.string(),
     kind: z.literal("related_prs"),
+    organizationId: z.string(),
     slot: relatedPrsHintSlotSchema,
+    threadId: z.string(),
   }),
 ]);
 
 export const runWriteHintSlot = async (
   db: TransactionalDb,
-  input: z.infer<typeof writeHintSlotInputSchema>,
+  input: z.infer<typeof writeHintSlotInputSchema>
 ): Promise<{ written: true }> => {
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, input.threadId);

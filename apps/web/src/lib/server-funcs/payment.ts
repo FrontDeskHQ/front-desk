@@ -1,8 +1,17 @@
 import { createServerFn } from "@tanstack/react-start";
 import z from "zod";
+
 import { fetchClient } from "../live-state";
 import { dodopayments } from "../payments";
 import { getAuthUser } from "./get-auth-user";
+
+type OrganizationUserWithBilling = Awaited<
+  ReturnType<(typeof fetchClient.query.organizationUser)["forUser"]>
+>[number];
+
+const getOrganizationSubscription = (
+  organizationUser: OrganizationUserWithBilling
+) => organizationUser.organization?.subscriptions?.[0];
 
 const authorizeOrganizationUser = async (customerId: string) => {
   const sessionData = await getAuthUser();
@@ -11,17 +20,12 @@ const authorizeOrganizationUser = async (customerId: string) => {
     throw new Error("UNAUTHORIZED");
   }
 
-  const { user } = sessionData;
-
   const organizationUser = (
     await fetchClient.query.organizationUser.forUser({
       enabledOnly: true,
       withSubscriptions: true,
     })
-  ).find(
-    (v) =>
-      (v as any).organization?.subscriptions?.[0]?.customerId === customerId
-  );
+  ).find((v) => getOrganizationSubscription(v)?.customerId === customerId);
 
   if (!organizationUser || organizationUser.role !== "owner") {
     throw new Error("FORBIDDEN");
@@ -75,9 +79,8 @@ export const createCustomerPortalSession = createServerFn({ method: "POST" })
 
     await authorizeOrganizationUser(customerId);
 
-    const session = await dodopayments.customers.customerPortal.create(
-      customerId
-    );
+    const session =
+      await dodopayments.customers.customerPortal.create(customerId);
 
     return session;
   });
@@ -116,14 +119,16 @@ export const cancelSubscription = createServerFn({ method: "POST" })
 
     const organizationUser = await authorizeOrganizationUser(customerId);
 
-    await dodopayments.subscriptions.update(
-      (organizationUser as any).organization?.subscriptions?.[0]
-        ?.subscriptionId as string,
-      {
-        cancel_at_next_billing_date: true,
-        status: "cancelled",
-      }
-    );
+    const subscriptionId =
+      getOrganizationSubscription(organizationUser)?.subscriptionId;
+    if (!subscriptionId) {
+      throw new Error("SUBSCRIPTION_NOT_FOUND");
+    }
+
+    await dodopayments.subscriptions.update(subscriptionId, {
+      cancel_at_next_billing_date: true,
+      status: "cancelled",
+    });
 
     return {
       success: true,
@@ -145,11 +150,13 @@ export const updateSubscription = createServerFn({ method: "POST" })
 
     const organizationUser = await authorizeOrganizationUser(customerId);
 
-    const subscriptionId = (organizationUser as any).organization
-      ?.subscriptions?.[0]?.subscriptionId;
+    const subscription = getOrganizationSubscription(organizationUser);
+    const subscriptionId = subscription?.subscriptionId;
+    if (!subscriptionId) {
+      throw new Error("SUBSCRIPTION_NOT_FOUND");
+    }
 
-    const newPlan =
-      plan ?? (organizationUser as any).organization?.subscriptions?.[0]?.plan;
+    const newPlan = plan ?? subscription?.plan;
 
     await dodopayments.subscriptions
       .changePlan(subscriptionId, {
@@ -157,8 +164,8 @@ export const updateSubscription = createServerFn({ method: "POST" })
           newPlan === "starter"
             ? (process.env.DODO_PAYMENTS_STARTER_PRODUCT_ID as string)
             : (process.env.DODO_PAYMENTS_PRO_PRODUCT_ID as string),
-        quantity: seats,
         proration_billing_mode: "prorated_immediately",
+        quantity: seats,
       })
       .then((res) => {
         console.log(res);

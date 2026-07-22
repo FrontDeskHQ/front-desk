@@ -1,9 +1,5 @@
-import {
-  ForumChannel,
-  TextChannel,
-  ThreadChannel,
-  WebhookClient,
-} from "discord.js";
+import type { ThreadChannel } from "discord.js";
+import { ForumChannel, TextChannel, WebhookClient } from "discord.js";
 
 const webhookClients = new Map<string, WebhookClient>();
 
@@ -39,8 +35,8 @@ export async function getOrCreateWebhook(
     // If no webhook exists, create one
     if (!webhook) {
       webhook = await targetChannel.createWebhook({
-        name: "Front Desk Bot",
         avatar: channel.client.user?.displayAvatarURL(),
+        name: "Front Desk Bot",
         reason: "Auto-created webhook for thread management",
       });
     }

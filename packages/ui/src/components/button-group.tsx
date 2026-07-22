@@ -1,12 +1,15 @@
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
-
-import { cn } from "@workspace/ui/lib/utils"
-import { Separator } from "@workspace/ui/components/separator"
+import { Slot } from "@radix-ui/react-slot";
+import { Separator } from "@workspace/ui/components/separator";
+import { cn } from "@workspace/ui/lib/utils";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 
 const buttonGroupVariants = cva(
   "flex w-fit items-stretch [&>*]:focus-visible:z-10 [&>*]:focus-visible:relative [&>[data-slot=select-trigger]:not([class*='w-'])]:w-fit [&>input]:flex-1 has-[select[aria-hidden=true]:last-child]:[&>[data-slot=select-trigger]:last-of-type]:rounded-r-md has-[>[data-slot=button-group]]:gap-2",
   {
+    defaultVariants: {
+      orientation: "horizontal",
+    },
     variants: {
       orientation: {
         horizontal:
@@ -15,26 +18,27 @@ const buttonGroupVariants = cva(
           "flex-col [&>*:not(:first-child)]:rounded-t-none [&>*:not(:first-child)]:border-t-0 [&>*:not(:last-child)]:rounded-b-none",
       },
     },
-    defaultVariants: {
-      orientation: "horizontal",
-    },
   }
-)
+);
 
 function ButtonGroup({
   className,
   orientation,
   ...props
-}: React.ComponentProps<"div"> & VariantProps<typeof buttonGroupVariants>) {
+}: React.ComponentProps<"fieldset"> &
+  VariantProps<typeof buttonGroupVariants>) {
   return (
-    <div
-      role="group"
+    <fieldset
       data-slot="button-group"
       data-orientation={orientation}
-      className={cn(buttonGroupVariants({ orientation }), className)}
+      className={cn(
+        buttonGroupVariants({ orientation }),
+        "border-0 p-0 m-0 min-w-0",
+        className
+      )}
       {...props}
     />
-  )
+  );
 }
 
 function ButtonGroupText({
@@ -42,9 +46,9 @@ function ButtonGroupText({
   asChild = false,
   ...props
 }: React.ComponentProps<"div"> & {
-  asChild?: boolean
+  asChild?: boolean;
 }) {
-  const Comp = asChild ? Slot : "div"
+  const Comp = asChild ? Slot : "div";
 
   return (
     <Comp
@@ -54,7 +58,7 @@ function ButtonGroupText({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function ButtonGroupSeparator({
@@ -72,7 +76,7 @@ function ButtonGroupSeparator({
       )}
       {...props}
     />
-  )
+  );
 }
 
 export {
@@ -80,4 +84,4 @@ export {
   ButtonGroupSeparator,
   ButtonGroupText,
   buttonGroupVariants,
-}
+};

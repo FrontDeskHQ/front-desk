@@ -1,18 +1,17 @@
 import { createFileRoute } from "@tanstack/react-router";
+
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/_public/legal/privacy-policy")({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Privacy Policy - FrontDesk",
-          description: "FrontDesk Privacy Policy",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Privacy Policy - FrontDesk",
+        description: "FrontDesk Privacy Policy",
+      }),
+    ],
+  }),
 });
 
 function RouteComponent() {

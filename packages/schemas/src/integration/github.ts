@@ -9,14 +9,14 @@ export const githubIntegrationSchema = z.object({
         fullName: z.string(),
         owner: z.string(),
         name: z.string(),
-      }),
+      })
     )
     .optional(), // Repositories selected during GitHub App installation
-  webhookSecret: z.string().optional(),
   selectedEvents: z
     .array(z.enum(["issues", "pull_request"]))
     .default(["issues", "pull_request"])
     .optional(),
+  webhookSecret: z.string().optional(),
 });
 
 export type GitHubIntegrationConfig = z.infer<typeof githubIntegrationSchema>;

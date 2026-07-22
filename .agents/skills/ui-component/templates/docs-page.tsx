@@ -4,36 +4,37 @@
 // Structure is fixed (see DOCS_TEMPLATE.md): meta export → DocPage → Demos →
 // PropsTable → Anatomy (compound only). Keep the `meta` export first and complete.
 
-import { Thing } from "@workspace/ui/components/thing";
 import { createFileRoute } from "@tanstack/react-router";
+import { Thing } from "@workspace/ui/components/thing";
+
 import {
   Anatomy,
-  type ComponentMeta,
   Demo,
   DocPage,
   DocSection,
   PropsTable,
 } from "./-components/doc-kit";
+import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
-  name: "Thing",
-  status: "stable",
   description:
     "One sentence describing what Thing is and the job it does in the UI.",
   import: 'import { Thing } from "@workspace/ui/components/thing";',
+  name: "Thing",
+  related: ["Button", "Badge"],
+  status: "stable",
+  whenNotToUse: [
+    "Situation where a different component fits better (name it).",
+  ],
   whenToUse: [
     "Concrete situation where Thing is the right call.",
     "Another one.",
   ],
-  whenNotToUse: [
-    "Situation where a different component fits better (name it).",
-  ],
-  related: ["Button", "Badge"],
 };
 
 export const Route = createFileRoute(
-  // biome-ignore lint/suspicious/noExplicitAny: route tree is generated after adding new route files
-  "/thing" as any,
+  // Route tree is generated after adding new route files.
+  "/thing" as unknown as "/thing"
 )({
   component: RouteComponent,
 });
@@ -42,9 +43,7 @@ function RouteComponent() {
   return (
     <DocPage meta={meta}>
       <DocSection title="Variants" description="Each visual variant of Thing.">
-        <Demo
-          code={`<Thing variant="default">Default</Thing>`}
-        >
+        <Demo code='<Thing variant="default">Default</Thing>'>
           <Thing variant="default">Default</Thing>
         </Demo>
       </DocSection>
@@ -61,8 +60,11 @@ function RouteComponent() {
         </Demo>
       </DocSection>
 
-      <DocSection title="States" description="Disabled, invalid, loading — whatever applies.">
-        <Demo code={`<Thing aria-disabled>Disabled</Thing>`}>
+      <DocSection
+        title="States"
+        description="Disabled, invalid, loading — whatever applies."
+      >
+        <Demo code="<Thing aria-disabled>Disabled</Thing>">
           <Thing aria-disabled>Disabled</Thing>
         </Demo>
       </DocSection>
@@ -74,26 +76,23 @@ function RouteComponent() {
         <PropsTable
           rows={[
             {
-              name: "variant",
-              type: '"default"',
               default: '"default"',
               description: "Visual style.",
+              name: "variant",
+              type: '"default"',
             },
             {
-              name: "size",
-              type: '"sm" | "md" | "lg"',
               default: '"md"',
               description: "Control height and padding.",
+              name: "size",
+              type: '"sm" | "md" | "lg"',
             },
           ]}
         />
       </DocSection>
 
       {/* Compound components only — delete for single-element components. */}
-      <DocSection
-        title="Anatomy"
-        description="How the sub-components nest."
-      >
+      <DocSection title="Anatomy" description="How the sub-components nest.">
         <Anatomy
           code={`<Thing>
   <ThingHeader />

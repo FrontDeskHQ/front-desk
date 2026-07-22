@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { Pool } from "pg";
+
 import "../env";
 import { subdomainOAuth } from "./plugins/subdomain-oauth";
 
@@ -10,22 +11,27 @@ const useSocialProvider =
 const isProduction = process.env.NODE_ENV === "production";
 
 export const portalAuth = betterAuth({
-  baseURL: process.env.BASE_URL,
+  account: {
+    skipStateCookieCheck: true,
+    storeStateStrategy: "database",
+  },
+  advanced: {
+    cookiePrefix: "portal-auth",
+    useSecureCookies: isProduction,
+  },
   basePath: "/api/portal-auth",
+  baseURL: process.env.BASE_URL,
   database: new Pool({
     connectionString: process.env.DATABASE_URL,
   }),
-  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [
-    "http://localhost:3000",
-    "http://*.localhost:3000",
-  ],
-  advanced: {
-    useSecureCookies: isProduction,
-    cookiePrefix: "portal-auth",
-  },
   emailAndPassword: {
     enabled: !useSocialProvider,
   },
+  plugins: [
+    subdomainOAuth({
+      baseUrl: process.env.BASE_FRONTEND_URL as string,
+    }),
+  ],
   socialProviders: {
     google: useSocialProvider
       ? {
@@ -35,13 +41,8 @@ export const portalAuth = betterAuth({
         }
       : undefined,
   },
-  account: {
-    storeStateStrategy: "database",
-    skipStateCookieCheck: true,
-  },
-  plugins: [
-    subdomainOAuth({
-      baseUrl: process.env.BASE_FRONTEND_URL as string,
-    }),
+  trustedOrigins: process.env.BETTER_AUTH_TRUSTED_ORIGINS?.split(",") ?? [
+    "http://localhost:3000",
+    "http://*.localhost:3000",
   ],
 });

@@ -32,7 +32,7 @@ const DEFAULT_CONCURRENCY = 5;
 const processBatchWithConcurrency = async <T, R>(
   items: T[],
   processor: (item: T) => Promise<R>,
-  concurrency: number,
+  concurrency: number
 ): Promise<R[]> => {
   const results: R[] = [];
 
@@ -52,7 +52,7 @@ const executeProcessor = async (
   processor: ProcessorDefinition,
   context: JobContext,
   threadIds: string[],
-  concurrency: number,
+  concurrency: number
 ): Promise<ProcessorResult[]> => {
   const results: ProcessorResult[] = [];
   const dependencies = processor.dependencies ?? [];
@@ -66,9 +66,9 @@ const executeProcessor = async (
     const thread = context.threads.get(threadId);
     if (!thread) {
       results.push({
-        threadId,
-        success: false,
         error: "Thread not found in context",
+        success: false,
+        threadId,
       });
       continue;
     }
@@ -86,7 +86,7 @@ const executeProcessor = async (
 
   if (threadsWithAllDepsSkipped.length > 0) {
     const keysToCheck = threadsWithAllDepsSkipped.map((threadId) =>
-      buildIdempotencyKey(processor.name, threadId),
+      buildIdempotencyKey(processor.name, threadId)
     );
 
     const keyExistsMap = await batchCheckIdempotencyKeyExists(keysToCheck);
@@ -95,35 +95,30 @@ const executeProcessor = async (
       const key = buildIdempotencyKey(processor.name, threadId);
       const keyExists = keyExistsMap.get(key);
 
-      if (keyExists) {
-        results.push({
-          threadId,
-          success: true,
-          skipped: true,
-          reason: "dependencies-skipped",
-        });
-        context.markProcessorSkipped(processor.name, threadId);
-      } else {
+      if (!keyExists) {
         console.warn(
-          `Processor ${processor.name} for thread ${threadId}: dependencies skipped but no prior run found. Skipping.`,
+          `Processor ${processor.name} for thread ${threadId}: dependencies skipped but no prior run found. Skipping.`
         );
-        results.push({
-          threadId,
-          success: true,
-          skipped: true,
-          reason: "dependencies-skipped-no-prior-run",
-        });
-        context.markProcessorSkipped(processor.name, threadId);
       }
+
+      results.push({
+        reason: keyExists
+          ? "dependencies-skipped"
+          : "dependencies-skipped-no-prior-run",
+        skipped: true,
+        success: true,
+        threadId,
+      });
+      context.markProcessorSkipped(processor.name, threadId);
     }
   }
 
-  const threadsToCheck: Array<{
+  const threadsToCheck: {
     threadId: string;
     key: string;
     hash: string;
     thread: Thread;
-  }> = [];
+  }[] = [];
 
   for (const threadId of threadsToCheckNormally) {
     const thread = context.threads.get(threadId);
@@ -139,7 +134,7 @@ const executeProcessor = async (
     };
     const hash = processor.computeHash(execContext);
 
-    threadsToCheck.push({ threadId, key, hash, thread });
+    threadsToCheck.push({ hash, key, thread, threadId });
   }
 
   if (threadsToCheck.length === 0) {
@@ -147,24 +142,24 @@ const executeProcessor = async (
   }
 
   const shouldSkipMap = await batchCheckIdempotency(
-    threadsToCheck.map(({ key, hash }) => ({ key, hash })),
+    threadsToCheck.map(({ key, hash }) => ({ hash, key }))
   );
 
-  const toProcess: Array<{
+  const toProcess: {
     threadId: string;
     key: string;
     hash: string;
     thread: Thread;
-  }> = [];
+  }[] = [];
 
   for (const item of threadsToCheck) {
     const shouldSkip = shouldSkipMap.get(item.key);
     if (shouldSkip) {
       results.push({
-        threadId: item.threadId,
-        success: true,
-        skipped: true,
         reason: "idempotent",
+        skipped: true,
+        success: true,
+        threadId: item.threadId,
       });
       context.markProcessorSkipped(processor.name, item.threadId);
     } else {
@@ -192,36 +187,36 @@ const executeProcessor = async (
           context.setProcessorOutput(
             processor.name,
             item.threadId,
-            result.data,
+            result.data
           );
         }
 
-        return { result, key: item.key, hash: item.hash };
+        return { hash: item.hash, key: item.key, result };
       } catch (error) {
         console.error(
           `Processor ${processor.name} threw for thread ${item.threadId}:`,
-          error,
+          error
         );
         return {
-          result: {
-            threadId: item.threadId,
-            success: false as const,
-            error: error instanceof Error ? error.message : String(error),
-          },
-          key: item.key,
           hash: item.hash,
+          key: item.key,
+          result: {
+            error: error instanceof Error ? error.message : String(error),
+            success: false as const,
+            threadId: item.threadId,
+          },
         };
       }
     },
-    concurrency,
+    concurrency
   );
 
-  const successfulKeys: Array<{ key: string; hash: string }> = [];
+  const successfulKeys: { key: string; hash: string }[] = [];
 
   for (const { result, key, hash } of processedResults) {
     results.push(result);
     if (result.success && !result.skipped) {
-      successfulKeys.push({ key, hash });
+      successfulKeys.push({ hash, key });
     }
   }
 
@@ -237,7 +232,7 @@ const executeProcessor = async (
  */
 export const executePipeline = async (
   input: PipelineJobInput,
-  options: PipelineJobOptions = {},
+  options: PipelineJobOptions = {}
 ): Promise<PipelineExecutionResult> => {
   const startTime = performance.now();
   const concurrency =
@@ -247,7 +242,7 @@ export const executePipeline = async (
 
   console.log("=".repeat(72));
   console.log(
-    `Pipeline Execution - Processing ${input.threadIds.length} threads`,
+    `Pipeline Execution - Processing ${input.threadIds.length} threads`
   );
   console.log("=".repeat(72));
 
@@ -262,23 +257,23 @@ export const executePipeline = async (
     const threads = await fetchThreadsWithRelations(input.threadIds);
     const fetchTime = performance.now() - fetchStartTime;
     console.log(
-      `  Fetched ${threads.size}/${input.threadIds.length} threads in ${(fetchTime / 1000).toFixed(2)}s`,
+      `  Fetched ${threads.size}/${input.threadIds.length} threads in ${(fetchTime / 1000).toFixed(2)}s`
     );
 
     if (threads.size === 0) {
       const result: PipelineExecutionResult = {
+        duration: performance.now() - startTime,
         jobId,
         status: "completed",
-        turns: [],
         summary: {
-          totalThreads: input.threadIds.length,
+          completedProcessors: 0,
+          failedThreads: input.threadIds.length,
           processedThreads: 0,
           skippedThreads: 0,
-          failedThreads: input.threadIds.length,
           totalProcessors: 0,
-          completedProcessors: 0,
+          totalThreads: input.threadIds.length,
         },
-        duration: performance.now() - startTime,
+        turns: [],
       };
       await completePipelineJob(jobId, result);
       return result;
@@ -290,7 +285,7 @@ export const executePipeline = async (
     const executionOrder = processorRegistry.resolveExecutionOrder();
     const totalProcessors = executionOrder.flat().length;
     console.log(
-      `  Execution plan: ${executionOrder.length} turns, ${totalProcessors} processors`,
+      `  Execution plan: ${executionOrder.length} turns, ${totalProcessors} processors`
     );
     for (let i = 0; i < executionOrder.length; i++) {
       const turn = executionOrder[i];
@@ -305,13 +300,15 @@ export const executePipeline = async (
 
     for (let turnIndex = 0; turnIndex < executionOrder.length; turnIndex++) {
       const turnProcessors = executionOrder[turnIndex];
-      if (!turnProcessors) continue;
+      if (!turnProcessors) {
+        continue;
+      }
 
       const turnNumber = turnIndex + 1;
       const turnStartTime = performance.now();
 
       console.log(
-        `\n[Turn ${turnNumber}/${executionOrder.length}] Running: ${turnProcessors.join(", ")}`,
+        `\n[Turn ${turnNumber}/${executionOrder.length}] Running: ${turnProcessors.join(", ")}`
       );
 
       const turnResults = await Promise.all(
@@ -322,9 +319,9 @@ export const executePipeline = async (
             return {
               processor: processorName,
               threadResults: requestedThreadIds.map((threadId) => ({
-                threadId,
-                success: false as const,
                 error: `Processor "${processorName}" not found`,
+                success: false as const,
+                threadId,
               })),
             };
           }
@@ -334,38 +331,39 @@ export const executePipeline = async (
             processor,
             context,
             requestedThreadIds,
-            concurrency,
+            concurrency
           );
 
           const successful = results.filter(
-            (r) => r.success && !r.skipped,
+            (r) => r.success && !r.skipped
           ).length;
           const skipped = results.filter((r) => r.success && r.skipped).length;
           const failed = results.filter((r) => !r.success).length;
 
           console.log(
-            `    ${processorName}: ${successful} processed, ${skipped} skipped, ${failed} failed`,
+            `    ${processorName}: ${successful} processed, ${skipped} skipped, ${failed} failed`
           );
 
-          completedProcessors++;
           return {
             processor: processorName,
             threadResults: results,
           };
-        }),
+        })
       );
+
+      completedProcessors += turnProcessors.length;
 
       const turnDuration = performance.now() - turnStartTime;
 
       turns.push({
-        turnNumber,
+        duration: turnDuration,
         processors: turnProcessors,
         results: turnResults,
-        duration: turnDuration,
+        turnNumber,
       });
 
       console.log(
-        `  Turn ${turnNumber} completed in ${(turnDuration / 1000).toFixed(2)}s`,
+        `  Turn ${turnNumber} completed in ${(turnDuration / 1000).toFixed(2)}s`
       );
     }
 
@@ -403,31 +401,35 @@ export const executePipeline = async (
     const totalDuration = performance.now() - startTime;
 
     const result: PipelineExecutionResult = {
+      duration: totalDuration,
       jobId,
       status: "completed",
-      turns,
       summary: {
-        totalThreads: input.threadIds.length,
+        completedProcessors,
+        failedThreads: failedSet.size,
         processedThreads: processedSet.size,
         skippedThreads: skippedSet.size,
-        failedThreads: failedSet.size,
         totalProcessors,
-        completedProcessors,
+        totalThreads: input.threadIds.length,
       },
-      duration: totalDuration,
+      turns,
     };
 
     await completePipelineJob(jobId, result);
 
-    console.log("\n" + "=".repeat(72));
+    console.log(`\n${"=".repeat(72)}`);
     console.log("Pipeline Complete");
     console.log("=".repeat(72));
     console.log(`  Job ID: ${jobId}`);
     console.log(`  Total threads: ${result.summary.totalThreads}`);
-    console.log(`  Threads: ${result.summary.processedThreads} processed, ${result.summary.skippedThreads} fully skipped, ${result.summary.failedThreads} failed`);
-    console.log(`  Operations: ${processedOps} processed, ${skippedOps} skipped, ${failedOps} failed`);
     console.log(
-      `  Processors: ${result.summary.completedProcessors}/${result.summary.totalProcessors}`,
+      `  Threads: ${result.summary.processedThreads} processed, ${result.summary.skippedThreads} fully skipped, ${result.summary.failedThreads} failed`
+    );
+    console.log(
+      `  Operations: ${processedOps} processed, ${skippedOps} skipped, ${failedOps} failed`
+    );
+    console.log(
+      `  Processors: ${result.summary.completedProcessors}/${result.summary.totalProcessors}`
     );
     console.log(`  Total duration: ${(totalDuration / 1000).toFixed(2)}s`);
 
@@ -441,18 +443,18 @@ export const executePipeline = async (
     const totalDuration = performance.now() - startTime;
 
     return {
+      duration: totalDuration,
       jobId,
       status: "failed",
-      turns: [],
       summary: {
-        totalThreads: input.threadIds.length,
+        completedProcessors: 0,
+        failedThreads: input.threadIds.length,
         processedThreads: 0,
         skippedThreads: 0,
-        failedThreads: input.threadIds.length,
         totalProcessors: 0,
-        completedProcessors: 0,
+        totalThreads: input.threadIds.length,
       },
-      duration: totalDuration,
+      turns: [],
     };
   }
 };

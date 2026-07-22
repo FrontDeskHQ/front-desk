@@ -1,15 +1,17 @@
+import { createHash } from "node:crypto";
+
 import { google } from "@ai-sdk/google";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
-import { createHash } from "node:crypto";
 import { ULIDtoUUID } from "ulid-uuid-converter";
+
 import { AI_PRICING } from "../../lib/ai-pricing";
 import {
   deleteStaleMessageVectors,
-  type MessagePayload,
   upsertMessageVectorsBatch,
 } from "../../lib/qdrant/messages";
+import type { MessagePayload } from "../../lib/qdrant/messages";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -28,16 +30,15 @@ export interface EmbedMessagesOutput {
 /**
  * Compute SHA256 hash of input data
  */
-const computeSha256 = (data: string): string => {
-  return createHash("sha256").update(data).digest("hex");
-};
+const computeSha256 = (data: string): string =>
+  createHash("sha256").update(data).digest("hex");
 
 /**
  * Generate dense embedding vector (3072-dim) for a message
  */
 const generateMessageEmbedding = async (
   text: string,
-  ai?: ReturnType<typeof createAILogger>,
+  ai?: ReturnType<typeof createAILogger>
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -46,18 +47,18 @@ const generateMessageEmbedding = async (
   try {
     const { embedding, usage } = await embed({
       model: embeddingModel,
-      value: text,
       providerOptions: {
         google: {
           taskType: "RETRIEVAL_DOCUMENT",
         },
       },
+      value: text,
     });
     ai?.captureEmbed({
-      usage,
-      model: EMBEDDING_MODEL,
-      dimensions: embedding.length,
       count: 1,
+      dimensions: embedding.length,
+      model: EMBEDDING_MODEL,
+      usage,
     });
 
     const norm = Math.hypot(...embedding);
@@ -82,23 +83,17 @@ const generateMessageEmbedding = async (
  */
 export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
   {
-    name: "embed-messages",
-
-    dependencies: [],
-
-    getIdempotencyKey(threadId: string): string {
-      return `embed-messages:${threadId}`;
-    },
-
     computeHash(context: ProcessorExecuteContext): string {
       const messages = context.thread.messages ?? [];
-      const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
+      const sorted = [...messages].toSorted((a, b) => a.id.localeCompare(b.id));
       const hashInput = sorted.map((m) => `${m.id}:${m.content}`).join("|");
       return computeSha256(hashInput);
     },
 
+    dependencies: [],
+
     async execute(
-      context: ProcessorExecuteContext,
+      context: ProcessorExecuteContext
     ): Promise<ProcessorResult<EmbedMessagesOutput>> {
       const { thread, threadId } = context;
       const messages = thread.messages ?? [];
@@ -124,24 +119,26 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
 
       try {
         console.log(
-          `Embedding ${messages.length} messages for thread ${threadId}`,
+          `Embedding ${messages.length} messages for thread ${threadId}`
         );
 
-        const sorted = [...messages].sort((a, b) => a.id.localeCompare(b.id));
+        const sorted = [...messages].toSorted((a, b) =>
+          a.id.localeCompare(b.id)
+        );
 
         // Prepare messages with plain text content
-        const messagesToEmbed: Array<{
+        const messagesToEmbed: {
           message: (typeof sorted)[0];
           plainText: string;
           index: number;
-        }> = [];
+        }[] = [];
 
         let skippedCount = 0;
 
         for (let i = 0; i < sorted.length; i++) {
           const message = sorted[i];
           const plainText = jsonContentToPlainText(
-            safeParseJSON(message?.content ?? ""),
+            safeParseJSON(message?.content ?? "")
           );
 
           if (!plainText || plainText.trim().length === 0) {
@@ -150,21 +147,21 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
           }
 
           messagesToEmbed.push({
-            message: message as any,
+            message,
             plainText,
             index: i + 1,
           });
         }
 
         // Generate embeddings in batches
-        const points: Array<{
+        const points: {
           id: string;
           vector: {
             dense: number[];
             bm25: { text: string; model: "qdrant/bm25" };
           };
           payload: MessagePayload;
-        }> = [];
+        }[] = [];
 
         for (
           let i = 0;
@@ -202,12 +199,12 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
                   messageIndex: index,
                   createdAt: message.createdAt
                     ? new Date(
-                        message.createdAt as unknown as string | number,
+                        message.createdAt as unknown as string | number
                       ).getTime()
                     : Date.now(),
                 },
               };
-            }),
+            })
           );
 
           for (const result of batchResults) {
@@ -235,7 +232,7 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
         }
 
         console.log(
-          `Embedded ${points.length} messages for thread ${threadId} (${skippedCount} skipped)`,
+          `Embedded ${points.length} messages for thread ${threadId} (${skippedCount} skipped)`
         );
 
         return {
@@ -250,10 +247,10 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
         status = 500;
         console.error(
           `Embed-messages processor failed for thread ${threadId}:`,
-          error,
+          error
         );
         requestLog.error(
-          `Embed-messages failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+          `Embed-messages failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`
         );
         return {
           threadId,
@@ -264,4 +261,10 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
         requestLog.emit({ status });
       }
     },
+
+    getIdempotencyKey(threadId: string): string {
+      return `embed-messages:${threadId}`;
+    },
+
+    name: "embed-messages",
   };

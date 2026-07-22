@@ -2,6 +2,7 @@ import { useLoadData } from "@live-state/sync/client";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { Card } from "@workspace/ui/components/card";
 import { useEffect } from "react";
+
 import { CommandMenu } from "~/components/command-menu";
 import { RootCommands } from "~/lib/commands/commands/root";
 import { client, fetchClient, query } from "~/lib/live-state";
@@ -15,9 +16,9 @@ export type WindowWithCachedSession = Window & {
 export const Route = createFileRoute("/app")({
   beforeLoad: async () => {
     let sessionData =
-      typeof window !== "undefined"
-        ? (window as WindowWithCachedSession).cachedSession
-        : undefined;
+      typeof window === "undefined"
+        ? undefined
+        : (window as WindowWithCachedSession).cachedSession;
 
     if (sessionData) {
       return sessionData;
@@ -48,11 +49,11 @@ export const Route = createFileRoute("/app")({
     return sessionData;
   },
   component: App,
-  ssr: "data-only",
-  wrapInSuspense: true,
   pendingComponent: PendingComponent,
   pendingMinMs: 200,
   pendingMs: 50,
+  ssr: "data-only",
+  wrapInSuspense: true,
 });
 
 function App() {

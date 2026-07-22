@@ -20,7 +20,6 @@ export function Widget() {
       position="bottom-left"
       resourcesGroups={[
         {
-          title: "Other links",
           items: [
             {
               title: "Documentation",
@@ -35,6 +34,7 @@ export function Widget() {
               icon: <MessageCircleQuestion />,
             },
           ],
+          title: "Other links",
         },
       ]}
       trigger={{

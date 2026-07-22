@@ -1,6 +1,7 @@
 {
   "name": "slack",
   "version": "0.0.0",
+  "module": "src/index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsdown",
@@ -9,13 +10,13 @@
   },
   "dependencies": {
     "@connectors/framework": "workspace:*",
-    "@reflag/node-sdk": "^1.1.0",
     "@live-state/sync": "catalog:",
+    "@reflag/node-sdk": "^1.1.0",
     "@slack/bolt": "^4.6.0",
     "@slack/oauth": "^3.0.4",
     "@slack/web-api": "^7.13.0",
-    "@workspace/utils": "workspace:*",
     "@workspace/schemas": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "api": "workspace:*",
     "bullmq": "^5.67.1",
     "dotenv": "^16.6.1",
@@ -25,6 +26,5 @@
   "devDependencies": {
     "bun-types": "latest",
     "tsdown": "^0.10.2"
-  },
-  "module": "src/index.js"
+  }
 }

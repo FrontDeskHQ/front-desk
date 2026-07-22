@@ -1,7 +1,9 @@
-import { SearchDialog } from "@/components/search";
 import { RootProvider } from "fumadocs-ui/provider/next";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+
+import { SearchDialog } from "@/components/search";
+
 import "./global.css";
 
 const inter = Inter({
@@ -10,8 +12,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   icons: {
-    icon: "/favicon.svg",
     apple: "/favicon.svg",
+    icon: "/favicon.svg",
   },
 };
 

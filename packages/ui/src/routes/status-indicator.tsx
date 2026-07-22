@@ -1,9 +1,10 @@
+import { createFileRoute } from "@tanstack/react-router";
+
 import {
   StatusIndicator,
   StatusText,
   statusValues,
 } from "@/components/indicator";
-import { createFileRoute } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/status-indicator")({
   component: RouteComponent,

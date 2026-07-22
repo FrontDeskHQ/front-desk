@@ -1,14 +1,14 @@
-export type DemoLabel = {
+export interface DemoLabel {
   name: string;
   color: string;
-};
+}
 
-export type DemoMessage = {
+export interface DemoMessage {
   authorName: string;
   content: string;
-};
+}
 
-export type DemoThread = {
+export interface DemoThread {
   id: string;
   title: string;
   authorName: string;
@@ -18,6 +18,4 @@ export type DemoThread = {
   labels: DemoLabel[];
   lastMessage: DemoMessage;
   createdAt: Date;
-};
-
-
+}

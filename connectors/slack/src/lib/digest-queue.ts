@@ -1,14 +1,10 @@
-import {
-  createWorker,
-  type Job,
-  type Worker,
-} from "@connectors/framework/runtime";
+import { createWorker } from "@connectors/framework/runtime";
+import type { Job, Worker } from "@connectors/framework/runtime";
 import type { KnownBlock, WebClient } from "@slack/web-api";
-import {
-  type DigestNotifyJobData,
-  digestNotifyJobDataSchema,
-} from "@workspace/schemas/digest";
+import { digestNotifyJobDataSchema } from "@workspace/schemas/digest";
+import type { DigestNotifyJobData } from "@workspace/schemas/digest";
 import { formatRelativeTime } from "@workspace/utils/format";
+
 import "../env";
 
 const DIGEST_NOTIFY_QUEUE = "digest-notify";
@@ -16,15 +12,15 @@ const MAX_ITEMS_PER_SECTION = 5;
 
 function escapeMrkdwn(text: string): string {
   return text
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;");
 }
 
 let digestWorker: Worker<DigestNotifyJobData> | null = null;
 
 export const initializeDigestWorker = (
-  getClientForTeam: (teamId: string) => Promise<WebClient | null>,
+  getClientForTeam: (teamId: string) => Promise<WebClient | null>
 ) => {
   if (digestWorker) {
     console.log("[Slack] Digest worker already initialized");
@@ -37,22 +33,22 @@ export const initializeDigestWorker = (
       const parsed = digestNotifyJobDataSchema.safeParse(job.data);
       if (!parsed.success) {
         throw new Error(
-          `[Slack] Invalid digest-notify job payload: ${parsed.error.message}`,
+          `[Slack] Invalid digest-notify job payload: ${parsed.error.message}`
         );
       }
       const { orgId, teamId, channelId, payload } = parsed.data;
 
       console.log(
-        `[Slack] Digest job ${job.id} received for org ${payload.orgName} (${orgId}), team ${teamId}, channel ${channelId}`,
+        `[Slack] Digest job ${job.id} received for org ${payload.orgName} (${orgId}), team ${teamId}, channel ${channelId}`
       );
       console.log(
-        `[Slack] Digest payload: metrics=${JSON.stringify(payload.metrics)}, pendingReply=${payload.pendingReply.length}, loopToClose=${payload.loopToClose.length}`,
+        `[Slack] Digest payload: metrics=${JSON.stringify(payload.metrics)}, pendingReply=${payload.pendingReply.length}, loopToClose=${payload.loopToClose.length}`
       );
 
       const client = await getClientForTeam(teamId);
       if (!client) {
         console.error(
-          `[Slack] Could not get Slack client for team ${teamId} (org ${payload.orgName})`,
+          `[Slack] Could not get Slack client for team ${teamId} (org ${payload.orgName})`
         );
         throw new Error(`Could not get Slack client for team ${teamId}`);
       }
@@ -61,29 +57,29 @@ export const initializeDigestWorker = (
       const blocks = buildBlockKitMessage(payload);
       const text = buildFallbackText(payload);
       console.log(
-        `[Slack] Built ${blocks.length} blocks, fallback text length=${text.length}`,
+        `[Slack] Built ${blocks.length} blocks, fallback text length=${text.length}`
       );
 
       try {
         const result = await client.chat.postMessage({
-          channel: channelId,
           blocks,
+          channel: channelId,
           text,
         });
         console.log(
-          `[Slack] Digest posted to channel ${channelId} (ts=${result.ts}) for org ${payload.orgName}`,
+          `[Slack] Digest posted to channel ${channelId} (ts=${result.ts}) for org ${payload.orgName}`
         );
-      } catch (err) {
+      } catch (error) {
         console.error(
           `[Slack] chat.postMessage failed for channel ${channelId} (org ${payload.orgName}):`,
-          err,
+          error
         );
-        throw err;
+        throw error;
       }
     },
     {
       concurrency: 1,
-    },
+    }
   );
 
   digestWorker.on("completed", (job) => {
@@ -110,27 +106,28 @@ export const closeDigestWorker = async () => {
 };
 
 function buildBlockKitMessage(
-  payload: DigestNotifyJobData["payload"],
+  payload: DigestNotifyJobData["payload"]
 ): KnownBlock[] {
   const blocks: KnownBlock[] = [];
   const { metrics, pendingReply, loopToClose, orgName } = payload;
 
-  blocks.push({
-    type: "header",
-    text: {
-      type: "plain_text",
-      text: `📊 Yesterday — ${orgName}`,
-      emoji: true,
+  blocks.push(
+    {
+      text: {
+        emoji: true,
+        text: `📊 Yesterday — ${orgName}`,
+        type: "plain_text",
+      },
+      type: "header",
     },
-  });
-
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: `• ${metrics.newThreads} new threads\n• ${metrics.resolved} resolved\n• ${metrics.currentlyOpen} currently open`,
-    },
-  });
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `• ${metrics.newThreads} new threads\n• ${metrics.resolved} resolved\n• ${metrics.currentlyOpen} currently open`,
+      },
+    }
+  );
 
   if (pendingReply.length > 0) {
     blocks.push({ type: "divider" });
@@ -138,21 +135,21 @@ function buildBlockKitMessage(
     const capped = pendingReply.slice(0, MAX_ITEMS_PER_SECTION);
     const lines = capped.map(
       (item) =>
-        `• ${escapeMrkdwn(item.threadName)} — ${formatRelativeTime(new Date(Date.now() - item.waitTimeMs))} (${escapeMrkdwn(item.customerName)})`,
+        `• ${escapeMrkdwn(item.threadName)} — ${formatRelativeTime(new Date(Date.now() - item.waitTimeMs))} (${escapeMrkdwn(item.customerName)})`
     );
 
     if (pendingReply.length > MAX_ITEMS_PER_SECTION) {
       lines.push(
-        `_+ ${pendingReply.length - MAX_ITEMS_PER_SECTION} more in FrontDesk_`,
+        `_+ ${pendingReply.length - MAX_ITEMS_PER_SECTION} more in FrontDesk_`
       );
     }
 
     blocks.push({
-      type: "section",
       text: {
-        type: "mrkdwn",
         text: `*⚠️ Waiting for reply (${pendingReply.length})*\n${lines.join("\n")}`,
+        type: "mrkdwn",
       },
+      type: "section",
     });
   }
 
@@ -162,41 +159,43 @@ function buildBlockKitMessage(
     const capped = loopToClose.slice(0, MAX_ITEMS_PER_SECTION);
     const lines = capped.map(
       (item) =>
-        `• ${escapeMrkdwn(item.threadName)} — fix merged ${formatRelativeTime(new Date(Date.now() - item.timeSinceMergeMs))} (${escapeMrkdwn(item.prDisplayName)})`,
+        `• ${escapeMrkdwn(item.threadName)} — fix merged ${formatRelativeTime(new Date(Date.now() - item.timeSinceMergeMs))} (${escapeMrkdwn(item.prDisplayName)})`
     );
 
     if (loopToClose.length > MAX_ITEMS_PER_SECTION) {
       lines.push(
-        `_+ ${loopToClose.length - MAX_ITEMS_PER_SECTION} more in FrontDesk_`,
+        `_+ ${loopToClose.length - MAX_ITEMS_PER_SECTION} more in FrontDesk_`
       );
     }
 
     blocks.push({
-      type: "section",
       text: {
-        type: "mrkdwn",
         text: `*✅ Loop to close (${loopToClose.length})*\n${lines.join("\n")}`,
+        type: "mrkdwn",
       },
+      type: "section",
     });
   }
 
-  blocks.push({ type: "divider" });
-  blocks.push({
-    type: "section",
-    text: {
-      type: "mrkdwn",
-      text: `→ <https://tryfrontdesk.app/app/signal|Open FrontDesk>`,
-    },
-  });
+  blocks.push(
+    { type: "divider" },
+    {
+      type: "section",
+      text: {
+        type: "mrkdwn",
+        text: `→ <https://tryfrontdesk.app/app/signal|Open FrontDesk>`,
+      },
+    }
+  );
 
   return blocks;
 }
 
 function buildFallbackText(payload: DigestNotifyJobData["payload"]): string {
-  const parts = [`📊 Yesterday — ${payload.orgName}`];
-  parts.push(
+  const parts = [
+    `📊 Yesterday — ${payload.orgName}`,
     `${payload.metrics.newThreads} new, ${payload.metrics.resolved} resolved, ${payload.metrics.currentlyOpen} open`,
-  );
+  ];
 
   if (payload.pendingReply.length > 0) {
     parts.push(`⚠️ ${payload.pendingReply.length} waiting for reply`);

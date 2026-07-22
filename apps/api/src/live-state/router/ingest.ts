@@ -1,6 +1,7 @@
 // TODO refactor with new live-state mental model
 import { supportEntryPointIngestSchema } from "@connectors/framework";
 import { ulid } from "ulid";
+
 import { requireInternalApiKey } from "../../lib/authorize";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 import { serializeMessageContent } from "../../lib/tiptap-content";
@@ -57,9 +58,9 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
           authorId = ulid().toLowerCase();
           await trx.author.insert({
             id: authorId,
+            metaId,
             name: author.name,
             organizationId,
-            metaId,
             userId: null,
           });
         }
@@ -69,9 +70,9 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
         // conflating them would append messages to the wrong conversation.
         const existingThread = await trx.thread
           .first({
-            organizationId,
             externalId: externalThreadId,
             externalOrigin: provider,
+            organizationId,
           })
           .get();
 
@@ -87,18 +88,18 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
 
           if (!existingMessage) {
             await trx.message.insert({
-              id: ulid().toLowerCase(),
               authorId,
               content,
-              threadId: existingThread.id,
               createdAt: message.createdAt,
-              origin: provider,
               externalMessageId: message.externalMessageId,
+              id: ulid().toLowerCase(),
               isBackfill,
+              origin: provider,
+              threadId: existingThread.id,
             });
           }
 
-          return { thread: existingThread, created: false };
+          return { created: false, thread: existingThread };
         }
 
         // Create path — refuse to create a titleless thread.
@@ -110,40 +111,40 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
         const shortId = await nextThreadShortId(trx, organizationId);
 
         await trx.thread.insert({
-          id: threadId,
-          name: threadDescriptor.title,
-          organizationId,
-          authorId,
-          status: 0,
-          priority: 0,
           assignedUserId: null,
+          authorId,
           createdAt: message.createdAt,
           deletedAt: null,
-          externalIssueId: null,
-          externalPrId: null,
           externalId: externalThreadId,
-          externalOrigin: provider,
+          externalIssueId: null,
           externalMetadataStr: threadDescriptor.externalMetadata
             ? JSON.stringify(threadDescriptor.externalMetadata)
             : null,
+          externalOrigin: provider,
+          externalPrId: null,
+          id: threadId,
+          name: threadDescriptor.title,
+          organizationId,
+          priority: 0,
           shortId,
+          status: 0,
         });
 
         await trx.message.insert({
-          id: ulid().toLowerCase(),
           authorId,
           content,
-          threadId,
           createdAt: message.createdAt,
-          origin: provider,
           externalMessageId: message.externalMessageId,
+          id: ulid().toLowerCase(),
           isBackfill,
+          origin: provider,
+          threadId,
         });
 
         const thread = await trx.findOne(schema.thread, threadId);
 
-        return { thread, created: true };
+        return { created: true, thread };
       });
-    },
+    }
   ),
 }));

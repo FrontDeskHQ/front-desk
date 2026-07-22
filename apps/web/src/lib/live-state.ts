@@ -13,23 +13,25 @@ import {
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 import { ulid } from "ulid";
+
+import { calculateDeletionDate } from "~/utils/thread";
+
 import { authClient } from "./auth-client";
 import { getLiveStateApiUrl } from "./urls";
-import { calculateDeletionDate } from "~/utils/thread";
 
 type ExternalEntityKind = "issue" | "pull_request";
 
-type OptimisticExternalEntityStorage = {
+interface OptimisticExternalEntityStorage {
   thread: {
     where: (query: { id: string }) => {
-      get: () => Array<{
+      get: () => {
         externalIssueId?: string | null;
         externalPrId?: string | null;
-      }>;
+      }[];
     };
     update: (
       id: string,
-      data: { externalIssueId?: string | null; externalPrId?: string | null },
+      data: { externalIssueId?: string | null; externalPrId?: string | null }
     ) => void;
   };
   externalEntity: {
@@ -38,7 +40,7 @@ type OptimisticExternalEntityStorage = {
       externalKey: string;
       type: ExternalEntityKind;
     }) => {
-      get: () => Array<{ repoFullName: string; number: number }>;
+      get: () => { repoFullName: string; number: number }[];
     };
   };
   update: {
@@ -52,30 +54,30 @@ type OptimisticExternalEntityStorage = {
       replicatedStr: string;
     }) => void;
   };
-};
+}
 
 const optimisticExternalEntityConfig = {
   issue: {
-    threadField: "externalIssueId" as const,
-    updateType: "issue_changed" as const,
     entityType: "issue" as const,
     metadataKeys: {
-      oldId: "oldIssueId",
       newId: "newIssueId",
-      oldLabel: "oldIssueLabel",
       newLabel: "newIssueLabel",
+      oldId: "oldIssueId",
+      oldLabel: "oldIssueLabel",
     },
+    threadField: "externalIssueId" as const,
+    updateType: "issue_changed" as const,
   },
   pull_request: {
-    threadField: "externalPrId" as const,
-    updateType: "pr_changed" as const,
     entityType: "pull_request" as const,
     metadataKeys: {
-      oldId: "oldPrId",
       newId: "newPrId",
-      oldLabel: "oldPrLabel",
       newLabel: "newPrLabel",
+      oldId: "oldPrId",
+      oldLabel: "oldPrLabel",
     },
+    threadField: "externalPrId" as const,
+    updateType: "pr_changed" as const,
   },
 } satisfies Record<
   ExternalEntityKind,
@@ -96,12 +98,14 @@ const resolveOptimisticExternalEntityLabel = (
   storage: OptimisticExternalEntityStorage,
   organizationId: string,
   externalKey: string | null,
-  type: ExternalEntityKind,
+  type: ExternalEntityKind
 ) => {
-  if (!externalKey) return null;
+  if (!externalKey) {
+    return null;
+  }
 
   const entity = storage.externalEntity
-    .where({ organizationId, externalKey, type })
+    .where({ externalKey, organizationId, type })
     .get()[0];
 
   return entity ? `${entity.repoFullName}#${entity.number}` : null;
@@ -125,23 +129,26 @@ const handleOptimisticLinkExternalEntity = ({
 }) => {
   const config = optimisticExternalEntityConfig[kind];
   const thread = storage.thread.where({ id: input.threadId }).get()[0];
-  if (!thread) return;
+  if (!thread) {
+    return;
+  }
 
   const oldId = thread[config.threadField] ?? null;
-  if (oldId === externalId) return;
+  if (oldId === externalId) {
+    return;
+  }
 
   storage.thread.update(input.threadId, {
     [config.threadField]: externalId,
   });
 
-  if (!input.userId) return;
+  if (!input.userId) {
+    return;
+  }
 
   storage.update.insert({
-    id: ulid().toLowerCase(),
-    threadId: input.threadId,
-    userId: input.userId,
-    type: config.updateType,
     createdAt: new Date(),
+    id: ulid().toLowerCase(),
     metadataStr: JSON.stringify({
       [config.metadataKeys.oldId]: oldId,
       [config.metadataKeys.newId]: externalId,
@@ -149,17 +156,20 @@ const handleOptimisticLinkExternalEntity = ({
         storage,
         input.organizationId,
         oldId,
-        config.entityType,
+        config.entityType
       ),
       [config.metadataKeys.newLabel]: resolveOptimisticExternalEntityLabel(
         storage,
         input.organizationId,
         externalId,
-        config.entityType,
+        config.entityType
       ),
       ...(input.userName ? { userName: input.userName } : {}),
     }),
     replicatedStr: JSON.stringify({}),
+    threadId: input.threadId,
+    type: config.updateType,
+    userId: input.userId,
   });
 };
 
@@ -179,28 +189,31 @@ const handleOptimisticUnlinkExternalEntity = ({
 }) => {
   const config = optimisticExternalEntityConfig[kind];
   const thread = storage.thread.where({ id: input.threadId }).get()[0];
-  if (!thread) return;
+  if (!thread) {
+    return;
+  }
 
   const oldId = thread[config.threadField] ?? null;
-  if (oldId === null) return;
+  if (oldId === null) {
+    return;
+  }
 
   const oldLabel = resolveOptimisticExternalEntityLabel(
     storage,
     input.organizationId,
     oldId,
-    config.entityType,
+    config.entityType
   );
 
   storage.thread.update(input.threadId, { [config.threadField]: null });
 
-  if (!input.userId) return;
+  if (!input.userId) {
+    return;
+  }
 
   storage.update.insert({
-    id: ulid().toLowerCase(),
-    threadId: input.threadId,
-    userId: input.userId,
-    type: config.updateType,
     createdAt: new Date(),
+    id: ulid().toLowerCase(),
     metadataStr: JSON.stringify({
       [config.metadataKeys.oldId]: oldId,
       [config.metadataKeys.newId]: null,
@@ -209,22 +222,19 @@ const handleOptimisticUnlinkExternalEntity = ({
       ...(input.userName ? { userName: input.userName } : {}),
     }),
     replicatedStr: JSON.stringify({}),
+    threadId: input.threadId,
+    type: config.updateType,
+    userId: input.userId,
   });
 };
 
 const { client, store } = createClient<Router>({
-  url:
-    import.meta.env.VITE_LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
-  schema,
-  credentials: async () => ({
-    token: (await authClient.oneTimeToken.generate()).data?.token ?? "",
-  }),
-  storage: {
-    name: "frontdesk",
-  },
   connection: {
     autoConnect: false,
   },
+  credentials: async () => ({
+    token: (await authClient.oneTimeToken.generate()).data?.token ?? "",
+  }),
   optimisticMutations: defineOptimisticMutations<Router, typeof schema>({
     message: {
       create: ({ input, storage }) => {
@@ -251,7 +261,7 @@ const { client, store } = createClient<Router>({
 
         storage.message.insert({
           id: ulid().toLowerCase(),
-          authorId: authorId,
+          authorId,
           content: JSON.stringify(input.content),
           threadId: input.threadId,
           createdAt: new Date(),
@@ -269,7 +279,7 @@ const { client, store } = createClient<Router>({
           .get();
 
         const hasOtherAnswer = existingAnswers.some(
-          (existingMessage) => existingMessage.id !== input.messageId,
+          (existingMessage) => existingMessage.id !== input.messageId
         );
         if (hasOtherAnswer) return;
 
@@ -373,7 +383,7 @@ const { client, store } = createClient<Router>({
         const suggestions = thread.inlineSuggestions ?? [];
         storage.thread.update(input.threadId, {
           inlineSuggestions: suggestions.filter(
-            (suggestion) => suggestion.id !== input.suggestionId,
+            (suggestion) => suggestion.id !== input.suggestionId
           ),
         });
       },
@@ -383,7 +393,7 @@ const { client, store } = createClient<Router>({
         const suggestions = thread.inlineSuggestions ?? [];
         storage.thread.update(input.threadId, {
           inlineSuggestions: suggestions.filter(
-            (suggestion) => suggestion.id !== input.suggestionId,
+            (suggestion) => suggestion.id !== input.suggestionId
           ),
         });
       },
@@ -546,7 +556,7 @@ const { client, store } = createClient<Router>({
       },
       archive: ({ input, storage }) => {
         const thread = storage.thread.where({ id: input.threadId }).get()[0];
-        if (!thread || thread.deletedAt != null) return;
+        if (!thread || (thread.deletedAt ?? null) !== null) return;
 
         storage.thread.update(input.threadId, {
           deletedAt: calculateDeletionDate(),
@@ -630,6 +640,12 @@ const { client, store } = createClient<Router>({
       },
     },
   }),
+  schema,
+  storage: {
+    name: "frontdesk",
+  },
+  url:
+    import.meta.env.VITE_LIVE_STATE_WS_URL ?? "ws://localhost:3333/api/ls/ws",
 });
 
 const { query, mutate } = store;
@@ -638,9 +654,9 @@ export { client, mutate, query };
 
 // Check this setup when it's deployed
 export const fetchClient = createFetchClient<Router>({
-  url: getLiveStateApiUrl(),
-  schema,
   credentials: createIsomorphicFn()
     .server(() => Object.fromEntries(getRequestHeaders()))
     .client(() => ({})),
+  schema,
+  url: getLiveStateApiUrl(),
 });

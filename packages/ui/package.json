@@ -2,6 +2,14 @@
   "name": "@workspace/ui",
   "private": true,
   "type": "module",
+  "exports": {
+    "./globals.css": "./src/styles/globals.css",
+    "./postcss.config": "./postcss.config.mjs",
+    "./lib/*": "./src/lib/*.ts",
+    "./components/*": "./src/components/*.tsx",
+    "./components/blocks/*": "./src/components/blocks/*.tsx",
+    "./hooks/*": "./src/hooks/*.ts"
+  },
   "scripts": {
     "ui:dev": "vite dev",
     "typecheck": "tsc --noEmit"
@@ -98,13 +106,5 @@
     "vite": "^7.1.7",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0"
-  },
-  "exports": {
-    "./globals.css": "./src/styles/globals.css",
-    "./postcss.config": "./postcss.config.mjs",
-    "./lib/*": "./src/lib/*.ts",
-    "./components/*": "./src/components/*.tsx",
-    "./components/blocks/*": "./src/components/blocks/*.tsx",
-    "./hooks/*": "./src/hooks/*.ts"
   }
 }

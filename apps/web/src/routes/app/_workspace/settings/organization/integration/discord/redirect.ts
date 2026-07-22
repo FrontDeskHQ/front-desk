@@ -1,6 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import qs from "qs";
 import { z } from "zod";
+
 import { fetchClient } from "~/lib/live-state";
 
 const discordCallbackSchema = z.object({
@@ -16,8 +17,8 @@ export const Route = createFileRoute(
     handlers: {
       GET: async ({ request }) => {
         const rawQs = qs.parse(request.url.split("?")[1] ?? "", {
-          plainObjects: true,
           allowPrototypes: false,
+          plainObjects: true,
         });
         try {
           const data = discordCallbackSchema.parse(rawQs);
@@ -47,13 +48,13 @@ export const Route = createFileRoute(
             }
 
             await fetchClient.mutate.integration.updateInstallation({
-              integrationId: integration.id,
-              enabled: true,
-              updatedAt: new Date(),
               configStr: JSON.stringify({
                 ...config,
                 guildId: data.guild_id,
               }),
+              enabled: true,
+              integrationId: integration.id,
+              updatedAt: new Date(),
             });
           }
         } catch (error) {

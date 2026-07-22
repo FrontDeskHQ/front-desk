@@ -1,6 +1,7 @@
 import type { ThreadRead } from "@workspace/schemas/signals";
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
+
 import { normalizeSynthesisRawActionSet } from "../normalize";
 import { synthesisDataset } from "./dataset";
 import {
@@ -16,6 +17,12 @@ evalite("Synthesis Normalize", {
       input: testCase.input,
       expected: testCase.expected,
     })),
+  scorers: [
+    nullityAlignment,
+    primaryKindsAlignment,
+    alternativesKindsAlignment,
+    sourceInputMessageSelection,
+  ],
   task: async (input) => {
     const start = Date.now();
     const result = normalizeSynthesisRawActionSet({
@@ -40,10 +47,4 @@ evalite("Synthesis Normalize", {
     });
     return result as ThreadRead | null;
   },
-  scorers: [
-    nullityAlignment,
-    primaryKindsAlignment,
-    alternativesKindsAlignment,
-    sourceInputMessageSelection,
-  ],
 });

@@ -4,10 +4,12 @@ import {
   priorityText,
 } from "@workspace/ui/components/indicator";
 import { ChevronRight } from "lucide-react";
+
 import { mutate } from "~/lib/live-state";
+
 import type { Command, CommandPage } from "../../types";
 
-type PriorityCommandsParams = {
+interface PriorityCommandsParams {
   threadId: string;
   organizationId: string;
   thread:
@@ -20,7 +22,7 @@ type PriorityCommandsParams = {
     id: string;
     name: string;
   };
-};
+}
 
 export const createPriorityCommands = ({
   threadId,
@@ -33,9 +35,9 @@ export const createPriorityCommands = ({
 } => {
   const handlePriorityChange = (newPriority: number) => {
     mutate.thread.setPriority({
-      threadId,
       organizationId,
       priority: newPriority,
+      threadId,
       userId: user.id,
       userName: user.name,
     });
@@ -45,16 +47,22 @@ export const createPriorityCommands = ({
 
   const commands: Command[] = [
     {
+      icon: <PriorityIndicator priority={thread?.priority ?? 0} />,
       id: "change-priority",
       label: "Change priority...",
-      icon: <PriorityIndicator priority={thread?.priority ?? 0} />,
       pageId: "priority",
       shortcut: "p",
     },
     ...priorityEntries.map(
       ([priorityKey, priorityLabel]) =>
         ({
+          icon: <PriorityIndicator priority={+priorityKey} />,
           id: `quick-priority-${priorityKey}`,
+          keywords: [
+            priorityLabel.toLowerCase(),
+            PRIORITY_LABELS[+priorityKey]?.toLowerCase() ?? "",
+            "priority",
+          ].filter(Boolean),
           label: (
             <div className="flex items-center gap-0.5 text-foreground-secondary">
               Change priority <ChevronRight />
@@ -63,26 +71,17 @@ export const createPriorityCommands = ({
               </div>
             </div>
           ),
-          keywords: [
-            priorityLabel.toLowerCase(),
-            PRIORITY_LABELS[+priorityKey]?.toLowerCase() ?? "",
-            "priority",
-          ].filter(Boolean),
-          icon: <PriorityIndicator priority={+priorityKey} />,
-          visible: (state) => {
-            return !!state.search;
-          },
           onSelect: async () => {
             await handlePriorityChange(+priorityKey);
           },
-        }) satisfies Command,
+          visible: (state) => {
+            return !!state.search;
+          },
+        }) satisfies Command
     ),
   ];
 
   const priorityPage: CommandPage = {
-    id: "priority",
-    label: "Change priority",
-    icon: <PriorityIndicator priority={thread?.priority ?? 0} />,
     commands: priorityEntries.map(([priorityKey, priorityLabel]) => ({
       id: priorityKey,
       label: PRIORITY_LABELS[+priorityKey] ?? priorityLabel,
@@ -92,6 +91,9 @@ export const createPriorityCommands = ({
         await handlePriorityChange(+priorityKey);
       },
     })),
+    icon: <PriorityIndicator priority={thread?.priority ?? 0} />,
+    id: "priority",
+    label: "Change priority",
   };
 
   return { commands, priorityPage };

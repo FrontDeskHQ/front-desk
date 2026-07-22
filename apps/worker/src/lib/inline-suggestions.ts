@@ -1,4 +1,5 @@
 import type { InlineSuggestion } from "@workspace/schemas/signals";
+
 import { fetchClient } from "./database/client";
 
 /**
@@ -10,11 +11,11 @@ import { fetchClient } from "./database/client";
 export async function appendOrReplaceInlineSuggestion(
   threadId: string,
   organizationId: string,
-  suggestion: InlineSuggestion,
+  suggestion: InlineSuggestion
 ): Promise<void> {
   await fetchClient.mutate.thread.upsertInlineSuggestion({
-    threadId,
     organizationId,
     suggestion,
+    threadId,
   });
 }

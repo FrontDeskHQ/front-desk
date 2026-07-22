@@ -1,13 +1,13 @@
 import { cn } from "@workspace/ui/lib/utils";
 import type { ReactNode } from "react";
 
-type FeatureCardProps = {
+interface FeatureCardProps {
   variant: "primary" | "half" | "secondary";
   title: string;
   body: string;
   visual: ReactNode;
   className?: string;
-};
+}
 
 export function FeatureCard({
   variant,
@@ -21,7 +21,7 @@ export function FeatureCard({
       <div
         className={cn(
           "col-span-full flex flex-col bg-background relative",
-          className,
+          className
         )}
       >
         <div className="px-6 py-6 md:px-8 lg:absolute pb-0!">
@@ -42,7 +42,7 @@ export function FeatureCard({
       <div
         className={cn(
           "col-span-full flex flex-col lg:flex-row bg-background",
-          className,
+          className
         )}
       >
         <div className="lg:w-2/5 px-6 py-6 lg:px-8 flex flex-col justify-center">
@@ -62,7 +62,7 @@ export function FeatureCard({
     <div
       className={cn(
         "col-span-full md:col-span-1 flex flex-col md:flex-row bg-background",
-        className,
+        className
       )}
     >
       <div className="md:w-2/5 px-6 py-6 md:px-8 flex flex-col justify-center">

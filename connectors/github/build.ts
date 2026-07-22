@@ -1,9 +1,5 @@
 await Bun.build({
   entrypoints: ["./src/index.ts"],
-  outdir: "./dist",
-  target: "bun",
-  minify: false,
-  sourcemap: "none",
   external: [
     // Don't bundle workspace packages - they should be resolved at runtime
     "@workspace/*",
@@ -12,4 +8,8 @@ await Bun.build({
     "api/schema",
     "api/queue",
   ],
+  minify: false,
+  outdir: "./dist",
+  sourcemap: "none",
+  target: "bun",
 });

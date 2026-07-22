@@ -6,15 +6,18 @@ import {
   Outlet,
   Scripts,
 } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestUrl } from "@tanstack/react-start/server";
 import { Toaster } from "@workspace/ui/components/sonner";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
+
 import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { Providers } from "~/components/providers";
 import { seo } from "~/utils/seo";
+
 import "../../../../packages/ui/src/styles/globals.css";
 import ogImage from "../assets/frontdesk-og.png";
 
@@ -62,6 +65,12 @@ export const Route = createRootRoute({
       : `${baseUrl}${ogImage.startsWith("/") ? ogImage : `/${ogImage}`}`;
 
     return {
+      links: [
+        { rel: "canonical", href: currentUrl },
+        { rel: "manifest", href: "/site.webmanifest" },
+        { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+        { rel: "apple-touch-icon", href: "/favicon.svg" },
+      ],
       meta: [
         {
           charSet: "utf-8",
@@ -90,22 +99,13 @@ export const Route = createRootRoute({
           },
         }),
       ],
-      links: [
-        { rel: "canonical", href: currentUrl },
-        { rel: "manifest", href: "/site.webmanifest" },
-        { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
-        { rel: "apple-touch-icon", href: "/favicon.svg" },
-      ],
     };
   },
-  // biome-ignore lint/suspicious/noExplicitAny: TanStack Router error component props
-  errorComponent: (props: any) => {
-    return (
-      <RootDocument>
-        <DefaultCatchBoundary {...props} />
-      </RootDocument>
-    );
-  },
+  errorComponent: (props: ErrorComponentProps) => (
+    <RootDocument>
+      <DefaultCatchBoundary {...props} />
+    </RootDocument>
+  ),
   notFoundComponent: () => <NotFound />,
   component: RootComponent,
 });

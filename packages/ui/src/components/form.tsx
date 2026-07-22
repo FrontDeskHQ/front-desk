@@ -2,11 +2,10 @@
 
 import type * as LabelPrimitive from "@radix-ui/react-label";
 import { Slot } from "@radix-ui/react-slot";
-import * as React from "react";
-
 import type { useField } from "@tanstack/react-form";
 import { Label } from "@workspace/ui/components/label";
 import { cn } from "@workspace/ui/lib/utils";
+import * as React from "react";
 import { use } from "react";
 
 type FormItemContextValue = ReturnType<typeof useField>;
@@ -58,9 +57,9 @@ function FormControl({ ...props }: React.ComponentProps<typeof Slot>) {
       data-slot="form-control"
       id={`${name}-item`}
       aria-describedby={
-        !state.meta.isValid
-          ? `${name}-description`
-          : `${name}-description ${name}-message`
+        state.meta.isValid
+          ? `${name}-description ${name}-message`
+          : `${name}-description`
       }
       aria-invalid={!state.meta.isValid}
       {...props}
@@ -83,11 +82,11 @@ function FormDescription({ className, ...props }: React.ComponentProps<"p">) {
 
 function FormMessage({ className, ...props }: React.ComponentProps<"p">) {
   const { name, state } = use(FormItemContext);
-  const body = !state.meta.isValid
-    ? state.meta.errors
+  const body = state.meta.isValid
+    ? props.children
+    : state.meta.errors
         ?.map((e) => (e as unknown as { message: string })?.message)
-        .join(", ")
-    : props.children;
+        .join(", ");
 
   if (!body) {
     return null;

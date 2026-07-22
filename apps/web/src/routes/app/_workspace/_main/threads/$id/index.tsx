@@ -42,6 +42,7 @@ import { useAtomValue } from "jotai";
 import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
+
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
@@ -62,13 +63,18 @@ import {
   parseThreadParam,
 } from "~/utils/thread";
 
+type ThreadMessage = InferLiveObject<typeof schema.message, { author: true }>;
+type ThreadUpdate = InferLiveObject<typeof schema.update>;
+type TimelineMessageItem = ThreadMessage & { itemType: "message" };
+type TimelineUpdateItem = ThreadUpdate & { itemType: "update" };
+
 export const Route = createFileRoute("/app/_workspace/_main/threads/$id/")({
   component: RouteComponent,
   head: () => ({
     meta: [
       ...seo({
-        title: "Thread - FrontDesk",
         description: "Support thread",
+        title: "Thread - FrontDesk",
       }),
     ],
   }),
@@ -84,24 +90,30 @@ function RouteComponent() {
   const [highlightAnswer, setHighlightAnswer] = useState(false);
 
   const parsed = parseThreadParam(rawParam);
-  if (!parsed) throw notFound();
+  if (!parsed) {
+    throw notFound();
+  }
 
   // TODO: remove the organizationUsers[0] fallback once activeOrganizationAtom
   // persists + hydrates the last used org synchronously on reload. See backlog.
   const orgId =
     activeOrg?.id ?? workspaceCtx.organizationUsers?.[0]?.organization?.id;
-  if (parsed.kind === "shortId" && !orgId) throw notFound();
+  if (parsed.kind === "shortId" && !orgId) {
+    throw notFound();
+  }
 
   const where =
     parsed.kind === "ulid"
       ? { id: parsed.id }
-      : { shortId: parsed.shortId, organizationId: orgId! };
+      : { organizationId: orgId, shortId: parsed.shortId };
 
   useEffect(() => {
     let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     const checkHash = () => {
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
       if (window.location.hash === "#answer-message") {
         setHighlightAnswer(true);
         timeoutId = setTimeout(() => setHighlightAnswer(false), 5000);
@@ -115,36 +127,42 @@ function RouteComponent() {
 
     return () => {
       window.removeEventListener("hashchange", checkHash);
-      if (timeoutId) clearTimeout(timeoutId);
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     };
   }, []);
 
   const thread = useLiveQuery(
     query.thread.where(where).include({
-      organization: true,
+      assignedUser: true,
       author: true,
       messages: { include: { author: true } },
-      assignedUser: true,
+      organization: true,
       updates: { include: { user: true } },
-    }),
+    })
   )?.[0];
 
   const id = thread?.id ?? "";
 
   useEffect(() => {
-    if (!thread) return;
+    if (!thread) {
+      return;
+    }
     document.title = `${thread.name} - Threads - FrontDesk`;
   }, [thread]);
 
   useEffect(() => {
-    if (!thread) return;
+    if (!thread) {
+      return;
+    }
     const canonical = buildThreadParam(thread);
     if (rawParam !== canonical) {
       navigate({
-        to: "/app/threads/$id",
-        params: { id: canonical },
         hash: (prev) => prev ?? "",
+        params: { id: canonical },
         replace: true,
+        to: "/app/threads/$id",
       });
     }
   }, [rawParam, thread, navigate]);
@@ -154,57 +172,61 @@ function RouteComponent() {
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: thread?.organizationId })
-      .include({ user: true }),
+      .include({ user: true })
   );
 
   const threadLabels = useLiveQuery(
     query.threadLabel
       .where({
-        threadId: id,
         enabled: true,
         label: { enabled: true },
+        threadId: id,
       })
-      .include({ label: true }),
+      .include({ label: true })
   );
 
   const allItems = thread
     ? [
-        ...(thread?.messages ?? []).map((msg: any) => ({
-          ...msg,
-          itemType: "message" as const,
-        })),
-        ...(thread?.updates ?? []).map((update: any) => ({
-          ...update,
-          itemType: "update" as const,
-        })),
-      ].sort((a, b) => a.id.localeCompare(b.id))
+        ...(thread?.messages ?? []).map(
+          (msg): TimelineMessageItem => ({
+            ...msg,
+            itemType: "message",
+          })
+        ),
+        ...(thread?.updates ?? []).map(
+          (update): TimelineUpdateItem => ({
+            ...update,
+            itemType: "update",
+          })
+        ),
+      ].toSorted((a, b) => a.id.localeCompare(b.id))
     : [];
 
   const firstItem = allItems[0];
   const restItems = allItems.slice(1);
 
   type ReplyGroup =
-    | { type: "updates"; key: string; items: any[] }
-    | { type: "message"; key: string; item: any };
+    | { type: "updates"; key: string; items: TimelineUpdateItem[] }
+    | { type: "message"; key: string; item: TimelineMessageItem };
 
   const replyGroups: ReplyGroup[] = [];
   for (const item of restItems) {
     if (item.itemType === "update") {
-      const last = replyGroups[replyGroups.length - 1];
+      const last = replyGroups.at(-1);
       if (last?.type === "updates") {
         last.items.push(item);
         continue;
       }
-      replyGroups.push({ type: "updates", key: item.id, items: [item] });
+      replyGroups.push({ items: [item], key: item.id, type: "updates" });
     } else {
-      replyGroups.push({ type: "message", key: item.id, item });
+      replyGroups.push({ item, key: item.id, type: "message" });
     }
   }
 
   const { scrollRef, contentRef, disableAutoScroll } = useAutoScroll({
-    smooth: false,
     content: allItems,
     offset: 180,
+    smooth: false,
   });
 
   const copyLinkToClipboard = () => {
@@ -215,32 +237,34 @@ function RouteComponent() {
   };
 
   const deleteThread = () => {
-    if (!thread?.organizationId) return;
+    if (!thread?.organizationId) {
+      return;
+    }
 
     mutate.thread.archive({
-      threadId: id,
       organizationId: thread.organizationId,
+      threadId: id,
     });
     setShowDeleteDialog(false);
     toast.success(`Thread will be deleted after ${DAYS_UNTIL_DELETION} days`, {
-      duration: 10000,
       action: {
         label: "See list",
         onClick: () => navigate({ to: "/app/threads/archive" }),
       },
       actionButtonStyle: {
         background: "transparent",
-        color: "hsl(var(--primary))",
         border: "none",
+        color: "hsl(var(--primary))",
         textDecoration: "underline",
       },
+      duration: 10_000,
     });
     captureThreadEvent("thread:thread_delete");
     navigate({ to: "/app/threads" });
   };
 
   const answerMessage = thread?.messages.find(
-    (message) => message.markedAsAnswer,
+    (message) => message.markedAsAnswer
   );
 
   // TODO: distinguish "still syncing" from "genuinely not found" here.
@@ -270,7 +294,7 @@ function RouteComponent() {
                     <BreadcrumbItem>
                       <BreadcrumbPage className="flex items-center gap-1.5">
                         <span>{thread.name}</span>
-                        {thread.shortId != null && (
+                        {thread.shortId !== null && (
                           <span className="text-foreground-secondary tabular-nums font-normal">
                             #{thread.shortId}
                           </span>
@@ -366,7 +390,7 @@ function RouteComponent() {
                     </>
                   )}
 
-                  {replyGroups.map((group, gi) => (
+                  {replyGroups.map((group) => (
                     <Fragment key={group.key}>
                       {/* {gi > 0 && <Separator className="bg-border/50" />} */}
                       {group.type === "updates" ? (

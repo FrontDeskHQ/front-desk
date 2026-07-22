@@ -1,4 +1,5 @@
 import type { ThreadRead } from "@workspace/schemas/signals";
+
 import { fetchClient } from "./database/client";
 
 // Post-execution agent-read state is computed by the shared
@@ -9,11 +10,11 @@ export { nextAgentReadAfterExecution } from "@workspace/schemas/signals";
 export const persistAgentRead = async (
   threadId: string,
   organizationId: string,
-  agentRead: ThreadRead | null,
+  agentRead: ThreadRead | null
 ): Promise<void> => {
   await fetchClient.mutate.thread.setAgentRead({
-    threadId,
-    organizationId,
     agentRead,
+    organizationId,
+    threadId,
   });
 };

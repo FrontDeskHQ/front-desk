@@ -2,7 +2,7 @@ import { differenceInSeconds, formatDistanceToNowStrict } from "date-fns";
 
 export function formatRelativeTime(
   date: Date,
-  options?: { minimumDifference?: number },
+  options?: { minimumDifference?: number }
 ) {
   const secondsAgo = differenceInSeconds(new Date(), date);
 

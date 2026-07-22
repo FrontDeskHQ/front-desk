@@ -1,4 +1,5 @@
 import type { ServerDB } from "@live-state/sync/server";
+
 import type { schema } from "../live-state/schema";
 
 type DB = ServerDB<typeof schema>;
@@ -16,12 +17,12 @@ type DB = ServerDB<typeof schema>;
  */
 export async function nextThreadShortId(
   db: DB,
-  organizationId: string,
+  organizationId: string
 ): Promise<number> {
   const org = await db.organization.one(organizationId).get();
   if (!org) {
     throw new Error(
-      `nextThreadShortId: organization ${organizationId} not found`,
+      `nextThreadShortId: organization ${organizationId} not found`
     );
   }
   const next = (org.shortIdCounter ?? 0) + 1;

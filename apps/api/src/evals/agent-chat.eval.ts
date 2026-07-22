@@ -1,10 +1,12 @@
-import { evalite } from "evalite";
-import { reportTrace } from "evalite/traces";
-import "../env";
 import { google } from "@ai-sdk/google";
 import { generateText, stepCountIs } from "ai";
+
+import "../env";
 import { init } from "autoevals";
+import { evalite } from "evalite";
+import { reportTrace } from "evalite/traces";
 import { OpenAI } from "openai";
+
 import {
   buildAgentChatTools,
   buildSystemPrompt,
@@ -12,12 +14,11 @@ import {
 } from "../live-state/router/agent-chat-core";
 
 // Configure autoevals to use Gemini via Google's OpenAI-compatible endpoint
-// biome-ignore lint/suspicious/noExplicitAny: OpenAI client type mismatch between duplicate bun copies
 init({
   client: new OpenAI({
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  }) as any,
+  }) as unknown as OpenAI,
   defaultModel: "gemini-2.5-flash",
 });
 import {
@@ -26,6 +27,7 @@ import {
   draftQualityDataset,
   threadReferenceDataset,
 } from "./agent-chat.dataset";
+import { createMockToolImplementations } from "./agent-chat.fixtures";
 import {
   toolSelectionAccuracy,
   proactiveToolUsage,
@@ -33,7 +35,6 @@ import {
   draftFactualityScorer,
   threadReferenceFormat,
 } from "./agent-chat.scorers";
-import { createMockToolImplementations } from "./agent-chat.fixtures";
 
 // Note: traceAISDKModel requires LanguageModelV2, but @ai-sdk/google exports V3.
 // Using reportTrace manually to capture LLM call metrics.
@@ -48,21 +49,30 @@ const lowThinking = {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 /** Reports an evalite trace from a generateText result for the UI dashboard. */
-// biome-ignore lint/suspicious/noExplicitAny: AI SDK result type varies with tool generics
+interface EvalGenerateTextResult {
+  text: string;
+  steps: { toolCalls?: { toolName: string }[] }[];
+  totalUsage: {
+    inputTokens?: number;
+    outputTokens?: number;
+    totalTokens?: number;
+  };
+}
+
 function traceResult(
-  result: any,
+  result: EvalGenerateTextResult,
   start: number,
   systemPrompt: string,
-  userMessage: string,
+  userMessage: string
 ) {
   reportTrace({
-    start,
     end: Date.now(),
     input: [
       { role: "system", content: systemPrompt },
       { role: "user", content: userMessage },
     ],
     output: result.text || "(tool calls only)",
+    start,
     usage: {
       inputTokens: result.totalUsage.inputTokens ?? 0,
       outputTokens: result.totalUsage.outputTokens ?? 0,
@@ -79,18 +89,18 @@ function buildPromptFromThread(
     priority: string;
     assignee: string | null;
     labels: string[];
-    messages: Array<{ author: string; content: string }>;
+    messages: { author: string; content: string }[];
   },
-  suggestionsContext = "",
+  suggestionsContext = ""
 ) {
   const threadMetadata = formatThreadMetadata({
-    name: thread.name,
+    assignee: thread.assignee,
     author: thread.author,
     createdAt: "2026-03-24T12:00:00Z",
-    status: thread.status,
-    priority: thread.priority,
-    assignee: thread.assignee,
     labels: thread.labels,
+    name: thread.name,
+    priority: thread.priority,
+    status: thread.status,
   });
 
   const threadContext = thread.messages
@@ -98,14 +108,15 @@ function buildPromptFromThread(
     .join("\n");
 
   return buildSystemPrompt({
-    threadMetadata,
-    threadContext,
     suggestionsContext,
+    threadContext,
+    threadMetadata,
   });
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: AI SDK step result type varies with tool generics
-function extractToolNames(steps: any[]): string[] {
+function extractToolNames(
+  steps: { toolCalls?: { toolName: string }[] }[]
+): string[] {
   const toolNames: string[] = [];
   for (const step of steps) {
     if (step.toolCalls) {
@@ -123,10 +134,11 @@ function extractToolNames(steps: any[]): string[] {
 
 evalite("Agent Chat — Tool Selection", {
   data: () => toolSelectionDataset,
+  scorers: [toolSelectionAccuracy],
   task: async (input) => {
     const systemPrompt = buildPromptFromThread(input.thread);
     const tools = buildAgentChatTools(
-      createMockToolImplementations(input.toolOverrides),
+      createMockToolImplementations(input.toolOverrides)
     );
 
     const start = Date.now();
@@ -142,20 +154,20 @@ evalite("Agent Chat — Tool Selection", {
 
     return extractToolNames(result.steps);
   },
-  scorers: [toolSelectionAccuracy],
 });
 
 // ─── Eval 2: Proactive Tool Usage ────────────────────────────────────────────
 
 evalite("Agent Chat — Proactive Tool Usage", {
   data: () => proactiveToolDataset,
+  scorers: [proactiveToolUsage],
   task: async (input) => {
     const systemPrompt = buildPromptFromThread(
       input.thread,
-      input.suggestionsContext,
+      input.suggestionsContext
     );
     const tools = buildAgentChatTools(
-      createMockToolImplementations(input.toolOverrides),
+      createMockToolImplementations(input.toolOverrides)
     );
 
     const start = Date.now();
@@ -171,13 +183,13 @@ evalite("Agent Chat — Proactive Tool Usage", {
 
     return extractToolNames(result.steps);
   },
-  scorers: [proactiveToolUsage],
 });
 
 // ─── Eval 3: Draft Quality ───────────────────────────────────────────────────
 
 evalite("Agent Chat — Draft Quality", {
   data: () => draftQualityDataset,
+  scorers: [draftQualityScorer, draftFactualityScorer],
   task: async (input) => {
     let capturedDraft = "";
 
@@ -189,7 +201,7 @@ evalite("Agent Chat — Draft Quality", {
           capturedDraft = content;
           return { success: true };
         },
-      }),
+      })
     );
 
     const start = Date.now();
@@ -205,17 +217,17 @@ evalite("Agent Chat — Draft Quality", {
 
     return capturedDraft || "(no draft was created)";
   },
-  scorers: [draftQualityScorer, draftFactualityScorer],
 });
 
 // ─── Eval 4: Thread Reference Formatting ─────────────────────────────────────
 
 evalite("Agent Chat — Thread References", {
   data: () => threadReferenceDataset,
+  scorers: [threadReferenceFormat],
   task: async (input) => {
     const systemPrompt = buildPromptFromThread(input.thread);
     const tools = buildAgentChatTools(
-      createMockToolImplementations(input.toolOverrides),
+      createMockToolImplementations(input.toolOverrides)
     );
 
     const start = Date.now();
@@ -231,5 +243,4 @@ evalite("Agent Chat — Thread References", {
 
     return result.text;
   },
-  scorers: [threadReferenceFormat],
 });

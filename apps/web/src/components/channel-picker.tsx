@@ -14,20 +14,20 @@ import {
 } from "@workspace/ui/components/combobox";
 import { Hash, Loader2, Lock } from "lucide-react";
 
-export type ChannelOption = {
+export interface ChannelOption {
   id: string;
   name: string;
   meta?: { isPrivate?: boolean };
-};
+}
 
-type BaseProps = {
+interface BaseProps {
   queryKey: readonly unknown[];
   fetchChannels: () => Promise<ChannelOption[]>;
   disabled?: boolean;
   placeholder?: string;
   emptyLabel?: string;
   className?: string;
-};
+}
 
 type SingleProps = BaseProps & {
   mode: "single";
@@ -43,11 +43,11 @@ type MultiProps = BaseProps & {
 
 type Props = SingleProps | MultiProps;
 
-type Item = {
+interface Item {
   value: string;
   label: string;
   channel: ChannelOption;
-};
+}
 
 const dedupeById = <T,>(list: T[], getId: (item: T) => string): T[] => {
   const seen = new Set<string>();
@@ -90,20 +90,20 @@ export function ChannelPicker(props: Props) {
     isError,
     refetch,
   } = useQuery({
-    queryKey,
     queryFn: fetchChannels,
+    queryKey,
     staleTime: 5 * 60 * 1000,
   });
 
   const items: Item[] = dedupeById(channels ?? [], (c) => c.id).map((c) => ({
-    value: c.id,
-    label: c.name,
     channel: c,
+    label: c.name,
+    value: c.id,
   }));
 
   if (props.mode === "single") {
     const selectedItem = props.value
-      ? { value: props.value.id, label: props.value.name, channel: props.value }
+      ? { channel: props.value, label: props.value.name, value: props.value.id }
       : null;
 
     const itemsWithSelected =
@@ -162,9 +162,9 @@ export function ChannelPicker(props: Props) {
   }
 
   const selectedItems: Item[] = props.value.map((c) => ({
-    value: c.id,
-    label: c.name,
     channel: c,
+    label: c.name,
+    value: c.id,
   }));
 
   const itemsWithSelected = dedupeById(
@@ -172,11 +172,11 @@ export function ChannelPicker(props: Props) {
       ...selectedItems.filter((s) => !items.some((i) => i.value === s.value)),
       ...items,
     ],
-    (i) => i.value,
+    (i) => i.value
   );
 
   const formatItemsLabel = (item: Item | Item[] | null) => {
-    if (item == null) {
+    if ((item ?? null) === null) {
       return "";
     }
     if (Array.isArray(item)) {
@@ -207,7 +207,9 @@ export function ChannelPicker(props: Props) {
           <ComboboxValue>
             {(value: Item[]) => {
               if (!value || value.length === 0) {
-                return <span className="text-muted-foreground">{placeholder}</span>;
+                return (
+                  <span className="text-muted-foreground">{placeholder}</span>
+                );
               }
 
               return value.map((item) => (

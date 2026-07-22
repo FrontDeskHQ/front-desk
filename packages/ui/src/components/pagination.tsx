@@ -56,8 +56,14 @@ function PaginationLink({
       variant={isActive ? "outline" : "ghost"}
       size={size}
       className={className}
-      // biome-ignore lint/a11y/useAnchorContent: the children is rendered by other components
-      render={render ?? <a href={href} />}
+      render={
+        render ?? (
+          <a
+            href={href}
+            aria-label={isActive ? "Current page" : "Go to page"}
+          />
+        )
+      }
       {...props}
     />
   );

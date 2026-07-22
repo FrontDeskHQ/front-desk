@@ -1,11 +1,12 @@
-import { type Job, Worker } from "bullmq";
+import { Worker } from "bullmq";
+import type { Job } from "bullmq";
+
 import {
   buildIssueFields,
   buildPullRequestFields,
-  type ExternalEntityFields,
-  type RepoRef,
   upsertExternalEntity,
 } from "../lib/external-entity";
+import type { ExternalEntityFields, RepoRef } from "../lib/external-entity";
 import { getOctokit } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
 import {
@@ -15,8 +16,8 @@ import {
   RECONCILE_DISPATCH_JOB_NAME,
   RECONCILE_QUEUE,
   RECONCILE_REPO_JOB_NAME,
-  type ReconcileRepoJobData,
 } from "../lib/queue";
+import type { ReconcileRepoJobData } from "../lib/queue";
 
 const PER_PAGE = 100;
 
@@ -28,17 +29,23 @@ const PER_PAGE = 100;
  */
 const MAX_CONSECUTIVE_FAILURES = 10;
 
-type ReconcileTally = {
+interface ReconcileTally {
   upserted: number;
   unchanged: number;
   deleted: number;
   failed: number;
-};
+}
 
-class SystemicReconcileError extends Error {}
+class SystemicReconcileError extends Error {
+  name = "SystemicReconcileError";
+}
 
 /** Shape of a connected repo as persisted in the github integration config. */
-type GithubRepoConfig = { fullName: string; owner: string; name: string };
+interface GithubRepoConfig {
+  fullName: string;
+  owner: string;
+  name: string;
+}
 
 /**
  * Guard against malformed repo entries in a (potentially hand-edited or legacy)
@@ -46,7 +53,9 @@ type GithubRepoConfig = { fullName: string; owner: string; name: string };
  * usable reconcile job.
  */
 const isValidRepoConfig = (repo: unknown): repo is GithubRepoConfig => {
-  if (typeof repo !== "object" || repo === null) return false;
+  if (typeof repo !== "object" || repo === null) {
+    return false;
+  }
   const { fullName, owner, name } = repo as Record<string, unknown>;
   return (
     typeof fullName === "string" &&
@@ -84,12 +93,17 @@ const reconcilePage = async <TItem>(
   for await (const { data: page } of iterator) {
     for (const item of page) {
       const fields = toFields(item);
-      if (!fields) continue;
+      if (!fields) {
+        continue;
+      }
 
       seen.add(fields.externalKey);
 
       const cursor = cursorByKey.get(fields.externalKey);
-      if (cursor !== undefined && fields.externalUpdatedAt.getTime() <= cursor) {
+      if (
+        cursor !== undefined &&
+        fields.externalUpdatedAt.getTime() <= cursor
+      ) {
         tally.unchanged++;
         continue;
       }
@@ -126,11 +140,11 @@ const reconcilePage = async <TItem>(
  * re-page (a missed `deleted`/`transferred` webhook) is soft-deleted.
  */
 export const handleReconcileRepo = async (job: Job<ReconcileRepoJobData>) => {
-  const data = job.data;
+  const { data } = job;
   const repo: RepoRef = {
-    owner: data.owner,
-    name: data.repo,
     fullName: data.fullName,
+    name: data.repo,
+    owner: data.owner,
   };
 
   console.log(
@@ -152,19 +166,19 @@ export const handleReconcileRepo = async (job: Job<ReconcileRepoJobData>) => {
   const octokit = await getOctokit(data.installationId);
   const seen = new Set<string>();
   const tally: ReconcileTally = {
-    upserted: 0,
-    unchanged: 0,
     deleted: 0,
     failed: 0,
+    unchanged: 0,
+    upserted: 0,
   };
 
   await reconcilePage(
     data.organizationId,
     octokit.paginate.iterator("GET /repos/{owner}/{repo}/issues", {
       owner: data.owner,
+      per_page: PER_PAGE,
       repo: data.repo,
       state: "all",
-      per_page: PER_PAGE,
     }),
     // The issues endpoint returns PRs too; the PR pass owns those.
     (issue) => (issue.pull_request ? null : buildIssueFields(issue, repo)),
@@ -178,9 +192,9 @@ export const handleReconcileRepo = async (job: Job<ReconcileRepoJobData>) => {
     data.organizationId,
     octokit.paginate.iterator("GET /repos/{owner}/{repo}/pulls", {
       owner: data.owner,
+      per_page: PER_PAGE,
       repo: data.repo,
       state: "all",
-      per_page: PER_PAGE,
     }),
     (pr) => buildPullRequestFields(pr, repo),
     cursorByKey,
@@ -193,11 +207,13 @@ export const handleReconcileRepo = async (job: Job<ReconcileRepoJobData>) => {
   // out without us getting the webhook. Soft-delete it.
   let consecutiveFailures = 0;
   for (const row of mirrorRows) {
-    if (seen.has(row.externalKey)) continue;
+    if (seen.has(row.externalKey)) {
+      continue;
+    }
     try {
       await fetchClient.mutate.externalEntity.softDelete({
-        organizationId: data.organizationId,
         externalKey: row.externalKey,
+        organizationId: data.organizationId,
       });
       tally.deleted++;
       consecutiveFailures = 0;
@@ -235,7 +251,9 @@ export const handleReconcileDispatch = async () => {
 
   let enqueued = 0;
   for (const integration of integrations) {
-    if (!integration.enabled || !integration.configStr) continue;
+    if (!integration.enabled || !integration.configStr) {
+      continue;
+    }
 
     let config: { installationId?: number; repos?: GithubRepoConfig[] };
     try {
@@ -248,7 +266,9 @@ export const handleReconcileDispatch = async () => {
     }
 
     const { installationId, repos } = config;
-    if (!installationId || !repos?.length) continue;
+    if (!installationId || !repos?.length) {
+      continue;
+    }
 
     // The config is built from octokit data in setup.ts, but it's untrusted at
     // read time (hand-edited/legacy rows). Drop malformed entries so they don't
@@ -259,16 +279,18 @@ export const handleReconcileDispatch = async () => {
         `[GitHub] Skipping ${repos.length - validRepos.length} malformed repo entr(y/ies) for integration ${integration.id}`
       );
     }
-    if (!validRepos.length) continue;
+    if (!validRepos.length) {
+      continue;
+    }
 
     const results = await Promise.allSettled(
       validRepos.map((repo) =>
         enqueueRepoReconcile({
-          organizationId: integration.organizationId,
+          fullName: repo.fullName,
           installationId,
+          organizationId: integration.organizationId,
           owner: repo.owner,
           repo: repo.name,
-          fullName: repo.fullName,
         })
       )
     );
@@ -306,9 +328,9 @@ export const startReconcileWorker = (): Worker => {
       console.warn(`[GitHub] Unknown reconcile job name: ${job.name}`);
     },
     {
-      connection: createRedisConnection(),
       concurrency: 2,
-      removeOnComplete: { count: 50, age: 24 * 3600 },
+      connection: createRedisConnection(),
+      removeOnComplete: { age: 24 * 3600, count: 50 },
       removeOnFail: { count: 200 },
     }
   );
@@ -328,8 +350,8 @@ export const startReconcileWorker = (): Worker => {
     console.error("[GitHub] Reconcile worker error:", err);
   });
 
-  ensureReconcileScheduler().catch((err) => {
-    console.error("[GitHub] Failed to register reconcile scheduler:", err);
+  ensureReconcileScheduler().catch((error) => {
+    console.error("[GitHub] Failed to register reconcile scheduler:", error);
   });
 
   return worker;

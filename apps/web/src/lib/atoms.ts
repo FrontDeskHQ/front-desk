@@ -9,4 +9,4 @@ import { atom } from "jotai/vanilla";
 
 export const activeOrganizationAtom = atom<
   InferLiveObject<(typeof schema)["organization"]> | undefined
->(undefined);
+>();

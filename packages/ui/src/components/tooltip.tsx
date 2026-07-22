@@ -1,9 +1,9 @@
 "use client";
 
 import { Tooltip as TooltipPrimitive } from "@base-ui/react/tooltip";
-
 import { cn } from "@workspace/ui/lib/utils";
 import * as React from "react";
+
 import { Keybind } from "./keybind";
 
 function TooltipProvider({
@@ -56,7 +56,7 @@ function TooltipContent({
           data-slot="tooltip-content"
           className={cn(
             "bg-[#222225] transition-[transform,scale,opacity] data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[instant]:duration-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 z-50 w-fit origin-[var(--transform-origin) rounded-sm px-2 py-1.5 text-xs text-balance border shadow-lg flex items-center gap-2 mb-1",
-            className,
+            className
           )}
           {...props}
         >

@@ -4,6 +4,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { cn } from "@workspace/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import * as React from "react";
+
 import { Button } from "./button";
 import { KeybindIsolation } from "./keybind";
 
@@ -37,7 +38,7 @@ function DialogClose({
       data-slot="dialog-close"
       className={cn(
         "text-foreground-secondary hover:text-foreground-primary",
-        className,
+        className
       )}
       {...props}
     >
@@ -56,7 +57,7 @@ function DialogOverlay({
       data-slot="dialog-overlay"
       className={cn(
         "data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 bg-black/70 duration-100 fixed inset-0 isolate",
-        className,
+        className
       )}
       {...props}
     />
@@ -82,7 +83,7 @@ function DialogContent({
           data-slot="dialog-content"
           className={cn(
             "bg-background-secondary data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 max-w-[calc(100%-2rem)] rounded-lg p-4 text-xs/relaxed border duration-100 sm:max-w-sm fixed top-1/2 left-1/2 w-full -translate-x-1/2 -translate-y-1/2 outline-none",
-            className,
+            className
           )}
           {...props}
         >
@@ -114,7 +115,7 @@ function DialogFooter({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="dialog-footer"
       className={cn(
         "flex flex-col-reverse gap-2 sm:flex-row sm:justify-end",
-        className,
+        className
       )}
       {...props}
     />

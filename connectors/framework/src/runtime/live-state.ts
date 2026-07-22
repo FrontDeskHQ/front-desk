@@ -3,7 +3,7 @@ import { createClient as createFetchClient } from "@live-state/sync/client/fetch
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 
-export type CreateLiveStateClientOptions = {
+export interface CreateLiveStateClientOptions {
   /**
    * Value of the connector bot key (all connectors authenticate against the
    * shared `DISCORD_BOT_KEY` today — pass `process.env.DISCORD_BOT_KEY ?? ""`).
@@ -23,7 +23,7 @@ export type CreateLiveStateClientOptions = {
   apiUrl?: string;
   /** Label used in reconnect logging, e.g. `"Discord"`. */
   label?: string;
-};
+}
 
 /**
  * Node-only live-state client bootstrap shared by every connector: the reactive
@@ -32,7 +32,7 @@ export type CreateLiveStateClientOptions = {
  * bot-key credential, which is parameterized.
  */
 export const createLiveStateClient = (
-  options: CreateLiveStateClientOptions,
+  options: CreateLiveStateClientOptions
 ) => {
   const {
     botKey,
@@ -44,13 +44,13 @@ export const createLiveStateClient = (
   const prefix = label ? `[${label}] ` : "";
 
   const { client, store } = createClient<Router>({
+    credentials: async () => ({ [credentialName]: botKey }),
+    schema,
+    storage: false,
     url:
       options.wsUrl ??
       process.env.LIVE_STATE_WS_URL ??
       "ws://localhost:3333/api/ls/ws",
-    schema,
-    credentials: async () => ({ [credentialName]: botKey }),
-    storage: false,
   });
 
   client.ws.addEventListener("open", () => {
@@ -62,21 +62,21 @@ export const createLiveStateClient = (
   });
 
   client.ws.addEventListener("error", (error) => {
-    console.error(`${prefix}Live State error: `, error, error.error);
+    console.error(`${prefix}Live State error:`, error, error.error);
   });
 
   client.load(store.query.organization.load().buildQueryRequest());
 
   const fetchClient = createFetchClient<Router>({
+    credentials: async () => ({ [credentialHeader]: botKey }),
+    schema,
     url:
       options.apiUrl ??
       process.env.LIVE_STATE_API_URL ??
       "http://localhost:3333/api/ls",
-    schema,
-    credentials: async () => ({ [credentialHeader]: botKey }),
   });
 
-  return { client, store, fetchClient };
+  return { client, fetchClient, store };
 };
 
 export type LiveStateClient = ReturnType<typeof createLiveStateClient>;

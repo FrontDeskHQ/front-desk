@@ -2,45 +2,52 @@ import { google } from "@ai-sdk/google";
 import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import z from "zod";
+
 import type { SummarizeOutput } from "../../summarize";
 
-export type AllowedStatus = { code: number; label: string };
+export interface AllowedStatus {
+  code: number;
+  label: string;
+}
 
-export type InferStatusInput = {
+export interface InferStatusInput {
   threadName: string | null;
   latestMessageContent: string | null;
-  recentMessages: Array<{ role: "customer" | "agent" | "unknown"; content: string }>;
+  recentMessages: {
+    role: "customer" | "agent" | "unknown";
+    content: string;
+  }[];
   summary: SummarizeOutput["summary"] | null;
   currentStatus: number;
   allowedStatuses: AllowedStatus[];
-};
+}
 
-export type InferStatusResult = {
+export interface InferStatusResult {
   status: number | null;
   confidence: number;
-};
+}
 
 const responseSchema = z.object({
-  status: z
-    .number()
-    .int()
-    .nullable()
-    .describe(
-      "The status code that best reflects the thread after the latest message, or null if no change is warranted.",
-    ),
   confidence: z
     .number()
     .min(0)
     .max(1)
     .describe("Confidence in the status choice, from 0 to 1."),
+  status: z
+    .number()
+    .int()
+    .nullable()
+    .describe(
+      "The status code that best reflects the thread after the latest message, or null if no change is warranted."
+    ),
 });
 
 export const inferStatus = async (
   input: InferStatusInput,
-  ai?: ReturnType<typeof createAILogger>,
+  ai?: ReturnType<typeof createAILogger>
 ): Promise<InferStatusResult> => {
   if (input.allowedStatuses.length === 0) {
-    return { status: null, confidence: 0 };
+    return { confidence: 0, status: null };
   }
 
   const statusList = input.allowedStatuses
@@ -117,7 +124,7 @@ Return the chosen status code (one of the listed integers) or null. Confidence s
   // the processor and the eval honest about what counts as an emission.
   const matchesCurrent = valid && output.status === input.currentStatus;
   return {
-    status: valid && !matchesCurrent ? output.status : null,
     confidence: output.confidence,
+    status: valid && !matchesCurrent ? output.status : null,
   };
 };

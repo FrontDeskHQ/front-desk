@@ -17,11 +17,11 @@ const allThreads = [
 ];
 
 const searchCases = ["webhook", "auth", "API", "email", "team"];
-const sortedThreads = [...allThreads].sort((a, b) => b.views - a.views);
+const sortedThreads = [...allThreads].toSorted((a, b) => b.views - a.views);
 
 export function PortalVisual() {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const isInView = useInView(ref, { margin: "-10%", once: true });
 
   const [displayedText, setDisplayedText] = useState("");
   const [caseIndex, setCaseIndex] = useState(0);
@@ -33,14 +33,16 @@ export function PortalVisual() {
     displayedText
       ? allThreads
           .filter((t) =>
-            t.title.toLowerCase().includes(displayedText.toLowerCase()),
+            t.title.toLowerCase().includes(displayedText.toLowerCase())
           )
-          .sort((a, b) => b.views - a.views)
+          .toSorted((a, b) => b.views - a.views)
       : sortedThreads
   ).slice(0, 3);
 
   useEffect(() => {
-    if (!isInView) return;
+    if (!isInView) {
+      return;
+    }
 
     const currentQuery = searchCases[caseIndex];
 
@@ -54,7 +56,7 @@ export function PortalVisual() {
         const timeout = setTimeout(
           () =>
             setDisplayedText(currentQuery.slice(0, displayedText.length + 1)),
-          80 + Math.random() * 60,
+          80 + Math.random() * 60
         );
         return () => clearTimeout(timeout);
       }
@@ -71,7 +73,7 @@ export function PortalVisual() {
       if (displayedText.length > 0) {
         const timeout = setTimeout(
           () => setDisplayedText(displayedText.slice(0, -1)),
-          30,
+          30
         );
         return () => clearTimeout(timeout);
       }
@@ -84,9 +86,9 @@ export function PortalVisual() {
     <div ref={ref} className="w-full max-w-xs flex flex-col gap-3 py-4">
       {/* Search bar */}
       <motion.div
-        initial={{ opacity: 0, y: 10, filter: "blur(8px)" }}
+        initial={{ filter: "blur(8px)", opacity: 0, y: 10 }}
         animate={
-          isInView ? { opacity: 1, y: 0, filter: "blur(0px)" } : undefined
+          isInView ? { filter: "blur(0px)", opacity: 1, y: 0 } : undefined
         }
         transition={{ duration: 0.4 }}
         className="flex items-center gap-2 rounded-lg border bg-background-primary px-3 py-2 shadow-sm"
@@ -122,9 +124,9 @@ export function PortalVisual() {
               // biome-ignore lint/suspicious/noArrayIndexKey: this is a visual component
               key={index}
               layout
-              initial={{ opacity: 0, y: 8, filter: "blur(8px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -8, filter: "blur(8px)" }}
+              initial={{ filter: "blur(8px)", opacity: 0, y: 8 }}
+              animate={{ filter: "blur(0px)", opacity: 1, y: 0 }}
+              exit={{ filter: "blur(8px)", opacity: 0, y: -8 }}
               transition={{ duration: 0.25 }}
               className="flex items-center justify-between rounded-lg border bg-background-primary px-3 py-2.5 shadow-sm"
             >

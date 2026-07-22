@@ -2,16 +2,17 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute } from "@tanstack/react-router";
 import { useAtomValue } from "jotai/react";
 import { useEffect, useMemo, useState } from "react";
-import {
-  RichMarkdown,
-  type RichMarkdownMarkings,
-  type RichMarkdownPreset,
+
+import { RichMarkdown } from "~/components/markdown/rich-markdown";
+import type {
+  RichMarkdownMarkings,
+  RichMarkdownPreset,
 } from "~/components/markdown/rich-markdown";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
 export const Route = createFileRoute(
-  "/app/_workspace/_main/playground/rich-markdown",
+  "/app/_workspace/_main/playground/rich-markdown"
 )({
   component: RichMarkdownPlaygroundPage,
 });
@@ -84,7 +85,7 @@ const buildInlineContent = (threadId: string | null) => {
   return `Inline preset sample with [a thread mention](thread:${threadId}), **bold**, _italic_, and \`code\`.`;
 };
 
-type PlaygroundVariant = {
+interface PlaygroundVariant {
   id: string;
   title: string;
   description: string;
@@ -94,85 +95,85 @@ type PlaygroundVariant = {
   parseIncompleteMarkdown?: boolean;
   normalizeThreadLinks?: boolean;
   streaming?: boolean;
-};
+}
 
 const VARIANTS: PlaygroundVariant[] = [
   {
-    id: "default-static",
-    title: "Default preset (static)",
     description: "Baseline rich markdown rendering.",
-    preset: "default",
+    id: "default-static",
     mode: "static",
+    preset: "default",
+    title: "Default preset (static)",
   },
   {
-    id: "minimal-static",
-    title: "Minimal preset (static)",
     description: "Reduced formatting surface for cleaner output.",
-    preset: "minimal",
+    id: "minimal-static",
     mode: "static",
     normalizeThreadLinks: false,
+    preset: "minimal",
+    title: "Minimal preset (static)",
   },
   {
-    id: "no-table-no-code",
-    title: "No tables + no code",
     description: "Disables selected markings via overrides.",
-    preset: "default",
+    id: "no-table-no-code",
     markings: {
-      table: false,
       code: false,
+      table: false,
       taskList: false,
     },
     mode: "static",
     normalizeThreadLinks: false,
+    preset: "default",
+    title: "No tables + no code",
   },
   {
-    id: "inline-static",
-    title: "Inline preset (static)",
     description: "Drops non-inline blocks and keeps inline markdown only.",
-    preset: "inline",
+    id: "inline-static",
     mode: "static",
     normalizeThreadLinks: true,
+    preset: "inline",
+    title: "Inline preset (static)",
   },
   {
-    id: "thread-mention",
-    title: "Thread mention example",
     description: "Renders a thread mention from markdown link syntax.",
-    preset: "default",
+    id: "thread-mention",
     mode: "static",
+    preset: "default",
+    title: "Thread mention example",
   },
   {
-    id: "pr-mention",
-    title: "PR link example",
     description:
       "Renders GitHub PR URLs as inline chips across canonical, /pulls/, www, anchor and trailing-path shapes.",
-    preset: "default",
+    id: "pr-mention",
     mode: "static",
+    preset: "default",
+    title: "PR link example",
   },
   {
-    id: "streaming-remend",
-    title: "Streaming (parse incomplete on)",
     description:
       "Simulates partial LLM output with incomplete markdown parsing.",
-    preset: "default",
+    id: "streaming-remend",
     mode: "streaming",
     parseIncompleteMarkdown: true,
+    preset: "default",
     streaming: true,
+    title: "Streaming (parse incomplete on)",
   },
   {
-    id: "streaming-strict",
-    title: "Streaming (parse incomplete off)",
     description:
       "Simulates partial output without incomplete markdown parsing.",
-    preset: "default",
+    id: "streaming-strict",
     mode: "streaming",
     parseIncompleteMarkdown: false,
+    preset: "default",
     streaming: true,
+    title: "Streaming (parse incomplete off)",
   },
 ];
 
 function useSimulatedStream(content: string, enabled: boolean) {
   const [streamedContent, setStreamedContent] = useState(
-    enabled ? content.slice(0, 1) : content,
+    enabled ? content.slice(0, 1) : content
   );
 
   useEffect(() => {
@@ -209,9 +210,15 @@ function VariantCard({
   inlineContent: string;
 }) {
   const baseContent = (() => {
-    if (variant.id === "thread-mention") return threadMentionContent;
-    if (variant.id === "pr-mention") return PR_MENTION_CONTENT;
-    if (variant.id === "inline-static") return inlineContent;
+    if (variant.id === "thread-mention") {
+      return threadMentionContent;
+    }
+    if (variant.id === "pr-mention") {
+      return PR_MENTION_CONTENT;
+    }
+    if (variant.id === "inline-static") {
+      return inlineContent;
+    }
     return SAMPLE_CONTENT;
   })();
   const streamedContent = useSimulatedStream(baseContent, !!variant.streaming);
@@ -244,18 +251,18 @@ function RichMarkdownPlaygroundPage() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const threads = useLiveQuery(
     query.thread.where({
-      organizationId: currentOrg?.id,
       deletedAt: null,
-    }),
+      organizationId: currentOrg?.id,
+    })
   );
   const variants = useMemo(() => VARIANTS, []);
   const threadMentionContent = useMemo(
     () => buildThreadMentionContent(threads?.[0]?.id ?? null),
-    [threads],
+    [threads]
   );
   const inlineContent = useMemo(
     () => buildInlineContent(threads?.[0]?.id ?? null),
-    [threads],
+    [threads]
   );
 
   return (

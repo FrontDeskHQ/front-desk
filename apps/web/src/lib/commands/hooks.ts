@@ -1,5 +1,6 @@
 import { useAtomValue, useSetAtom } from "jotai/react";
 import { useCallback, useEffect, useMemo } from "react";
+
 import { commandRegistryActions, commandRegistryAtom } from "./registry";
 import type { Command, CommandContext, CommandPage } from "./types";
 
@@ -12,7 +13,7 @@ import type { Command, CommandContext, CommandPage } from "./types";
  */
 export const useCommand = (
   factory: () => Command,
-  deps: readonly unknown[],
+  deps: readonly unknown[]
 ) => {
   const setRegistry = useSetAtom(commandRegistryAtom);
 
@@ -20,12 +21,12 @@ export const useCommand = (
     const command = factory();
 
     setRegistry((state) =>
-      commandRegistryActions.registerCommand(state, command),
+      commandRegistryActions.registerCommand(state, command)
     );
 
     return () => {
       setRegistry((state) =>
-        commandRegistryActions.unregisterCommand(state, command.id),
+        commandRegistryActions.unregisterCommand(state, command.id)
       );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -41,7 +42,7 @@ export const useCommand = (
  */
 export const useCommandPage = (
   factory: () => CommandPage,
-  deps: readonly unknown[],
+  deps: readonly unknown[]
 ) => {
   const setRegistry = useSetAtom(commandRegistryAtom);
 
@@ -52,7 +53,7 @@ export const useCommandPage = (
 
     return () => {
       setRegistry((state) =>
-        commandRegistryActions.unregisterPage(state, page.id),
+        commandRegistryActions.unregisterPage(state, page.id)
       );
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -69,7 +70,7 @@ export const useCommandPage = (
  */
 export const useCommandContext = (
   factory: () => CommandContext,
-  options: { active?: boolean; deps: readonly unknown[] },
+  options: { active?: boolean; deps: readonly unknown[] }
 ) => {
   const { active = true, deps } = options;
   const setRegistry = useSetAtom(commandRegistryAtom);
@@ -112,7 +113,7 @@ export const useCommandMenu = () => {
     (pageId: string | null) => {
       setRegistry((state) => commandRegistryActions.setPage(state, pageId));
     },
-    [setRegistry],
+    [setRegistry]
   );
 
   const goBack = useCallback(() => {
@@ -126,10 +127,10 @@ export const useCommandMenu = () => {
   const setContext = useCallback(
     (contextId: string | null) => {
       setRegistry((state) =>
-        commandRegistryActions.setContext(state, contextId),
+        commandRegistryActions.setContext(state, contextId)
       );
     },
-    [setRegistry],
+    [setRegistry]
   );
 
   const resetNavigation = useCallback(() => {
@@ -140,19 +141,23 @@ export const useCommandMenu = () => {
     (search: string) => {
       setRegistry((state) => commandRegistryActions.setSearch(state, search));
     },
-    [setRegistry],
+    [setRegistry]
   );
 
   // Compute directly from registry - no intermediate memos
   const commands = commandRegistryActions.getAvailableCommands(registry);
   const currentPage = commandRegistryActions.getCurrentPage(registry);
 
-  const contextCommands = registry.currentContextId
-    ? (registry.contexts[registry.currentContextId]?.commands ?? [])
-    : [];
+  const contextCommands = useMemo(
+    () =>
+      registry.currentContextId
+        ? (registry.contexts[registry.currentContextId]?.commands ?? [])
+        : [],
+    [registry.currentContextId, registry.contexts]
+  );
 
   const globalCommands = registry.globalCommands.filter(
-    (cmd) => !cmd.contextId || cmd.contextId === registry.currentContextId,
+    (cmd) => !cmd.contextId || cmd.contextId === registry.currentContextId
   );
 
   const currentContextFooter = registry.currentContextId
@@ -164,23 +169,24 @@ export const useCommandMenu = () => {
     () => ({
       commands,
       contextCommands,
-      globalCommands,
-      currentPage,
-      currentContextId: registry.currentContextId,
-      currentPageId: registry.currentPageId,
-      lastDeclaredContextId: registry.lastDeclaredContextId,
-      search: registry.search,
       currentContextFooter,
-      registry,
-      navigateToPage,
+      currentContextId: registry.currentContextId,
+      currentPage,
+      currentPageId: registry.currentPageId,
+      globalCommands,
       goBack,
-      setContext,
+      lastDeclaredContextId: registry.lastDeclaredContextId,
+      navigateToPage,
+      registry,
       resetNavigation,
+      search: registry.search,
+      setContext,
       setSearch,
     }),
     [
       commands,
       contextCommands,
+      currentContextFooter,
       globalCommands,
       currentPage,
       registry,
@@ -189,6 +195,6 @@ export const useCommandMenu = () => {
       setContext,
       resetNavigation,
       setSearch,
-    ],
+    ]
   );
 };

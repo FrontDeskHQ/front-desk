@@ -1,5 +1,6 @@
 import type { PostHog } from "posthog-js";
 import { ulid } from "ulid";
+
 import { fetchClient } from "~/lib/live-state";
 
 export interface ActivateIntegrationOptions {
@@ -49,26 +50,26 @@ export async function activateDiscord({
 
   if (existingIntegrationId) {
     await fetchClient.mutate.integration.updateInstallation({
-      integrationId: existingIntegrationId,
-      enabled: false,
-      updatedAt: new Date(),
       configStr: JSON.stringify({
-        ...(existingConfig ?? {}),
+        ...existingConfig,
         csrfToken,
       }),
+      enabled: false,
+      integrationId: existingIntegrationId,
+      updatedAt: new Date(),
     });
   } else {
     await fetchClient.mutate.integration.connectInstallation({
+      configStr: JSON.stringify({
+        ...existingConfig,
+        csrfToken,
+      }),
+      createdAt: new Date(),
+      enabled: false,
       id: ulid().toLowerCase(),
       organizationId,
       type: "discord",
-      enabled: false,
       updatedAt: new Date(),
-      createdAt: new Date(),
-      configStr: JSON.stringify({
-        ...(existingConfig ?? {}),
-        csrfToken,
-      }),
     });
   }
 
@@ -76,12 +77,12 @@ export async function activateDiscord({
 
   const queryParams = new URLSearchParams({
     client_id: DISCORD_CLIENT_ID,
-    permissions: DISCORD_BOT_PERMISSIONS,
-    scope: "identify+bot", // We need identify because we wont get a redirect otherwise
     integration_type: "0", // Add to guild
+    permissions: DISCORD_BOT_PERMISSIONS,
     redirect_uri: redirectUri,
-    state: `${organizationId}_${csrfToken}`,
     response_type: "code",
+    scope: "identify+bot", // We need identify because we wont get a redirect otherwise
+    state: `${organizationId}_${csrfToken}`,
   });
 
   // https://discord.com/developers/docs/topics/oauth2#bot-authorization-flow
@@ -116,26 +117,26 @@ export async function activateSlack({
 
   if (existingIntegrationId) {
     await fetchClient.mutate.integration.updateInstallation({
-      integrationId: existingIntegrationId,
-      enabled: false,
-      updatedAt: new Date(),
       configStr: JSON.stringify({
-        ...(existingConfig ?? {}),
+        ...existingConfig,
         csrfToken,
       }),
+      enabled: false,
+      integrationId: existingIntegrationId,
+      updatedAt: new Date(),
     });
   } else {
     await fetchClient.mutate.integration.connectInstallation({
+      configStr: JSON.stringify({
+        ...existingConfig,
+        csrfToken,
+      }),
+      createdAt: new Date(),
+      enabled: false,
       id: ulid().toLowerCase(),
       organizationId,
       type: "slack",
-      enabled: false,
       updatedAt: new Date(),
-      createdAt: new Date(),
-      configStr: JSON.stringify({
-        ...(existingConfig ?? {}),
-        csrfToken,
-      }),
     });
   }
 
@@ -146,8 +147,8 @@ export async function activateSlack({
 
   const queryParams = new URLSearchParams({
     client_id: SLACK_CLIENT_ID,
-    scope: SLACK_BOT_SCOPES,
     redirect_uri: redirectUri,
+    scope: SLACK_BOT_SCOPES,
     state: `${organizationId}_${csrfToken}`,
   });
 

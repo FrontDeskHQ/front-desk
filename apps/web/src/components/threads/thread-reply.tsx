@@ -33,7 +33,7 @@ export function ThreadReply({
       className={cn(
         "group relative flex items-start gap-2.5 rounded-md p-2 transition-[box-shadow,background-color] duration-200 hover:duration-0 hover:bg-background-tertiary/75 data-[highlight=true]:ring-ring/50 data-[highlight=true]:ring-[3px]",
         asCard &&
-          "border border-green-600/12 bg-green-500/5 hover:bg-green-500/5 p-3",
+          "border border-green-600/12 bg-green-500/5 hover:bg-green-500/5 p-3"
       )}
     >
       {asCard && (
@@ -46,13 +46,15 @@ export function ThreadReply({
               size="icon-sm"
               tooltip="Go to reply"
               onClick={() => {
-                const el = document.getElementById("answer-message");
-                if (!el) return;
+                const el = document.querySelector("#answer-message");
+                if (!el) {
+                  return;
+                }
                 el.scrollIntoView({ behavior: "smooth", block: "center" });
-                if (window.location.hash !== "#answer-message") {
-                  window.location.hash = "answer-message";
-                } else {
+                if (window.location.hash === "#answer-message") {
                   window.dispatchEvent(new HashChangeEvent("hashchange"));
+                } else {
+                  window.location.hash = "answer-message";
                 }
               }}
             >

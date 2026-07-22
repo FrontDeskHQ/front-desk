@@ -3,10 +3,12 @@ import {
   statusValues,
 } from "@workspace/ui/components/indicator";
 import { ChevronRight } from "lucide-react";
+
 import { mutate } from "~/lib/live-state";
+
 import type { Command, CommandPage } from "../../types";
 
-type StatusCommandsParams = {
+interface StatusCommandsParams {
   threadId: string;
   organizationId: string;
   thread:
@@ -19,7 +21,7 @@ type StatusCommandsParams = {
     id: string;
     name: string;
   };
-};
+}
 
 export const createStatusCommands = ({
   threadId,
@@ -32,9 +34,9 @@ export const createStatusCommands = ({
 } => {
   const handleStatusChange = (newStatus: number) => {
     mutate.thread.setStatus({
-      threadId,
       organizationId,
       status: newStatus,
+      threadId,
       userId: user.id,
       userName: user.name,
     });
@@ -44,38 +46,35 @@ export const createStatusCommands = ({
 
   const commands: Command[] = [
     {
+      icon: <StatusIndicator status={0} />,
       id: "change-status",
       label: "Change status...",
-      icon: <StatusIndicator status={0} />,
       pageId: "status",
       shortcut: "s",
     },
     ...statusEntries.map(
       ([statusKey, statusValue]) =>
         ({
+          icon: <StatusIndicator status={+statusKey} />,
           id: `quick-status-${statusKey}`,
+          keywords: [statusValue.label.toLowerCase(), "status"],
           label: (
             <div className="flex items-center gap-0.5 text-foreground-secondary">
               Change status <ChevronRight />
               <div className="text-foreground-primary">{statusValue.label}</div>
             </div>
           ),
-          keywords: [statusValue.label.toLowerCase(), "status"],
-          icon: <StatusIndicator status={+statusKey} />,
-          visible: (state) => {
-            return !!state.search;
-          },
           onSelect: async () => {
             await handleStatusChange(+statusKey);
           },
-        }) satisfies Command,
+          visible: (state) => {
+            return !!state.search;
+          },
+        }) satisfies Command
     ),
   ];
 
   const statusPage: CommandPage = {
-    id: "status",
-    label: "Change status",
-    icon: <StatusIndicator status={thread?.status ?? 0} />,
     commands: statusEntries.map(([statusKey, statusValue]) => ({
       id: statusKey,
       label: statusValue.label,
@@ -85,6 +84,9 @@ export const createStatusCommands = ({
         await handleStatusChange(+statusKey);
       },
     })),
+    icon: <StatusIndicator status={thread?.status ?? 0} />,
+    id: "status",
+    label: "Change status",
   };
 
   return { commands, statusPage };

@@ -10,8 +10,8 @@ export const getPort = (): number =>
 
 export const getGitHubConfig = () => ({
   appId: process.env.GITHUB_APP_ID as string,
-  privateKey: process.env.GITHUB_PRIVATE_KEY as string,
-  webhookSecret: process.env.GITHUB_WEBHOOK_SECRET as string,
   clientId: process.env.GITHUB_CLIENT_ID as string,
   clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+  privateKey: process.env.GITHUB_PRIVATE_KEY as string,
+  webhookSecret: process.env.GITHUB_WEBHOOK_SECRET as string,
 });

@@ -3,6 +3,7 @@
 import { MenuItem } from "@workspace/ui/components/menu";
 import { useAtomValue } from "jotai/react";
 import { toast } from "sonner";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 
@@ -22,12 +23,12 @@ const SeedLeverageActionsMenuItem = () => {
 
     try {
       const res = await fetchClient.mutate.autonomousAction.seedFake({
-        organizationId: currentOrg.id,
         count: 8,
+        organizationId: currentOrg.id,
       });
       toast.success(`Seeded ${res.inserted} autonomous actions`);
-    } catch (err) {
-      console.error("Failed to seed autonomous actions:", err);
+    } catch (error) {
+      console.error("Failed to seed autonomous actions:", error);
       toast.error("Failed to seed autonomous actions");
     }
   };
@@ -56,8 +57,8 @@ const ClearLeverageActionsMenuItem = () => {
         organizationId: currentOrg.id,
       });
       toast.success(`Cleared ${res.cleared} autonomous actions`);
-    } catch (err) {
-      console.error("Failed to clear autonomous actions:", err);
+    } catch (error) {
+      console.error("Failed to clear autonomous actions:", error);
       toast.error("Failed to clear autonomous actions");
     }
   };
@@ -72,11 +73,9 @@ const ClearLeverageActionsMenuItem = () => {
   );
 };
 
-export const SignalsSubmenu = () => {
-  return (
-    <>
-      <SeedLeverageActionsMenuItem />
-      <ClearLeverageActionsMenuItem />
-    </>
-  );
-};
+export const SignalsSubmenu = () => (
+  <>
+    <SeedLeverageActionsMenuItem />
+    <ClearLeverageActionsMenuItem />
+  </>
+);

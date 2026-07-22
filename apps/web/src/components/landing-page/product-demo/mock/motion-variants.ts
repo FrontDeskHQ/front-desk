@@ -3,26 +3,26 @@ import type { Variants } from "motion/react";
 export const blurSlideContainerVariants: Variants = {
   visible: {
     transition: {
-      staggerChildren: 0.05,
       delayChildren: 0.2,
+      staggerChildren: 0.05,
     },
   },
 };
 
 export const blurSlideItemVariants: Variants = {
   hidden: {
-    opacity: 0,
     filter: "blur(12px)",
+    opacity: 0,
     y: 12,
   },
   visible: {
-    opacity: 1,
     filter: "blur(0px)",
-    y: 0,
+    opacity: 1,
     transition: {
-      type: "spring",
       bounce: 0.3,
       duration: 1.5,
+      type: "spring",
     },
+    y: 0,
   },
 };

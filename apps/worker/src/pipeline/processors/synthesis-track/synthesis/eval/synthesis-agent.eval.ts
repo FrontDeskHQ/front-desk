@@ -1,10 +1,13 @@
-import { tool, type Tool } from "ai";
-import z from "zod";
+import { tool } from "ai";
+import type { Tool } from "ai";
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
-import type { createSynthesisTools } from "../tools";
+import z from "zod";
+
 import { synthesizeThreadRead } from "../synthesize";
-import { synthesisAgentDataset, type SynthesisAgentEvalInput } from "./agent-dataset";
+import type { createSynthesisTools } from "../tools";
+import { synthesisAgentDataset } from "./agent-dataset";
+import type { SynthesisAgentEvalInput } from "./agent-dataset";
 import {
   atMostOneLinkPr,
   expectedLinkPrUrl,
@@ -26,7 +29,7 @@ type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
 type ReadPrOutput = ToolOutput<SynthesisTools["read_pr"]>;
 
 const createMockTools = (
-  fixtures: SynthesisAgentEvalInput["toolFixtures"],
+  fixtures: SynthesisAgentEvalInput["toolFixtures"]
 ): {
   tools: SynthesisTools;
   counters: {
@@ -37,13 +40,35 @@ const createMockTools = (
   };
 } => {
   const counters = {
-    read_thread: 0,
-    read_pr: 0,
-    search_documentation: 0,
     read_documentation_page: 0,
+    read_pr: 0,
+    read_thread: 0,
+    search_documentation: 0,
   };
 
   const tools: SynthesisTools = {
+    read_documentation_page: tool({
+      description: "Read docs page chunks from mocked fixtures.",
+      inputSchema: z.object({
+        pageUrl: z.string(),
+        limit: z.number().int().min(1).max(200).optional(),
+      }),
+      execute: async ({ pageUrl }) => {
+        counters.read_documentation_page++;
+        const chunks = fixtures.docsPageChunksByUrl?.[pageUrl] ?? [];
+        return { pageUrl, chunks };
+      },
+    }),
+    read_pr: tool({
+      description: "Read a mirrored PR from mocked fixtures.",
+      inputSchema: z.object({ prUrl: z.string() }),
+      execute: async ({ prUrl }): Promise<ReadPrOutput> => {
+        counters.read_pr++;
+        const pr = fixtures.prsByUrl?.[prUrl];
+        if (!pr) return { found: false, reason: "not_mirrored" };
+        return { found: true, pr };
+      },
+    }),
     read_thread: tool({
       description: "Read a thread from mocked fixtures.",
       inputSchema: z.object({ threadId: z.string() }),
@@ -69,16 +94,6 @@ const createMockTools = (
         };
       },
     }),
-    read_pr: tool({
-      description: "Read a mirrored PR from mocked fixtures.",
-      inputSchema: z.object({ prUrl: z.string() }),
-      execute: async ({ prUrl }): Promise<ReadPrOutput> => {
-        counters.read_pr++;
-        const pr = fixtures.prsByUrl?.[prUrl];
-        if (!pr) return { found: false, reason: "not_mirrored" };
-        return { found: true, pr };
-      },
-    }),
     search_documentation: tool({
       description: "Search docs from mocked fixtures.",
       inputSchema: z.object({
@@ -91,21 +106,9 @@ const createMockTools = (
         return { hits };
       },
     }),
-    read_documentation_page: tool({
-      description: "Read docs page chunks from mocked fixtures.",
-      inputSchema: z.object({
-        pageUrl: z.string(),
-        limit: z.number().int().min(1).max(200).optional(),
-      }),
-      execute: async ({ pageUrl }) => {
-        counters.read_documentation_page++;
-        const chunks = fixtures.docsPageChunksByUrl?.[pageUrl] ?? [];
-        return { pageUrl, chunks };
-      },
-    }),
   };
 
-  return { tools, counters };
+  return { counters, tools };
 };
 
 evalite("Synthesis Agent (Model In Loop)", {
@@ -117,6 +120,19 @@ evalite("Synthesis Agent (Model In Loop)", {
       },
       expected: testCase.expected,
     })),
+  scorers: [
+    nonEmptyPrimaryWhenExpected,
+    requiredPrimaryKinds,
+    forbiddenPrimaryKinds,
+    sourceInputMessageValidity,
+    replySubstance,
+    replyFactualityGuard,
+    minimumToolCalls,
+    reasoningUserSafe,
+    unrepliedThreadReplyCoupling,
+    atMostOneLinkPr,
+    expectedLinkPrUrl,
+  ],
   task: async (input) => {
     const start = Date.now();
     const { tools, counters } = createMockTools(input.toolFixtures);
@@ -139,17 +155,4 @@ evalite("Synthesis Agent (Model In Loop)", {
     });
     return result;
   },
-  scorers: [
-    nonEmptyPrimaryWhenExpected,
-    requiredPrimaryKinds,
-    forbiddenPrimaryKinds,
-    sourceInputMessageValidity,
-    replySubstance,
-    replyFactualityGuard,
-    minimumToolCalls,
-    reasoningUserSafe,
-    unrepliedThreadReplyCoupling,
-    atMostOneLinkPr,
-    expectedLinkPrUrl,
-  ],
 });

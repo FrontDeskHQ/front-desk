@@ -4,7 +4,7 @@ export type CommandId = string;
 export type PageId = string;
 export type ContextId = string;
 
-type BaseCommand = {
+interface BaseCommand {
   id: CommandId;
   label: ReactNode;
   icon?: ReactNode;
@@ -15,7 +15,7 @@ type BaseCommand = {
   group?: string; // Optional group label for organizing commands
   visible?: boolean | ((state: CommandRegistryState) => boolean);
   checked?: boolean;
-};
+}
 
 export type PageCommand = BaseCommand & {
   pageId: PageId;
@@ -49,7 +49,7 @@ export interface CommandRegistryState {
   globalPages: Record<PageId, CommandPage>;
   currentContextId: ContextId | null;
   currentPageId: PageId | null;
-  history: Array<{ type: "context" | "page"; id: string }>;
+  history: { type: "context" | "page"; id: string }[];
   lastDeclaredContextId: ContextId | null;
   search: string;
 }

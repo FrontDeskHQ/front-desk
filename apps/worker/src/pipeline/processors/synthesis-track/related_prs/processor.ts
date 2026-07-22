@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+
 import type { RelatedPrsEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
+
 import {
   PR_MATCH_THRESHOLD,
   searchSimilarPrs,
@@ -15,9 +17,9 @@ import type {
 import type { SummarizeOutput } from "../../summarize";
 import { RELATED_PRS_LIMIT, toRelatedPrsEvidence } from "./find";
 
-export type RelatedPrsProcessorOutput = {
+export interface RelatedPrsProcessorOutput {
   evidence: RelatedPrsEvidence | null;
-};
+}
 
 const summaryHashInput = (summary: ParsedSummary): string =>
   Object.entries(summary)
@@ -61,25 +63,29 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
       const { context: jobContext, thread, threadId } = context;
       // A thread that already links a PR never produces evidence; keep its hash
       // stable so the skip is idempotent regardless of summary churn.
-      if (thread.externalPrId) return computeSha256("linked");
+      if (thread.externalPrId) {
+        return computeSha256("linked");
+      }
       const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
         "summarize",
-        threadId,
+        threadId
       );
-      if (!summarize) return computeSha256("");
+      if (!summarize) {
+        return computeSha256("");
+      }
       return computeSha256(summaryHashInput(summarize.summary));
     },
 
     async execute(
-      context: ProcessorExecuteContext,
+      context: ProcessorExecuteContext
     ): Promise<ProcessorResult<RelatedPrsProcessorOutput>> {
       const { context: jobContext, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.related_prs",
+        jobId: jobContext.jobId,
+        organizationId: thread.organizationId,
         processor: "related_prs",
         threadId,
-        organizationId: thread.organizationId,
-        jobId: jobContext.jobId,
       });
       let status = 200;
 
@@ -91,33 +97,33 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
             thread.organizationId,
             "related_prs",
             null,
-            computeSha256("linked"),
+            computeSha256("linked")
           );
           return {
-            threadId,
-            success: true,
             data: { evidence: null },
+            success: true,
+            threadId,
           };
         }
 
         const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
           "summarize",
-          threadId,
+          threadId
         );
         const hash = computeSha256(
-          summarize ? summaryHashInput(summarize.summary) : "",
+          summarize ? summaryHashInput(summarize.summary) : ""
         );
 
         const embedOutput = jobContext.getProcessorOutput<EmbedOutput>(
           "embed",
-          threadId,
+          threadId
         );
         if (!embedOutput?.embedding) {
           status = 500;
           return {
-            threadId,
-            success: false,
             error: "No embedding available from embed processor",
+            success: false,
+            threadId,
           };
         }
 
@@ -126,9 +132,9 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
         // throws (see `searchSimilarPrs`) so we fall through to the catch and
         // leave the prior hint untouched instead of clearing a valid lead.
         const hits = await searchSimilarPrs(embedOutput.embedding, {
+          limit: RELATED_PRS_LIMIT,
           organizationId: thread.organizationId,
           scoreThreshold: PR_MATCH_THRESHOLD,
-          limit: RELATED_PRS_LIMIT,
         });
 
         const evidence = toRelatedPrsEvidence(hits);
@@ -138,25 +144,25 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
           thread.organizationId,
           "related_prs",
           evidence,
-          hash,
+          hash
         );
 
         return {
-          threadId,
-          success: true,
           data: { evidence },
+          success: true,
+          threadId,
         };
       } catch (error) {
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
         console.error(
           `Related PRs processor failed for thread ${threadId}:`,
-          error,
+          error
         );
         requestLog.error(
-          `Related PRs failed for thread ${threadId}: ${message}`,
+          `Related PRs failed for thread ${threadId}: ${message}`
         );
-        return { threadId, success: false, error: message };
+        return { error: message, success: false, threadId };
       } finally {
         requestLog.emit({ status });
       }

@@ -1,4 +1,5 @@
 import Elysia from "elysia";
+
 import "./env";
 import { startBackfillWorker } from "./jobs/backfill";
 import { startReconcileWorker } from "./jobs/reconcile";
@@ -36,9 +37,9 @@ const app = new Elysia()
 
       await githubApp.webhooks.verifyAndReceive({
         id: deliveryId,
-        name: event as any,
-        signature,
+        name: event,
         payload: body,
+        signature,
       });
 
       set.status = 200;

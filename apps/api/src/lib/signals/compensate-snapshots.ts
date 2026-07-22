@@ -8,30 +8,30 @@ type ContextWithSnapshots = ExecutionContext & {
 
 const getSnapshots = (ctx: ExecutionContext): Map<string, unknown> => {
   const extended = ctx as ContextWithSnapshots;
-  if (!extended[SNAPSHOTS_KEY]) {
-    extended[SNAPSHOTS_KEY] = new Map();
+  let snapshots = extended[SNAPSHOTS_KEY];
+  if (!snapshots) {
+    snapshots = new Map();
+    extended[SNAPSHOTS_KEY] = snapshots;
   }
-  return extended[SNAPSHOTS_KEY]!;
+  return snapshots;
 };
 
 export const setCompensateSnapshot = (
   ctx: ExecutionContext,
   key: string,
-  value: unknown,
+  value: unknown
 ): void => {
   getSnapshots(ctx).set(key, value);
 };
 
 export const getCompensateSnapshot = <T>(
   ctx: ExecutionContext,
-  key: string,
-): T | undefined => {
-  return getSnapshots(ctx).get(key) as T | undefined;
-};
+  key: string
+): T | undefined => getSnapshots(ctx).get(key) as T | undefined;
 
 export const clearCompensateSnapshot = (
   ctx: ExecutionContext,
-  key: string,
+  key: string
 ): void => {
   getSnapshots(ctx).delete(key);
 };

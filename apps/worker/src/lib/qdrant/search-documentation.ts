@@ -1,5 +1,6 @@
 import { google } from "@ai-sdk/google";
 import { embed } from "ai";
+
 import { qdrantClient } from "./client";
 import type { DocumentationChunkPayload } from "./documentation";
 import { DOCUMENTATION_COLLECTION } from "./documentation";
@@ -7,36 +8,38 @@ import { DOCUMENTATION_COLLECTION } from "./documentation";
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
 
-export type DocumentationSearchHit = {
+export interface DocumentationSearchHit {
   pageUrl: string;
   pageTitle: string;
   chunkText: string;
   headingHierarchy: string[];
   score: number;
-};
+}
 
-export type DocumentationPageChunk = {
+export interface DocumentationPageChunk {
   pageUrl: string;
   pageTitle: string;
   chunkText: string;
   headingHierarchy: string[];
   chunkIndex: number;
-};
+}
 
 const generateQueryEmbedding = async (
-  query: string,
+  query: string
 ): Promise<number[] | null> => {
-  if (!query.trim()) return null;
+  if (!query.trim()) {
+    return null;
+  }
 
   try {
     const { embedding } = await embed({
       model: embeddingModel,
-      value: query,
       providerOptions: {
         google: {
           taskType: "RETRIEVAL_QUERY",
         },
       },
+      value: query,
     });
     return embedding;
   } catch (error) {
@@ -59,6 +62,10 @@ export async function searchDocumentation(options: {
 
   try {
     const results = await qdrantClient.query(DOCUMENTATION_COLLECTION, {
+      filter: {
+        must: [{ key: "organizationId", match: { value: organizationId } }],
+      },
+      limit,
       prefetch: [
         {
           query: denseQueryEmbedding,
@@ -75,20 +82,16 @@ export async function searchDocumentation(options: {
         },
       ],
       query: { fusion: "rrf" },
-      filter: {
-        must: [{ key: "organizationId", match: { value: organizationId } }],
-      },
       with_payload: true,
-      limit,
     });
 
     return results.points.map((point) => {
       const payload = point.payload as unknown as DocumentationChunkPayload;
       return {
-        pageUrl: payload.pageUrl,
-        pageTitle: payload.pageTitle,
         chunkText: payload.chunkText,
         headingHierarchy: payload.headingHierarchy,
+        pageTitle: payload.pageTitle,
+        pageUrl: payload.pageUrl,
         score: point.score ?? 0,
       };
     });
@@ -108,7 +111,9 @@ export async function readDocumentationPage(options: {
 }): Promise<DocumentationPageChunk[]> {
   const { pageUrl, organizationId, limit = 50 } = options;
 
-  if (!pageUrl.trim()) return [];
+  if (!pageUrl.trim()) {
+    return [];
+  }
 
   try {
     const results = await qdrantClient.scroll(DOCUMENTATION_COLLECTION, {
@@ -118,22 +123,22 @@ export async function readDocumentationPage(options: {
           { key: "pageUrl", match: { value: pageUrl } },
         ],
       },
-      with_payload: true,
       limit,
+      with_payload: true,
     });
 
     return results.points
       .map((point) => {
         const payload = point.payload as unknown as DocumentationChunkPayload;
         return {
-          pageUrl: payload.pageUrl,
-          pageTitle: payload.pageTitle,
+          chunkIndex: payload.chunkIndex,
           chunkText: payload.chunkText,
           headingHierarchy: payload.headingHierarchy,
-          chunkIndex: payload.chunkIndex,
+          pageTitle: payload.pageTitle,
+          pageUrl: payload.pageUrl,
         };
       })
-      .sort((a, b) => a.chunkIndex - b.chunkIndex);
+      .toSorted((a, b) => a.chunkIndex - b.chunkIndex);
   } catch (error) {
     console.error("Failed to read documentation page chunks in Qdrant:", error);
     return [];

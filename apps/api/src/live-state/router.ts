@@ -3,17 +3,19 @@ import { isCapability } from "@connectors/framework";
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
 import { organizationSettingsSchema } from "@workspace/schemas/organization";
+import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
-  type ActionAutonomyMap,
   actionAutonomyMapSchema,
   actionKindSchema,
   autonomyLevelSchema,
   getDefaultActionAutonomy,
   REVERSIBLE_ACTIONS,
 } from "@workspace/schemas/signals";
+import type { ActionAutonomyMap } from "@workspace/schemas/signals";
 import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
+
 import { publicKeys } from "../lib/api-key";
 import {
   assertInviteRecipient,
@@ -41,7 +43,7 @@ import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
-const RESERVED_ORG_SLUGS: readonly string[] = [
+const RESERVED_ORG_SLUGS: readonly string[] = new Set([
   "support",
   "help",
   "status",
@@ -64,7 +66,7 @@ const RESERVED_ORG_SLUGS: readonly string[] = [
   "privacy",
   "terms",
   "legal",
-];
+]);
 
 export const router = createRouter({
   schema,
@@ -76,16 +78,16 @@ export const router = createRouter({
           Object.values(
             await db.find(schema.organization, {
               where: { slug: req.input.slug.toLowerCase() },
-            }),
-          )[0],
+            })
+          )[0]
       ),
       /** Single organization by id — cli, worker, integration bots. */
       byId: query(z.object({ id: z.string() })).handler(async ({ db, req }) =>
-        db.organization.one(req.input.id).get(),
+        db.organization.one(req.input.id).get()
       ),
       /** All organizations — cli listing and public sitemap generation. */
       list: query().handler(async ({ db }) =>
-        Object.values(await db.find(schema.organization, {})),
+        Object.values(await db.find(schema.organization, {}))
       ),
       // Un-executed query returned to integration clients (discord/slack/
       // github), which load it via `client.load`. The whole-tree read has no
@@ -126,14 +128,12 @@ export const router = createRouter({
           slug: z
             .string()
             .min(4)
-            .refine(
-              (slug) => !RESERVED_ORG_SLUGS.includes(slug.toLowerCase()),
-              {
-                message: "This slug is reserved and cannot be used",
-              },
-            ),
-        }),
+            .refine((slug) => !RESERVED_ORG_SLUGS.has(slug.toLowerCase()), {
+              message: "This slug is reserved and cannot be used",
+            }),
+        })
       ).handler(async ({ req, db }) => {
+        const { name, slug } = req.input;
         const actor = getWorkspaceActor(req);
         const userEmail = req.context?.user?.email;
         const userName = req.context?.user?.name ?? actor.userName ?? undefined;
@@ -146,8 +146,8 @@ export const router = createRouter({
 
         const organization = await db.insert(schema.organization, {
           id: organizationId,
-          name: req.input!.name,
-          slug: req.input!.slug,
+          name,
+          slug,
           createdAt: new Date(),
           logoUrl: null,
           socials: null,
@@ -192,7 +192,7 @@ export const router = createRouter({
             where: {
               userId: actor.userId,
             },
-          }),
+          })
         );
 
         if (userMemberships.length === 1 && userEmail && userName) {
@@ -204,10 +204,10 @@ export const router = createRouter({
                 email: userEmail,
                 name: userName,
               },
-              { delay: `${delayMinutes}m` },
+              { delay: `${delayMinutes}m` }
             )
-            .catch((err) => {
-              console.error("Failed to schedule welcome email", err);
+            .catch((error) => {
+              console.error("Failed to schedule welcome email", error);
             });
         }
 
@@ -221,7 +221,7 @@ export const router = createRouter({
           organizationId: z.string(),
           actionKind: actionKindSchema,
           level: autonomyLevelSchema,
-        }),
+        })
       ).handler(async ({ req, db }) => {
         authorize(req, {
           organizationId: req.input.organizationId,
@@ -249,7 +249,7 @@ export const router = createRouter({
             ? (org.settings as Record<string, unknown>)
             : {};
         const parsedAutonomy = actionAutonomyMapSchema.safeParse(
-          rawSettings.actionAutonomy,
+          rawSettings.actionAutonomy
         );
         const nextAutonomy: ActionAutonomyMap = {
           ...getDefaultActionAutonomy(),
@@ -261,8 +261,7 @@ export const router = createRouter({
           settings: {
             ...rawSettings,
             actionAutonomy: nextAutonomy,
-            // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
-          } as any,
+          } as OrganizationSettings,
         });
       }),
       setCapabilityPrimary: mutation(
@@ -270,7 +269,7 @@ export const router = createRouter({
           organizationId: z.string(),
           capability: z.string(),
           integrationId: z.string(),
-        }),
+        })
       ).handler(async ({ req, db }) => {
         authorize(req, {
           organizationId: req.input.organizationId,
@@ -330,8 +329,7 @@ export const router = createRouter({
               ...existingPrimary,
               [capability]: integrationId,
             },
-            // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
-          } as any,
+          } as OrganizationSettings,
         });
       }),
       updateSettings: mutation(
@@ -342,12 +340,9 @@ export const router = createRouter({
             slug: z
               .string()
               .min(4)
-              .refine(
-                (slug) => !RESERVED_ORG_SLUGS.includes(slug.toLowerCase()),
-                {
-                  message: "This slug is reserved and cannot be used",
-                },
-              )
+              .refine((slug) => !RESERVED_ORG_SLUGS.has(slug.toLowerCase()), {
+                message: "This slug is reserved and cannot be used",
+              })
               .optional(),
             logoUrl: z.string().nullable().optional(),
             socials: z.string().nullable().optional(),
@@ -368,8 +363,8 @@ export const router = createRouter({
               const { organizationId: _organizationId, ...fields } = input;
               return Object.values(fields).some((value) => value !== undefined);
             },
-            { message: "NO_FIELDS_TO_UPDATE" },
-          ),
+            { message: "NO_FIELDS_TO_UPDATE" }
+          )
       ).handler(async ({ req, db }) => {
         authorize(req, {
           organizationId: req.input.organizationId,
@@ -377,7 +372,9 @@ export const router = createRouter({
         });
 
         const org = await db.organization.one(req.input.organizationId).get();
-        if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+        if (!org) {
+          throw new Error("ORGANIZATION_NOT_FOUND");
+        }
 
         const {
           organizationId: _organizationId,
@@ -397,53 +394,52 @@ export const router = createRouter({
             : {};
 
         return db.organization.update(org.id, {
-          ...(name !== undefined ? { name } : {}),
-          ...(slug !== undefined ? { slug } : {}),
-          ...(logoUrl !== undefined ? { logoUrl } : {}),
-          ...(socials !== undefined ? { socials } : {}),
-          ...(customInstructions !== undefined ? { customInstructions } : {}),
-          ...(settings !== undefined
-            ? {
+          ...(name === undefined ? {} : { name }),
+          ...(slug === undefined ? {} : { slug }),
+          ...(logoUrl === undefined ? {} : { logoUrl }),
+          ...(socials === undefined ? {} : { socials }),
+          ...(customInstructions === undefined ? {} : { customInstructions }),
+          ...(settings === undefined
+            ? {}
+            : {
                 settings: {
                   ...rawSettings,
                   ...settings,
-                  // biome-ignore lint/suspicious/noExplicitAny: settings JSON shape is open
-                } as any,
-              }
-            : {}),
+                } as OrganizationSettings,
+              }),
         });
       }),
       createPublicApiKey: mutation(
         z.object({
-          organizationId: z.string(),
           expiresAt: z.iso.datetime().optional(),
           name: z.string().optional(),
-        }),
-      ).handler(async ({ req, db }) => {
-        const organizationId = req.input.organizationId;
+          organizationId: z.string(),
+        })
+      ).handler(async ({ req, db: _db }) => {
+        const { organizationId } = req.input;
 
         authorize(req, { organizationId, role: "owner" });
 
         const publicApiKey = await publicKeys.create({
-          ownerId: organizationId,
-          tags: ["organization"],
           expiresAt:
             req.input.expiresAt ?? addYears(new Date(), 1).toISOString(),
           name: req.input.name,
+          ownerId: organizationId,
+          tags: ["organization"],
         });
 
         return {
+          expiresAt: publicApiKey.record.metadata.expiresAt,
           id: publicApiKey.record.id,
           key: publicApiKey.key,
-          expiresAt: publicApiKey.record.metadata.expiresAt,
           name: publicApiKey.record.metadata.name,
         };
       }),
       revokePublicApiKey: mutation(
         z.object({
           id: z.string(),
-        }),
-      ).handler(async ({ req, db }) => {
+        })
+      ).handler(async ({ req, db: _db }) => {
         const publicApiKey = await publicKeys.findById(req.input.id);
 
         if (!publicApiKey) {
@@ -451,9 +447,9 @@ export const router = createRouter({
         }
 
         authorize(req, {
+          allowInternalApiKey: false,
           organizationId: publicApiKey.metadata.ownerId,
           role: "owner",
-          allowInternalApiKey: false,
         });
 
         await publicKeys.revoke(publicApiKey.id).catch((error) => {
@@ -468,9 +464,9 @@ export const router = createRouter({
       listApiKeys: mutation(
         z.object({
           organizationId: z.string(),
-        }),
-      ).handler(async ({ req, db }) => {
-        const organizationId = req.input.organizationId;
+        })
+      ).handler(async ({ req, db: _db }) => {
+        const { organizationId } = req.input;
 
         authorize(req, { organizationId, role: "owner" });
 
@@ -479,11 +475,11 @@ export const router = createRouter({
         return apiKeys
           .filter((apiKey) => !apiKey.metadata.revokedAt)
           .map((apiKey) => ({
-            id: apiKey.id,
+            createdAt: apiKey.metadata.createdAt,
             expiresAt: apiKey.metadata.expiresAt,
+            id: apiKey.id,
             name: apiKey.metadata.name,
             type: "public",
-            createdAt: apiKey.metadata.createdAt,
           }));
       }),
     })),
@@ -498,10 +494,12 @@ export const router = createRouter({
         z.object({
           enabledOnly: z.boolean().optional(),
           withSubscriptions: z.boolean().optional(),
-        }),
+        })
       ).handler(async ({ req, db }) => {
         const userId = req.context?.session?.userId;
-        if (!userId) throw new Error("UNAUTHORIZED");
+        if (!userId) {
+          throw new Error("UNAUTHORIZED");
+        }
         return db.organizationUser
           .where({
             userId,
@@ -521,142 +519,158 @@ export const router = createRouter({
       // Un-executed query returned to the client, which loads it via
       // `useLoadData`. Scoped to the session user server-side so the client
       // never dictates which user's memberships (and org data) to sync.
-      load: query().handler(({ req, db }) =>
-        db.organizationUser
-          .where({ userId: req.context!.session!.userId })
-          .include({
-            organization: {
-              include: {
-                threads: {
-                  include: {
-                    messages: {
-                      include: { author: true },
-                    },
-                    updates: {
-                      include: { user: true },
-                    },
-                    labels: {
-                      include: { label: true },
-                    },
-                    author: true,
-                    assignedUser: true,
+      load: query().handler(({ req, db }) => {
+        const userId = req.context?.session?.userId;
+        if (!userId) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        return db.organizationUser.where({ userId }).include({
+          organization: {
+            include: {
+              threads: {
+                include: {
+                  assignedUser: true,
+                  author: true,
+                  labels: {
+                    include: { label: true },
+                  },
+                  messages: {
+                    include: { author: true },
+                  },
+                  updates: {
+                    include: { user: true },
                   },
                 },
-                invites: true,
-                integrations: true,
-                // `subscriptions` is intentionally NOT synced here: it carries
-                // billing identifiers and is owner-only (see subscription.forOrg).
-                // Feature-gating state lives in organization.settings (plan,
-                // subscriptionStatus), which syncs to every member.
-                labels: true,
-                organizationUsers: {
-                  include: { user: true },
-                },
-                authors: true,
-                onboardings: true,
-                documentationSources: true,
-                // TODO improve this to load only when needed
-                agentChats: {
-                  include: { messages: true },
-                },
-                autonomousActions: true,
-                externalEntities: true,
               },
+              invites: true,
+              integrations: true,
+              // `subscriptions` is intentionally NOT synced here: it carries
+              // billing identifiers and is owner-only (see subscription.forOrg).
+              // Feature-gating state lives in organization.settings (plan,
+              // subscriptionStatus), which syncs to every member.
+              labels: true,
+              organizationUsers: {
+                include: { user: true },
+              },
+              authors: true,
+              onboardings: true,
+              documentationSources: true,
+              // TODO improve this to load only when needed
+              agentChats: {
+                include: { messages: true },
+              },
+              autonomousActions: true,
+              externalEntities: true,
             },
-          }),
-      ),
+          },
+        });
+      }),
       inviteUser: mutation(
         z.object({
-          organizationId: z.string(),
           email: z.email().array(),
-        }),
+          organizationId: z.string(),
+        })
       ).handler(async ({ req, db }) => {
-        const orgId = req.input!.organizationId;
+        const { organizationId, email: inviteEmails } = req.input;
+        const sessionUserId = req.context?.session?.userId;
+        if (!sessionUserId) {
+          throw new Error("UNAUTHORIZED");
+        }
 
         authorize(req, {
-          organizationId: orgId,
-          role: "owner",
           allowInternalApiKey: false,
+          organizationId,
+          role: "owner",
         });
 
-        const selfOrgUser = Object.values(
+        const selfOrgUsers = Object.values(
           await db.find(schema.organizationUser, {
-            where: {
-              organizationId: orgId,
-              userId: req.context!.session!.userId,
-            },
             include: {
-              user: true,
               organization: true,
+              user: true,
             },
-          }),
-        )[0] as any;
+            where: {
+              organizationId,
+              userId: sessionUserId,
+            },
+          })
+        );
+        const selfOrgUser = selfOrgUsers[0];
+        if (!selfOrgUser) {
+          throw new Error("ORGANIZATION_USER_NOT_FOUND");
+        }
 
         const existingMembers = Object.values(
           await db.find(schema.organizationUser, {
-            where: {
-              organizationId: orgId,
-            },
             include: {
               user: true,
             },
-          }),
+            where: {
+              organizationId,
+            },
+          })
         );
 
         const existingInvites = Object.values(
           await db.find(schema.invite, {
             where: {
-              organizationId: orgId,
               active: true,
               expiresAt: {
                 $gt: new Date(),
               },
+              organizationId,
             },
-          }),
+          })
         );
 
         // TODO follow https://github.com/pedroscosta/live-state/issues/74
-        const filteredEmails = Array.from(
-          new Set(req.input!.email.map((e) => e.trim().toLowerCase())),
-        ).filter(
-          (email) =>
-            !existingMembers.some(
-              (member) => (member as any).user?.email.toLowerCase() === email,
-            ) &&
+        const filteredEmails = [
+          ...new Set(inviteEmails.map((e) => e.trim().toLowerCase())),
+        ].filter(
+          (inviteEmail) =>
+            !existingMembers.some((member) => {
+              const memberUser =
+                "user" in member
+                  ? (member.user as { email?: string } | null | undefined)
+                  : null;
+              return memberUser?.email?.toLowerCase() === inviteEmail;
+            }) &&
             !existingInvites.some(
-              (invite) => (invite as any).email.toLowerCase() === email,
-            ),
+              (invite) => invite.email.toLowerCase() === inviteEmail
+            )
         );
 
         await Promise.allSettled(
           filteredEmails.map(async (email) => {
             const inviteId = ulid().toLowerCase();
             await db.insert(schema.invite, {
-              id: inviteId,
-              organizationId: req.input!.organizationId,
-              creatorId: req.context.session.userId,
-              email,
-              createdAt: new Date(),
-              expiresAt: addDays(new Date(), 7),
               active: true,
+              createdAt: new Date(),
+              creatorId: sessionUserId,
+              email,
+              expiresAt: addDays(new Date(), 7),
+              id: inviteId,
+              organizationId,
             });
 
             await resend.emails
               .send({
                 from: "FrontDesk <notifications@tryfrontdesk.app>",
-                to: [email],
-                subject: `${selfOrgUser.user.name} invited you to join ${selfOrgUser.organization.name} on FrontDesk`,
                 react: InviteUserEmail({
-                  invitedByName: selfOrgUser.user.name,
+                  invitedByName: selfOrgUser.user.name ?? "A teammate",
                   organizationName: selfOrgUser.organization.name,
-                  organizationImage: selfOrgUser.organization.logoUrl,
+                  organizationImage:
+                    selfOrgUser.organization.logoUrl ?? undefined,
                   inviteLink: `https://tryfrontdesk.app/app/invitation/${inviteId}`,
                 }),
+                subject: `${selfOrgUser.user.name ?? "A teammate"} invited you to join ${selfOrgUser.organization.name} on FrontDesk`,
+                to: [email],
               })
               .catch((error) => {
                 console.error("Error sending email", error);
               });
-          }),
+          })
         );
 
         return {
@@ -666,9 +680,9 @@ export const router = createRouter({
       updateMember: mutation(
         z
           .object({
+            enabled: z.boolean().optional(),
             organizationUserId: z.string(),
             role: z.enum(["owner", "user"]).optional(),
-            enabled: z.boolean().optional(),
           })
           .refine(
             (input) => {
@@ -676,13 +690,15 @@ export const router = createRouter({
                 input;
               return Object.values(fields).some((value) => value !== undefined);
             },
-            { message: "NO_FIELDS_TO_UPDATE" },
-          ),
+            { message: "NO_FIELDS_TO_UPDATE" }
+          )
       ).handler(async ({ req, db }) => {
         const member = await db.organizationUser
           .one(req.input.organizationUserId)
           .get();
-        if (!member) throw new Error("ORGANIZATION_USER_NOT_FOUND");
+        if (!member) {
+          throw new Error("ORGANIZATION_USER_NOT_FOUND");
+        }
 
         authorize(req, {
           organizationId: member.organizationId,
@@ -704,8 +720,8 @@ export const router = createRouter({
         } = req.input;
 
         return db.organizationUser.update(member.id, {
-          ...(role !== undefined ? { role } : {}),
-          ...(enabled !== undefined ? { enabled } : {}),
+          ...(role === undefined ? {} : { role }),
+          ...(enabled === undefined ? {} : { enabled }),
         });
       }),
     })),
@@ -713,30 +729,32 @@ export const router = createRouter({
       updateProfile: mutation(
         z
           .object({
-            userId: z.string(),
-            name: z.string().optional(),
             email: z.string().optional(),
             image: z.string().nullable().optional(),
+            name: z.string().optional(),
+            userId: z.string(),
           })
           .refine(
             (input) => {
               const { userId: _userId, ...fields } = input;
               return Object.values(fields).some((value) => value !== undefined);
             },
-            { message: "NO_FIELDS_TO_UPDATE" },
-          ),
+            { message: "NO_FIELDS_TO_UPDATE" }
+          )
       ).handler(async ({ req, db }) => {
         authorizeSelfOrInternal(req, req.input.userId);
 
         const existing = await db.user.one(req.input.userId).get();
-        if (!existing) throw new Error("USER_NOT_FOUND");
+        if (!existing) {
+          throw new Error("USER_NOT_FOUND");
+        }
 
         const { userId: _userId, name, email, image } = req.input;
 
         return db.user.update(existing.id, {
-          ...(name !== undefined ? { name } : {}),
-          ...(email !== undefined ? { email } : {}),
-          ...(image !== undefined ? { image } : {}),
+          ...(name === undefined ? {} : { name }),
+          ...(email === undefined ? {} : { email }),
+          ...(image === undefined ? {} : { image }),
         });
       }),
     })),
@@ -744,23 +762,69 @@ export const router = createRouter({
       /** Authors by id (batch) — worker message-role resolution. */
       byIds: query(z.object({ ids: z.array(z.string()) })).handler(
         async ({ db, req }) => {
-          if (req.input.ids.length === 0) return [];
+          if (req.input.ids.length === 0) {
+            return [];
+          }
           return Object.values(
             await db.find(schema.author, {
               where: { id: { $in: req.input.ids } },
-            }),
+            })
           );
-        },
+        }
       ),
     })),
     invite: privateRoute.withProcedures(({ mutation, query }) => ({
+      accept: mutation(z.object({ id: z.string() })).handler(
+        async ({ req, db }) => {
+          const { id } = req.input;
+
+          await db.transaction(async ({ trx }) => {
+            const invite = await trx.findOne(schema.invite, id);
+
+            if (!invite) {
+              throw new Error("INVITATION_NOT_FOUND");
+            }
+
+            assertInviteRecipient(req, invite.email);
+
+            const actor = getWorkspaceActor(req);
+
+            await trx.insert(schema.organizationUser, {
+              id: ulid().toLowerCase(),
+              organizationId: invite.organizationId,
+              userId: actor.userId,
+              enabled: true,
+              role: "user",
+            });
+
+            await trx.update(schema.invite, id, {
+              active: false,
+            });
+          });
+
+          if (req.context?.user?.email) {
+            try {
+              await db.insert(schema.allowlist, {
+                id: ulid().toLowerCase(),
+                email: req.context.user.email.toLowerCase(),
+              });
+            } catch {
+              // Silently ignore errors (e.g., duplicate email)
+            }
+          }
+
+          return {
+            success: true,
+          };
+        }
+      ),
       /** Single invite by id, with org + creator — invitation accept page. */
       byId: query(z.object({ id: z.string() })).handler(async ({ db, req }) => {
         const invite = await db.invite
           .one(req.input.id)
           .include({ organization: true, creator: true })
           .get();
-        if (!invite) return undefined;
+        if (!invite) return;
         // Only the recipient, an org member, or an internal key may read
         // the invite (which exposes email, org, and creator).
         const callerEmail = req.context?.user?.email?.toLowerCase();
@@ -769,6 +833,26 @@ export const router = createRouter({
         }
         return invite;
       }),
+      decline: mutation(z.object({ id: z.string() })).handler(
+        async ({ req, db }) => {
+          const { id } = req.input;
+          const invite = await db.findOne(schema.invite, id);
+
+          if (!invite) {
+            throw new Error("INVITATION_NOT_FOUND");
+          }
+
+          assertInviteRecipient(req, invite.email);
+
+          await db.update(schema.invite, id, {
+            active: false,
+          });
+
+          return {
+            success: true,
+          };
+        }
+      ),
       /** Active, unexpired invites for an email — onboarding join prompt. */
       forEmail: query(z.object({ email: z.string() })).handler(
         async ({ db, req }) => {
@@ -790,68 +874,7 @@ export const router = createRouter({
             })
             .include({ organization: true })
             .get();
-        },
-      ),
-      accept: mutation(z.object({ id: z.string() })).handler(
-        async ({ req, db }) => {
-          await db.transaction(async ({ trx }) => {
-            const invite = await trx.findOne(schema.invite, req.input!.id);
-
-            if (!invite) {
-              throw new Error("INVITATION_NOT_FOUND");
-            }
-
-            assertInviteRecipient(req, invite.email);
-
-            const actor = getWorkspaceActor(req);
-
-            await trx.insert(schema.organizationUser, {
-              id: ulid().toLowerCase(),
-              organizationId: invite.organizationId,
-              userId: actor.userId,
-              enabled: true,
-              role: "user",
-            });
-
-            await trx.update(schema.invite, req.input!.id, {
-              active: false,
-            });
-          });
-
-          if (req.context?.user?.email) {
-            try {
-              await db.insert(schema.allowlist, {
-                id: ulid().toLowerCase(),
-                email: req.context.user.email.toLowerCase(),
-              });
-            } catch {
-              // Silently ignore errors (e.g., duplicate email)
-            }
-          }
-
-          return {
-            success: true,
-          };
-        },
-      ),
-      decline: mutation(z.object({ id: z.string() })).handler(
-        async ({ req, db }) => {
-          const invite = await db.findOne(schema.invite, req.input!.id);
-
-          if (!invite) {
-            throw new Error("INVITATION_NOT_FOUND");
-          }
-
-          assertInviteRecipient(req, invite.email);
-
-          await db.update(schema.invite, req.input!.id, {
-            active: false,
-          });
-
-          return {
-            success: true,
-          };
-        },
+        }
       ),
       revoke: mutation(z.object({ inviteId: z.string() })).handler(
         async ({ req, db }) => {
@@ -864,7 +887,7 @@ export const router = createRouter({
           });
 
           return db.invite.update(invite.id, { active: false });
-        },
+        }
       ),
     })),
     integration: integrationRoute,
@@ -881,9 +904,9 @@ export const router = createRouter({
             throw new Error("UNAUTHORIZED");
           }
           return Object.values(
-            await db.find(schema.allowlist, { where: { email } }),
+            await db.find(schema.allowlist, { where: { email } })
           )[0];
-        },
+        }
       ),
     })),
     subscription: privateRoute.withProcedures(({ query }) => ({
@@ -901,9 +924,9 @@ export const router = createRouter({
           return Object.values(
             await db.find(schema.subscription, {
               where: { organizationId: req.input.organizationId },
-            }),
+            })
           )[0];
-        },
+        }
       ),
     })),
     // Mirror of external issues/PRs. Default mutators are disabled; writes go

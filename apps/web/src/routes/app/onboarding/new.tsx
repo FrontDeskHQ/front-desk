@@ -11,25 +11,24 @@ import { Input } from "@workspace/ui/components/input";
 import { Logo } from "@workspace/ui/components/logo";
 import { useState } from "react";
 import { z } from "zod";
+
 import { useLogout } from "~/lib/hooks/auth";
 import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/onboarding/new")({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Create Organization - FrontDesk",
-          description: "Create a new organization",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Create Organization - FrontDesk",
+        description: "Create a new organization",
+      }),
+    ],
+  }),
 });
 
 // TODO: Unify reserved slugs list - extract to shared constant
-const reservedSlugs = [
+const reservedSlugs = new Set([
   "support",
   "help",
   "status",
@@ -52,7 +51,7 @@ const reservedSlugs = [
   "privacy",
   "terms",
   "legal",
-];
+]);
 
 const onboardingFormSchema = z.object({
   organizationName: z
@@ -63,9 +62,9 @@ const onboardingFormSchema = z.object({
     .min(4, "Slug must be at least 4 characters")
     .regex(
       /^[a-z0-9-]+$/,
-      "Slug can only contain lowercase letters, numbers, and hyphens",
+      "Slug can only contain lowercase letters, numbers, and hyphens"
     )
-    .refine((slug) => !reservedSlugs.includes(slug.toLowerCase()), {
+    .refine((slug) => !reservedSlugs.has(slug.toLowerCase()), {
       message: "This slug is reserved and cannot be used",
     }),
   teamMembers: z.string().optional(),
@@ -76,14 +75,13 @@ function OnboardingForm() {
   const { user } = Route.useRouteContext();
   const logout = useLogout();
   // Function to convert organization name to slug format
-  const generateSlug = (name: string): string => {
-    return name
+  const generateSlug = (name: string): string =>
+    name
       .toLowerCase()
-      .replace(/[^a-z0-9\s-]/g, "") // Remove non-alphanumeric characters except spaces and hyphens
-      .replace(/\s+/g, "-") // Replace spaces with hyphens
-      .replace(/-+/g, "-") // Replace multiple hyphens with a single hyphen
+      .replaceAll(/[^a-z0-9\s-]/g, "") // Remove non-alphanumeric characters except spaces and hyphens
+      .replaceAll(/\s+/g, "-") // Replace spaces with hyphens
+      .replaceAll(/-+/g, "-") // Replace multiple hyphens with a single hyphen
       .trim(); // Remove leading and trailing spaces/hyphens
-  };
 
   // Keep track of the last generated slug to avoid overwriting manual edits
   const [lastGeneratedSlug, setLastGeneratedSlug] = useState<string>("");
@@ -95,14 +93,17 @@ function OnboardingForm() {
         organizationSlug: "",
         teamMembers: "",
       } as z.infer<typeof onboardingFormSchema>,
-      validators: {
-        onSubmit: onboardingFormSchema,
-      },
       onSubmit: async ({ value }) => {
         navigate({
           to: "/app/onboarding/connect",
-          search: { name: value.organizationName, slug: value.organizationSlug },
+          search: {
+            name: value.organizationName,
+            slug: value.organizationSlug,
+          },
         });
+      },
+      validators: {
+        onSubmit: onboardingFormSchema,
       },
     });
 
@@ -150,7 +151,7 @@ function OnboardingForm() {
 
                     // Get the current slug value
                     const currentSlug = getFieldValue(
-                      "organizationSlug",
+                      "organizationSlug"
                     ) as string;
 
                     // Only update the slug if it's empty or matches the previously generated value

@@ -1,4 +1,5 @@
 import { createScorer } from "evalite";
+
 import type { ClassifyLabelResult } from "../classify";
 import type { LabelClassifierTestCase } from "./dataset";
 
@@ -10,8 +11,8 @@ export const labelExactMatch = createScorer<
   ClassifyLabelResult,
   Pick<LabelClassifierTestCase, "expectedLabel">
 >({
-  name: "Label Exact Match",
   description: "Predicted labelId equals the expected one (null counts).",
+  name: "Label Exact Match",
   scorer: ({ output, expected }) => {
     const expectedLabel = expected?.expectedLabel ?? null;
     const score = output.labelId === expectedLabel ? 1 : 0;
@@ -32,8 +33,8 @@ export const confidenceCalibration = createScorer<
   ClassifyLabelResult,
   Pick<LabelClassifierTestCase, "expectedConfidenceBucket" | "expectedLabel">
 >({
-  name: "Confidence Calibration",
   description: "Confidence is well-calibrated against the expected bucket.",
+  name: "Confidence Calibration",
   scorer: ({ output, expected }) => {
     if (!expected) return { score: 0 };
     const { expectedConfidenceBucket } = expected;
@@ -42,7 +43,10 @@ export const confidenceCalibration = createScorer<
     if (expectedConfidenceBucket === "none") {
       score = output.labelId === null ? 1 : Math.max(0, 1 - output.confidence);
     } else if (expectedConfidenceBucket === "low") {
-      score = output.confidence <= 0.6 ? 1 : Math.max(0, 1 - (output.confidence - 0.6) / 0.4);
+      score =
+        output.confidence <= 0.6
+          ? 1
+          : Math.max(0, 1 - (output.confidence - 0.6) / 0.4);
     } else {
       score =
         output.labelId !== null && output.confidence >= 0.6

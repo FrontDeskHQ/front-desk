@@ -1,8 +1,7 @@
-import {
-  type TiptapLinkRenderer as TiptapLinkRendererFn,
-  TiptapLinkRendererProvider,
-} from "@workspace/ui/components/blocks/tiptap-link";
+import { TiptapLinkRendererProvider } from "@workspace/ui/components/blocks/tiptap-link";
+import type { TiptapLinkRenderer as TiptapLinkRendererFn } from "@workspace/ui/components/blocks/tiptap-link";
 import { useAtomValue } from "jotai";
+
 import {
   IssueChipInline,
   PrChipInline,
@@ -11,7 +10,8 @@ import {
   ThreadMention,
 } from "~/components/markdown/rich-markdown";
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { type ParsedThreadParam, parseThreadParam } from "~/utils/thread";
+import { parseThreadParam } from "~/utils/thread";
+import type { ParsedThreadParam } from "~/utils/thread";
 
 const THREAD_LINK_PREFIX = "thread:";
 
@@ -21,7 +21,9 @@ const THREAD_LINK_PREFIX = "thread:";
  * `/support/acme/threads/<param>`) and returns the parsed thread param.
  */
 function parseThreadUrl(href: string): ParsedThreadParam | null {
-  if (typeof window === "undefined") return null;
+  if (typeof window === "undefined") {
+    return null;
+  }
 
   let url: URL;
   try {
@@ -31,10 +33,14 @@ function parseThreadUrl(href: string): ParsedThreadParam | null {
   }
 
   // Only treat same-origin links as internal thread references.
-  if (url.origin !== window.location.origin) return null;
+  if (url.origin !== window.location.origin) {
+    return null;
+  }
 
   const match = url.pathname.match(/\/threads\/([^/?#]+)/);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
 
   return parseThreadParam(match[1]);
 }
@@ -50,11 +56,13 @@ function ThreadUrlMention({ param }: { param: ParsedThreadParam }) {
     return <ThreadMention where={{ id: param.id }} />;
   }
 
-  if (!activeOrg?.id) return null;
+  if (!activeOrg?.id) {
+    return null;
+  }
 
   return (
     <ThreadMention
-      where={{ shortId: param.shortId, organizationId: activeOrg.id }}
+      where={{ organizationId: activeOrg.id, shortId: param.shortId }}
     />
   );
 }

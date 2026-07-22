@@ -1,6 +1,7 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { schema } from "api/schema";
 import { z } from "zod";
+
 import type { LiveStateFetchClient, LiveStateStore } from "./live-state";
 
 /** The per-provider replicated-marker map stored on `update.replicatedStr`. */
@@ -27,7 +28,7 @@ export type OutboundUpdate = InferLiveObject<
  */
 type Deliver<T> = (row: T) => Promise<string | null | undefined>;
 
-export type OutboundReplicationOptions = {
+export interface OutboundReplicationOptions {
   store: LiveStateStore;
   fetchClient: LiveStateFetchClient;
   /**
@@ -42,7 +43,7 @@ export type OutboundReplicationOptions = {
   threadFilter?: Record<string, unknown>;
   deliverMessage: Deliver<OutboundMessage>;
   deliverUpdate: Deliver<OutboundUpdate>;
-};
+}
 
 /**
  * Normalized outbound-subscription helper: the pull-deliver loop that every
@@ -65,8 +66,8 @@ export const startOutboundReplication = async ({
   // cannot override `externalOrigin`/`externalId` and pull another provider's rows.
   const threadWhere = {
     ...threadFilter,
-    externalOrigin: provider,
     externalId: { $not: null },
+    externalOrigin: provider,
   };
 
   // In-flight guards: a delivery can outlive the next emission of the same row,
@@ -76,15 +77,17 @@ export const startOutboundReplication = async ({
 
   const handleMessages = async (messages: OutboundMessage[]) => {
     for (const message of messages) {
-      if (handlingMessages.has(message.id)) continue;
+      if (handlingMessages.has(message.id)) {
+        continue;
+      }
 
       handlingMessages.add(message.id);
       try {
         const externalMessageId = await deliverMessage(message);
         if (externalMessageId) {
           store.mutate.message.setExternalMessageId({
-            messageId: message.id,
             externalMessageId,
+            messageId: message.id,
           });
         }
       } catch (error) {
@@ -107,19 +110,23 @@ export const startOutboundReplication = async ({
           continue;
         }
       }
-      if (replicated[provider]) continue;
-      if (handlingUpdates.has(update.id)) continue;
+      if (replicated[provider]) {
+        continue;
+      }
+      if (handlingUpdates.has(update.id)) {
+        continue;
+      }
 
       handlingUpdates.add(update.id);
       try {
         const externalMessageId = await deliverUpdate(update);
         if (externalMessageId) {
           await fetchClient.mutate.update.markReplicated({
-            updateId: update.id,
             replicatedStr: JSON.stringify({
               ...replicated,
               [provider]: externalMessageId,
             }),
+            updateId: update.id,
           });
         }
       } catch (error) {
@@ -132,7 +139,7 @@ export const startOutboundReplication = async ({
 
   const messageQuery = store.query.message
     .where({ externalMessageId: null, thread: threadWhere })
-    .include({ thread: true, author: { include: { user: true } } });
+    .include({ author: { include: { user: true } }, thread: true });
 
   // TODO Subscribe callback is not being triggered with current values - track
   // https://github.com/pedroscosta/live-state/issues/82

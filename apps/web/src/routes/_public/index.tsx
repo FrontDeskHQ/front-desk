@@ -30,6 +30,7 @@ import { ArrowUpRight } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { Fragment, useEffect, useState } from "react";
 import z from "zod";
+
 import { FeaturesSection } from "~/components/landing-page/features-section";
 import { ProductDemo } from "~/components/landing-page/product-demo";
 import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
@@ -38,17 +39,25 @@ export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
 });
 
-type CommitWeek = {
+interface CommitWeek {
   days: number[];
   total: number;
   week: number;
-};
+}
 
 const getCommitLevel = (count: number): number => {
-  if (count === 0) return 0;
-  if (count <= 3) return 1;
-  if (count <= 6) return 2;
-  if (count <= 9) return 3;
+  if (count === 0) {
+    return 0;
+  }
+  if (count <= 3) {
+    return 1;
+  }
+  if (count <= 6) {
+    return 2;
+  }
+  if (count <= 9) {
+    return 3;
+  }
   return 4;
 };
 
@@ -73,19 +82,19 @@ function CommitHeatmap({ className }: { className?: string }) {
       try {
         setIsLoading(true);
         const response = await fetch(
-          "https://api.github.com/repos/frontdeskhq/front-desk/stats/commit_activity",
+          "https://api.github.com/repos/frontdeskhq/front-desk/stats/commit_activity"
         );
         // 202 means github is generating the data, wait and retry
         if (response.status === 202) {
           if (retryCount < 3) {
             // Max 3 retries
             await new Promise((resolve) =>
-              setTimeout(resolve, 3000 + retryCount ** 2 * 1000),
+              setTimeout(resolve, 3000 + retryCount ** 2 * 1000)
             );
             return fetchCommitActivity(retryCount + 1);
           }
           throw new Error(
-            "Data is still being generated. Please try again later.",
+            "Data is still being generated. Please try again later."
           );
         }
 
@@ -96,8 +105,10 @@ function CommitHeatmap({ className }: { className?: string }) {
         const data: CommitWeek[] = await response.json();
         setCommitData(data);
         setError(null);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "An error occurred");
+      } catch (fetchError) {
+        setError(
+          fetchError instanceof Error ? fetchError.message : "An error occurred"
+        );
       } finally {
         setIsLoading(false);
       }
@@ -142,7 +153,7 @@ function CommitHeatmap({ className }: { className?: string }) {
         <div
           className={cn(
             "grid grid-rows-7 grid-flow-col grid-cols-52 w-full gap-0.5",
-            className,
+            className
           )}
         >
           {recentWeeks.map((week, weekIndex) => (
@@ -158,11 +169,11 @@ function CommitHeatmap({ className }: { className?: string }) {
                 dayDate.setDate(dayDate.getDate() + dayIndex);
 
                 const formattedDate = dayDate.toLocaleDateString("en-US", {
-                  weekday: "short",
-                  month: "short",
                   day: "numeric",
-                  year: "numeric",
+                  month: "short",
                   timeZone: "UTC",
+                  weekday: "short",
+                  year: "numeric",
                 });
 
                 return (
@@ -206,9 +217,6 @@ function ApplyToWaitlistForm() {
     defaultValues: {
       email: "",
     },
-    validators: {
-      onSubmit: applyToWaitlistSchema,
-    },
     onSubmit: async ({ value }) => {
       setLoading(true);
       await applyToWaitlist({ data: value })
@@ -219,6 +227,9 @@ function ApplyToWaitlistForm() {
         .finally(() => {
           setLoading(false);
         });
+    },
+    validators: {
+      onSubmit: applyToWaitlistSchema,
     },
   });
 

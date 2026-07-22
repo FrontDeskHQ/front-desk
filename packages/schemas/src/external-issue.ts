@@ -3,13 +3,13 @@
  * These types are used across different providers (GitHub, GitLab, Linear, etc.)
  */
 
-export type ExternalRepository = {
+export interface ExternalRepository {
   owner: string;
   name: string;
   fullName: string;
-};
+}
 
-export type ExternalIssue = {
+export interface ExternalIssue {
   /** Formatted external ID with provider prefix (e.g., github:owner/repo#123) */
   id: string;
   /** Issue/PR number within the repository */
@@ -19,9 +19,9 @@ export type ExternalIssue = {
   state: string;
   url: string;
   repository: ExternalRepository;
-};
+}
 
-export type ExternalPullRequest = {
+export interface ExternalPullRequest {
   /** Formatted external ID with provider prefix (e.g., github:owner/repo#123) */
   id: string;
   /** PR number within the repository */
@@ -31,7 +31,7 @@ export type ExternalPullRequest = {
   state: string;
   url: string;
   repository: ExternalRepository;
-};
+}
 
 /**
  * Formats a GitHub issue/PR ID with provider prefix and repository
@@ -41,9 +41,7 @@ export const formatGitHubId = (
   id: number,
   owner: string,
   repo: string
-): string => {
-  return `github:${owner}/${repo}#${id}`;
-};
+): string => `github:${owner}/${repo}#${id}`;
 
 /**
  * Parses a formatted external ID to extract provider, repository, and ID
@@ -68,21 +66,20 @@ export const parseExternalId = (
   const repo = match[3] as string;
   const idStr = match[4] as string;
 
-  const id = parseInt(idStr, 10);
+  const id = Number.parseInt(idStr, 10);
 
   if (Number.isNaN(id)) {
     return null;
   }
 
-  return { provider, owner, repo, id };
+  return { id, owner, provider, repo };
 };
 
 /**
  * Checks if an external ID matches a GitHub issue/PR
  */
-export const isGitHubId = (externalId: string): boolean => {
-  return externalId.startsWith("github:");
-};
+export const isGitHubId = (externalId: string): boolean =>
+  externalId.startsWith("github:");
 
 /**
  * Extracts the numeric ID from a formatted external ID

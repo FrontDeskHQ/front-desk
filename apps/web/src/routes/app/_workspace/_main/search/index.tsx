@@ -25,14 +25,15 @@ import {
   parseAsString,
   useQueryState,
 } from "nuqs";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
-type SearchResultItemProps = {
+interface SearchResultItemProps {
   messageId: string;
-};
+}
 
 const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
   const message = useLiveQuery(
@@ -40,21 +41,21 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
       author: true,
       thread: {
         include: {
+          assignedUser: true,
           author: true,
           labels: {
             include: { label: true },
           },
-          assignedUser: true,
         },
       },
-    }),
+    })
   )?.[0];
 
   if (!message) {
     return null;
   }
 
-  const thread = message.thread;
+  const { thread } = message;
 
   return (
     <div className="flex flex-col gap-2 relative">
@@ -67,7 +68,7 @@ const SearchResultItem = ({ messageId }: SearchResultItemProps) => {
           <div className="flex items-center gap-2">
             <Avatar variant="user" size="md" fallback={thread?.author?.name} />
             <div>{thread?.name}</div>
-            {thread?.shortId != null && (
+            {thread?.shortId !== null && (
               <span className="text-foreground-secondary text-sm tabular-nums">
                 #{thread.shortId}
               </span>
@@ -144,25 +145,25 @@ function RouteComponent() {
   const [submittedQuery, setSubmittedQuery] = useState("");
   const [searchQuery, setSearchQuery] = useQueryState(
     "q",
-    parseAsString.withDefault(""),
+    parseAsString.withDefault("")
   );
   const currentOrg = useAtomValue(activeOrganizationAtom);
 
-  type SearchHit = {
+  interface SearchHit {
     document?: {
       id?: string;
     };
-  };
-  type SearchResponse = {
+  }
+  interface SearchResponse {
     hits?: SearchHit[];
-  };
+  }
 
   const {
     data: messageIds = [],
     isLoading,
     error,
   } = useQuery({
-    queryKey: ["message-search", currentOrg?.id, submittedQuery],
+    enabled: Boolean(currentOrg && submittedQuery.trim()),
     queryFn: async () => {
       if (!currentOrg || !submittedQuery.trim()) {
         return [];
@@ -180,11 +181,13 @@ function RouteComponent() {
 
       return ids;
     },
-    enabled: Boolean(currentOrg && submittedQuery.trim()),
+    queryKey: ["message-search", currentOrg?.id, submittedQuery],
   });
 
   const handleSearch = () => {
-    if (!currentOrg || !searchQuery.trim()) return;
+    if (!currentOrg || !searchQuery.trim()) {
+      return;
+    }
     setSubmittedQuery(searchQuery.trim());
   };
 
@@ -194,10 +197,12 @@ function RouteComponent() {
     }
   };
 
+  const initialSearchQueryRef = useRef(searchQuery);
+
   useEffect(() => {
-    if (searchQuery.trim()) {
-      setSubmittedQuery(searchQuery.trim());
-      handleSearch();
+    const trimmed = initialSearchQueryRef.current.trim();
+    if (trimmed) {
+      setSubmittedQuery(trimmed);
     }
   }, []);
 

@@ -5,15 +5,15 @@ import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { stepCountIs, streamText } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
-import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
+
 import {
   authorizeOwnedAgentChat,
   authorizeWorkspaceOrgMember,
 } from "../../lib/authorize";
+import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import {
-  type AgentChatToolImplementations,
   buildAgentChatTools,
   buildSystemPrompt,
   formatSuggestionsContext,
@@ -21,746 +21,736 @@ import {
   PRIORITY_LABELS,
   STATUS_LABELS,
 } from "./agent-chat-core";
+import type { AgentChatToolImplementations } from "./agent-chat-core";
 
 export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
-    create: mutation(
-      z.object({
-        organizationId: z.string(),
-        threadId: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const actor = authorizeWorkspaceOrgMember(
-        req,
-        req.input.organizationId,
-      );
+  acceptDraft: mutation(
+    z.object({
+      chatId: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    const chat = await db.findOne(schema.agentChat, req.input.chatId);
+    if (!chat) {
+      throw new Error("CHAT_NOT_FOUND");
+    }
 
-      const thread = Object.values(
-        await db.find(schema.thread, {
-          where: {
-            id: req.input.threadId,
-            organizationId: req.input.organizationId,
-          },
-        }),
-      )[0];
+    const actor = authorizeOwnedAgentChat(req, chat);
 
-      if (!thread) {
-        throw new Error("UNAUTHORIZED");
-      }
+    if (!chat.draft || chat.draftStatus !== "active") {
+      throw new Error("NO_ACTIVE_DRAFT");
+    }
 
-      const id = ulid().toLowerCase();
+    // TODO: Move back inside transaction once live-state syncs trx.insert to clients
+    // See: https://github.com/pedroscosta/live-state/issues/135
+    // Find or create author for the current user (outside transaction
+    // so live-state properly syncs the author record to clients)
+    const existingAuthor = Object.values(
+      await db.find(schema.author, {
+        where: {
+          userId: actor.userId,
+          organizationId: chat.organizationId,
+        },
+      })
+    )[0];
 
-      const agentChat = await db.insert(schema.agentChat, {
-        id,
-        organizationId: req.input.organizationId,
+    let authorId = existingAuthor?.id;
+
+    if (!authorId) {
+      const user = await db.findOne(schema.user, actor.userId);
+      authorId = ulid().toLowerCase();
+      await db.insert(schema.author, {
+        id: authorId,
         userId: actor.userId,
-        threadId: req.input.threadId,
-        createdAt: new Date(),
-        draft: null,
+        metaId: null,
+        name: user?.name ?? "Unknown User",
+        organizationId: chat.organizationId,
       });
+    }
 
-      return agentChat;
-    }),
-
-    sendMessage: mutation(
-      z.object({
-        chatId: z.string(),
-        message: z.string().min(1),
-      }),
-    ).handler(async ({ req, db }) => {
-      const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
-      if (!agentChat) {
-        throw new Error("CHAT_NOT_FOUND");
+    // Use transaction to prevent concurrent double-accepts
+    await db.transaction(async ({ trx }) => {
+      // Atomically claim the draft
+      const currentChat = await trx.findOne(schema.agentChat, req.input.chatId);
+      if (!currentChat?.draft || currentChat.draftStatus !== "active") {
+        throw new Error("NO_ACTIVE_DRAFT");
       }
 
-      const actor = authorizeOwnedAgentChat(req, agentChat);
+      // Convert markdown draft to tiptap JSONContent
+      const content = JSON.stringify(parse(currentChat.draft));
 
-      // Insert user message
-      await db.insert(schema.agentChatMessage, {
+      await trx.insert(schema.message, {
         id: ulid().toLowerCase(),
-        agentChatId: req.input.chatId,
-        role: "user",
-        content: req.input.message,
-        toolCalls: null,
+        authorId,
+        content,
+        threadId: chat.threadId,
         createdAt: new Date(),
+        origin: null,
+        externalMessageId: null,
       });
 
-      // Create assistant message placeholder
-      const assistantMessageId = ulid().toLowerCase();
-      await db.insert(schema.agentChatMessage, {
-        id: assistantMessageId,
-        agentChatId: req.input.chatId,
-        role: "assistant",
-        content: "",
-        toolCalls: null,
-        createdAt: new Date(),
+      // Clear the draft
+      await trx.update(schema.agentChat, chat.id, {
+        draft: null,
+        draftStatus: "accepted",
       });
+    });
 
-      // Fetch thread context
-      const thread = await db.findOne(schema.thread, agentChat.threadId);
+    return { success: true };
+  }),
 
-      const threadMessages = Object.values(
-        await db.find(schema.message, {
-          where: { threadId: agentChat.threadId },
-        }),
-      ).sort(
+  create: mutation(
+    z.object({
+      organizationId: z.string(),
+      threadId: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    const actor = authorizeWorkspaceOrgMember(req, req.input.organizationId);
+
+    const thread = Object.values(
+      await db.find(schema.thread, {
+        where: {
+          id: req.input.threadId,
+          organizationId: req.input.organizationId,
+        },
+      })
+    )[0];
+
+    if (!thread) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    const id = ulid().toLowerCase();
+
+    const agentChat = await db.insert(schema.agentChat, {
+      id,
+      organizationId: req.input.organizationId,
+      userId: actor.userId,
+      threadId: req.input.threadId,
+      createdAt: new Date(),
+      draft: null,
+    });
+
+    return agentChat;
+  }),
+
+  dismissDraft: mutation(
+    z.object({
+      chatId: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    const chat = await db.findOne(schema.agentChat, req.input.chatId);
+    if (!chat) {
+      throw new Error("CHAT_NOT_FOUND");
+    }
+
+    authorizeOwnedAgentChat(req, chat);
+
+    await db.update(schema.agentChat, chat.id, {
+      draft: null,
+      draftStatus: "dismissed",
+    });
+
+    return { success: true };
+  }),
+
+  sendMessage: mutation(
+    z.object({
+      chatId: z.string(),
+      message: z.string().min(1),
+    })
+  ).handler(async ({ req, db }) => {
+    const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
+    if (!agentChat) {
+      throw new Error("CHAT_NOT_FOUND");
+    }
+
+    const actor = authorizeOwnedAgentChat(req, agentChat);
+
+    // Insert user message
+    await db.insert(schema.agentChatMessage, {
+      id: ulid().toLowerCase(),
+      agentChatId: req.input.chatId,
+      role: "user",
+      content: req.input.message,
+      toolCalls: null,
+      createdAt: new Date(),
+    });
+
+    // Create assistant message placeholder
+    const assistantMessageId = ulid().toLowerCase();
+    await db.insert(schema.agentChatMessage, {
+      id: assistantMessageId,
+      agentChatId: req.input.chatId,
+      role: "assistant",
+      content: "",
+      toolCalls: null,
+      createdAt: new Date(),
+    });
+
+    // Fetch thread context
+    const thread = await db.findOne(schema.thread, agentChat.threadId);
+
+    const threadMessages = Object.values(
+      await db.find(schema.message, {
+        where: { threadId: agentChat.threadId },
+      })
+    ).toSorted(
+      (a, b) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+
+    // Fetch authors (for messages and thread creator)
+    const allAuthorIds = [
+      ...new Set([
+        ...threadMessages.map((m) => m.authorId),
+        ...(thread?.authorId ? [thread.authorId] : []),
+      ]),
+    ];
+    const authors = new Map<string, string>();
+    await Promise.all(
+      allAuthorIds.map(async (authorId) => {
+        const author = await db.findOne(schema.author, authorId);
+        if (author) authors.set(authorId, author.name);
+      })
+    );
+
+    // Fetch assignee
+    let assigneeName: string | null = null;
+    if (thread?.assignedUserId) {
+      const assignee = await db.findOne(schema.user, thread.assignedUserId);
+      if (assignee) assigneeName = assignee.name;
+    }
+
+    // Fetch labels
+    const threadLabels = Object.values(
+      await db.find(schema.threadLabel, {
+        where: { threadId: agentChat.threadId, enabled: true },
+      })
+    );
+    const labelNames: string[] = [];
+    const labelResults = await Promise.all(
+      threadLabels.map(async (tl) => {
+        const label = await db.findOne(schema.label, tl.labelId);
+        return label?.enabled ? label.name : null;
+      })
+    );
+    labelNames.push(
+      ...labelResults.filter((name): name is string => name !== null)
+    );
+
+    // TODO(signals-overhaul issue 06+): rebuild Agent-chat context from
+    // thread.agentRead and thread.inlineSuggestions. The suggestion table was
+    // dropped in issue 02, so no related-threads / label / status / duplicate
+    // suggestions feed the system prompt for now.
+    const relatedThreadsContext: string[] = [];
+    const suggestedLabelNames: string[] = [];
+    const suggestedStatus: {
+      status: string;
+      confidence: number | null;
+      reasoning: string | null;
+    } | null = null;
+    const suggestedDuplicate: {
+      _id: string;
+      threadName: string;
+      confidence: string | null;
+      reason: string | null;
+    } | null = null;
+
+    const statusLabels = STATUS_LABELS;
+    const priorityLabels = PRIORITY_LABELS;
+
+    const threadContext = threadMessages
+      .map((m) => `[${authors.get(m.authorId) ?? "Unknown"}]: ${m.content}`)
+      .join("\n");
+
+    // Fetch conversation history (all messages except the empty assistant one)
+    const chatMessages = Object.values(
+      await db.find(schema.agentChatMessage, {
+        where: { agentChatId: req.input.chatId },
+      })
+    )
+      .toSorted(
         (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-      );
-
-      // Fetch authors (for messages and thread creator)
-      const allAuthorIds = [
-        ...new Set([
-          ...threadMessages.map((m) => m.authorId),
-          ...(thread?.authorId ? [thread.authorId] : []),
-        ]),
-      ];
-      const authors = new Map<string, string>();
-      await Promise.all(
-        allAuthorIds.map(async (authorId) => {
-          const author = await db.findOne(schema.author, authorId);
-          if (author) authors.set(authorId, author.name);
-        }),
-      );
-
-      // Fetch assignee
-      let assigneeName: string | null = null;
-      if (thread?.assignedUserId) {
-        const assignee = await db.findOne(schema.user, thread.assignedUserId);
-        if (assignee) assigneeName = assignee.name;
-      }
-
-      // Fetch labels
-      const threadLabels = Object.values(
-        await db.find(schema.threadLabel, {
-          where: { threadId: agentChat.threadId, enabled: true },
-        }),
-      );
-      const labelNames: string[] = [];
-      const labelResults = await Promise.all(
-        threadLabels.map(async (tl) => {
-          const label = await db.findOne(schema.label, tl.labelId);
-          return label?.enabled ? label.name : null;
-        }),
-      );
-      labelNames.push(
-        ...labelResults.filter((name): name is string => name !== null),
-      );
-
-      // TODO(signals-overhaul issue 06+): rebuild Agent-chat context from
-      // thread.agentRead and thread.inlineSuggestions. The suggestion table was
-      // dropped in issue 02, so no related-threads / label / status / duplicate
-      // suggestions feed the system prompt for now.
-      const relatedThreadsContext: string[] = [];
-      const suggestedLabelNames: string[] = [];
-      const suggestedStatus: {
-        status: string;
-        confidence: number | null;
-        reasoning: string | null;
-      } | null = null;
-      const suggestedDuplicate: {
-        _id: string;
-        threadName: string;
-        confidence: string | null;
-        reason: string | null;
-      } | null = null;
-
-      const statusLabels = STATUS_LABELS;
-      const priorityLabels = PRIORITY_LABELS;
-
-      const threadContext = threadMessages
-        .map((m) => `[${authors.get(m.authorId) ?? "Unknown"}]: ${m.content}`)
-        .join("\n");
-
-      // Fetch conversation history (all messages except the empty assistant one)
-      const chatMessages = Object.values(
-        await db.find(schema.agentChatMessage, {
-          where: { agentChatId: req.input.chatId },
-        }),
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       )
-        .sort(
-          (a, b) =>
-            new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-        )
-        .filter((m) => m.id !== assistantMessageId);
+      .filter((m) => m.id !== assistantMessageId);
 
-      const conversationHistory = chatMessages.map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
+    const conversationHistory = chatMessages.map((m) => ({
+      role: m.role as "user" | "assistant",
+      content: m.content,
+    }));
 
-      const threadMetadata = formatThreadMetadata({
-        name: thread?.name ?? "Unknown thread",
-        author: thread?.authorId
-          ? (authors.get(thread.authorId) ?? "Unknown")
-          : "Unknown",
-        createdAt: thread?.createdAt
-          ? new Date(thread.createdAt).toISOString()
-          : "Unknown",
-        status: statusLabels[thread?.status ?? 0] ?? "Unknown",
-        priority: priorityLabels[thread?.priority ?? 0] ?? "None",
-        assignee: assigneeName,
-        labels: labelNames,
-        externalOrigin: thread?.externalOrigin,
-      });
+    const threadMetadata = formatThreadMetadata({
+      name: thread?.name ?? "Unknown thread",
+      author: thread?.authorId
+        ? (authors.get(thread.authorId) ?? "Unknown")
+        : "Unknown",
+      createdAt: thread?.createdAt
+        ? new Date(thread.createdAt).toISOString()
+        : "Unknown",
+      status: statusLabels[thread?.status ?? 0] ?? "Unknown",
+      priority: priorityLabels[thread?.priority ?? 0] ?? "None",
+      assignee: assigneeName,
+      labels: labelNames,
+      externalOrigin: thread?.externalOrigin,
+    });
 
-      const suggestionsContext = formatSuggestionsContext({
-        relatedThreads:
-          relatedThreadsContext.length > 0 ? relatedThreadsContext : undefined,
-        suggestedDuplicate,
-        suggestedStatus,
-        suggestedLabels:
-          suggestedLabelNames.length > 0 ? suggestedLabelNames : undefined,
-      });
+    const suggestionsContext = formatSuggestionsContext({
+      relatedThreads:
+        relatedThreadsContext.length > 0 ? relatedThreadsContext : undefined,
+      suggestedDuplicate,
+      suggestedStatus,
+      suggestedLabels:
+        suggestedLabelNames.length > 0 ? suggestedLabelNames : undefined,
+    });
 
-      // Fetch organization for custom instructions
-      const org = await db.findOne(
-        schema.organization,
-        agentChat.organizationId,
-      );
+    // Fetch organization for custom instructions
+    const org = await db.findOne(schema.organization, agentChat.organizationId);
 
-      // Fetch current user name for personalization
-      const currentUser = await db.findOne(
-        schema.user,
-        actor.userId,
-      );
+    // Fetch current user name for personalization
+    const currentUser = await db.findOne(schema.user, actor.userId);
 
-      const systemPrompt = buildSystemPrompt({
-        threadMetadata,
-        threadContext,
-        suggestionsContext,
-        customInstructions: org?.customInstructions,
-        currentUserName: currentUser?.name ?? null,
-      });
+    const systemPrompt = buildSystemPrompt({
+      threadMetadata,
+      threadContext,
+      suggestionsContext,
+      customInstructions: org?.customInstructions,
+      currentUserName: currentUser?.name ?? null,
+    });
 
-      // Stream in background — don't await, let the mutation return immediately
-      // so the client sees the user message + empty assistant message right away.
-      (async () => {
-        let accumulated = "";
-        let chunkCount = 0;
-        const toolCallsArr: Array<{
-          name: string;
-          args: unknown;
-          status: "calling" | "complete";
-          result?: unknown;
-        }> = [];
-        try {
-          console.log(
-            `[agent-chat] Starting streamText for chat=${req.input.chatId} assistantMsg=${assistantMessageId}`,
-          );
-          console.log(
-            `[agent-chat] Conversation history: ${conversationHistory.length} messages, thread context: ${threadContext.length} chars`,
-          );
+    // Stream in background — don't await, let the mutation return immediately
+    // so the client sees the user message + empty assistant message right away.
+    (async () => {
+      let accumulated = "";
+      let chunkCount = 0;
+      const toolCallsArr: {
+        name: string;
+        args: unknown;
+        status: "calling" | "complete";
+        result?: unknown;
+      }[] = [];
+      try {
+        console.log(
+          `[agent-chat] Starting streamText for chat=${req.input.chatId} assistantMsg=${assistantMessageId}`
+        );
+        console.log(
+          `[agent-chat] Conversation history: ${conversationHistory.length} messages, thread context: ${threadContext.length} chars`
+        );
 
-          const organizationId = agentChat.organizationId;
+        const organizationId = agentChat.organizationId;
 
-          const toolImplementations: AgentChatToolImplementations = {
-            searchDocumentation: async ({ query }) => {
-              console.log(
-                `[agent-chat] Tool call: searchDocumentation query="${query}"`,
-              );
-              const results = await searchDocumentation({
-                query,
-                organizationId,
-              });
-              console.log(
-                `[agent-chat] Documentation search returned ${results.length} results`,
-              );
-              return results.map((r) => ({
-                title: r.pageTitle,
-                url: r.pageUrl,
-                content: r.chunkText,
-                section: r.headingHierarchy.join(" > "),
-              }));
-            },
-            getDraft: async () => {
-              const currentChat = await db.findOne(
-                schema.agentChat,
-                agentChat.id,
-              );
-              if (currentChat?.draft && currentChat.draftStatus === "active") {
-                return { hasDraft: true, content: currentChat.draft };
+        const toolImplementations: AgentChatToolImplementations = {
+          searchDocumentation: async ({ query }) => {
+            console.log(
+              `[agent-chat] Tool call: searchDocumentation query="${query}"`
+            );
+            const results = await searchDocumentation({
+              query,
+              organizationId,
+            });
+            console.log(
+              `[agent-chat] Documentation search returned ${results.length} results`
+            );
+            return results.map((r) => ({
+              title: r.pageTitle,
+              url: r.pageUrl,
+              content: r.chunkText,
+              section: r.headingHierarchy.join(" > "),
+            }));
+          },
+          getDraft: async () => {
+            const currentChat = await db.findOne(
+              schema.agentChat,
+              agentChat.id
+            );
+            if (currentChat?.draft && currentChat.draftStatus === "active") {
+              return { hasDraft: true, content: currentChat.draft };
+            }
+            return { hasDraft: false, content: null };
+          },
+          setDraft: async ({ content }) => {
+            console.log(
+              `[agent-chat] Tool call: setDraft content length=${content.length}`
+            );
+            await db.update(schema.agentChat, agentChat.id, {
+              draft: content,
+              draftStatus: "active",
+            });
+            return { success: true };
+          },
+          searchThreads: async ({ query }) => {
+            console.log(
+              `[agent-chat] Tool call: searchThreads query="${query}"`
+            );
+            const results = await searchMessages({
+              query,
+              organizationId,
+              limit: 15,
+            });
+
+            // Deduplicate by threadId, keeping highest score per thread
+            const threadMap = new Map<
+              string,
+              { messageId: string; threadId: string; score: number }
+            >();
+            for (const r of results) {
+              if (r.threadId === agentChat.threadId) continue;
+              const existing = threadMap.get(r.threadId);
+              if (!existing || r.score > existing.score) {
+                threadMap.set(r.threadId, r);
               }
-              return { hasDraft: false, content: null };
-            },
-            setDraft: async ({ content }) => {
-              console.log(
-                `[agent-chat] Tool call: setDraft content length=${content.length}`,
-              );
-              await db.update(schema.agentChat, agentChat.id, {
-                draft: content,
-                draftStatus: "active",
-              });
-              return { success: true };
-            },
-            searchThreads: async ({ query }) => {
-              console.log(
-                `[agent-chat] Tool call: searchThreads query="${query}"`,
-              );
-              const results = await searchMessages({
-                query,
-                organizationId,
-                limit: 15,
-              });
+            }
 
-              // Deduplicate by threadId, keeping highest score per thread
-              const threadMap = new Map<
-                string,
-                { messageId: string; threadId: string; score: number }
-              >();
-              for (const r of results) {
-                if (r.threadId === agentChat.threadId) continue;
-                const existing = threadMap.get(r.threadId);
-                if (!existing || r.score > existing.score) {
-                  threadMap.set(r.threadId, r);
+            const uniqueResults = [...threadMap.values()]
+              .toSorted((a, b) => b.score - a.score)
+              .slice(0, 8);
+
+            const enriched = await Promise.all(
+              uniqueResults.map(async (r) => {
+                const [foundThread, message] = await Promise.all([
+                  db
+                    .find(schema.thread, {
+                      where: {
+                        id: r.threadId,
+                        organizationId,
+                        deletedAt: null,
+                      },
+                    })
+                    .then((res) => Object.values(res)[0] ?? null),
+                  db.findOne(schema.message, r.messageId),
+                ]);
+
+                if (!foundThread) {
+                  return null;
                 }
-              }
 
-              const uniqueResults = [...threadMap.values()]
-                .sort((a, b) => b.score - a.score)
-                .slice(0, 8);
+                const author = foundThread.authorId
+                  ? await db.findOne(schema.author, foundThread.authorId)
+                  : null;
 
-              const enriched = await Promise.all(
-                uniqueResults.map(async (r) => {
-                  const [thread, message] = await Promise.all([
-                    db
-                      .find(schema.thread, {
-                        where: {
-                          id: r.threadId,
-                          organizationId,
-                          deletedAt: null,
-                        },
-                      })
-                      .then((res) => Object.values(res)[0] ?? null),
-                    db.findOne(schema.message, r.messageId),
-                  ]);
-
-                  if (!thread) {
-                    return null;
+                let snippet = "";
+                if (message) {
+                  snippet = jsonContentToPlainText(
+                    safeParseJSON(message.content)
+                  );
+                  if (snippet.length > 300) {
+                    snippet = `${snippet.slice(0, 300)}...`;
                   }
-
-                  const author = thread.authorId
-                    ? await db.findOne(schema.author, thread.authorId)
-                    : null;
-
-                  let snippet = "";
-                  if (message) {
-                    snippet = jsonContentToPlainText(
-                      safeParseJSON(message.content),
-                    );
-                    if (snippet.length > 300) {
-                      snippet = `${snippet.slice(0, 300)}...`;
-                    }
-                  }
-
-                  return {
-                    _id: r.threadId,
-                    name: thread.name,
-                    status: statusLabels[thread.status ?? 0] ?? "Unknown",
-                    priority: priorityLabels[thread.priority ?? 0] ?? "None",
-                    author: author?.name ?? "Unknown",
-                    createdAt: thread.createdAt
-                      ? new Date(thread.createdAt).toISOString()
-                      : "Unknown",
-                    matchingMessageSnippet: snippet,
-                    score: r.score,
-                  };
-                }),
-              );
-
-              const filtered = enriched.filter(
-                (item): item is NonNullable<typeof item> => item !== null,
-              );
-              console.log(
-                `[agent-chat] searchThreads returned ${filtered.length} threads`,
-              );
-              return filtered;
-            },
-            getThread: async ({ threadId }) => {
-              console.log(
-                `[agent-chat] Tool call: getThread threadId="${threadId}"`,
-              );
-              const thread = Object.values(
-                await db.find(schema.thread, {
-                  where: {
-                    id: threadId,
-                    organizationId,
-                    deletedAt: null,
-                  },
-                }),
-              )[0];
-
-              if (!thread) {
-                return { error: "Thread not found or access denied" };
-              }
-
-              const allMessages = Object.values(
-                await db.find(schema.message, {
-                  where: { threadId },
-                }),
-              ).sort(
-                (a, b) =>
-                  new Date(a.createdAt).getTime() -
-                  new Date(b.createdAt).getTime(),
-              );
-
-              const totalCount = allMessages.length;
-              const messages = allMessages.slice(-50);
-
-              const authorIds = [
-                ...new Set([
-                  ...messages.map((m) => m.authorId),
-                  ...(thread.authorId ? [thread.authorId] : []),
-                ]),
-              ];
-              const authorsMap = new Map<string, string>();
-              await Promise.all(
-                authorIds.map(async (id) => {
-                  const author = await db.findOne(schema.author, id);
-                  if (author) authorsMap.set(id, author.name);
-                }),
-              );
-
-              let threadAssignee: string | null = null;
-              if (thread.assignedUserId) {
-                const assignee = await db.findOne(
-                  schema.user,
-                  thread.assignedUserId,
-                );
-                if (assignee) threadAssignee = assignee.name;
-              }
-
-              const threadLabelsData = Object.values(
-                await db.find(schema.threadLabel, {
-                  where: { threadId, enabled: true },
-                }),
-              );
-              const threadLabelNames: string[] = [];
-              const labelResults = await Promise.all(
-                threadLabelsData.map(async (tl) => {
-                  const label = await db.findOne(schema.label, tl.labelId);
-                  return label?.enabled ? label.name : null;
-                }),
-              );
-              threadLabelNames.push(
-                ...labelResults.filter((name): name is string => name !== null),
-              );
-
-              const formattedMessages = messages.map((m) => {
-                let content = jsonContentToPlainText(safeParseJSON(m.content));
-                if (content.length > 1000) {
-                  content = `${content.slice(0, 1000)}...`;
                 }
+
                 return {
-                  author: authorsMap.get(m.authorId) ?? "Unknown",
-                  content,
-                  createdAt: new Date(m.createdAt).toISOString(),
+                  _id: r.threadId,
+                  name: foundThread.name,
+                  status: statusLabels[foundThread.status ?? 0] ?? "Unknown",
+                  priority: priorityLabels[foundThread.priority ?? 0] ?? "None",
+                  author: author?.name ?? "Unknown",
+                  createdAt: foundThread.createdAt
+                    ? new Date(foundThread.createdAt).toISOString()
+                    : "Unknown",
+                  matchingMessageSnippet: snippet,
+                  score: r.score,
                 };
-              });
+              })
+            );
 
+            const filtered = enriched.filter(
+              (item): item is NonNullable<typeof item> => item !== null
+            );
+            console.log(
+              `[agent-chat] searchThreads returned ${filtered.length} threads`
+            );
+            return filtered;
+          },
+          getThread: async ({ threadId }) => {
+            console.log(
+              `[agent-chat] Tool call: getThread threadId="${threadId}"`
+            );
+            const fetchedThread = Object.values(
+              await db.find(schema.thread, {
+                where: {
+                  id: threadId,
+                  organizationId,
+                  deletedAt: null,
+                },
+              })
+            )[0];
+
+            if (!fetchedThread) {
+              return { error: "Thread not found or access denied" };
+            }
+
+            const allMessages = Object.values(
+              await db.find(schema.message, {
+                where: { threadId },
+              })
+            ).toSorted(
+              (a, b) =>
+                new Date(a.createdAt).getTime() -
+                new Date(b.createdAt).getTime()
+            );
+
+            const totalCount = allMessages.length;
+            const messages = allMessages.slice(-50);
+
+            const authorIds = [
+              ...new Set([
+                ...messages.map((m) => m.authorId),
+                ...(fetchedThread.authorId ? [fetchedThread.authorId] : []),
+              ]),
+            ];
+            const authorsMap = new Map<string, string>();
+            await Promise.all(
+              authorIds.map(async (id) => {
+                const author = await db.findOne(schema.author, id);
+                if (author) authorsMap.set(id, author.name);
+              })
+            );
+
+            let threadAssignee: string | null = null;
+            if (fetchedThread.assignedUserId) {
+              const assignee = await db.findOne(
+                schema.user,
+                fetchedThread.assignedUserId
+              );
+              if (assignee) threadAssignee = assignee.name;
+            }
+
+            const threadLabelsData = Object.values(
+              await db.find(schema.threadLabel, {
+                where: { threadId, enabled: true },
+              })
+            );
+            const threadLabelNames: string[] = [];
+            const resolvedLabelNames = await Promise.all(
+              threadLabelsData.map(async (tl) => {
+                const label = await db.findOne(schema.label, tl.labelId);
+                return label?.enabled ? label.name : null;
+              })
+            );
+            threadLabelNames.push(
+              ...resolvedLabelNames.filter(
+                (name): name is string => name !== null
+              )
+            );
+
+            const formattedMessages = messages.map((m) => {
+              let content = jsonContentToPlainText(safeParseJSON(m.content));
+              if (content.length > 1000) {
+                content = `${content.slice(0, 1000)}...`;
+              }
               return {
-                _id: threadId,
-                name: thread.name,
-                status: statusLabels[thread.status ?? 0] ?? "Unknown",
-                priority: priorityLabels[thread.priority ?? 0] ?? "None",
-                author: authorsMap.get(thread.authorId ?? "") ?? "Unknown",
-                assignee: threadAssignee,
-                labels: threadLabelNames,
-                createdAt: thread.createdAt
-                  ? new Date(thread.createdAt).toISOString()
-                  : "Unknown",
-                externalOrigin: thread.externalOrigin ?? null,
-                messageCount: totalCount,
-                ...(totalCount > 50
-                  ? {
-                      note: `Showing last 50 of ${totalCount} messages`,
-                    }
-                  : {}),
-                messages: formattedMessages,
+                author: authorsMap.get(m.authorId) ?? "Unknown",
+                content,
+                createdAt: new Date(m.createdAt).toISOString(),
               };
-            },
-            listThreads: async ({ status, priority, limit = 10 }) => {
-              console.log(
-                `[agent-chat] Tool call: listThreads status=${status} priority=${priority} limit=${limit}`,
-              );
+            });
 
-              const statusValues: Record<string, number> = {
-                Open: 0,
-                "In Progress": 1,
-                Resolved: 2,
-                Closed: 3,
-              };
-              const priorityValues: Record<string, number> = {
-                None: 0,
-                Low: 1,
-                Medium: 2,
-                High: 3,
-                Urgent: 4,
-              };
+            return {
+              _id: threadId,
+              name: fetchedThread.name,
+              status: statusLabels[fetchedThread.status ?? 0] ?? "Unknown",
+              priority: priorityLabels[fetchedThread.priority ?? 0] ?? "None",
+              author: authorsMap.get(fetchedThread.authorId ?? "") ?? "Unknown",
+              assignee: threadAssignee,
+              labels: threadLabelNames,
+              createdAt: fetchedThread.createdAt
+                ? new Date(fetchedThread.createdAt).toISOString()
+                : "Unknown",
+              externalOrigin: fetchedThread.externalOrigin ?? null,
+              messageCount: totalCount,
+              ...(totalCount > 50
+                ? {
+                    note: `Showing last 50 of ${totalCount} messages`,
+                  }
+                : {}),
+              messages: formattedMessages,
+            };
+          },
+          listThreads: async ({ status, priority, limit = 10 }) => {
+            console.log(
+              `[agent-chat] Tool call: listThreads status=${status} priority=${priority} limit=${limit}`
+            );
 
-              // biome-ignore lint/suspicious/noExplicitAny: query builder type
-              let query: any = db.thread.where({
-                organizationId,
-                deletedAt: null,
-              });
+            const statusValues: Record<string, number> = {
+              Open: 0,
+              "In Progress": 1,
+              Resolved: 2,
+              Closed: 3,
+            };
+            const priorityValues: Record<string, number> = {
+              None: 0,
+              Low: 1,
+              Medium: 2,
+              High: 3,
+              Urgent: 4,
+            };
 
-              if (status !== undefined) {
-                query = query.where({
-                  status: statusValues[status],
-                });
-              }
-              if (priority !== undefined) {
-                query = query.where({
-                  priority: priorityValues[priority],
-                });
-              }
+            let threadQuery = db.thread.where({
+              organizationId,
+              deletedAt: null,
+            });
 
-              const threads = await query
-                .orderBy("id", "desc")
-                .limit(limit)
-                .get();
-
-              const results = await Promise.all(
-                threads.map(
-                  async (t: {
-                    id: string;
-                    name: string;
-                    status: number;
-                    priority: number;
-                    authorId: string | null;
-                    assignedUserId: string | null;
-                    createdAt: Date | string;
-                    externalOrigin: string | null;
-                  }) => {
-                    const [author, assignee] = await Promise.all([
-                      t.authorId ? db.findOne(schema.author, t.authorId) : null,
-                      t.assignedUserId
-                        ? db.findOne(schema.user, t.assignedUserId)
-                        : null,
-                    ]);
-
-                    return {
-                      _id: t.id,
-                      name: t.name,
-                      status: statusLabels[t.status ?? 0] ?? "Unknown",
-                      priority: priorityLabels[t.priority ?? 0] ?? "None",
-                      author: author?.name ?? "Unknown",
-                      assignee: assignee?.name ?? null,
-                      createdAt: new Date(t.createdAt).toISOString(),
-                      externalOrigin: t.externalOrigin ?? null,
-                    };
-                  },
-                ),
-              );
-
-              console.log(
-                `[agent-chat] listThreads returned ${results.length} threads`,
-              );
-              return results;
-            },
-          };
-
-          const result = streamText({
-            model: google("gemini-2.5-flash"),
-            system: systemPrompt,
-            messages: conversationHistory,
-            tools: buildAgentChatTools(toolImplementations),
-            stopWhen: stepCountIs(12),
-            providerOptions: {
-              google: { thinkingConfig: { thinkingBudget: 1024 } },
-            },
-          });
-
-          console.log("[agent-chat] streamText() called, awaiting chunks...");
-
-          for await (const part of result.fullStream) {
-            if (part.type === "text-delta") {
-              chunkCount++;
-              accumulated += part.text;
-
-              if (chunkCount <= 3 || chunkCount % 10 === 0) {
-                console.log(
-                  `[agent-chat] Chunk #${chunkCount}: +${part.text.length} chars, total=${accumulated.length} chars`,
-                );
-              }
-
-              await db.update(schema.agentChatMessage, assistantMessageId, {
-                content: accumulated,
-              });
-            } else if (part.type === "tool-call") {
-              const inputMeta =
-                part.toolName === "setDraft"
-                  ? `contentLength=${typeof (part.input as { content?: string })?.content === "string" ? (part.input as { content: string }).content.length : 0}`
-                  : `hasInput=${part.input != null}`;
-              console.log(
-                `[agent-chat] Tool call: ${part.toolName} ${inputMeta}`,
-              );
-              toolCallsArr.push({
-                name: part.toolName,
-                args: part.input,
-                status: "calling",
-              });
-              await db.update(schema.agentChatMessage, assistantMessageId, {
-                toolCalls: JSON.stringify(toolCallsArr),
-              });
-            } else if (part.type === "tool-result") {
-              console.log(`[agent-chat] Tool result for: ${part.toolName}`);
-              const toolCall = toolCallsArr.find(
-                (tc) => tc.name === part.toolName && tc.status === "calling",
-              );
-              if (toolCall) {
-                toolCall.status = "complete";
-                toolCall.result = part.output;
-              }
-              await db.update(schema.agentChatMessage, assistantMessageId, {
-                toolCalls: JSON.stringify(toolCallsArr),
+            if (status !== undefined) {
+              threadQuery = threadQuery.where({
+                status: statusValues[status],
               });
             }
-          }
+            if (priority !== undefined) {
+              threadQuery = threadQuery.where({
+                priority: priorityValues[priority],
+              });
+            }
 
-          console.log(
-            `[agent-chat] Stream complete: ${chunkCount} chunks, ${accumulated.length} total chars`,
-          );
+            const threads = await threadQuery
+              .orderBy("id", "desc")
+              .limit(limit)
+              .get();
 
-          // Signal stream completion
-          await db.update(schema.agentChatMessage, assistantMessageId, {
-            toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
-          });
-        } catch (error) {
-          console.error(
-            `[agent-chat] Streaming error after ${chunkCount} chunks:`,
-            error,
-          );
-          await db.update(schema.agentChatMessage, assistantMessageId, {
-            content: accumulated || "[Error generating response]",
-            toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
-          });
-        }
-      })();
+            const results = await Promise.all(
+              threads.map(
+                async (t: {
+                  id: string;
+                  name: string;
+                  status: number;
+                  priority: number;
+                  authorId: string | null;
+                  assignedUserId: string | null;
+                  createdAt: Date | string;
+                  externalOrigin: string | null;
+                }) => {
+                  const [author, assignee] = await Promise.all([
+                    t.authorId ? db.findOne(schema.author, t.authorId) : null,
+                    t.assignedUserId
+                      ? db.findOne(schema.user, t.assignedUserId)
+                      : null,
+                  ]);
 
-      return { assistantMessageId };
-    }),
+                  return {
+                    _id: t.id,
+                    name: t.name,
+                    status: statusLabels[t.status ?? 0] ?? "Unknown",
+                    priority: priorityLabels[t.priority ?? 0] ?? "None",
+                    author: author?.name ?? "Unknown",
+                    assignee: assignee?.name ?? null,
+                    createdAt: new Date(t.createdAt).toISOString(),
+                    externalOrigin: t.externalOrigin ?? null,
+                  };
+                }
+              )
+            );
 
-    acceptDraft: mutation(
-      z.object({
-        chatId: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const chat = await db.findOne(schema.agentChat, req.input.chatId);
-      if (!chat) {
-        throw new Error("CHAT_NOT_FOUND");
-      }
-
-      const actor = authorizeOwnedAgentChat(req, chat);
-
-      if (!chat.draft || chat.draftStatus !== "active") {
-        throw new Error("NO_ACTIVE_DRAFT");
-      }
-
-      // TODO: Move back inside transaction once live-state syncs trx.insert to clients
-      // See: https://github.com/pedroscosta/live-state/issues/135
-      // Find or create author for the current user (outside transaction
-      // so live-state properly syncs the author record to clients)
-      const existingAuthor = Object.values(
-        await db.find(schema.author, {
-          where: {
-            userId: actor.userId,
-            organizationId: chat.organizationId,
+            console.log(
+              `[agent-chat] listThreads returned ${results.length} threads`
+            );
+            return results;
           },
-        }),
-      )[0];
+        };
 
-      let authorId = existingAuthor?.id;
-
-      if (!authorId) {
-        const user = await db.findOne(schema.user, actor.userId);
-        authorId = ulid().toLowerCase();
-        await db.insert(schema.author, {
-          id: authorId,
-          userId: actor.userId,
-          metaId: null,
-          name: user?.name ?? "Unknown User",
-          organizationId: chat.organizationId,
+        const result = streamText({
+          model: google("gemini-2.5-flash"),
+          system: systemPrompt,
+          messages: conversationHistory,
+          tools: buildAgentChatTools(toolImplementations),
+          stopWhen: stepCountIs(12),
+          providerOptions: {
+            google: { thinkingConfig: { thinkingBudget: 1024 } },
+          },
         });
-      }
 
-      // Use transaction to prevent concurrent double-accepts
-      await db.transaction(async ({ trx }) => {
-        // Atomically claim the draft
-        const currentChat = await trx.findOne(
-          schema.agentChat,
-          req.input.chatId,
-        );
-        if (!currentChat?.draft || currentChat.draftStatus !== "active") {
-          throw new Error("NO_ACTIVE_DRAFT");
+        console.log("[agent-chat] streamText() called, awaiting chunks...");
+
+        for await (const part of result.fullStream) {
+          if (part.type === "text-delta") {
+            chunkCount++;
+            accumulated += part.text;
+
+            if (chunkCount <= 3 || chunkCount % 10 === 0) {
+              console.log(
+                `[agent-chat] Chunk #${chunkCount}: +${part.text.length} chars, total=${accumulated.length} chars`
+              );
+            }
+
+            await db.update(schema.agentChatMessage, assistantMessageId, {
+              content: accumulated,
+            });
+          } else if (part.type === "tool-call") {
+            const inputMeta =
+              part.toolName === "setDraft"
+                ? `contentLength=${typeof (part.input as { content?: string })?.content === "string" ? (part.input as { content: string }).content.length : 0}`
+                : `hasInput=${part.input !== undefined && part.input !== null}`;
+            console.log(
+              `[agent-chat] Tool call: ${part.toolName} ${inputMeta}`
+            );
+            toolCallsArr.push({
+              name: part.toolName,
+              args: part.input,
+              status: "calling",
+            });
+            await db.update(schema.agentChatMessage, assistantMessageId, {
+              toolCalls: JSON.stringify(toolCallsArr),
+            });
+          } else if (part.type === "tool-result") {
+            console.log(`[agent-chat] Tool result for: ${part.toolName}`);
+            const toolCall = toolCallsArr.find(
+              (tc) => tc.name === part.toolName && tc.status === "calling"
+            );
+            if (toolCall) {
+              toolCall.status = "complete";
+              toolCall.result = part.output;
+            }
+            await db.update(schema.agentChatMessage, assistantMessageId, {
+              toolCalls: JSON.stringify(toolCallsArr),
+            });
+          }
         }
 
-        // Convert markdown draft to tiptap JSONContent
-        const content = JSON.stringify(parse(currentChat.draft));
+        console.log(
+          `[agent-chat] Stream complete: ${chunkCount} chunks, ${accumulated.length} total chars`
+        );
 
-        await trx.insert(schema.message, {
-          id: ulid().toLowerCase(),
-          authorId,
-          content,
-          threadId: chat.threadId,
-          createdAt: new Date(),
-          origin: null,
-          externalMessageId: null,
+        // Signal stream completion
+        await db.update(schema.agentChatMessage, assistantMessageId, {
+          toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
         });
-
-        // Clear the draft
-        await trx.update(schema.agentChat, chat.id, {
-          draft: null,
-          draftStatus: "accepted",
+      } catch (error) {
+        console.error(
+          `[agent-chat] Streaming error after ${chunkCount} chunks:`,
+          error
+        );
+        await db.update(schema.agentChatMessage, assistantMessageId, {
+          content: accumulated || "[Error generating response]",
+          toolCalls: JSON.stringify({ calls: toolCallsArr, done: true }),
         });
-      });
-
-      return { success: true };
-    }),
-
-    dismissDraft: mutation(
-      z.object({
-        chatId: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const chat = await db.findOne(schema.agentChat, req.input.chatId);
-      if (!chat) {
-        throw new Error("CHAT_NOT_FOUND");
       }
+    })();
 
-      authorizeOwnedAgentChat(req, chat);
+    return { assistantMessageId };
+  }),
 
-      await db.update(schema.agentChat, chat.id, {
-        draft: null,
-        draftStatus: "dismissed",
-      });
+  updateDraft: mutation(
+    z.object({
+      chatId: z.string(),
+      content: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    const chat = await db.findOne(schema.agentChat, req.input.chatId);
+    if (!chat) {
+      throw new Error("CHAT_NOT_FOUND");
+    }
 
-      return { success: true };
-    }),
+    authorizeOwnedAgentChat(req, chat);
 
-    updateDraft: mutation(
-      z.object({
-        chatId: z.string(),
-        content: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const chat = await db.findOne(schema.agentChat, req.input.chatId);
-      if (!chat) {
-        throw new Error("CHAT_NOT_FOUND");
-      }
+    if (chat.draftStatus !== "active") {
+      throw new Error("NO_ACTIVE_DRAFT");
+    }
 
-      authorizeOwnedAgentChat(req, chat);
+    await db.update(schema.agentChat, chat.id, {
+      draft: req.input.content,
+    });
 
-      if (chat.draftStatus !== "active") {
-        throw new Error("NO_ACTIVE_DRAFT");
-      }
-
-      await db.update(schema.agentChat, chat.id, {
-        draft: req.input.content,
-      });
-
-      return { success: true };
-    }),
-  }));
+    return { success: true };
+  }),
+}));
 
 // `agentChatMessage` no longer needs its own route: messages are written via
 // `agentChat.sendMessage` and read as part of the org tree (agentChats.messages).

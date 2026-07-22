@@ -1,9 +1,8 @@
 import {
-  type Action,
   fingerprintAgentRead,
   nextAgentReadAfterExecution,
-  type ThreadRead,
 } from "@workspace/schemas/signals";
+import type { Action, ThreadRead } from "@workspace/schemas/signals";
 
 export { nextAgentReadAfterExecution };
 
@@ -19,7 +18,7 @@ export type ReadSelection =
 
 export const assertReadFingerprint = (
   read: ThreadRead,
-  readFingerprint: string,
+  readFingerprint: string
 ): void => {
   if (fingerprintAgentRead(read) !== readFingerprint) {
     throw new Error("STALE_AGENT_READ");
@@ -29,7 +28,7 @@ export const assertReadFingerprint = (
 export const resolveBundleFromSelection = (
   read: ThreadRead,
   selection: ReadSelection,
-  replyDraft?: string,
+  replyDraft?: string
 ): Action[] => {
   let bundle: Action[];
 
@@ -47,9 +46,9 @@ export const resolveBundleFromSelection = (
     }
     // Normalize so duplicate or reordered indices can't replay or reorder a
     // primary action's side effects.
-    const normalizedIndices = [...new Set(selection.primaryActionIndices)].sort(
-      (a, b) => a - b,
-    );
+    const normalizedIndices = [
+      ...new Set(selection.primaryActionIndices),
+    ].toSorted((a, b) => a - b);
     bundle = normalizedIndices.map((index) => {
       const action = read.primary[index];
       if (!action) {
@@ -60,7 +59,9 @@ export const resolveBundleFromSelection = (
   }
 
   return bundle.map((action) => {
-    if (action.kind !== "reply") return action;
+    if (action.kind !== "reply") {
+      return action;
+    }
     return {
       ...action,
       draftMarkdown: replyDraft ?? action.draftMarkdown,
@@ -76,7 +77,7 @@ export const resolveBundleFromSelection = (
  */
 export const deselectedPrimaryActions = (
   read: ThreadRead,
-  selection: ReadSelection,
+  selection: ReadSelection
 ): Action[] => {
   if (selection === "primary" || "alternativeIndex" in selection) {
     return [];

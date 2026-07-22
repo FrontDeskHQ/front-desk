@@ -1,15 +1,21 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@workspace/ui/lib/utils";
-import { useLayoutEffect, useMemo, useRef, useState } from "react";
-import { type Components, Streamdown } from "streamdown";
+import {
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  createContext,
+  use,
+} from "react";
+import { Streamdown } from "streamdown";
+import type { Components } from "streamdown";
+
 import "streamdown/styles.css";
 import { z } from "zod";
-import {
-  IssueChip,
-  PrChip,
-  ThreadChipWithSummary,
-} from "~/components/chips";
+
+import { IssueChip, PrChip, ThreadChipWithSummary } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
@@ -22,37 +28,49 @@ const GITHUB_ISSUE_URL_REGEX =
   /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/issues\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
 
 const GithubEntityUrlSchema = z.object({
+  number: z.number().int().positive(),
   owner: z.string().min(1),
   repo: z.string().min(1),
-  number: z.number().int().positive(),
   url: z.string().url(),
 });
 
 export function parseGithubPrUrl(href: string | undefined) {
-  if (!href) return null;
+  if (!href) {
+    return null;
+  }
   const match = href.match(GITHUB_PR_URL_REGEX);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
   const parseResult = GithubEntityUrlSchema.safeParse({
+    number: Number(match[3]),
     owner: match[1],
     repo: match[2],
-    number: Number(match[3]),
     url: href,
   });
-  if (!parseResult.success) return null;
+  if (!parseResult.success) {
+    return null;
+  }
   return parseResult.data;
 }
 
 export function parseGithubIssueUrl(href: string | undefined) {
-  if (!href) return null;
+  if (!href) {
+    return null;
+  }
   const match = href.match(GITHUB_ISSUE_URL_REGEX);
-  if (!match) return null;
+  if (!match) {
+    return null;
+  }
   const parseResult = GithubEntityUrlSchema.safeParse({
+    number: Number(match[3]),
     owner: match[1],
     repo: match[2],
-    number: Number(match[3]),
     url: href,
   });
-  if (!parseResult.success) return null;
+  if (!parseResult.success) {
+    return null;
+  }
   return parseResult.data;
 }
 
@@ -80,56 +98,56 @@ const PRESET_MARKINGS: Record<
   Record<RichMarkdownMarking, boolean>
 > = {
   default: {
-    heading: true,
-    emphasis: true,
-    strong: true,
     blockquote: true,
     code: true,
-    list: true,
+    emphasis: true,
+    heading: true,
     link: true,
-    table: true,
+    list: true,
     strikethrough: true,
+    strong: true,
+    table: true,
     taskList: true,
     thematicBreak: true,
   },
-  minimal: {
-    heading: true,
-    emphasis: true,
-    strong: true,
-    blockquote: true,
-    code: false,
-    list: true,
-    link: true,
-    table: false,
-    strikethrough: false,
-    taskList: false,
-    thematicBreak: true,
-  },
   full: {
-    heading: true,
-    emphasis: true,
-    strong: true,
     blockquote: true,
     code: true,
-    list: true,
+    emphasis: true,
+    heading: true,
     link: true,
-    table: true,
+    list: true,
     strikethrough: true,
+    strong: true,
+    table: true,
     taskList: true,
     thematicBreak: true,
   },
   inline: {
-    heading: false,
-    emphasis: true,
-    strong: true,
     blockquote: false,
     code: true,
-    list: false,
+    emphasis: true,
+    heading: false,
     link: true,
-    table: false,
+    list: false,
     strikethrough: true,
+    strong: true,
+    table: false,
     taskList: false,
     thematicBreak: false,
+  },
+  minimal: {
+    blockquote: true,
+    code: false,
+    emphasis: true,
+    heading: true,
+    link: true,
+    list: true,
+    strikethrough: false,
+    strong: true,
+    table: false,
+    taskList: false,
+    thematicBreak: true,
   },
 };
 
@@ -139,20 +157,20 @@ const PRESET_EXTRA_DISALLOWED: Partial<Record<RichMarkdownPreset, string[]>> = {
 };
 
 const MARKING_ELEMENTS: Record<RichMarkdownMarking, string[]> = {
-  heading: ["h1", "h2", "h3", "h4", "h5", "h6"],
-  emphasis: ["em"],
-  strong: ["strong"],
   blockquote: ["blockquote"],
   code: ["pre", "code"],
-  list: ["ul", "ol", "li"],
+  emphasis: ["em"],
+  heading: ["h1", "h2", "h3", "h4", "h5", "h6"],
   link: ["a"],
-  table: ["table", "thead", "tbody", "tr", "th", "td"],
+  list: ["ul", "ol", "li"],
   strikethrough: ["del"],
+  strong: ["strong"],
+  table: ["table", "thead", "tbody", "tr", "th", "td"],
   taskList: ["input"],
   thematicBreak: ["hr"],
 };
 
-type RichMarkdownProps = {
+interface RichMarkdownProps {
   content: string;
   className?: string;
   preset?: RichMarkdownPreset;
@@ -161,14 +179,14 @@ type RichMarkdownProps = {
   parseIncompleteMarkdown?: boolean;
   normalizeThreadLinks?: boolean;
   components?: Components;
-};
+}
 
-type GithubEntityChipInlineProps = {
+interface GithubEntityChipInlineProps {
   owner: string;
   repo: string;
   number: number;
   url: string;
-};
+}
 
 function useInlineChipSpacing() {
   const ref = useRef<HTMLSpanElement>(null);
@@ -178,15 +196,15 @@ function useInlineChipSpacing() {
   useLayoutEffect(() => {
     const prev = ref.current?.previousSibling;
     setHasLeadingSpace(
-      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? ""),
+      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? "")
     );
     const next = ref.current?.nextSibling;
     setHasTrailingSpace(
-      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? ""),
+      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? "")
     );
-  });
+  }, []);
 
-  return { ref, hasLeadingSpace, hasTrailingSpace };
+  return { hasLeadingSpace, hasTrailingSpace, ref };
 }
 
 export function PrChipInline(props: GithubEntityChipInlineProps) {
@@ -199,7 +217,7 @@ export function PrChipInline(props: GithubEntityChipInlineProps) {
         className={cn(
           "inline-flex mb-0 translate-y-0.5",
           hasLeadingSpace && "ml-px",
-          hasTrailingSpace && "mr-px",
+          hasTrailingSpace && "mr-px"
         )}
       />
     </span>
@@ -216,7 +234,7 @@ export function IssueChipInline(props: GithubEntityChipInlineProps) {
         className={cn(
           "inline-flex mb-0 translate-y-0.5",
           hasLeadingSpace && "ml-px",
-          hasTrailingSpace && "mr-px",
+          hasTrailingSpace && "mr-px"
         )}
       />
     </span>
@@ -226,13 +244,13 @@ export function IssueChipInline(props: GithubEntityChipInlineProps) {
 export function ThreadMention({ where }: { where: Record<string, unknown> }) {
   const thread = useLiveQuery(
     query.thread.first(where).include({
-      author: {
-        include: { user: true },
-      },
       assignedUser: {
         include: { user: true },
       },
-    }),
+      author: {
+        include: { user: true },
+      },
+    })
   );
 
   const ref = useRef<HTMLSpanElement>(null);
@@ -242,13 +260,13 @@ export function ThreadMention({ where }: { where: Record<string, unknown> }) {
   useLayoutEffect(() => {
     const prev = ref.current?.previousSibling;
     setHasLeadingSpace(
-      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? ""),
+      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? "")
     );
     const next = ref.current?.nextSibling;
     setHasTrailingSpace(
-      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? ""),
+      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? "")
     );
-  });
+  }, []);
 
   if (!thread || !!thread.deletedAt) {
     return null;
@@ -261,7 +279,7 @@ export function ThreadMention({ where }: { where: Record<string, unknown> }) {
         className={cn(
           "inline-flex mb-0 -translate-y-0.5",
           hasLeadingSpace && "ml-px",
-          hasTrailingSpace && "mr-px",
+          hasTrailingSpace && "mr-px"
         )}
         render={
           <Link
@@ -276,7 +294,7 @@ export function ThreadMention({ where }: { where: Record<string, unknown> }) {
 
 function resolveMarkings(
   preset: RichMarkdownPreset,
-  markings: RichMarkdownMarkings | undefined,
+  markings: RichMarkdownMarkings | undefined
 ) {
   return {
     ...PRESET_MARKINGS[preset],
@@ -288,6 +306,54 @@ function getDisallowedElements(markings: Record<RichMarkdownMarking, boolean>) {
   return (Object.keys(MARKING_ELEMENTS) as RichMarkdownMarking[])
     .filter((key) => !markings[key])
     .flatMap((key) => MARKING_ELEMENTS[key]);
+}
+
+const NormalizeThreadLinksContext = createContext(true);
+
+function RichMarkdownAnchor({
+  href,
+  children,
+  ...props
+}: React.ComponentPropsWithoutRef<"a">) {
+  const normalizeThreadLinks = use(NormalizeThreadLinksContext);
+  return (
+    <RichMarkdownLink
+      href={href}
+      normalizeThreadLinks={normalizeThreadLinks}
+      {...props}
+    >
+      {children}
+    </RichMarkdownLink>
+  );
+}
+
+const defaultMarkdownComponents: Components = {
+  a: RichMarkdownAnchor,
+};
+
+function RichMarkdownLink({
+  href,
+  children,
+  normalizeThreadLinks,
+  ...props
+}: React.ComponentPropsWithoutRef<"a"> & { normalizeThreadLinks: boolean }) {
+  if (normalizeThreadLinks && href?.startsWith(THREAD_LINK_PROXY_PREFIX)) {
+    const threadId = href.slice(THREAD_LINK_PROXY_PREFIX.length);
+    return <ThreadMention where={{ id: threadId }} />;
+  }
+  const pr = parseGithubPrUrl(href);
+  if (pr) {
+    return <PrChipInline {...pr} />;
+  }
+  const issue = parseGithubIssueUrl(href);
+  if (issue) {
+    return <IssueChipInline {...issue} />;
+  }
+  return (
+    <a href={href} target="_blank" rel="noreferrer" {...props}>
+      {children}
+    </a>
+  );
 }
 
 export const RichMarkdown = ({
@@ -302,7 +368,7 @@ export const RichMarkdown = ({
 }: RichMarkdownProps) => {
   const resolvedMarkings = useMemo(
     () => resolveMarkings(preset, markings),
-    [preset, markings],
+    [preset, markings]
   );
 
   const disallowedElements = useMemo(
@@ -310,64 +376,38 @@ export const RichMarkdown = ({
       ...getDisallowedElements(resolvedMarkings),
       ...(PRESET_EXTRA_DISALLOWED[preset] ?? []),
     ],
-    [resolvedMarkings, preset],
+    [resolvedMarkings, preset]
   );
 
   const normalizedContent = useMemo(() => {
     if (!normalizeThreadLinks) {
       return content;
     }
-    return content.replace(
+    return content.replaceAll(
       /\(thread:([^)]+)\)/g,
-      (_, threadId: string) => `(${THREAD_LINK_PROXY_PREFIX}${threadId})`,
+      (_, threadId: string) => `(${THREAD_LINK_PROXY_PREFIX}${threadId})`
     );
   }, [content, normalizeThreadLinks]);
 
-  const defaultComponents = useMemo<Components>(
-    () => ({
-      a: ({ href, children, ...props }) => {
-        if (
-          normalizeThreadLinks &&
-          href?.startsWith(THREAD_LINK_PROXY_PREFIX)
-        ) {
-          const threadId = href.slice(THREAD_LINK_PROXY_PREFIX.length);
-          return <ThreadMention where={{ id: threadId }} />;
-        }
-        const pr = parseGithubPrUrl(href);
-        if (pr) {
-          return <PrChipInline {...pr} />;
-        }
-        const issue = parseGithubIssueUrl(href);
-        if (issue) {
-          return <IssueChipInline {...issue} />;
-        }
-        return (
-          <a href={href} target="_blank" rel="noreferrer" {...props}>
-            {children}
-          </a>
-        );
-      },
-    }),
-    [normalizeThreadLinks],
-  );
-
   const mergedComponents = useMemo(
-    () => ({ ...defaultComponents, ...components }),
-    [defaultComponents, components],
+    () => ({ ...defaultMarkdownComponents, ...components }),
+    [components]
   );
 
   return (
-    <Streamdown
-      mode={mode}
-      className={cn("text-sm", className)}
-      components={mergedComponents}
-      parseIncompleteMarkdown={parseIncompleteMarkdown}
-      disallowedElements={
-        disallowedElements.length > 0 ? disallowedElements : undefined
-      }
-      unwrapDisallowed
-    >
-      {normalizedContent}
-    </Streamdown>
+    <NormalizeThreadLinksContext value={normalizeThreadLinks}>
+      <Streamdown
+        mode={mode}
+        className={cn("text-sm", className)}
+        components={mergedComponents}
+        parseIncompleteMarkdown={parseIncompleteMarkdown}
+        disallowedElements={
+          disallowedElements.length > 0 ? disallowedElements : undefined
+        }
+        unwrapDisallowed
+      >
+        {normalizedContent}
+      </Streamdown>
+    </NormalizeThreadLinksContext>
   );
 };

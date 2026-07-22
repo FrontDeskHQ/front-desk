@@ -1,11 +1,15 @@
 import { sanitizeAgentReadReasoning } from "@workspace/schemas/signals";
 import { createScorer } from "evalite";
+
 import type { SynthesisRawActionSet } from "../synthesize";
-import type { SynthesisAgentEvalCase, SynthesisAgentEvalInput } from "./agent-dataset";
+import type {
+  SynthesisAgentEvalCase,
+  SynthesisAgentEvalInput,
+} from "./agent-dataset";
 
 type In = SynthesisAgentEvalInput;
 type Expected = SynthesisAgentEvalCase["expected"];
-type Out = {
+interface Out {
   raw: SynthesisRawActionSet;
   toolCalls: {
     read_thread: number;
@@ -13,15 +17,17 @@ type Out = {
     search_documentation: number;
     read_documentation_page: number;
   };
-};
+}
 
 export const requiredPrimaryKinds = createScorer<In, Out, Expected>({
-  name: "Required Primary Kinds",
   description: "Required action kinds are present in primary actions.",
+  name: "Required Primary Kinds",
   scorer: ({ output, expected }) => {
     const requiredKinds = expected?.mustIncludePrimaryKinds ?? [];
     const primaryKinds = output.raw.primary.map((action) => action.kind);
-    const missingKinds = requiredKinds.filter((kind) => !primaryKinds.includes(kind));
+    const missingKinds = requiredKinds.filter(
+      (kind) => !primaryKinds.includes(kind)
+    );
     return {
       score: missingKinds.length === 0 ? 1 : 0,
       metadata: { requiredKinds, primaryKinds, missingKinds },
@@ -30,14 +36,17 @@ export const requiredPrimaryKinds = createScorer<In, Out, Expected>({
 });
 
 export const forbiddenPrimaryKinds = createScorer<In, Out, Expected>({
-  name: "Forbidden Primary Kinds",
   description: "Forbidden kinds should not appear in primary actions.",
+  name: "Forbidden Primary Kinds",
   scorer: ({ output, expected }) => {
     const forbiddenKinds = expected?.mustExcludePrimaryKinds ?? [];
-    if (forbiddenKinds.length === 0) return { score: 1, metadata: { skipped: true } };
+    if (forbiddenKinds.length === 0)
+      return { score: 1, metadata: { skipped: true } };
 
     const primaryKinds = output.raw.primary.map((action) => action.kind);
-    const foundForbidden = forbiddenKinds.filter((kind) => primaryKinds.includes(kind));
+    const foundForbidden = forbiddenKinds.filter((kind) =>
+      primaryKinds.includes(kind)
+    );
     return {
       score: foundForbidden.length === 0 ? 1 : 0,
       metadata: { forbiddenKinds, primaryKinds, foundForbidden },
@@ -46,9 +55,9 @@ export const forbiddenPrimaryKinds = createScorer<In, Out, Expected>({
 });
 
 export const nonEmptyPrimaryWhenExpected = createScorer<In, Out, Expected>({
-  name: "Non Empty Primary",
   description:
     "Requires at least one primary action unless empty primary is explicitly allowed.",
+  name: "Non Empty Primary",
   scorer: ({ output, expected }) => {
     if (expected?.allowEmptyPrimary) {
       return { score: 1, metadata: { skipped: true } };
@@ -61,11 +70,12 @@ export const nonEmptyPrimaryWhenExpected = createScorer<In, Out, Expected>({
 });
 
 export const sourceInputMessageValidity = createScorer<In, Out, Expected>({
+  description:
+    "sourceInputMessageId points to one of the input thread messages.",
   name: "Source Message Validity",
-  description: "sourceInputMessageId points to one of the input thread messages.",
   scorer: ({ input, output }) => {
     const messageIds = new Set(
-      input.synthesisInput.threadMessages.map((message) => message.id),
+      input.synthesisInput.threadMessages.map((message) => message.id)
     );
     const valid = messageIds.has(output.raw.sourceInputMessageId);
     return {
@@ -89,11 +99,12 @@ const extractTokens = (text: string, re: RegExp): string[] =>
   Array.from(text.matchAll(re), (match) => match[0].toLowerCase());
 
 export const replySubstance = createScorer<In, Out, Expected>({
-  name: "Reply Substance",
   description:
     "When a reply is required, draft is non-trivial and avoids generic filler.",
+  name: "Reply Substance",
   scorer: ({ output, expected }) => {
-    if (!expected?.requiresReplyDraft) return { score: 1, metadata: { skipped: true } };
+    if (!expected?.requiresReplyDraft)
+      return { score: 1, metadata: { skipped: true } };
 
     const reply = output.raw.primary.find((action) => action.kind === "reply");
     if (!reply || reply.kind !== "reply") {
@@ -103,14 +114,14 @@ export const replySubstance = createScorer<In, Out, Expected>({
     const draft = reply.draftMarkdown.trim();
     const lowerDraft = draft.toLowerCase();
     const hasGenericFiller = genericReplyPatterns.some((pattern) =>
-      lowerDraft.includes(pattern),
+      lowerDraft.includes(pattern)
     );
     const longEnough = draft.length >= 80;
     const containsExpectedToken =
       !expected.replyMustContainAny || expected.replyMustContainAny.length === 0
         ? true
         : expected.replyMustContainAny.some((token) =>
-            lowerDraft.includes(token.toLowerCase()),
+            lowerDraft.includes(token.toLowerCase())
           );
 
     return {
@@ -127,8 +138,8 @@ export const replySubstance = createScorer<In, Out, Expected>({
 });
 
 export const minimumToolCalls = createScorer<In, Out, Expected>({
-  name: "Minimum Tool Calls",
   description: "Satisfies expected minimum tool call counts per tool.",
+  name: "Minimum Tool Calls",
   scorer: ({ output, expected }) => {
     const minimums = expected?.minToolCalls;
     if (!minimums) {
@@ -155,10 +166,11 @@ export const minimumToolCalls = createScorer<In, Out, Expected>({
     }
     if (
       typeof minimums.read_documentation_page === "number" &&
-      output.toolCalls.read_documentation_page < minimums.read_documentation_page
+      output.toolCalls.read_documentation_page <
+        minimums.read_documentation_page
     ) {
       failures.push(
-        `read_documentation_page<${minimums.read_documentation_page}`,
+        `read_documentation_page<${minimums.read_documentation_page}`
       );
     }
     return {
@@ -169,9 +181,9 @@ export const minimumToolCalls = createScorer<In, Out, Expected>({
 });
 
 export const replyFactualityGuard = createScorer<In, Out, Expected>({
-  name: "Reply Factuality Guard",
   description:
     "Penalizes potentially unsupported factual claims in replies (numbers/urls/forbidden phrases).",
+  name: "Reply Factuality Guard",
   scorer: ({ input, output, expected }) => {
     if (!expected?.requiresReplyDraft) {
       return { score: 1, metadata: { skipped: true } };
@@ -193,18 +205,22 @@ export const replyFactualityGuard = createScorer<In, Out, Expected>({
       .toLowerCase();
 
     const replyNumbers = extractTokens(replyText, /\b\d+(?:\.\d+)?\b/g);
-    const contextNumbers = new Set(extractTokens(contextText, /\b\d+(?:\.\d+)?\b/g));
+    const contextNumbers = new Set(
+      extractTokens(contextText, /\b\d+(?:\.\d+)?\b/g)
+    );
     const unsupportedNumbers = replyNumbers.filter(
-      (numberToken) => !contextNumbers.has(numberToken),
+      (numberToken) => !contextNumbers.has(numberToken)
     );
 
     const replyUrls = extractTokens(replyText, /https?:\/\/[^\s)]+/g);
-    const contextUrls = new Set(extractTokens(contextText, /https?:\/\/[^\s)]+/g));
+    const contextUrls = new Set(
+      extractTokens(contextText, /https?:\/\/[^\s)]+/g)
+    );
     const unsupportedUrls = replyUrls.filter((url) => !contextUrls.has(url));
 
     const forbiddenHits =
       expected.forbiddenReplyPhrases?.filter((phrase) =>
-        replyText.includes(phrase.toLowerCase()),
+        replyText.includes(phrase.toLowerCase())
       ) ?? [];
 
     const penalty =
@@ -231,9 +247,9 @@ const RAW_ID_IN_REASONING_RE =
   /\b[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b|\(thread:[^)]+\)/i;
 
 export const unrepliedThreadReplyCoupling = createScorer<In, Out, Expected>({
-  name: "Unreplied Thread Reply Coupling",
   description:
     "When the team has not replied yet, non-reply primary actions must include a reply and alternatives must be reply-only.",
+  name: "Unreplied Thread Reply Coupling",
   scorer: ({ input, output }) => {
     if (input.synthesisInput.hasTeamReply) {
       return { score: 1, metadata: { skipped: true } };
@@ -250,7 +266,7 @@ export const unrepliedThreadReplyCoupling = createScorer<In, Out, Expected>({
     }
 
     const nonReplyAlternatives = (output.raw.alternatives ?? []).filter(
-      (action) => action.kind !== "reply",
+      (action) => action.kind !== "reply"
     );
     if (nonReplyAlternatives.length > 0) {
       return {
@@ -267,9 +283,9 @@ export const unrepliedThreadReplyCoupling = createScorer<In, Out, Expected>({
 });
 
 export const atMostOneLinkPr = createScorer<In, Out, Expected>({
-  name: "At Most One Link PR",
   description:
     "A thread links a single PR: at most one link_pr across primary + alternatives (FRO-204).",
+  name: "At Most One Link PR",
   scorer: ({ output }) => {
     const linkPrCount = [
       ...output.raw.primary,
@@ -283,9 +299,9 @@ export const atMostOneLinkPr = createScorer<In, Out, Expected>({
 });
 
 export const expectedLinkPrUrl = createScorer<In, Out, Expected>({
-  name: "Expected Link PR URL",
   description:
     "When expectedLinkPrUrl is set, every emitted link_pr must use that exact URL (from read_pr).",
+  name: "Expected Link PR URL",
   scorer: ({ output, expected }) => {
     const expectedUrl = expected?.expectedLinkPrUrl;
     if (!expectedUrl) {
@@ -315,9 +331,9 @@ export const expectedLinkPrUrl = createScorer<In, Out, Expected>({
 });
 
 export const reasoningUserSafe = createScorer<In, Out, Expected>({
-  name: "Reasoning User Safe",
   description:
     "Reasoning must not leak internal agent terms, confidence scores, or raw ids.",
+  name: "Reasoning User Safe",
   scorer: ({ output }) => {
     const reasoning = sanitizeAgentReadReasoning(output.raw.reasoning);
     if (!reasoning.trim()) {

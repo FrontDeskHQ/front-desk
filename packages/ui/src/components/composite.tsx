@@ -6,13 +6,13 @@ import * as React from "react";
 
 type CompositeOrientation = "vertical" | "horizontal";
 
-type CompositeItemRecord = {
+interface CompositeItemRecord {
   id: string;
   ref: React.RefObject<HTMLElement | null>;
   disabled: boolean;
-};
+}
 
-type CompositeContextValue = {
+interface CompositeContextValue {
   items: CompositeItemRecord[];
   itemCount: number;
   activeIndex: number;
@@ -22,13 +22,13 @@ type CompositeContextValue = {
   registerItem: (
     item: Omit<CompositeItemRecord, "ref"> & {
       ref: React.RefObject<HTMLElement | null>;
-    },
+    }
   ) => void;
   unregisterItem: (id: string) => void;
-};
+}
 
 const CompositeContext = React.createContext<CompositeContextValue | null>(
-  null,
+  null
 );
 
 type CompositeProps = React.ComponentProps<"div"> & {
@@ -58,12 +58,9 @@ function Composite({
   const [hasFocusedItem, setHasFocusedItem] = React.useState(false);
 
   const setActiveIndex: React.Dispatch<React.SetStateAction<number>> =
-    React.useCallback(
-      (value) => {
-        setActiveIndexRaw(value);
-      },
-      [],
-    );
+    React.useCallback((value) => {
+      setActiveIndexRaw(value);
+    }, []);
 
   const resolvedItemCount = itemCount ?? items.length;
   const containerRef = React.useRef<HTMLDivElement | null>(null);
@@ -99,9 +96,7 @@ function Composite({
 
     const hasActive = activeIndex >= 0 && activeIndex < resolvedItemCount;
     if (hasActive) {
-      const mountedItem = items.find(
-        (item) => item.id === String(activeIndex),
-      );
+      const mountedItem = items.find((item) => item.id === String(activeIndex));
       if (!mountedItem || !mountedItem.disabled) {
         return;
       }
@@ -109,16 +104,20 @@ function Composite({
 
     const firstEnabled = items.find((item) => !item.disabled);
     setActiveIndex(firstEnabled ? Number(firstEnabled.id) || 0 : 0);
-  }, [items, activeIndex, resolvedItemCount]);
+  }, [items, activeIndex, resolvedItemCount, setActiveIndex]);
 
   const scrollItemIntoView = React.useCallback(
     (index: number) => {
       const el = scrollElement?.current;
-      if (!el) return;
+      if (!el) {
+        return;
+      }
 
       const item = items.find((i) => i.id === String(index));
       const target = item?.ref.current;
-      if (!target) return;
+      if (!target) {
+        return;
+      }
 
       const container = el.getBoundingClientRect();
       const rect = target.getBoundingClientRect();
@@ -129,7 +128,7 @@ function Composite({
         el.scrollBy({ top: rect.bottom - container.bottom });
       }
     },
-    [items, scrollElement],
+    [items, scrollElement]
   );
 
   const focusIndex = React.useCallback(
@@ -145,12 +144,18 @@ function Composite({
       if (scrollElement?.current && delta) {
         const peekIndex = Math.max(
           0,
-          Math.min(resolvedItemCount - 1, index + delta),
+          Math.min(resolvedItemCount - 1, index + delta)
         );
         scrollItemIntoView(peekIndex);
       }
     },
-    [items, resolvedItemCount, setActiveIndex, scrollElement, scrollItemIntoView],
+    [
+      items,
+      resolvedItemCount,
+      setActiveIndex,
+      scrollElement,
+      scrollItemIntoView,
+    ]
   );
 
   const moveActive = React.useCallback(
@@ -162,8 +167,7 @@ function Composite({
       let nextIndex = activeIndex + delta;
 
       if (loop) {
-        nextIndex =
-          (nextIndex + resolvedItemCount) % resolvedItemCount;
+        nextIndex = (nextIndex + resolvedItemCount) % resolvedItemCount;
       } else {
         nextIndex = Math.max(0, Math.min(resolvedItemCount - 1, nextIndex));
       }
@@ -174,7 +178,7 @@ function Composite({
 
       focusIndex(nextIndex, delta);
     },
-    [activeIndex, focusIndex, loop, resolvedItemCount],
+    [activeIndex, focusIndex, loop, resolvedItemCount]
   );
 
   const handleKeyNavigation = React.useCallback(
@@ -211,7 +215,7 @@ function Composite({
         focusIndex(resolvedItemCount - 1);
       }
     },
-    [focusIndex, moveActive, orientation, resolvedItemCount],
+    [focusIndex, moveActive, orientation, resolvedItemCount]
   );
 
   const handleKeyDown = React.useCallback(
@@ -222,7 +226,7 @@ function Composite({
       }
       handleKeyNavigation(event);
     },
-    [handleKeyNavigation, onKeyDown],
+    [handleKeyNavigation, onKeyDown]
   );
 
   React.useEffect(() => {
@@ -256,7 +260,7 @@ function Composite({
       setIsMouseInside(true);
       window.addEventListener("keydown", handleWindowKeyDown);
     },
-    [handleWindowKeyDown, onMouseEnter],
+    [handleWindowKeyDown, onMouseEnter]
   );
 
   const handleMouseLeave = React.useCallback(
@@ -265,7 +269,7 @@ function Composite({
       setIsMouseInside(false);
       window.removeEventListener("keydown", handleWindowKeyDown);
     },
-    [handleWindowKeyDown, onMouseLeave],
+    [handleWindowKeyDown, onMouseLeave]
   );
 
   const handleFocusCapture = React.useCallback(() => {
@@ -282,25 +286,26 @@ function Composite({
       }
       setHasFocusedItem(false);
     },
-    [],
+    []
   );
 
-  React.useEffect(() => {
-    return () => {
+  React.useEffect(
+    () => () => {
       window.removeEventListener("keydown", handleWindowKeyDown);
-    };
-  }, [handleWindowKeyDown]);
+    },
+    [handleWindowKeyDown]
+  );
 
   return (
     <CompositeContext.Provider
       value={{
-        items,
-        itemCount: resolvedItemCount,
         activeIndex,
         hasFocusedItem,
         isMouseInside,
-        setActiveIndex,
+        itemCount: resolvedItemCount,
+        items,
         registerItem,
+        setActiveIndex,
         unregisterItem,
       }}
     >
@@ -308,13 +313,14 @@ function Composite({
         ref={containerRef}
         data-slot="composite"
         data-orientation={orientation}
+        // eslint-disable-next-line jsx-a11y/prefer-tag-over-role -- composite widget uses listbox keyboard pattern
         role="listbox"
         aria-orientation={orientation}
         tabIndex={tabIndex ?? 0}
         className={cn(
           "gap-2",
           orientation === "vertical" ? "flex flex-col" : "flex",
-          className,
+          className
         )}
         onKeyDown={handleKeyDown}
         onMouseEnter={handleMouseEnter}
@@ -344,7 +350,7 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
       onMouseMove,
       ...props
     },
-    forwardedRef,
+    forwardedRef
   ) => {
     const context = React.useContext(CompositeContext);
 
@@ -367,8 +373,8 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
 
     React.useEffect(() => {
       registerItem({
-        id,
         disabled,
+        id,
         ref: localRef,
       });
 
@@ -378,8 +384,11 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
     }, [disabled, id, registerItem, unregisterItem]);
 
     const itemIndex = React.useMemo(
-      () => (itemId != null ? Number(itemId) : items.findIndex((item) => item.id === id)),
-      [items, id, itemId],
+      () =>
+        itemId === null || itemId === undefined
+          ? items.findIndex((item) => item.id === id)
+          : Number(itemId),
+      [items, id, itemId]
     );
 
     const tabIndex =
@@ -398,18 +407,8 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
 
     const element = useRender({
       defaultTagName: "button",
-      render,
-      ref: [forwardedRef, localRef],
       props: {
         ...props,
-        "data-slot": "composite-item",
-        "data-composite-item": "true",
-        "data-active": shouldShowActiveState ? "true" : "false",
-        "data-disabled": disabled ? "true" : "false",
-        role: "option",
-        type: "button",
-        disabled: disabled || undefined,
-        tabIndex,
         "aria-disabled": disabled ? true : undefined,
         "aria-selected": isActive,
         className: cn(
@@ -417,8 +416,13 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
           "focus-visible:ring-2 focus-visible:ring-ring/50",
           "data-[active=true]:bg-accent data-[active=true]:text-accent-foreground",
           "data-[disabled=true]:opacity-50 data-[disabled=true]:cursor-not-allowed",
-          className,
+          className
         ),
+        "data-active": shouldShowActiveState ? "true" : "false",
+        "data-composite-item": "true",
+        "data-disabled": disabled ? "true" : "false",
+        "data-slot": "composite-item",
+        disabled: disabled || undefined,
         onClick: (event: React.MouseEvent<HTMLElement>) => {
           if (disabled) {
             event.preventDefault();
@@ -452,11 +456,16 @@ const CompositeItem = React.forwardRef<HTMLElement, CompositeItemProps>(
             setActiveIndex(itemIndex);
           }
         },
+        role: "option",
+        tabIndex,
+        type: "button",
       },
+      ref: [forwardedRef, localRef],
+      render,
     });
 
     return element;
-  },
+  }
 );
 
 CompositeItem.displayName = "CompositeItem";

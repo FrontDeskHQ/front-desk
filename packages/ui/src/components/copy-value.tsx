@@ -63,7 +63,7 @@ const CopyButton = ({
               )}
             </Button>
           )}
-        ></TooltipTrigger>
+        />
         <TooltipContent>{copied ? "Copied" : ariaLabel}</TooltipContent>
       </Tooltip>
     </TooltipProvider>

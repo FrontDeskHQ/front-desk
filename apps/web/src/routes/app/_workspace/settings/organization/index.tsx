@@ -3,15 +3,14 @@ import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { slackIntegrationSchema } from "@workspace/schemas/integration/slack";
 import {
-  type OrganizationSettings,
   organizationSettingsSchema,
   safeParseOrgSettings,
 } from "@workspace/schemas/organization";
+import type { OrganizationSettings } from "@workspace/schemas/organization";
 import { Avatar, AvatarUpload } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
-  type BaseItem,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -20,6 +19,7 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
+import type { BaseItem } from "@workspace/ui/components/combobox";
 import {
   FormControl,
   FormItem,
@@ -30,7 +30,9 @@ import { Input } from "@workspace/ui/components/input";
 import { useAtomValue } from "jotai/react";
 import { useMemo } from "react";
 import { z } from "zod";
-import { type ChannelOption, ChannelPicker } from "~/components/channel-picker";
+
+import { ChannelPicker } from "~/components/channel-picker";
+import type { ChannelOption } from "~/components/channel-picker";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { uploadFile } from "~/lib/server-funcs/upload-file";
@@ -38,20 +40,18 @@ import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/_workspace/settings/organization/")({
   component: RouteComponent,
-  head: () => {
-    return {
-      meta: [
-        ...seo({
-          title: "Organization Settings - FrontDesk",
-          description: "Manage your organization settings",
-        }),
-      ],
-    };
-  },
+  head: () => ({
+    meta: [
+      ...seo({
+        title: "Organization Settings - FrontDesk",
+        description: "Manage your organization settings",
+      }),
+    ],
+  }),
 });
 
 // TODO: Unify reserved slugs list - extract to shared constant
-const reservedSlugs = [
+const reservedSlugs = new Set([
   "support",
   "help",
   "status",
@@ -74,7 +74,7 @@ const reservedSlugs = [
   "privacy",
   "terms",
   "legal",
-];
+]);
 
 const getTimezoneOffset = (tz: string): { label: string; minutes: number } => {
   try {
@@ -99,7 +99,7 @@ const timezoneItems: BaseItem[] = Intl.supportedValuesOf("timeZone")
   .map((tz) => {
     const segments = tz.split("/");
     const region = segments[0];
-    const city = segments[segments.length - 1].replace(/_/g, " ");
+    const city = segments.at(-1).replaceAll(/_/g, " ");
     const { label: offset, minutes } = getTimezoneOffset(tz);
     return {
       value: tz,
@@ -107,7 +107,7 @@ const timezoneItems: BaseItem[] = Intl.supportedValuesOf("timeZone")
       minutes,
     };
   })
-  .sort((a, b) => a.minutes - b.minutes || a.label.localeCompare(b.label))
+  .toSorted((a, b) => a.minutes - b.minutes || a.label.localeCompare(b.label))
   .map(({ value, label }) => ({ value, label }));
 
 const digestTimeItems: BaseItem[] = Array.from({ length: 48 }, (_, i) => {
@@ -141,7 +141,7 @@ const orgProfileSchema = z.object({
     .regex(/^[a-z-]+$/, {
       message: "Must contain only lowercase letters and dashes",
     })
-    .refine((slug) => !reservedSlugs.includes(slug.toLowerCase()), {
+    .refine((slug) => !reservedSlugs.has(slug.toLowerCase()), {
       message: "This slug is reserved and cannot be used",
     }),
   orgLogo: z.instanceof(File).optional(),
@@ -150,16 +150,18 @@ const orgProfileSchema = z.object({
     .optional()
     .refine(
       (url) => {
-        if (!url || url.trim() === "") return true;
+        if (!url || url.trim() === "") {
+          return true;
+        }
         // Match discord.gg, discord.com/invite, or discordapp.com/invite URLs (with or without protocol and www)
         return /^https:\/\/(discord\.gg|discord\.com\/invite)\/[a-zA-Z0-9]+$/.test(
-          url,
+          url
         );
       },
       {
         message:
           "Must be a valid Discord invite link (e.g., discord.gg/servername)",
-      },
+      }
     ),
 });
 
@@ -173,10 +175,12 @@ function RouteComponent() {
       query.organizationUser.first({
         organizationId: currentOrg?.id,
         userId: user.id,
-      }),
+      })
     )?.role === "owner";
 
-  if (!org || !currentOrg) return null;
+  if (!org || !currentOrg) {
+    return null;
+  }
 
   return (
     <div className="p-4 flex flex-col gap-8 w-full">
@@ -210,7 +214,7 @@ interface OrgFormProps {
 function OrgProfileForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
   const settings = useMemo(
     () => safeParseOrgSettings(org?.settings),
-    [org?.settings],
+    [org?.settings]
   );
 
   const { Field, handleSubmit, store } = useForm({
@@ -227,9 +231,6 @@ function OrgProfileForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
         }
       })(),
     } as z.infer<typeof orgProfileSchema>,
-    validators: {
-      onSubmit: orgProfileSchema,
-    },
     onSubmit: async ({ value }) => {
       if (!currentOrg?.id) return;
 
@@ -258,11 +259,14 @@ function OrgProfileForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
         settings: nextSettings,
       });
     },
+    validators: {
+      onSubmit: orgProfileSchema,
+    },
   });
 
-  const nonPersistentIsDirty = useStore(store, (s) => {
-    return Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue);
-  });
+  const nonPersistentIsDirty = useStore(store, (s) =>
+    Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue)
+  );
 
   return (
     <form
@@ -374,7 +378,9 @@ function OrgProfileForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
                     items={timezoneItems}
                     value={field.state.value}
                     onValueChange={(value) => {
-                      if (value) field.setValue(value);
+                      if (value) {
+                        field.setValue(value);
+                      }
                     }}
                     disabled={!isUserOwner}
                   >
@@ -412,23 +418,27 @@ function OrgProfileForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
 function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
   const settings = useMemo(
     () => safeParseOrgSettings(org?.settings),
-    [org?.settings],
+    [org?.settings]
   );
 
   const slackIntegration = useLiveQuery(
-    query.integration.first({ organizationId: currentOrg?.id, type: "slack" }),
+    query.integration.first({ organizationId: currentOrg?.id, type: "slack" })
   );
   const hasSlack = !!slackIntegration?.enabled;
 
   const slackIntegrationTeamId = useMemo(() => {
-    if (!slackIntegration?.configStr) return null;
+    if (!slackIntegration?.configStr) {
+      return null;
+    }
     try {
       const parsed = slackIntegrationSchema.safeParse(
-        JSON.parse(slackIntegration.configStr),
+        JSON.parse(slackIntegration.configStr)
       );
-      if (!parsed.success) return null;
+      if (!parsed.success) {
+        return null;
+      }
       const id = parsed.data.teamId;
-      return id != null ? String(id) : null;
+      return id === null || id === undefined ? null : String(id);
     } catch {
       return null;
     }
@@ -447,9 +457,6 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
             }
           : null,
     } as z.infer<typeof digestFormSchema>,
-    validators: {
-      onSubmit: digestFormSchema,
-    },
     onSubmit: ({ value }) => {
       if (!currentOrg?.id) return;
 
@@ -490,11 +497,14 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
         settings: nextSettings,
       });
     },
+    validators: {
+      onSubmit: digestFormSchema,
+    },
   });
 
-  const nonPersistentIsDirty = useStore(store, (s) => {
-    return Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue);
-  });
+  const nonPersistentIsDirty = useStore(store, (s) =>
+    Object.values(s.fieldMeta).some((field) => !field?.isDefaultValue)
+  );
 
   return (
     <form
@@ -541,7 +551,9 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
                       items={digestTimeItems}
                       value={field.state.value}
                       onValueChange={(value) => {
-                        if (value) field.setValue(value);
+                        if (value) {
+                          field.setValue(value);
+                        }
                       }}
                       disabled={!isUserOwner}
                     >
@@ -580,20 +592,23 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
                           slackIntegrationTeamId,
                         ]}
                         fetchChannels={async () => {
-                          if (!currentOrg?.id) return [];
+                          if (!currentOrg?.id) {
+                            return [];
+                          }
                           const result =
                             await fetchClient.mutate.integration.fetchSlackChannels(
                               {
                                 organizationId: currentOrg.id,
-                                ...(slackIntegrationTeamId != null
-                                  ? { teamId: slackIntegrationTeamId }
-                                  : {}),
-                              },
+                                ...(slackIntegrationTeamId === null ||
+                                slackIntegrationTeamId === undefined
+                                  ? {}
+                                  : { teamId: slackIntegrationTeamId }),
+                              }
                             );
                           return result.channels.map((c) => ({
                             id: c.id,
-                            name: c.name,
                             meta: { isPrivate: c.isPrivate },
+                            name: c.name,
                           }));
                         }}
                         value={field.state.value as ChannelOption | null}
@@ -601,7 +616,7 @@ function DigestSettingsForm({ org, currentOrg, isUserOwner }: OrgFormProps) {
                           field.setValue(
                             channel
                               ? { id: channel.id, name: channel.name }
-                              : null,
+                              : null
                           )
                         }
                       />

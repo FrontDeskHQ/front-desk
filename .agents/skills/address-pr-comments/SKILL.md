@@ -47,6 +47,7 @@ gh pr view {pr_number} --json reviewThreads --jq '.reviewThreads[] | select(.isR
 ```
 
 **Alternative using gh pr view:**
+
 ```bash
 gh pr view {pr_number} --json reviews,comments
 ```
@@ -58,6 +59,7 @@ gh pr view {pr_number} --json reviews,comments
 For each unresolved comment, determine if it's AI-actionable:
 
 ### AI-Actionable (implement these)
+
 - Code style fixes (formatting, naming)
 - Add/remove imports
 - Add error handling
@@ -71,6 +73,7 @@ For each unresolved comment, determine if it's AI-actionable:
 - Add null checks or guards
 
 ### Needs Human Decision (flag these)
+
 - Architectural changes
 - "Consider if..." suggestions (need decision)
 - Performance tradeoffs
@@ -80,6 +83,7 @@ For each unresolved comment, determine if it's AI-actionable:
 - Security-sensitive changes
 
 ### Ledger-Affecting
+
 - Scope or acceptance-criteria changes
 - New instructions for future sessions
 - Requested checklist additions or removals
@@ -167,6 +171,7 @@ For every comment you **acted on** (implemented or could not address): post a re
 Skip comments that need a human decision entirely — do not reply, do not resolve.
 
 What each reply should say:
+
 - **Implemented:** what you changed and the short commit hash that landed it (e.g. `Fixed in abc1234.`).
 - **Could not address:** the reason (e.g. code no longer exists). Reply, then resolve.
 - **Needs human decision:** no reply, no resolve — flag in the report only.
@@ -219,41 +224,49 @@ gh api graphql -f query='
 Provide a summary to the user:
 
 ### Addressed Comments
+
 | File | Line | Change Made |
-|------|------|-------------|
-| ... | ... | ... |
+| ---- | ---- | ----------- |
+| ...  | ...  | ...         |
 
 ### Needs Human Decision
-| File | Line | Comment | Why |
-|------|------|---------|-----|
-| ... | ... | ... | Requires architectural decision |
+
+| File | Line | Comment | Why                             |
+| ---- | ---- | ------- | ------------------------------- |
+| ...  | ...  | ...     | Requires architectural decision |
 
 ### Could Not Address
-| File | Line | Comment | Reason |
-|------|------|---------|--------|
-| ... | ... | ... | Code no longer exists |
+
+| File | Line | Comment | Reason                |
+| ---- | ---- | ------- | --------------------- |
+| ...  | ...  | ...     | Code no longer exists |
 
 ---
 
 ## Error Handling
 
 ### Comment references deleted code
+
 - Note in summary as "Could Not Address"
 - Reply explaining the code no longer exists, then resolve the thread
 
 ### Ambiguous suggestion
+
 - If the suggestion could be interpreted multiple ways, flag as "Needs Human Decision"
 - Do not reply or resolve — surface it in the report only
 
 ### Conflicting comments
+
 - If two comments suggest different approaches, flag both as "Needs Human Decision"
 - Do not reply or resolve either — surface them in the report only
 
 ### Failed to reply or resolve via API
+
 - Report the error but continue with other comments
 - User can manually reply/resolve in GitHub UI
 
 ### Failed to push
+
 - Report the error (e.g. auth, conflicts, protected branch)
 - Do not reply to comments claiming fixes are on the remote until the push succeeds
 - If rebase conflicts occur, stop and report — do not force-push unless the user explicitly requests it

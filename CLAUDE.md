@@ -98,6 +98,7 @@ User/Integration → API (Live-State) → PostgreSQL
 ### Real-Time Sync (Live-State)
 
 The API exports its router and schema types that are consumed by other apps:
+
 ```typescript
 // In web/worker apps
 import type { Router } from "api/router";
@@ -105,6 +106,7 @@ import { schema } from "api/schema";
 ```
 
 Live-State provides:
+
 - WebSocket sync between API and clients
 - One-time token authentication (via Better-Auth plugin)
 - Reactive queries with local IndexedDB storage
@@ -112,6 +114,7 @@ Live-State provides:
 ### Worker Pipeline
 
 Thread ingestion runs in 3 stages:
+
 1. **Pre-processor**: LLM summarization (Google Gemini) → extracts title, keywords, entities
 2. **Processor**: Generate embeddings → store in Qdrant
 3. **Post-processor**: Similarity search → store related threads as suggestions
@@ -137,6 +140,7 @@ Subdomain-based routing: `{org}.tryfrontdesk.app` rewrites to `/support/{org}/..
 ## Environment Setup
 
 Copy `apps/api/.env.local.example` to `apps/api/.env.local` and configure:
+
 - `DATABASE_URL` - PostgreSQL connection
 - `REDIS_URL` - Redis connection
 - `QDRANT_URL` - Vector database (hybrid search + thread similarity)

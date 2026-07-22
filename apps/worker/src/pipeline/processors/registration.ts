@@ -34,7 +34,7 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(synthesisProcessor);
 
   console.log(
-    `  Registered ${processorRegistry.getNames().length} processors:`,
+    `  Registered ${processorRegistry.getNames().length} processors:`
   );
   for (const name of processorRegistry.getNames()) {
     const processor = processorRegistry.get(name);

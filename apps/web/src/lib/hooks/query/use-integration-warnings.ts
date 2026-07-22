@@ -3,16 +3,17 @@ import { discordIntegrationSchema } from "@workspace/schemas/integration/discord
 import { githubIntegrationSchema } from "@workspace/schemas/integration/github";
 import { slackIntegrationSchema } from "@workspace/schemas/integration/slack";
 import { useAtomValue } from "jotai/react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
-export type IntegrationWarning = {
+export interface IntegrationWarning {
   type: "discord" | "slack" | "github";
   label: string;
   title: string;
   subtitle: string;
   settingsPath: string;
-};
+}
 
 export const useIntegrationWarnings = (): IntegrationWarning[] => {
   const activeOrg = useAtomValue(activeOrganizationAtom);
@@ -20,15 +21,19 @@ export const useIntegrationWarnings = (): IntegrationWarning[] => {
   const integrations = useLiveQuery(
     query.integration.where({
       organizationId: activeOrg?.id,
-    }),
+    })
   );
 
   const warnings: IntegrationWarning[] = [];
 
-  if (!integrations) return warnings;
+  if (!integrations) {
+    return warnings;
+  }
 
   for (const integration of integrations) {
-    if (!integration.enabled || !integration.configStr) continue;
+    if (!integration.enabled || !integration.configStr) {
+      continue;
+    }
 
     try {
       const config = JSON.parse(integration.configStr);
@@ -41,13 +46,11 @@ export const useIntegrationWarnings = (): IntegrationWarning[] => {
             parsed.data.selectedChannels.length === 0)
         ) {
           warnings.push({
-            type: "discord",
             label: "Discord",
+            settingsPath: "/app/settings/organization/integration/discord",
+            subtitle: "Add at least one channel for the integration to work.",
             title: "No support channels configured.",
-            subtitle:
-              "Add at least one channel for the integration to work.",
-            settingsPath:
-              "/app/settings/organization/integration/discord",
+            type: "discord",
           });
         }
       }
@@ -60,13 +63,11 @@ export const useIntegrationWarnings = (): IntegrationWarning[] => {
             parsed.data.selectedChannels.length === 0)
         ) {
           warnings.push({
-            type: "slack",
             label: "Slack",
+            settingsPath: "/app/settings/organization/integration/slack",
+            subtitle: "Add at least one channel for the integration to work.",
             title: "No support channels configured.",
-            subtitle:
-              "Add at least one channel for the integration to work.",
-            settingsPath:
-              "/app/settings/organization/integration/slack",
+            type: "slack",
           });
         }
       }
@@ -78,13 +79,12 @@ export const useIntegrationWarnings = (): IntegrationWarning[] => {
           (!parsed.data.repos || parsed.data.repos.length === 0)
         ) {
           warnings.push({
-            type: "github",
             label: "GitHub",
-            title: "No repositories connected.",
+            settingsPath: "/app/settings/organization/integration/github",
             subtitle:
               "Connect at least one repository for the integration to work.",
-            settingsPath:
-              "/app/settings/organization/integration/github",
+            title: "No repositories connected.",
+            type: "github",
           });
         }
       }

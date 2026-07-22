@@ -1,5 +1,6 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
+
 import { pickRelatedDocs } from "../find";
 import { relatedDocsDataset } from "./dataset";
 import { relatedDocsRanking } from "./scorers";
@@ -10,6 +11,7 @@ evalite("Related Docs Hint", {
       input: c.input,
       expected: c.expected,
     })),
+  scorers: [relatedDocsRanking],
   task: async (input) => {
     const start = Date.now();
     const result = pickRelatedDocs(input.hits, { limit: input.limit });
@@ -28,5 +30,4 @@ evalite("Related Docs Hint", {
     });
     return result;
   },
-  scorers: [relatedDocsRanking],
 });

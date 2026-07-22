@@ -1,6 +1,7 @@
 import type { ReplyAction } from "@workspace/schemas/signals";
 import { parse } from "@workspace/utils/md-tiptap";
 import { ulid } from "ulid";
+
 import type { ActionHandler } from "../types";
 
 export const replyHandler: ActionHandler<ReplyAction> = {
@@ -21,8 +22,8 @@ export const replyHandler: ActionHandler<ReplyAction> = {
 
     const existingAuthor = await ctx.db.author
       .first({
-        userId: ctx.actorUserId,
         organizationId: ctx.organizationId,
+        userId: ctx.actorUserId,
       })
       .get();
 
@@ -31,23 +32,23 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       authorId = ulid().toLowerCase();
       await ctx.db.author.insert({
         id: authorId,
-        userId: ctx.actorUserId,
         metaId: null,
         name: ctx.actorUserName,
         organizationId: ctx.organizationId,
+        userId: ctx.actorUserId,
       });
     }
 
     const content = JSON.stringify(parse(draft));
 
     await ctx.db.message.insert({
-      id: ulid().toLowerCase(),
       authorId,
       content,
-      threadId: ctx.threadId,
       createdAt: new Date(),
-      origin: "agent_read",
       externalMessageId: null,
+      id: ulid().toLowerCase(),
+      origin: "agent_read",
+      threadId: ctx.threadId,
     });
   },
 };

@@ -1,4 +1,6 @@
-import { type Action, isReversible } from "@workspace/schemas/signals";
+import { isReversible } from "@workspace/schemas/signals";
+import type { Action } from "@workspace/schemas/signals";
+
 import type {
   ActionHandlerRegistry,
   ExecutionContext,
@@ -17,14 +19,14 @@ const partitionBundle = (bundle: Action[]) => {
     }
   }
 
-  return { reversibles, nonReversibles };
+  return { nonReversibles, reversibles };
 };
 
 const runSequential = async (
   actions: Action[],
   registry: ActionHandlerRegistry,
   ctx: ExecutionContext,
-  phase: "reversible" | "non-reversible",
+  phase: "reversible" | "non-reversible"
 ): Promise<ExecutionResult> => {
   const succeeded: Action[] = [];
   const appliedReversibles: Action[] = [];
@@ -40,7 +42,7 @@ const runSequential = async (
     } catch (error) {
       if (phase === "reversible") {
         const rolledBack: Action[] = [];
-        for (const applied of [...appliedReversibles].reverse()) {
+        for (const applied of [...appliedReversibles].toReversed()) {
           const rollbackHandler = registry[applied.kind];
           if (rollbackHandler.compensate) {
             try {
@@ -49,7 +51,7 @@ const runSequential = async (
             } catch (compensateError) {
               console.error(
                 `Compensation failed for ${applied.kind} on thread ${ctx.threadId}:`,
-                compensateError,
+                compensateError
               );
             }
           }
@@ -59,27 +61,27 @@ const runSequential = async (
         // as succeeded — otherwise the retry read keeps them and replays their
         // side effects.
         const stillApplied = appliedReversibles.filter(
-          (applied) => !rolledBack.includes(applied),
+          (applied) => !rolledBack.includes(applied)
         );
         return {
-          succeeded: stillApplied,
           failed: { action, error },
           rolledBack,
+          succeeded: stillApplied,
         };
       }
 
       return {
-        succeeded,
         failed: { action, error },
         rolledBack: [],
+        succeeded,
       };
     }
   }
 
   return {
-    succeeded,
     failed: null,
     rolledBack: [],
+    succeeded,
   };
 };
 
@@ -99,10 +101,10 @@ const assertBundleApplicable = (bundle: Action[]): void => {
 export const executeBundle = async (
   bundle: Action[],
   registry: ActionHandlerRegistry,
-  ctx: ExecutionContext,
+  ctx: ExecutionContext
 ): Promise<ExecutionResult> => {
   if (bundle.length === 0) {
-    return { succeeded: [], failed: null, rolledBack: [] };
+    return { failed: null, rolledBack: [], succeeded: [] };
   }
 
   assertBundleApplicable(bundle);
@@ -113,7 +115,7 @@ export const executeBundle = async (
     reversibles,
     registry,
     ctx,
-    "reversible",
+    "reversible"
   );
   if (reversibleResult.failed) {
     return reversibleResult;
@@ -123,15 +125,15 @@ export const executeBundle = async (
     nonReversibles,
     registry,
     ctx,
-    "non-reversible",
+    "non-reversible"
   );
 
   return {
+    failed: nonReversibleResult.failed,
+    rolledBack: nonReversibleResult.rolledBack,
     succeeded: [
       ...reversibleResult.succeeded,
       ...nonReversibleResult.succeeded,
     ],
-    failed: nonReversibleResult.failed,
-    rolledBack: nonReversibleResult.rolledBack,
   };
 };

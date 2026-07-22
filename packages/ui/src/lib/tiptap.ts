@@ -1,6 +1,8 @@
 import DefaultHeading from "@tiptap/extension-heading";
-import { type Editor, Extension, type JSONContent } from "@tiptap/react";
+import { Extension } from "@tiptap/react";
+import type { Editor, JSONContent } from "@tiptap/react";
 import { StarterKit as DefaultStarterKit } from "@tiptap/starter-kit";
+
 import { LinkExtension } from "../components/blocks/tiptap-link";
 
 export const StarterKit = DefaultStarterKit.configure({
@@ -20,7 +22,9 @@ export const EditorExtensions = [
 export const KeyBinds = Extension.create<{
   keybinds: Record<string, (props: { editor: Editor }) => boolean>;
 }>({
-  name: "textAlign",
+  addKeyboardShortcuts() {
+    return this.options.keybinds;
+  },
 
   addOptions() {
     return {
@@ -28,9 +32,7 @@ export const KeyBinds = Extension.create<{
     };
   },
 
-  addKeyboardShortcuts() {
-    return this.options.keybinds;
-  },
+  name: "textAlign",
 });
 
 /** @deprecated Use getFirstTextContent from @workspace/utils instead */
@@ -43,7 +45,9 @@ export function getFirstTextContent(
 
   if (Array.isArray(content)) {
     const first = content[0];
-    if (!first) return "";
+    if (!first) {
+      return "";
+    }
 
     const text = getFirstTextContent(first);
 
@@ -70,7 +74,9 @@ export function getFirstTextContent(
 export const safeParseJSON = (raw: string) => {
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) {
+      return parsed;
+    }
     if (parsed && typeof parsed === "object" && "content" in parsed) {
       return (parsed as { content: JSONContent[] }).content ?? [];
     }
@@ -78,8 +84,8 @@ export const safeParseJSON = (raw: string) => {
 
   return [
     {
-      type: "paragraph",
       content: [{ type: "text", text: String(raw) }],
+      type: "paragraph",
     },
   ];
 };

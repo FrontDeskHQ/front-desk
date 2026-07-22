@@ -6,6 +6,7 @@ import type {
 } from "@workspace/schemas/signals";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
+
 import "../env";
 
 // TEMP: Worker service stopped on Railway — re-enable in prod when worker is
@@ -23,7 +24,9 @@ const PR_INDEX_JOB_NAME = "index-pr";
 
 const DEFAULT_DEBOUNCE_MS = (() => {
   const raw = process.env.THREAD_READ_DEBOUNCE_MS;
-  if (!raw) return 2000;
+  if (!raw) {
+    return 2000;
+  }
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 2000;
 })();
@@ -32,14 +35,14 @@ export type ThreadReadJobPriority = "high" | "normal" | "low";
 
 const THREAD_READ_PRIORITY_VALUES: Record<ThreadReadJobPriority, number> = {
   high: 1,
-  normal: 10,
   low: 100,
+  normal: 10,
 };
 
-export type EnqueueThreadReadOptions = {
+export interface EnqueueThreadReadOptions {
   priority?: ThreadReadJobPriority;
   delayMs?: number;
-};
+}
 
 let connection: Redis | null = null;
 let queue: Queue<ThreadReadJobData> | null = null;
@@ -99,7 +102,7 @@ export const enqueueThreadRead = async (
     kind: ThreadReadKind;
     /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
     prMatched?: PrMatchCandidate;
-  } & EnqueueThreadReadOptions,
+  } & EnqueueThreadReadOptions
 ): Promise<string | null> => {
   if (WORKER_JOBS_DISABLED) {
     return null;
@@ -118,8 +121,8 @@ export const enqueueThreadRead = async (
   // it falls through to the normal-dedup path so the surface compiles.
   const jobId = `thread:${threadId}:read`;
   const data: ThreadReadJobData = {
-    threadId,
     kind: opts.kind,
+    threadId,
     ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
   };
 
@@ -132,8 +135,8 @@ export const enqueueThreadRead = async (
       // payload a prior `pr_matched` trigger pushed: keep the existing candidate
       // when this enqueue carries none, so both surfaces reach synthesis.
       const merged: ThreadReadJobData = {
-        threadId,
         kind: opts.kind,
+        threadId,
         ...((opts.prMatched ?? existing.data.prMatched)
           ? { prMatched: opts.prMatched ?? existing.data.prMatched }
           : {}),
@@ -144,8 +147,8 @@ export const enqueueThreadRead = async (
   }
 
   const job = await q.add(THREAD_READ_JOB_NAME, data, {
-    jobId,
     delay,
+    jobId,
     priority,
   });
 
@@ -154,11 +157,11 @@ export const enqueueThreadRead = async (
 
 // Crawl Documentation Queue
 
-export type CrawlDocumentationJobData = {
+export interface CrawlDocumentationJobData {
   documentationSourceId: string;
   organizationId: string;
   baseUrl: string;
-};
+}
 
 let crawlDocQueue: Queue<CrawlDocumentationJobData> | null = null;
 
@@ -178,26 +181,26 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
       connection,
       defaultJobOptions: {
         attempts: 3,
-        backoff: { type: "exponential", delay: 5000 },
+        backoff: { delay: 5000, type: "exponential" },
       },
-    },
+    }
   );
   return crawlDocQueue;
 };
 
 export const enqueueCrawlDocumentation = async (
-  data: CrawlDocumentationJobData,
+  data: CrawlDocumentationJobData
 ): Promise<string | null> => {
   if (WORKER_JOBS_DISABLED) {
     return null;
   }
 
-  const queue = getCrawlDocQueue();
-  if (!queue) {
+  const crawlQueue = getCrawlDocQueue();
+  if (!crawlQueue) {
     return null;
   }
 
-  const job = await queue.add("crawl-documentation", data, {
+  const job = await crawlQueue.add("crawl-documentation", data, {
     jobId: `crawl-${data.documentationSourceId}`,
   });
 
@@ -228,14 +231,14 @@ const getPrIndexQueue = (): Queue<PrIndexJobData> | null => {
     connection,
     defaultJobOptions: {
       attempts: 3,
-      backoff: { type: "exponential", delay: 5000 },
+      backoff: { delay: 5000, type: "exponential" },
     },
   });
   return prIndexQueue;
 };
 
 export const enqueuePrIndex = async (
-  data: PrIndexJobData,
+  data: PrIndexJobData
 ): Promise<string | null> => {
   if (WORKER_JOBS_DISABLED) {
     return null;
@@ -263,7 +266,7 @@ export const enqueuePrIndex = async (
 
   const job = await q.add(PR_INDEX_JOB_NAME, data, {
     jobId,
-    removeOnComplete: { count: 100, age: 24 * 3600 },
+    removeOnComplete: { age: 24 * 3600, count: 100 },
     removeOnFail: { count: 500 },
   });
 
@@ -281,13 +284,13 @@ export const enqueuePrIndex = async (
 const GITHUB_BACKFILL_QUEUE = "github-backfill";
 const GITHUB_BACKFILL_JOB_NAME = "backfill-repo";
 
-export type GithubBackfillJobData = {
+export interface GithubBackfillJobData {
   organizationId: string;
   installationId: number;
   owner: string;
   repo: string;
   fullName: string;
-};
+}
 
 let githubBackfillQueue: Queue<GithubBackfillJobData> | null = null;
 
@@ -305,7 +308,7 @@ const getGithubBackfillQueue = (): Queue<GithubBackfillJobData> | null => {
     GITHUB_BACKFILL_QUEUE,
     {
       connection,
-    },
+    }
   );
   return githubBackfillQueue;
 };
@@ -317,10 +320,10 @@ const getGithubBackfillQueue = (): Queue<GithubBackfillJobData> | null => {
  * (upsert-by-externalKey), so re-running only refreshes existing rows.
  */
 export const enqueueGithubBackfill = async (
-  data: GithubBackfillJobData,
+  data: GithubBackfillJobData
 ): Promise<string | null> => {
-  const queue = getGithubBackfillQueue();
-  if (!queue) {
+  const backfillQueue = getGithubBackfillQueue();
+  if (!backfillQueue) {
     return null;
   }
 
@@ -328,11 +331,11 @@ export const enqueueGithubBackfill = async (
   // stays injective (e.g. `a_b/c` and `a/b_c` map to distinct ids).
   const safeFullName = data.fullName.replaceAll("_", "__").replace("/", "_");
   const jobId = `backfill_${data.organizationId}_${safeFullName}`;
-  const job = await queue.add(GITHUB_BACKFILL_JOB_NAME, data, {
-    jobId,
+  const job = await backfillQueue.add(GITHUB_BACKFILL_JOB_NAME, data, {
     attempts: 3,
-    backoff: { type: "exponential", delay: 10_000 },
-    removeOnComplete: { count: 50, age: 24 * 3600 },
+    backoff: { delay: 10_000, type: "exponential" },
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 50 },
     removeOnFail: { count: 200 },
   });
 
