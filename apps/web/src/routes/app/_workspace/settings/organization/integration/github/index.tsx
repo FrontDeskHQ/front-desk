@@ -90,6 +90,25 @@ function RouteComponent() {
       return;
     }
 
+    // Reconnect: the GitHub App is still installed (we have its installationId
+    // from a previous setup), so re-enable silently instead of sending the user
+    // back through GitHub — where an already-installed app lands them on GitHub's
+    // configure page rather than the first-time install flow.
+    if (integration && parsedConfig?.data?.installationId) {
+      await fetchClient.mutate.integration.updateInstallation({
+        enabled: true,
+        integrationId: integration.id,
+        updatedAt: new Date(),
+      });
+
+      posthog?.capture("integration_enable", {
+        integration_type: "github",
+        reconnect: true,
+      });
+
+      return;
+    }
+
     const csrfToken = generateStateToken();
 
     if (integration) {
