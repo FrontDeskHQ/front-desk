@@ -35,12 +35,10 @@ export const Route = createFileRoute(
   }),
 });
 
+// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
   (option) => option.id === "github"
-);
-if (!integrationDetails) {
-  throw new Error("GitHub integration option not found");
-}
+)!;
 
 const generateStateToken = (): string => {
   const array = new Uint8Array(32);

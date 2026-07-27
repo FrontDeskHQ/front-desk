@@ -43,7 +43,7 @@ import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
 
-const RESERVED_ORG_SLUGS: readonly string[] = new Set([
+const RESERVED_ORG_SLUGS: ReadonlySet<string> = new Set([
   "support",
   "help",
   "status",

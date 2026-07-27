@@ -44,25 +44,12 @@ type SupportThreadMessage = InferLiveObject<
   typeof schema.message,
   { author: true }
 >;
-type SupportThreadUpdate = InferLiveObject<typeof schema.update>;
+type SupportThreadUpdate = InferLiveObject<typeof schema.update, { user: true }>;
 type TimelineMessageItem = SupportThreadMessage & { itemType: "message" };
 type TimelineUpdateItem = SupportThreadUpdate & { itemType: "update" };
 
 export const Route = createFileRoute("/support/$slug/threads/$id")({
   component: RouteComponent,
-
-  head: ({ loaderData }) => {
-    const orgName = loaderData?.headData?.organizationName ?? "Support";
-    const threadName = loaderData?.headData?.threadName ?? "Thread";
-    return {
-      meta: [
-        ...seo({
-          title: `${threadName} - ${orgName} - Support`,
-          description: `Support thread: ${threadName}`,
-        }),
-      ],
-    };
-  },
 
   loader: async ({ params, context }) => {
     const parsed = parseThreadParam(params.id);
@@ -85,6 +72,19 @@ export const Route = createFileRoute("/support/$slug/threads/$id")({
         organizationName: context.organization.name,
         threadName: thread.name,
       },
+    };
+  },
+
+  head: ({ loaderData }) => {
+    const orgName = loaderData?.headData?.organizationName ?? "Support";
+    const threadName = loaderData?.headData?.threadName ?? "Thread";
+    return {
+      meta: [
+        ...seo({
+          title: `${threadName} - ${orgName} - Support`,
+          description: `Support thread: ${threadName}`,
+        }),
+      ],
     };
   },
 });

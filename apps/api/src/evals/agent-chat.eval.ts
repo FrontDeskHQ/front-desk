@@ -13,12 +13,13 @@ import {
   formatThreadMetadata,
 } from "../live-state/router/agent-chat-core";
 
-// Configure autoevals to use Gemini via Google's OpenAI-compatible endpoint
+// Configure autoevals to use Gemini via Google's OpenAI-compatible endpoint.
+// Cast through `never` — autoevals may resolve a different openai package instance.
 init({
   client: new OpenAI({
     apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
     baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
-  }) as unknown as OpenAI,
+  }) as never,
   defaultModel: "gemini-2.5-flash",
 });
 import {

@@ -69,8 +69,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
     const now = Date.now();
     const rows = [];
     for (let i = 0; i < req.input.count; i++) {
-      const actionKind =
-        kinds[Math.floor(Math.random() * kinds.length)] ?? kinds[0];
+      const actionKind = kinds[Math.floor(Math.random() * kinds.length)]!;
       const appliedAt = new Date(
         now - Math.floor(Math.random() * 24 * 60 * 60 * 1000)
       );

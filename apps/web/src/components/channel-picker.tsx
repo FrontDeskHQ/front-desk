@@ -176,7 +176,7 @@ export function ChannelPicker(props: Props) {
   );
 
   const formatItemsLabel = (item: Item | Item[] | null) => {
-    if ((item ?? null) === null) {
+    if (item == null) {
       return "";
     }
     if (Array.isArray(item)) {

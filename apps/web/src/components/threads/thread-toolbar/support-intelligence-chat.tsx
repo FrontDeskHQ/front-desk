@@ -876,7 +876,7 @@ export const SupportIntelligenceChat = ({
           >
             <DraftEditor
               chatId={agentChat.id}
-              draft={agentChat.draft}
+              draft={agentChat.draft!}
               onAccept={handleAcceptDraft}
               onDismiss={handleDismissDraft}
             />

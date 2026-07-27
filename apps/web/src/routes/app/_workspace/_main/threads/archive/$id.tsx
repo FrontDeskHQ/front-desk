@@ -50,6 +50,15 @@ export const Route = createFileRoute(
   "/app/_workspace/_main/threads/archive/$id"
 )({
   component: RouteComponent,
+  loader: async ({ params }) => {
+    const { id } = params;
+    const thread = await fetchClient.query.thread.detail({
+      id,
+      onlyDeleted: true,
+      deletedBefore: add(new Date(), { days: DAYS_UNTIL_DELETION }),
+    });
+    return { thread };
+  },
   head: ({ loaderData }) => {
     const thread = loaderData?.thread;
     const threadName = thread?.name ?? "Thread";
@@ -61,15 +70,6 @@ export const Route = createFileRoute(
         }),
       ],
     };
-  },
-  loader: async ({ params }) => {
-    const { id } = params;
-    const thread = await fetchClient.query.thread.detail({
-      id,
-      onlyDeleted: true,
-      deletedBefore: add(new Date(), { days: DAYS_UNTIL_DELETION }),
-    });
-    return { thread };
   },
 });
 

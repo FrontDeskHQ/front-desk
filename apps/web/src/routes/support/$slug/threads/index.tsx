@@ -43,17 +43,13 @@ const searchParams = {
 export const Route = createFileRoute("/support/$slug/threads/")({
   component: RouteComponent,
 
-  head: ({ loaderData }) => {
-    const orgName = loaderData?.organizationName ?? "Support";
-    return {
-      meta: [
-        ...seo({
-          title: `${orgName} - Support`,
-          description: `Support threads for ${orgName}`,
-        }),
-      ],
-    };
-  },
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
+  }),
+
+  loaderDeps: ({ search }) => ({
+    dir: search.dir ?? ("desc" as const),
+  }),
 
   loader: async ({ context, deps }) => {
     const { organization } = context;
@@ -71,13 +67,17 @@ export const Route = createFileRoute("/support/$slug/threads/")({
     };
   },
 
-  loaderDeps: ({ search }) => ({
-    dir: search.dir ?? ("desc" as const),
-  }),
-
-  validateSearch: createStandardSchemaV1(searchParams, {
-    partialOutput: true,
-  }),
+  head: ({ loaderData }) => {
+    const orgName = loaderData?.organizationName ?? "Support";
+    return {
+      meta: [
+        ...seo({
+          title: `${orgName} - Support`,
+          description: `Support threads for ${orgName}`,
+        }),
+      ],
+    };
+  },
 });
 
 function RouteComponent() {

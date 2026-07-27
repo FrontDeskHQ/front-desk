@@ -99,7 +99,7 @@ const timezoneItems: BaseItem[] = Intl.supportedValuesOf("timeZone")
   .map((tz) => {
     const segments = tz.split("/");
     const region = segments[0];
-    const city = segments.at(-1).replaceAll(/_/g, " ");
+    const city = (segments.at(-1) ?? "").replaceAll(/_/g, " ");
     const { label: offset, minutes } = getTimezoneOffset(tz);
     return {
       value: tz,

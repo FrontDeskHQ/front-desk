@@ -328,7 +328,7 @@ function RichMarkdownAnchor({
 }
 
 const defaultMarkdownComponents: Components = {
-  a: RichMarkdownAnchor,
+  a: (props) => <RichMarkdownAnchor {...props} />,
 };
 
 function RichMarkdownLink({

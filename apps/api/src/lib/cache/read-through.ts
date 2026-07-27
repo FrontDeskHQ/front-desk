@@ -187,7 +187,9 @@ export class ReadThroughCache<I, O> {
    * Get multiple values at once
    */
   async getMany(inputs: I[]): Promise<(O | undefined)[]> {
-    return Promise.all(inputs.map((input) => this.get(input).catch(() => {})));
+    return Promise.all(
+      inputs.map((input) => this.get(input).catch(() => undefined))
+    );
   }
 
   /**

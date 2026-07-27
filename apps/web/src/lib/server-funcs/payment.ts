@@ -11,7 +11,10 @@ type OrganizationUserWithBilling = Awaited<
 
 const getOrganizationSubscription = (
   organizationUser: OrganizationUserWithBilling
-) => organizationUser.organization?.subscriptions?.[0];
+  // `organization` types to `never` here because `forUser`'s include is
+  // conditional on `withSubscriptions`; cast through `any` like the
+  // pre-oxlint code did.
+) => (organizationUser as any).organization?.subscriptions?.[0];
 
 const authorizeOrganizationUser = async (customerId: string) => {
   const sessionData = await getAuthUser();

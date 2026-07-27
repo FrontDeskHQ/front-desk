@@ -137,8 +137,10 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
 
         for (let i = 0; i < sorted.length; i++) {
           const message = sorted[i];
+          if (!message) continue;
+
           const plainText = jsonContentToPlainText(
-            safeParseJSON(message?.content ?? "")
+            safeParseJSON(message.content ?? "")
           );
 
           if (!plainText || plainText.trim().length === 0) {

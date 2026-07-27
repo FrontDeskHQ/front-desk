@@ -64,7 +64,7 @@ import {
 } from "~/utils/thread";
 
 type ThreadMessage = InferLiveObject<typeof schema.message, { author: true }>;
-type ThreadUpdate = InferLiveObject<typeof schema.update>;
+type ThreadUpdate = InferLiveObject<typeof schema.update, { user: true }>;
 type TimelineMessageItem = ThreadMessage & { itemType: "message" };
 type TimelineUpdateItem = ThreadUpdate & { itemType: "update" };
 

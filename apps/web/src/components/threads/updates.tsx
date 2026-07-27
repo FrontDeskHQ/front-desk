@@ -158,7 +158,8 @@ export function Update({
   user?: { id: string; name: string };
   connectTop?: boolean;
 }) {
-  let metadata: Record<string, unknown> | null = null;
+  // biome-ignore lint/suspicious/noExplicitAny: metadata shape varies by update type
+  let metadata: any = null;
   if (update.metadataStr) {
     try {
       metadata = JSON.parse(update.metadataStr);

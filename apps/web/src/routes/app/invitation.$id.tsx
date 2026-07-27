@@ -15,6 +15,14 @@ import { seo } from "~/utils/seo";
 
 export const Route = createFileRoute("/app/invitation/$id")({
   component: RouteComponent,
+  loader: async ({ params }) => {
+    return await getInvitation({ data: { id: params.id } })
+      .then((data) => ({ data, error: null }))
+      .catch((error) => ({
+        error: error.message as string,
+        data: null,
+      }));
+  },
   head: ({ loaderData }) => {
     const orgName = loaderData?.data?.organization?.name ?? "Organization";
     return {
@@ -25,14 +33,6 @@ export const Route = createFileRoute("/app/invitation/$id")({
         }),
       ],
     };
-  },
-  loader: async ({ params }) => {
-    return await getInvitation({ data: { id: params.id } })
-      .then((data) => ({ data, error: null }))
-      .catch((error) => ({
-        error: error.message as string,
-        data: null,
-      }));
   },
 });
 
