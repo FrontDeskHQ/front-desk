@@ -6,6 +6,7 @@ import { startReconcileWorker } from "./jobs/reconcile";
 import { app as githubApp } from "./lib/github";
 import {
   capabilitiesRoutes,
+  connectionProbeRoutes,
   issuesRoutes,
   pullRequestsRoutes,
   setupRoutes,
@@ -19,6 +20,7 @@ startReconcileWorker();
 
 const app = new Elysia()
   .use(capabilitiesRoutes)
+  .use(connectionProbeRoutes)
   .use(issuesRoutes)
   .use(pullRequestsRoutes)
   .use(setupRoutes)

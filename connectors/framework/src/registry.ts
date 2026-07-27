@@ -2,6 +2,7 @@ import type { Capability } from "./capabilities";
 import { CAPABILITY_INVOKE_PATH } from "./invoke";
 import { manifests as defaultManifests } from "./manifest";
 import type { ConnectorManifest } from "./manifest";
+import { CONNECTION_PROBE_PATH } from "./probe";
 
 /** A manifest with its resolved host location. */
 export interface RegistryEntry {
@@ -9,6 +10,11 @@ export interface RegistryEntry {
   baseUrl: string;
   /** Fully-resolved URL to POST invoke envelopes to. */
   invokeUrl: string;
+  /**
+   * Fully-resolved URL to POST connection probes to. Only meaningful when
+   * `manifest.supportsConnectionProbe` is true.
+   */
+  probeUrl: string;
 }
 
 export interface ConnectorRegistry {
@@ -52,6 +58,7 @@ export function buildRegistry(
       baseUrl,
       invokeUrl: `${baseUrl}${CAPABILITY_INVOKE_PATH}`,
       manifest,
+      probeUrl: `${baseUrl}${CONNECTION_PROBE_PATH}`,
     });
   }
 

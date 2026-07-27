@@ -72,7 +72,15 @@ A role a [connector](#connector) can play, expressed as a typed interface (a bun
 
 ### Integration
 
-One org's installed, configured instance of a [connector](#connector). A row in the `integration` table (`type`, `enabled`, `configStr`), scoped by `organizationId`. "Integration" is the _installed connection_, not the code that powers it (that is the [connector](#connector)) and not the role it plays (that is a [capability](#capability)).
+One org's installed, configured instance of a [connector](#connector). A row in the `integration` table (`type`, `enabled`, `configStr`), scoped by `organizationId`. "Integration" is the _installed connection_, not the code that powers it (that is the [connector](#connector)) and not the role it plays (that is a [capability](#capability)). Distinct from the [external install](#external-install): `enabled` here is FrontDesk's local switch, not whether the install still exists on the other system.
+
+### External install
+
+The counterpart of an [integration](#integration) on the external system — the GitHub App installation, Slack workspace install, Discord bot membership, etc. FrontDesk does not own it; the external system does. An integration may be `enabled: false` while its external install still exists, or `enabled: true` after the external install has been removed (stale). _Avoid_: calling this "the integration" or saying "integration enabled" when the external side is meant.
+
+### External install liveness
+
+Whether an [integration](#integration)'s [external install](#external-install) still exists and is reachable on the other system. Orthogonal to FrontDesk's `integration.enabled` flag and to any [capability](#capability) the connector provides — it is a property of the install itself, not of issue tracking, notifications, or support entry. The probe answers existence/reachability only (e.g. GitHub: installation still present); it does not validate repository access or broader install usability.
 
 ### Thread
 

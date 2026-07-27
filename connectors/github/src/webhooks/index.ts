@@ -9,7 +9,12 @@ import type { ExternalEntityFields } from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
 import { enqueuePrMatch } from "../lib/queue";
-import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
+import {
+  STATUS_CLOSED,
+  STATUS_OPEN,
+  STATUS_RESOLVED,
+  sanitizeGithubInstallConfig,
+} from "../utils";
 
 /**
  * Pull-request actions that warrant a push-side thread match (FRO-205): the PR
@@ -26,14 +31,12 @@ const PR_MATCH_ACTIONS = new Set([
 ]);
 
 /**
- * Resolve the FrontDesk organization that owns a GitHub installation by
- * matching the `installationId` persisted in the github integration config
+ * Resolve the FrontDesk github integration that owns a GitHub installation by
+ * matching the `installationId` persisted in the integration config
  * (see `routes/setup.ts`). Integrations are loaded into the live-state store,
  * so this is an in-memory lookup.
  */
-const resolveOrganizationId = (
-  installationId: number | undefined
-): string | null => {
+const findGithubIntegration = (installationId: number | undefined) => {
   if (!installationId) {
     return null;
   }
@@ -47,7 +50,7 @@ const resolveOrganizationId = (
     try {
       const config = JSON.parse(integration.configStr);
       if (config.installationId === installationId) {
-        return integration.organizationId;
+        return integration;
       }
     } catch {
       // Ignore malformed config; other integrations may still match.
@@ -56,6 +59,14 @@ const resolveOrganizationId = (
 
   return null;
 };
+
+/**
+ * Resolve the FrontDesk organization that owns a GitHub installation.
+ */
+const resolveOrganizationId = (
+  installationId: number | undefined
+): string | null =>
+  findGithubIntegration(installationId)?.organizationId ?? null;
 
 /**
  * Read the installation id from a webhook payload. Typed loosely because the
@@ -133,6 +144,61 @@ const repoRefFromWebhook = (repository: {
 });
 
 export const setupWebhooks = () => {
+  // Complementary to the connection probe (ADR-0010): when the GitHub App is
+  // uninstalled, clear install identity immediately so a later Enable can't
+  // silent-reenable a dead installationId. Probe still covers missed deliveries.
+  app.webhooks.on("installation.deleted", async ({ payload }) => {
+    try {
+      const installationId = payload.installation.id;
+      const integration = findGithubIntegration(installationId);
+
+      if (!integration) {
+        console.warn(
+          `[GitHub] No integration for deleted installation ${installationId}, skipping`
+        );
+        return;
+      }
+
+      // Authoritative re-read before write: a delayed delivery must not wipe a
+      // newer install identity that replaced this one while the handler was queued.
+      const latest = await fetchClient.query.integration.byId({
+        id: integration.id,
+      });
+      if (!latest) {
+        return;
+      }
+
+      let raw: Record<string, unknown> = {};
+      if (latest.configStr) {
+        try {
+          raw = JSON.parse(latest.configStr) as Record<string, unknown>;
+        } catch {
+          raw = {};
+        }
+      }
+
+      if (raw.installationId !== installationId) {
+        console.warn(
+          `[GitHub] Skipping installation.deleted cleanup for ${installationId}: stored install identity no longer matches`
+        );
+        return;
+      }
+
+      await fetchClient.mutate.integration.updateInstallation({
+        configStr: JSON.stringify(sanitizeGithubInstallConfig(raw)),
+        enabled: false,
+        integrationId: latest.id,
+        updatedAt: new Date(),
+      });
+
+      console.log(
+        `[GitHub] Cleared install identity for integration ${latest.id} after installation.deleted`
+      );
+    } catch (error) {
+      console.error("[GitHub] Error handling installation.deleted:", error);
+    }
+  });
+
   // Keep the mirror current on every issue-mutating event. `deleted` and
   // `transferred` (transfer-out) soft-delete the source row; `closed` resolves
   // linked threads as a reaction to the mirror change.

@@ -1,7 +1,12 @@
+import { probeConnection } from "@connectors/framework";
 import { ulid } from "ulid";
 import { z } from "zod";
 
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
+import {
+  connectorInvokeSecret,
+  connectorRegistry,
+} from "../../lib/connector-registry";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import { slackChannelsCache } from "./slack-channels";
@@ -30,6 +35,10 @@ const updateInstallationInputSchema = z
     },
     { message: "NO_FIELDS_TO_UPDATE" }
   );
+
+const reenableInputSchema = z.object({
+  integrationId: z.string(),
+});
 
 export default privateRoute.withProcedures(({ mutation, query }) => ({
   // --- Reads ---------------------------------------------------------------
@@ -148,6 +157,77 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       });
     }
   ),
+
+  /**
+   * Re-enable a disabled integration after checking external install liveness
+   * (ADR-0010). Opt-in per connector manifest (`supportsConnectionProbe`):
+   * - `live: true` → set `enabled: true` only (no metadata refresh)
+   * - `live: false` → write suggested sanitized `configStr` (when present) and
+   *   return `needs_connect`
+   * - transport/unknown failure → throw (fail soft: no enable, no clear)
+   * - connector has not opted in → `needs_connect` (never silent-enable)
+   */
+  reenable: mutation(reenableInputSchema).handler(async ({ req, db }) => {
+    const integration = await db.integration
+      .one(req.input.integrationId)
+      .get();
+    if (!integration) {
+      throw new Error("INTEGRATION_NOT_FOUND");
+    }
+
+    authorize(req, {
+      organizationId: integration.organizationId,
+      role: "owner",
+    });
+
+    const entry = connectorRegistry.getByType(integration.type);
+    if (!entry?.manifest.supportsConnectionProbe) {
+      return { outcome: "needs_connect" as const };
+    }
+
+    const probedConfigStr = integration.configStr;
+    const probeResult = await probeConnection(
+      entry.probeUrl,
+      { config: probedConfigStr },
+      { secret: connectorInvokeSecret }
+    );
+
+    // Probe is a network round-trip — reconnect/setup or uninstall clearing may
+    // have rewritten config (or flipped enabled) while we were waiting. Do not
+    // apply a stale probe result over a newer install identity.
+    const current = await db.integration.one(integration.id).get();
+    if (!current) {
+      throw new Error("INTEGRATION_NOT_FOUND");
+    }
+    if (current.configStr !== probedConfigStr) {
+      return {
+        outcome: current.enabled
+          ? ("enabled" as const)
+          : ("needs_connect" as const),
+      };
+    }
+    if (current.enabled) {
+      return { outcome: "enabled" as const };
+    }
+
+    const now = new Date();
+
+    if (probeResult.live) {
+      await db.update(schema.integration, integration.id, {
+        enabled: true,
+        updatedAt: now,
+      });
+      return { outcome: "enabled" as const };
+    }
+
+    await db.update(schema.integration, integration.id, {
+      ...(probeResult.configStr === undefined
+        ? {}
+        : { configStr: probeResult.configStr }),
+      updatedAt: now,
+    });
+    return { outcome: "needs_connect" as const };
+  }),
 
   fetchSlackChannels: mutation(
     z.object({
