@@ -39,6 +39,16 @@ export {
   typesProvidingCapability,
 } from "./manifest";
 export {
+  CONNECTION_PROBE_PATH,
+  CONNECTION_PROBE_SECRET_HEADER,
+  CONNECTION_PROBE_TIMEOUT_MS,
+  type ProbeRequest,
+  type ProbeResult,
+  probeConnection,
+  probeRequestSchema,
+  probeResultSchema,
+} from "./probe";
+export {
   buildRegistry,
   type ConnectorRegistry,
   type RegistryEntry,

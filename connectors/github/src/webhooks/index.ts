@@ -26,14 +26,12 @@ const PR_MATCH_ACTIONS = new Set([
 ]);
 
 /**
- * Resolve the FrontDesk organization that owns a GitHub installation by
- * matching the `installationId` persisted in the github integration config
+ * Resolve the FrontDesk github integration that owns a GitHub installation by
+ * matching the `installationId` persisted in the integration config
  * (see `routes/setup.ts`). Integrations are loaded into the live-state store,
  * so this is an in-memory lookup.
  */
-const resolveOrganizationId = (
-  installationId: number | undefined
-): string | null => {
+const findGithubIntegration = (installationId: number | undefined) => {
   if (!installationId) {
     return null;
   }
@@ -47,7 +45,7 @@ const resolveOrganizationId = (
     try {
       const config = JSON.parse(integration.configStr);
       if (config.installationId === installationId) {
-        return integration.organizationId;
+        return integration;
       }
     } catch {
       // Ignore malformed config; other integrations may still match.
@@ -56,6 +54,14 @@ const resolveOrganizationId = (
 
   return null;
 };
+
+/**
+ * Resolve the FrontDesk organization that owns a GitHub installation.
+ */
+const resolveOrganizationId = (
+  installationId: number | undefined
+): string | null =>
+  findGithubIntegration(installationId)?.organizationId ?? null;
 
 /**
  * Read the installation id from a webhook payload. Typed loosely because the
@@ -133,6 +139,50 @@ const repoRefFromWebhook = (repository: {
 });
 
 export const setupWebhooks = () => {
+  // Complementary to the connection probe (ADR-0010): when the GitHub App is
+  // uninstalled, clear install identity immediately so a later Enable can't
+  // silent-reenable a dead installationId. Probe still covers missed deliveries.
+  app.webhooks.on("installation.deleted", async ({ payload }) => {
+    try {
+      const installationId = payload.installation.id;
+      const integration = findGithubIntegration(installationId);
+
+      if (!integration) {
+        console.warn(
+          `[GitHub] No integration for deleted installation ${installationId}, skipping`
+        );
+        return;
+      }
+
+      let rest: Record<string, unknown> = {};
+      if (integration.configStr) {
+        try {
+          const {
+            installationId: _installationId,
+            repos: _repos,
+            ...kept
+          } = JSON.parse(integration.configStr) as Record<string, unknown>;
+          rest = kept;
+        } catch {
+          rest = {};
+        }
+      }
+
+      await fetchClient.mutate.integration.updateInstallation({
+        configStr: JSON.stringify(rest),
+        enabled: false,
+        integrationId: integration.id,
+        updatedAt: new Date(),
+      });
+
+      console.log(
+        `[GitHub] Cleared install identity for integration ${integration.id} after installation.deleted`
+      );
+    } catch (error) {
+      console.error("[GitHub] Error handling installation.deleted:", error);
+    }
+  });
+
   // Keep the mirror current on every issue-mutating event. `deleted` and
   // `transferred` (transfer-out) soft-delete the source row; `closed` resolves
   // linked threads as a reaction to the mirror change.

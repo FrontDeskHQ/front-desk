@@ -11,6 +11,7 @@ import { Separator } from "@workspace/ui/components/separator";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
+import { toast } from "sonner";
 import { ulid } from "ulid";
 
 import { IntegrationWarningCallout } from "~/components/integration-settings/warning-callout";
@@ -90,31 +91,46 @@ function RouteComponent() {
       return;
     }
 
-    // Reconnect: the GitHub App is still installed (we have its installationId
-    // from a previous setup), so re-enable silently instead of sending the user
-    // back through GitHub — where an already-installed app lands them on GitHub's
-    // configure page rather than the first-time install flow.
-    if (integration && parsedConfig?.data?.installationId) {
-      await fetchClient.mutate.integration.updateInstallation({
-        enabled: true,
-        integrationId: integration.id,
-        updatedAt: new Date(),
-      });
+    // Existing row: ask the core to probe external-install liveness (ADR-0010)
+    // before silent re-enable. Never trust a stored installationId alone.
+    if (integration) {
+      try {
+        const result = await fetchClient.mutate.integration.reenable({
+          integrationId: integration.id,
+        });
 
-      posthog?.capture("integration_enable", {
-        integration_type: "github",
-        reconnect: true,
-      });
+        if (result?.outcome === "enabled") {
+          posthog?.capture("integration_enable", {
+            integration_type: "github",
+            reconnect: true,
+          });
+          return;
+        }
+      } catch (error) {
+        // Fail soft: transport/unknown probe failure — no enable, no clear.
+        console.error("[GitHub] Re-enable probe failed:", error);
+        toast.error(
+          "Couldn't verify your GitHub connection. Try again in a moment."
+        );
+        return;
+      }
 
-      return;
+      // needs_connect — fall through to the install URL with a fresh csrfToken.
+      // Strip any stale install identity from local view so we don't rewrite it.
     }
 
     const csrfToken = generateStateToken();
 
+    const {
+      installationId: _staleInstallationId,
+      repos: _staleRepos,
+      ...restConfig
+    } = parsedConfig?.data ?? {};
+
     if (integration) {
       await fetchClient.mutate.integration.updateInstallation({
         configStr: JSON.stringify({
-          ...parsedConfig?.data,
+          ...restConfig,
           csrfToken,
         }),
         enabled: false,
@@ -124,7 +140,7 @@ function RouteComponent() {
     } else if (activeOrg?.id) {
       await fetchClient.mutate.integration.connectInstallation({
         configStr: JSON.stringify({
-          ...parsedConfig?.data,
+          ...restConfig,
           csrfToken,
         }),
         createdAt: new Date(),

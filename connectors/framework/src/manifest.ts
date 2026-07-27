@@ -14,6 +14,13 @@ export interface ConnectorManifest {
   baseUrlEnv: string;
   /** Fallback base URL for local dev. */
   defaultBaseUrl: string;
+  /**
+   * Whether this connector exposes `POST /api/connection/probe` so the core can
+   * check external install liveness before silent re-enable. Emitting-only
+   * connectors (Discord/Slack) omit this until they expose an HTTP host that
+   * needs silent reconnect. See ADR-0010.
+   */
+  supportsConnectionProbe?: boolean;
 }
 
 /**
@@ -25,6 +32,7 @@ export const githubManifest: ConnectorManifest = {
   baseUrlEnv: "BASE_GITHUB_SERVER_URL",
   capabilities: ["issue-tracker", "pr-tracker"],
   defaultBaseUrl: "http://localhost:3334",
+  supportsConnectionProbe: true,
   type: "github",
 };
 
