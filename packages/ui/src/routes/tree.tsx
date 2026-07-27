@@ -7,38 +7,36 @@ import {
   TreeSkip,
 } from "@workspace/ui/components/tree";
 import { Circle, FileText, Folder } from "lucide-react";
+
 import {
   Anatomy,
-  type ComponentMeta,
   Demo,
   DocPage,
   DocSection,
   PropsTable,
 } from "./-components/doc-kit";
+import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
-  name: "Tree",
-  status: "stable",
   description:
     "A composable tree for nested rows with left-side guide columns. Skip draws a vertical guide through the row; Join branches into row content.",
   import:
     'import { TreeList, TreeItem, TreeItemRow } from "@workspace/ui/components/tree";',
-  whenToUse: [
-    "Showing nested structure where each row needs ancestor guide lines (thread timelines, file trees, nested activity).",
-    "You need skip vs gap columns to show whether an ancestor branch continues below the current row.",
-  ],
+  name: "Tree",
+  related: ["Composite", "Collapsible", "Separator"],
+  status: "stable",
   whenNotToUse: [
     "Flat selectable lists — use Composite or a plain list.",
     "Expandable navigation sidebars — use Sidebar or NavigationMenu.",
     "Hierarchical data with built-in expand/collapse chrome — compose Collapsible inside TreeItemRow instead of expecting it here.",
   ],
-  related: ["Composite", "Collapsible", "Separator"],
+  whenToUse: [
+    "Showing nested structure where each row needs ancestor guide lines (thread timelines, file trees, nested activity).",
+    "You need skip vs gap columns to show whether an ancestor branch continues below the current row.",
+  ],
 };
 
-export const Route = createFileRoute(
-  // biome-ignore lint/suspicious/noExplicitAny: route tree is generated after adding new route files
-  "/tree" as any,
-)({
+export const Route = createFileRoute("/tree" as unknown as "/tree")({
   component: RouteComponent,
 });
 
@@ -199,32 +197,32 @@ function RouteComponent() {
         <PropsTable
           rows={[
             {
-              name: "stretchStart",
-              type: "number",
               default: "0",
               description:
                 "Pixels to extend guides upward beyond the indicator box (TreeJoin, TreeSkip). TreeItemRow defaults this to the tree gap (4px, matching gap-1).",
+              name: "stretchStart",
+              type: "number",
             },
             {
-              name: "stretchEnd",
-              type: "number",
               default: "0",
               description:
                 "Pixels to extend guides downward beyond the indicator box (TreeJoin, TreeSkip).",
+              name: "stretchEnd",
+              type: "number",
             },
             {
-              name: "stretchSide",
-              type: "number",
               default: "0",
               description:
                 "Pixels to extend the horizontal join branch rightward into row content (TreeJoin).",
+              name: "stretchSide",
+              type: "number",
             },
             {
-              name: "isLast (TreeJoin)",
-              type: "boolean",
               default: "from context",
               description:
                 "Last sibling uses a half-height vertical segment before the horizontal branch.",
+              name: "isLast (TreeJoin)",
+              type: "boolean",
             },
           ]}
         />

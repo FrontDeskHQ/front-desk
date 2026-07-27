@@ -1,5 +1,6 @@
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import type * as React from "react";
 
 function Card({ className, ...props }: React.ComponentProps<"div">) {
@@ -8,7 +9,7 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="card"
       className={cn(
         "text-foreground-primary bg-background-secondary flex flex-col rounded-md border overflow-clip",
-        className,
+        className
       )}
       {...props}
     />
@@ -18,21 +19,21 @@ function Card({ className, ...props }: React.ComponentProps<"div">) {
 const headerVariants = cva(
   "@container/card-header grid auto-cols-min grid-cols-[auto] items-center gap-1.5 has-data-[slot=card-action]:grid-cols-[auto_1fr_auto] border-b",
   {
+    defaultVariants: {
+      size: "default",
+      variant: "default",
+    },
     variants: {
-      variant: {
-        default: "bg-background-tertiary",
-        transparent: "bg-inherit",
-      },
       size: {
         default: "h-10 px-5",
         sm: "h-8 px-1",
       },
+      variant: {
+        default: "bg-background-tertiary",
+        transparent: "bg-inherit",
+      },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  },
+  }
 );
 
 function CardHeader({
@@ -44,7 +45,7 @@ function CardHeader({
   return (
     <div
       data-slot="card-header"
-      className={cn(headerVariants({ variant, size, className }))}
+      className={cn(headerVariants({ className, size, variant }))}
       {...props}
     />
   );
@@ -88,7 +89,7 @@ function CardActions({
   return (
     <div
       data-slot="card-action"
-      className={cn(actionVariants({ side, className }))}
+      className={cn(actionVariants({ className, side }))}
       {...props}
     />
   );

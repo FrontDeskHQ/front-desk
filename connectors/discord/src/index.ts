@@ -1,27 +1,31 @@
-import type { InferLiveObject } from "@live-state/sync";
+import {
+  buildPortalThreadUrl,
+  startOutboundReplication,
+} from "@connectors/framework/runtime";
+import type {
+  OutboundMessage,
+  OutboundUpdate,
+} from "@connectors/framework/runtime";
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
-import type { schema } from "api/schema";
-import {
-  ChannelType,
-  Client,
-  type ForumChannel,
-  GatewayIntentBits,
-  type Message,
-  type TextChannel,
-  type ThreadChannel,
+import { ChannelType, Client, GatewayIntentBits } from "discord.js";
+import type {
+  ForumChannel,
+  Message,
+  TextChannel,
+  ThreadChannel,
 } from "discord.js";
-import { ulid } from "ulid";
+
 import "./env";
 import { reflagClient } from "./lib/feature-flag";
 import { fetchClient, store } from "./lib/live-state";
+import type { BackfillChannelResult } from "./lib/queue";
 import {
   addChannelBackfillJob,
   addThreadBackfillJob,
   closeBackfillQueue,
   initializeBackfillWorker,
 } from "./lib/queue";
-import type { BackfillChannelResult } from "./lib/queue";
 import {
   getBackfillLimit,
   parseContentAsMarkdown,
@@ -33,36 +37,26 @@ import {
 } from "./lib/utils";
 import { getOrCreateWebhook } from "./utils";
 
-const THREAD_CREATION_THRESHOLD_MS = 1000;
+/** Integration `type` / `support-entry-point` provider key for this connector. */
+const DISCORD_PROVIDER = "discord";
 
 const ensureThreadTitle = (title: string) =>
   title.length >= 3 ? title : title.padEnd(3, ".");
 
 const token = process.env.DISCORD_TOKEN;
 
-type RelatedThreadLink = {
+interface RelatedThreadLink {
   threadId: string;
   name: string | null;
   url: string;
-};
+}
 
-const RELATED_THREADS_INITIAL_DELAY_MS = 30000;
+const RELATED_THREADS_INITIAL_DELAY_MS = 30_000;
 
 const sleep = (ms: number) =>
   new Promise((resolve) => {
     setTimeout(resolve, ms);
   });
-
-const buildPortalThreadUrl = (
-  baseUrl: string,
-  organizationSlug: string,
-  threadId: string,
-) => {
-  const baseUrlObj = new URL(baseUrl);
-  const port = baseUrlObj.port ? `:${baseUrlObj.port}` : "";
-  return `${baseUrlObj.protocol}//${organizationSlug}.${baseUrlObj.hostname}${port}/threads/${threadId}`;
-};
-
 
 // TODO(signals-overhaul): related-threads polling used the dropped `suggestion`
 // table. Rebuild on top of the new pipeline (issue 06 synthesis or a fresh
@@ -72,9 +66,7 @@ const getRelatedThreadLinks = async (_args: {
   organizationSlug: string;
   threadId: string;
   baseUrl: string;
-}): Promise<RelatedThreadLink[]> => {
-  return [];
-};
+}): Promise<RelatedThreadLink[]> => [];
 
 const buildPortalBotEmbed = ({
   portalUrl,
@@ -88,8 +80,7 @@ const buildPortalBotEmbed = ({
   ];
 
   if (relatedThreadLinks.length > 0) {
-    lines.push("");
-    lines.push("Related threads:");
+    lines.push("", "Related threads:");
     for (const link of relatedThreadLinks) {
       if (link.name) {
         lines.push(`- [${link.name}](${link.url})`);
@@ -114,13 +105,39 @@ const client = new Client({
   ],
 });
 
-const resolveDiscordAuthor = (
-  discordUserId: string,
-  displayName: string,
-): { id: string; name: string } => ({
-  id: `discord:${discordUserId}`,
-  name: displayName,
-});
+/**
+ * Translate a Discord message into a `support-entry-point` ingest call. The core
+ * owns create-vs-append, dedup, author identity and `provider:` prefixing; the
+ * connector only supplies neutral shapes plus the thread descriptor (Discord
+ * cheaply knows the channel title, so it is attached on every call and the core
+ * ignores it once the thread exists). Author display-name resolution stays here.
+ */
+const ingestDiscordMessage = (args: {
+  organizationId: string;
+  externalThreadId: string;
+  title: string;
+  message: Message;
+  isBackfill?: boolean;
+}) =>
+  fetchClient.mutate.ingest.ingest({
+    author: {
+      externalId: args.message.author.id,
+      name: args.message.author.displayName,
+    },
+    externalThreadId: args.externalThreadId,
+    isBackfill: args.isBackfill ?? false,
+    message: {
+      body: parse(parseContentAsMarkdown(args.message)),
+      createdAt: args.message.createdAt,
+      externalMessageId: args.message.id,
+    },
+    organizationId: args.organizationId,
+    provider: DISCORD_PROVIDER,
+    thread: {
+      externalMetadata: { channelId: args.externalThreadId },
+      title: ensureThreadTitle(args.title),
+    },
+  });
 
 /**
  * Backfill threads from a specific Discord channel (page-based)
@@ -130,7 +147,7 @@ const backfillChannel = async (
   channel: TextChannel | ForumChannel,
   organizationId: string,
   integrationId: string,
-  options: { archivedBefore?: string; activeProcessed?: boolean },
+  options: { archivedBefore?: string; activeProcessed?: boolean }
 ): Promise<BackfillChannelResult> => {
   console.log(`  Fetching threads from #${channel.name}...`);
 
@@ -156,9 +173,11 @@ const backfillChannel = async (
 
     // Check budget and queue thread jobs (all inside lock so total stays accurate if enqueue fails)
     const budgetExhausted = await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration.byId({ id: integrationId });
+      const integration = await fetchClient.query.integration.byId({
+        id: integrationId,
+      });
       const currentSettings = safeParseIntegrationSettings(
-        integration?.configStr ?? null,
+        integration?.configStr ?? null
       );
       const existingBackfill = currentSettings?.backfill;
       const limit = existingBackfill?.limit ?? null;
@@ -166,9 +185,11 @@ const backfillChannel = async (
 
       // Check budget
       const threadsToQueue: ThreadChannel[] = [];
-      let remaining = limit !== null ? limit - currentTotal : threads.length;
+      let remaining = limit === null ? threads.length : limit - currentTotal;
       for (const thread of threads) {
-        if (remaining <= 0) break;
+        if (remaining <= 0) {
+          break;
+        }
         threadsToQueue.push(thread);
         remaining--;
       }
@@ -179,12 +200,16 @@ const backfillChannel = async (
       }
 
       const newTotal = currentTotal + threadsToQueue.length;
-      await updateBackfillStatus(integrationId, integration?.configStr ?? null, {
-        processed: existingBackfill?.processed ?? 0,
-        total: newTotal,
-        limit: existingBackfill?.limit ?? null,
-        channelsDiscovering: existingBackfill?.channelsDiscovering ?? 0,
-      });
+      await updateBackfillStatus(
+        integrationId,
+        integration?.configStr ?? null,
+        {
+          channelsDiscovering: existingBackfill?.channelsDiscovering ?? 0,
+          limit: existingBackfill?.limit ?? null,
+          processed: existingBackfill?.processed ?? 0,
+          total: newTotal,
+        }
+      );
 
       return limit !== null && newTotal >= limit;
     });
@@ -194,15 +219,17 @@ const backfillChannel = async (
     if (!hasMoreArchived || budgetExhausted) {
       // This channel is done discovering — decrement channelsDiscovering
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration.byId({ id: integrationId });
+        const integration = await fetchClient.query.integration.byId({
+          id: integrationId,
+        });
         const settings = safeParseIntegrationSettings(
-          integration?.configStr ?? null,
+          integration?.configStr ?? null
         );
         const backfill = settings?.backfill;
         if (backfill) {
           const newChannelsDiscovering = Math.max(
             0,
-            backfill.channelsDiscovering - 1,
+            backfill.channelsDiscovering - 1
           );
           // Check if backfill is complete (no more discovery and all processed)
           if (
@@ -212,7 +239,7 @@ const backfillChannel = async (
             await updateBackfillStatus(
               integrationId,
               integration?.configStr ?? null,
-              null,
+              null
             );
           } else {
             await updateBackfillStatus(
@@ -221,7 +248,7 @@ const backfillChannel = async (
               {
                 ...backfill,
                 channelsDiscovering: newChannelsDiscovering,
-              },
+              }
             );
           }
         }
@@ -232,7 +259,7 @@ const backfillChannel = async (
 
     // Find the oldest archived thread's archiveTimestamp for the next page cursor
     const archivedThreads = [...archivedResult.threads.values()];
-    const oldestThread = archivedThreads[archivedThreads.length - 1];
+    const oldestThread = archivedThreads.at(-1);
     const nextCursor = oldestThread?.archiveTimestamp
       ? new Date(oldestThread.archiveTimestamp).toISOString()
       : undefined;
@@ -242,15 +269,17 @@ const backfillChannel = async (
     console.error(`    Error fetching threads from #${channel.name}:`, error);
     // Decrement channelsDiscovering on error so backfill can complete
     await withBackfillLock(integrationId, async () => {
-      const integration = await fetchClient.query.integration.byId({ id: integrationId });
+      const integration = await fetchClient.query.integration.byId({
+        id: integrationId,
+      });
       const settings = safeParseIntegrationSettings(
-        integration?.configStr ?? null,
+        integration?.configStr ?? null
       );
       const backfill = settings?.backfill;
       if (backfill) {
         const newChannelsDiscovering = Math.max(
           0,
-          backfill.channelsDiscovering - 1,
+          backfill.channelsDiscovering - 1
         );
         if (
           newChannelsDiscovering === 0 &&
@@ -259,7 +288,7 @@ const backfillChannel = async (
           await updateBackfillStatus(
             integrationId,
             integration?.configStr ?? null,
-            null,
+            null
           );
         } else {
           await updateBackfillStatus(
@@ -268,7 +297,7 @@ const backfillChannel = async (
             {
               ...backfill,
               channelsDiscovering: newChannelsDiscovering,
-            },
+            }
           );
         }
       }
@@ -286,33 +315,30 @@ const handleIntegrationChanges = async (
     id: string;
     organizationId: string;
     configStr: string | null;
-  }[],
+  }[]
 ) => {
   for (const integration of integrations) {
     try {
       const settings = safeParseIntegrationSettings(integration.configStr);
-      if (!settings?.guildId) continue;
+      if (!settings?.guildId) {
+        continue;
+      }
 
-      const guildId = settings.guildId;
+      const { guildId } = settings;
       const currentChannels = new Set(settings.selectedChannels ?? []);
       let syncedChannels = new Set(settings.syncedChannels ?? []);
 
       // Migration: if syncedChannels is undefined, initialize from current selectedChannels
       // This prevents false trigger on first deploy with new code
       if (settings.syncedChannels === undefined) {
-        const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
-        await updateSyncedChannels(
-          integration.id,
-          latestIntegration?.configStr ?? integration.configStr,
-          [...currentChannels],
-        );
+        await updateSyncedChannels(integration.id, [...currentChannels]);
         continue;
       }
 
       // Cleanup: remove channels from syncedChannels that are no longer in selectedChannels
       // This ensures re-adding a channel later triggers a fresh backfill
       const cleanedSynced = [...syncedChannels].filter((ch) =>
-        currentChannels.has(ch),
+        currentChannels.has(ch)
       );
       const hadCleanup = cleanedSynced.length !== syncedChannels.size;
       if (hadCleanup) {
@@ -321,26 +347,19 @@ const handleIntegrationChanges = async (
 
       // Find newly added channels (in selected but not in synced)
       const addedChannels = [...currentChannels].filter(
-        (ch) => !syncedChannels.has(ch),
+        (ch) => !syncedChannels.has(ch)
       );
 
       if (addedChannels.length === 0) {
         // Persist cleanup only (no new channels to add)
         if (hadCleanup) {
-          const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
-          await updateSyncedChannels(
-            integration.id,
-            latestIntegration?.configStr ?? null,
-            [...syncedChannels],
-          );
+          await updateSyncedChannels(integration.id, [...syncedChannels]);
         }
         continue;
       }
 
-      // Consolidate cleanup + add into a single update; use fresh config to avoid overwriting concurrent changes
+      // Consolidate cleanup + add into a single update
       const finalSynced = [...syncedChannels, ...addedChannels];
-      const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
-      const freshConfigStr = latestIntegration?.configStr ?? null;
 
       // Check if backfill feature is enabled for this organization
       const { isEnabled: isBackfillEnabled } = reflagClient
@@ -348,19 +367,15 @@ const handleIntegrationChanges = async (
         .getFlag("backfill-threads");
       if (!isBackfillEnabled) {
         console.log(
-          `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`,
+          `[Discord] Backfill disabled via feature flag, skipping ${addedChannels.length} channel(s)`
         );
         // Still mark as synced so we don't re-check on restart
-        await updateSyncedChannels(
-          integration.id,
-          freshConfigStr,
-          finalSynced,
-        );
+        await updateSyncedChannels(integration.id, finalSynced);
         continue;
       }
 
       console.log(
-        `Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`,
+        `Detected ${addedChannels.length} new channel(s) for integration ${integration.id}: ${addedChannels.join(", ")}`
       );
 
       const guild = client.guilds.cache.get(guildId);
@@ -374,27 +389,28 @@ const handleIntegrationChanges = async (
 
       // Add new channels to syncedChannels immediately (at backfill START)
       // BullMQ handles retries for in-progress jobs
-      await updateSyncedChannels(
-        integration.id,
-        freshConfigStr,
-        finalSynced,
-      );
+      await updateSyncedChannels(integration.id, finalSynced);
 
       // Initialize/accumulate backfill status
       await withBackfillLock(integration.id, async () => {
-        const latestIntegration = await fetchClient.query.integration.byId({ id: integration.id });
+        const latestIntegration = await fetchClient.query.integration.byId({
+          id: integration.id,
+        });
         const latestSettings = safeParseIntegrationSettings(
-          latestIntegration?.configStr ?? null,
+          latestIntegration?.configStr ?? null
         );
         const existingBackfill = latestSettings?.backfill;
 
-        const channelsToQueue: { channel: TextChannel | ForumChannel; name: string }[] = [];
+        const channelsToQueue: {
+          channel: TextChannel | ForumChannel;
+          name: string;
+        }[] = [];
         for (const channelName of addedChannels) {
           const channel = guild.channels.cache.find(
             (c): c is TextChannel | ForumChannel =>
               (c.type === ChannelType.GuildText ||
                 c.type === ChannelType.GuildForum) &&
-              c.name === channelName,
+              c.name === channelName
           );
           if (channel) {
             channelsToQueue.push({ channel, name: channelName });
@@ -403,19 +419,21 @@ const handleIntegrationChanges = async (
           }
         }
 
-        if (channelsToQueue.length === 0) return;
+        if (channelsToQueue.length === 0) {
+          return;
+        }
 
         await updateBackfillStatus(
           integration.id,
           latestIntegration?.configStr ?? null,
           {
-            processed: existingBackfill?.processed ?? 0,
-            total: existingBackfill?.total ?? 0,
-            limit: existingBackfill?.limit ?? limit,
             channelsDiscovering:
               (existingBackfill?.channelsDiscovering ?? 0) +
               channelsToQueue.length,
-          },
+            limit: existingBackfill?.limit ?? limit,
+            processed: existingBackfill?.processed ?? 0,
+            total: existingBackfill?.total ?? 0,
+          }
         );
 
         // Queue first backfill-channel job (no cursor) for each new channel
@@ -424,7 +442,7 @@ const handleIntegrationChanges = async (
             channel,
             guildId,
             integration.organizationId,
-            integration.id,
+            integration.id
           );
         }
       });
@@ -435,23 +453,16 @@ const handleIntegrationChanges = async (
 };
 
 /**
- * Backfill a single thread and its messages
+ * Backfill a single thread and its messages through `mutate.ingest`. The ingest
+ * procedure is idempotent (create-vs-append + `externalMessageId` dedup owned by
+ * the core), so this one path covers both a first-time thread and a re-added
+ * channel — no connector-side `byExternalId` checks. Status (Discord archived →
+ * FrontDesk Closed) stays a separate generic `thread.setStatus` mutation.
  */
 const backfillThread = async (
   thread: ThreadChannel,
-  organizationId: string,
+  organizationId: string
 ) => {
-  // Check if thread already exists in the database using externalId
-  const existingThread = await fetchClient.query.thread.byExternalId({ externalId: thread.id, organizationId });
-
-  if (existingThread) {
-    // Thread exists (re-added channel), sync status and backfill missing messages
-    await backfillMessages(thread, existingThread, organizationId);
-    return;
-  }
-
-  console.log(`      Creating thread: ${thread.name}`);
-
   // Fetch all messages with pagination
   const allMessages: Message[] = [];
   let lastMessageId: string | undefined;
@@ -468,166 +479,58 @@ const backfillThread = async (
       lastMessageId = batch.last()?.id;
     }
   }
-  const sortedMessages = allMessages.sort(
-    (a, b) => a.createdTimestamp - b.createdTimestamp,
-  );
+  const sortedMessages = allMessages
+    .filter((m) => !m.author.bot)
+    .toSorted((a, b) => a.createdTimestamp - b.createdTimestamp);
 
   if (sortedMessages.length === 0) {
     console.log(`      Skipping thread with no messages: ${thread.name}`);
     return;
   }
 
-  // Get the first non-bot message author as the thread author
-  const firstMessage =
-    sortedMessages.find((m) => !m.author.bot) ?? sortedMessages[0];
-  const author = resolveDiscordAuthor(
-    firstMessage.author.id,
-    firstMessage.author.displayName,
-  );
-
-  const threadId = ulid().toLowerCase();
-  const firstContent = parseContentAsMarkdown(firstMessage);
-
-  await fetchClient.mutate.thread.create({
-    id: threadId,
-    organizationId,
-    title: ensureThreadTitle(thread.name),
-    message: parse(firstContent),
-    author,
-    createdAt: thread.createdAt ?? new Date(),
-    status: thread.archived ? 3 : 0,
-    discordChannelId: thread.id,
-    externalId: thread.id,
-    externalOrigin: "discord",
-    externalMetadataStr: JSON.stringify({ channelId: thread.id }),
-    firstMessage: {
-      createdAt: firstMessage.createdAt,
-      origin: "discord",
+  // Ingest in chronological order: the first call creates the thread (with the
+  // first non-bot message as its root author), the rest append. The core dedups
+  // any already-ingested message, so re-added channels only add what's missing.
+  let frontdeskThreadId: string | null = null;
+  let currentStatus = 0;
+  for (const message of sortedMessages) {
+    const { thread: fdThread } = await ingestDiscordMessage({
+      externalThreadId: thread.id,
       isBackfill: true,
-      externalMessageId: firstMessage.id,
-    },
-  });
-
-  for (const message of sortedMessages) {
-    if (message.id === firstMessage.id) continue;
-    if (message.author.bot) continue;
-
-    await backfillMessage(message, threadId, organizationId);
-  }
-
-  console.log(
-    `      Synced ${sortedMessages.filter((m) => !m.author.bot).length} messages`,
-  );
-};
-
-/**
- * Backfill messages for an existing thread (check for missing messages)
- * Also syncs thread status between Discord and FrontDesk
- * Used when a channel is re-added to an integration
- */
-const backfillMessages = async (
-  thread: ThreadChannel,
-  existingThread: { id: string; status: number },
-  organizationId: string,
-) => {
-  // Sync thread status: Discord archived = FrontDesk Closed (3), active = Open (0)
-  const expectedStatus = thread.archived ? 3 : 0;
-  const currentStatus = existingThread.status;
-
-  // Only sync between Open (0) and Closed (3), preserve other statuses like In Progress (1) or Resolved (2)
-  if (
-    (currentStatus === 0 && expectedStatus === 3) ||
-    (currentStatus === 3 && expectedStatus === 0)
-  ) {
-    console.log(
-      `      Updating thread status: ${thread.name} (${currentStatus} → ${expectedStatus})`,
-    );
-    await fetchClient.mutate.thread.setStatus({
-      threadId: existingThread.id,
+      message,
       organizationId,
-      status: expectedStatus,
+      title: thread.name,
+    });
+    if (fdThread) {
+      frontdeskThreadId = fdThread.id;
+      currentStatus = fdThread.status;
+    }
+  }
+
+  // Sync status only between Open (0) and Closed (3); preserve In Progress (1)
+  // and Resolved (2). `currentStatus` reflects the thread's state before this
+  // backfill's inserts (0 for a freshly created thread).
+  const expectedStatus = thread.archived ? 3 : 0;
+  if (
+    frontdeskThreadId &&
+    ((currentStatus === 0 && expectedStatus === 3) ||
+      (currentStatus === 3 && expectedStatus === 0))
+  ) {
+    await fetchClient.mutate.thread.setStatus({
+      organizationId,
       source: "discord",
+      status: expectedStatus,
+      threadId: frontdeskThreadId,
     });
   }
 
-  // Fetch all messages with pagination
-  const allMessages: Message[] = [];
-  let lastMsgId: string | undefined;
-  let hasMoreMsgs = true;
-  while (hasMoreMsgs) {
-    const batch = await thread.messages.fetch({
-      limit: 100,
-      ...(lastMsgId ? { before: lastMsgId } : {}),
-    });
-    if (batch.size === 0) {
-      hasMoreMsgs = false;
-    } else {
-      allMessages.push(...batch.values());
-      lastMsgId = batch.last()?.id;
-    }
-  }
-  const sortedMessages = allMessages.sort(
-    (a, b) => a.createdTimestamp - b.createdTimestamp,
-  );
-
-  let syncedCount = 0;
-  for (const message of sortedMessages) {
-    if (message.author.bot) continue;
-
-    // Check if message already exists in the database
-    const existingMessage = await fetchClient.query.message.byExternalId({ externalMessageId: message.id });
-
-    if (!existingMessage) {
-      await backfillMessage(message, existingThread.id, organizationId);
-      syncedCount++;
-    }
-  }
-
-  if (syncedCount > 0) {
-    console.log(
-      `      Synced ${syncedCount} missing messages for thread: ${thread.name}`,
-    );
-  }
-};
-
-/**
- * Backfill a single message
- */
-const backfillMessage = async (
-  message: Message,
-  threadId: string,
-  organizationId: string,
-) => {
-  const author = resolveDiscordAuthor(
-    message.author.id,
-    message.author.displayName,
-  );
-  const contentWithMentions = parseContentAsMarkdown(message);
-
-  await fetchClient.mutate.message.create({
-    id: ulid().toLowerCase(),
-    threadId,
-    organizationId,
-    author,
-    content: parse(contentWithMentions),
-    createdAt: message.createdAt,
-    origin: "discord",
-    isBackfill: true,
-    externalMessageId: message.id,
-  });
+  console.log(`      Synced ${sortedMessages.length} messages`);
 };
 
 client.on("messageCreate", async (message) => {
-  if (!message.channel.isThread() || message.author.bot || !message.guild?.id)
+  if (!message.channel.isThread() || message.author.bot || !message.guild?.id) {
     return;
-
-  const isFirstMessage =
-    Math.abs(
-      (message.channel.createdTimestamp ?? 0) - (message.createdTimestamp ?? 0),
-    ) < THREAD_CREATION_THRESHOLD_MS;
-
-  let threadId: string | null = null;
-  let portalMessageOrgSlug: string | null = null;
+  }
 
   const integration = (
     await fetchClient.query.integration.listByType({ type: "discord" })
@@ -636,50 +539,43 @@ client.on("messageCreate", async (message) => {
     return parsed?.guildId === message.guild?.id;
   });
 
-  if (!integration) return;
+  if (!integration) {
+    return;
+  }
 
   const integrationSettings = safeParseIntegrationSettings(
-    integration.configStr,
+    integration.configStr
   );
 
   if (
     !(integrationSettings?.selectedChannels ?? [])?.includes(
-      message.channel.parent?.name ?? "",
+      message.channel.parent?.name ?? ""
     )
-  )
+  ) {
     return;
+  }
 
-  // TODO do this in a transaction
+  // One idempotent ingest call: the core creates the thread on the first message
+  // for this channel and appends thereafter (no timing heuristic, no dedup here).
+  const { thread, created } = await ingestDiscordMessage({
+    externalThreadId: message.channel.id,
+    message,
+    organizationId: integration.organizationId,
+    title: message.channel.name,
+  });
 
-  const author = resolveDiscordAuthor(
-    message.author.id,
-    message.author.displayName,
-  );
+  if (!thread) {
+    return;
+  }
+  const threadId = thread.id;
 
-  if (isFirstMessage) {
-    threadId = ulid().toLowerCase();
-    const contentWithMentions = parseContentAsMarkdown(message);
-
-    await fetchClient.mutate.thread.create({
-      id: threadId,
-      organizationId: integration.organizationId,
-      title: ensureThreadTitle(message.channel.name),
-      message: parse(contentWithMentions),
-      author,
-      createdAt: new Date(),
-      discordChannelId: message.channel.id,
-      externalId: message.channel.id,
-      externalOrigin: "discord",
-      externalMetadataStr: JSON.stringify({ channelId: message.channel.id }),
-      firstMessage: {
-        createdAt: message.createdAt,
-        origin: "discord",
-        externalMessageId: message.id,
-      },
-    });
-
+  // The portal-link embed is posted once, when the thread is first created.
+  let portalMessageOrgSlug: string | null = null;
+  if (created) {
     try {
-      const organization = await fetchClient.query.organization.byId({ id: integration.organizationId });
+      const organization = await fetchClient.query.organization.byId({
+        id: integration.organizationId,
+      });
 
       if (organization?.slug) {
         const showPortalMessage =
@@ -694,40 +590,14 @@ client.on("messageCreate", async (message) => {
     } catch (error) {
       console.error("Error sending portal link message:", error);
     }
-  } else {
-    const thread = store.query.thread
-      .first({
-        discordChannelId: message.channel.id,
-        organizationId: integration.organizationId,
-      })
-      .get();
-
-    if (!thread) return;
-    threadId = thread.id;
   }
 
-  if (!threadId) return;
-
-  if (!isFirstMessage) {
-    const contentWithMentions = parseContentAsMarkdown(message);
-
-    store.mutate.message.create({
-      threadId,
-      organizationId: integration.organizationId,
-      author,
-      content: parse(contentWithMentions),
-      createdAt: message.createdAt,
-      origin: "discord",
-      externalMessageId: message.id,
-    });
-  }
-
-  if (isFirstMessage && portalMessageOrgSlug) {
+  if (portalMessageOrgSlug) {
     const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
     const portalUrl = buildPortalThreadUrl(
       baseUrl,
       portalMessageOrgSlug,
-      threadId,
+      threadId
     );
     const portalEmbed = buildPortalBotEmbed({
       portalUrl,
@@ -744,13 +614,15 @@ client.on("messageCreate", async (message) => {
           await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
 
           const relatedThreadLinks = await getRelatedThreadLinks({
+            baseUrl,
             organizationId: integration.organizationId,
             organizationSlug: portalMessageOrgSlug,
             threadId,
-            baseUrl,
           });
 
-          if (relatedThreadLinks.length === 0) return;
+          if (relatedThreadLinks.length === 0) {
+            return;
+          }
 
           const updatedEmbed = buildPortalBotEmbed({
             portalUrl,
@@ -770,68 +642,88 @@ client.on("messageCreate", async (message) => {
   }
 });
 
-const handleMessages = async (
-  messages: InferLiveObject<
-    (typeof schema)["message"],
-    { thread: true; author: { include: { user: true } } }
-  >[],
-) => {
-  for (const message of messages) {
-    // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-    const organizationId = message.thread?.organizationId;
-    if (!organizationId) continue;
-    const integration = await fetchClient.query.integration.forOrg({ organizationId, type: "discord" });
+/**
+ * Resolve the Discord channel a normalized thread maps to, or `null` if this
+ * connector can't currently deliver to it (no matching guild in cache, etc.).
+ * The channel id lives on `thread.externalId`, guarded by `externalOrigin`.
+ */
+const resolveDiscordChannel = async (thread: {
+  organizationId?: string;
+  externalOrigin?: string | null;
+  externalId?: string | null;
+}) => {
+  const organizationId = thread?.organizationId;
+  if (!organizationId) {
+    return null;
+  }
 
-    if (!integration || !integration.configStr) continue;
+  const integration = await fetchClient.query.integration.forOrg({
+    organizationId,
+    type: "discord",
+  });
+  if (!integration || !integration.configStr) {
+    return null;
+  }
 
-    const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+  const parsedConfig = safeParseIntegrationSettings(integration.configStr);
+  const guildId = parsedConfig?.guildId;
+  if (!guildId) {
+    return null;
+  }
 
-    if (!parsedConfig) continue;
+  const channelId =
+    thread.externalOrigin === "discord" ? thread.externalId : null;
+  if (!channelId) {
+    return null;
+  }
 
-    const guildId = parsedConfig.guildId;
+  const guild = client.guilds.cache.get(guildId);
+  if (!guild) {
+    return null;
+  }
 
-    if (!guildId) continue;
+  return guild.channels.cache.get(channelId) ?? null;
+};
 
-    const channelId = message.thread.discordChannelId;
+/**
+ * Deliver one outbound reply to Discord via the channel webhook. Returns the
+ * webhook message id to round-trip, or `null` to leave it for the next pass.
+ */
+const deliverDiscordMessage = async (
+  message: OutboundMessage
+): Promise<string | null> => {
+  const channel = await resolveDiscordChannel(message.thread);
+  if (!channel) {
+    return null;
+  }
 
-    if (!channelId) continue;
-
-    const guild = client.guilds.cache.get(guildId);
-
-    if (!guild) continue;
-
-    const channel = guild.channels.cache.get(channelId);
-
-    if (!channel) continue;
-
-    try {
-      const webhookClient = await getOrCreateWebhook(channel as TextChannel);
-      const webhookMessage = await webhookClient.send({
-        content: stringify(safeParseJSON(message.content), {
-          heading: true,
-          horizontalRule: true,
-        }),
-        threadId: channel.id,
-        username: message.author.name,
-        avatarURL: message.author?.user?.image ?? undefined,
-      });
-      store.mutate.message.setExternalMessageId({
-        messageId: message.id,
-        externalMessageId: webhookMessage.id,
-      });
-    } catch (error) {
-      console.error("Error sending webhook message:", error);
-    }
+  try {
+    const webhookClient = await getOrCreateWebhook(channel as TextChannel);
+    const webhookMessage = await webhookClient.send({
+      avatarURL: message.author?.user?.image ?? undefined,
+      content: stringify(safeParseJSON(message.content), {
+        heading: true,
+        horizontalRule: true,
+      }),
+      threadId: channel.id,
+      username: message.author.name,
+    });
+    return webhookMessage.id;
+  } catch (error) {
+    console.error("Error sending webhook message:", error);
+    return null;
   }
 };
 
-const formatUpdateMessage = (
-  update: InferLiveObject<
-    (typeof schema)["update"],
-    { thread: true; user: true }
-  >,
-): string => {
-  let metadata: any = null;
+interface UpdateMetadata {
+  userName?: string;
+  newStatusLabel?: string;
+  newPriorityLabel?: string;
+  newAssignedUserName?: string;
+}
+
+const formatUpdateMessage = (update: OutboundUpdate): string => {
+  let metadata: UpdateMetadata | null = null;
   if (update.metadataStr) {
     try {
       metadata = JSON.parse(update.metadataStr);
@@ -863,69 +755,23 @@ const formatUpdateMessage = (
   return `**${userName}** updated the thread`;
 };
 
-const handlingUpdates = new Set<string>();
-
-const handleUpdates = async (
-  updates: InferLiveObject<
-    (typeof schema)["update"],
-    { thread: true; user: true }
-  >[],
-) => {
-  for (const update of updates) {
-    const replicated = update.replicatedStr
-      ? JSON.parse(update.replicatedStr)
-      : {};
-    if (replicated.discord) continue;
-
-    if (handlingUpdates.has(update.id)) continue;
-
-    handlingUpdates.add(update.id);
-
-    try {
-      // TODO this is not consistent, either we make this part of the include or we wait until the store is bootstrapped. Remove the timeout when this is fixed.
-      const organizationId = update.thread?.organizationId;
-      if (!organizationId) continue;
-      const integration = await fetchClient.query.integration.forOrg({ organizationId, type: "discord" });
-
-      if (!integration || !integration.configStr) continue;
-
-      const parsedConfig = safeParseIntegrationSettings(integration.configStr);
-
-      if (!parsedConfig) continue;
-
-      const guildId = parsedConfig.guildId;
-
-      if (!guildId) continue;
-
-      const channelId = update.thread.discordChannelId;
-
-      if (!channelId) continue;
-
-      const guild = client.guilds.cache.get(guildId);
-
-      if (!guild) continue;
-
-      const channel = guild.channels.cache.get(channelId);
-
-      if (!channel) continue;
-
-      const updateMessage = formatUpdateMessage(update);
-      const botMessage = await (channel as TextChannel).send({
-        content: updateMessage,
-      });
-      await fetchClient.mutate.update.markReplicated({
-        updateId: update.id,
-        replicatedStr: JSON.stringify({
-          ...replicated,
-          discord: botMessage.id,
-        }),
-      });
-    } catch (error) {
-      console.error("Error sending update bot message:", error);
-    } finally {
-      handlingUpdates.delete(update.id);
-    }
+/**
+ * Deliver one outbound thread update to Discord as a bot message. Returns the
+ * message id to round-trip, or `null` to leave it un-replicated. The framework's
+ * outbound helper owns the replicated-check and in-flight dedup.
+ */
+const deliverDiscordUpdate = async (
+  update: OutboundUpdate
+): Promise<string | null> => {
+  const channel = await resolveDiscordChannel(update.thread);
+  if (!channel) {
+    return null;
   }
+
+  const botMessage = await (channel as TextChannel).send({
+    content: formatUpdateMessage(update),
+  });
+  return botMessage.id;
 };
 
 client.on("error", (error) => {
@@ -968,7 +814,9 @@ client.on("error", (error) => {
 // });
 
 client.once("ready", async () => {
-  if (!client.user) return;
+  if (!client.user) {
+    return;
+  }
   console.log(`Logged in as ${client.user.tag}`);
 
   // Initialize Reflag client for feature flags
@@ -977,13 +825,13 @@ client.once("ready", async () => {
 
   // Initialize the backfill worker with handlers
   initializeBackfillWorker(client, {
-    processChannel: backfillChannel,
-    processThread: backfillThread,
     onThreadBackfillComplete: async (integrationId: string) => {
       await withBackfillLock(integrationId, async () => {
-        const integration = await fetchClient.query.integration.byId({ id: integrationId });
+        const integration = await fetchClient.query.integration.byId({
+          id: integrationId,
+        });
         const settings = safeParseIntegrationSettings(
-          integration?.configStr ?? null,
+          integration?.configStr ?? null
         );
         const backfill = settings?.backfill;
         if (!backfill) return;
@@ -997,7 +845,7 @@ client.once("ready", async () => {
           await updateBackfillStatus(
             integrationId,
             integration?.configStr ?? null,
-            null,
+            null
           );
         } else {
           await updateBackfillStatus(
@@ -1006,56 +854,26 @@ client.once("ready", async () => {
             {
               ...backfill,
               processed: currentProcessed,
-            },
+            }
           );
         }
       });
     },
+    processChannel: backfillChannel,
+    processThread: backfillThread,
   });
 });
 
 setTimeout(async () => {
-  // TODO Subscribe callback is not being triggered with current values - track https://github.com/pedroscosta/live-state/issues/82
-  await handleMessages(
-    await store.query.message
-      .where({
-        externalMessageId: null,
-        thread: {
-          discordChannelId: { $not: null },
-        },
-      })
-      .include({ thread: true, author: { include: { user: true } } })
-      .get(),
-  );
-  store.query.message
-    .where({
-      externalMessageId: null,
-      thread: {
-        discordChannelId: { $not: null },
-      },
-    })
-    .include({ thread: true, author: { include: { user: true } } })
-    .subscribe(handleMessages);
-
-  // Handle updates for threads linked to Discord
-  const updates = await store.query.update
-    .where({
-      thread: {
-        discordChannelId: { $not: null },
-      },
-    })
-    .include({ thread: true, user: true })
-    .get();
-
-  await handleUpdates(updates);
-  store.query.update
-    .where({
-      thread: {
-        discordChannelId: { $not: null },
-      },
-    })
-    .include({ thread: true, user: true })
-    .subscribe(handleUpdates);
+  // Watch un-replicated outbound messages/updates for Discord threads and
+  // deliver them; the framework owns the round-trip of external message ids.
+  await startOutboundReplication({
+    deliverMessage: deliverDiscordMessage,
+    deliverUpdate: deliverDiscordUpdate,
+    fetchClient,
+    provider: DISCORD_PROVIDER,
+    store,
+  });
 
   // Subscribe to Discord integrations to trigger backfill when channels are added
   store.query.integration

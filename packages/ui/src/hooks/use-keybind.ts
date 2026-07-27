@@ -3,11 +3,11 @@
 import isHotkey from "is-hotkey";
 import { useEffect, useRef } from "react";
 
-type KeybindEntry = {
+interface KeybindEntry {
   id: number;
   hotkey: string;
   callback: (event: KeyboardEvent) => void;
-};
+}
 
 const keybindRegistry: KeybindEntry[] = [];
 let nextId = 0;
@@ -41,9 +41,9 @@ const initializeGlobalListener = () => {
   }
 };
 
-type UseKeybindOptions = {
+interface UseKeybindOptions {
   enabled?: boolean;
-};
+}
 
 /**
  * Hook to register a keyboard shortcut that can overlap with others.
@@ -83,6 +83,8 @@ export const useKeybind = (
     callbackRef.current = callback;
   }, [callback]);
 
+  const dependencyList = deps;
+
   useEffect(() => {
     if (!enabled) {
       return;
@@ -94,11 +96,11 @@ export const useKeybind = (
     idRef.current = id;
 
     const entry: KeybindEntry = {
-      id,
-      hotkey,
       callback: (event) => {
         callbackRef.current(event);
       },
+      hotkey,
+      id,
     };
 
     keybindRegistry.push(entry);
@@ -110,5 +112,5 @@ export const useKeybind = (
       }
       idRef.current = null;
     };
-  }, [hotkey, enabled, ...deps]);
+  }, [hotkey, enabled, dependencyList]);
 };

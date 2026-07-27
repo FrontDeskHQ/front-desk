@@ -2,8 +2,10 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { getRouteApi } from "@tanstack/react-router";
 import { Copy } from "lucide-react";
 import { toast } from "sonner";
+
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { query } from "~/lib/live-state";
+
 import { useCommandContext } from "../..";
 import { createAssignmentCommands } from "./assignment";
 import { createPriorityCommands } from "./priority";
@@ -19,43 +21,41 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
 
   const orgUsers = useLiveQuery(
     query.organizationUser
-      .where({ organizationId: activeOrganization?.id, enabled: true })
-      .include({ user: true }),
+      .where({ enabled: true, organizationId: activeOrganization?.id })
+      .include({ user: true })
   );
 
   const thread = useLiveQuery(
     query.thread.first({ id: threadId }).include({
       assignedUser: true,
-    }),
+    })
   );
 
   useCommandContext(
     () => {
       const { commands: assignmentCommands, assignUserPage } =
         createAssignmentCommands({
-          threadId,
+          orgUsers: orgUsers ?? null,
           organizationId,
           thread,
+          threadId,
           user,
-          orgUsers: orgUsers ?? null,
         });
       const { commands: statusCommands, statusPage } = createStatusCommands({
-        threadId,
         organizationId,
         thread,
+        threadId,
         user,
       });
       const { commands: priorityCommands, priorityPage } =
         createPriorityCommands({
-          threadId,
           organizationId,
           thread,
+          threadId,
           user,
         });
 
       return {
-        id: "thread",
-        label: "Thread",
         commands: [
           ...assignmentCommands,
           ...statusCommands,
@@ -70,22 +70,24 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
             },
           },
         ],
-        pages: {
-          "assign-user": assignUserPage,
-          status: statusPage,
-          priority: priorityPage,
-        },
         footer: (
           <div className="text-xs bg-foreground-tertiary/15 px-2 py-1 rounded-sm">
             {thread?.name}
           </div>
         ),
+        id: "thread",
+        label: "Thread",
+        pages: {
+          "assign-user": assignUserPage,
+          priority: priorityPage,
+          status: statusPage,
+        },
       };
     },
     {
       active: Boolean(organizationId),
       deps: [threadId, organizationId, thread, user, orgUsers],
-    },
+    }
   );
 
   return null;

@@ -8,7 +8,9 @@ export const useReactScanEnabled = () => {
   const [enabled, setEnabled] = useState(false);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
     const stored = localStorage.getItem(REACT_SCAN_ENABLED_KEY);
     const isEnabled = stored === "true";
@@ -16,7 +18,9 @@ export const useReactScanEnabled = () => {
   }, []);
 
   const setReactScanEnabled = (value: boolean) => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") {
+      return;
+    }
 
     localStorage.setItem(REACT_SCAN_ENABLED_KEY, String(value));
     setEnabled(value);

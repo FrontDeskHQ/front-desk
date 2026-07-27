@@ -1,8 +1,8 @@
 {
   "name": "worker",
-  "module": "index.ts",
-  "type": "module",
   "private": true,
+  "type": "module",
+  "module": "index.ts",
   "scripts": {
     "dev": "bun run --watch src/worker.ts",
     "start": "NODE_ENV=production bun run src/worker.ts",

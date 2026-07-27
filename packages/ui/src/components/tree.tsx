@@ -5,18 +5,18 @@ import * as React from "react";
 
 type TreeGuide = "join" | "skip";
 
-type TreeIndicatorStretch = {
+interface TreeIndicatorStretch {
   stretchStart?: number;
   stretchEnd?: number;
   stretchSide?: number;
-};
+}
 
-type TreeItemPositionContextValue = {
+interface TreeItemPositionContextValue {
   guides: TreeGuide[];
   isLast: boolean;
   index: number;
   depth: number;
-};
+}
 
 const TreeItemPositionContext =
   React.createContext<TreeItemPositionContextValue | null>(null);
@@ -62,8 +62,8 @@ function verticalLineStyle({
   const spanPercent = span * 100;
 
   return {
-    top: -stretchStart,
     height: `calc(${spanPercent}% + ${stretchStart + stretchEnd}px)`,
+    top: -stretchStart,
   };
 }
 
@@ -76,10 +76,15 @@ function TreeList({ className, children, ...props }: TreeListProps) {
     : [];
   const childDepth = parentPosition ? parentPosition.depth + 1 : 0;
 
-  const items = React.useMemo(
-    () => React.Children.toArray(children).filter(React.isValidElement),
-    [children],
-  );
+  const items = React.useMemo(() => {
+    const childNodes = Array.isArray(children)
+      ? children
+      : children
+        ? [children]
+        : [];
+
+    return childNodes.filter(React.isValidElement);
+  }, [children]);
 
   return (
     <ul
@@ -94,10 +99,10 @@ function TreeList({ className, children, ...props }: TreeListProps) {
           <TreeItemPositionContext.Provider
             key={child.key ?? `tree-item-${index}`}
             value={{
-              guides: guidesForItems,
-              isLast,
-              index,
               depth: childDepth,
+              guides: guidesForItems,
+              index,
+              isLast,
             }}
           >
             {child}
@@ -136,7 +141,7 @@ function TreeItemRow({ className, children, ...props }: TreeItemRowProps) {
       data-slot="tree-item-row"
       className={cn(
         "flex min-h-8 min-w-0 items-stretch gap-1 overflow-visible text-sm",
-        className,
+        className
       )}
       {...props}
     >
@@ -154,7 +159,7 @@ function TreeItemRow({ className, children, ...props }: TreeItemRowProps) {
             data-slot="tree-gap"
             className={indicatorClassName}
           />
-        ),
+        )
       )}
       {depth > 0 ? (
         <TreeJoin isLast={isLast} stretchStart={TREE_ROW_GAP_PX} />
@@ -197,19 +202,13 @@ function TreeJoin({
         aria-hidden
         className="absolute left-1/2 box-border border-foreground-tertiary border-b border-l"
         style={{
-          top: stretchStart > 0 ? -stretchStart : 0,
-          height:
-            stretchStart > 0
-              ? `calc(50% + ${stretchStart}px)`
-              : "50%",
-          width:
-            stretchSide > 0
-              ? `calc(50% + ${stretchSide}px)`
-              : "50%",
           borderBottomLeftRadius: TREE_CORNER_RADIUS_PX,
+          height: stretchStart > 0 ? `calc(50% + ${stretchStart}px)` : "50%",
+          top: stretchStart > 0 ? -stretchStart : 0,
+          width: stretchSide > 0 ? `calc(50% + ${stretchSide}px)` : "50%",
         }}
       />
-      {!isLast ? (
+      {isLast ? null : (
         <span
           aria-hidden
           className="absolute left-1/2 border-l border-foreground-tertiary"
@@ -221,7 +220,7 @@ function TreeJoin({
               : { bottom: 0 }),
           }}
         />
-      ) : null}
+      )}
     </div>
   );
 }
@@ -236,7 +235,7 @@ function TreeSkip({
   style,
   ...props
 }: TreeSkipProps) {
-  const verticalStyle = verticalLineStyle({ stretchStart, stretchEnd });
+  const verticalStyle = verticalLineStyle({ stretchEnd, stretchStart });
 
   return (
     <div
@@ -250,20 +249,13 @@ function TreeSkip({
         className="absolute left-1/2 border-l border-foreground-tertiary"
         style={{
           width: 0,
-          ...(!verticalStyle ? { top: 0, bottom: 0 } : verticalStyle),
+          ...(verticalStyle ? verticalStyle : { top: 0, bottom: 0 }),
         }}
       />
     </div>
   );
 }
 
-export {
-  TreeItem,
-  TreeItemRow,
-  TreeJoin,
-  TreeList,
-  TreeSkip,
-  TREE_ROW_GAP_PX,
-};
+export { TreeItem, TreeItemRow, TreeJoin, TreeList, TreeSkip, TREE_ROW_GAP_PX };
 
 export type { TreeGuide, TreeIndicatorStretch };

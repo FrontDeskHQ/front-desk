@@ -1,6 +1,4 @@
-import { ReflagClient } from "@reflag/node-sdk";
+import { createReflagClient } from "@connectors/framework/runtime";
 
-// Create a singleton instance of the Reflag client
-export const reflagClient = new ReflagClient({
-  secretKey: process.env.REFLAG_SECRET_KEY,
-});
+// Singleton Reflag client for feature flags.
+export const reflagClient = createReflagClient();

@@ -1,5 +1,6 @@
 import type { ServerDB } from "@live-state/sync/server";
 import { z } from "zod";
+
 import type { schema } from "../live-state/schema";
 
 const documentationSourceStatusSchema = z.enum([
@@ -12,13 +13,13 @@ const documentationSourceStatusSchema = z.enum([
 
 export const syncCrawlProgressInputSchema = z
   .object({
-    id: z.string(),
-    organizationId: z.string(),
-    status: documentationSourceStatusSchema.optional(),
-    errorStr: z.string().nullable().optional(),
-    pageCount: z.number().optional(),
     chunksIndexed: z.number().optional(),
+    errorStr: z.string().nullable().optional(),
+    id: z.string(),
     lastCrawledAt: z.coerce.date().nullable().optional(),
+    organizationId: z.string(),
+    pageCount: z.number().optional(),
+    status: documentationSourceStatusSchema.optional(),
     updatedAt: z.coerce.date().optional(),
   })
   .refine(
@@ -26,14 +27,14 @@ export const syncCrawlProgressInputSchema = z
       const { id: _id, organizationId: _organizationId, ...fields } = input;
       return Object.values(fields).some((value) => value !== undefined);
     },
-    { message: "NO_FIELDS_TO_UPDATE" },
+    { message: "NO_FIELDS_TO_UPDATE" }
   );
 
 type SyncCrawlProgressDb = Pick<ServerDB<typeof schema>, "documentationSource">;
 
 export const runSyncCrawlProgress = async (
   db: SyncCrawlProgressDb,
-  input: z.infer<typeof syncCrawlProgressInputSchema>,
+  input: z.infer<typeof syncCrawlProgressInputSchema>
 ) => {
   const source = await db.documentationSource
     .first({ id: input.id, organizationId: input.organizationId })

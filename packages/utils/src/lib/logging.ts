@@ -1,11 +1,14 @@
-import { initLogger, type LoggerConfig } from "evlog";
-import { createAxiomDrain, type AxiomConfig } from "evlog/axiom";
+import { initLogger } from "evlog";
+import type { LoggerConfig } from "evlog";
+import { createAxiomDrain } from "evlog/axiom";
+import type { AxiomConfig } from "evlog/axiom";
+
 export { createLogger, createRequestLogger, log } from "evlog";
 export { createAILogger, createEvlogIntegration } from "evlog/ai";
 
 type EnvMap = Record<string, string | undefined>;
 
-export type SharedLoggerOptions = {
+export interface SharedLoggerOptions {
   service: string;
   environment?: string;
   enabled?: boolean;
@@ -22,7 +25,7 @@ export type SharedLoggerOptions = {
     retries?: number;
   };
   env?: EnvMap;
-};
+}
 
 const getRuntimeEnv = (): EnvMap => {
   const processLike = globalThis as {
@@ -45,10 +48,10 @@ const getAxiomDrain = (options: SharedLoggerOptions): LoggerConfig["drain"] => {
 
   const config: Partial<AxiomConfig> = {
     dataset,
-    token,
     orgId: options.axiom?.orgId ?? env.AXIOM_ORG_ID,
-    timeout: options.axiom?.timeout,
     retries: options.axiom?.retries,
+    timeout: options.axiom?.timeout,
+    token,
   };
 
   const edgeUrl = options.axiom?.edgeUrl ?? env.AXIOM_EDGE_URL;
@@ -64,20 +67,20 @@ const getAxiomDrain = (options: SharedLoggerOptions): LoggerConfig["drain"] => {
 };
 
 export const createSharedLoggerConfig = (
-  options: SharedLoggerOptions,
+  options: SharedLoggerOptions
 ): LoggerConfig => {
   const env = options.env ?? getRuntimeEnv();
 
   return {
+    drain: getAxiomDrain(options),
     enabled: options.enabled ?? true,
+    env: {
+      environment: options.environment ?? env.NODE_ENV ?? "development",
+      service: options.service,
+    },
+    minLevel: options.minLevel ?? "info",
     pretty: options.pretty ?? env.NODE_ENV !== "production",
     silent: options.silent ?? false,
-    minLevel: options.minLevel ?? "info",
-    env: {
-      service: options.service,
-      environment: options.environment ?? env.NODE_ENV ?? "development",
-    },
-    drain: getAxiomDrain(options),
   };
 };
 

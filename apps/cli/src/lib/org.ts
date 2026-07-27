@@ -2,13 +2,13 @@ import { fetchClient } from "./live-state.js";
 
 const ULID_RE = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
 
-export type ResolvedOrganization = {
+export interface ResolvedOrganization {
   id: string;
   slug: string;
-};
+}
 
 export const resolveOrganization = async (
-  orgRef: string,
+  orgRef: string
 ): Promise<ResolvedOrganization> => {
   const trimmed = orgRef.trim();
   if (!trimmed) {

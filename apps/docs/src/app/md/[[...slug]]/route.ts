@@ -1,6 +1,8 @@
-import { source } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
-import { type NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+
+import { source } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -14,7 +16,7 @@ ${processed}`;
 
 export async function GET(
   _request: NextRequest,
-  props: { params: Promise<{ slug?: string[] }> },
+  props: { params: Promise<{ slug?: string[] }> }
 ) {
   console.log("GET /[[...slug]].md");
   const { slug } = await props.params;

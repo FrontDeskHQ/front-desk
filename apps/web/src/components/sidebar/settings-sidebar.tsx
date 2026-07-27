@@ -27,6 +27,7 @@ import {
   UserRoundPen,
   Users,
 } from "lucide-react";
+
 import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
@@ -34,7 +35,7 @@ import { query } from "~/lib/live-state";
 interface SidebarItem {
   title: string;
   url: string;
-  icon: React.ComponentType<any>;
+  icon: React.ComponentType<{ className?: string }>;
   role?: "owner" | "user";
   featureFlag?: string;
 }
@@ -44,7 +45,6 @@ const groups: {
   items: SidebarItem[];
 }[] = [
   {
-    title: "Personal",
     items: [
       {
         title: "Profile",
@@ -52,9 +52,9 @@ const groups: {
         icon: UserRoundPen,
       },
     ],
+    title: "Personal",
   },
   {
-    title: "Organization",
     items: [
       {
         title: "General",
@@ -102,6 +102,7 @@ const groups: {
         role: "owner",
       },
     ],
+    title: "Organization",
   },
 ];
 
@@ -115,10 +116,10 @@ export function SettingsSidebar() {
 
   const selfOrgUser = useLiveQuery(
     query.organizationUser.first({
-      organizationId: currentOrg?.id,
       enabled: true,
+      organizationId: currentOrg?.id,
       userId: user?.id,
-    }),
+    })
   );
 
   return (
@@ -140,7 +141,7 @@ export function SettingsSidebar() {
               <SidebarMenu>
                 {group.items
                   .filter(
-                    (item) => !item.role || item.role === selfOrgUser?.role,
+                    (item) => !item.role || item.role === selfOrgUser?.role
                   )
                   .map((item) => (
                     <SettingsSidebarItem

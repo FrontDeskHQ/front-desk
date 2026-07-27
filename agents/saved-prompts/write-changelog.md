@@ -3,6 +3,7 @@ preferred model: opus-4.5
 ---
 
 prompt:
+
 ```
 @apps/web/src/routes/_public/updates/posts write a changelog for the present day, it should have a tone similar to previous posts, where it's markety/salesly but not much. It should present features in a concise way but focusing on the value they provide for the user/organization rather than on what it does.
 

@@ -1,5 +1,8 @@
+import { createRedisConnection } from "@connectors/framework/runtime";
+import type { PrMatchJobData } from "@workspace/schemas/signals";
 import { Queue } from "bullmq";
-import Redis from "ioredis";
+
+export { createRedisConnection } from "@connectors/framework/runtime";
 
 /**
  * Queue + connection for the github app's own BullMQ jobs. Integration apps own
@@ -30,55 +33,19 @@ const RECONCILE_CRON = "0 4 * * *";
  * Data for a repo backfill: everything the processor needs to authenticate as
  * the installation and page the repo's issues/PRs.
  */
-export type BackfillJobData = {
+export interface BackfillJobData {
   organizationId: string;
   installationId: number;
   owner: string;
   repo: string;
   fullName: string;
-};
+}
 
 /**
  * Data for a single-repo reconcile. Structurally identical to a backfill (same
  * auth + paging inputs); kept as a distinct type for intent.
  */
 export type ReconcileRepoJobData = BackfillJobData;
-
-/**
- * Create a Redis connection configured for BullMQ (`maxRetriesPerRequest: null`
- * is required by both Queue and Worker). Mirrors the worker app's connection
- * resolution: prefer `REDIS_URL`, fall back to discrete host/port/etc.
- */
-export const createRedisConnection = (): Redis => {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  }
-
-  const redisConfig: {
-    host: string;
-    port?: number;
-    password?: string;
-    db?: number;
-    maxRetriesPerRequest: null;
-  } = {
-    host: process.env.REDIS_HOST ?? "localhost",
-    maxRetriesPerRequest: null,
-  };
-
-  if (process.env.REDIS_PORT) {
-    redisConfig.port = Number.parseInt(process.env.REDIS_PORT, 10);
-  }
-
-  if (process.env.REDIS_PASSWORD) {
-    redisConfig.password = process.env.REDIS_PASSWORD;
-  }
-
-  if (process.env.REDIS_DB) {
-    redisConfig.db = Number.parseInt(process.env.REDIS_DB, 10);
-  }
-
-  return new Redis(redisConfig);
-};
 
 let queue: Queue<BackfillJobData> | null = null;
 
@@ -108,10 +75,10 @@ const safeFullName = (fullName: string): string =>
 export const enqueueRepoBackfill = async (data: BackfillJobData) => {
   const jobId = `backfill_${data.organizationId}_${safeFullName(data.fullName)}`;
   await getQueue().add(BACKFILL_JOB_NAME, data, {
-    jobId,
     attempts: 3,
-    backoff: { type: "exponential", delay: 10_000 },
-    removeOnComplete: { count: 50, age: 24 * 3600 },
+    backoff: { delay: 10_000, type: "exponential" },
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 50 },
     removeOnFail: { count: 200 },
   });
 };
@@ -138,7 +105,7 @@ export const ensureReconcileScheduler = async () => {
     {
       name: RECONCILE_DISPATCH_JOB_NAME,
       opts: {
-        removeOnComplete: { count: 20, age: 7 * 24 * 3600 },
+        removeOnComplete: { age: 7 * 24 * 3600, count: 20 },
         removeOnFail: { count: 50 },
       },
     }
@@ -154,10 +121,69 @@ export const ensureReconcileScheduler = async () => {
 export const enqueueRepoReconcile = async (data: ReconcileRepoJobData) => {
   const jobId = `reconcile_${data.organizationId}_${safeFullName(data.fullName)}`;
   await getReconcileQueue().add(RECONCILE_REPO_JOB_NAME, data, {
-    jobId,
     attempts: 3,
-    backoff: { type: "exponential", delay: 10_000 },
-    removeOnComplete: { count: 100, age: 24 * 3600 },
+    backoff: { delay: 10_000, type: "exponential" },
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 100 },
     removeOnFail: { count: 200 },
+  });
+};
+
+/**
+ * PR push-side match queue (FRO-205). The github connector produces onto it from
+ * the pull-request webhook; the worker (apps/worker) owns the processor —
+ * signals/embedding is the worker's domain, not this app's. Keep the queue and
+ * job names in sync with the consumer (`PR_MATCH_QUEUE` in apps/worker).
+ */
+const PR_MATCH_QUEUE = "pr-match";
+const PR_MATCH_JOB_NAME = "match-pr";
+
+let prMatchQueue: Queue<PrMatchJobData> | null = null;
+
+const getPrMatchQueue = (): Queue<PrMatchJobData> => {
+  if (!prMatchQueue) {
+    prMatchQueue = new Queue<PrMatchJobData>(PR_MATCH_QUEUE, {
+      connection: createRedisConnection(),
+      defaultJobOptions: {
+        attempts: 3,
+        backoff: { delay: 5000, type: "exponential" },
+      },
+    });
+  }
+  return prMatchQueue;
+};
+
+/**
+ * Enqueue a push-side match for a PR. One pending job per PR — scoped by
+ * `(organizationId, externalKey)` so orgs sharing a repo don't coalesce onto
+ * each other's match (`externalKey` is `provider:owner/repo#number`, not
+ * org-unique) — coalesces a burst of webhook events (open → edit) into a single
+ * embed + search: any prior non-active job for the same PR is dropped so the
+ * latest content wins, matching `enqueuePrIndex`'s scheme.
+ *
+ * BullMQ reserves `:` as a Redis key separator and rejects it in custom job
+ * ids, so the parts are joined with `_` and `externalKey`'s `:` is replaced
+ * (its `_`s escaped first) to keep the id injective — the same scheme the
+ * backfill/reconcile ids use.
+ */
+export const enqueuePrMatch = async (data: PrMatchJobData) => {
+  const q = getPrMatchQueue();
+  const safeExternalKey = data.externalKey
+    .replaceAll("_", "__")
+    .replaceAll(":", "_");
+  const jobId = `pr-match_${data.organizationId}_${safeExternalKey}`;
+
+  const existing = await q.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "active") {
+      await existing.remove();
+    }
+  }
+
+  await q.add(PR_MATCH_JOB_NAME, data, {
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 100 },
+    removeOnFail: { count: 500 },
   });
 };

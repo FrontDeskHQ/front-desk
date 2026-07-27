@@ -15,29 +15,30 @@
 
 import { useRender } from "@base-ui/react/use-render";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 const thingVariants = cva(
   // base classes shared by all variants
   "inline-flex items-center justify-center rounded-md text-sm transition outline-none focus-visible:ring-ring/50 focus-visible:ring-[3px]",
   {
+    defaultVariants: {
+      size: "md",
+      variant: "default",
+    },
     variants: {
+      size: {
+        lg: "h-9 px-4",
+        md: "h-7 px-3",
+        sm: "h-6 px-2 text-xs",
+      },
       variant: {
         default: "bg-background-secondary text-foreground-primary border",
         // add more variants here
       },
-      size: {
-        sm: "h-6 px-2 text-xs",
-        md: "h-7 px-3",
-        lg: "h-9 px-4",
-      },
     },
-    defaultVariants: {
-      variant: "default",
-      size: "md",
-    },
-  },
+  }
 );
 
 // `useRender.ComponentProps<"div">` includes the `render` prop, which lets
@@ -48,12 +49,12 @@ type ThingProps = useRender.ComponentProps<"div"> &
 function Thing({ className, variant, size, render, ...props }: ThingProps) {
   return useRender({
     defaultTagName: "div",
-    render,
     props: {
       ...props,
-      "data-slot": "thing",
       className: cn(thingVariants({ variant, size, className })),
+      "data-slot": "thing",
     },
+    render,
   });
 }
 

@@ -1,6 +1,6 @@
 const ROLE_HIERARCHY: Record<string, number> = {
-  user: 0,
   owner: 1,
+  user: 0,
 };
 
 const getRoleLevel = (role: string): number | undefined => {
@@ -13,13 +13,13 @@ const getRoleLevel = (role: string): number | undefined => {
   return level;
 };
 
-export type PortalSession = {
+export interface PortalSession {
   session?: { userId?: string; userName?: string } | null;
   user?: { id?: string; name?: string } | null;
-};
+}
 
 /** Context injected by live-state (sessions, API keys). */
-export type AuthorizationContext = {
+export interface AuthorizationContext {
   internalApiKey?: unknown;
   publicApiKey?: { ownerId: string };
   orgUsers?: { organizationId: string; role: string }[];
@@ -28,14 +28,14 @@ export type AuthorizationContext = {
   portalSession?: PortalSession | null;
   /** Organization resolved from the portal request origin (subdomain or /support/{slug}). */
   portalOrganizationId?: string;
-};
+}
 
 /** Request-like shape that carries credential context (e.g. mutation/query `req`). */
-export type AuthorizeReq = {
+export interface AuthorizeReq {
   context?: AuthorizationContext | null;
-};
+}
 
-export type AuthorizeOptions = {
+export interface AuthorizeOptions {
   organizationId?: string;
   role?: string;
   allowPublicApiKey?: boolean;
@@ -49,13 +49,13 @@ export type AuthorizeOptions = {
   allowInternalApiKey?: boolean;
   /** When `true`, only {@link AuthorizationContext.internalApiKey} satisfies auth. */
   internalApiKeyOnly?: boolean;
-};
+}
 
-export type ThreadCreateAuthInput = {
+export interface ThreadCreateAuthInput {
   organizationId: string;
   inputUserId?: string;
   hasIntegrationOnlyFields: boolean;
-};
+}
 
 export type ThreadCreateAuthFlow =
   | "integration"
@@ -64,16 +64,18 @@ export type ThreadCreateAuthFlow =
   | "workspace";
 
 export const getPortalUserId = (
-  ctx: AuthorizationContext,
+  ctx: AuthorizationContext
 ): string | undefined =>
-  ctx.portalSession?.session?.userId ?? ctx.portalSession?.user?.id ?? undefined;
+  ctx.portalSession?.session?.userId ??
+  ctx.portalSession?.user?.id ??
+  undefined;
 
 export const getWorkspaceUserId = (
-  ctx: AuthorizationContext,
+  ctx: AuthorizationContext
 ): string | undefined => ctx.session?.userId ?? undefined;
 
 export const requireInternalApiKey = (
-  ctx: AuthorizationContext | null | undefined,
+  ctx: AuthorizationContext | null | undefined
 ): void => {
   if (!ctx?.internalApiKey) {
     throw new Error("UNAUTHORIZED");
@@ -81,7 +83,7 @@ export const requireInternalApiKey = (
 };
 
 export const getWorkspaceActor = (
-  req: AuthorizeReq,
+  req: AuthorizeReq
 ): { userId: string; userName: string | null } => {
   const userId = getWorkspaceUserId(req.context ?? {});
   if (!userId) {
@@ -96,7 +98,7 @@ export const getWorkspaceActor = (
 
 export const getPortalAuthor = (
   req: AuthorizeReq,
-  input: { userName?: string } = {},
+  input: { userName?: string } = {}
 ): { userId: string; userName: string } => {
   const ctx = req.context ?? {};
   const userId = getPortalUserId(ctx);
@@ -120,7 +122,7 @@ export const getCallerUserId = (req: AuthorizeReq): string | undefined => {
 
 export const resolveHumanAuthor = (
   req: AuthorizeReq,
-  input: { userName?: string } = {},
+  input: { userName?: string } = {}
 ): { userId: string; userName: string } => {
   const ctx = req.context ?? {};
 
@@ -149,7 +151,7 @@ export const assertIntegrationAuthor = (req: AuthorizeReq): void => {
 
 export const authorizeThreadCreate = (
   req: AuthorizeReq,
-  input: ThreadCreateAuthInput,
+  input: ThreadCreateAuthInput
 ): ThreadCreateAuthFlow => {
   const ctx = req.context ?? {};
   const hasInternalKey = !!ctx.internalApiKey;
@@ -188,8 +190,8 @@ export const authorizeThreadCreate = (
 
   if (hasPublicKey) {
     authorize(req, {
-      organizationId: input.organizationId,
       allowPublicApiKey: true,
+      organizationId: input.organizationId,
     });
     return "public";
   }
@@ -203,7 +205,7 @@ export const assertInternalKeyForIntegrationFields = (
     recordActivity?: unknown;
     activityMetadata?: unknown;
     replicatedStr?: unknown;
-  },
+  }
 ): void => {
   if (req.context?.internalApiKey) {
     return;
@@ -220,7 +222,7 @@ export const assertInternalKeyForIntegrationFields = (
 
 export const authorizeSelfOrInternal = (
   req: AuthorizeReq,
-  userId: string,
+  userId: string
 ): void => {
   const ctx = req.context ?? {};
   if (ctx.internalApiKey) {
@@ -236,11 +238,11 @@ export const authorizeSelfOrInternal = (
 
 export const authorizeWorkspaceOrgMember = (
   req: AuthorizeReq,
-  organizationId: string,
+  organizationId: string
 ): { userId: string; userName: string | null } => {
   authorize(req, {
-    organizationId,
     allowInternalApiKey: false,
+    organizationId,
   });
 
   return getWorkspaceActor(req);
@@ -248,7 +250,7 @@ export const authorizeWorkspaceOrgMember = (
 
 export const authorizeOwnedAgentChat = (
   req: AuthorizeReq,
-  chat: { organizationId: string; userId: string },
+  chat: { organizationId: string; userId: string }
 ): { userId: string; userName: string | null } => {
   const actor = authorizeWorkspaceOrgMember(req, chat.organizationId);
 
@@ -261,7 +263,7 @@ export const authorizeOwnedAgentChat = (
 
 export const assertInviteRecipient = (
   req: AuthorizeReq,
-  inviteEmail: string,
+  inviteEmail: string
 ): void => {
   const userEmail = req.context?.user?.email;
   if (!userEmail || userEmail.toLowerCase() !== inviteEmail.toLowerCase()) {
@@ -272,7 +274,7 @@ export const assertInviteRecipient = (
 };
 
 export const getAuthorizedOrganizationIds = (
-  req: AuthorizeReq,
+  req: AuthorizeReq
 ): string[] | null => {
   const ctx = req.context ?? {};
 
@@ -293,7 +295,7 @@ export const getAuthorizedOrganizationIds = (
 
 export const isAuthorized = (
   ctx: AuthorizationContext,
-  opts: AuthorizeOptions,
+  opts: AuthorizeOptions
 ): boolean => {
   if (opts.internalApiKeyOnly) {
     return !!ctx.internalApiKey;
@@ -312,21 +314,24 @@ export const isAuthorized = (
 
   if (opts.allowPortalUser && getPortalUserId(ctx) !== undefined) {
     return (
-      !!opts.organizationId &&
-      ctx.portalOrganizationId === opts.organizationId
+      !!opts.organizationId && ctx.portalOrganizationId === opts.organizationId
     );
   }
 
   if (ctx.orgUsers && opts.organizationId) {
     const orgUser = ctx.orgUsers.find(
-      (ou) => ou.organizationId === opts.organizationId,
+      (ou) => ou.organizationId === opts.organizationId
     );
 
-    if (!orgUser) return false;
+    if (!orgUser) {
+      return false;
+    }
 
     if (opts.role) {
       const requiredLevel = getRoleLevel(opts.role);
-      if (requiredLevel === undefined) return false;
+      if (requiredLevel === undefined) {
+        return false;
+      }
       const userLevel = ROLE_HIERARCHY[orgUser.role] ?? 0;
       return userLevel >= requiredLevel;
     }
@@ -347,17 +352,19 @@ export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
     throw new Error("UNAUTHORIZED");
   }
 
-  if (isAuthorized(req.context ?? {}, opts)) return;
+  if (isAuthorized(req.context ?? {}, opts)) {
+    return;
+  }
 
   throw new Error("UNAUTHORIZED");
 };
 
 /** Resolve portal tenant slug from forwarded browser origin (subdomain or /support/{slug}). */
 export const parsePortalOrganizationSlug = (
-  headers: Record<string, string>,
+  headers: Record<string, string>
 ): string | undefined => {
   const baseHostname = new URL(
-    process.env.BASE_FRONTEND_URL ?? "http://localhost:3000",
+    process.env.BASE_FRONTEND_URL ?? "http://localhost:3000"
   ).hostname.toLowerCase();
 
   const candidates = [

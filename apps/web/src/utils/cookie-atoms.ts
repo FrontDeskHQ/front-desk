@@ -6,8 +6,13 @@ const COOKIE_PREFIX = "frontdesk_";
 
 const cookieStorage = <T>() =>
   createJSONStorage<T>(() =>
-    typeof window !== "undefined" // This prevents hydration errors
+    typeof window === "undefined" // This prevents hydration errors
       ? {
+          getItem: () => null,
+          setItem: () => {},
+          removeItem: () => {},
+        }
+      : {
           getItem: (key) => Cookies.get(`${COOKIE_PREFIX}${key}`) ?? null,
           setItem: (key, value) =>
             Cookies.set(`${COOKIE_PREFIX}${key}`, value, {
@@ -36,11 +41,6 @@ const cookieStorage = <T>() =>
                 handler as EventListener
               );
           },
-        }
-      : {
-          getItem: () => null,
-          setItem: () => {},
-          removeItem: () => {},
         }
   );
 

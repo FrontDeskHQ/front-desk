@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+
 import { cn } from "../lib/utils";
 import { Button } from "./button";
 
@@ -9,7 +10,7 @@ function NavbarRoot({ className, children }: NavbarProps) {
     <header
       className={cn(
         "flex w-full border-b bg-background-primary/95 backdrop-blur supports-[backdrop-filter]:bg-background-primary/60 px-8",
-        className,
+        className
       )}
     >
       <div className="max-w-6xl mx-auto flex items-center justify-between py-4 w-full">
@@ -34,11 +35,13 @@ function NavbarLinkGroup({ className, children }: NavbarProps) {
 
   useEffect(() => {
     const container = containerRef.current;
-    if (!container) return;
+    if (!container) {
+      return;
+    }
 
     const updateIndicator = () => {
       const activeChild = container.querySelector(
-        '[data-active="true"]',
+        '[data-active="true"]'
       ) as HTMLElement;
       if (!activeChild) {
         setIndicatorStyle(null);
@@ -70,10 +73,10 @@ function NavbarLinkGroup({ className, children }: NavbarProps) {
     });
 
     mutationObserver.observe(container, {
+      attributeFilter: ["data-active"],
+      attributes: true,
       childList: true,
       subtree: true,
-      attributes: true,
-      attributeFilter: ["data-active"],
     });
 
     return () => {
@@ -121,6 +124,6 @@ function NavbarLinkItem({
 
 export const Navbar = Object.assign(NavbarRoot, {
   Group: NavbarGroup,
-  LinkItem: NavbarLinkItem,
   LinkGroup: NavbarLinkGroup,
+  LinkItem: NavbarLinkItem,
 });

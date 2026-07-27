@@ -3,20 +3,23 @@ import { z } from "zod";
 export { sanitizeAgentReadReasoning } from "./sanitize-agent-read-reasoning";
 
 const stableHash = (value: string): string => {
-  let hash = 2166136261;
+  let hash = 2_166_136_261;
   for (let i = 0; i < value.length; i++) {
-    hash ^= value.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
+    const codePoint = value.codePointAt(i) ?? 0;
+    hash = Math.imul((hash + codePoint) % 4_294_967_296, 16_777_619);
+    if (hash < 0) {
+      hash += 4_294_967_296;
+    }
   }
-  return (hash >>> 0).toString(16).padStart(8, "0");
+  return (hash % 4_294_967_296).toString(16).padStart(8, "0");
 };
 
 // --- Action vocabulary ----------------------------------------------------
 
 // Synthesis-track actions: composed by the synthesis LLM into a ThreadRead.
 export const replyActionSchema = z.object({
-  kind: z.literal("reply"),
   draftMarkdown: z.string(),
+  kind: z.literal("reply"),
 });
 export type ReplyAction = z.infer<typeof replyActionSchema>;
 
@@ -72,11 +75,11 @@ export const actionKindSchema = z.enum(ACTION_KINDS);
 export type ActionKind = z.infer<typeof actionKindSchema>;
 
 export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
-  reply: "Just reply",
-  mark_duplicate: "Mark duplicate",
-  link_pr: "Link pull request",
-  close: "Close thread",
   apply_label: "Apply label",
+  close: "Close thread",
+  link_pr: "Link pull request",
+  mark_duplicate: "Mark duplicate",
+  reply: "Just reply",
   set_status: "Set status",
 };
 
@@ -86,11 +89,11 @@ export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
  * naturally mid-sentence; the leading verb is capitalized at render time.
  */
 export const ACTION_KIND_VERB: Record<ActionKind, string> = {
-  reply: "reply",
-  mark_duplicate: "mark duplicate",
-  link_pr: "link PR",
-  close: "close",
   apply_label: "apply label",
+  close: "close",
+  link_pr: "link PR",
+  mark_duplicate: "mark duplicate",
+  reply: "reply",
   set_status: "set status",
 };
 
@@ -122,40 +125,40 @@ export const isInlineAction = (action: Action): boolean =>
 // --- ThreadRead -----------------------------------------------------------
 
 export const threadReadSchema = z.object({
-  /** Thread summary: the customer situation (what they want or reported). */
-  summary: z.string(),
-  /** Actionable output: the imperative next move, tied to `primary`. */
-  recommendation: z.string().trim().min(1),
-  reasoning: z.string(),
-  primary: z.array(actionSchema),
   alternatives: z.array(actionSchema).optional(),
-  urgencyScore: z.number().min(0).max(100),
-  sourceInputMessageId: z.string(),
   /** ISO timestamp when synthesis produced this read. */
   createdAt: z.string().optional(),
   dismissedAt: z.string().optional(),
+  primary: z.array(actionSchema),
+  reasoning: z.string(),
+  /** Actionable output: the imperative next move, tied to `primary`. */
+  recommendation: z.string().trim().min(1),
+  sourceInputMessageId: z.string(),
+  /** Thread summary: the customer situation (what they want or reported). */
+  summary: z.string(),
+  urgencyScore: z.number().min(0).max(100),
 });
 export type ThreadRead = z.infer<typeof threadReadSchema>;
 
 /** Stable fingerprint for stale-read guards (web + API). */
 export const fingerprintAgentRead = (read: ThreadRead): string => {
   const payload = {
-    summary: read.summary,
-    recommendation: read.recommendation,
-    reasoning: read.reasoning,
-    primary: read.primary,
     alternatives: read.alternatives ?? [],
-    urgencyScore: read.urgencyScore,
+    primary: read.primary,
+    reasoning: read.reasoning,
+    recommendation: read.recommendation,
     sourceInputMessageId: read.sourceInputMessageId,
+    summary: read.summary,
+    urgencyScore: read.urgencyScore,
   };
   return stableHash(JSON.stringify(payload));
 };
 
-export type ActionExecutionResult = {
+export interface ActionExecutionResult {
   succeeded: Action[];
   failed: { action: Action; error: unknown } | null;
   rolledBack: Action[];
-};
+}
 
 /**
  * True when `succeeded` refers to the same primary entry as `candidate`. Reply
@@ -164,8 +167,12 @@ export type ActionExecutionResult = {
  * match replies by kind, everything else by value.
  */
 const matchesReadEntry = (candidate: Action, succeeded: Action): boolean => {
-  if (candidate.kind !== succeeded.kind) return false;
-  if (candidate.kind === "reply") return true;
+  if (candidate.kind !== succeeded.kind) {
+    return false;
+  }
+  if (candidate.kind === "reply") {
+    return true;
+  }
   return JSON.stringify(candidate) === JSON.stringify(succeeded);
 };
 
@@ -180,7 +187,7 @@ const matchesReadEntry = (candidate: Action, succeeded: Action): boolean => {
  */
 export const nextAgentReadAfterExecution = (
   read: ThreadRead,
-  result: ActionExecutionResult,
+  result: ActionExecutionResult
 ): ThreadRead | null => {
   if (!result.failed) {
     return null;
@@ -195,9 +202,9 @@ export const nextAgentReadAfterExecution = (
   const remainingPrimary = [...read.primary];
   for (const succeeded of result.succeeded) {
     const idx = remainingPrimary.findIndex((action) =>
-      matchesReadEntry(action, succeeded),
+      matchesReadEntry(action, succeeded)
     );
-    if (idx >= 0) {
+    if (idx !== -1) {
       remainingPrimary.splice(idx, 1);
     }
   }
@@ -214,8 +221,12 @@ export const nextAgentReadAfterExecution = (
 
 export type UrgencyTier = "red" | "orange" | "yellow";
 export const urgencyTierFromScore = (score: number): UrgencyTier => {
-  if (score >= 80) return "red";
-  if (score >= 50) return "orange";
+  if (score >= 80) {
+    return "red";
+  }
+  if (score >= 50) {
+    return "orange";
+  }
   return "yellow";
 };
 
@@ -230,12 +241,12 @@ export type InlineSuggestionAction = z.infer<
 >;
 
 export const inlineSuggestionSchema = z.object({
-  id: z.string(),
   action: inlineSuggestionActionSchema,
   confidence: z.number().min(0).max(1),
-  generator: z.string(),
   createdAt: z.string(),
   dismissedAt: z.string().optional(),
+  generator: z.string(),
+  id: z.string(),
 });
 export type InlineSuggestion = z.infer<typeof inlineSuggestionSchema>;
 
@@ -245,18 +256,18 @@ export type InlineSuggestions = z.infer<typeof inlineSuggestionsSchema>;
 // --- Read hints (evidence bag) --------------------------------------------
 
 export const duplicateEvidenceSchema = z.object({
-  threadId: z.string(),
   score: z.number().min(0).max(1),
-  title: z.string(),
   shortDescription: z.string().optional(),
+  threadId: z.string(),
+  title: z.string(),
 });
 export type DuplicateEvidence = z.infer<typeof duplicateEvidenceSchema>;
 
 export const relatedDocEvidenceItemSchema = z.object({
   docId: z.string(),
+  score: z.number().min(0).max(1),
   title: z.string(),
   url: z.string().optional(),
-  score: z.number().min(0).max(1),
 });
 export type RelatedDocEvidenceItem = z.infer<
   typeof relatedDocEvidenceItemSchema
@@ -267,31 +278,58 @@ export const relatedDocsEvidenceSchema = z.object({
 });
 export type RelatedDocsEvidence = z.infer<typeof relatedDocsEvidenceSchema>;
 
-export type HintSlot<E> = {
+/**
+ * A single eligible PR the pull-side `related_prs` hint (FRO-206) found similar
+ * to the thread. `url` is what synthesis passes to read_pr / link_pr; `prId` is
+ * the mirror row id so downstream can resolve the FrontDesk PR row.
+ */
+export const relatedPrEvidenceItemSchema = z.object({
+  /** Provider-agnostic key `provider:owner/repo#number`. */
+  externalKey: z.string(),
+  number: z.number(),
+  /** Mirror row id (`externalEntity.id`). */
+  prId: z.string(),
+  repoFullName: z.string(),
+  score: z.number().min(0).max(1),
+  title: z.string(),
+  url: z.string(),
+});
+export type RelatedPrEvidenceItem = z.infer<typeof relatedPrEvidenceItemSchema>;
+
+export const relatedPrsEvidenceSchema = z.object({
+  prs: z.array(relatedPrEvidenceItemSchema),
+});
+export type RelatedPrsEvidence = z.infer<typeof relatedPrsEvidenceSchema>;
+
+export interface HintSlot<E> {
   evidence: E | null;
   hash: string;
   computedAt: string;
-};
+}
 
-export type Hints = {
+export interface Hints {
   duplicate?: HintSlot<DuplicateEvidence>;
   related_docs?: HintSlot<RelatedDocsEvidence>;
-};
+  related_prs?: HintSlot<RelatedPrsEvidence>;
+}
 
-export const HINT_KINDS = ["duplicate", "related_docs"] as const;
+export const HINT_KINDS = ["duplicate", "related_docs", "related_prs"] as const;
 export type HintKind = (typeof HINT_KINDS)[number];
 export const hintKindSchema = z.enum(HINT_KINDS);
 
 const hintSlotSchema = <E extends z.ZodTypeAny>(evidence: E) =>
   z.object({
+    computedAt: z.string(),
     evidence: evidence.nullable(),
     hash: z.string(),
-    computedAt: z.string(),
   });
 
 export const duplicateHintSlotSchema = hintSlotSchema(duplicateEvidenceSchema);
 export const relatedDocsHintSlotSchema = hintSlotSchema(
-  relatedDocsEvidenceSchema,
+  relatedDocsEvidenceSchema
+);
+export const relatedPrsHintSlotSchema = hintSlotSchema(
+  relatedPrsEvidenceSchema
 );
 
 // --- Autonomy -------------------------------------------------------------
@@ -301,7 +339,7 @@ export type AutonomyLevel = z.infer<typeof autonomyLevelSchema>;
 
 export const actionAutonomyMapSchema = z.partialRecord(
   actionKindSchema,
-  autonomyLevelSchema,
+  autonomyLevelSchema
 );
 export type ActionAutonomyMap = z.infer<typeof actionAutonomyMapSchema>;
 
@@ -320,9 +358,9 @@ export const autonomousActionMetadataSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("set_status"), previousStatus: z.number() }),
   z.object({
     kind: z.literal("mark_duplicate"),
+    previousStatus: z.number(),
     relatedThreadId: z.string(),
     score: z.number().nullable(),
-    previousStatus: z.number(),
   }),
   z.object({ kind: z.literal("link_pr"), prId: z.string() }),
 ]);
@@ -331,9 +369,11 @@ export type AutonomousActionMetadata = z.infer<
 >;
 
 export function parseAutonomousActionMetadata(
-  metadataStr: string | null,
+  metadataStr: string | null
 ): AutonomousActionMetadata | null {
-  if (!metadataStr) return null;
+  if (!metadataStr) {
+    return null;
+  }
   try {
     return autonomousActionMetadataSchema.parse(JSON.parse(metadataStr));
   } catch {
@@ -352,11 +392,124 @@ export const threadReadKindSchema = z.enum([
 ]);
 export type ThreadReadKind = z.infer<typeof threadReadKindSchema>;
 
-export const threadReadJobDataSchema = z.object({
-  threadId: z.string(),
+/**
+ * Candidate PR pushed by a `pr_matched` trigger. This is a *fuzzy* push-side
+ * similarity match (see ADR 0006) — synthesis treats it as a lead, not a
+ * confirmed link. `prId` is the mirrored FrontDesk PR row id; `score` is the
+ * cosine similarity of the match (0–1).
+ */
+export const prMatchCandidateSchema = z.object({
+  prId: z.string(),
+  score: z.number().min(0).max(1),
+  title: z.string(),
+  url: z.string(),
+});
+export type PrMatchCandidate = z.infer<typeof prMatchCandidateSchema>;
+
+/**
+ * The trigger-context channel (ADR 0006): the cause of a pipeline run plus any
+ * payload it pushed. Kept separate from `hints` so synthesis can distinguish a
+ * push-side `pr_matched` candidate from a pull-side `related_prs` hint.
+ */
+export const threadReadTriggerSchema = z.object({
   kind: threadReadKindSchema,
+  prMatched: prMatchCandidateSchema.optional(),
+});
+export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
+
+export const threadReadJobDataSchema = z.object({
+  kind: threadReadKindSchema,
+  /** Candidate PR carried by a `pr_matched` trigger; preserved across merges. */
+  prMatched: prMatchCandidateSchema.optional(),
+  threadId: z.string(),
 });
 export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
+
+// --- PR embedding index (FRO-203) -----------------------------------------
+
+/**
+ * Contract for a `pr-index` job: the API enqueues one after every mirror write
+ * that touches an [external pull request](../../CONTEXT.md); the worker embeds
+ * it (title + body + head ref) and upserts it into the PR vector index with an
+ * `eligible` flag (open, non-draft). This channel is **index-only** — it never
+ * fans out `pr_matched` thread reads (that push path is separate).
+ *
+ * The worker derives eligibility itself from `state`/`draft` rather than
+ * trusting a precomputed flag, so the mirror row stays the single source of
+ * truth. A `deleted` job signals the mirror row was soft-deleted (issue/PR
+ * removed or transferred out) and the vector should be dropped — it carries
+ * only the identity fields, since none of the embed content is meaningful for a
+ * delete.
+ */
+const prIndexIdentity = {
+  /** Mirror row id (`externalEntity.id`); stored on the vector so a push-side
+   * match can resolve it back to a `PrMatchCandidate.prId`. */
+  externalEntityId: z.string(),
+  /** Provider-agnostic key `provider:owner/repo#number`; the vector's identity. */
+  externalKey: z.string(),
+  organizationId: z.string(),
+};
+
+/** Upsert variant: embed the PR and (re)index it with a derived `eligible` flag. */
+export const prIndexUpsertSchema = z.object({
+  ...prIndexIdentity,
+  body: z.string().nullable(),
+  deleted: z.literal(false).optional(),
+  /** Draft flag; a draft PR is never eligible. */
+  draft: z.boolean().nullable(),
+  headRef: z.string().nullable(),
+  number: z.number(),
+  provider: z.string(),
+  repoFullName: z.string(),
+  /** Upstream PR state ("open" | "closed"); drives eligibility. */
+  state: z.string(),
+  title: z.string(),
+  url: z.string(),
+});
+
+/** Delete variant: drop the vector. Carries only identity — no embed content.
+ * Strict so a payload with stray embed keys fails instead of silently parsing
+ * as an identity-only delete. */
+export const prIndexDeleteSchema = z.strictObject({
+  ...prIndexIdentity,
+  deleted: z.literal(true),
+});
+
+export const prIndexJobDataSchema = z.union([
+  prIndexUpsertSchema,
+  prIndexDeleteSchema,
+]);
+export type PrIndexJobData = z.infer<typeof prIndexJobDataSchema>;
+/** The upsert (embed-and-index) variant, narrowed from a non-`deleted` job. */
+export type PrIndexUpsertJobData = z.infer<typeof prIndexUpsertSchema>;
+
+// --- PR push-side match (FRO-205) -----------------------------------------
+
+/**
+ * Contract for a `match-pr` job: GitHub webhooks enqueue one when an eligible
+ * PR opens / reopens / is marked ready-for-review / is edited (not on
+ * `synchronize`). The worker embeds the PR (title + body + head ref), searches
+ * for similar Open / In-progress unlinked [threads](../../CONTEXT.md), and fans
+ * out a `pr_matched` thread read per strong match (ADR 0006 trigger channel).
+ *
+ * This is the *push* side of PR↔thread discovery — distinct from the index-only
+ * `pr-index` channel (FRO-203), which keeps the vector current but never fans
+ * out reads. The worker re-derives eligibility from `state` / `draft` so a
+ * stale enqueue for a since-closed / re-drafted PR is dropped.
+ */
+export const prMatchJobDataSchema = z.object({
+  body: z.string().nullable(),
+  /** Draft flag; a draft PR is never eligible. */
+  draft: z.boolean().nullable(),
+  /** Provider-agnostic key `provider:owner/repo#number`; the PR's identity. */
+  externalKey: z.string(),
+  headRef: z.string().nullable(),
+  organizationId: z.string(),
+  /** Upstream PR state ("open" | "closed"); drives eligibility. */
+  state: z.string(),
+  title: z.string(),
+});
+export type PrMatchJobData = z.infer<typeof prMatchJobDataSchema>;
 
 // --- Status labels (kept) -------------------------------------------------
 

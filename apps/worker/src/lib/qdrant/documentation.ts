@@ -17,7 +17,7 @@ export const ensureDocumentationCollection = async (): Promise<boolean> => {
   try {
     const collections = await qdrantClient.getCollections();
     const collectionExists = collections.collections.some(
-      (c) => c.name === DOCUMENTATION_COLLECTION,
+      (c) => c.name === DOCUMENTATION_COLLECTION
     );
 
     if (collectionExists) {
@@ -25,17 +25,17 @@ export const ensureDocumentationCollection = async (): Promise<boolean> => {
     }
 
     await qdrantClient.createCollection(DOCUMENTATION_COLLECTION, {
-      vectors: {
-        dense: {
-          size: DOCUMENTATION_EMBEDDING_DIMENSIONS,
-          distance: "Cosine",
-        },
+      optimizers_config: {
+        indexing_threshold: 0,
       },
       sparse_vectors: {
         bm25: { modifier: "idf" },
       },
-      optimizers_config: {
-        indexing_threshold: 0,
+      vectors: {
+        dense: {
+          distance: "Cosine",
+          size: DOCUMENTATION_EMBEDDING_DIMENSIONS,
+        },
       },
     });
 
@@ -63,23 +63,23 @@ export const ensureDocumentationCollection = async (): Promise<boolean> => {
 };
 
 export const upsertDocumentationChunksBatch = async (
-  points: Array<{
+  points: {
     id: string;
     vector: {
       dense: number[];
       bm25: { text: string; model: "qdrant/bm25" };
     };
     payload: DocumentationChunkPayload;
-  }>,
+  }[]
 ): Promise<boolean> => {
   try {
     await qdrantClient.upsert(DOCUMENTATION_COLLECTION, {
-      wait: true,
       points: points.map((point) => ({
         id: point.id,
         vector: point.vector,
         payload: point.payload as unknown as Record<string, unknown>,
       })),
+      wait: true,
     });
     return true;
   } catch (error) {
@@ -89,11 +89,10 @@ export const upsertDocumentationChunksBatch = async (
 };
 
 export const deleteDocumentationVectorsBySource = async (
-  documentationSourceId: string,
+  documentationSourceId: string
 ): Promise<boolean> => {
   try {
     await qdrantClient.delete(DOCUMENTATION_COLLECTION, {
-      wait: true,
       filter: {
         must: [
           {
@@ -102,12 +101,13 @@ export const deleteDocumentationVectorsBySource = async (
           },
         ],
       },
+      wait: true,
     });
     return true;
   } catch (error) {
     console.error(
       `Failed to delete documentation vectors for source ${documentationSourceId}:`,
-      error,
+      error
     );
     return false;
   }

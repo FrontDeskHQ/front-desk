@@ -5,67 +5,78 @@ The audit pipeline is the same shape in every framework: register `auditEnricher
 ## Hono
 
 ```ts
-import { Hono } from 'hono'
-import { evlog, type EvlogVariables } from 'evlog/hono'
-import { auditEnricher, auditOnly, signed } from 'evlog'
-import { createAxiomDrain } from 'evlog/axiom'
-import { createFsDrain } from 'evlog/fs'
+import { Hono } from "hono";
+import { evlog, type EvlogVariables } from "evlog/hono";
+import { auditEnricher, auditOnly, signed } from "evlog";
+import { createAxiomDrain } from "evlog/axiom";
+import { createFsDrain } from "evlog/fs";
 
-const main = createAxiomDrain({ dataset: 'logs' })
+const main = createAxiomDrain({ dataset: "logs" });
 const auditSink = auditOnly(
-  signed(createFsDrain({ dir: '.audit/' }), { strategy: 'hash-chain' }),
-  { await: true },
-)
+  signed(createFsDrain({ dir: ".audit/" }), { strategy: "hash-chain" }),
+  { await: true }
+);
 
-const app = new Hono<EvlogVariables>()
-app.use(evlog({
-  enrich: ctx => auditEnricher({ tenantId: c => c.headers?.['x-tenant-id'] })(ctx),
-  drain: async (ctx) => { await Promise.all([main(ctx), auditSink(ctx)]) },
-}))
+const app = new Hono<EvlogVariables>();
+app.use(
+  evlog({
+    enrich: (ctx) =>
+      auditEnricher({ tenantId: (c) => c.headers?.["x-tenant-id"] })(ctx),
+    drain: async (ctx) => {
+      await Promise.all([main(ctx), auditSink(ctx)]);
+    },
+  })
+);
 ```
 
 ## Express
 
 ```ts
-import express from 'express'
-import { evlog } from 'evlog/express'
-import { auditEnricher, auditOnly, signed } from 'evlog'
-import { createAxiomDrain } from 'evlog/axiom'
-import { createFsDrain } from 'evlog/fs'
+import express from "express";
+import { evlog } from "evlog/express";
+import { auditEnricher, auditOnly, signed } from "evlog";
+import { createAxiomDrain } from "evlog/axiom";
+import { createFsDrain } from "evlog/fs";
 
-const main = createAxiomDrain({ dataset: 'logs' })
+const main = createAxiomDrain({ dataset: "logs" });
 const auditSink = auditOnly(
-  signed(createFsDrain({ dir: '.audit/' }), { strategy: 'hash-chain' }),
-  { await: true },
-)
+  signed(createFsDrain({ dir: ".audit/" }), { strategy: "hash-chain" }),
+  { await: true }
+);
 
-const app = express()
-app.use(evlog({
-  enrich: auditEnricher({ tenantId: ctx => ctx.headers?.['x-tenant-id'] }),
-  drain: async (ctx) => { await Promise.all([main(ctx), auditSink(ctx)]) },
-}))
+const app = express();
+app.use(
+  evlog({
+    enrich: auditEnricher({ tenantId: (ctx) => ctx.headers?.["x-tenant-id"] }),
+    drain: async (ctx) => {
+      await Promise.all([main(ctx), auditSink(ctx)]);
+    },
+  })
+);
 ```
 
 ## Next.js (App Router)
 
 ```ts
 // lib/evlog.ts
-import { createEvlog } from 'evlog/next'
-import { auditEnricher, auditOnly, signed } from 'evlog'
-import { createAxiomDrain } from 'evlog/axiom'
-import { createFsDrain } from 'evlog/fs'
+import { createEvlog } from "evlog/next";
+import { auditEnricher, auditOnly, signed } from "evlog";
+import { createAxiomDrain } from "evlog/axiom";
+import { createFsDrain } from "evlog/fs";
 
-const main = createAxiomDrain({ dataset: 'logs' })
+const main = createAxiomDrain({ dataset: "logs" });
 const auditSink = auditOnly(
-  signed(createFsDrain({ dir: '.audit/' }), { strategy: 'hash-chain' }),
-  { await: true },
-)
+  signed(createFsDrain({ dir: ".audit/" }), { strategy: "hash-chain" }),
+  { await: true }
+);
 
 export const { withEvlog, useLogger } = createEvlog({
-  service: 'my-app',
-  enrich: auditEnricher({ tenantId: ctx => ctx.headers?.['x-tenant-id'] }),
-  drain: async (ctx) => { await Promise.all([main(ctx), auditSink(ctx)]) },
-})
+  service: "my-app",
+  enrich: auditEnricher({ tenantId: (ctx) => ctx.headers?.["x-tenant-id"] }),
+  drain: async (ctx) => {
+    await Promise.all([main(ctx), auditSink(ctx)]);
+  },
+});
 ```
 
 ## Standalone scripts / queue workers / CLIs
@@ -73,21 +84,21 @@ export const { withEvlog, useLogger } = createEvlog({
 No request → no enricher needed. `audit()` (or `withAudit()`) replaces `log.audit()`:
 
 ```ts
-import { initLogger, audit } from 'evlog'
-import { signed } from 'evlog'
-import { createFsDrain } from 'evlog/fs'
+import { initLogger, audit } from "evlog";
+import { signed } from "evlog";
+import { createFsDrain } from "evlog/fs";
 
 initLogger({
-  env: { service: 'billing-worker' },
-  drain: signed(createFsDrain({ dir: '.audit/' }), { strategy: 'hash-chain' }),
-})
+  env: { service: "billing-worker" },
+  drain: signed(createFsDrain({ dir: ".audit/" }), { strategy: "hash-chain" }),
+});
 
 audit({
-  action: 'cron.cleanup',
-  actor: { type: 'system', id: 'cron' },
-  target: { type: 'job', id: 'cleanup-stale-sessions' },
-  outcome: 'success',
-})
+  action: "cron.cleanup",
+  actor: { type: "system", id: "cron" },
+  target: { type: "job", id: "cleanup-stale-sessions" },
+  outcome: "success",
+});
 ```
 
 ## Notes that apply everywhere

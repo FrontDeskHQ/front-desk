@@ -3,10 +3,10 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Avatar } from "@workspace/ui/components/avatar";
-import {
-  Filter,
-  type FilterOptions,
-  type FilterValue,
+import { Filter } from "@workspace/ui/components/blocks/filter";
+import type {
+  FilterOptions,
+  FilterValue,
 } from "@workspace/ui/components/blocks/filter";
 import {
   Breadcrumb,
@@ -61,16 +61,17 @@ import {
   Settings2,
 } from "lucide-react";
 import { useRef, useState } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import { buildThreadParam } from "~/utils/thread";
 
-export type FixedFilters = {
+export interface FixedFilters {
   status?: { $not: { $in: number[] } } | { $in: number[] };
   assignedUserId?: string;
   id?: { $in: string[] };
-};
+}
 
 export interface ThreadsListProps {
   fixedFilters?: FixedFilters;
@@ -83,7 +84,7 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   const organization = useLiveQuery(
     query.organization
       .where({ id: currentOrg?.id })
-      .include({ threads: true, integrations: true }),
+      .include({ integrations: true, threads: true })
   )?.[0];
 
   const hasIntegrations = (organization?.integrations?.length ?? 0) > 0;
@@ -91,7 +92,7 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   const organizationUsers = useLiveQuery(
     query.organizationUser
       .where({ organizationId: organization?.id })
-      .include({ user: true }),
+      .include({ user: true })
   );
 
   const [filter, setFilter] = useState<FilterValue>({});
@@ -106,37 +107,34 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   ];
 
   let threadsQuery = query.thread.where({
-    organizationId: organization?.id,
     deletedAt: null,
+    organizationId: organization?.id,
     ...fixedFilters,
   });
 
   if (filter && Object.keys(filter).some((key) => filter[key]?.length > 0)) {
     threadsQuery = threadsQuery.where(
       Object.fromEntries(
-        Object.entries(filter).map(([key, values]) => [key, { $in: values }]),
-      ),
+        Object.entries(filter).map(([key, values]) => [key, { $in: values }])
+      )
     );
   }
 
   const filterOptions: FilterOptions = {
-    status: {
-      label: "Status",
-      key: "status",
-      icon: <StatusIndicator status={0} />,
-      options: Object.entries(statusValues).map(([statusKey, value]) => {
-        const status = Number(statusKey);
-        return {
-          label: value.label,
-          value: status,
-          icon: <StatusIndicator status={status} />,
-        };
-      }),
+    assignedUserId: {
+      icon: <CircleUser className="size-4" />,
+      key: "assignedUserId",
+      label: "Assigned User",
+      options: (organizationUsers ?? []).map((user) => ({
+        label: user.user.name,
+        value: user.userId,
+        icon: <Avatar variant="user" size="md" fallback={user.user.name} />,
+      })),
     },
     priority: {
-      label: "Priority",
-      key: "priority",
       icon: <PriorityIndicator priority={2} />,
+      key: "priority",
+      label: "Priority",
       options: Object.entries(priorityText).map(([priorityKey, value]) => {
         const priority = Number(priorityKey);
         return {
@@ -146,15 +144,18 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
         };
       }),
     },
-    assignedUserId: {
-      label: "Assigned User",
-      key: "assignedUserId",
-      icon: <CircleUser className="size-4" />,
-      options: (organizationUsers ?? []).map((user) => ({
-        label: user.user.name,
-        value: user.userId,
-        icon: <Avatar variant="user" size="md" fallback={user.user.name} />,
-      })),
+    status: {
+      icon: <StatusIndicator status={0} />,
+      key: "status",
+      label: "Status",
+      options: Object.entries(statusValues).map(([statusKey, value]) => {
+        const status = Number(statusKey);
+        return {
+          label: value.label,
+          value: status,
+          icon: <StatusIndicator status={status} />,
+        };
+      }),
     },
   };
 
@@ -164,27 +165,27 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   const threads = useLiveQuery(
     threadsQuery
       .include({
-        messages: { include: { author: true } },
-        author: true,
         assignedUser: true,
+        author: true,
         labels: {
           include: { label: true },
         },
+        messages: { include: { author: true } },
       })
       .orderBy(
         orderBy as keyof InferLiveObject<typeof schema.thread>,
-        orderDirection,
-      ),
+        orderDirection
+      )
   );
 
   const parentRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
     count: threads.length,
-    getScrollElement: () => parentRef.current,
     estimateSize: () => 72,
-    overscan: 10,
     getItemKey: (index) => threads[index]?.id,
+    getScrollElement: () => parentRef.current,
+    overscan: 10,
   });
 
   if (!organization) {
@@ -263,7 +264,7 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
                         size="sm"
                         onClick={() =>
                           setOrderDirection(
-                            orderDirection === "asc" ? "desc" : "asc",
+                            orderDirection === "asc" ? "desc" : "asc"
                           )
                         }
                         className="size-8"
@@ -317,102 +318,104 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
               scrollElement={parentRef}
               style={{
                 height: `${virtualizer.getTotalSize()}px`,
-                width: "100%",
                 position: "relative",
+                width: "100%",
               }}
             >
               {virtualizer.getVirtualItems().map((virtualItem) => {
-              const thread = threads[virtualItem.index];
-              if (!thread) return null;
+                const thread = threads[virtualItem.index];
+                if (!thread) {
+                  return null;
+                }
 
-              return (
-                <CompositeItem
-                  key={thread.id}
-                  itemId={String(virtualItem.index)}
-                  ref={virtualizer.measureElement}
-                  data-index={virtualItem.index}
-                  render={
-                    <Link
-                      to={"/app/threads/$id"}
-                      params={{ id: buildThreadParam(thread) }}
-                    />
-                  }
-                  className="max-w-5xl flex flex-col p-3 gap-2 mx-auto data-[active=true]:bg-muted"
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    left: 0,
-                    right: 0,
-                    transform: `translateY(${virtualItem.start}px)`,
-                  }}
-                >
-                  <div className="flex justify-between">
-                    <div className="flex items-center gap-2">
-                      {thread?.shortId != null && (
-                        <span className="text-foreground-secondary text-sm tabular-nums">
-                          #{thread.shortId}
-                        </span>
-                      )}
-                      <Avatar
-                        variant="user"
-                        size="md"
-                        fallback={thread?.author?.name}
+                return (
+                  <CompositeItem
+                    key={thread.id}
+                    itemId={String(virtualItem.index)}
+                    ref={virtualizer.measureElement}
+                    data-index={virtualItem.index}
+                    render={
+                      <Link
+                        to="/app/threads/$id"
+                        params={{ id: buildThreadParam(thread) }}
                       />
-                      <div>{thread?.name}</div>
-                    </div>
-                    {/* TODO fix overflow issues with labels */}
-                    <div className="flex items-center gap-2">
-                      <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
-                        {thread?.labels
-                          ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
-                          .map((threadLabel) => (
-                            <LabelBadge
-                              key={threadLabel.label.id}
-                              name={threadLabel.label.name}
-                              color={threadLabel.label.color}
-                            />
-                          ))}
-                      </div>
-                      {thread?.assignedUserId ? (
+                    }
+                    className="max-w-5xl flex flex-col p-3 gap-2 mx-auto data-[active=true]:bg-muted"
+                    style={{
+                      left: 0,
+                      position: "absolute",
+                      right: 0,
+                      top: 0,
+                      transform: `translateY(${virtualItem.start}px)`,
+                    }}
+                  >
+                    <div className="flex justify-between">
+                      <div className="flex items-center gap-2">
+                        {thread?.shortId !== null && (
+                          <span className="text-foreground-secondary text-sm tabular-nums">
+                            #{thread.shortId}
+                          </span>
+                        )}
                         <Avatar
                           variant="user"
                           size="md"
-                          fallback={thread.assignedUser?.name}
+                          fallback={thread?.author?.name}
                         />
-                      ) : (
-                        <CircleUser className="size-4" />
-                      )}
-                      <PriorityIndicator priority={thread?.priority ?? 0} />
-                      <StatusIndicator status={thread?.status ?? 0} />
-                    </div>
-                  </div>
-                  <div className="flex gap-2 justify-between md:gap-0">
-                    <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-3xs sm:max-w-lg md:max-w-xl lg:max-w-2xl">
-                      <span className="font-medium">
-                        {
-                          thread?.messages?.[thread?.messages?.length - 1]
-                            ?.author?.name
-                        }
-                        :&nbsp;
-                      </span>
-                      <span className="truncate">
-                        {getFirstTextContent(
-                          safeParseJSON(
-                            thread?.messages?.[thread?.messages?.length - 1]
-                              ?.content ?? "",
-                          ),
+                        <div>{thread?.name}</div>
+                      </div>
+                      {/* TODO fix overflow issues with labels */}
+                      <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 mr-1 max-w-48 md:max-w-sm lg:max-w-md overflow-hidden">
+                          {thread?.labels
+                            ?.filter((tl) => tl.enabled && !!tl.label?.enabled)
+                            .map((threadLabel) => (
+                              <LabelBadge
+                                key={threadLabel.label.id}
+                                name={threadLabel.label.name}
+                                color={threadLabel.label.color}
+                              />
+                            ))}
+                        </div>
+                        {thread?.assignedUserId ? (
+                          <Avatar
+                            variant="user"
+                            size="md"
+                            fallback={thread.assignedUser?.name}
+                          />
+                        ) : (
+                          <CircleUser className="size-4" />
                         )}
-                      </span>
-                    </span>
-                    <div className="text-muted-foreground">
-                      {thread?.createdAt
-                        ? formatRelativeTime(thread?.createdAt as Date)
-                        : null}
+                        <PriorityIndicator priority={thread?.priority ?? 0} />
+                        <StatusIndicator status={thread?.status ?? 0} />
+                      </div>
                     </div>
-                  </div>
-                </CompositeItem>
-              );
-            })}
+                    <div className="flex gap-2 justify-between md:gap-0">
+                      <span className="text-muted-foreground min-w-0 flex-1 text-nowrap font-medium truncate max-w-3xs sm:max-w-lg md:max-w-xl lg:max-w-2xl">
+                        <span className="font-medium">
+                          {
+                            thread?.messages?.[thread?.messages?.length - 1]
+                              ?.author?.name
+                          }
+                          :&nbsp;
+                        </span>
+                        <span className="truncate">
+                          {getFirstTextContent(
+                            safeParseJSON(
+                              thread?.messages?.[thread?.messages?.length - 1]
+                                ?.content ?? ""
+                            )
+                          )}
+                        </span>
+                      </span>
+                      <div className="text-muted-foreground">
+                        {thread?.createdAt
+                          ? formatRelativeTime(thread?.createdAt as Date)
+                          : null}
+                      </div>
+                    </div>
+                  </CompositeItem>
+                );
+              })}
             </Composite>
           </div>
         )}
@@ -421,18 +424,13 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
   );
 }
 
-type ThreadsSearch = {
+interface ThreadsSearch {
   signalType?: string;
   since?: string;
-};
+}
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/")({
   component: RouteComponent,
-  validateSearch: (search: Record<string, unknown>): ThreadsSearch => ({
-    signalType:
-      typeof search.signalType === "string" ? search.signalType : undefined,
-    since: typeof search.since === "string" ? search.since : undefined,
-  }),
   head: () => {
     return {
       meta: [
@@ -443,6 +441,11 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/")({
       ],
     };
   },
+  validateSearch: (search: Record<string, unknown>): ThreadsSearch => ({
+    signalType:
+      typeof search.signalType === "string" ? search.signalType : undefined,
+    since: typeof search.since === "string" ? search.since : undefined,
+  }),
 });
 
 function RouteComponent() {
@@ -471,16 +474,18 @@ function SignalFilteredThreadsList({
       organizationId: currentOrg?.id,
       signalType: { $in: [signalType, `digest:${signalType}`] },
       undoneAt: null,
-    }),
+    })
   );
 
   const entityIds = (actions ?? [])
     .filter((a) =>
-      sinceMs ? new Date(a.appliedAt).getTime() >= sinceMs : true,
+      sinceMs ? new Date(a.appliedAt).getTime() >= sinceMs : true
     )
     .map((a) => a.entityId);
 
-  if (!actions) return null;
+  if (!actions) {
+    return null;
+  }
 
   if (entityIds.length === 0) {
     return (

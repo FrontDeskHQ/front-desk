@@ -14,6 +14,13 @@ export interface ConnectorManifest {
   baseUrlEnv: string;
   /** Fallback base URL for local dev. */
   defaultBaseUrl: string;
+  /**
+   * Whether this connector exposes `POST /api/connection/probe` so the core can
+   * check external install liveness before silent re-enable. Emitting-only
+   * connectors (Discord/Slack) omit this until they expose an HTTP host that
+   * needs silent reconnect. See ADR-0010.
+   */
+  supportsConnectionProbe?: boolean;
 }
 
 /**
@@ -22,14 +29,47 @@ export interface ConnectorManifest {
  * import it without pulling in octokit or creating a workspace cycle.
  */
 export const githubManifest: ConnectorManifest = {
-  type: "github",
-  capabilities: ["issue-tracker", "pr-tracker"],
   baseUrlEnv: "BASE_GITHUB_SERVER_URL",
+  capabilities: ["issue-tracker", "pr-tracker"],
   defaultBaseUrl: "http://localhost:3334",
+  supportsConnectionProbe: true,
+  type: "github",
+};
+
+/**
+ * Discord connector manifest. Declares the emitting `support-entry-point`
+ * capability. Discord is emitting-only (it runs as a gateway bot and delivers
+ * outbound via pull-based replication, per ADR-0009), so it exposes no invoke
+ * HTTP endpoint; `baseUrlEnv`/`defaultBaseUrl` are unused for it and kept only
+ * to satisfy the shared manifest shape.
+ */
+export const discordManifest: ConnectorManifest = {
+  baseUrlEnv: "BASE_DISCORD_SERVER_URL",
+  capabilities: ["support-entry-point"],
+  defaultBaseUrl: "http://localhost:3335",
+  type: "discord",
+};
+
+/**
+ * Slack connector manifest. Declares the emitting `support-entry-point`
+ * capability. Like Discord, Slack is emitting-only — it runs as a Bolt app and
+ * delivers outbound via pull-based replication (per ADR-0009) — so it exposes no
+ * invoke HTTP endpoint; `baseUrlEnv`/`defaultBaseUrl` are unused for it and kept
+ * only to satisfy the shared manifest shape.
+ */
+export const slackManifest: ConnectorManifest = {
+  baseUrlEnv: "BASE_SLACK_SERVER_URL",
+  capabilities: ["support-entry-point"],
+  defaultBaseUrl: "http://localhost:3011",
+  type: "slack",
 };
 
 /** All known connector manifests. */
-export const manifests: ConnectorManifest[] = [githubManifest];
+export const manifests: ConnectorManifest[] = [
+  githubManifest,
+  discordManifest,
+  slackManifest,
+];
 
 /**
  * The integration `type`s whose manifest declares `capability`. Pure and
@@ -39,7 +79,7 @@ export const manifests: ConnectorManifest[] = [githubManifest];
  */
 export function typesProvidingCapability(
   capability: Capability,
-  manifestList: ConnectorManifest[] = manifests,
+  manifestList: ConnectorManifest[] = manifests
 ): string[] {
   return manifestList
     .filter((manifest) => manifest.capabilities.includes(capability))
@@ -54,11 +94,13 @@ export function typesProvidingCapability(
 export function typesHaveCapability(
   enabledTypes: Iterable<string>,
   capability: Capability,
-  manifestList: ConnectorManifest[] = manifests,
+  manifestList: ConnectorManifest[] = manifests
 ): boolean {
   const providers = new Set(typesProvidingCapability(capability, manifestList));
   for (const type of enabledTypes) {
-    if (providers.has(type)) return true;
+    if (providers.has(type)) {
+      return true;
+    }
   }
   return false;
 }

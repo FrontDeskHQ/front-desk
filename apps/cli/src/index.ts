@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { cac } from "cac";
+
 import "./env.js";
 import { runOrgList } from "./commands/org/list.js";
 import { runThreadCreate } from "./commands/thread/create.js";
@@ -44,12 +45,12 @@ cli
 
     try {
       const { output, exitCode } = await runThreadCreate({
-        org: options.org,
-        fixture: options.fixture,
-        title: options.title,
         author: options.author,
-        message: options.message,
         failFast: options.failFast,
+        fixture: options.fixture,
+        message: options.message,
+        org: options.org,
+        title: options.title,
         verbose: options.verbose,
       });
 

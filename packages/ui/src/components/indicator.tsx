@@ -1,37 +1,35 @@
 import { cn } from "@workspace/ui/lib/utils";
 
-export const PriorityIndicator = ({ priority }: { priority: number }) => {
-  return (
+export const PriorityIndicator = ({ priority }: { priority: number }) => (
+  <div
+    className={cn(
+      "h-[11px] w-[14px] flex justify-between items-center",
+      priority > 0 && "items-end"
+    )}
+  >
     <div
       className={cn(
-        "h-[11px] w-[14px] flex justify-between items-center",
-        priority > 0 && "items-end",
+        "w-[3px] h-3/5 rounded-full bg-primary/50",
+        priority >= 1 && "bg-primary",
+        priority === 0 && "h-1"
       )}
-    >
-      <div
-        className={cn(
-          "w-[3px] h-3/5 rounded-full bg-primary/50",
-          priority >= 1 && "bg-primary",
-          priority === 0 && "h-1",
-        )}
-      />
-      <div
-        className={cn(
-          "w-[3px] h-4/5 rounded-full bg-primary/50",
-          priority >= 2 && "bg-primary",
-          priority === 0 && "h-1",
-        )}
-      />
-      <div
-        className={cn(
-          "w-[3px] h-full rounded-full bg-primary/50",
-          priority >= 3 && "bg-primary",
-          priority === 0 && "h-1",
-        )}
-      />
-    </div>
-  );
-};
+    />
+    <div
+      className={cn(
+        "w-[3px] h-4/5 rounded-full bg-primary/50",
+        priority >= 2 && "bg-primary",
+        priority === 0 && "h-1"
+      )}
+    />
+    <div
+      className={cn(
+        "w-[3px] h-full rounded-full bg-primary/50",
+        priority >= 3 && "bg-primary",
+        priority === 0 && "h-1"
+      )}
+    />
+  </div>
+);
 
 export const priorityText: Record<number, string> = {
   0: "No priority",
@@ -41,43 +39,42 @@ export const priorityText: Record<number, string> = {
   // 4: "Urgent",
 };
 
-export const PriorityText = ({ priority }: { priority: number }) => {
-  return priorityText[priority];
-};
+export const PriorityText = ({ priority }: { priority: number }) =>
+  priorityText[priority];
 
-type PredefinedShapeStatus = {
+interface PredefinedShapeStatus {
   label: string;
   color: string;
   predefinedShape: "x" | "horizontal-bar" | "check";
-};
+}
 
-type AngleStatus = {
+interface AngleStatus {
   label: string;
   color: string;
   angle: number;
-};
+}
 
 export const statusValues: Record<number, AngleStatus | PredefinedShapeStatus> =
   {
-    0: { label: "Open", color: "text-foreground-secondary", angle: 0 },
+    0: { angle: 0, color: "text-foreground-secondary", label: "Open" },
     1: {
-      label: "In progress",
-      color: "dark:text-amber-300/90 text-yellow-500",
       angle: 180,
+      color: "dark:text-amber-300/90 text-yellow-500",
+      label: "In progress",
     },
     2: {
-      label: "Resolved",
       color: "dark:text-green-700 text-green-600",
+      label: "Resolved",
       predefinedShape: "check",
     },
     3: {
-      label: "Closed",
       color: "text-foreground-tertiary",
+      label: "Closed",
       predefinedShape: "x",
     },
     4: {
-      label: "Duplicated",
       color: "text-foreground-tertiary",
+      label: "Duplicated",
       predefinedShape: "horizontal-bar",
     },
   };
@@ -121,10 +118,10 @@ const PartialIndicator = ({
     const endAngle = startAngle + filledArc;
 
     return {
-      startX: center + outlineRadius * Math.sin(startAngle),
-      startY: center - outlineRadius * Math.cos(startAngle),
       endX: center + outlineRadius * Math.sin(endAngle),
       endY: center - outlineRadius * Math.cos(endAngle),
+      startX: center + outlineRadius * Math.sin(startAngle),
+      startY: center - outlineRadius * Math.cos(startAngle),
     };
   });
 
@@ -227,7 +224,7 @@ export const StatusIndicator = ({
   const center = 16;
   const svgSize = 32;
 
-  const angle = (statusValues[status] as AngleStatus).angle;
+  const { angle } = statusValues[status] as AngleStatus;
 
   return (
     <svg
@@ -262,6 +259,5 @@ export const StatusIndicator = ({
   );
 };
 
-export const StatusText = ({ status }: { status: number }) => {
-  return statusValues[status]?.label ?? "";
-};
+export const StatusText = ({ status }: { status: number }) =>
+  statusValues[status]?.label ?? "";

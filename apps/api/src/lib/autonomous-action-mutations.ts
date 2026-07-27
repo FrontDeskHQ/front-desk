@@ -1,25 +1,26 @@
 import type { ServerDB } from "@live-state/sync/server";
 import {
-  type ActionKind,
   actionKindSchema,
   autonomousActionMetadataSchema,
 } from "@workspace/schemas/signals";
+import type { ActionKind } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
+
 import type { schema } from "../live-state/schema";
 
 export const recordAutonomousActionInputSchema = z
   .object({
-    id: z.string().optional(),
-    organizationId: z.string(),
     actionKind: actionKindSchema,
-    entityId: z.string(),
-    metadata: autonomousActionMetadataSchema,
     appliedAt: z.coerce.date().optional(),
+    entityId: z.string(),
+    id: z.string().optional(),
+    metadata: autonomousActionMetadataSchema,
+    organizationId: z.string(),
   })
   .refine((input) => input.actionKind === input.metadata.kind, {
-    path: ["actionKind"],
     message: "actionKind must match metadata.kind",
+    path: ["actionKind"],
   });
 
 type RecordAutonomousActionDb = Pick<
@@ -29,7 +30,7 @@ type RecordAutonomousActionDb = Pick<
 
 export const runRecordAutonomousAction = async (
   db: RecordAutonomousActionDb,
-  input: z.infer<typeof recordAutonomousActionInputSchema>,
+  input: z.infer<typeof recordAutonomousActionInputSchema>
 ) => {
   const thread = await db.thread
     .first({ id: input.entityId, organizationId: input.organizationId })
@@ -39,12 +40,12 @@ export const runRecordAutonomousAction = async (
   }
 
   return db.autonomousAction.insert({
+    appliedAt: input.appliedAt ?? new Date(),
+    entityId: input.entityId,
     id: input.id ?? ulid().toLowerCase(),
+    metadataStr: JSON.stringify(input.metadata),
     organizationId: input.organizationId,
     signalType: input.actionKind as ActionKind,
-    entityId: input.entityId,
-    appliedAt: input.appliedAt ?? new Date(),
     undoneAt: null,
-    metadataStr: JSON.stringify(input.metadata),
   });
 };

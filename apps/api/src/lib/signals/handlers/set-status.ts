@@ -1,4 +1,5 @@
 import type { SetStatusAction } from "@workspace/schemas/signals";
+
 import { runSetThreadStatus } from "../../thread-mutations";
 import {
   clearCompensateSnapshot,
@@ -17,7 +18,9 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
     }
 
     const previousStatus = thread.status ?? 0;
-    if (previousStatus === action.status) return;
+    if (previousStatus === action.status) {
+      return;
+    }
 
     // First-write-wins: a repeated status earlier in the same bundle must not
     // overwrite the snapshot, or rollback would restore the intermediate
@@ -29,25 +32,27 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
     await runSetThreadStatus(
       ctx.db,
       {
-        threadId: ctx.threadId,
         organizationId: ctx.organizationId,
-        status: action.status,
         source: "inline_suggestion",
+        status: action.status,
+        threadId: ctx.threadId,
       },
       {
         userId: ctx.actorUserId,
         userName: ctx.actorUserName,
       },
-      { preloadedThread: thread },
+      { preloadedThread: thread }
     );
   },
 
   async compensate(action, ctx) {
     const snapshot = getCompensateSnapshot<{ previousStatus: number }>(
       ctx,
-      snapshotKey(action),
+      snapshotKey(action)
     );
-    if (!snapshot) return;
+    if (!snapshot) {
+      return;
+    }
 
     await ctx.db.thread.update(ctx.threadId, {
       status: snapshot.previousStatus,

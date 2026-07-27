@@ -8,14 +8,14 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { SidebarMenuButton } from "@workspace/ui/components/sidebar";
-import { useTheme } from "next-themes";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
 
 const themes = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
+  { icon: Sun, label: "Light", value: "light" },
+  { icon: Moon, label: "Dark", value: "dark" },
+  { icon: Monitor, label: "System", value: "system" },
 ] as const;
 
 export const ThemeSwitcher = () => {
@@ -76,4 +76,3 @@ export const ThemeSwitcher = () => {
     </DropdownMenu>
   );
 };
-

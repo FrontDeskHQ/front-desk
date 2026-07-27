@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { XMLBuilder } from "fast-xml-parser";
 import { formatISO, parseISO } from "date-fns";
+import { XMLBuilder } from "fast-xml-parser";
+
 import { fetchClient } from "~/lib/live-state";
 
 const baseUrl = new URL(
@@ -19,19 +20,19 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
         const allThreads = await fetchClient.query.thread.listAll();
 
         // Build the URL list
-        const urls: Array<{
+        const urls: {
           loc: string;
           changefreq: string;
           priority: number;
           lastmod?: string;
-        }> = [];
+        }[] = [];
 
         // Add organization thread listing pages
         for (const org of organizations) {
           const orgUrl = `${baseUrl.protocol}//${org.slug}.${baseHostname}/threads`;
           urls.push({
-            loc: orgUrl,
             changefreq: "daily",
+            loc: orgUrl,
             priority: 0.7,
           });
         }
@@ -39,7 +40,9 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
         // Add individual thread pages
         for (const thread of allThreads) {
           const org = thread.organization;
-          if (!org) continue;
+          if (!org) {
+            continue;
+          }
 
           // Get the last message's createdAt date or the thread's createdAt date if no messages exist
           const lastModDateValue =
@@ -52,24 +55,24 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
 
           const threadUrl = `${baseUrl.protocol}//${org.slug}.${baseHostname}/threads/${thread.id}`;
           urls.push({
-            loc: threadUrl,
             changefreq: "daily",
-            priority: 0.9,
             lastmod: formatISO(lastModDate),
+            loc: threadUrl,
+            priority: 0.9,
           });
         }
 
         // Build the XML
         const builder = new XMLBuilder({
-          ignoreAttributes: false,
           format: true,
+          ignoreAttributes: false,
           indentBy: "  ",
         });
 
         const sitemapObj = {
           "?xml": {
+            "@_encoding": "utf-8",
             "@_version": "1.0",
-            "@_encoding": "UTF-8",
           },
           urlset: {
             "@_xmlns": "http://www.sitemaps.org/schemas/sitemap/0.9",
@@ -81,8 +84,8 @@ export const Route = createFileRoute("/support/$slug/sitemap.xml")({
 
         return new Response(xmlContent, {
           headers: {
-            "Content-Type": "application/xml",
             "Cache-Control": "public, max-age=3600",
+            "Content-Type": "application/xml",
           },
         });
       },

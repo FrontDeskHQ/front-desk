@@ -1,9 +1,11 @@
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ChevronRight, CircleUser, User } from "lucide-react";
+
 import { mutate } from "~/lib/live-state";
+
 import type { Command, CommandPage } from "../../types";
 
-type AssignmentCommandsParams = {
+interface AssignmentCommandsParams {
   threadId: string;
   organizationId: string;
   thread:
@@ -19,15 +21,17 @@ type AssignmentCommandsParams = {
     id: string;
     name: string;
   };
-  orgUsers: Array<{
-    userId: string;
-    user: {
-      id: string;
-      name: string;
-      image: string | null;
-    };
-  }> | null;
-};
+  orgUsers:
+    | {
+        userId: string;
+        user: {
+          id: string;
+          name: string;
+          image: string | null;
+        };
+      }[]
+    | null;
+}
 
 export const createAssignmentCommands = ({
   threadId,
@@ -44,9 +48,9 @@ export const createAssignmentCommands = ({
     name: string | null;
   }) => {
     mutate.thread.assignUser({
-      threadId,
-      organizationId,
       assignedUserId: newAssignedUser.id,
+      organizationId,
+      threadId,
       userId: user.id,
       userName: user.name,
     });
@@ -54,24 +58,24 @@ export const createAssignmentCommands = ({
 
   const commands: Command[] = [
     {
+      icon: <User />,
       id: "assign-to",
       label: "Assign to...",
-      icon: <User />,
       pageId: "assign-user",
       shortcut: "a",
     },
     {
+      icon: <User />,
       id: "quick-self-assign",
       label: "Self assign",
-      icon: <User />,
       onSelect: async () => {
         await handleAssign({ id: user.id, name: user.name });
       },
     },
     {
+      icon: <CircleUser />,
       id: "quick-unassign",
       label: "Unassign",
-      icon: <CircleUser />,
       onSelect: async () => {
         await handleAssign({ id: null, name: null });
       },
@@ -82,14 +86,6 @@ export const createAssignmentCommands = ({
     ...(orgUsers?.map(
       (orgUser) =>
         ({
-          id: `quick-assign-to-${orgUser.userId}`,
-          label: (
-            <div className="flex items-center gap-0.5 text-foreground-secondary">
-              Assign to <ChevronRight />
-              <div className="text-foreground-primary">{orgUser.user.name}</div>
-            </div>
-          ),
-          keywords: [orgUser.user.name, "assign to", "user"],
           icon: (
             <Avatar
               variant="user"
@@ -98,23 +94,28 @@ export const createAssignmentCommands = ({
               src={orgUser.user.image}
             />
           ),
-          visible: (state) => {
-            return !!state.search;
-          },
+          id: `quick-assign-to-${orgUser.userId}`,
+          keywords: [orgUser.user.name, "assign to", "user"],
+          label: (
+            <div className="flex items-center gap-0.5 text-foreground-secondary">
+              Assign to <ChevronRight />
+              <div className="text-foreground-primary">{orgUser.user.name}</div>
+            </div>
+          ),
           onSelect: async () => {
             await handleAssign({
               id: orgUser.userId,
               name: orgUser.user.name,
             });
           },
-        }) satisfies Command,
+          visible: (state) => {
+            return !!state.search;
+          },
+        }) satisfies Command
     ) ?? []),
   ];
 
   const assignUserPage: CommandPage = {
-    id: "assign-user",
-    label: "Assign to user",
-    icon: <User />,
     commands: [
       {
         id: "unassigned",
@@ -145,7 +146,10 @@ export const createAssignmentCommands = ({
         },
       })) ?? []),
     ],
+    icon: <User />,
+    id: "assign-user",
+    label: "Assign to user",
   };
 
-  return { commands, assignUserPage };
+  return { assignUserPage, commands };
 };

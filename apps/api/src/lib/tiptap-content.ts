@@ -8,8 +8,8 @@ export const serializeMessageContent = (content: string | unknown): string => {
   if (typeof content !== "string") {
     return JSON.stringify([
       {
-        type: "paragraph",
         content: [{ type: "text", text: String(content) }],
+        type: "paragraph",
       },
     ]);
   }
@@ -26,8 +26,8 @@ export const serializeMessageContent = (content: string | unknown): string => {
 
   return JSON.stringify([
     {
-      type: "paragraph",
       content: [{ type: "text", text: content }],
+      type: "paragraph",
     },
   ]);
 };

@@ -9,159 +9,159 @@ import type {
 // hit above its own threshold (a defense-in-depth check) and shape evidence.
 
 const payload = (id: string): ThreadPayload => ({
-  threadId: id,
-  organizationId: "org_test",
-  title: `Thread ${id}`,
-  shortDescription: "",
-  keywords: [],
+  assignedUserId: null,
+  authorId: "",
+  createdAt: 0,
   entities: [],
   expectedAction: "triage",
-  status: 0,
-  priority: 0,
-  authorId: "",
-  assignedUserId: null,
+  keywords: [],
   labels: [],
-  createdAt: 0,
+  organizationId: "org_test",
+  priority: 0,
+  shortDescription: "",
+  status: 0,
+  threadId: id,
+  title: `Thread ${id}`,
   updatedAt: 0,
 });
 
 const r = (threadId: string, score: number): SimilarThreadResult => ({
-  threadId,
-  score,
   payload: payload(threadId),
+  score,
+  threadId,
 });
 
-export type DuplicateTestCase = {
+export interface DuplicateTestCase {
   name: string;
   input: { results: SimilarThreadResult[]; threshold: number };
   expected: { expectedThreadId: string | null };
-};
+}
 
 const T = 0.85;
 
 export const duplicateDataset: DuplicateTestCase[] = [
   // --- True duplicate at top with high score ---------------------------
   {
-    name: "single high-score duplicate at top (0.95)",
+    expected: { expectedThreadId: "dup_a" },
     input: { results: [r("dup_a", 0.95)], threshold: T },
-    expected: { expectedThreadId: "dup_a" },
+    name: "single high-score duplicate at top (0.95)",
   },
   {
-    name: "single high-score duplicate at threshold boundary (0.85)",
+    expected: { expectedThreadId: "dup_a" },
     input: { results: [r("dup_a", 0.85)], threshold: T },
-    expected: { expectedThreadId: "dup_a" },
+    name: "single high-score duplicate at threshold boundary (0.85)",
   },
   {
-    name: "top duplicate above threshold, others below",
+    expected: { expectedThreadId: "dup_a" },
     input: {
       results: [r("dup_a", 0.92), r("other_b", 0.6), r("other_c", 0.4)],
       threshold: T,
     },
-    expected: { expectedThreadId: "dup_a" },
+    name: "top duplicate above threshold, others below",
   },
   {
-    name: "duplicate at 0.99 (very high confidence)",
+    expected: { expectedThreadId: "dup_a" },
     input: { results: [r("dup_a", 0.99)], threshold: T },
-    expected: { expectedThreadId: "dup_a" },
+    name: "duplicate at 0.99 (very high confidence)",
   },
   {
-    name: "duplicate at 0.87 (just above threshold)",
-    input: { results: [r("dup_a", 0.87)], threshold: T },
     expected: { expectedThreadId: "dup_a" },
+    input: { results: [r("dup_a", 0.87)], threshold: T },
+    name: "duplicate at 0.87 (just above threshold)",
   },
 
   // --- Top result plausible but below threshold ------------------------
   {
-    name: "top result at 0.84 (just below threshold) -> null",
+    expected: { expectedThreadId: null },
     input: { results: [r("near_a", 0.84)], threshold: T },
-    expected: { expectedThreadId: null },
+    name: "top result at 0.84 (just below threshold) -> null",
   },
   {
-    name: "top result at 0.80 -> null",
+    expected: { expectedThreadId: null },
     input: { results: [r("near_a", 0.8)], threshold: T },
-    expected: { expectedThreadId: null },
+    name: "top result at 0.80 -> null",
   },
   {
-    name: "all results below threshold -> null",
+    expected: { expectedThreadId: null },
     input: {
       results: [r("near_a", 0.82), r("near_b", 0.75), r("near_c", 0.71)],
       threshold: T,
     },
-    expected: { expectedThreadId: null },
+    name: "all results below threshold -> null",
   },
   {
-    name: "result at 0.7 (Qdrant default) but above duplicate threshold -> null",
+    expected: { expectedThreadId: null },
     input: { results: [r("near_a", 0.7)], threshold: T },
-    expected: { expectedThreadId: null },
+    name: "result at 0.7 (Qdrant default) but above duplicate threshold -> null",
   },
   {
-    name: "single result barely missing threshold (0.849)",
-    input: { results: [r("near_a", 0.849)], threshold: T },
     expected: { expectedThreadId: null },
+    input: { results: [r("near_a", 0.849)], threshold: T },
+    name: "single result barely missing threshold (0.849)",
   },
 
   // --- Multiple high-score candidates -> pick the highest, single emit -
   {
-    name: "two above threshold, pick higher",
-    input: { results: [r("dup_a", 0.88), r("dup_b", 0.93)], threshold: T },
     expected: { expectedThreadId: "dup_b" },
+    input: { results: [r("dup_a", 0.88), r("dup_b", 0.93)], threshold: T },
+    name: "two above threshold, pick higher",
   },
   {
-    name: "three above threshold, pick highest",
+    expected: { expectedThreadId: "dup_c" },
     input: {
       results: [r("dup_a", 0.86), r("dup_b", 0.91), r("dup_c", 0.97)],
       threshold: T,
     },
-    expected: { expectedThreadId: "dup_c" },
+    name: "three above threshold, pick highest",
   },
   {
-    name: "results not pre-sorted, pick highest",
+    expected: { expectedThreadId: "dup_a" },
     input: {
       results: [r("dup_a", 0.97), r("dup_b", 0.89), r("dup_c", 0.92)],
       threshold: T,
     },
-    expected: { expectedThreadId: "dup_a" },
+    name: "results not pre-sorted, pick highest",
   },
 
   // --- Empty results ---------------------------------------------------
   {
-    name: "empty results -> null",
-    input: { results: [], threshold: T },
     expected: { expectedThreadId: null },
+    input: { results: [], threshold: T },
+    name: "empty results -> null",
   },
   {
-    name: "empty results with high threshold -> null",
-    input: { results: [], threshold: 0.99 },
     expected: { expectedThreadId: null },
+    input: { results: [], threshold: 0.99 },
+    name: "empty results with high threshold -> null",
   },
 
   // --- Edges -----------------------------------------------------------
   {
-    name: "tied top scores -> picks first encountered tied value",
+    expected: { expectedThreadId: "dup_a" },
     input: { results: [r("dup_a", 0.9), r("dup_b", 0.9)], threshold: T },
-    expected: { expectedThreadId: "dup_a" },
+    name: "tied top scores -> picks first encountered tied value",
   },
   {
-    name: "one above, one below threshold",
+    expected: { expectedThreadId: "dup_a" },
     input: { results: [r("dup_a", 0.86), r("near_b", 0.8)], threshold: T },
-    expected: { expectedThreadId: "dup_a" },
+    name: "one above, one below threshold",
   },
   {
-    name: "mixed scores with above-threshold not first",
+    expected: { expectedThreadId: "dup_b" },
     input: {
       results: [r("near_a", 0.7), r("dup_b", 0.88), r("near_c", 0.6)],
       threshold: T,
     },
-    expected: { expectedThreadId: "dup_b" },
+    name: "mixed scores with above-threshold not first",
   },
   {
-    name: "high threshold filters out otherwise-good match",
-    input: { results: [r("dup_a", 0.9)], threshold: 0.95 },
     expected: { expectedThreadId: null },
+    input: { results: [r("dup_a", 0.9)], threshold: 0.95 },
+    name: "high threshold filters out otherwise-good match",
   },
   {
-    name: "lower custom threshold accepts mid-score match",
-    input: { results: [r("dup_a", 0.78)], threshold: 0.75 },
     expected: { expectedThreadId: "dup_a" },
+    input: { results: [r("dup_a", 0.78)], threshold: 0.75 },
+    name: "lower custom threshold accepts mid-score match",
   },
 ];

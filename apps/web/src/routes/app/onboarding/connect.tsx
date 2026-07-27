@@ -6,23 +6,22 @@ import { createStandardSchemaV1, parseAsString, useQueryState } from "nuqs";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+
 import { useLogout } from "~/lib/hooks/auth";
 import { activateDiscord, activateSlack } from "~/lib/integrations/activate";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
+
 import { integrationOptions } from "../_workspace/settings/organization/integration";
 
 const searchParams = {
   name: parseAsString.withDefault(""),
-  slug: parseAsString.withDefault(""),
   orgId: parseAsString.withDefault(""),
+  slug: parseAsString.withDefault(""),
 };
 
 export const Route = createFileRoute("/app/onboarding/connect")({
   component: RouteComponent,
-  validateSearch: createStandardSchemaV1(searchParams, {
-    partialOutput: true,
-  }),
   head: () => {
     return {
       meta: [
@@ -33,11 +32,14 @@ export const Route = createFileRoute("/app/onboarding/connect")({
       ],
     };
   },
+  validateSearch: createStandardSchemaV1(searchParams, {
+    partialOutput: true,
+  }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: Known constants
+// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const discordDetails = integrationOptions.find((o) => o.id === "discord")!;
-// biome-ignore lint/style/noNonNullAssertion: Known constants
+// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const slackDetails = integrationOptions.find((o) => o.id === "slack")!;
 
 function RouteComponent() {
@@ -51,7 +53,7 @@ function RouteComponent() {
   const [slug, setSlug] = useQueryState("slug", parseAsString.withDefault(""));
   const [orgId, setOrgId] = useQueryState(
     "orgId",
-    parseAsString.withDefault(""),
+    parseAsString.withDefault("")
   );
   const [pendingConnect, setPendingConnect] = useState<
     "discord" | "slack" | null
@@ -59,8 +61,12 @@ function RouteComponent() {
 
   // Create the organization on mount
   useEffect(() => {
-    if (createdRef.current) return;
-    if (!name || !slug) return;
+    if (createdRef.current) {
+      return;
+    }
+    if (!name || !slug) {
+      return;
+    }
     createdRef.current = true;
 
     fetchClient.mutate.organization
@@ -72,9 +78,11 @@ function RouteComponent() {
         setSlug("");
         setOrgId(data.organization.id);
       })
-      .catch((err: unknown) => {
+      .catch((error: unknown) => {
         const message =
-          err instanceof Error ? err.message : "Failed to create organization";
+          error instanceof Error
+            ? error.message
+            : "Failed to create organization";
         toast.error(message);
         navigate({ to: "/app/onboarding/new" });
       });
@@ -82,7 +90,9 @@ function RouteComponent() {
 
   // Deferred path: run activation only when pendingConnect was set before orgId was available
   useEffect(() => {
-    if (!orgId || !pendingConnect) return;
+    if (!orgId || !pendingConnect) {
+      return;
+    }
     const showError = (err: unknown, label: string) => {
       const message =
         err instanceof Error ? err.message : `Failed to connect ${label}`;
@@ -91,11 +101,11 @@ function RouteComponent() {
     const clearPending = () => setPendingConnect(null);
     if (pendingConnect === "discord") {
       activateDiscord({ organizationId: orgId, posthog })
-        .catch((err) => showError(err, "Discord"))
+        .catch((error) => showError(error, "Discord"))
         .finally(clearPending);
     } else {
       activateSlack({ organizationId: orgId, posthog })
-        .catch((err) => showError(err, "Slack"))
+        .catch((error) => showError(error, "Slack"))
         .finally(clearPending);
     }
   }, [orgId, pendingConnect, posthog]);
@@ -104,9 +114,9 @@ function RouteComponent() {
     if (orgId) {
       try {
         await activateDiscord({ organizationId: orgId, posthog });
-      } catch (err) {
+      } catch (error) {
         const message =
-          err instanceof Error ? err.message : "Failed to connect Discord";
+          error instanceof Error ? error.message : "Failed to connect Discord";
         toast.error(message);
       }
     } else {
@@ -118,9 +128,9 @@ function RouteComponent() {
     if (orgId) {
       try {
         await activateSlack({ organizationId: orgId, posthog });
-      } catch (err) {
+      } catch (error) {
         const message =
-          err instanceof Error ? err.message : "Failed to connect Slack";
+          error instanceof Error ? error.message : "Failed to connect Slack";
         toast.error(message);
       }
     } else {

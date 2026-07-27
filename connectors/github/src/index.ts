@@ -1,10 +1,12 @@
 import Elysia from "elysia";
+
 import "./env";
 import { startBackfillWorker } from "./jobs/backfill";
 import { startReconcileWorker } from "./jobs/reconcile";
 import { app as githubApp } from "./lib/github";
 import {
   capabilitiesRoutes,
+  connectionProbeRoutes,
   issuesRoutes,
   pullRequestsRoutes,
   setupRoutes,
@@ -18,6 +20,7 @@ startReconcileWorker();
 
 const app = new Elysia()
   .use(capabilitiesRoutes)
+  .use(connectionProbeRoutes)
   .use(issuesRoutes)
   .use(pullRequestsRoutes)
   .use(setupRoutes)
@@ -36,9 +39,9 @@ const app = new Elysia()
 
       await githubApp.webhooks.verifyAndReceive({
         id: deliveryId,
-        name: event as any,
-        signature,
+        name: event,
         payload: body,
+        signature,
       });
 
       set.status = 200;

@@ -2,40 +2,41 @@ import { google } from "@ai-sdk/google";
 import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import z from "zod";
+
 import type { SummarizeOutput } from "../../summarize";
 
-export type ClassifyLabelInput = {
+export interface ClassifyLabelInput {
   threadName: string | null;
   firstMessageContent: string | null;
   summary: SummarizeOutput["summary"] | null;
-  orgLabels: Array<{ id: string; name: string }>;
-};
+  orgLabels: { id: string; name: string }[];
+}
 
-export type ClassifyLabelResult = {
+export interface ClassifyLabelResult {
   labelId: string | null;
   confidence: number;
-};
+}
 
 const responseSchema = z.object({
-  labelId: z
-    .string()
-    .nullable()
-    .describe(
-      "The id of the single best-matching label from the provided list, or null if none fit.",
-    ),
   confidence: z
     .number()
     .min(0)
     .max(1)
     .describe("Confidence in the labelId choice, from 0 to 1."),
+  labelId: z
+    .string()
+    .nullable()
+    .describe(
+      "The id of the single best-matching label from the provided list, or null if none fit."
+    ),
 });
 
 export const classifyLabel = async (
   input: ClassifyLabelInput,
-  ai?: ReturnType<typeof createAILogger>,
+  ai?: ReturnType<typeof createAILogger>
 ): Promise<ClassifyLabelResult> => {
   if (input.orgLabels.length === 0) {
-    return { labelId: null, confidence: 0 };
+    return { confidence: 0, labelId: null };
   }
 
   const labelList = input.orgLabels
@@ -80,7 +81,7 @@ Return the chosen label id (exactly as listed) or null. Confidence should reflec
 
   const valid = input.orgLabels.some((l) => l.id === output.labelId);
   return {
-    labelId: valid ? output.labelId : null,
     confidence: output.confidence,
+    labelId: valid ? output.labelId : null,
   };
 };

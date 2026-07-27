@@ -2,14 +2,17 @@
 
 import { getRouteApi, useNavigate } from "@tanstack/react-router";
 import { MenuItem } from "@workspace/ui/components/menu";
-import { toast } from "sonner";
 import { getDefaultStore } from "jotai/vanilla";
+import { toast } from "sonner";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 import { buildThreadParam, parseThreadParam } from "~/utils/thread";
 
 const parseThreadMessage = (content: string | undefined) => {
-  if (!content) return "Duplicated thread";
+  if (!content) {
+    return "Duplicated thread";
+  }
 
   try {
     return JSON.parse(content) as unknown;
@@ -50,7 +53,7 @@ export const DuplicateThreadMenuItem = () => {
           toast.error("No active organization");
           return;
         }
-        where = { shortId: parsed.shortId, organizationId: activeOrgId };
+        where = { organizationId: activeOrgId, shortId: parsed.shortId };
       }
       const thread = await fetchClient.query.thread.detail(where);
 
@@ -60,9 +63,9 @@ export const DuplicateThreadMenuItem = () => {
       }
 
       const messages = thread.messages ?? [];
-      const sortedMessages = [...messages].sort(
+      const sortedMessages = [...messages].toSorted(
         (a, b) =>
-          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
       );
       const firstMessage = sortedMessages[0];
 
@@ -73,22 +76,22 @@ export const DuplicateThreadMenuItem = () => {
         `duplicate-${thread.authorId}`;
 
       const newThread = await fetchClient.mutate.thread.create({
-        organizationId: thread.organizationId,
-        title: thread.name,
-        message: parseThreadMessage(firstMessage?.content),
         author: {
           id: authorMetaId,
           name: authorName,
         },
+        message: parseThreadMessage(firstMessage?.content),
+        organizationId: thread.organizationId,
+        title: thread.name,
       });
 
       toast.success("Thread duplicated");
       navigate({
-        to: "/app/threads/$id",
         params: { id: buildThreadParam(newThread) },
+        to: "/app/threads/$id",
       });
-    } catch (err) {
-      console.error("Failed to duplicate thread:", err);
+    } catch (error) {
+      console.error("Failed to duplicate thread:", error);
       toast.error("Failed to duplicate thread");
     }
   };

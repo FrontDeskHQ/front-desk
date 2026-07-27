@@ -1,44 +1,46 @@
 import { Button as BaseButton } from "@base-ui/react";
 import { useKeybind } from "@workspace/ui/hooks/use-keybind";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { SquareArrowOutUpRight } from "lucide-react";
 import * as React from "react";
+
 import { Tooltip, TooltipContent, TooltipTrigger } from "./tooltip";
 
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm transition disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
   {
+    defaultVariants: {
+      size: "md",
+      variant: "primary",
+    },
     variants: {
+      size: {
+        icon: "size-7",
+        "icon-lg": "size-9",
+        "icon-sm": "size-6",
+        "icon-xl": "size-10",
+        lg: "h-9 px-4.5 has-[>svg:first-child]:pl-4 has-[>svg:last-child]:pr-4 font-medium",
+        md: "h-7 px-3.5 has-[>svg:first-child]:pl-3 has-[>svg:last-child]:pr-3 text-sm",
+        sm: "h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs",
+        xl: "h-10 rounded-md px-6 text-lg",
+      },
       variant: {
-        primary:
-          "bg-[#345BCA] text-primary shadow-xs hover:bg-[#345BCA]/90 border border-[#A1A1AA]/20",
         destructive:
           "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-quaternary dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 aria-invalid:border",
         ghost:
           "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
         link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        sm: "h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 has-[>svg:last-child]:pr-1.5 text-xs",
-        md: "h-7 px-3.5 has-[>svg:first-child]:pl-3 has-[>svg:last-child]:pr-3 text-sm",
-        lg: "h-9 px-4.5 has-[>svg:first-child]:pl-4 has-[>svg:last-child]:pr-4 font-medium",
-        xl: "h-10 rounded-md px-6 text-lg",
-        icon: "size-7",
-        "icon-sm": "size-6",
-        "icon-lg": "size-9",
-        "icon-xl": "size-10",
+        outline:
+          "border bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-quaternary dark:hover:bg-input/50",
+        primary:
+          "bg-[#345BCA] text-primary shadow-xs hover:bg-[#345BCA]/90 border border-[#A1A1AA]/20",
+        secondary:
+          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80 aria-invalid:border",
       },
     },
-    defaultVariants: {
-      variant: "primary",
-      size: "md",
-    },
-  },
+  }
 );
 
 type ButtonProps = React.ComponentProps<typeof BaseButton> &
@@ -57,15 +59,18 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       render,
       ...props
     },
-    ref,
+    ref
   ) => {
-    const processChildren = (children: React.ReactNode): React.ReactNode => {
-      return React.Children.map(children, (child) => {
-        if (typeof child === "string" || typeof child === "number") {
-          return <span>{child}</span>;
-        }
-        return child;
-      });
+    const processChildren = (childNodes: React.ReactNode): React.ReactNode => {
+      if (typeof childNodes === "string" || typeof childNodes === "number") {
+        return <span>{childNodes}</span>;
+      }
+
+      if (Array.isArray(childNodes)) {
+        return childNodes.map((child) => processChildren(child));
+      }
+
+      return childNodes;
     };
 
     const processedChildren = processChildren(children);
@@ -73,7 +78,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     return (
       <BaseButton
         data-slot="button"
-        className={cn(buttonVariants({ variant, size, className }))}
+        className={cn(buttonVariants({ className, size, variant }))}
         ref={ref}
         render={render}
         {...props}
@@ -89,7 +94,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         )}
       </BaseButton>
     );
-  },
+  }
 );
 
 Button.displayName = "Button";
@@ -102,7 +107,7 @@ type ActionButtonProps = ButtonProps & {
 const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
   (
     { tooltip, keybind, children, disabled, onClick, ...props },
-    forwardedRef,
+    forwardedRef
   ) => {
     const buttonRef = React.useRef<HTMLButtonElement>(null);
 
@@ -125,7 +130,7 @@ const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
           forwardedRef.current = node;
         }
       },
-      [forwardedRef],
+      [forwardedRef]
     );
 
     const button = (
@@ -144,7 +149,7 @@ const ActionButton = React.forwardRef<HTMLButtonElement, ActionButtonProps>(
     }
 
     return button;
-  },
+  }
 );
 
 ActionButton.displayName = "ActionButton";

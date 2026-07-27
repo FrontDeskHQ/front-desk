@@ -1,7 +1,9 @@
+import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
   actionAutonomyMapSchema,
   getDefaultActionAutonomy,
 } from "@workspace/schemas/signals";
+
 import type { Migration } from "../types";
 
 const migration: Migration = {
@@ -21,7 +23,7 @@ const migration: Migration = {
           : {};
       const { signalAutonomy: _legacy, ...rest } = rawSettings;
       const parsedAutonomy = actionAutonomyMapSchema.safeParse(
-        rest.actionAutonomy,
+        rest.actionAutonomy
       );
 
       const next = {
@@ -33,8 +35,7 @@ const migration: Migration = {
       };
 
       await db.organization.update(org.id, {
-        // biome-ignore lint/suspicious/noExplicitAny: settings JSON is opaque to migrations
-        settings: next as any,
+        settings: next as OrganizationSettings,
       });
     }
   },

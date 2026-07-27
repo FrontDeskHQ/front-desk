@@ -3,12 +3,12 @@ import type { AllowedStatus, InferStatusInput } from "../infer";
 
 export type ExpectedConfidenceBucket = "high" | "low" | "none";
 
-export type StatusInfererTestCase = {
+export interface StatusInfererTestCase {
   name: string;
   input: InferStatusInput;
   expectedStatus: number | null;
   expectedConfidenceBucket: ExpectedConfidenceBucket;
-};
+}
 
 // Mirrors STATUS_LABELS minus statuses the inferer is not allowed to suggest
 // (see NON_SUGGESTABLE_STATUSES in processor.ts — currently excludes Duplicated).
@@ -21,16 +21,17 @@ const STATUSES: AllowedStatus[] = [
 
 const sum = (s: ParsedSummary): ParsedSummary => s;
 
-const customer = (content: string) =>
-  ({ role: "customer" as const, content });
-const agent = (content: string) => ({ role: "agent" as const, content });
+const customer = (content: string) => ({ content, role: "customer" as const });
+const agent = (content: string) => ({ content, role: "agent" as const });
 
 export const statusInfererDataset: StatusInfererTestCase[] = [
   // --- Clear: customer confirms fix → Resolved ----------------------------
   {
-    name: "customer confirms fix → resolved",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 2,
     input: {
-      threadName: "Login button does nothing",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent: "Thanks, that worked! All good now.",
       recentMessages: [
         customer("The login button does nothing when I click it."),
@@ -45,22 +46,22 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["login form", "web app"],
         expectedAction: "troubleshooting / cache guidance",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Login button does nothing",
     },
-    expectedStatus: 2,
-    expectedConfidenceBucket: "high",
+    name: "customer confirms fix → resolved",
   },
   {
-    name: "customer says issue resolved itself",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 2,
     input: {
-      threadName: "Slow dashboard",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent:
         "Never mind — it's fast again after the maintenance window. You can close this.",
       recentMessages: [
         customer("Dashboard is taking 30s to load."),
         customer(
-          "Never mind — it's fast again after the maintenance window. You can close this.",
+          "Never mind — it's fast again after the maintenance window. You can close this."
         ),
       ],
       summary: sum({
@@ -71,17 +72,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["dashboard", "web app"],
         expectedAction: "performance investigation",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "Slow dashboard",
     },
-    expectedStatus: 2,
-    expectedConfidenceBucket: "high",
+    name: "customer says issue resolved itself",
   },
   // --- Clear: new question on a resolved thread → Open --------------------
   {
-    name: "customer asks new question on resolved thread → open",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 0,
     input: {
-      threadName: "Export to CSV failing",
+      allowedStatuses: STATUSES,
+      currentStatus: 2,
       latestMessageContent:
         "Hey, the export works now but I'm seeing a different error when I try PDF export. Can you check?",
       recentMessages: [
@@ -89,7 +90,7 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         agent("Try the new build."),
         customer("Thanks, that fixed it!"),
         customer(
-          "Hey, the export works now but I'm seeing a different error when I try PDF export. Can you check?",
+          "Hey, the export works now but I'm seeing a different error when I try PDF export. Can you check?"
         ),
       ],
       summary: sum({
@@ -100,22 +101,24 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["export feature", "reports"],
         expectedAction: "bug fix",
       }),
-      currentStatus: 2,
-      allowedStatuses: STATUSES,
+      threadName: "Export to CSV failing",
     },
-    expectedStatus: 0,
-    expectedConfidenceBucket: "high",
+    name: "customer asks new question on resolved thread → open",
   },
   {
-    name: "customer reopens after close",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 0,
     input: {
-      threadName: "Webhook signature verification",
+      allowedStatuses: STATUSES,
+      currentStatus: 3,
       latestMessageContent:
         "It's happening again on production — same signature mismatch.",
       recentMessages: [
         customer("Signature verification failing."),
         agent("Fixed in v2.3."),
-        customer("It's happening again on production — same signature mismatch."),
+        customer(
+          "It's happening again on production — same signature mismatch."
+        ),
       ],
       summary: sum({
         title: "Webhook signature verification failing",
@@ -125,22 +128,24 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["webhooks", "signature verification"],
         expectedAction: "bug fix",
       }),
-      currentStatus: 3,
-      allowedStatuses: STATUSES,
+      threadName: "Webhook signature verification",
     },
-    expectedStatus: 0,
-    expectedConfidenceBucket: "high",
+    name: "customer reopens after close",
   },
   // --- Agent activity → In progress ---------------------------------------
   {
-    name: "agent posts clarifying question → in progress",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 1,
     input: {
-      threadName: "App crashes on iOS 18",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent:
         "Could you share the exact device model and the OS build number?",
       recentMessages: [
         customer("App crashes on launch after iOS 18 update."),
-        agent("Could you share the exact device model and the OS build number?"),
+        agent(
+          "Could you share the exact device model and the OS build number?"
+        ),
       ],
       summary: sum({
         title: "App crashes on launch after iOS 18 update",
@@ -150,22 +155,22 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["iOS app", "iOS 18"],
         expectedAction: "bug investigation",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "App crashes on iOS 18",
     },
-    expectedStatus: 1,
-    expectedConfidenceBucket: "high",
+    name: "agent posts clarifying question → in progress",
   },
   {
-    name: "agent acknowledges and starts investigating",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 1,
     input: {
-      threadName: "Billing discrepancy",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent:
         "Thanks for flagging — I'm pulling up your account now, will get back within the hour.",
       recentMessages: [
         customer("My last invoice charged me twice."),
         agent(
-          "Thanks for flagging — I'm pulling up your account now, will get back within the hour.",
+          "Thanks for flagging — I'm pulling up your account now, will get back within the hour."
         ),
       ],
       summary: sum({
@@ -176,17 +181,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["invoice", "billing system"],
         expectedAction: "billing investigation",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "Billing discrepancy",
     },
-    expectedStatus: 1,
-    expectedConfidenceBucket: "high",
+    name: "agent acknowledges and starts investigating",
   },
   // --- Off-topic / ambiguous → null ---------------------------------------
   {
-    name: "off-topic chit-chat → null",
+    expectedConfidenceBucket: "none",
+    expectedStatus: null,
     input: {
-      threadName: "Hello",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent: "Happy holidays everyone!",
       recentMessages: [
         customer("Hi team!"),
@@ -194,21 +199,22 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
       ],
       summary: sum({
         title: "Holiday greeting from customer",
-        shortDescription: "Customer sent a holiday greeting; no support request.",
+        shortDescription:
+          "Customer sent a holiday greeting; no support request.",
         keywords: ["greeting", "holiday"],
         entities: [],
         expectedAction: "none",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "Hello",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "none",
+    name: "off-topic chit-chat → null",
   },
   {
-    name: "ambiguous one-word reply → null",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "API rate limit",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent: "Ok.",
       recentMessages: [
         customer("Hitting 429s on bulk imports."),
@@ -223,21 +229,21 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["API rate limiter", "bulk import endpoint"],
         expectedAction: "rate limit adjustment",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "API rate limit",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "ambiguous one-word reply → null",
   },
   {
-    name: "off-topic solicitation → closed (dismissed, not an issue)",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 3,
     input: {
-      threadName: "Partnership",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent:
         "Hi — I run a marketing agency and would love to discuss collaboration!",
       recentMessages: [
         customer(
-          "Hi — I run a marketing agency and would love to discuss collaboration!",
+          "Hi — I run a marketing agency and would love to discuss collaboration!"
         ),
       ],
       summary: sum({
@@ -248,17 +254,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: [],
         expectedAction: "dismiss",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "Partnership",
     },
-    expectedStatus: 3,
-    expectedConfidenceBucket: "high",
+    name: "off-topic solicitation → closed (dismissed, not an issue)",
   },
   // --- Already matches inferred status → null (skip path) -----------------
   {
-    name: "already resolved, customer says thanks again",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "OAuth callback",
+      allowedStatuses: STATUSES,
+      currentStatus: 2,
       latestMessageContent: "Confirming again — all working, thanks!",
       recentMessages: [
         customer("OAuth callback returns 500."),
@@ -274,23 +280,23 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["OAuth flow", "callback endpoint"],
         expectedAction: "bug fix",
       }),
-      currentStatus: 2,
-      allowedStatuses: STATUSES,
+      threadName: "OAuth callback",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "already resolved, customer says thanks again",
   },
   {
-    name: "already in progress, agent posts update",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "Data pipeline lag",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent:
         "Still digging — looks like a downstream consumer is back-pressuring.",
       recentMessages: [
         customer("Pipeline running 2h behind."),
         agent("Looking into it."),
         agent(
-          "Still digging — looks like a downstream consumer is back-pressuring.",
+          "Still digging — looks like a downstream consumer is back-pressuring."
         ),
       ],
       summary: sum({
@@ -301,17 +307,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["data pipeline", "downstream consumer"],
         expectedAction: "ops investigation",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Data pipeline lag",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "already in progress, agent posts update",
   },
   // --- Borderline / threshold calibration ---------------------------------
   {
-    name: "customer reply with new info on open ticket",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "Email delivery",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent:
         "Here are the failing recipient addresses you asked for.",
       recentMessages: [
@@ -327,23 +333,23 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["email provider", "transactional pipeline"],
         expectedAction: "delivery investigation",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Email delivery",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "customer reply with new info on open ticket",
   },
   {
-    name: "subtle resolution: customer says 'works for now'",
+    expectedConfidenceBucket: "low",
+    expectedStatus: 2,
     input: {
-      threadName: "Search returns stale results",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent:
         "It seems to be working for now after a hard refresh, will report back if it returns.",
       recentMessages: [
         customer("Search shows results from yesterday."),
         agent("Try a hard refresh."),
         customer(
-          "It seems to be working for now after a hard refresh, will report back if it returns.",
+          "It seems to be working for now after a hard refresh, will report back if it returns."
         ),
       ],
       summary: sum({
@@ -354,22 +360,22 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["search index", "browser cache"],
         expectedAction: "cache / indexing investigation",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Search returns stale results",
     },
-    expectedStatus: 2,
-    expectedConfidenceBucket: "low",
+    name: "subtle resolution: customer says 'works for now'",
   },
   {
-    name: "soft duplicate-of mention from agent → null (duplicate not suggestable)",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "iOS push notifications",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent:
         "This looks like the same issue as the earlier APNs outage thread.",
       recentMessages: [
         customer("Push notifications missing on iOS."),
         agent(
-          "This looks like the same issue as the earlier APNs outage thread.",
+          "This looks like the same issue as the earlier APNs outage thread."
         ),
       ],
       summary: sum({
@@ -380,17 +386,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["APNs", "iOS app", "push notifications"],
         expectedAction: "outage correlation",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "iOS push notifications",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "soft duplicate-of mention from agent → null (duplicate not suggestable)",
   },
   // --- Closed: explicit teardown ------------------------------------------
   {
-    name: "customer got the help they needed → resolved (not closed)",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 2,
     input: {
-      threadName: "Onboarding questions",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent:
         "Got everything I need — you can close this thread.",
       recentMessages: [
@@ -406,17 +412,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["pricing page", "plan tiers"],
         expectedAction: "documentation / answer",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Onboarding questions",
     },
-    expectedStatus: 2,
-    expectedConfidenceBucket: "high",
+    name: "customer got the help they needed → resolved (not closed)",
   },
   // --- More no-change cases -----------------------------------------------
   {
-    name: "agent internal note (no customer-facing change)",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "Refund request",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent: "Will loop in finance.",
       recentMessages: [
         customer("Can I get a refund for last month?"),
@@ -430,24 +436,22 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["finance team", "billing"],
         expectedAction: "refund processing",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Refund request",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "agent internal note (no customer-facing change)",
   },
   {
-    name: "customer auto-reply / OOO",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "Sync failure",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent:
         "I'm out of office until Monday with limited email access.",
       recentMessages: [
         customer("Sync between Slack and FrontDesk failing."),
         agent("Could you re-auth the integration?"),
-        customer(
-          "I'm out of office until Monday with limited email access.",
-        ),
+        customer("I'm out of office until Monday with limited email access."),
       ],
       summary: sum({
         title: "Slack ↔ FrontDesk sync failing",
@@ -457,22 +461,22 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["Slack integration", "sync pipeline"],
         expectedAction: "re-authentication",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "Sync failure",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "customer auto-reply / OOO",
   },
   {
-    name: "agent explicitly closes a duplicate → closed (duplicate not suggestable)",
+    expectedConfidenceBucket: "high",
+    expectedStatus: 3,
     input: {
-      threadName: "Login loop",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
       latestMessageContent:
         "Closing this as duplicate of #1247 which already tracks the same fix.",
       recentMessages: [
         customer("Login keeps redirecting to itself."),
         agent(
-          "Closing this as duplicate of #1247 which already tracks the same fix.",
+          "Closing this as duplicate of #1247 which already tracks the same fix."
         ),
       ],
       summary: sum({
@@ -483,18 +487,17 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["login flow", "auth redirect"],
         expectedAction: "dismiss as duplicate",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "Login loop",
     },
-    expectedStatus: 3,
-    expectedConfidenceBucket: "high",
+    name: "agent explicitly closes a duplicate → closed (duplicate not suggestable)",
   },
   {
-    name: "customer escalates urgency",
+    expectedConfidenceBucket: "low",
+    expectedStatus: null,
     input: {
-      threadName: "Production outage",
-      latestMessageContent:
-        "This is now affecting all of our users — urgent!",
+      allowedStatuses: STATUSES,
+      currentStatus: 0,
+      latestMessageContent: "This is now affecting all of our users — urgent!",
       recentMessages: [
         customer("Some users can't access reports."),
         customer("This is now affecting all of our users — urgent!"),
@@ -507,23 +510,23 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["reports feature", "auth / access"],
         expectedAction: "incident response",
       }),
-      currentStatus: 0,
-      allowedStatuses: STATUSES,
+      threadName: "Production outage",
     },
-    expectedStatus: null,
-    expectedConfidenceBucket: "low",
+    name: "customer escalates urgency",
   },
   {
-    name: "customer thanks but new question follows",
+    expectedConfidenceBucket: "low",
+    expectedStatus: 1,
     input: {
-      threadName: "API key rotation",
+      allowedStatuses: STATUSES,
+      currentStatus: 1,
       latestMessageContent:
         "Thanks for rotating the key! One more thing — does this invalidate existing webhooks?",
       recentMessages: [
         customer("Need to rotate our API key."),
         agent("Done — new key in your dashboard."),
         customer(
-          "Thanks for rotating the key! One more thing — does this invalidate existing webhooks?",
+          "Thanks for rotating the key! One more thing — does this invalidate existing webhooks?"
         ),
       ],
       summary: sum({
@@ -534,10 +537,8 @@ export const statusInfererDataset: StatusInfererTestCase[] = [
         entities: ["API keys", "webhooks", "dashboard"],
         expectedAction: "documentation / answer",
       }),
-      currentStatus: 1,
-      allowedStatuses: STATUSES,
+      threadName: "API key rotation",
     },
-    expectedStatus: 1,
-    expectedConfidenceBucket: "low",
+    name: "customer thanks but new question follows",
   },
 ];

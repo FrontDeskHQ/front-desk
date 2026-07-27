@@ -15,12 +15,17 @@ const migration: Migration = {
       // reassign a value that collides with a thread already numbered by
       // nextThreadShortId (e.g. from an earlier partial run).
       const maxExisting = threads.reduce(
-        (acc, t) => (t.shortId != null && t.shortId > acc ? t.shortId : acc),
-        0,
+        (acc, t) =>
+          t.shortId !== null && t.shortId !== undefined && t.shortId > acc
+            ? t.shortId
+            : acc,
+        0
       );
       let n = Math.max(org.shortIdCounter ?? 0, maxExisting);
 
-      const unnumbered = threads.filter((t) => t.shortId == null);
+      const unnumbered = threads.filter(
+        (t) => t.shortId === null || t.shortId === undefined
+      );
       for (const t of unnumbered) {
         n += 1;
         await db.thread.update(t.id, { shortId: n });

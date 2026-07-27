@@ -1,8 +1,16 @@
-import { type Job, Worker } from "bullmq";
-import Redis from "ioredis";
-import type { ThreadReadJobData } from "@workspace/schemas/signals";
+import type {
+  PrIndexJobData,
+  PrMatchJobData,
+  ThreadReadJobData,
+} from "@workspace/schemas/signals";
 import { initSharedLogger, log } from "@workspace/utils/logging";
+import { Worker } from "bullmq";
+import type { Job } from "bullmq";
+import Redis from "ioredis";
+
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
+import { handleIndexPr } from "./handlers/index-pr";
+import { handleMatchPr } from "./handlers/match-pr";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
@@ -12,6 +20,8 @@ import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
+const PR_INDEX_QUEUE = "pr-index";
+const PR_MATCH_QUEUE = "pr-match";
 
 const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
   if (value === undefined) {
@@ -30,10 +40,10 @@ const formatError = (error: unknown): string => {
 };
 
 initSharedLogger({
-  service: "worker",
-  environment: process.env.NODE_ENV,
   enabled: parseBooleanEnv(process.env.LOGGING_ENABLED),
+  environment: process.env.NODE_ENV,
   pretty: parseBooleanEnv(process.env.LOGGING_PRETTY),
+  service: "worker",
   silent: parseBooleanEnv(process.env.LOGGING_SILENT),
 });
 
@@ -77,7 +87,7 @@ const connection = getRedisConnection();
  * synthesis processor.
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
-  const { threadId, kind } = job.data;
+  const { threadId, kind, prMatched } = job.data;
 
   if (!threadId) {
     throw new Error("No threadId provided");
@@ -85,10 +95,15 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
 
   log.info(
     "worker.thread-pipeline",
-    `Processing job ${job.id} (thread=${threadId}, kind=${kind})`,
+    `Processing job ${job.id} (thread=${threadId}, kind=${kind}${
+      prMatched ? `, pr=${prMatched.prId}` : ""
+    })`
   );
 
-  const result = await executePipeline({ threadIds: [threadId] });
+  const result = await executePipeline({
+    threadIds: [threadId],
+    trigger: { kind, ...(prMatched ? { prMatched } : {}) },
+  });
 
   const successRate =
     result.summary.totalThreads > 0
@@ -100,18 +115,18 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
 
   log.info(
     "worker.thread-pipeline",
-    `Completed job ${job.id} with ${successRate}% success rate`,
+    `Completed job ${job.id} with ${successRate}% success rate`
   );
 
   return {
-    jobId: result.jobId,
     bullmqJobId: job.id,
-    threadId,
-    kind,
-    summary: result.summary,
-    successRate: `${successRate}%`,
-    status: result.status,
     duration: result.duration,
+    jobId: result.jobId,
+    kind,
+    status: result.status,
+    successRate: `${successRate}%`,
+    summary: result.summary,
+    threadId,
   };
 };
 
@@ -120,17 +135,17 @@ const threadPipelineWorker = new Worker<ThreadReadJobData>(
   THREAD_PIPELINE_QUEUE,
   handleThreadReadJob,
   {
-    connection,
     autorun: false,
     concurrency: 3, // Process up to 3 threads concurrently
+    connection,
     removeOnComplete: {
-      count: 100,
       age: 24 * 3600, // 24 hours
+      count: 100,
     },
     removeOnFail: {
       count: 1000,
     },
-  },
+  }
 );
 
 // Event handlers for thread-pipeline worker
@@ -139,10 +154,7 @@ threadPipelineWorker.on("completed", (job) => {
 });
 
 threadPipelineWorker.on("failed", (job, err) => {
-  log.error(
-    "worker.thread-pipeline",
-    `Job ${job?.id} failed: ${err.message}`,
-  );
+  log.error("worker.thread-pipeline", `Job ${job?.id} failed: ${err.message}`);
   log.error("worker.thread-pipeline", formatError(err));
 });
 
@@ -155,17 +167,17 @@ const crawlDocWorker = new Worker(
   CRAWL_DOCUMENTATION_QUEUE,
   handleCrawlDocumentation,
   {
-    connection,
     autorun: false,
     concurrency: 2,
+    connection,
     removeOnComplete: {
-      count: 50,
       age: 24 * 3600,
+      count: 50,
     },
     removeOnFail: {
       count: 500,
     },
-  },
+  }
 );
 
 crawlDocWorker.on("completed", (job) => {
@@ -175,16 +187,78 @@ crawlDocWorker.on("completed", (job) => {
 crawlDocWorker.on("failed", (job, err) => {
   log.error(
     "worker.crawl-documentation",
-    `Job ${job?.id} failed: ${err.message}`,
+    `Job ${job?.id} failed: ${err.message}`
   );
   log.error("worker.crawl-documentation", formatError(err));
 });
 
 crawlDocWorker.on("error", (err) => {
-  log.error(
-    "worker.crawl-documentation",
-    `Worker error: ${formatError(err)}`,
-  );
+  log.error("worker.crawl-documentation", `Worker error: ${formatError(err)}`);
+});
+
+// Create PR embedding index worker (FRO-203). Index-only: keeps the PR vector
+// index in step with the mirror; never fans out `pr_matched` reads.
+const prIndexWorker = new Worker<PrIndexJobData>(
+  PR_INDEX_QUEUE,
+  handleIndexPr,
+  {
+    autorun: false,
+    concurrency: 3,
+    connection,
+    removeOnComplete: {
+      age: 24 * 3600,
+      count: 100,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  }
+);
+
+prIndexWorker.on("completed", (job) => {
+  log.info("worker.pr-index", `Job ${job.id} completed`);
+});
+
+prIndexWorker.on("failed", (job, err) => {
+  log.error("worker.pr-index", `Job ${job?.id} failed: ${err.message}`);
+  log.error("worker.pr-index", formatError(err));
+});
+
+prIndexWorker.on("error", (err) => {
+  log.error("worker.pr-index", `Worker error: ${formatError(err)}`);
+});
+
+// Create PR push-side match worker (FRO-205). Embeds an eligible PR, searches
+// for similar Open / In-progress threads, and fans out `pr_matched` reads for
+// the unlinked ones.
+const prMatchWorker = new Worker<PrMatchJobData>(
+  PR_MATCH_QUEUE,
+  handleMatchPr,
+  {
+    autorun: false,
+    concurrency: 3,
+    connection,
+    removeOnComplete: {
+      age: 24 * 3600,
+      count: 100,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  }
+);
+
+prMatchWorker.on("completed", (job) => {
+  log.info("worker.match-pr", `Job ${job.id} completed`);
+});
+
+prMatchWorker.on("failed", (job, err) => {
+  log.error("worker.match-pr", `Job ${job?.id} failed: ${err.message}`);
+  log.error("worker.match-pr", formatError(err));
+});
+
+prMatchWorker.on("error", (err) => {
+  log.error("worker.match-pr", `Worker error: ${formatError(err)}`);
 });
 
 // Initialize and start
@@ -196,14 +270,17 @@ const initialize = async () => {
   log.info("worker", "Processors registered");
 
   // Ensure Qdrant collections exist
-  const [threadsReady, messagesReady, documentationReady, prsReady] = await Promise.all([
-    ensureThreadsCollection(),
-    ensureMessagesCollection(),
-    ensureDocumentationCollection(),
-    ensurePrsCollection(),
-  ]);
+  const [threadsReady, messagesReady, documentationReady, prsReady] =
+    await Promise.all([
+      ensureThreadsCollection(),
+      ensureMessagesCollection(),
+      ensureDocumentationCollection(),
+      ensurePrsCollection(),
+    ]);
   if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
-    throw new Error("Qdrant collections are not ready; refusing to start workers");
+    throw new Error(
+      "Qdrant collections are not ready; refusing to start workers"
+    );
   }
 
   log.info("worker", "Qdrant collections ready");
@@ -211,6 +288,8 @@ const initialize = async () => {
   // Start workers now that collections are ready
   threadPipelineWorker.run();
   crawlDocWorker.run();
+  prIndexWorker.run();
+  prMatchWorker.run();
 
   log.info("worker", "Listening for jobs");
 };
@@ -218,7 +297,12 @@ const initialize = async () => {
 // Graceful shutdown
 const handleShutdown = async () => {
   log.info("worker", "Shutting down workers");
-  await Promise.all([threadPipelineWorker.close(), crawlDocWorker.close()]);
+  await Promise.all([
+    threadPipelineWorker.close(),
+    crawlDocWorker.close(),
+    prIndexWorker.close(),
+    prMatchWorker.close(),
+  ]);
   await connection.quit();
   log.info("worker", "Workers shut down successfully");
   process.exit(0);

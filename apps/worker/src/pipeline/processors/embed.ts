@@ -1,19 +1,20 @@
+import { createHash } from "node:crypto";
+
 import { google } from "@ai-sdk/google";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { embed } from "ai";
-import { createHash } from "node:crypto";
+
 import { AI_PRICING } from "../../lib/ai-pricing";
-import {
-  type ThreadPayload,
-  upsertThreadVector,
-} from "../../lib/qdrant/threads";
+import { upsertThreadVector } from "../../lib/qdrant/threads";
+import type { ThreadPayload } from "../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
   ProcessorResult,
 } from "../core/types";
-import { type SummarizeOutput, summarizeThread } from "./summarize";
+import { summarizeThread } from "./summarize";
+import type { SummarizeOutput } from "./summarize";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
@@ -21,26 +22,24 @@ const embeddingModel = google.embedding(EMBEDDING_MODEL);
 /**
  * Compute SHA256 hash of input data
  */
-const computeSha256 = (data: string): string => {
-  return createHash("sha256").update(data).digest("hex");
-};
+const computeSha256 = (data: string): string =>
+  createHash("sha256").update(data).digest("hex");
 
 /**
  * Create text representation from ParsedSummary for embedding
  */
-const createSummaryText = (summary: ParsedSummary): string => {
-  return Object.entries(summary)
+const createSummaryText = (summary: ParsedSummary): string =>
+  Object.entries(summary)
     .map(([key, value]) => `${key}: ${value}`)
     .join("\n")
     .trim();
-};
 
 /**
  * Generate embedding vector from text
  */
 const generateEmbedding = async (
   text: string,
-  ai?: ReturnType<typeof createAILogger>,
+  ai?: ReturnType<typeof createAILogger>
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -49,18 +48,18 @@ const generateEmbedding = async (
   try {
     const { embedding, usage } = await embed({
       model: embeddingModel,
-      value: text,
       providerOptions: {
         google: {
           taskType: "SEMANTIC_SIMILARITY",
         },
       },
+      value: text,
     });
     ai?.captureEmbed({
-      usage,
-      model: EMBEDDING_MODEL,
-      dimensions: embedding.length,
       count: 1,
+      dimensions: embedding.length,
+      model: EMBEDDING_MODEL,
+      usage,
     });
 
     // Normalize the embedding vector
@@ -83,7 +82,7 @@ const generateEmbedding = async (
  */
 const buildThreadPayload = (
   thread: Thread,
-  parsedSummary: ParsedSummary,
+  parsedSummary: ParsedSummary
 ): ThreadPayload => {
   const labelNames =
     thread.labels
@@ -93,22 +92,22 @@ const buildThreadPayload = (
   const createdAt = thread.createdAt?.getTime?.() ?? Date.now();
 
   return {
-    threadId: thread.id,
+    assignedUserId: thread.assignedUserId ?? null,
+    authorId: thread.authorId ?? "",
+    createdAt,
+    entities: parsedSummary.entities,
+    expectedAction: parsedSummary.expectedAction || "triage",
+    keywords: parsedSummary.keywords,
+    labels: labelNames,
     organizationId: thread.organizationId,
-    title: parsedSummary.title || thread.name || "Untitled",
+    priority: thread.priority ?? 0,
     shortDescription:
       parsedSummary.shortDescription ||
       thread.messages?.[0]?.content ||
       "No summary available.",
-    keywords: parsedSummary.keywords,
-    entities: parsedSummary.entities,
-    expectedAction: parsedSummary.expectedAction || "triage",
     status: thread.status ?? 0,
-    priority: thread.priority ?? 0,
-    authorId: thread.authorId ?? "",
-    assignedUserId: thread.assignedUserId ?? null,
-    labels: labelNames,
-    createdAt,
+    threadId: thread.id,
+    title: parsedSummary.title || thread.name || "Untitled",
     updatedAt: Date.now(),
   };
 };
@@ -122,20 +121,12 @@ const buildThreadPayload = (
  * Dependencies: summarize
  */
 export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
-  name: "embed",
-
-  dependencies: ["summarize"],
-
-  getIdempotencyKey(threadId: string): string {
-    return `embed:${threadId}`;
-  },
-
   computeHash(context: ProcessorExecuteContext): string {
     const { context: jobContext, threadId } = context;
 
     const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
       "summarize",
-      threadId,
+      threadId
     );
 
     if (!summarizeOutput) {
@@ -148,8 +139,10 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
     return computeSha256(hashInput);
   },
 
+  dependencies: ["summarize"],
+
   async execute(
-    context: ProcessorExecuteContext,
+    context: ProcessorExecuteContext
   ): Promise<ProcessorResult<EmbedOutput>> {
     const { context: jobContext, thread, threadId } = context;
     const requestLog = createLogger({
@@ -164,7 +157,7 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
 
     const summarizeOutput = jobContext.getProcessorOutput<SummarizeOutput>(
       "summarize",
-      threadId,
+      threadId
     );
 
     if (!summarizeOutput) {
@@ -200,12 +193,12 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       const storedInQdrant = await upsertThreadVector(
         pointId,
         embedding,
-        payload,
+        payload
       );
 
       if (!storedInQdrant) {
         console.warn(
-          `Failed to store thread ${threadId} in Qdrant, but embedding was generated`,
+          `Failed to store thread ${threadId} in Qdrant, but embedding was generated`
         );
         return {
           threadId,
@@ -232,7 +225,7 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       status = 500;
       console.error(`Embed processor failed for thread ${threadId}:`, error);
       requestLog.error(
-        `Embed failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`,
+        `Embed failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`
       );
       return {
         threadId,
@@ -243,6 +236,12 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       requestLog.emit({ status });
     }
   },
+
+  getIdempotencyKey(threadId: string): string {
+    return `embed:${threadId}`;
+  },
+
+  name: "embed",
 };
 
 export interface BatchEmbedResult {
@@ -264,7 +263,7 @@ const DEFAULT_BATCH_CONCURRENCY = 5;
 
 export const batchEmbedThread = async (
   threads: Thread[],
-  options?: { concurrency?: number },
+  options?: { concurrency?: number }
 ): Promise<BatchEmbedThreadResult[]> => {
   const concurrency = options?.concurrency ?? DEFAULT_BATCH_CONCURRENCY;
 
@@ -273,7 +272,7 @@ export const batchEmbedThread = async (
   }
 
   console.log(
-    `Batch embedding ${threads.length} threads with concurrency ${concurrency}`,
+    `Batch embedding ${threads.length} threads with concurrency ${concurrency}`
   );
 
   const results: BatchEmbedThreadResult[] = [];
@@ -290,26 +289,26 @@ export const batchEmbedThread = async (
 
           if (!embedding) {
             return {
-              threadId: thread.id,
               error: "Failed to generate embedding",
               success: false,
+              threadId: thread.id,
             };
           }
 
           return {
-            threadId: thread.id,
             embedding,
-            summary: summaryText,
             success: true,
+            summary: summaryText,
+            threadId: thread.id,
           };
         } catch (error) {
           return {
-            threadId: thread.id,
             error: error instanceof Error ? error.message : String(error),
             success: false,
+            threadId: thread.id,
           };
         }
-      }),
+      })
     );
 
     results.push(...batchResults);
@@ -319,7 +318,7 @@ export const batchEmbedThread = async (
   const errorCount = results.filter((r) => !r.success).length;
 
   console.log(
-    `Batch embedding complete: ${successCount} successful, ${errorCount} failed out of ${threads.length} threads`,
+    `Batch embedding complete: ${successCount} successful, ${errorCount} failed out of ${threads.length} threads`
   );
 
   return results;

@@ -2,18 +2,11 @@
 
 # FrontDesk
 
-[![License: AGPL](https://img.shields.io/badge/License-AGPL-brightgreen.svg)](LICENSE)
-[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/frontdeskhq/front-desk/pulls)
+[![License: AGPL](https://img.shields.io/badge/License-AGPL-brightgreen.svg)](LICENSE) [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/frontdeskhq/front-desk/pulls)
 
 **The all-in-one customer support platform.** Making good customer support extremely easy.
 
-
-
-**[Website](https://tryfrontdesk.app)**
-<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-**[Discord Community](https://discord.gg/5MDHqKHrHr)**
-<span>&nbsp;&nbsp;•&nbsp;&nbsp;</span>
-**[Documentation](https://tryfrontdesk.app/docs)**
+**[Website](https://tryfrontdesk.app)** <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span> **[Discord Community](https://discord.gg/5MDHqKHrHr)** <span>&nbsp;&nbsp;•&nbsp;&nbsp;</span> **[Documentation](https://tryfrontdesk.app/docs)**
 
 <a href="https://twitter.com/intent/follow?screen_name=frontdeskhq">
     <img src="https://img.shields.io/twitter/follow/frontdeskhq.svg?label=Follow%20@frontdeskhq" alt="Follow @frontdeskhq" />
@@ -47,23 +40,28 @@ FrontDesk is an open-source customer support platform designed to help you assis
 ### Installation
 
 1. **Clone the repository:**
+
    ```bash
    git clone https://github.com/frontdeskhq/front-desk.git
    cd front-desk
    ```
 
 2. **Install dependencies:**
+
    ```bash
    bun install
    ```
 
 3. **Set up environment variables:**
+
    ```bash
    cp apps/api/.env.local.example apps/api/.env.local
    ```
+
    Update the environment variables in `apps/api/.env.local` with your configuration.
 
 4. **Start the development servers:**
+
    ```bash
    bun dev
    ```
@@ -103,7 +101,6 @@ front-desk/
 ## Contributing
 
 We welcome contributions! Whether you're fixing bugs, adding features, or improving documentation, your help makes FrontDesk better for everyone.
-
 
 ![Alt](https://repobeats.axiom.co/api/embed/7ba3fc4ab9db1a9015cc6349fe428efe4289a3f4.svg "Repobeats analytics image")
 

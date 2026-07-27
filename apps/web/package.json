@@ -1,8 +1,8 @@
 {
   "name": "web",
   "private": true,
-  "sideEffects": false,
   "type": "module",
+  "sideEffects": false,
   "scripts": {
     "dev": "vite dev",
     "dev:wrangler": "wrangler dev",

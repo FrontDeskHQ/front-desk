@@ -1,27 +1,26 @@
 import { createHash } from "node:crypto";
+
 import { STATUS_LABELS } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
+
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getStatusAutonomyMode } from "../../../../lib/autonomy";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
-import {
-  type MessageRole,
-  resolveMessageRoles,
-} from "../../../../lib/message-roles";
+import { resolveMessageRoles } from "../../../../lib/message-roles";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
   ProcessorResult,
 } from "../../../core/types";
 import type { SummarizeOutput } from "../../summarize";
-import { type AllowedStatus, inferStatus } from "./infer";
+import { inferStatus } from "./infer";
+import type { AllowedStatus } from "./infer";
 
 // Below this score the inferer emits nothing.
 const SUGGEST_THRESHOLD = 0.5;
 // Reserved for auto-mode silent-apply (gated by issue 04). Wrong status flips
 // are annoying to undo, so this threshold is intentionally higher than label's.
-// biome-ignore lint/correctness/noUnusedVariables: kept for issue 04 wire-up.
-const AUTO_THRESHOLD = 0.85;
+const _AUTO_THRESHOLD = 0.85;
 
 const RECENT_MESSAGE_WINDOW = 6;
 
@@ -30,11 +29,11 @@ const RECENT_MESSAGE_WINDOW = 6;
 // status inference over the latest message.
 const NON_SUGGESTABLE_STATUSES = new Set<number>([4]);
 
-export type StatusInfererOutput = {
+export interface StatusInfererOutput {
   skipped?: "autonomy_off" | "no_messages" | "below_threshold";
   status?: number;
   confidence?: number;
-};
+}
 
 const allowedStatusesFromTaxonomy = (): AllowedStatus[] =>
   Object.entries(STATUS_LABELS)
@@ -42,9 +41,9 @@ const allowedStatusesFromTaxonomy = (): AllowedStatus[] =>
     .filter((s) => !NON_SUGGESTABLE_STATUSES.has(s.code));
 
 const sortedMessages = (
-  messages: ProcessorExecuteContext["thread"]["messages"],
+  messages: ProcessorExecuteContext["thread"]["messages"]
 ): NonNullable<ProcessorExecuteContext["thread"]["messages"]> =>
-  [...(messages ?? [])].sort((a, b) => a.id.localeCompare(b.id));
+  [...(messages ?? [])].toSorted((a, b) => a.id.localeCompare(b.id));
 
 export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
   {
@@ -62,22 +61,22 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
     computeHash(context: ProcessorExecuteContext): string {
       const { thread } = context;
       const ordered = sortedMessages(thread.messages);
-      const latestId = ordered[ordered.length - 1]?.id ?? "";
+      const latestId = ordered.at(-1)?.id ?? "";
       return createHash("sha256")
         .update(`${thread.id}:${latestId}`)
         .digest("hex");
     },
 
     async execute(
-      context: ProcessorExecuteContext,
+      context: ProcessorExecuteContext
     ): Promise<ProcessorResult<StatusInfererOutput>> {
       const { thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.status_inferer",
+        jobId: context.context.jobId,
+        organizationId: thread.organizationId,
         processor: "status_inferer",
         threadId,
-        organizationId: thread.organizationId,
-        jobId: context.context.jobId,
       });
       const ai = createAILogger(requestLog, { cost: AI_PRICING });
       let status = 200;
@@ -86,61 +85,61 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         const autonomy = await getStatusAutonomyMode(thread.organizationId);
         if (autonomy === "off") {
           return {
-            threadId,
-            success: true,
             data: { skipped: "autonomy_off" },
+            success: true,
+            threadId,
           };
         }
 
         const ordered = sortedMessages(thread.messages);
         if (ordered.length === 0) {
           return {
-            threadId,
-            success: true,
             data: { skipped: "no_messages" },
+            success: true,
+            threadId,
           };
         }
 
-        const latestMessage = ordered[ordered.length - 1];
+        const latestMessage = ordered.at(-1);
         const windowed = ordered.slice(-RECENT_MESSAGE_WINDOW);
         const roleByAuthorId = await resolveMessageRoles(
           windowed.map((m) => m.authorId),
-          thread.authorId,
+          thread.authorId
         );
         const recentMessages = windowed.map((m) => ({
-          role: roleByAuthorId.get(m.authorId) ?? "unknown",
           content: m.content,
+          role: roleByAuthorId.get(m.authorId) ?? "unknown",
         }));
 
         const summarizeOutput =
           context.context.getProcessorOutput<SummarizeOutput>(
             "summarize",
-            threadId,
+            threadId
           );
 
         const allowedStatuses = allowedStatusesFromTaxonomy();
 
         const { status: inferred, confidence } = await inferStatus(
           {
-            threadName: thread.name ?? null,
+            allowedStatuses,
+            currentStatus: thread.status ?? 0,
             latestMessageContent: latestMessage?.content ?? null,
             recentMessages,
             summary: summarizeOutput?.summary ?? null,
-            currentStatus: thread.status ?? 0,
-            allowedStatuses,
+            threadName: thread.name ?? null,
           },
-          ai,
+          ai
         );
 
         if (inferred === null || confidence < SUGGEST_THRESHOLD) {
           return {
-            threadId,
-            success: true,
             data: {
+              confidence,
               skipped: "below_threshold",
               status: inferred ?? undefined,
-              confidence,
             },
+            success: true,
+            threadId,
           };
         }
 
@@ -150,17 +149,17 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         //       and write the autonomousAction receipt; do not emit a suggestion.
         // Until then, both "suggest" and "auto" emit an inline suggestion.
         await appendOrReplaceInlineSuggestion(threadId, thread.organizationId, {
-          id: `status:${threadId}`,
           action: { kind: "set_status", status: inferred },
           confidence,
-          generator: "status_inferer",
           createdAt: new Date().toISOString(),
+          generator: "status_inferer",
+          id: `status:${threadId}`,
         });
 
         return {
-          threadId,
+          data: { confidence, status: inferred },
           success: true,
-          data: { status: inferred, confidence },
+          threadId,
         };
       } catch (error) {
         status = 500;
@@ -168,12 +167,12 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         requestLog.error(
           `Status inferer failed for thread ${threadId}: ${
             error instanceof Error ? error.message : String(error)
-          }`,
+          }`
         );
         return {
-          threadId,
-          success: false,
           error: error instanceof Error ? error.message : String(error),
+          success: false,
+          threadId,
         };
       } finally {
         requestLog.emit({ status });

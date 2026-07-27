@@ -3,6 +3,7 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import { ListFilter, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+
 import { Button } from "../button";
 import {
   Menu,
@@ -44,6 +45,9 @@ export interface FilterProps {
   initialValue?: FilterValue;
 }
 
+const omitFilterGroup = (value: FilterValue, groupKey: string): FilterValue =>
+  Object.fromEntries(Object.entries(value).filter(([key]) => key !== groupKey));
+
 const SubMenuOptions = ({
   group,
   value,
@@ -56,41 +60,41 @@ const SubMenuOptions = ({
   groupKey: string;
 }) => {
   const toggleValue = (
-    value: FilterValue,
+    currentValue: FilterValue,
     checked: boolean,
-    option: FilterOption,
+    selectedOption: FilterOption
   ) => {
     const newGroupValue = checked
-      ? [...(value[groupKey] ?? []), option.value]
-      : (value[groupKey] ?? []).filter((value) => value !== option.value);
+      ? [...(currentValue[groupKey] ?? []), selectedOption.value]
+      : (currentValue[groupKey] ?? []).filter(
+          (entry) => entry !== selectedOption.value
+        );
 
-    const newValue = {
-      ...value,
-      [groupKey]: newGroupValue,
-    };
-
-    if (!newGroupValue.length) {
-      delete newValue[groupKey];
-    }
+    const newValue = newGroupValue.length
+      ? {
+          ...currentValue,
+          [groupKey]: newGroupValue,
+        }
+      : omitFilterGroup(currentValue, groupKey);
 
     setValue(newValue);
   };
 
   return (
     <MenuGroup>
-      {group.options.map((option) => {
-        const hasIcons = group.options.some((option) => option.icon);
+      {group.options.map((menuOption) => {
+        const hasIcons = group.options.some((entry) => entry.icon);
 
         return (
           <MenuCheckboxItem
-            key={option.value}
-            checked={value[groupKey]?.includes(option.value) ?? false}
+            key={menuOption.value}
+            checked={value[groupKey]?.includes(menuOption.value) ?? false}
             onCheckedChange={(checked) => {
-              toggleValue(value, checked, option);
+              toggleValue(value, checked, menuOption);
             }}
           >
-            {hasIcons && (option.icon ?? <div className="size-4" />)}
-            {option.label}
+            {hasIcons && (menuOption.icon ?? <div className="size-4" />)}
+            {menuOption.label}
           </MenuCheckboxItem>
         );
       })}
@@ -99,9 +103,7 @@ const SubMenuOptions = ({
           <MenuSeparator />
           <MenuItem
             onClick={() => {
-              const newValue = { ...value };
-              delete newValue[groupKey];
-              setValue(newValue);
+              setValue(omitFilterGroup(value, groupKey));
             }}
           >
             Clear selection
@@ -120,8 +122,8 @@ const Filter = ({
 }: FilterProps) => {
   const [value, setValue] = useControllableState<FilterValue>({
     defaultProp: initialValue ?? {},
-    prop: externalValue,
     onChange: onValueChange,
+    prop: externalValue,
   });
 
   const hasValue = Object.values(value).some((values) => values.length > 0);
@@ -163,27 +165,30 @@ const Filter = ({
                         <div className="flex items-center gap-1">
                           {
                             group.options.find(
-                              (option) => option.value === values[0],
+                              (option) => option.value === values[0]
                             )?.icon
                           }
                           {
                             group.options.find(
-                              (option) => option.value === values[0],
+                              (option) => option.value === values[0]
                             )?.label
                           }
                         </div>
                         <div>+{values.length - 1}</div>
                       </>
                     ) : (
-                      values.map((value) => {
-                        const option = group.options.find(
-                          (option) => option.value === value,
+                      values.map((selectedValue) => {
+                        const selectedOption = group.options.find(
+                          (entry) => entry.value === selectedValue
                         );
 
                         return (
-                          <div key={value} className="flex items-center gap-1">
-                            {option?.icon ?? <div className="size-4" />}
-                            {option?.label}
+                          <div
+                            key={selectedValue}
+                            className="flex items-center gap-1"
+                          >
+                            {selectedOption?.icon ?? <div className="size-4" />}
+                            {selectedOption?.label}
                           </div>
                         );
                       })
@@ -203,9 +208,7 @@ const Filter = ({
                 variant="ghost"
                 className="p-0 size-5 has-[>svg]:p-0 rounded-none hover:bg-muted-foreground/8 dark:hover:bg-muted-foreground/8"
                 onClick={() => {
-                  const newValue = { ...value };
-                  delete newValue[key];
-                  setValue(newValue);
+                  setValue(omitFilterGroup(value, key));
                 }}
               >
                 <X className="size-4" />

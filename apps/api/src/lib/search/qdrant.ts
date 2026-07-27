@@ -1,15 +1,16 @@
 import { QdrantClient } from "@qdrant/js-client-rest";
+
 import { generateEmbedding } from "../ai/embeddings";
 
 const QDRANT_URL = process.env.QDRANT_URL ?? "http://localhost:6333";
-const QDRANT_API_KEY = process.env.QDRANT_API_KEY;
+const { QDRANT_API_KEY } = process.env;
 
 const MESSAGES_COLLECTION = "messages-v1";
 const DOCUMENTATION_COLLECTION = "documentation-v1";
 
 const qdrantClient = new QdrantClient({
-  url: QDRANT_URL,
   apiKey: QDRANT_API_KEY,
+  url: QDRANT_URL,
 });
 
 export async function searchMessages(options: {
@@ -19,10 +20,7 @@ export async function searchMessages(options: {
 }): Promise<{ messageId: string; threadId: string; score: number }[]> {
   const { query, organizationId, limit = 20 } = options;
 
-  const denseQueryEmbedding = await generateEmbedding(
-    query,
-    "RETRIEVAL_QUERY",
-  );
+  const denseQueryEmbedding = await generateEmbedding(query, "RETRIEVAL_QUERY");
 
   if (!denseQueryEmbedding) {
     console.error("Failed to generate query embedding for search");
@@ -31,6 +29,10 @@ export async function searchMessages(options: {
 
   try {
     const results = await qdrantClient.query(MESSAGES_COLLECTION, {
+      filter: {
+        must: [{ key: "organizationId", match: { value: organizationId } }],
+      },
+      limit,
       prefetch: [
         {
           query: denseQueryEmbedding,
@@ -47,13 +49,7 @@ export async function searchMessages(options: {
         },
       ],
       query: { fusion: "rrf" },
-      filter: {
-        must: [
-          { key: "organizationId", match: { value: organizationId } },
-        ],
-      },
       with_payload: true,
-      limit,
     });
 
     return results.points.map((point) => {
@@ -63,8 +59,8 @@ export async function searchMessages(options: {
       };
       return {
         messageId: payload.messageId,
-        threadId: payload.threadId,
         score: point.score,
+        threadId: payload.threadId,
       };
     });
   } catch (error) {
@@ -88,20 +84,21 @@ export async function searchDocumentation(options: {
 > {
   const { query, organizationId, limit = 5 } = options;
 
-  const denseQueryEmbedding = await generateEmbedding(
-    query,
-    "RETRIEVAL_QUERY",
-  );
+  const denseQueryEmbedding = await generateEmbedding(query, "RETRIEVAL_QUERY");
 
   if (!denseQueryEmbedding) {
     console.error(
-      "Failed to generate query embedding for documentation search",
+      "Failed to generate query embedding for documentation search"
     );
     return [];
   }
 
   try {
     const results = await qdrantClient.query(DOCUMENTATION_COLLECTION, {
+      filter: {
+        must: [{ key: "organizationId", match: { value: organizationId } }],
+      },
+      limit,
       prefetch: [
         {
           query: denseQueryEmbedding,
@@ -118,13 +115,7 @@ export async function searchDocumentation(options: {
         },
       ],
       query: { fusion: "rrf" },
-      filter: {
-        must: [
-          { key: "organizationId", match: { value: organizationId } },
-        ],
-      },
       with_payload: true,
-      limit,
     });
 
     return results.points.map((point) => {
@@ -135,10 +126,10 @@ export async function searchDocumentation(options: {
         headingHierarchy: string[];
       };
       return {
-        pageUrl: payload.pageUrl,
-        pageTitle: payload.pageTitle,
         chunkText: payload.chunkText,
         headingHierarchy: payload.headingHierarchy,
+        pageTitle: payload.pageTitle,
+        pageUrl: payload.pageUrl,
         score: point.score,
       };
     });

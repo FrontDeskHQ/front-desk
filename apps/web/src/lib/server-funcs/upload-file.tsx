@@ -9,10 +9,10 @@ const uploadFileSchema = z.object({
 });
 
 const s3client = new S3Client({
+  accessKey: process.env.CF_R2_ACCESS_KEY,
+  bucket: "frontdesk-public",
   endPoint: "https://1aabb0295aae6a4611cda28bd051adbf.r2.cloudflarestorage.com",
   region: "auto",
-  bucket: "frontdesk-public",
-  accessKey: process.env.CF_R2_ACCESS_KEY,
   secretKey: process.env.CF_R2_SECRET_KEY,
 });
 
@@ -22,18 +22,19 @@ export const uploadFile = createServerFn({
   .inputValidator(z.instanceof(FormData))
   .handler(async ({ data: formData }) => {
     const { file, path } = uploadFileSchema.parse(
-      Object.fromEntries(formData.entries()),
+      Object.fromEntries(formData.entries())
     );
 
     const sanitizedPath = path.replace(/\/+$/, "");
     const fullPath = `${sanitizedPath}/${ulid().toLowerCase()}`;
     await s3client.putObject(fullPath, file.stream());
 
-    const fileUrl = new URL(
-      fullPath,
-      // biome-ignore lint/style/noNonNullAssertion: env var should be set
-      process.env.CF_R2_BASE_URL!,
-    ).toString();
+    const baseUrl = process.env.CF_R2_BASE_URL;
+    if (!baseUrl) {
+      throw new Error("CF_R2_BASE_URL is not configured");
+    }
+
+    const fileUrl = new URL(fullPath, baseUrl).toString();
 
     return fileUrl;
   });

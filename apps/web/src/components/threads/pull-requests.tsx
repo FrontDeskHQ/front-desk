@@ -12,10 +12,13 @@ import {
 import { useAtomValue } from "jotai/react";
 import { GitPullRequest, X } from "lucide-react";
 import { useState } from "react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { mutate, query } from "~/lib/live-state";
-import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
+
+import { entityMatchesQuery } from "./external-entities";
+import type { MirrorEntity } from "./external-entities";
 import { LinkedPrSuggestionsSection } from "./linked-pr-suggestions-section";
 
 interface PullRequestsSectionProps {
@@ -24,7 +27,7 @@ interface PullRequestsSectionProps {
   user: { id: string; name: string };
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
@@ -45,10 +48,10 @@ export function PullRequestsSection({
   const pullRequests =
     useLiveQuery(
       query.externalEntity.where({
+        deletedAt: null,
         organizationId: currentOrg?.id,
         type: "pull_request",
-        deletedAt: null,
-      }),
+      })
     ) ?? [];
 
   // The link list only offers open PRs; the linked PR itself resolves from the
@@ -56,9 +59,9 @@ export function PullRequestsSection({
   const openPullRequests = pullRequests.filter((pr) => pr.state === "open");
 
   const comboboxItems = openPullRequests.map((pr) => ({
-    value: pr.externalKey,
     label: `${pr.repoFullName}#${pr.number} ${pr.title}`,
     pr,
+    value: pr.externalKey,
   }));
 
   type PRItem = (typeof comboboxItems)[number];
@@ -67,11 +70,13 @@ export function PullRequestsSection({
 
   const handleUnlinkPr = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!externalPrId || !linkedPr || !currentOrg) return;
+    if (!externalPrId || !linkedPr || !currentOrg) {
+      return;
+    }
 
     mutate.thread.unlinkPullRequest({
-      threadId,
       organizationId: currentOrg.id,
+      threadId,
       userId: user.id,
       userName: user.name,
     });
@@ -83,7 +88,9 @@ export function PullRequestsSection({
     });
   };
 
-  if (!hasPrTracker) return null;
+  if (!hasPrTracker) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -95,15 +102,19 @@ export function PullRequestsSection({
             value={linkedPr?.externalKey ?? ""}
             filter={(item, q) => {
               const it = item as { pr?: MirrorEntity };
-              if (!it.pr) return true;
+              if (!it.pr) {
+                return true;
+              }
               return entityMatchesQuery(it.pr, q);
             }}
             onValueChange={(value) => {
-              if (!currentOrg) return;
+              if (!currentOrg) {
+                return;
+              }
 
               const oldPrId = externalPrId ?? null;
               const oldPr = pullRequests.find(
-                (pr) => pr.externalKey === oldPrId,
+                (pr) => pr.externalKey === oldPrId
               );
               // If clicking the same PR, unlink it
               const newPrId = oldPrId === value ? null : value || null;
@@ -113,24 +124,24 @@ export function PullRequestsSection({
 
               if (newPrId) {
                 mutate.thread.linkPullRequest({
-                  threadId,
-                  organizationId: currentOrg.id,
                   externalPrId: newPrId,
+                  organizationId: currentOrg.id,
+                  threadId,
                   userId: user.id,
                   userName: user.name,
                 });
 
                 captureThreadEvent("thread:pr_link", {
-                  old_pr_id: oldPrId,
                   new_pr_id: newPrId,
-                  old_pr_number: oldPr?.number,
                   new_pr_number: newPr?.number,
+                  old_pr_id: oldPrId,
+                  old_pr_number: oldPr?.number,
                   repository: newPr?.repoFullName,
                 });
               } else {
                 mutate.thread.unlinkPullRequest({
-                  threadId,
                   organizationId: currentOrg.id,
+                  threadId,
                   userId: user.id,
                   userName: user.name,
                 });

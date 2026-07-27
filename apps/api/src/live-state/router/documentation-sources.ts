@@ -1,12 +1,14 @@
 // TODO refactor with new live-state mental model
 import dns from "node:dns/promises";
+
 import { ulid } from "ulid";
 import { z } from "zod";
+
+import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import {
   runSyncCrawlProgress,
   syncCrawlProgressInputSchema,
 } from "../../lib/documentation-source-mutations";
-import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import { reflagClient } from "../../lib/feature-flag";
 import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -18,27 +20,49 @@ function isPrivateIP(ip: string): boolean {
   if (parts.length === 4) {
     const [a = 0, b = 0] = parts;
     // 10.0.0.0/8
-    if (a === 10) return true;
+    if (a === 10) {
+      return true;
+    }
     // 172.16.0.0/12
-    if (a === 172 && b >= 16 && b <= 31) return true;
+    if (a === 172 && b >= 16 && b <= 31) {
+      return true;
+    }
     // 192.168.0.0/16
-    if (a === 192 && b === 168) return true;
+    if (a === 192 && b === 168) {
+      return true;
+    }
     // 127.0.0.0/8 (loopback)
-    if (a === 127) return true;
+    if (a === 127) {
+      return true;
+    }
     // 169.254.0.0/16 (link-local / cloud metadata)
-    if (a === 169 && b === 254) return true;
+    if (a === 169 && b === 254) {
+      return true;
+    }
     // 0.0.0.0
-    if (parts.every((p) => p === 0)) return true;
+    if (parts.every((p) => p === 0)) {
+      return true;
+    }
     // 100.64.0.0/10 (RFC 6598 CGN)
-    if (a === 100 && b >= 64 && b <= 127) return true;
+    if (a === 100 && b >= 64 && b <= 127) {
+      return true;
+    }
   }
   // IPv6 loopback and private
-  if (ip === "::1" || ip === "::") return true;
-  if (ip.startsWith("fc") || ip.startsWith("fd")) return true; // ULA
-  if (ip.startsWith("fe80")) return true; // link-local
+  if (ip === "::1" || ip === "::") {
+    return true;
+  }
+  if (ip.startsWith("fc") || ip.startsWith("fd")) {
+    return true;
+  } // ULA
+  if (ip.startsWith("fe80")) {
+    return true;
+  } // link-local
   // IPv4-mapped IPv6 (::ffff:x.x.x.x)
   const v4Mapped = ip.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/i);
-  if (v4Mapped?.[1]) return isPrivateIP(v4Mapped[1]);
+  if (v4Mapped?.[1]) {
+    return isPrivateIP(v4Mapped[1]);
+  }
   return false;
 }
 
@@ -58,7 +82,9 @@ async function assertPublicUrl(url: string): Promise<void> {
   }
   for (const addr of allAddresses) {
     if (isPrivateIP(addr)) {
-      throw new Error("URLs resolving to private or reserved IP addresses are not allowed");
+      throw new Error(
+        "URLs resolving to private or reserved IP addresses are not allowed"
+      );
     }
   }
 }
@@ -70,8 +96,11 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
   // 0. SSRF protection: enforce HTTPS and block private IPs
   try {
     await assertPublicUrl(baseUrl);
-  } catch (err) {
-    return { valid: false, error: err instanceof Error ? err.message : "Invalid URL" };
+  } catch (error) {
+    return {
+      valid: false,
+      error: error instanceof Error ? error.message : "Invalid URL",
+    };
   }
 
   // 1. Check sitemap.xml exists
@@ -83,23 +112,26 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
-      return { valid: false, error: `Sitemap not found at ${sitemapUrl} (HTTP ${res.status})` };
+      return {
+        error: `Sitemap not found at ${sitemapUrl} (HTTP ${res.status})`,
+        valid: false,
+      };
     }
     sitemapText = await res.text();
   } catch {
-    return { valid: false, error: `Could not reach ${sitemapUrl}` };
+    return { error: `Could not reach ${sitemapUrl}`, valid: false };
   }
 
   // 2. Extract up to 5 URLs from sitemap
   const locMatches = sitemapText.match(/<loc>(.*?)<\/loc>/g);
   if (!locMatches || locMatches.length === 0) {
-    return { valid: false, error: "Sitemap contains no URLs" };
+    return { error: "Sitemap contains no URLs", valid: false };
   }
 
   const baseOrigin = new URL(baseUrl).origin;
   const urls = locMatches
     .slice(0, 5)
-    .map((m) => m.replace(/<\/?loc>/g, "").trim())
+    .map((m) => m.replaceAll(/<\/?loc>/g, "").trim())
     .filter((u) => {
       try {
         return new URL(u, baseOrigin).origin === baseOrigin;
@@ -109,7 +141,7 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
     });
 
   if (urls.length === 0) {
-    return { valid: false, error: "No sitemap URLs match the base domain" };
+    return { error: "No sitemap URLs match the base domain", valid: false };
   }
 
   // 3. Check if at least one URL has a .md or .mdx version (parallelized)
@@ -119,13 +151,15 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
       mdUrl.pathname = mdUrl.pathname.replace(/\/$/, "") + ext;
       await assertPublicUrl(mdUrl.href);
       const res = await fetch(mdUrl.href, {
-        method: "HEAD",
         headers: { "User-Agent": "FrontDesk-Crawler/1.0" },
-        signal: AbortSignal.timeout(5_000),
+        method: "HEAD",
+        signal: AbortSignal.timeout(5000),
       });
-      if (res.ok) return true;
+      if (res.ok) {
+        return true;
+      }
       throw new Error("not found");
-    }),
+    })
   );
 
   try {
@@ -133,8 +167,8 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
     return { valid: true };
   } catch {
     return {
-      valid: false,
       error: `None of the first ${urls.length} sitemap URLs have a .md or .mdx version available`,
+      valid: false,
     };
   }
 }
@@ -152,160 +186,159 @@ const checkFeatureFlag = async (organizationId: string) => {
 };
 
 export default privateRoute.withProcedures(({ mutation }) => ({
-    syncCrawlProgress: mutation(syncCrawlProgressInputSchema).handler(
-      async ({ req, db }) => {
-        requireInternalApiKey(req.context);
+  addDocumentationSource: mutation(
+    z.object({
+      organizationId: z.string(),
+      name: z
+        .string()
+        .min(1, "Name is required")
+        .max(
+          DOCUMENTATION_SOURCE_NAME_MAX_LENGTH,
+          `Name must be at most ${DOCUMENTATION_SOURCE_NAME_MAX_LENGTH} characters`
+        ),
+      baseUrl: z.string().url(),
+    })
+  ).handler(async ({ req, db }) => {
+    const { organizationId, name, baseUrl } = req.input;
 
-        return runSyncCrawlProgress(db, req.input);
-      },
-    ),
-    validateDocumentationSource: mutation(
-      z.object({
-        organizationId: z.string(),
-        baseUrl: z.string().url(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const { organizationId, baseUrl } = req.input;
+    authorize(req, { organizationId, role: "owner" });
 
-      authorize(req, { organizationId, role: "owner" });
+    // Feature flag check
+    await checkFeatureFlag(organizationId);
 
-      await checkFeatureFlag(organizationId);
+    // SSRF protection: enforce HTTPS and block private IPs
+    await assertPublicUrl(baseUrl);
 
-      return validateDocumentationUrl(baseUrl);
-    }),
+    const id = ulid().toLowerCase();
+    const now = new Date();
 
-    addDocumentationSource: mutation(
-      z.object({
-        organizationId: z.string(),
-        name: z
-          .string()
-          .min(1, "Name is required")
-          .max(
-            DOCUMENTATION_SOURCE_NAME_MAX_LENGTH,
-            `Name must be at most ${DOCUMENTATION_SOURCE_NAME_MAX_LENGTH} characters`,
-          ),
-        baseUrl: z.string().url(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const { organizationId, name, baseUrl } = req.input;
+    await db.insert(schema.documentationSource, {
+      id,
+      organizationId,
+      name,
+      baseUrl,
+      status: "pending",
+      lastCrawledAt: null,
+      pageCount: 0,
+      chunksIndexed: 0,
+      errorStr: null,
+      createdAt: now,
+      updatedAt: now,
+    });
 
-      authorize(req, { organizationId, role: "owner" });
-
-      // Feature flag check
-      await checkFeatureFlag(organizationId);
-
-      // SSRF protection: enforce HTTPS and block private IPs
-      await assertPublicUrl(baseUrl);
-
-      const id = ulid().toLowerCase();
-      const now = new Date();
-
-      await db.insert(schema.documentationSource, {
-        id,
+    try {
+      const jobId = await enqueueCrawlDocumentation({
+        documentationSourceId: id,
         organizationId,
-        name,
         baseUrl,
-        status: "pending",
-        lastCrawledAt: null,
-        pageCount: 0,
-        chunksIndexed: 0,
-        errorStr: null,
-        createdAt: now,
-        updatedAt: now,
       });
-
-      try {
-        const jobId = await enqueueCrawlDocumentation({
-          documentationSourceId: id,
-          organizationId,
-          baseUrl,
-        });
-        if (!jobId) {
-          throw new Error("Queue unavailable: crawl job could not be scheduled");
-        }
-      } catch (err) {
-        await db.update(schema.documentationSource, id, {
-          status: "failed",
-          errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
-          updatedAt: new Date(),
-        });
-        throw err;
+      if (!jobId) {
+        throw new Error("Queue unavailable: crawl job could not be scheduled");
       }
-
-      return { id };
-    }),
-
-    recrawlDocumentationSource: mutation(
-      z.object({
-        id: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const { id } = req.input;
-
-      const source = await db.findOne(schema.documentationSource, id);
-      if (!source) {
-        throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
-      }
-
-      authorize(req, { organizationId: source.organizationId, role: "owner" });
-
-      // Feature flag check
-      await checkFeatureFlag(source.organizationId);
-
-      // SSRF protection: re-validate stored URL before recrawl
-      await assertPublicUrl(source.baseUrl);
-
-      const previousStatus = source.status;
-
+    } catch (error) {
       await db.update(schema.documentationSource, id, {
-        status: "pending",
-        errorStr: null,
+        status: "failed",
+        errorStr:
+          error instanceof Error ? error.message : "Failed to schedule crawl",
         updatedAt: new Date(),
       });
+      throw error;
+    }
 
-      try {
-        const jobId = await enqueueCrawlDocumentation({
-          documentationSourceId: id,
-          organizationId: source.organizationId,
-          baseUrl: source.baseUrl,
-        });
-        if (!jobId) {
-          throw new Error("Queue unavailable: crawl job could not be scheduled");
-        }
-      } catch (err) {
-        await db.update(schema.documentationSource, id, {
-          status: previousStatus,
-          errorStr: err instanceof Error ? err.message : "Failed to schedule crawl",
-          updatedAt: new Date(),
-        });
-        throw err;
+    return { id };
+  }),
+  deleteDocumentationSource: mutation(
+    z.object({
+      id: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    const { id } = req.input;
+
+    const source = await db.findOne(schema.documentationSource, id);
+    if (!source) {
+      throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
+    }
+
+    authorize(req, { organizationId: source.organizationId, role: "owner" });
+
+    // Feature flag check
+    await checkFeatureFlag(source.organizationId);
+
+    await db.update(schema.documentationSource, id, {
+      status: "deleted",
+      updatedAt: new Date(),
+    });
+
+    return { success: true };
+  }),
+  recrawlDocumentationSource: mutation(
+    z.object({
+      id: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    const { id } = req.input;
+
+    const source = await db.findOne(schema.documentationSource, id);
+    if (!source) {
+      throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
+    }
+
+    authorize(req, { organizationId: source.organizationId, role: "owner" });
+
+    // Feature flag check
+    await checkFeatureFlag(source.organizationId);
+
+    // SSRF protection: re-validate stored URL before recrawl
+    await assertPublicUrl(source.baseUrl);
+
+    const previousStatus = source.status;
+
+    await db.update(schema.documentationSource, id, {
+      status: "pending",
+      errorStr: null,
+      updatedAt: new Date(),
+    });
+
+    try {
+      const jobId = await enqueueCrawlDocumentation({
+        documentationSourceId: id,
+        organizationId: source.organizationId,
+        baseUrl: source.baseUrl,
+      });
+      if (!jobId) {
+        throw new Error("Queue unavailable: crawl job could not be scheduled");
       }
-
-      return { success: true };
-    }),
-
-    deleteDocumentationSource: mutation(
-      z.object({
-        id: z.string(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const { id } = req.input;
-
-      const source = await db.findOne(schema.documentationSource, id);
-      if (!source) {
-        throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
-      }
-
-      authorize(req, { organizationId: source.organizationId, role: "owner" });
-
-      // Feature flag check
-      await checkFeatureFlag(source.organizationId);
-
+    } catch (error) {
       await db.update(schema.documentationSource, id, {
-        status: "deleted",
+        status: previousStatus,
+        errorStr:
+          error instanceof Error ? error.message : "Failed to schedule crawl",
         updatedAt: new Date(),
       });
+      throw error;
+    }
 
-      return { success: true };
-    }),
-  }));
+    return { success: true };
+  }),
+  syncCrawlProgress: mutation(syncCrawlProgressInputSchema).handler(
+    async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+
+      return runSyncCrawlProgress(db, req.input);
+    }
+  ),
+  validateDocumentationSource: mutation(
+    z.object({
+      organizationId: z.string(),
+      baseUrl: z.string().url(),
+    })
+  ).handler(async ({ req, db: _db }) => {
+    const { organizationId, baseUrl } = req.input;
+
+    authorize(req, { organizationId, role: "owner" });
+
+    await checkFeatureFlag(organizationId);
+
+    return validateDocumentationUrl(baseUrl);
+  }),
+}));

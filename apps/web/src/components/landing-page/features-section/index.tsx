@@ -1,6 +1,7 @@
 import { Discord, GitHub, Linear, Slack } from "@workspace/ui/components/icons";
 import { HorizontalLine, VerticalLine } from "@workspace/ui/components/surface";
 import { ArrowRight, MessagesSquare } from "lucide-react";
+
 import { FeatureCard } from "./feature-card";
 import { AiTriageVisual } from "./visuals/ai-triage-visual";
 import { CloseLoopVisual } from "./visuals/close-loop-visual";

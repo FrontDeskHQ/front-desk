@@ -8,31 +8,31 @@ import {
 import { publicRoute } from "../factories";
 
 export default publicRoute.withProcedures(({ mutation }) => ({
-    recordActivity: mutation(recordActivityInputSchema).handler(
-      async ({ req, db }) => {
-        authorize(req, {
-          organizationId: req.input.organizationId,
-          internalApiKeyOnly: true,
-        });
+  markReplicated: mutation(markReplicatedInputSchema).handler(
+    async ({ req, db }) => {
+      requireInternalApiKey(req.context);
 
-        return runRecordActivity(db, {
-          threadId: req.input.threadId,
-          organizationId: req.input.organizationId,
-          type: req.input.type,
-          userId: req.input.userId ?? null,
-          userName: req.input.userName ?? null,
-          metadata: req.input.metadata,
-          replicatedStr: req.input.replicatedStr,
-          id: req.input.id,
-          createdAt: req.input.createdAt,
-        });
-      },
-    ),
-    markReplicated: mutation(markReplicatedInputSchema).handler(
-      async ({ req, db }) => {
-        requireInternalApiKey(req.context);
+      return runMarkReplicated(db, req.input);
+    }
+  ),
+  recordActivity: mutation(recordActivityInputSchema).handler(
+    async ({ req, db }) => {
+      authorize(req, {
+        organizationId: req.input.organizationId,
+        internalApiKeyOnly: true,
+      });
 
-        return runMarkReplicated(db, req.input);
-      },
-    ),
-  }));
+      return runRecordActivity(db, {
+        threadId: req.input.threadId,
+        organizationId: req.input.organizationId,
+        type: req.input.type,
+        userId: req.input.userId ?? null,
+        userName: req.input.userName ?? null,
+        metadata: req.input.metadata,
+        replicatedStr: req.input.replicatedStr,
+        id: req.input.id,
+        createdAt: req.input.createdAt,
+      });
+    }
+  ),
+}));

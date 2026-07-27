@@ -1,26 +1,26 @@
 import type { DocumentationSearchHit } from "../../../../../lib/qdrant/search-documentation";
 
-export type RelatedDocsTestCase = {
+export interface RelatedDocsTestCase {
   name: string;
   input: { hits: DocumentationSearchHit[]; limit?: number };
   expected: { docIds: string[] };
-};
+}
 
 const hit = (
   pageUrl: string,
   pageTitle: string,
-  score: number,
+  score: number
 ): DocumentationSearchHit => ({
-  pageUrl,
-  pageTitle,
   chunkText: `Chunk for ${pageTitle}`,
   headingHierarchy: [],
+  pageTitle,
+  pageUrl,
   score,
 });
 
 export const relatedDocsDataset: RelatedDocsTestCase[] = [
   {
-    name: "dedupes chunks by pageUrl keeping highest score",
+    expected: { docIds: ["https://docs.example/a", "https://docs.example/b"] },
     input: {
       hits: [
         hit("https://docs.example/a", "Page A", 0.7),
@@ -28,17 +28,9 @@ export const relatedDocsDataset: RelatedDocsTestCase[] = [
         hit("https://docs.example/b", "Page B", 0.8),
       ],
     },
-    expected: { docIds: ["https://docs.example/a", "https://docs.example/b"] },
+    name: "dedupes chunks by pageUrl keeping highest score",
   },
   {
-    name: "sorts by score descending",
-    input: {
-      hits: [
-        hit("https://docs.example/low", "Low", 0.4),
-        hit("https://docs.example/high", "High", 0.95),
-        hit("https://docs.example/mid", "Mid", 0.7),
-      ],
-    },
     expected: {
       docIds: [
         "https://docs.example/high",
@@ -46,9 +38,17 @@ export const relatedDocsDataset: RelatedDocsTestCase[] = [
         "https://docs.example/low",
       ],
     },
+    input: {
+      hits: [
+        hit("https://docs.example/low", "Low", 0.4),
+        hit("https://docs.example/high", "High", 0.95),
+        hit("https://docs.example/mid", "Mid", 0.7),
+      ],
+    },
+    name: "sorts by score descending",
   },
   {
-    name: "respects limit",
+    expected: { docIds: ["https://docs.example/1", "https://docs.example/2"] },
     input: {
       hits: [
         hit("https://docs.example/1", "One", 0.9),
@@ -57,11 +57,11 @@ export const relatedDocsDataset: RelatedDocsTestCase[] = [
       ],
       limit: 2,
     },
-    expected: { docIds: ["https://docs.example/1", "https://docs.example/2"] },
+    name: "respects limit",
   },
   {
-    name: "empty hits -> no docs",
-    input: { hits: [] },
     expected: { docIds: [] },
+    input: { hits: [] },
+    name: "empty hits -> no docs",
   },
 ];

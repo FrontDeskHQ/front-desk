@@ -1,5 +1,6 @@
 import Elysia from "elysia";
 import { z } from "zod";
+
 import { createIssue, fetchIssues } from "../lib/github";
 
 const getIssuesQuerySchema = z.object({
@@ -10,11 +11,11 @@ const getIssuesQuerySchema = z.object({
 });
 
 const createIssueBodySchema = z.object({
+  body: z.string().optional(),
   installation_id: z.coerce.number().positive("Invalid installation_id"),
   owner: z.string().min(1, "Missing owner"),
   repo: z.string().min(1, "Missing repo"),
   title: z.string().min(1, "Missing title"),
-  body: z.string().optional(),
 });
 
 export const issuesRoutes = new Elysia({ prefix: "/api/issues" })
@@ -31,7 +32,7 @@ export const issuesRoutes = new Elysia({ prefix: "/api/issues" })
 
     try {
       const issues = await fetchIssues(installationId, owner, repo, state);
-      return { issues, count: issues.length };
+      return { count: issues.length, issues };
     } catch (error) {
       console.error("Error fetching issues:", error);
       set.status = 500;

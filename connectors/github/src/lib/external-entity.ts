@@ -1,11 +1,12 @@
 import { formatGitHubId } from "@workspace/schemas/external-issue";
+
 import { fetchClient } from "./live-state";
 
 /**
  * Shape of an externalEntity mirror row, minus the columns the upsert helper
  * fills in itself (`id`, `organizationId`, `lastSyncedAt`).
  */
-export type ExternalEntityFields = {
+export interface ExternalEntityFields {
   provider: string;
   externalKey: string;
   type: "issue" | "pull_request";
@@ -26,23 +27,23 @@ export type ExternalEntityFields = {
   draft: boolean | null;
   headRef: string | null;
   baseRef: string | null;
-};
+}
 
 /**
  * Repository descriptor needed to build an `externalKey`. Webhook payloads carry
  * this on `payload.repository`; the backfill job carries it on the job data.
  */
-export type RepoRef = {
+export interface RepoRef {
   owner: string;
   name: string;
   fullName: string;
-};
+}
 
 /**
  * Structural subset of a GitHub issue shared by the webhook payload and the REST
  * list response. Typed loosely so both octokit shapes satisfy it.
  */
-export type GitHubIssueLike = {
+export interface GitHubIssueLike {
   id: number;
   number: number;
   html_url: string;
@@ -55,14 +56,14 @@ export type GitHubIssueLike = {
   created_at: string;
   updated_at: string;
   closed_at?: string | null;
-};
+}
 
 /**
  * Structural subset of a GitHub pull request shared by the webhook payload and
  * the REST list response. The list endpoint omits the `merged` boolean, so it is
  * derived from `merged_at` when absent.
  */
-export type GitHubPullRequestLike = {
+export interface GitHubPullRequestLike {
   id: number;
   number: number;
   html_url: string;
@@ -80,7 +81,7 @@ export type GitHubPullRequestLike = {
   draft?: boolean | null;
   head: { ref: string };
   base: { ref: string };
-};
+}
 
 /**
  * Map a GitHub issue (webhook payload or REST list item) onto the mirror row
@@ -91,30 +92,30 @@ export const buildIssueFields = (
   issue: GitHubIssueLike,
   repo: RepoRef
 ): ExternalEntityFields => ({
-  provider: "github",
-  externalKey: formatGitHubId(issue.id, repo.owner, repo.name),
-  type: "issue",
-  number: issue.number,
-  repoFullName: repo.fullName,
-  url: issue.html_url,
-  title: issue.title,
-  body: issue.body ?? null,
-  state: issue.state ?? "open",
-  authorLogin: issue.user?.login ?? null,
   assignees: (issue.assignees ?? [])
     .map((a) => a?.login)
     .filter((login): login is string => Boolean(login)),
+  authorLogin: issue.user?.login ?? null,
+  baseRef: null,
+  body: issue.body ?? null,
+  closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
+  draft: null,
+  externalCreatedAt: new Date(issue.created_at),
+  externalKey: formatGitHubId(issue.id, repo.owner, repo.name),
+  externalUpdatedAt: new Date(issue.updated_at),
+  headRef: null,
   labels: (issue.labels ?? [])
     .map((l) => (typeof l === "string" ? l : l?.name))
     .filter((name): name is string => Boolean(name)),
-  externalCreatedAt: new Date(issue.created_at),
-  externalUpdatedAt: new Date(issue.updated_at),
-  closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
   merged: null,
   mergedAt: null,
-  draft: null,
-  headRef: null,
-  baseRef: null,
+  number: issue.number,
+  provider: "github",
+  repoFullName: repo.fullName,
+  state: issue.state ?? "open",
+  title: issue.title,
+  type: "issue",
+  url: issue.html_url,
 });
 
 /**
@@ -126,30 +127,30 @@ export const buildPullRequestFields = (
   pr: GitHubPullRequestLike,
   repo: RepoRef
 ): ExternalEntityFields => ({
-  provider: "github",
-  externalKey: formatGitHubId(pr.id, repo.owner, repo.name),
-  type: "pull_request",
-  number: pr.number,
-  repoFullName: repo.fullName,
-  url: pr.html_url,
-  title: pr.title,
-  body: pr.body ?? null,
-  state: pr.state,
-  authorLogin: pr.user?.login ?? null,
   assignees: (pr.assignees ?? [])
     .map((a) => a?.login)
     .filter((login): login is string => Boolean(login)),
+  authorLogin: pr.user?.login ?? null,
+  baseRef: pr.base.ref,
+  body: pr.body ?? null,
+  closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
+  draft: pr.draft ?? false,
+  externalCreatedAt: new Date(pr.created_at),
+  externalKey: formatGitHubId(pr.id, repo.owner, repo.name),
+  externalUpdatedAt: new Date(pr.updated_at),
+  headRef: pr.head.ref,
   labels: (pr.labels ?? [])
     .map((l) => l?.name)
     .filter((name): name is string => Boolean(name)),
-  externalCreatedAt: new Date(pr.created_at),
-  externalUpdatedAt: new Date(pr.updated_at),
-  closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
-  merged: pr.merged ?? pr.merged_at != null,
+  merged: pr.merged ?? pr.merged_at !== null,
   mergedAt: pr.merged_at ? new Date(pr.merged_at) : null,
-  draft: pr.draft ?? false,
-  headRef: pr.head.ref,
-  baseRef: pr.base.ref,
+  number: pr.number,
+  provider: "github",
+  repoFullName: repo.fullName,
+  state: pr.state,
+  title: pr.title,
+  type: "pull_request",
+  url: pr.html_url,
 });
 
 /**

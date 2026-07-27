@@ -1,6 +1,8 @@
-import { type Capability, typesHaveCapability } from "@connectors/framework";
+import { typesHaveCapability } from "@connectors/framework";
+import type { Capability } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
 import { useAtomValue } from "jotai/react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -13,9 +15,9 @@ export function useEnabledIntegrationTypes(): string[] {
   const currentOrg = useAtomValue(activeOrganizationAtom);
   const integrations = useLiveQuery(
     query.integration.where({
-      organizationId: currentOrg?.id,
       enabled: true,
-    }),
+      organizationId: currentOrg?.id,
+    })
   );
   return (integrations ?? []).map((integration) => integration.type);
 }

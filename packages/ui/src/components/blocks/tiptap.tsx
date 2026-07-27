@@ -1,11 +1,12 @@
 import { useControllableState } from "@radix-ui/react-use-controllable-state";
 import type { Level } from "@tiptap/extension-heading";
 import { Placeholder } from "@tiptap/extensions";
-import { EditorContent, type JSONContent, useEditor } from "@tiptap/react";
+import { EditorContent, useEditor } from "@tiptap/react";
+import type { JSONContent } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
-import { parse } from "@workspace/utils/md-tiptap";
 import { EditorExtensions, KeyBinds } from "@workspace/ui/lib/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
+import { parse } from "@workspace/utils/md-tiptap";
 
 export type { JSONContent };
 
@@ -29,6 +30,7 @@ import {
   useRef,
   useState,
 } from "react";
+
 import { Button } from "../button";
 import {
   DropdownMenu,
@@ -46,13 +48,13 @@ import {
   TooltipTrigger,
 } from "../tooltip";
 
-type EditorContextValue = {
+interface EditorContextValue {
   value: JSONContent[];
   setValue: (value: JSONContent[]) => void;
   disableSend: boolean;
   onSubmit?: (value: JSONContent[]) => void;
   handleSubmit?: () => void;
-};
+}
 
 const EditorContext = createContext<EditorContextValue | undefined>(undefined);
 
@@ -60,7 +62,7 @@ const useEditorContext = () => {
   const context = useContext(EditorContext);
   if (!context) {
     throw new Error(
-      "Editor components must be used within an Editor component",
+      "Editor components must be used within an Editor component"
     );
   }
   return context;
@@ -81,15 +83,15 @@ export function Editor({
 }) {
   const [_value, setValue] = useControllableState<JSONContent[]>({
     defaultProp: initialValue ?? [],
-    prop: value,
     onChange: onValueChange,
+    prop: value,
   });
 
   const disableSend = !_value.length || !_value[0]?.content?.length;
 
   return (
     <EditorContext.Provider
-      value={{ value: _value, setValue, disableSend, onSubmit }}
+      value={{ disableSend, onSubmit, setValue, value: _value }}
     >
       <div>{children}</div>
     </EditorContext.Provider>
@@ -133,10 +135,7 @@ export function EditorInput({
   autoFocus = false,
   children,
   ...props
-}: Omit<
-  React.ComponentProps<"div">,
-  "value" | "onValueChange" | "onSubmit"
-> & {
+}: Omit<React.ComponentProps<"div">, "value" | "onValueChange" | "onSubmit"> & {
   placeholder?: string;
   clearOnSubmit?: boolean;
   autoFocus?: boolean;
@@ -153,15 +152,17 @@ export function EditorInput({
 
   // TODO paste markdown
   const editor = useEditor({
+    autofocus: autoFocus,
+    content: context.value,
     extensions: [
       ...EditorExtensions,
       Placeholder.configure({
-        placeholder: placeholder,
+        placeholder,
       }),
       KeyBinds.configure({
         keybinds: {
-          "Mod-Enter": ({ editor }) => {
-            const content = editor.getJSON().content;
+          "Mod-Enter": ({ editor: currentEditor }) => {
+            const content = currentEditor.getJSON().content;
             if (content.length && content[0]?.content?.length) {
               handleSubmit(content);
             }
@@ -171,10 +172,8 @@ export function EditorInput({
         },
       }),
     ],
-    autofocus: autoFocus,
-    content: context.value,
-    onUpdate: ({ editor }) => {
-      context.setValue(editor.getJSON().content);
+    onUpdate: ({ editor: currentEditor }) => {
+      context.setValue(currentEditor.getJSON().content);
     },
   });
 
@@ -191,11 +190,11 @@ export function EditorInput({
       <EditorContext.Provider
         value={{ ...context, handleSubmit: wrappedHandleSubmit }}
       >
-        {/* biome-ignore lint/a11y/noStaticElementInteractions: we are using the div to focus the editor */}
+        {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions -- editor shell focuses tiptap on click */}
         <div
           className={cn(
             "border-input border focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] rounded-md px-4 py-2 flex flex-col gap-2 cursor-text relative transition-[color,box-shadow]",
-            className,
+            className
           )}
           onClick={() => editor?.chain().focus().run()}
           onKeyUp={() => editor?.chain().focus().run()}
@@ -221,7 +220,9 @@ export function RichText({ content }: { content?: JSONContent[] | string }) {
   });
 
   useLayoutEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
     if (typeof content === "string") {
       editor.commands.setContent(parse(content));
     } else {
@@ -239,7 +240,9 @@ function EditorBubbleMenu({
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
 
-  if (!editor) return null;
+  if (!editor) {
+    return null;
+  }
 
   return (
     <BubbleMenu
@@ -251,9 +254,7 @@ function EditorBubbleMenu({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Toggle
-                data-state={
-                  editor.isActive("heading") ? "on" : "off"
-                }
+                data-state={editor.isActive("heading") ? "on" : "off"}
                 className="hover:text-popover-foreground text-popover-foreground py-0 px-2 gap-0.5 w-13"
               >
                 <ALargeSmall className="size-5.5" />
@@ -287,27 +288,28 @@ function EditorBubbleMenu({
                       .chain()
                       .focus()
                       .setHeading({
-                        level: parseInt(
+                        level: Number.parseInt(
                           value.replace("heading-", ""),
+                          10
                         ) as Level,
                       })
                       .run();
                   }
                 }}
               >
-                <DropdownMenuRadioItem value={"paragraph"}>
+                <DropdownMenuRadioItem value="paragraph">
                   Regular
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value={"heading-1"}>
+                <DropdownMenuRadioItem value="heading-1">
                   Heading 1
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value={"heading-2"}>
+                <DropdownMenuRadioItem value="heading-2">
                   Heading 2
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value={"heading-3"}>
+                <DropdownMenuRadioItem value="heading-3">
                   Heading 3
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value={"heading-4"}>
+                <DropdownMenuRadioItem value="heading-4">
                   Heading 4
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
@@ -347,32 +349,24 @@ function EditorBubbleMenu({
                 <Strikethrough />
               </Toggle>
             </TooltipTrigger>
-            <TooltipContent keybind="mod-shift-s">
-              Strikethrough
-            </TooltipContent>
+            <TooltipContent keybind="mod-shift-s">Strikethrough</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger>
               <Toggle
-                onClick={() =>
-                  editor.chain().focus().toggleBlockquote().run()
-                }
+                onClick={() => editor.chain().focus().toggleBlockquote().run()}
                 data-state={editor.isActive("blockquote") ? "on" : "off"}
                 className="hover:text-popover-foreground text-popover-foreground"
               >
                 <Quote />
               </Toggle>
             </TooltipTrigger>
-            <TooltipContent keybind="mod-shift-b">
-              Blockquote
-            </TooltipContent>
+            <TooltipContent keybind="mod-shift-b">Blockquote</TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger>
               <Toggle
-                onClick={() =>
-                  editor.chain().focus().toggleCodeBlock().run()
-                }
+                onClick={() => editor.chain().focus().toggleCodeBlock().run()}
                 data-state={editor.isActive("codeBlock") ? "on" : "off"}
                 className="hover:text-popover-foreground text-popover-foreground"
               >
@@ -397,7 +391,8 @@ function EditorBubbleMenu({
             <DropdownMenuTrigger asChild>
               <Toggle
                 data-state={
-                  editor.isActive("bulletList") || editor.isActive("orderedList")
+                  editor.isActive("bulletList") ||
+                  editor.isActive("orderedList")
                     ? "on"
                     : "off"
                 }
@@ -430,10 +425,10 @@ function EditorBubbleMenu({
                   }
                 }}
               >
-                <DropdownMenuRadioItem value={"bulletList"}>
+                <DropdownMenuRadioItem value="bulletList">
                   List
                 </DropdownMenuRadioItem>
-                <DropdownMenuRadioItem value={"orderedList"}>
+                <DropdownMenuRadioItem value="orderedList">
                   Numbered List
                 </DropdownMenuRadioItem>
               </DropdownMenuRadioGroup>
@@ -464,7 +459,9 @@ export function EditableRichText({
   });
 
   useLayoutEffect(() => {
-    if (!editor) return;
+    if (!editor) {
+      return;
+    }
     if (typeof content === "string") {
       editor.commands.setContent(parse(content));
     } else {
@@ -476,10 +473,7 @@ export function EditableRichText({
 
   return (
     <KeybindIsolation>
-      <EditorContent
-        editor={editor}
-        className={cn("customProse", className)}
-      />
+      <EditorContent editor={editor} className={cn("customProse", className)} />
       <EditorBubbleMenu editor={editor} />
     </KeybindIsolation>
   );
@@ -505,7 +499,9 @@ export function TruncatedText({
 
   useLayoutEffect(() => {
     const element = contentRef.current;
-    if (!element) return;
+    if (!element) {
+      return;
+    }
 
     const checkOverflow = () => {
       setIsOverflowing(element.scrollHeight > maxHeight);
@@ -532,7 +528,7 @@ export function TruncatedText({
         ref={contentRef}
         className={cn(
           "overflow-hidden transition-all duration-200 relative",
-          isOverflowing && !isExpanded && "mask-b-from-70% mask-b-to-100%",
+          isOverflowing && !isExpanded && "mask-b-from-70% mask-b-to-100%"
         )}
         style={{
           maxHeight: isExpanded ? "none" : `${maxHeight}px`,
@@ -551,7 +547,7 @@ export function TruncatedText({
           <ChevronDown
             className={cn(
               "ml-1 h-4 w-4 transition-transform duration-200",
-              isExpanded && "rotate-180",
+              isExpanded && "rotate-180"
             )}
           />
         </Button>

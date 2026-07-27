@@ -1,18 +1,22 @@
+import { loader } from "fumadocs-core/source";
+import type { InferPageType } from "fumadocs-core/source";
+import * as lucideIcons from "lucide-static";
+
 import { docs } from "@/.source";
-import { type InferPageType, loader } from "fumadocs-core/source";
-import * as icons from "lucide-static";
+
+const iconSvgs = lucideIcons as Record<string, string>;
 
 // See https://fumadocs.dev/docs/headless/source-api for more info
 export const source = loader({
   baseUrl: "/",
-  source: docs.toFumadocsSource(),
   icon(icon) {
     if (!icon) {
       return;
     }
 
-    if (icon in icons) return icons[icon as keyof typeof icons];
+    return iconSvgs[icon];
   },
+  source: docs.toFumadocsSource(),
 });
 
 function getBaseUrl(): string {

@@ -1,9 +1,8 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import * as ProgressPrimitive from "@radix-ui/react-progress"
-
-import { cn } from "@workspace/ui/lib/utils"
+import * as ProgressPrimitive from "@radix-ui/react-progress";
+import { cn } from "@workspace/ui/lib/utils";
+import * as React from "react";
 
 function Progress({
   className,
@@ -25,7 +24,7 @@ function Progress({
         style={{ transform: `translateX(-${100 - (value || 0)}%)` }}
       />
     </ProgressPrimitive.Root>
-  )
+  );
 }
 
-export { Progress }
+export { Progress };

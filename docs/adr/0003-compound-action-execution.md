@@ -1,13 +1,13 @@
 # 0003 — Compound action execution: reversibles first, ordered at execute time
 
-**Status:** Accepted
-**Date:** 2026-05-25
+**Status:** Accepted **Date:** 2026-05-25
 
 ## Context
 
 A compound primary like `[mark_duplicate, reply]` runs multiple actions in response to one Accept click. The first draft of the signals overhaul claimed atomic rollback on any failure, but several actions in the vocabulary are non-reversible by construction (`reply`, `link_pr`, `close`). Once a GitHub comment has been posted or a message sent, no application-level rollback recovers the side effect. The "atomic bundle" guarantee was unachievable as stated.
 
 We still want:
+
 - A real atomicity guarantee where it's possible.
 - Predictable failure behaviour the UI can communicate.
 - Flexibility for synthesis to emit compounds without micromanaging order.

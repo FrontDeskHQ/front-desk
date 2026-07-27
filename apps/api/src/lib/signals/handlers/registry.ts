@@ -8,10 +8,10 @@ import { setStatusHandler } from "./set-status";
 
 export const createActionHandlerRegistry = (): ActionHandlerRegistry =>
   ({
-    reply: replyHandler,
-    mark_duplicate: markDuplicateHandler,
+    apply_label: applyLabelHandler,
     close: closeHandler,
     link_pr: linkPrHandler,
-    apply_label: applyLabelHandler,
+    mark_duplicate: markDuplicateHandler,
+    reply: replyHandler,
     set_status: setStatusHandler,
   }) as ActionHandlerRegistry;

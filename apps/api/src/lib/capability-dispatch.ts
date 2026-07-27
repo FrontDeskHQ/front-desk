@@ -1,10 +1,8 @@
-import {
-  type Capability,
-  type CapabilityEntityRef,
-  invokeCapability,
-} from "@connectors/framework";
+import { invokeCapability } from "@connectors/framework";
+import type { Capability, CapabilityEntityRef } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
+
 import { schema } from "../live-state/schema";
 import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
 
@@ -12,11 +10,11 @@ type ExternalEntityRow = InferLiveObject<typeof schema.externalEntity>;
 
 /** Provider-neutral reference the connector acts on, straight from the mirror. */
 export const buildEntityRef = (
-  entity: ExternalEntityRow,
+  entity: ExternalEntityRow
 ): CapabilityEntityRef => ({
   externalKey: entity.externalKey,
-  repoFullName: entity.repoFullName,
   number: entity.number,
+  repoFullName: entity.repoFullName,
   url: entity.url,
 });
 
@@ -32,21 +30,25 @@ export const resolveEntityCapabilityTarget = async (
   db: Pick<ServerDB<typeof schema>, "find">,
   organizationId: string,
   entity: Pick<ExternalEntityRow, "provider">,
-  capability: Capability,
+  capability: Capability
 ) => {
   const integrations = Object.values(
     await db.find(schema.integration, {
-      where: { organizationId, enabled: true },
-    }),
+      where: { enabled: true, organizationId },
+    })
   );
 
   const integration = integrations.find((i) => i.type === entity.provider);
-  if (!integration?.configStr) return null;
+  if (!integration?.configStr) {
+    return null;
+  }
 
   const entry = connectorRegistry.getByType(integration.type);
-  if (!entry?.manifest.capabilities.includes(capability)) return null;
+  if (!entry?.manifest.capabilities.includes(capability)) {
+    return null;
+  }
 
-  return { integration, entry };
+  return { entry, integration };
 };
 
 /**
@@ -58,42 +60,48 @@ export const resolveEntityCapabilityTarget = async (
  */
 export const syncLinkedIssueState = async (
   db: Pick<ServerDB<typeof schema>, "find">,
-  args: { organizationId: string; externalIssueId: string; closed: boolean },
+  args: { organizationId: string; externalIssueId: string; closed: boolean }
 ): Promise<void> => {
   try {
     const entity = Object.values(
       await db.find(schema.externalEntity, {
         where: {
-          organizationId: args.organizationId,
-          externalKey: args.externalIssueId,
-          type: "issue",
           deletedAt: null,
+          externalKey: args.externalIssueId,
+          organizationId: args.organizationId,
+          type: "issue",
         },
-      }),
+      })
     )[0];
-    if (!entity) return;
+    if (!entity) {
+      return;
+    }
 
     const state = args.closed ? "closed" : "open";
     // Mirror already reflects the desired state — nothing to push.
-    if (entity.state === state) return;
+    if (entity.state === state) {
+      return;
+    }
 
     const target = await resolveEntityCapabilityTarget(
       db,
       args.organizationId,
       entity,
-      "issue-tracker",
+      "issue-tracker"
     );
-    if (!target) return;
+    if (!target) {
+      return;
+    }
 
     await invokeCapability(
       target.entry.invokeUrl,
       {
         capability: "issue-tracker",
-        method: "setState",
         config: target.integration.configStr,
+        method: "setState",
         payload: { entity: buildEntityRef(entity), state },
       },
-      { secret: connectorInvokeSecret },
+      { secret: connectorInvokeSecret }
     );
   } catch (error) {
     console.error("Failed to sync linked issue state:", error);

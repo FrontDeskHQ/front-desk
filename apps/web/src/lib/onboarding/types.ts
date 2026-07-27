@@ -10,7 +10,7 @@ export interface OnboardingStep {
 
 export interface OnboardingContext {
   organizationId: string;
-  integrations?: Array<{ type: string; enabled: boolean }>;
+  integrations?: { type: string; enabled: boolean }[];
   teamMembers?: number;
   labels?: number;
   hasModifiedThread?: boolean;

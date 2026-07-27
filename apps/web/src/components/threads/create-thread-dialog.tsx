@@ -1,11 +1,8 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useRouter } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
-import {
-  Editor,
-  EditorInput,
-  type JSONContent,
-} from "@workspace/ui/components/blocks/tiptap";
+import { Editor, EditorInput } from "@workspace/ui/components/blocks/tiptap";
+import type { JSONContent } from "@workspace/ui/components/blocks/tiptap";
 import { Button } from "@workspace/ui/components/button";
 import {
   Dialog,
@@ -20,6 +17,7 @@ import { Label } from "@workspace/ui/components/label";
 import type { schema } from "api/schema";
 import { PlusIcon, X } from "lucide-react";
 import { useState } from "react";
+
 import { fetchClient } from "~/lib/live-state";
 import { portalAuthClient } from "~/lib/portal-auth-client";
 import type { GetSupportAuthUserResponse } from "~/lib/server-funcs/get-portal-auth-user";
@@ -93,9 +91,9 @@ export function CreateThreadDialog({
 
     try {
       const thread = await fetchClient.mutate.thread.create({
+        message: threadContent,
         organizationId: organization.id,
         title: threadTitle.trim(),
-        message: threadContent,
         userId: user.id,
         userName: user.name,
       });
@@ -104,14 +102,14 @@ export function CreateThreadDialog({
       setOpen(false);
       resetForm();
       router.navigate({
-        to: "/support/$slug/threads/$id",
         params: {
-          slug: organization.slug,
           id: buildThreadParam(thread),
+          slug: organization.slug,
         },
+        to: "/support/$slug/threads/$id",
       });
-    } catch (err) {
-      console.error("Failed to create thread:", err);
+    } catch (submitError) {
+      console.error("Failed to create thread:", submitError);
       setError("Failed to create thread. Please try again.");
       setIsSubmitting(false);
     }
@@ -155,9 +153,9 @@ export function CreateThreadDialog({
               const url = new URL(window.location.href);
               url.searchParams.set("openCreateThread", "true");
               portalAuthClient.signIn.social({
-                provider: "google",
                 additionalData: { tenantSlug: organization.slug },
                 callbackURL: url.toString(),
+                provider: "google",
               });
             }}
           >

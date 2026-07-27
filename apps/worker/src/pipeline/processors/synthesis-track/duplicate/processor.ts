@@ -1,6 +1,8 @@
 import { createHash } from "node:crypto";
+
 import type { DuplicateEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
+
 import { searchSimilarThreads } from "../../../../lib/qdrant/threads";
 import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
@@ -14,9 +16,9 @@ import { pickDuplicateEvidence } from "./find";
 
 export const DUPLICATE_THRESHOLD = 0.85;
 
-export type DuplicateProcessorOutput = {
+export interface DuplicateProcessorOutput {
   evidence: DuplicateEvidence | null;
-};
+}
 
 const summaryHashInput = (summary: ParsedSummary): string =>
   Object.entries(summary)
@@ -29,26 +31,20 @@ const computeSha256 = (data: string): string =>
 
 export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
   {
-    name: "duplicate",
-
-    dependencies: ["embed"],
-
-    getIdempotencyKey(threadId: string): string {
-      return `duplicate:${threadId}`;
-    },
-
     computeHash(context: ProcessorExecuteContext): string {
       const { context: jobContext, threadId } = context;
       const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
         "summarize",
-        threadId,
+        threadId
       );
       if (!summarize) return computeSha256("");
       return computeSha256(summaryHashInput(summarize.summary));
     },
 
+    dependencies: ["embed"],
+
     async execute(
-      context: ProcessorExecuteContext,
+      context: ProcessorExecuteContext
     ): Promise<ProcessorResult<DuplicateProcessorOutput>> {
       const { context: jobContext, thread, threadId } = context;
       const requestLog = createLogger({
@@ -63,7 +59,7 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
       try {
         const embedOutput = jobContext.getProcessorOutput<EmbedOutput>(
           "embed",
-          threadId,
+          threadId
         );
         if (!embedOutput?.embedding) {
           status = 500;
@@ -76,10 +72,10 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
 
         const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
           "summarize",
-          threadId,
+          threadId
         );
         const hash = computeSha256(
-          summarize ? summaryHashInput(summarize.summary) : "",
+          summarize ? summaryHashInput(summarize.summary) : ""
         );
 
         const results = await searchSimilarThreads(embedOutput.embedding, {
@@ -98,7 +94,7 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           thread.organizationId,
           "duplicate",
           evidence,
-          hash,
+          hash
         );
 
         return {
@@ -111,7 +107,7 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
         const message = error instanceof Error ? error.message : String(error);
         console.error(
           `Duplicate processor failed for thread ${threadId}:`,
-          error,
+          error
         );
         requestLog.error(`Duplicate failed for thread ${threadId}: ${message}`);
         return { threadId, success: false, error: message };
@@ -119,4 +115,10 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
         requestLog.emit({ status });
       }
     },
+
+    getIdempotencyKey(threadId: string): string {
+      return `duplicate:${threadId}`;
+    },
+
+    name: "duplicate",
   };

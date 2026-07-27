@@ -1,4 +1,7 @@
+import type { ThreadReadTrigger } from "@workspace/schemas/signals";
+
 import type { Thread } from "../../types";
+import type { JobContext } from "./context";
 
 export interface ProcessorSuccessResult<T = unknown> {
   threadId: string;
@@ -18,7 +21,10 @@ export interface ProcessorSkippedResult {
   threadId: string;
   success: true;
   skipped: true;
-  reason: "idempotent" | "dependencies-skipped" | "dependencies-skipped-no-prior-run";
+  reason:
+    | "idempotent"
+    | "dependencies-skipped"
+    | "dependencies-skipped-no-prior-run";
 }
 
 export type ProcessorResult<T = unknown> =
@@ -34,10 +40,17 @@ export interface PipelineJobOptions {
 
 export interface PipelineJobInput {
   threadIds: string[];
+  /**
+   * Why this run was triggered and any payload it pushed (ADR 0006). Carried
+   * on a channel separate from `hints` so synthesis can weight a push-side
+   * `pr_matched` candidate distinctly from pull-side hint evidence. Batch-level
+   * because the worker enqueues one thread per job.
+   */
+  trigger?: ThreadReadTrigger;
 }
 
 export interface ProcessorExecuteContext {
-  context: import("./context").JobContext;
+  context: JobContext;
   thread: Thread;
   threadId: string;
 }
@@ -53,16 +66,28 @@ export interface ProcessorDefinition<TOutput = unknown> {
    */
   computeHash(context: ProcessorExecuteContext): string;
 
+  /**
+   * When all of a processor's dependencies were skipped, the orchestrator
+   * fast-paths this processor to "skipped" on idempotency-key existence alone,
+   * without consulting {@link computeHash}. That assumes a processor's output is
+   * a pure function of its declared dependencies. Return `true` here to opt out
+   * and route the thread through the normal hash-based check instead — required
+   * when the processor also reads thread state outside its declared deps (e.g.
+   * `related_prs` must clear its hint once `externalPrId` is set, even though
+   * linking a PR does not change the embedding its `embed` dependency produces).
+   */
+  runsWhenDependenciesSkipped?(context: ProcessorExecuteContext): boolean;
+
   execute(context: ProcessorExecuteContext): Promise<ProcessorResult<TOutput>>;
 }
 
 export interface TurnSummary {
   turnNumber: number;
   processors: string[];
-  results: Array<{
+  results: {
     processor: string;
     threadResults: ProcessorResult[];
-  }>;
+  }[];
   duration: number;
 }
 

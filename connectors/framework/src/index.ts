@@ -12,6 +12,14 @@ export {
   type NormalizedIssue,
   type PrTrackerLinkPayload,
   prTrackerLinkPayloadSchema,
+  type SupportEntryPointAuthor,
+  type SupportEntryPointIngestPayload,
+  type SupportEntryPointMessage,
+  type SupportEntryPointThread,
+  supportEntryPointAuthorSchema,
+  supportEntryPointIngestSchema,
+  supportEntryPointMessageSchema,
+  supportEntryPointThreadSchema,
 } from "./capabilities";
 export {
   CAPABILITY_INVOKE_PATH,
@@ -23,11 +31,23 @@ export {
 } from "./invoke";
 export {
   type ConnectorManifest,
+  discordManifest,
   githubManifest,
   manifests,
+  slackManifest,
   typesHaveCapability,
   typesProvidingCapability,
 } from "./manifest";
+export {
+  CONNECTION_PROBE_PATH,
+  CONNECTION_PROBE_SECRET_HEADER,
+  CONNECTION_PROBE_TIMEOUT_MS,
+  type ProbeRequest,
+  type ProbeResult,
+  probeConnection,
+  probeRequestSchema,
+  probeResultSchema,
+} from "./probe";
 export {
   buildRegistry,
   type ConnectorRegistry,

@@ -38,6 +38,7 @@ import { Pencil, Plus, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 
@@ -54,7 +55,7 @@ const LABEL_COLOR_VARS: readonly string[] = [
 ];
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/labels",
+  "/app/_workspace/settings/organization/labels"
 )({
   component: RouteComponent,
 });
@@ -74,46 +75,52 @@ function RouteComponent() {
   const allLabels = useLiveQuery(
     query.label.where({
       organizationId: currentOrg?.id,
-    }),
+    })
   );
 
   const labels = useMemo(() => {
-    if (!allLabels) return [];
+    if (!allLabels) {
+      return [];
+    }
     return allLabels.filter((label) => label.enabled !== false);
   }, [allLabels]);
 
-  const handleDelete = (labelId: string, labelName: string) => {
-    if (!currentOrg) return;
+  const handleDelete = (labelId: string, deletedLabelName: string) => {
+    if (!currentOrg) {
+      return;
+    }
 
     try {
       // Set enabled to false instead of deleting
       mutate.label.update({
-        labelId,
         enabled: false,
+        labelId,
         updatedAt: new Date(),
       });
-      toast.success(`Label "${labelName}" deleted successfully`);
+      toast.success(`Label "${deletedLabelName}" deleted successfully`);
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to delete label. Please try again.",
+          : "Failed to delete label. Please try again."
       );
     }
   };
 
   const handleCreateLabel = () => {
-    if (!currentOrg) return;
+    if (!currentOrg) {
+      return;
+    }
 
     try {
       const colorVar = LABEL_COLOR_VARS[selectedColorIndex];
 
       mutate.label.create({
+        color: colorVar,
+        enabled: true,
         id: ulid().toLowerCase(),
         name: labelName.trim() || "",
-        color: colorVar,
         organizationId: currentOrg.id,
-        enabled: true,
       });
 
       setIsCreateDialogOpen(false);
@@ -124,21 +131,23 @@ function RouteComponent() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to create label. Please try again.",
+          : "Failed to create label. Please try again."
       );
     }
   };
 
   const handleEditLabel = () => {
-    if (!editingLabel) return;
+    if (!editingLabel) {
+      return;
+    }
 
     try {
       const colorVar = LABEL_COLOR_VARS[selectedColorIndex];
 
       mutate.label.update({
+        color: colorVar,
         labelId: editingLabel.id,
         name: labelName,
-        color: colorVar,
         updatedAt: new Date(),
       });
 
@@ -151,7 +160,7 @@ function RouteComponent() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to update label. Please try again.",
+          : "Failed to update label. Please try again."
       );
     }
   };
@@ -344,7 +353,7 @@ function RouteComponent() {
                 <TableRow>
                   <TableHead className="pl-7.5">Label</TableHead>
                   <TableHead>Created</TableHead>
-                  <TableHead className="w-[100px]"></TableHead>
+                  <TableHead className="w-[100px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -372,9 +381,9 @@ function RouteComponent() {
                           className="h-8 w-8"
                           onClick={() =>
                             handleOpenEditDialog({
+                              color: label.color,
                               id: label.id,
                               name: label.name,
-                              color: label.color,
                             })
                           }
                           aria-label="Edit label"

@@ -7,12 +7,13 @@ import {
   MenuTrigger,
 } from "@workspace/ui/components/menu";
 import { useEffect, useState } from "react";
+
 import { reflagClient } from "~/lib/feature-flag";
 
-type FlagState = {
+interface FlagState {
   isEnabled: boolean;
   flagKey: string;
-};
+}
 
 export const ReflagFlagsMenu = () => {
   const [flags, setFlags] = useState<Record<string, FlagState>>({});
@@ -25,8 +26,8 @@ export const ReflagFlagsMenu = () => {
 
       for (const [flagKey, flag] of Object.entries(allFlags)) {
         flagsState[flagKey] = {
-          isEnabled: (flag.isEnabled || flag.isEnabledOverride) ?? false,
           flagKey,
+          isEnabled: (flag.isEnabled || flag.isEnabledOverride) ?? false,
         };
       }
 

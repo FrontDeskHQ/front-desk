@@ -1,5 +1,6 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
+
 import { classifyLabel } from "../classify";
 import { labelClassifierDataset } from "./dataset";
 import { confidenceCalibration, labelExactMatch } from "./scorers";
@@ -13,6 +14,7 @@ evalite("Label Classifier", {
         expectedConfidenceBucket: c.expectedConfidenceBucket,
       },
     })),
+  scorers: [labelExactMatch, confidenceCalibration],
   task: async (input) => {
     const start = Date.now();
     const result = await classifyLabel(input);
@@ -29,5 +31,4 @@ evalite("Label Classifier", {
     });
     return result;
   },
-  scorers: [labelExactMatch, confidenceCalibration],
 });

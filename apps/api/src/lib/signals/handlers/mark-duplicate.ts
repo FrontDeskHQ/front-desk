@@ -1,4 +1,5 @@
 import type { MarkDuplicateAction } from "@workspace/schemas/signals";
+
 import { runMarkDuplicate } from "../../thread-mutations";
 import {
   clearCompensateSnapshot,
@@ -28,25 +29,27 @@ export const markDuplicateHandler: ActionHandler<MarkDuplicateAction> = {
     await runMarkDuplicate(
       ctx.db,
       {
-        threadId: ctx.threadId,
-        organizationId: ctx.organizationId,
         duplicateOfThreadId: action.targetThreadId,
+        organizationId: ctx.organizationId,
         source: ctx.actorUserId ? "agent_read" : "autonomous",
+        threadId: ctx.threadId,
       },
       {
         userId: ctx.actorUserId,
         userName: ctx.actorUserName,
       },
-      { preloadedThread: thread },
+      { preloadedThread: thread }
     );
   },
 
   async compensate(action, ctx) {
     const snapshot = getCompensateSnapshot<{ previousStatus: number }>(
       ctx,
-      snapshotKey(action),
+      snapshotKey(action)
     );
-    if (!snapshot) return;
+    if (!snapshot) {
+      return;
+    }
 
     await ctx.db.thread.update(ctx.threadId, {
       status: snapshot.previousStatus,

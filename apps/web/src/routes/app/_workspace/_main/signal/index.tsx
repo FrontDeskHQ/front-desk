@@ -7,6 +7,7 @@ import {
 import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
 import { useMemo } from "react";
+
 import { ActionList } from "~/components/signals/action-list";
 import type { ActorContext } from "~/components/signals/action-row";
 // import { LeverageReport } from "~/components/signals/leverage-report";
@@ -24,15 +25,19 @@ function RouteComponent() {
   const posthog = usePostHog();
 
   const ctx = useMemo<ActorContext | null>(() => {
-    if (!currentOrg) return null;
+    if (!currentOrg) {
+      return null;
+    }
     return {
-      user: { id: user.id, name: user.name },
       organizationId: currentOrg.id,
       posthog: posthog ?? null,
+      user: { id: user.id, name: user.name },
     };
   }, [currentOrg, user.id, user.name, posthog]);
 
-  if (!currentOrg || !ctx) return null;
+  if (!currentOrg || !ctx) {
+    return null;
+  }
 
   const orgCreatedAt = currentOrg.createdAt
     ? new Date(currentOrg.createdAt)
@@ -40,7 +45,10 @@ function RouteComponent() {
   const orgDaysOld = orgCreatedAt
     ? (Date.now() - orgCreatedAt.getTime()) / (1000 * 60 * 60 * 24)
     : null;
-  const isNewOrg = orgDaysOld != null && orgDaysOld < NEW_ORG_DAY_THRESHOLD;
+  const isNewOrg =
+    orgDaysOld !== null &&
+    orgDaysOld !== undefined &&
+    orgDaysOld < NEW_ORG_DAY_THRESHOLD;
 
   return (
     <>

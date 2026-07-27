@@ -1,4 +1,5 @@
 import { ulid } from "ulid";
+
 import { fetchClient } from "../../lib/database/client";
 
 /**
@@ -7,10 +8,8 @@ import { fetchClient } from "../../lib/database/client";
  */
 export const buildIdempotencyKey = (
   processorName: string,
-  threadId: string,
-): string => {
-  return `${processorName}:${threadId}`;
-};
+  threadId: string
+): string => `${processorName}:${threadId}`;
 
 /**
  * Check if a processor should run based on idempotency key and hash
@@ -20,7 +19,7 @@ export const buildIdempotencyKey = (
  */
 export const checkIdempotency = async (
   key: string,
-  hash: string,
+  hash: string
 ): Promise<boolean> => {
   try {
     const existing = (
@@ -43,14 +42,14 @@ export const checkIdempotency = async (
  */
 export const storeIdempotencyKey = async (
   key: string,
-  hash: string,
+  hash: string
 ): Promise<boolean> => {
   try {
     await fetchClient.mutate.pipelineIdempotencyKey.upsert({
-      key,
+      createdAt: new Date(),
       hash,
       id: ulid().toLowerCase(),
-      createdAt: new Date(),
+      key,
     });
 
     return true;
@@ -65,7 +64,7 @@ export const storeIdempotencyKey = async (
  * This forces the processor to run again on the next execution.
  */
 export const invalidateIdempotencyKey = async (
-  key: string,
+  key: string
 ): Promise<boolean> => {
   try {
     await fetchClient.mutate.pipelineIdempotencyKey.invalidate({ key });
@@ -83,7 +82,7 @@ export const invalidateIdempotencyKey = async (
  * @returns Map of key -> shouldSkip (true if already processed with same hash)
  */
 export const batchCheckIdempotency = async (
-  keyHashPairs: Array<{ key: string; hash: string }>,
+  keyHashPairs: { key: string; hash: string }[]
 ): Promise<Map<string, boolean>> => {
   const results = new Map<string, boolean>();
 
@@ -127,7 +126,7 @@ export const batchCheckIdempotency = async (
  * @returns Map of key -> exists (true if key exists in database)
  */
 export const batchCheckIdempotencyKeyExists = async (
-  keys: string[],
+  keys: string[]
 ): Promise<Map<string, boolean>> => {
   const results = new Map<string, boolean>();
 
@@ -159,7 +158,7 @@ export const batchCheckIdempotencyKeyExists = async (
  * Batch store idempotency keys after successful execution
  */
 export const batchStoreIdempotencyKeys = async (
-  keyHashPairs: Array<{ key: string; hash: string }>,
+  keyHashPairs: { key: string; hash: string }[]
 ): Promise<boolean> => {
   if (keyHashPairs.length === 0) {
     return true;

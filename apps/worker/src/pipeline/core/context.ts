@@ -17,19 +17,19 @@ export class JobContext {
    * Storage for processor outputs
    * Key format: `${processorName}:${threadId}`
    */
-  private processorOutputs: Map<string, unknown> = new Map();
+  private processorOutputs = new Map<string, unknown>();
 
   /**
    * Tracks which processor+thread combinations were skipped (idempotent)
    * Key format: `${processorName}:${threadId}`
    */
-  private skippedProcessors: Set<string> = new Set();
+  private skippedProcessors = new Set<string>();
 
   constructor(
     jobId: string,
     input: PipelineJobInput,
     options: PipelineJobOptions,
-    threads: Map<string, Thread>,
+    threads: Map<string, Thread>
   ) {
     this.jobId = jobId;
     this.input = input;
@@ -40,7 +40,7 @@ export class JobContext {
   /**
    * Build the storage key for a processor output
    */
-  private buildKey(processorName: string, threadId: string): string {
+  private static buildKey(processorName: string, threadId: string): string {
     return `${processorName}:${threadId}`;
   }
 
@@ -49,9 +49,9 @@ export class JobContext {
    */
   getProcessorOutput<T = unknown>(
     processorName: string,
-    threadId: string,
+    threadId: string
   ): T | undefined {
-    const key = this.buildKey(processorName, threadId);
+    const key = JobContext.buildKey(processorName, threadId);
     return this.processorOutputs.get(key) as T | undefined;
   }
 
@@ -78,9 +78,9 @@ export class JobContext {
   setProcessorOutput<T = unknown>(
     processorName: string,
     threadId: string,
-    data: T,
+    data: T
   ): void {
-    const key = this.buildKey(processorName, threadId);
+    const key = JobContext.buildKey(processorName, threadId);
     this.processorOutputs.set(key, data);
   }
 
@@ -88,7 +88,7 @@ export class JobContext {
    * Check if a processor has output for a specific thread
    */
   hasProcessorOutput(processorName: string, threadId: string): boolean {
-    const key = this.buildKey(processorName, threadId);
+    const key = JobContext.buildKey(processorName, threadId);
     return this.processorOutputs.has(key);
   }
 
@@ -96,14 +96,14 @@ export class JobContext {
    * Get all processor output keys (for debugging)
    */
   getAllOutputKeys(): string[] {
-    return Array.from(this.processorOutputs.keys());
+    return [...this.processorOutputs.keys()];
   }
 
   /**
    * Mark a processor as skipped for a thread
    */
   markProcessorSkipped(processorName: string, threadId: string): void {
-    const key = this.buildKey(processorName, threadId);
+    const key = JobContext.buildKey(processorName, threadId);
     this.skippedProcessors.add(key);
   }
 
@@ -111,17 +111,22 @@ export class JobContext {
    * Check if a processor was skipped for a thread
    */
   wasProcessorSkipped(processorName: string, threadId: string): boolean {
-    const key = this.buildKey(processorName, threadId);
+    const key = JobContext.buildKey(processorName, threadId);
     return this.skippedProcessors.has(key);
   }
 
   /**
    * Check if all processors in a list were skipped for a thread
    */
-  wereAllProcessorsSkipped(processorNames: string[], threadId: string): boolean {
+  wereAllProcessorsSkipped(
+    processorNames: string[],
+    threadId: string
+  ): boolean {
     if (processorNames.length === 0) {
       return false;
     }
-    return processorNames.every((name) => this.wasProcessorSkipped(name, threadId));
+    return processorNames.every((name) =>
+      this.wasProcessorSkipped(name, threadId)
+    );
   }
 }

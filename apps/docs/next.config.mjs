@@ -1,20 +1,20 @@
-import { createMDX } from 'fumadocs-mdx/next';
+import { createMDX } from "fumadocs-mdx/next";
 
 const withMDX = createMDX();
 
 /** @type {import('next').NextConfig} */
 const config = {
+  basePath: "/docs",
   reactStrictMode: true,
-  basePath: '/docs',
   async rewrites() {
     return [
       {
-        source: '/:path*.mdx',
-        destination: '/md/:path*',
+        source: "/:path*.mdx",
+        destination: "/md/:path*",
       },
       {
-        source: '/:path*.md',
-        destination: '/md/:path*',
+        source: "/:path*.md",
+        destination: "/md/:path*",
       },
     ];
   },

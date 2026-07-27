@@ -12,7 +12,6 @@ export const sendWelcomeEmail = task({
     await resend.emails.send({
       from: "Pedro Costa <pedro@tryfrontdesk.app>",
       replyTo: "pedro@tryfrontdesk.app",
-      to: [payload.email],
       subject: "Welcome to FrontDesk",
       text: `${greeting},
 
@@ -24,6 +23,7 @@ Thanks for giving FrontDesk a try, I hope it helps you out.
 
 Best,
 Pedro`,
+      to: [payload.email],
     });
   },
 });

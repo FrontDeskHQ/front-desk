@@ -7,6 +7,7 @@ import { Spinner } from "@workspace/ui/components/spinner";
 import { formatDistanceToNowStrict } from "date-fns";
 import { ArrowLeft } from "lucide-react";
 import { useTransition } from "react";
+
 import { useLogout } from "~/lib/hooks/auth";
 import { fetchClient } from "~/lib/live-state";
 import { getInvitation } from "~/lib/server-funcs/invitations";
@@ -101,9 +102,9 @@ function RouteComponent() {
                           .then(() => {
                             navigate({ to: "/app" });
                           })
-                          .catch((error) => {
+                          .catch((acceptError) => {
                             // TODO add toast to show error
-                            console.error(error);
+                            console.error(acceptError);
                           });
                       });
                     }}

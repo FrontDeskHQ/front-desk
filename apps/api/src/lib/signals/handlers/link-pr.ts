@@ -1,5 +1,6 @@
 import { invokeCapability } from "@connectors/framework";
 import type { LinkPrAction } from "@workspace/schemas/signals";
+
 import { schema } from "../../../live-state/schema";
 import {
   buildEntityRef,
@@ -24,12 +25,12 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
     const entity = Object.values(
       await ctx.db.find(schema.externalEntity, {
         where: {
-          organizationId: ctx.organizationId,
-          url: action.prUrl,
-          type: "pull_request",
           deletedAt: null,
+          organizationId: ctx.organizationId,
+          type: "pull_request",
+          url: action.prUrl,
         },
-      }),
+      })
     )[0];
     if (!entity) {
       throw new Error("LINK_PR_ENTITY_NOT_MIRRORED");
@@ -45,7 +46,7 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       ctx.db,
       ctx.organizationId,
       entity,
-      "pr-tracker",
+      "pr-tracker"
     );
     if (!target) {
       throw new Error("PR_TRACKER_NOT_CONFIGURED");
@@ -54,7 +55,7 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
     const organization = Object.values(
       await ctx.db.find(schema.organization, {
         where: { id: ctx.organizationId },
-      }),
+      })
     )[0];
     if (!organization) {
       throw new Error("ORGANIZATION_NOT_FOUND");
@@ -68,14 +69,14 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       target.entry.invokeUrl,
       {
         capability: "pr-tracker",
-        method: "link",
         config: target.integration.configStr,
+        method: "link",
         payload: {
           entity: buildEntityRef(entity),
-          thread: { url: threadUrl, title: thread.name },
+          thread: { title: thread.name, url: threadUrl },
         },
       },
-      { secret: connectorInvokeSecret },
+      { secret: connectorInvokeSecret }
     );
 
     const oldPrId = thread.externalPrId ?? null;
@@ -85,17 +86,17 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
 
     const newPrLabel = `${entity.repoFullName}#${entity.number}`;
     await runRecordActivity(ctx.db, {
-      threadId: ctx.threadId,
+      metadata: {
+        newPrId: entity.externalKey,
+        newPrLabel,
+        oldPrId,
+        oldPrLabel: null,
+      },
       organizationId: ctx.organizationId,
+      threadId: ctx.threadId,
+      type: "pr_changed",
       userId: ctx.actorUserId,
       userName: ctx.actorUserName,
-      type: "pr_changed",
-      metadata: {
-        oldPrId,
-        newPrId: entity.externalKey,
-        oldPrLabel: null,
-        newPrLabel,
-      },
     });
   },
 };

@@ -1,14 +1,12 @@
 # 0004 — Persist synthesis-track candidates on the thread
 
-**Status:** Superseded by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md)
-**Date:** 2026-05-26
-**References:** [ADR 0002](./0002-two-track-candidate-pipeline.md)
+**Status:** Superseded by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md) **Date:** 2026-05-26 **References:** [ADR 0002](./0002-two-track-candidate-pipeline.md)
 
-> **Superseded (2026-05-28).** The per-thread, per-processor skip+rehydrate *mechanism* described here is retained, but it now persists *evidence* (`thread.hints`), not concrete `Action` candidates (`thread.synthesisCandidates`). See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
+> **Superseded (2026-05-28).** The per-thread, per-processor skip+rehydrate _mechanism_ described here is retained, but it now persists _evidence_ (`thread.hints`), not concrete `Action` candidates (`thread.synthesisCandidates`). See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
 
 ## Context
 
-[ADR 0002](./0002-two-track-candidate-pipeline.md) split the candidate pipeline into an inline track (label, status — writes directly to `thread.inlineSuggestions`) and a synthesis track (duplicate, draft, link_pr, close — composed by an LLM call into `thread.agentRead`). The original framing treated synthesis-track candidates as *ephemeral*: generated in-memory inside the synthesis worker, consumed immediately, discarded.
+[ADR 0002](./0002-two-track-candidate-pipeline.md) split the candidate pipeline into an inline track (label, status — writes directly to `thread.inlineSuggestions`) and a synthesis track (duplicate, draft, link_pr, close — composed by an LLM call into `thread.agentRead`). The original framing treated synthesis-track candidates as _ephemeral_: generated in-memory inside the synthesis worker, consumed immediately, discarded.
 
 Two requirements broke that framing once the synthesis track was wired into the existing pipeline framework (`apps/worker/src/pipeline/`):
 
@@ -19,8 +17,8 @@ The existing pipeline framework has no general-purpose mechanism for persisting 
 
 ## Considered options
 
-1. **All-or-nothing skip.** Synthesize's hash includes the four generator hashes. If all skipped, synthesize skips. If any reran, synthesize reruns — but the LLM sees only the fresh candidates plus the prior `agentRead` for memory. *Rejected:* the "partial bag on partial rerun" case is silently lossy. The LLM seeing two fresh candidates and missing two cached ones produces surprising reads with no clear diagnosis.
-2. **Generic `processorOutput(threadId, processorName, dataStr)` table** with `JobContext` hydration on cold start. *Rejected for now:* net-new infrastructure on the critical path for a benefit only the synthesis track currently needs. Revisit if a second consumer ever appears.
+1. **All-or-nothing skip.** Synthesize's hash includes the four generator hashes. If all skipped, synthesize skips. If any reran, synthesize reruns — but the LLM sees only the fresh candidates plus the prior `agentRead` for memory. _Rejected:_ the "partial bag on partial rerun" case is silently lossy. The LLM seeing two fresh candidates and missing two cached ones produces surprising reads with no clear diagnosis.
+2. **Generic `processorOutput(threadId, processorName, dataStr)` table** with `JobContext` hydration on cold start. _Rejected for now:_ net-new infrastructure on the critical path for a benefit only the synthesis track currently needs. Revisit if a second consumer ever appears.
 3. **Per-generator persistence on `thread` itself.** Either four columns or one fat JSON column.
 
 ## Decision
@@ -29,10 +27,18 @@ Add a single JSON column `thread.synthesisCandidates` shaped as:
 
 ```ts
 type SynthesisCandidates = {
-  duplicate?:  { candidate: MarkDuplicateAction | null; hash: string; computedAt: string };
-  draft?:      { candidate: ReplyAction         | null; hash: string; computedAt: string };
-  link_pr?:    { candidate: LinkPrAction        | null; hash: string; computedAt: string };
-  close?:      { candidate: CloseAction         | null; hash: string; computedAt: string };
+  duplicate?: {
+    candidate: MarkDuplicateAction | null;
+    hash: string;
+    computedAt: string;
+  };
+  draft?: { candidate: ReplyAction | null; hash: string; computedAt: string };
+  link_pr?: {
+    candidate: LinkPrAction | null;
+    hash: string;
+    computedAt: string;
+  };
+  close?: { candidate: CloseAction | null; hash: string; computedAt: string };
 };
 ```
 

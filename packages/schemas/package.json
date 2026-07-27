@@ -1,17 +1,17 @@
 {
   "name": "@workspace/schemas",
   "version": "1.0.0",
-  "type": "module",
   "private": true,
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
+  "type": "module",
   "exports": {
     "./integration/*": "./src/integration/*.ts",
     "./external-issue": "./src/external-issue.ts",
     "./organization": "./src/organization.ts",
     "./digest": "./src/digest.ts",
     "./signals": "./src/signals.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "catalog:"

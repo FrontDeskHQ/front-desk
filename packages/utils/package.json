@@ -1,17 +1,17 @@
 {
   "name": "@workspace/utils",
   "version": "1.0.0",
-  "type": "module",
   "private": true,
-  "scripts": {
-    "typecheck": "tsc --noEmit"
-  },
+  "type": "module",
   "exports": {
     "./tiptap": "./src/lib/tiptap.ts",
     "./tiptap-md": "./src/lib/tiptap-md.ts",
     "./md-tiptap": "./src/lib/md-tiptap.ts",
     "./format": "./src/lib/format.ts",
     "./logging": "./src/lib/logging.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@tiptap/extension-heading": "^3.4.1",

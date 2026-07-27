@@ -34,7 +34,7 @@ function PopoverContent({
           data-slot="popover-content"
           className={cn(
             "bg-popover text-popover-foreground transition-[transform,scale,opacity] data-[ending-style]:scale-90 data-[ending-style]:opacity-0 data-[starting-style]:scale-90 data-[starting-style]:opacity-0 z-50 min-w-72 w-fit origin-[var(--transform-origin)] rounded-md border p-4 shadow-md outline-hidden",
-            className,
+            className
           )}
           {...props}
         />

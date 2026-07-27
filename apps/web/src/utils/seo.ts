@@ -28,43 +28,43 @@ export const seo = ({
   const tags = [
     // Basic meta tags
     { title },
-    ...(description ? [{ name: "description", content: description }] : []),
-    ...(keywords ? [{ name: "keywords", content: keywords }] : []),
-    ...(author ? [{ name: "author", content: author }] : []),
+    ...(description ? [{ content: description, name: "description" }] : []),
+    ...(keywords ? [{ content: keywords, name: "keywords" }] : []),
+    ...(author ? [{ content: author, name: "author" }] : []),
 
     // Open Graph tags
     ...(openGraph
       ? [
-          { property: "og:type", content: openGraph.type ?? "website" },
-          { property: "og:title", content: openGraph.title ?? title },
+          { content: openGraph.type ?? "website", property: "og:type" },
+          { content: openGraph.title ?? title, property: "og:title" },
           ...(description
             ? [
                 {
-                  property: "og:description",
                   content: openGraph.description ?? description,
+                  property: "og:description",
                 },
               ]
             : []),
           ...(siteName
             ? [
                 {
-                  property: "og:site_name",
                   content: openGraph.siteName ?? siteName,
+                  property: "og:site_name",
                 },
               ]
             : []),
           ...(locale
-            ? [{ property: "og:locale", content: openGraph.locale ?? locale }]
+            ? [{ content: openGraph.locale ?? locale, property: "og:locale" }]
             : []),
-          ...(url ? [{ property: "og:url", content: url }] : []),
+          ...(url ? [{ content: url, property: "og:url" }] : []),
           ...(openGraph.image
             ? [
-                { property: "og:image", content: openGraph.image },
-                { property: "og:image:secure_url", content: openGraph.image },
-                { property: "og:image:type", content: "image/png" },
-                { property: "og:image:width", content: "1200" },
-                { property: "og:image:height", content: "630" },
-                { property: "og:image:alt", content: openGraph.title ?? title },
+                { content: openGraph.image, property: "og:image" },
+                { content: openGraph.image, property: "og:image:secure_url" },
+                { content: "image/png", property: "og:image:type" },
+                { content: "1200", property: "og:image:width" },
+                { content: "630", property: "og:image:height" },
+                { content: openGraph.title ?? title, property: "og:image:alt" },
               ]
             : []),
 
@@ -72,53 +72,53 @@ export const seo = ({
           ...(openGraph.image
             ? [
                 {
-                  name: "twitter:card",
                   content: openGraph.image ? "summary_large_image" : "summary",
+                  name: "twitter:card",
                 },
               ]
-            : [{ name: "twitter:card", content: "summary" }]),
-          { name: "twitter:title", content: openGraph.title ?? title },
+            : [{ content: "summary", name: "twitter:card" }]),
+          { content: openGraph.title ?? title, name: "twitter:title" },
           ...(description
             ? [
                 {
-                  name: "twitter:description",
                   content: openGraph.description ?? description,
+                  name: "twitter:description",
                 },
               ]
             : []),
-          { name: "twitter:creator", content: "@frontdeskhq" },
-          { name: "twitter:site", content: "@frontdeskhq" },
+          { content: "@frontdeskhq", name: "twitter:creator" },
+          { content: "@frontdeskhq", name: "twitter:site" },
           ...(openGraph.image
             ? [
-                { name: "twitter:image", content: openGraph.image },
+                { content: openGraph.image, name: "twitter:image" },
                 {
-                  name: "twitter:image:alt",
                   content: openGraph.title ?? title,
+                  name: "twitter:image:alt",
                 },
-                { name: "twitter:image:width", content: "1200" },
-                { name: "twitter:image:height", content: "630" },
+                { content: "1200", name: "twitter:image:width" },
+                { content: "630", name: "twitter:image:height" },
               ]
             : []),
         ]
       : []),
 
     // Additional SEO tags
-    { name: "theme-color", content: "#ffffff" },
-    { name: "format-detection", content: "telephone=no" },
-    { name: "apple-mobile-web-app-capable", content: "yes" },
-    { name: "apple-mobile-web-app-status-bar-style", content: "default" },
+    { content: "#ffffff", name: "theme-color" },
+    { content: "telephone=no", name: "format-detection" },
+    { content: "yes", name: "apple-mobile-web-app-capable" },
+    { content: "default", name: "apple-mobile-web-app-status-bar-style" },
     ...(siteName
-      ? [{ name: "apple-mobile-web-app-title", content: siteName }]
+      ? [{ content: siteName, name: "apple-mobile-web-app-title" }]
       : []),
-    { name: "mobile-web-app-capable", content: "yes" },
-    ...(siteName ? [{ name: "application-name", content: siteName }] : []),
-    { name: "msapplication-TileColor", content: "#ffffff" },
-    { name: "msapplication-config", content: "/site.webmanifest" },
+    { content: "yes", name: "mobile-web-app-capable" },
+    ...(siteName ? [{ content: siteName, name: "application-name" }] : []),
+    { content: "#ffffff", name: "msapplication-TileColor" },
+    { content: "/site.webmanifest", name: "msapplication-config" },
 
     // Structured data hints
-    { name: "referrer", content: "no-referrer-when-downgrade" },
-    { name: "rating", content: "general" },
-    { name: "distribution", content: "global" },
+    { content: "no-referrer-when-downgrade", name: "referrer" },
+    { content: "general", name: "rating" },
+    { content: "global", name: "distribution" },
   ];
 
   return tags;

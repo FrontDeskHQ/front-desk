@@ -8,6 +8,7 @@ import {
 import { formatGitHubId } from "@workspace/schemas/external-issue";
 import Elysia from "elysia";
 import { z } from "zod";
+
 import { addComment, createIssue, setIssueState } from "../lib/github";
 
 /**
@@ -18,10 +19,10 @@ const githubConfigSchema = z.object({
   installationId: z.coerce.number().int().positive(),
   repos: z.array(
     z.object({
-      owner: z.string(),
-      name: z.string(),
       fullName: z.string(),
-    }),
+      name: z.string(),
+      owner: z.string(),
+    })
   ),
 });
 
@@ -35,9 +36,9 @@ const createIssueTargetSchema = z.object({
 });
 
 const createIssuePayloadSchema = z.object({
-  title: z.string().min(1),
   body: z.string().default(""),
   target: createIssueTargetSchema,
+  title: z.string().min(1),
 });
 
 // Reuse the framework's exported contracts so the connector can't drift from
@@ -46,23 +47,26 @@ const setStatePayloadSchema = issueTrackerSetStatePayloadSchema;
 const linkPayloadSchema = prTrackerLinkPayloadSchema;
 
 /** A handled response: an HTTP status plus the JSON body to return. */
-type HandlerResult = { status: number; body: unknown };
+interface HandlerResult {
+  status: number;
+  body: unknown;
+}
 
 const err = (status: number, error: string): HandlerResult => ({
-  status,
   body: { error },
+  status,
 });
 
 /** Resolve a connected repo from its `owner/repo` full name. */
 const findRepo = (
   config: GithubConfig,
-  repoFullName: string,
+  repoFullName: string
 ): GithubRepo | undefined =>
   config.repos.find((r) => r.fullName === repoFullName);
 
 const handleCreateIssue = async (
   config: GithubConfig,
-  payload: unknown,
+  payload: unknown
 ): Promise<HandlerResult> => {
   const parsed = createIssuePayloadSchema.safeParse(payload);
   if (!parsed.success) {
@@ -71,9 +75,11 @@ const handleCreateIssue = async (
 
   const { title, body, target } = parsed.data;
   const repo = config.repos.find(
-    (r) => r.owner === target.owner && r.name === target.repo,
+    (r) => r.owner === target.owner && r.name === target.repo
   );
-  if (!repo) return err(400, "REPOSITORY_NOT_CONNECTED");
+  if (!repo) {
+    return err(400, "REPOSITORY_NOT_CONNECTED");
+  }
 
   try {
     const issue = await createIssue(
@@ -81,21 +87,21 @@ const handleCreateIssue = async (
       target.owner,
       target.repo,
       title,
-      body,
+      body
     );
     return {
-      status: 201,
       body: {
         entity: {
-          id: formatGitHubId(issue.id, target.owner, target.repo),
-          shortId: String(issue.number),
-          title: issue.title,
           body: issue.body ?? "",
-          state: issue.state,
-          url: issue.html_url,
+          id: formatGitHubId(issue.id, target.owner, target.repo),
           label: `${target.owner}/${target.repo}#${issue.number}`,
+          shortId: String(issue.number),
+          state: issue.state,
+          title: issue.title,
+          url: issue.html_url,
         },
       },
+      status: 201,
     };
   } catch (error) {
     console.error("Error creating issue:", error);
@@ -105,7 +111,7 @@ const handleCreateIssue = async (
 
 const handleSetIssueState = async (
   config: GithubConfig,
-  payload: unknown,
+  payload: unknown
 ): Promise<HandlerResult> => {
   const parsed = setStatePayloadSchema.safeParse(payload);
   if (!parsed.success) {
@@ -114,7 +120,9 @@ const handleSetIssueState = async (
 
   const { entity, state } = parsed.data;
   const repo = findRepo(config, entity.repoFullName);
-  if (!repo) return err(400, "REPOSITORY_NOT_CONNECTED");
+  if (!repo) {
+    return err(400, "REPOSITORY_NOT_CONNECTED");
+  }
 
   try {
     await setIssueState(
@@ -122,9 +130,9 @@ const handleSetIssueState = async (
       repo.owner,
       repo.name,
       entity.number,
-      state,
+      state
     );
-    return { status: 200, body: { ok: true } };
+    return { body: { ok: true }, status: 200 };
   } catch (error) {
     console.error("Error setting issue state:", error);
     return err(500, "Failed to set issue state");
@@ -133,7 +141,7 @@ const handleSetIssueState = async (
 
 const handleLinkPullRequest = async (
   config: GithubConfig,
-  payload: unknown,
+  payload: unknown
 ): Promise<HandlerResult> => {
   const parsed = linkPayloadSchema.safeParse(payload);
   if (!parsed.success) {
@@ -142,7 +150,9 @@ const handleLinkPullRequest = async (
 
   const { entity, thread } = parsed.data;
   const repo = findRepo(config, entity.repoFullName);
-  if (!repo) return err(400, "REPOSITORY_NOT_CONNECTED");
+  if (!repo) {
+    return err(400, "REPOSITORY_NOT_CONNECTED");
+  }
 
   const body = `Linked to a FrontDesk support thread. [View the conversation](${thread.url}).`;
 
@@ -152,9 +162,9 @@ const handleLinkPullRequest = async (
       repo.owner,
       repo.name,
       entity.number,
-      body,
+      body
     );
-    return { status: 200, body: { ok: true } };
+    return { body: { ok: true }, status: 200 };
   } catch (error) {
     console.error("Error linking pull request:", error);
     return err(500, "Failed to link pull request");
@@ -230,5 +240,5 @@ export const capabilitiesRoutes = new Elysia().post(
     const result = await handler(parsedConfig.data, payload);
     set.status = result.status;
     return result.body;
-  },
+  }
 );

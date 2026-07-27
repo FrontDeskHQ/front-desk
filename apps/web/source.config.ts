@@ -5,10 +5,10 @@ export const updates = defineDocs({
   dir: "src/routes/_public/updates/posts",
   docs: {
     schema: frontmatterSchema.extend({
+      image: z.string().optional(),
       publishedAt: z.iso.date(),
       summary: z.string().optional(),
       tag: z.string().optional(),
-      image: z.string().optional(),
     }),
   },
 });

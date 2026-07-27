@@ -1,5 +1,6 @@
-import { Avatar } from "@/components/avatar";
 import { createFileRoute } from "@tanstack/react-router";
+
+import { Avatar } from "@/components/avatar";
 
 const avatarNames = [
   "Pedro Costa",
@@ -12,10 +13,7 @@ const avatarNames = [
   "Olivia Brown",
 ];
 
-export const Route = createFileRoute(
-  // biome-ignore lint/suspicious/noExplicitAny: route tree is generated after adding new route files
-  "/avatar" as any,
-)({
+export const Route = createFileRoute("/avatar" as unknown as "/avatar")({
   component: RouteComponent,
 });
 

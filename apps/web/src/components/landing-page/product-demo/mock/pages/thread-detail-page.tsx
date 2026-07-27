@@ -29,15 +29,16 @@ import {
   TagIcon,
 } from "lucide-react";
 import { motion } from "motion/react";
+
 import {
   blurSlideContainerVariants,
   blurSlideItemVariants,
 } from "../motion-variants";
 import type { DemoThread } from "../types";
 
-type MockThreadDetailPageProps = {
+interface MockThreadDetailPageProps {
   thread: DemoThread;
-};
+}
 
 export const MockThreadDetailPage = ({ thread }: MockThreadDetailPageProps) => {
   const assignedName = thread.assignedUserName ?? "Unassigned";

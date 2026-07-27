@@ -9,8 +9,6 @@ import {
 } from "@workspace/ui/components/breadcrumb";
 import { ActionButton, Button } from "@workspace/ui/components/button";
 import {
-  type BaseItem,
-  type BaseItemGroup,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -22,6 +20,10 @@ import {
   ComboboxSeparator,
   ComboboxTrigger,
   prepareFooter,
+} from "@workspace/ui/components/combobox";
+import type {
+  BaseItem,
+  BaseItemGroup,
 } from "@workspace/ui/components/combobox";
 import {
   Dialog,
@@ -45,10 +47,13 @@ import { useAtomValue } from "jotai/react";
 import { Github, Loader2, Plus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { fetchClient, mutate, query } from "~/lib/live-state";
-import { entityMatchesQuery, type MirrorEntity } from "./external-entities";
+
+import { entityMatchesQuery } from "./external-entities";
+import type { MirrorEntity } from "./external-entities";
 
 /** The facets the link UI needs to display a linked issue (mirror row subset). */
 type LinkedIssue = Pick<
@@ -63,7 +68,7 @@ interface IssuesSectionProps {
   threadName?: string;
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
@@ -81,7 +86,7 @@ export function IssuesSection({
   const [selectedRepo, setSelectedRepo] = useState<string>("");
   const [search, setSearch] = useState("");
   const [optimisticIssue, setOptimisticIssue] = useState<LinkedIssue | null>(
-    null,
+    null
   );
 
   // Gate the whole section on the capability, not on a named provider.
@@ -93,7 +98,7 @@ export function IssuesSection({
     query.integration.first({
       organizationId: currentOrg?.id,
       type: "github",
-    }),
+    })
   );
 
   // Reactive mirror of the org's GitHub issues, synced via Live-State. Replaces
@@ -101,22 +106,25 @@ export function IssuesSection({
   const issues =
     useLiveQuery(
       query.externalEntity.where({
+        deletedAt: null,
         organizationId: currentOrg?.id,
         type: "issue",
-        deletedAt: null,
-      }),
+      })
     ) ?? [];
 
   // Once the created issue lands in the mirror (via webhook upsert), drop the
   // optimistic placeholder and let the synced row take over.
+  const optimisticExternalKey = optimisticIssue?.externalKey;
+  const hasSyncedOptimisticIssue = Boolean(
+    optimisticExternalKey &&
+    issues.some((issue) => issue.externalKey === optimisticExternalKey)
+  );
+
   useEffect(() => {
-    if (
-      optimisticIssue &&
-      issues.some((issue) => issue.externalKey === optimisticIssue.externalKey)
-    ) {
+    if (hasSyncedOptimisticIssue) {
       setOptimisticIssue(null);
     }
-  }, [issues, optimisticIssue]);
+  }, [hasSyncedOptimisticIssue]);
 
   // The link list only offers open issues; the linked issue itself resolves from
   // the full mirror so an already-linked closed issue still displays.
@@ -124,16 +132,16 @@ export function IssuesSection({
 
   const comboboxItems = prepareFooter(
     openIssues.map((issue) => ({
-      value: issue.externalKey,
-      label: `${issue.repoFullName}#${issue.number} ${issue.title}`,
       issue,
+      label: `${issue.repoFullName}#${issue.number} ${issue.title}`,
+      value: issue.externalKey,
     })),
     [
       {
-        value: `footer:create_issue`,
         label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
+        value: `footer:create_issue`,
       },
-    ],
+    ]
   );
 
   const linkedIssue: LinkedIssue | undefined =
@@ -192,6 +200,10 @@ export function IssuesSection({
 
       return result;
     },
+    onError: (error) => {
+      console.error("Failed to create issue:", error);
+      toast.error("Failed to create issue");
+    },
     onSuccess: (result, variables) => {
       const repo = repos.find((r) => r.fullName === selectedRepo);
       if (!repo || !result?.issue || !currentOrg) return;
@@ -217,7 +229,7 @@ export function IssuesSection({
       });
 
       toast.success("Issue created successfully", {
-        duration: 10000,
+        duration: 10_000,
         action: {
           label: "View on GitHub",
           onClick: () =>
@@ -233,33 +245,35 @@ export function IssuesSection({
 
       setShowCreateDialog(false);
     },
-    onError: (error) => {
-      console.error("Failed to create issue:", error);
-      toast.error("Failed to create issue");
-    },
   });
 
   const handleCreateIssue = () => {
-    if (!currentOrg || !selectedRepo || !issueTitle.trim()) return;
+    if (!currentOrg || !selectedRepo || !issueTitle.trim()) {
+      return;
+    }
 
     const repo = repos.find((r) => r.fullName === selectedRepo);
-    if (!repo) return;
+    if (!repo) {
+      return;
+    }
 
     createIssueMutation.mutate({
-      title: issueTitle.trim(),
       body: issueBody,
       owner: repo.owner,
       repo: repo.name,
+      title: issueTitle.trim(),
     });
   };
 
   const handleUnlinkIssue = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!externalIssueId || !linkedIssue || !currentOrg) return;
+    if (!externalIssueId || !linkedIssue || !currentOrg) {
+      return;
+    }
 
     mutate.thread.unlinkIssue({
-      threadId,
       organizationId: currentOrg.id,
+      threadId,
       userId: user.id,
       userName: user.name,
     });
@@ -271,7 +285,9 @@ export function IssuesSection({
     });
   };
 
-  if (!hasIssueTracker) return null;
+  if (!hasIssueTracker) {
+    return null;
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -286,9 +302,12 @@ export function IssuesSection({
               if (
                 typeof it.value === "string" &&
                 it.value.startsWith("footer:")
-              )
+              ) {
                 return true;
-              if (!it.issue) return true;
+              }
+              if (!it.issue) {
+                return true;
+              }
               return entityMatchesQuery(it.issue, q);
             }}
             onValueChange={(value) => {
@@ -298,7 +317,7 @@ export function IssuesSection({
 
               const oldIssueId = externalIssueId ?? null;
               const oldIssue = issues.find(
-                (issue) => issue.externalKey === oldIssueId,
+                (issue) => issue.externalKey === oldIssueId
               );
               // If clicking the same issue, unlink it
               const newIssueId = oldIssueId === value ? null : value || null;
@@ -308,24 +327,24 @@ export function IssuesSection({
 
               if (newIssueId) {
                 mutate.thread.linkIssue({
-                  threadId,
-                  organizationId: currentOrg.id,
                   externalIssueId: newIssueId,
+                  organizationId: currentOrg.id,
+                  threadId,
                   userId: user.id,
                   userName: user.name,
                 });
 
                 captureThreadEvent("thread:issue_link", {
-                  old_issue_id: oldIssueId,
                   new_issue_id: newIssueId,
-                  old_issue_number: oldIssue?.number,
                   new_issue_number: newIssue?.number,
+                  old_issue_id: oldIssueId,
+                  old_issue_number: oldIssue?.number,
                   repository: newIssue?.repoFullName,
                 });
               } else {
                 mutate.thread.unlinkIssue({
-                  threadId,
                   organizationId: currentOrg.id,
+                  threadId,
                   userId: user.id,
                   userName: user.name,
                 });
@@ -375,7 +394,18 @@ export function IssuesSection({
               <ComboboxEmpty>No issues found</ComboboxEmpty>
               <ComboboxList className="overflow-hidden flex flex-col">
                 {(group: BaseItemGroup) =>
-                  !group.footer ? (
+                  group.footer ? (
+                    <ComboboxGroup key={group.value} items={group.items}>
+                      <ComboboxSeparator />
+                      <ComboboxItem
+                        value="footer:create_issue"
+                        onClick={handleOpenCreateDialog}
+                      >
+                        <Plus className="size-4" />
+                        Create issue
+                      </ComboboxItem>
+                    </ComboboxGroup>
+                  ) : (
                     <ComboboxGroup
                       key={group.value}
                       items={group.items}
@@ -389,17 +419,6 @@ export function IssuesSection({
                           </ComboboxItem>
                         )}
                       </ComboboxGroupContent>
-                    </ComboboxGroup>
-                  ) : (
-                    <ComboboxGroup key={group.value} items={group.items}>
-                      <ComboboxSeparator />
-                      <ComboboxItem
-                        value="footer:create_issue"
-                        onClick={handleOpenCreateDialog}
-                      >
-                        <Plus className="size-4" />
-                        Create issue
-                      </ComboboxItem>
                     </ComboboxGroup>
                   )
                 }

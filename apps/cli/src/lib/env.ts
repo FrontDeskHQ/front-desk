@@ -10,7 +10,7 @@ export const getDiscordBotKey = (): string => {
   const key = process.env.DISCORD_BOT_KEY;
   if (!key) {
     throw new Error(
-      "DISCORD_BOT_KEY is required (set in apps/api/.env.local or apps/cli/.env.local)",
+      "DISCORD_BOT_KEY is required (set in apps/api/.env.local or apps/cli/.env.local)"
     );
   }
   return key;
@@ -28,7 +28,7 @@ export const assertLocalhostApiUrl = (apiUrl: string): void => {
 
   if (!LOCALHOST_HOSTS.has(hostname)) {
     throw new Error(
-      `Refusing to run against non-localhost API (${hostname}). FD devtool is local-dev only.`,
+      `Refusing to run against non-localhost API (${hostname}). FD devtool is local-dev only.`
     );
   }
 };

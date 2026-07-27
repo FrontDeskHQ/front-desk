@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Callout } from "@workspace/ui/components/callout";
 import { cn } from "@workspace/ui/lib/utils";
+
 import { MAX_STARTER_INTEGRATIONS } from "~/lib/hooks/query/use-plan-limits";
 
 export function LimitCallout({

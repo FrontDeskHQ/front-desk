@@ -1,33 +1,36 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useMemo } from "react";
+
 import {
   ActionRowSkeleton,
-  type ActorContext,
   ThreadReadCard,
-  type ThreadWithRelations,
+} from "~/components/signals/action-row";
+import type {
+  ActorContext,
+  ThreadWithRelations,
 } from "~/components/signals/action-row";
 import { CaughtUpEmpty, NewOrgEmpty } from "~/components/signals/empty-states";
 import { Greeting } from "~/components/signals/greeting";
 import { query } from "~/lib/live-state";
 
-type Props = {
+interface Props {
   organizationId: string;
   ctx: ActorContext;
   isNewOrg?: boolean;
   userName: string;
-};
+}
 
 export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
   const threads = useLiveQuery(
     query.thread
       .where({
-        organizationId,
         deletedAt: null,
+        organizationId,
       })
       .include({
-        author: { include: { user: true } },
         assignedUser: { include: { user: true } },
-      }),
+        author: { include: { user: true } },
+      })
   );
 
   const feedThreads = useMemo(
@@ -35,20 +38,22 @@ export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
       (threads ?? [])
         .filter(
           (
-            thread,
+            thread
           ): thread is ThreadWithRelations & {
             agentRead: NonNullable<ThreadWithRelations["agentRead"]>;
-          } => thread.agentRead != null,
+          } => thread.agentRead !== null && thread.agentRead !== undefined
         )
         .sort((a, b) => {
           const agentReadTime = (read: (typeof a)["agentRead"]) =>
             read.createdAt ? new Date(read.createdAt).getTime() : 0;
           const timeDiff =
             agentReadTime(b.agentRead) - agentReadTime(a.agentRead);
-          if (timeDiff !== 0) return timeDiff;
+          if (timeDiff !== 0) {
+            return timeDiff;
+          }
           return b.createdAt.getTime() - a.createdAt.getTime();
         }),
-    [threads],
+    [threads]
   );
 
   if (!threads) {

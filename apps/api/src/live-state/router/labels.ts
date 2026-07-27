@@ -1,10 +1,8 @@
-import z from "zod";
-import { ulid } from "ulid";
 import type { ServerDB } from "@live-state/sync/server";
-import {
-  authorize,
-  getAuthorizedOrganizationIds,
-} from "../../lib/authorize";
+import { ulid } from "ulid";
+import z from "zod";
+
+import { authorize, getAuthorizedOrganizationIds } from "../../lib/authorize";
 import { runAttachLabelToThread } from "../../lib/label-mutations";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -21,12 +19,12 @@ const buildInsertLabelRow = (args: {
   const now = new Date();
 
   return {
-    id: args.id ?? ulid().toLowerCase(),
-    organizationId: args.organizationId,
-    name: args.name,
     color: args.color,
-    enabled: args.enabled ?? true,
     createdAt: now,
+    enabled: args.enabled ?? true,
+    id: args.id ?? ulid().toLowerCase(),
+    name: args.name,
+    organizationId: args.organizationId,
     updatedAt: now,
   };
 };
@@ -34,13 +32,13 @@ const buildInsertLabelRow = (args: {
 /** Inserts a label row; works with `db` or transaction `trx`. */
 const insertLabel = async (
   db: LabelInsertDb,
-  args: Parameters<typeof buildInsertLabelRow>[0],
+  args: Parameters<typeof buildInsertLabelRow>[0]
 ) => db.label.insert(buildInsertLabelRow(args));
 
 const findLabelForAuthorizedOrganizations = async (
   db: Pick<ServerDB<typeof schema>, "label">,
   labelId: string,
-  organizationIds: string[] | null,
+  organizationIds: string[] | null
 ) => {
   if (organizationIds === null) {
     return await db.label.one(labelId).get();
@@ -65,7 +63,7 @@ const findLabelForAuthorizedOrganizations = async (
 const findThreadForAuthorizedOrganizations = async (
   db: Pick<ServerDB<typeof schema>, "thread">,
   threadId: string,
-  organizationIds: string[] | null,
+  organizationIds: string[] | null
 ) => {
   if (organizationIds === null) {
     return await db.thread.one(threadId).get();
@@ -89,138 +87,18 @@ const findThreadForAuthorizedOrganizations = async (
 
 export default {
   label: publicRoute.withProcedures(({ mutation, query }) => ({
-    /** Org's labels (optionally only enabled) — worker inline-label processor. */
-    forOrg: query(
-      z.object({
-        organizationId: z.string(),
-        enabled: z.boolean().optional(),
-      }),
-    ).handler(async ({ req, db }) => {
-      authorize(req, { organizationId: req.input.organizationId });
-      return Object.values(
-        await db.find(schema.label, {
-          where: {
-            organizationId: req.input.organizationId,
-            ...(req.input.enabled !== undefined
-              ? { enabled: req.input.enabled }
-              : {}),
-          },
-        }),
-      );
-    }),
-
-    create: mutation(
-      z.object({
-        id: z.string().optional(),
-        organizationId: z.string(),
-        name: z.string(),
-        color: z.string(),
-        enabled: z.boolean().optional(),
-      }),
-    ).handler(async ({ req, db }) => {
-      authorize(req, {
-        organizationId: req.input.organizationId,
-      });
-
-      return await insertLabel(db, {
-        id: req.input.id,
-        organizationId: req.input.organizationId,
-        name: req.input.name,
-        color: req.input.color,
-        enabled: req.input.enabled,
-      });
-    }),
-
-    update: mutation(
-      z.object({
-        labelId: z.string(),
-        name: z.string().optional(),
-        color: z.string().optional(),
-        enabled: z.boolean().optional(),
-        updatedAt: z.coerce.date().optional(),
-      }),
-    ).handler(async ({ req, db }) => {
-      const label = await db.label.one(req.input.labelId).get();
-
-      if (!label) {
-        throw new Error("LABEL_NOT_FOUND");
-      }
-
-      authorize(req, {
-        organizationId: label.organizationId,
-      });
-
-      await db.label.update(req.input.labelId, {
-        name: req.input.name,
-        color: req.input.color,
-        enabled: req.input.enabled,
-        updatedAt: req.input.updatedAt ?? new Date(),
-      });
-
-      return (await db.label.one(req.input.labelId).get()) ?? label;
-    }),
-
-    createAndAttachToThread: mutation(
-      z.object({
-        organizationId: z.string(),
-        threadId: z.string(),
-        name: z.string(),
-        color: z.string(),
-        labelId: z.string().optional(),
-        threadLabelId: z.string().optional(),
-      }),
-    ).handler(async ({ req, db }) => {
-      authorize(req, {
-        organizationId: req.input.organizationId,
-      });
-
-      const thread = await db.thread.one(req.input.threadId).get();
-
-      if (!thread || thread.organizationId !== req.input.organizationId) {
-        throw new Error("THREAD_NOT_FOUND");
-      }
-
-      const threadLabelId = req.input.threadLabelId ?? ulid().toLowerCase();
-
-      const { insertedLabel, insertedThreadLabel } = await db.transaction(
-        async ({ trx }) => {
-          const insertedLabel = await insertLabel(trx, {
-            id: req.input.labelId,
-            organizationId: req.input.organizationId,
-            name: req.input.name,
-            color: req.input.color,
-            enabled: true,
-          });
-
-          const insertedThreadLabel = await trx.threadLabel.insert({
-            id: threadLabelId,
-            threadId: req.input.threadId,
-            labelId: insertedLabel.id,
-            enabled: true,
-          });
-
-          return { insertedLabel, insertedThreadLabel };
-        },
-      );
-
-      return {
-        ...insertedThreadLabel,
-        label: insertedLabel,
-      };
-    }),
-
     attachToThread: mutation(
       z.object({
         threadId: z.string(),
         labelId: z.string(),
         id: z.string().optional(),
-      }),
+      })
     ).handler(async ({ req, db }) => {
       const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
       const label = await findLabelForAuthorizedOrganizations(
         db,
         req.input.labelId,
-        authorizedOrganizationIds,
+        authorizedOrganizationIds
       );
 
       if (!label) {
@@ -230,7 +108,7 @@ export default {
       const thread = await findThreadForAuthorizedOrganizations(
         db,
         req.input.threadId,
-        authorizedOrganizationIds,
+        authorizedOrganizationIds
       );
 
       if (!thread) {
@@ -253,7 +131,7 @@ export default {
           organizationId: thread.organizationId,
           threadLabelId: req.input.id,
         },
-        { preloadedThread: thread, preloadedLabel: label },
+        { preloadedThread: thread, preloadedLabel: label }
       );
 
       const created = await db.threadLabel
@@ -271,10 +149,81 @@ export default {
       };
     }),
 
+    create: mutation(
+      z.object({
+        id: z.string().optional(),
+        organizationId: z.string(),
+        name: z.string(),
+        color: z.string(),
+        enabled: z.boolean().optional(),
+      })
+    ).handler(async ({ req, db }) => {
+      authorize(req, {
+        organizationId: req.input.organizationId,
+      });
+
+      return await insertLabel(db, {
+        id: req.input.id,
+        organizationId: req.input.organizationId,
+        name: req.input.name,
+        color: req.input.color,
+        enabled: req.input.enabled,
+      });
+    }),
+
+    createAndAttachToThread: mutation(
+      z.object({
+        organizationId: z.string(),
+        threadId: z.string(),
+        name: z.string(),
+        color: z.string(),
+        labelId: z.string().optional(),
+        threadLabelId: z.string().optional(),
+      })
+    ).handler(async ({ req, db }) => {
+      authorize(req, {
+        organizationId: req.input.organizationId,
+      });
+
+      const thread = await db.thread.one(req.input.threadId).get();
+
+      if (!thread || thread.organizationId !== req.input.organizationId) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      const threadLabelId = req.input.threadLabelId ?? ulid().toLowerCase();
+
+      const { insertedLabel, insertedThreadLabel } = await db.transaction(
+        async ({ trx }) => {
+          const label = await insertLabel(trx, {
+            id: req.input.labelId,
+            organizationId: req.input.organizationId,
+            name: req.input.name,
+            color: req.input.color,
+            enabled: true,
+          });
+
+          const threadLabel = await trx.threadLabel.insert({
+            id: threadLabelId,
+            threadId: req.input.threadId,
+            labelId: label.id,
+            enabled: true,
+          });
+
+          return { insertedLabel: label, insertedThreadLabel: threadLabel };
+        }
+      );
+
+      return {
+        ...insertedThreadLabel,
+        label: insertedLabel,
+      };
+    }),
+
     detachFromThread: mutation(
       z.object({
         threadLabelId: z.string(),
-      }),
+      })
     ).handler(async ({ req, db }) => {
       const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
       const tl = await db.threadLabel
@@ -305,19 +254,67 @@ export default {
 
       await db.threadLabel.update(req.input.threadLabelId, { enabled: false });
 
-      const updated =
-        (await db.threadLabel
-          .one(req.input.threadLabelId)
-          .include({ label: true })
-          .get()) ?? {
-          id: tl.id,
-          threadId: tl.threadId,
-          labelId: tl.labelId,
-          enabled: false,
-          label: tl.label,
-        };
+      const updated = (await db.threadLabel
+        .one(req.input.threadLabelId)
+        .include({ label: true })
+        .get()) ?? {
+        id: tl.id,
+        threadId: tl.threadId,
+        labelId: tl.labelId,
+        enabled: false,
+        label: tl.label,
+      };
 
       return updated;
+    }),
+
+    /** Org's labels (optionally only enabled) — worker inline-label processor. */
+    forOrg: query(
+      z.object({
+        organizationId: z.string(),
+        enabled: z.boolean().optional(),
+      })
+    ).handler(async ({ req, db }) => {
+      authorize(req, { organizationId: req.input.organizationId });
+      return Object.values(
+        await db.find(schema.label, {
+          where: {
+            organizationId: req.input.organizationId,
+            ...(req.input.enabled === undefined
+              ? {}
+              : { enabled: req.input.enabled }),
+          },
+        })
+      );
+    }),
+
+    update: mutation(
+      z.object({
+        labelId: z.string(),
+        name: z.string().optional(),
+        color: z.string().optional(),
+        enabled: z.boolean().optional(),
+        updatedAt: z.coerce.date().optional(),
+      })
+    ).handler(async ({ req, db }) => {
+      const label = await db.label.one(req.input.labelId).get();
+
+      if (!label) {
+        throw new Error("LABEL_NOT_FOUND");
+      }
+
+      authorize(req, {
+        organizationId: label.organizationId,
+      });
+
+      await db.label.update(req.input.labelId, {
+        name: req.input.name,
+        color: req.input.color,
+        enabled: req.input.enabled,
+        updatedAt: req.input.updatedAt ?? new Date(),
+      });
+
+      return (await db.label.one(req.input.labelId).get()) ?? label;
     }),
   })),
 

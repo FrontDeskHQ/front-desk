@@ -1,7 +1,8 @@
-import { motion, type Transition, type Variants } from "motion/react";
+import { motion } from "motion/react";
+import type { Transition, Variants } from "motion/react";
 import type { ComponentProps, ReactNode } from "react";
-import React from "react";
 import useMeasure from "react-use-measure";
+
 import { cn } from "../lib/utils";
 
 type PresetType =
@@ -16,7 +17,7 @@ type PresetType =
   | "rotate"
   | "swing";
 
-type AnimatedGroupProps = {
+interface AnimatedGroupProps {
   children: ReactNode;
   className?: string;
   variants?: {
@@ -24,7 +25,7 @@ type AnimatedGroupProps = {
     item?: Variants;
   };
   preset?: PresetType;
-};
+}
 
 const defaultContainerVariants: Variants = {
   hidden: { opacity: 0 },
@@ -45,80 +46,37 @@ const presetVariants: Record<
   PresetType,
   { container: Variants; item: Variants }
 > = {
-  fade: {
-    container: defaultContainerVariants,
-    item: {
-      hidden: { opacity: 0 },
-      visible: { opacity: 1 },
-    },
-  },
-  slide: {
-    container: defaultContainerVariants,
-    item: {
-      hidden: { opacity: 0, y: 20 },
-      visible: { opacity: 1, y: 0 },
-    },
-  },
-  scale: {
-    container: defaultContainerVariants,
-    item: {
-      hidden: { opacity: 0, scale: 0.8 },
-      visible: { opacity: 1, scale: 1 },
-    },
-  },
   blur: {
     container: defaultContainerVariants,
     item: {
-      hidden: { opacity: 0, filter: "blur(4px)" },
-      visible: { opacity: 1, filter: "blur(0px)" },
+      hidden: { filter: "blur(4px)", opacity: 0 },
+      visible: { filter: "blur(0px)", opacity: 1 },
     },
   },
   "blur-slide": {
     container: {
       visible: {
         transition: {
-          staggerChildren: 0.05,
           delayChildren: 0.3,
+          staggerChildren: 0.05,
         },
       },
     },
     item: {
       hidden: {
-        opacity: 0,
         filter: "blur(12px)",
+        opacity: 0,
         y: 12,
       },
       visible: {
-        opacity: 1,
         filter: "blur(0px)",
-        y: 0,
+        opacity: 1,
         transition: {
-          type: "spring",
           bounce: 0.3,
           duration: 1.5,
+          type: "spring",
         },
-      },
-    },
-  },
-  zoom: {
-    container: defaultContainerVariants,
-    item: {
-      hidden: { opacity: 0, scale: 0.5 },
-      visible: {
-        opacity: 1,
-        scale: 1,
-        transition: { type: "spring", stiffness: 300, damping: 20 },
-      },
-    },
-  },
-  flip: {
-    container: defaultContainerVariants,
-    item: {
-      hidden: { opacity: 0, rotateX: -90 },
-      visible: {
-        opacity: 1,
-        rotateX: 0,
-        transition: { type: "spring", stiffness: 300, damping: 20 },
+        y: 0,
       },
     },
   },
@@ -128,8 +86,26 @@ const presetVariants: Record<
       hidden: { opacity: 0, y: -50 },
       visible: {
         opacity: 1,
+        transition: { damping: 10, stiffness: 400, type: "spring" },
         y: 0,
-        transition: { type: "spring", stiffness: 400, damping: 10 },
+      },
+    },
+  },
+  fade: {
+    container: defaultContainerVariants,
+    item: {
+      hidden: { opacity: 0 },
+      visible: { opacity: 1 },
+    },
+  },
+  flip: {
+    container: defaultContainerVariants,
+    item: {
+      hidden: { opacity: 0, rotateX: -90 },
+      visible: {
+        opacity: 1,
+        rotateX: 0,
+        transition: { damping: 20, stiffness: 300, type: "spring" },
       },
     },
   },
@@ -140,8 +116,22 @@ const presetVariants: Record<
       visible: {
         opacity: 1,
         rotate: 0,
-        transition: { type: "spring", stiffness: 200, damping: 15 },
+        transition: { damping: 15, stiffness: 200, type: "spring" },
       },
+    },
+  },
+  scale: {
+    container: defaultContainerVariants,
+    item: {
+      hidden: { opacity: 0, scale: 0.8 },
+      visible: { opacity: 1, scale: 1 },
+    },
+  },
+  slide: {
+    container: defaultContainerVariants,
+    item: {
+      hidden: { opacity: 0, y: 20 },
+      visible: { opacity: 1, y: 0 },
     },
   },
   swing: {
@@ -151,7 +141,18 @@ const presetVariants: Record<
       visible: {
         opacity: 1,
         rotate: 0,
-        transition: { type: "spring", stiffness: 300, damping: 8 },
+        transition: { damping: 8, stiffness: 300, type: "spring" },
+      },
+    },
+  },
+  zoom: {
+    container: defaultContainerVariants,
+    item: {
+      hidden: { opacity: 0, scale: 0.5 },
+      visible: {
+        opacity: 1,
+        scale: 1,
+        transition: { damping: 20, stiffness: 300, type: "spring" },
       },
     },
   },
@@ -169,6 +170,12 @@ function AnimatedGroup({
   const containerVariants = variants?.container || selectedVariants.container;
   const itemVariants = variants?.item || selectedVariants.item;
 
+  const childItems = Array.isArray(children)
+    ? children
+    : children
+      ? [children]
+      : [];
+
   return (
     <motion.div
       initial="hidden"
@@ -176,7 +183,7 @@ function AnimatedGroup({
       variants={containerVariants}
       className={cn(className)}
     >
-      {React.Children.map(children, (child, index) => (
+      {childItems.map((child, index) => (
         // biome-ignore lint/suspicious/noArrayIndexKey: it's ok
         <motion.div key={index} variants={itemVariants}>
           {child}
@@ -212,7 +219,7 @@ function AutoResizableBoxRoot({
         height: bounds.height > 0 ? bounds.height : undefined,
       }}
       transition={
-        transition ?? { type: "tween", duration: 0.15, ease: "easeInOut" }
+        transition ?? { duration: 0.15, ease: "easeInOut", type: "tween" }
       }
       className="overflow-hidden"
       {...props}
@@ -237,8 +244,8 @@ function AutoResizableBoxContent({
 }
 
 const AutoResizableBox = {
-  Root: AutoResizableBoxRoot,
   Content: AutoResizableBoxContent,
+  Root: AutoResizableBoxRoot,
 };
 
 export { AnimatedGroup, AutoResizableBox };

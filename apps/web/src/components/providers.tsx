@@ -2,6 +2,7 @@ import { ThemeProvider as NextThemesProvider } from "next-themes";
 import type { PostHogConfig } from "posthog-js";
 import { PostHogProvider as PostHogProviderComponent } from "posthog-js/react";
 import type * as React from "react";
+
 import { TiptapLinkRenderer } from "~/components/markdown/tiptap-link-renderer";
 
 const posthogOptions: Partial<PostHogConfig> = {
@@ -14,7 +15,9 @@ export const PosthogProvider = ({
 }: {
   children: React.ReactNode;
 }) => {
-  if (import.meta.env.DISABLE_POSTHOG) return <>{children}</>;
+  if (import.meta.env.DISABLE_POSTHOG) {
+    return <>{children}</>;
+  }
 
   return (
     <PostHogProviderComponent

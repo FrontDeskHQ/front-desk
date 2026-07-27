@@ -13,6 +13,7 @@ import { Spinner } from "@workspace/ui/components/spinner";
 import { usePostHog } from "posthog-js/react";
 import { useState } from "react";
 import { z } from "zod";
+
 import { authClient } from "~/lib/auth-client";
 
 const signInFormSchema = z.object({
@@ -30,9 +31,6 @@ export const SignInForm = () => {
     defaultValues: {
       email: "",
       password: "",
-    },
-    validators: {
-      onSubmit: signInFormSchema,
     },
     onSubmit: async ({ value }) => {
       await authClient.signIn.email(
@@ -52,8 +50,11 @@ export const SignInForm = () => {
             setLoading(false);
             setError(ctx.error.message);
           },
-        },
+        }
       );
+    },
+    validators: {
+      onSubmit: signInFormSchema,
     },
   });
 
@@ -76,8 +77,8 @@ export const SignInForm = () => {
           onClick={() => {
             oauthClick();
             authClient.signIn.social({
-              provider: "google",
               callbackURL: `${window.location.origin}/app`,
+              provider: "google",
             });
           }}
         >
@@ -135,10 +136,10 @@ export const SignInForm = () => {
 
 const signUpFormSchema = z
   .object({
-    email: z.string().email(),
-    password: z.string().min(8),
     confirmPassword: z.string().min(8),
+    email: z.string().email(),
     name: z.string().min(3),
+    password: z.string().min(8),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -150,13 +151,10 @@ export const SignUpForm = () => {
 
   const { Field, handleSubmit } = useForm({
     defaultValues: {
-      email: "",
-      password: "",
       confirmPassword: "",
+      email: "",
       name: "",
-    },
-    validators: {
-      onSubmit: signUpFormSchema,
+      password: "",
     },
     onSubmit: async ({ value }) => {
       await authClient.signUp.email(
@@ -181,8 +179,11 @@ export const SignUpForm = () => {
             setLoading(false);
             setError(ctx.error.message);
           },
-        },
+        }
       );
+    },
+    validators: {
+      onSubmit: signUpFormSchema,
     },
   });
 

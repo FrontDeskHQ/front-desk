@@ -1,23 +1,24 @@
 import { z } from "zod";
+
 import { actionAutonomyMapSchema } from "./signals";
 
 const digestSettingsDefaults = {
+  lastDigestSentAt: null,
   pendingReplyThresholdMinutes: 30,
-  time: "09:00",
   slackChannelId: null,
   slackChannelName: null,
-  lastDigestSentAt: null,
+  time: "09:00",
 } as const;
 
 export const digestSettingsSchema = z.object({
+  lastDigestSentAt: z.string().nullable().default(null),
   pendingReplyThresholdMinutes: z.number().int().min(5).max(1440).default(30),
+  slackChannelId: z.string().nullable().default(null),
+  slackChannelName: z.string().nullable().default(null),
   time: z
     .string()
     .regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Must be HH:mm")
     .default("09:00"),
-  slackChannelId: z.string().nullable().default(null),
-  slackChannelName: z.string().nullable().default(null),
-  lastDigestSentAt: z.string().nullable().default(null),
 });
 
 export const organizationSettingsSchema = z.object({
@@ -47,9 +48,11 @@ export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
 
 /** Safely parse settings from the JSON column, falling back to defaults on null or invalid data. */
 export const safeParseOrgSettings = (
-  settings: unknown,
+  settings: unknown
 ): OrganizationSettings => {
-  if (!settings) return organizationSettingsSchema.parse({});
+  if (!settings) {
+    return organizationSettingsSchema.parse({});
+  }
   try {
     return organizationSettingsSchema.parse(settings);
   } catch {
@@ -65,7 +68,7 @@ export const safeParseOrgSettings = (
  */
 export const readCapabilityPrimary = (
   settings: unknown,
-  capability: string,
+  capability: string
 ): string | undefined => {
   if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
     return undefined;

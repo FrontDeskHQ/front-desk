@@ -1,33 +1,56 @@
 import { statusValues } from "@workspace/ui/components/indicator";
+
 import {
   buildIssueFields,
   buildPullRequestFields,
-  type ExternalEntityFields,
   upsertExternalEntity,
 } from "../lib/external-entity";
+import type { ExternalEntityFields } from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
-import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
+import { enqueuePrMatch } from "../lib/queue";
+import {
+  STATUS_CLOSED,
+  STATUS_OPEN,
+  STATUS_RESOLVED,
+  sanitizeGithubInstallConfig,
+} from "../utils";
 
 /**
- * Resolve the FrontDesk organization that owns a GitHub installation by
- * matching the `installationId` persisted in the github integration config
+ * Pull-request actions that warrant a push-side thread match (FRO-205): the PR
+ * became newly matchable — opened, reopened, undrafted, or its title/body was
+ * edited. Deliberately excludes `synchronize` (new commits don't change the
+ * semantic content we match on) and close/draft transitions (those make it
+ * ineligible). A draft PR is filtered out again below by the eligibility check.
+ */
+const PR_MATCH_ACTIONS = new Set([
+  "opened",
+  "reopened",
+  "ready_for_review",
+  "edited",
+]);
+
+/**
+ * Resolve the FrontDesk github integration that owns a GitHub installation by
+ * matching the `installationId` persisted in the integration config
  * (see `routes/setup.ts`). Integrations are loaded into the live-state store,
  * so this is an in-memory lookup.
  */
-const resolveOrganizationId = (
-  installationId: number | undefined
-): string | null => {
-  if (!installationId) return null;
+const findGithubIntegration = (installationId: number | undefined) => {
+  if (!installationId) {
+    return null;
+  }
 
   const integrations = store.query.integration.where({ type: "github" }).get();
 
   for (const integration of integrations) {
-    if (!integration.configStr) continue;
+    if (!integration.configStr) {
+      continue;
+    }
     try {
       const config = JSON.parse(integration.configStr);
       if (config.installationId === installationId) {
-        return integration.organizationId;
+        return integration;
       }
     } catch {
       // Ignore malformed config; other integrations may still match.
@@ -36,6 +59,14 @@ const resolveOrganizationId = (
 
   return null;
 };
+
+/**
+ * Resolve the FrontDesk organization that owns a GitHub installation.
+ */
+const resolveOrganizationId = (
+  installationId: number | undefined
+): string | null =>
+  findGithubIntegration(installationId)?.organizationId ?? null;
 
 /**
  * Read the installation id from a webhook payload. Typed loosely because the
@@ -67,10 +98,7 @@ const resolveLinkedThreads = (
   }
 
   for (const thread of linkedThreads) {
-    if (
-      thread.status === STATUS_RESOLVED ||
-      thread.status === STATUS_CLOSED
-    ) {
+    if (thread.status === STATUS_RESOLVED || thread.status === STATUS_CLOSED) {
       console.log(
         `[GitHub] Thread ${thread.id} already ${statusValues[thread.status]?.label}, skipping status update`
       );
@@ -85,19 +113,19 @@ const resolveLinkedThreads = (
     );
 
     store.mutate.thread.setStatus({
-      threadId: thread.id,
-      organizationId: thread.organizationId,
-      status: newStatus,
-      source: "github",
-      userName: "GitHub Integration",
-      recordActivity: true,
       activityMetadata: {
         repoFullName: fields.repoFullName,
         ...(fields.type === "issue"
           ? { issueNumber: fields.number }
           : { prNumber: fields.number, merged: meta.merged }),
       },
+      organizationId: thread.organizationId,
+      recordActivity: true,
       replicatedStr: JSON.stringify({ github: true }),
+      source: "github",
+      status: newStatus,
+      threadId: thread.id,
+      userName: "GitHub Integration",
     });
   }
 };
@@ -110,18 +138,73 @@ const repoRefFromWebhook = (repository: {
   name: string;
   full_name: string;
 }) => ({
-  owner: repository.owner.login,
-  name: repository.name,
   fullName: repository.full_name,
+  name: repository.name,
+  owner: repository.owner.login,
 });
 
 export const setupWebhooks = () => {
+  // Complementary to the connection probe (ADR-0010): when the GitHub App is
+  // uninstalled, clear install identity immediately so a later Enable can't
+  // silent-reenable a dead installationId. Probe still covers missed deliveries.
+  app.webhooks.on("installation.deleted", async ({ payload }) => {
+    try {
+      const installationId = payload.installation.id;
+      const integration = findGithubIntegration(installationId);
+
+      if (!integration) {
+        console.warn(
+          `[GitHub] No integration for deleted installation ${installationId}, skipping`
+        );
+        return;
+      }
+
+      // Authoritative re-read before write: a delayed delivery must not wipe a
+      // newer install identity that replaced this one while the handler was queued.
+      const latest = await fetchClient.query.integration.byId({
+        id: integration.id,
+      });
+      if (!latest) {
+        return;
+      }
+
+      let raw: Record<string, unknown> = {};
+      if (latest.configStr) {
+        try {
+          raw = JSON.parse(latest.configStr) as Record<string, unknown>;
+        } catch {
+          raw = {};
+        }
+      }
+
+      if (raw.installationId !== installationId) {
+        console.warn(
+          `[GitHub] Skipping installation.deleted cleanup for ${installationId}: stored install identity no longer matches`
+        );
+        return;
+      }
+
+      await fetchClient.mutate.integration.updateInstallation({
+        configStr: JSON.stringify(sanitizeGithubInstallConfig(raw)),
+        enabled: false,
+        integrationId: latest.id,
+        updatedAt: new Date(),
+      });
+
+      console.log(
+        `[GitHub] Cleared install identity for integration ${latest.id} after installation.deleted`
+      );
+    } catch (error) {
+      console.error("[GitHub] Error handling installation.deleted:", error);
+    }
+  });
+
   // Keep the mirror current on every issue-mutating event. `deleted` and
   // `transferred` (transfer-out) soft-delete the source row; `closed` resolves
   // linked threads as a reaction to the mirror change.
   app.webhooks.on("issues", async ({ payload }) => {
     try {
-      const action = payload.action;
+      const { action } = payload;
       const organizationId = resolveOrganizationId(installationIdOf(payload));
 
       if (!organizationId) {
@@ -138,8 +221,8 @@ export const setupWebhooks = () => {
 
       if (action === "deleted" || action === "transferred") {
         await fetchClient.mutate.externalEntity.softDelete({
-          organizationId,
           externalKey: fields.externalKey,
+          organizationId,
         });
         return;
       }
@@ -161,7 +244,7 @@ export const setupWebhooks = () => {
   // here now. Re-enqueuing PR-matched synthesis stays out of scope.
   app.webhooks.on("pull_request", async ({ payload }) => {
     try {
-      const action = payload.action;
+      const { action } = payload;
       const organizationId = resolveOrganizationId(installationIdOf(payload));
 
       if (!organizationId) {
@@ -180,6 +263,26 @@ export const setupWebhooks = () => {
 
       if (action === "closed") {
         resolveLinkedThreads(fields, { merged: fields.merged ?? false });
+      }
+
+      // Push-side discovery (FRO-205): when an eligible (open, non-draft) PR
+      // becomes newly matchable, embed it and fan out `pr_matched` reads to
+      // similar active threads. The worker owns the embed/search/fan-out; this
+      // only kicks it off. Excludes `synchronize` and close/draft transitions.
+      if (
+        PR_MATCH_ACTIONS.has(action) &&
+        fields.state === "open" &&
+        fields.draft !== true
+      ) {
+        await enqueuePrMatch({
+          body: fields.body,
+          draft: fields.draft,
+          externalKey: fields.externalKey,
+          headRef: fields.headRef,
+          organizationId,
+          state: fields.state,
+          title: fields.title,
+        });
       }
     } catch (error) {
       console.error("[GitHub] Error handling pull_request webhook:", error);

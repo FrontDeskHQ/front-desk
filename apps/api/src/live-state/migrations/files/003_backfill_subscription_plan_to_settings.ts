@@ -1,3 +1,5 @@
+import type { OrganizationSettings } from "@workspace/schemas/organization";
+
 import type { Migration } from "../types";
 
 /**
@@ -35,8 +37,7 @@ const migration: Migration = {
       };
 
       await db.organization.update(org.id, {
-        // biome-ignore lint/suspicious/noExplicitAny: settings JSON is opaque to migrations
-        settings: next as any,
+        settings: next as OrganizationSettings,
       });
     }
   },

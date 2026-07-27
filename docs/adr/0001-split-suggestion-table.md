@@ -1,7 +1,6 @@
 # 0001 — Split the `suggestion` table
 
-**Status:** Accepted
-**Date:** 2026-05-24
+**Status:** Accepted **Date:** 2026-05-24
 
 ## Context
 
@@ -15,6 +14,7 @@ A third concept was being shoe-horned into the same row via `suggestedActions.se
 3. **Inline suggestions** — cheap per-candidate proposals (suggested label, suggested status) that don't warrant the Agent's synthesis pipeline. These only fit in `suggestion` when a parent thread-read row existed; with nothing substantive to surface, they had no home.
 
 Symptoms of the forced marriage:
+
 - A `flavor` discriminator existed only because the table held two shapes.
 - A "no composite index in live-state" TODO blocked enforcing the per-thread cardinality invariant.
 - Product called these "signals" while the DB called them "suggestions."

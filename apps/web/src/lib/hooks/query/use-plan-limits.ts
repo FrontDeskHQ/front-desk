@@ -1,5 +1,6 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useAtomValue } from "jotai/react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
 import { query } from "~/lib/live-state";
@@ -38,9 +39,9 @@ export const usePlanLimits = (integrationType?: string) => {
   return {
     integrations: {
       enabledCount: enabledIntegrationsCount,
-      max: MAX_STARTER_INTEGRATIONS,
       hasReachedLimit,
       isOnLimitedPlan,
+      max: MAX_STARTER_INTEGRATIONS,
     },
   };
 };

@@ -1,9 +1,6 @@
-import Link from "@tiptap/extension-link";
-import {
-  MarkViewContent,
-  type MarkViewProps,
-  ReactMarkViewRenderer,
-} from "@tiptap/react";
+import { Link as TiptapLink } from "@tiptap/extension-link";
+import { MarkViewContent, ReactMarkViewRenderer } from "@tiptap/react";
+import type { MarkViewProps } from "@tiptap/react";
 import { createContext, useContext } from "react";
 
 /**
@@ -17,7 +14,7 @@ export type TiptapLinkRenderer = (props: {
 }) => React.ReactNode;
 
 const TiptapLinkRendererContext = createContext<TiptapLinkRenderer | undefined>(
-  undefined,
+  undefined
 );
 
 export function TiptapLinkRendererProvider({
@@ -39,11 +36,11 @@ function LinkMarkView({ mark }: MarkViewProps) {
   const href = (mark.attrs.href as string | null | undefined) ?? "";
 
   const rendered = renderLink?.({
-    href,
     children: <MarkViewContent />,
+    href,
   });
 
-  if (rendered != null && rendered !== false) {
+  if (rendered !== null && rendered !== undefined && rendered !== false) {
     // Custom rendering (e.g. a chip) replaces the link entirely. Keep it out of
     // the editable flow so the chip behaves as an atomic inline element.
     return (
@@ -69,7 +66,7 @@ function LinkMarkView({ mark }: MarkViewProps) {
  * the {@link TiptapLinkRendererProvider} context, allowing the host app to swap
  * specific links (thread references, GitHub PRs, …) for rich chips.
  */
-export const LinkExtension = Link.extend({
+export const LinkExtension = TiptapLink.extend({
   addMarkView() {
     return ReactMarkViewRenderer(LinkMarkView);
   },

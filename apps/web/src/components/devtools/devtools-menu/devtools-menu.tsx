@@ -12,6 +12,7 @@ import {
   SubmenuTrigger,
 } from "@workspace/ui/components/menu";
 import { useState } from "react";
+
 import { useReactScanEnabled } from "../react-scan";
 import { CreateThreadDialog } from "./create-thread-dialog";
 import { GithubSubmenu } from "./github-submenu";

@@ -1,5 +1,6 @@
 import type { DuplicateEvidence } from "@workspace/schemas/signals";
 import { createScorer } from "evalite";
+
 import type { DuplicateTestCase } from "./dataset";
 
 type In = DuplicateTestCase["input"];
@@ -10,9 +11,9 @@ export const duplicateEvidenceRetrieval = createScorer<
   DuplicateEvidence | null,
   Expected
 >({
-  name: "Duplicate Evidence Retrieval",
   description:
     "Evidence threadId matches the expected related thread (null counts).",
+  name: "Duplicate Evidence Retrieval",
   scorer: ({ output, expected }) => {
     const expectedId = expected?.expectedThreadId ?? null;
     const actualId = output?.threadId ?? null;
@@ -29,9 +30,9 @@ export const duplicateEvidenceScore = createScorer<
   DuplicateEvidence | null,
   Expected
 >({
-  name: "Duplicate Evidence Score",
   description:
     "When evidence is emitted, score meets threshold and matches the winning hit.",
+  name: "Duplicate Evidence Score",
   scorer: ({ input, output, expected }) => {
     const expectedId = expected?.expectedThreadId ?? null;
     if (expectedId === null) {
@@ -63,8 +64,8 @@ export const thresholdCalibration = createScorer<
   DuplicateEvidence | null,
   Expected
 >({
-  name: "Threshold Calibration",
   description: "Penalize evidence when expected is null (false positives).",
+  name: "Threshold Calibration",
   scorer: ({ output, expected }) => {
     const expectedId = expected?.expectedThreadId ?? null;
     if (expectedId === null && output !== null) {

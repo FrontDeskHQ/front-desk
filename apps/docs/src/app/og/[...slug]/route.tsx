@@ -1,17 +1,20 @@
-import { generate as DefaultImage } from "@/lib/og";
-import { getPageImage, source } from "@/lib/source";
 import { notFound } from "next/navigation";
 import { ImageResponse } from "next/og";
+
+import { generate as DefaultImage } from "@/lib/og";
+import { getPageImage, source } from "@/lib/source";
 
 export const revalidate = false;
 
 export async function GET(
   _req: Request,
-  { params }: RouteContext<"/og/[...slug]">,
+  { params }: RouteContext<"/og/[...slug]">
 ) {
   const { slug } = await params;
   const page = source.getPage(slug.slice(0, -1));
-  if (!page) notFound();
+  if (!page) {
+    notFound();
+  }
 
   return new ImageResponse(
     <DefaultImage
@@ -20,9 +23,9 @@ export async function GET(
       site="FrontDesk"
     />,
     {
-      width: 1200,
       height: 630,
-    },
+      width: 1200,
+    }
   );
 }
 

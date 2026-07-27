@@ -3,7 +3,8 @@
 import { Toggle as BaseToggle } from "@base-ui/react/toggle";
 import { ToggleGroup as BaseToggleGroup } from "@base-ui/react/toggle-group";
 import { cn } from "@workspace/ui/lib/utils";
-import { cva, type VariantProps } from "class-variance-authority";
+import { cva } from "class-variance-authority";
+import type { VariantProps } from "class-variance-authority";
 import { motion, useReducedMotion } from "motion/react";
 import * as React from "react";
 
@@ -15,18 +16,18 @@ const SegmentedControlContext = React.createContext<{
   // Shared layoutId so the highlight animates between segments; unique per
   // control instance so multiple controls on a page don't fight over it.
   layoutId: string;
-}>({ size: "md", layoutId: "segmented-control" });
+}>({ layoutId: "segmented-control", size: "md" });
 
 const segmentedControlVariants = cva(
   "inline-flex w-fit items-center justify-center gap-0.5 rounded-md border bg-muted p-0.5 text-muted-foreground data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
   {
+    defaultVariants: { size: "md" },
     variants: {
       // Sizing is driven by the items so the track hugs their height; the
       // variant exists so the size flows through context to each item.
       size: { sm: "", md: "", lg: "" },
     },
-    defaultVariants: { size: "md" },
-  },
+  }
 );
 
 const segmentedControlItemVariants = cva(
@@ -34,15 +35,15 @@ const segmentedControlItemVariants = cva(
   // equal-width control.
   "relative inline-flex items-center justify-center gap-1.5 rounded-sm whitespace-nowrap text-foreground-secondary transition-colors outline-none select-none hover:text-foreground-primary focus-visible:z-10 focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[pressed]:text-foreground-primary [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
   {
+    defaultVariants: { size: "md" },
     variants: {
       size: {
-        sm: "h-7 px-2.5 text-xs",
-        md: "h-8 px-3 text-sm",
         lg: "h-9 px-4 text-sm",
+        md: "h-8 px-3 text-sm",
+        sm: "h-7 px-2.5 text-xs",
       },
     },
-    defaultVariants: { size: "md" },
-  },
+  }
 );
 
 // Minimal controllable-state helper so the control can run uncontrolled while
@@ -50,16 +51,18 @@ const segmentedControlItemVariants = cva(
 // swallowed below).
 function useControllableValue(
   controlled: string | undefined,
-  defaultValue: string | undefined,
+  defaultValue: string | undefined
 ) {
   const [uncontrolled, setUncontrolled] = React.useState(defaultValue);
   const isControlled = controlled !== undefined;
   const value = isControlled ? controlled : uncontrolled;
   const setValue = React.useCallback(
     (next: string) => {
-      if (!isControlled) setUncontrolled(next);
+      if (!isControlled) {
+        setUncontrolled(next);
+      }
     },
-    [isControlled],
+    [isControlled]
   );
   return [value, setValue] as const;
 }
@@ -76,7 +79,7 @@ type SegmentedControlProps = Omit<
     /** Fired with the newly selected value. Never fires with an empty value. */
     onValueChange?: (
       value: string,
-      details: BaseToggleGroup.ChangeEventDetails,
+      details: BaseToggleGroup.ChangeEventDetails
     ) => void;
   };
 
@@ -93,7 +96,7 @@ function SegmentedControl({
 
   return (
     <SegmentedControlContext.Provider
-      value={{ size: size ?? "md", selectedValue: current, layoutId }}
+      value={{ layoutId, selectedValue: current, size: size ?? "md" }}
     >
       <BaseToggleGroup
         data-slot="segmented-control"
@@ -103,11 +106,13 @@ function SegmentedControl({
           const next = group[0];
           // A segmented control always keeps one segment selected — ignore the
           // deselect that Base UI fires when the active segment is re-pressed.
-          if (next === undefined) return;
+          if (next === undefined) {
+            return;
+          }
           setCurrent(next);
           onValueChange?.(next, details);
         }}
-        className={cn(segmentedControlVariants({ size, className }))}
+        className={cn(segmentedControlVariants({ className, size }))}
         {...props}
       />
     </SegmentedControlContext.Provider>
@@ -123,7 +128,7 @@ function SegmentedControlItem({
   ...props
 }: SegmentedControlItemProps) {
   const { size, selectedValue, layoutId } = React.useContext(
-    SegmentedControlContext,
+    SegmentedControlContext
   );
   const isSelected = itemValue !== undefined && itemValue === selectedValue;
   const shouldReduceMotion = useReducedMotion();
@@ -148,7 +153,7 @@ function SegmentedControlItem({
           transition={
             shouldReduceMotion
               ? { duration: 0 }
-              : { type: "spring", duration: 0.25, bounce: 0.15 }
+              : { bounce: 0.15, duration: 0.25, type: "spring" }
           }
         />
       )}

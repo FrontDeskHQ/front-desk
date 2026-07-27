@@ -1,6 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import { useAtomValue } from "jotai/react";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -40,12 +41,12 @@ export const useOrganizationPlan = () => {
   const isBetaFeedback = rawPlan === "beta-feedback";
 
   return {
-    status,
+    isBetaFeedback,
+    isPro,
+    isStarter,
+    isTrial,
     plan: effectivePlan,
     rawPlan,
-    isTrial,
-    isStarter,
-    isPro,
-    isBetaFeedback,
+    status,
   };
 };

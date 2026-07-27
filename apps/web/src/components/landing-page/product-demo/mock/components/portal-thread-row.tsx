@@ -6,13 +6,14 @@ import {
 import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import { motion } from "motion/react";
+
 import { blurSlideItemVariants } from "../motion-variants";
 import type { DemoThread } from "../types";
 
-type MockPortalThreadRowProps = {
+interface MockPortalThreadRowProps {
   thread: DemoThread;
   isSimulatedHover?: boolean;
-};
+}
 
 export const MockPortalThreadRow = ({
   thread,

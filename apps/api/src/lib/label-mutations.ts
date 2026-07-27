@@ -2,12 +2,13 @@ import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 import { ulid } from "ulid";
 import { z } from "zod";
-import { schema } from "../live-state/schema";
+
+import type { schema } from "../live-state/schema";
 
 export const attachLabelToThreadInputSchema = z.object({
-  threadId: z.string(),
   labelId: z.string(),
   organizationId: z.string(),
+  threadId: z.string(),
   threadLabelId: z.string().optional(),
 });
 
@@ -25,7 +26,7 @@ export const runAttachLabelToThread = async (
   options?: {
     preloadedThread?: ThreadRow;
     preloadedLabel?: LabelRow;
-  },
+  }
 ) => {
   const thread =
     options?.preloadedThread ??
@@ -68,43 +69,43 @@ export const runAttachLabelToThread = async (
   const attachResult = await db.transaction(async ({ trx }) => {
     const existing = await trx.threadLabel
       .first({
-        threadId: input.threadId,
         labelId: input.labelId,
+        threadId: input.threadId,
       })
       .get();
 
     if (existing?.enabled) {
       return {
-        threadLabelId: existing.id,
         noOp: true as const,
+        threadLabelId: existing.id,
       };
     }
 
     if (existing) {
       await trx.threadLabel.update(existing.id, { enabled: true });
       return {
-        threadLabelId: existing.id,
         noOp: false as const,
+        threadLabelId: existing.id,
       };
     }
 
     try {
       const created = await trx.threadLabel.insert({
-        id: threadLabelId,
-        threadId: input.threadId,
-        labelId: input.labelId,
         enabled: true,
+        id: threadLabelId,
+        labelId: input.labelId,
+        threadId: input.threadId,
       });
 
       return {
-        threadLabelId: created.id,
         noOp: false as const,
+        threadLabelId: created.id,
       };
     } catch {
       const concurrent = await trx.threadLabel
         .first({
-          threadId: input.threadId,
           labelId: input.labelId,
+          threadId: input.threadId,
         })
         .get();
 
@@ -114,8 +115,8 @@ export const runAttachLabelToThread = async (
         }
 
         return {
-          threadLabelId: concurrent.id,
           noOp: concurrent.enabled,
+          threadLabelId: concurrent.id,
         };
       }
 

@@ -1,4 +1,5 @@
 import type { ApplyLabelAction } from "@workspace/schemas/signals";
+
 import { runAttachLabelToThread } from "../../label-mutations";
 import { insertThreadActivity } from "../activity";
 import {
@@ -14,9 +15,9 @@ const snapshotKey = (action: ApplyLabelAction) =>
 export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
   async apply(action, ctx) {
     const result = await runAttachLabelToThread(ctx.db, {
-      threadId: ctx.threadId,
       labelId: action.labelId,
       organizationId: ctx.organizationId,
+      threadId: ctx.threadId,
     });
 
     if (result.noOp) {
@@ -24,18 +25,18 @@ export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
     }
 
     setCompensateSnapshot(ctx, snapshotKey(action), {
-      threadLabelId: result.threadLabelId,
       hadEnabled: false,
+      threadLabelId: result.threadLabelId,
     });
 
     await insertThreadActivity(ctx, {
-      type: "label_changed",
       metadata: {
         action: "added",
         labelId: action.labelId,
         labelName: result.label.name,
       },
       source: "inline_suggestion",
+      type: "label_changed",
     });
   },
 
@@ -44,7 +45,9 @@ export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
       threadLabelId: string;
       hadEnabled: boolean;
     }>(ctx, snapshotKey(action));
-    if (!snapshot) return;
+    if (!snapshot) {
+      return;
+    }
 
     // A snapshot only exists when the label was newly enabled by this action
     // (the handler returns early on a no-op), so compensation always disables it.

@@ -1,3 +1,14 @@
+import { createFileRoute } from "@tanstack/react-router";
+import {
+  CalendarIcon,
+  FileIcon,
+  HomeIcon,
+  SearchIcon,
+  SettingsIcon,
+  UserIcon,
+} from "lucide-react";
+import { useState } from "react";
+
 import { Button } from "@/components/button";
 import {
   Command,
@@ -12,16 +23,6 @@ import {
   CommandShortcut,
 } from "@/components/command";
 import { Keybind } from "@/components/keybind";
-import { createFileRoute } from "@tanstack/react-router";
-import {
-  CalendarIcon,
-  FileIcon,
-  HomeIcon,
-  SearchIcon,
-  SettingsIcon,
-  UserIcon,
-} from "lucide-react";
-import { useState } from "react";
 
 export const Route = createFileRoute("/command")({
   component: RouteComponent,

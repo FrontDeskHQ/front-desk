@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { XMLBuilder } from "fast-xml-parser";
+
 import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute("/sitemap.xml")({
@@ -11,28 +12,28 @@ export const Route = createFileRoute("/sitemap.xml")({
 
         const routes = [
           {
-            loc: baseUrl,
             changefreq: "weekly",
-            priority: 1.0,
+            loc: baseUrl,
+            priority: 1,
           },
           {
+            changefreq: "monthly",
             loc: `${baseUrl}/sign-in`,
-            changefreq: "monthly",
             priority: 0.8,
           },
           {
+            changefreq: "monthly",
             loc: `${baseUrl}/sign-up`,
-            changefreq: "monthly",
             priority: 0.8,
           },
           {
-            loc: `${baseUrl}/legal/privacy-policy`,
             changefreq: "monthly",
+            loc: `${baseUrl}/legal/privacy-policy`,
             priority: 0.5,
           },
           {
-            loc: `${baseUrl}/legal/terms-of-service`,
             changefreq: "monthly",
+            loc: `${baseUrl}/legal/terms-of-service`,
             priority: 0.5,
           },
         ];
@@ -47,23 +48,23 @@ export const Route = createFileRoute("/sitemap.xml")({
             tempUrlObj.hostname = `${org.slug}.${baseUrlObj.hostname}`;
 
             return {
-              loc: tempUrlObj.toString(),
               changefreq: "daily",
+              loc: tempUrlObj.toString(),
               priority: 0.9,
             };
           })
         );
 
         const builder = new XMLBuilder({
-          ignoreAttributes: false,
           format: true,
+          ignoreAttributes: false,
           indentBy: "  ",
         });
 
         const sitemapObj = {
           "?xml": {
+            "@_encoding": "utf-8",
             "@_version": "1.0",
-            "@_encoding": "UTF-8",
           },
           urlset: {
             "@_xmlns": "http://www.sitemaps.org/schemas/sitemap/0.9",
@@ -75,8 +76,8 @@ export const Route = createFileRoute("/sitemap.xml")({
 
         return new Response(xmlContent, {
           headers: {
-            "Content-Type": "application/xml",
             "Cache-Control": "public, max-age=3600",
+            "Content-Type": "application/xml",
           },
         });
       },

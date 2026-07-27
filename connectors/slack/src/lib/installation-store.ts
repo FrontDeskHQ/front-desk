@@ -1,16 +1,19 @@
 import type { Installation, InstallationQuery } from "@slack/oauth";
+
 import { fetchClient, store } from "./live-state";
 import { safeParseIntegrationSettings } from "./utils";
 
 export const installationStore = {
-  storeInstallation: async (installation: Installation): Promise<void> => {
-    const teamId = installation.isEnterpriseInstall
-      ? installation.enterprise?.id
-      : installation.team?.id;
+  deleteInstallation: async (
+    installQuery: InstallationQuery<boolean>
+  ): Promise<void> => {
+    const teamId = installQuery.isEnterpriseInstall
+      ? (installQuery.enterpriseId ?? undefined)
+      : (installQuery.teamId ?? undefined);
 
     if (!teamId) {
       throw new Error(
-        "Failed to determine team/enterprise ID from installation"
+        "Failed to determine team/enterprise ID from install query"
       );
     }
 
@@ -22,19 +25,24 @@ export const installationStore = {
     });
 
     if (!integration) {
-      throw new Error(`Integration not found for teamId: ${teamId}`);
+      return;
     }
 
-    const currentConfig =
-      safeParseIntegrationSettings(integration.configStr) ?? {};
+    const currentConfig = safeParseIntegrationSettings(integration.configStr);
+    if (!currentConfig) {
+      console.warn(
+        `[Slack] Failed to parse integration config during uninstall for teamId: ${teamId}, skipping cleanup`
+      );
+      return;
+    }
+
+    const { installation: _installation, ...configWithoutInstallation } =
+      currentConfig;
+
     await fetchClient.mutate.integration.updateInstallation({
       integrationId: integration.id,
       updatedAt: new Date(),
-      configStr: JSON.stringify({
-        ...currentConfig,
-        teamId,
-        installation,
-      }),
+      configStr: JSON.stringify(configWithoutInstallation),
     });
   },
 
@@ -71,16 +79,14 @@ export const installationStore = {
     return parsed.installation as Installation;
   },
 
-  deleteInstallation: async (
-    installQuery: InstallationQuery<boolean>
-  ): Promise<void> => {
-    const teamId = installQuery.isEnterpriseInstall
-      ? (installQuery.enterpriseId ?? undefined)
-      : (installQuery.teamId ?? undefined);
+  storeInstallation: async (installation: Installation): Promise<void> => {
+    const teamId = installation.isEnterpriseInstall
+      ? installation.enterprise?.id
+      : installation.team?.id;
 
     if (!teamId) {
       throw new Error(
-        "Failed to determine team/enterprise ID from install query"
+        "Failed to determine team/enterprise ID from installation"
       );
     }
 
@@ -92,24 +98,19 @@ export const installationStore = {
     });
 
     if (!integration) {
-      return;
+      throw new Error(`Integration not found for teamId: ${teamId}`);
     }
 
-    const currentConfig = safeParseIntegrationSettings(integration.configStr);
-    if (!currentConfig) {
-      console.warn(
-        `[Slack] Failed to parse integration config during uninstall for teamId: ${teamId}, skipping cleanup`,
-      );
-      return;
-    }
-
-    const { installation: _installation, ...configWithoutInstallation } =
-      currentConfig;
-
+    const currentConfig =
+      safeParseIntegrationSettings(integration.configStr) ?? {};
     await fetchClient.mutate.integration.updateInstallation({
       integrationId: integration.id,
       updatedAt: new Date(),
-      configStr: JSON.stringify(configWithoutInstallation),
+      configStr: JSON.stringify({
+        ...currentConfig,
+        teamId,
+        installation,
+      }),
     });
   },
 };

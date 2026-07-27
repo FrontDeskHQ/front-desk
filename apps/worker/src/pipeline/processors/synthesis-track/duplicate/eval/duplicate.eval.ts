@@ -1,5 +1,6 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
+
 import { pickDuplicateEvidence } from "../find";
 import { duplicateDataset } from "./dataset";
 import {
@@ -14,6 +15,11 @@ evalite("Duplicate Hint", {
       input: c.input,
       expected: c.expected,
     })),
+  scorers: [
+    duplicateEvidenceRetrieval,
+    duplicateEvidenceScore,
+    thresholdCalibration,
+  ],
   task: async (input) => {
     const start = Date.now();
     const result = pickDuplicateEvidence(input.results, {
@@ -34,9 +40,4 @@ evalite("Duplicate Hint", {
     });
     return result;
   },
-  scorers: [
-    duplicateEvidenceRetrieval,
-    duplicateEvidenceScore,
-    thresholdCalibration,
-  ],
 });

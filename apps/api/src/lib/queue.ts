@@ -1,9 +1,12 @@
 import type {
+  PrIndexJobData,
+  PrMatchCandidate,
   ThreadReadJobData,
   ThreadReadKind,
 } from "@workspace/schemas/signals";
 import { Queue } from "bullmq";
 import Redis from "ioredis";
+
 import "../env";
 
 // TEMP: Worker service stopped on Railway — re-enable in prod when worker is
@@ -16,10 +19,14 @@ export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const THREAD_READ_JOB_NAME = "thread-read";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
+const PR_INDEX_QUEUE = "pr-index";
+const PR_INDEX_JOB_NAME = "index-pr";
 
 const DEFAULT_DEBOUNCE_MS = (() => {
   const raw = process.env.THREAD_READ_DEBOUNCE_MS;
-  if (!raw) return 2000;
+  if (!raw) {
+    return 2000;
+  }
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 2000;
 })();
@@ -28,14 +35,14 @@ export type ThreadReadJobPriority = "high" | "normal" | "low";
 
 const THREAD_READ_PRIORITY_VALUES: Record<ThreadReadJobPriority, number> = {
   high: 1,
-  normal: 10,
   low: 100,
+  normal: 10,
 };
 
-export type EnqueueThreadReadOptions = {
+export interface EnqueueThreadReadOptions {
   priority?: ThreadReadJobPriority;
   delayMs?: number;
-};
+}
 
 let connection: Redis | null = null;
 let queue: Queue<ThreadReadJobData> | null = null;
@@ -91,7 +98,11 @@ const getThreadPipelineQueue = (): Queue<ThreadReadJobData> | null => {
 
 export const enqueueThreadRead = async (
   threadId: string,
-  opts: { kind: ThreadReadKind } & EnqueueThreadReadOptions,
+  opts: {
+    kind: ThreadReadKind;
+    /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
+    prMatched?: PrMatchCandidate;
+  } & EnqueueThreadReadOptions
 ): Promise<string | null> => {
   if (WORKER_JOBS_DISABLED) {
     return null;
@@ -109,20 +120,35 @@ export const enqueueThreadRead = async (
   // and invalidate synthesis-track idempotency keys before enqueueing. For now
   // it falls through to the normal-dedup path so the surface compiles.
   const jobId = `thread:${threadId}:read`;
-  const data: ThreadReadJobData = { threadId, kind: opts.kind };
+  const data: ThreadReadJobData = {
+    kind: opts.kind,
+    threadId,
+    ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
+  };
 
   const existing = await q.getJob(jobId);
   if (existing) {
     const state = await existing.getState();
     if (state === "delayed" || state === "waiting") {
-      await existing.updateData(data);
+      // Coalesce onto the single pending job (ADR 0006). The latest cause wins
+      // for `kind` (it drives cadence/hash-invalidation), but never drop a PR
+      // payload a prior `pr_matched` trigger pushed: keep the existing candidate
+      // when this enqueue carries none, so both surfaces reach synthesis.
+      const merged: ThreadReadJobData = {
+        kind: opts.kind,
+        threadId,
+        ...((opts.prMatched ?? existing.data.prMatched)
+          ? { prMatched: opts.prMatched ?? existing.data.prMatched }
+          : {}),
+      };
+      await existing.updateData(merged);
       return existing.id ?? jobId;
     }
   }
 
   const job = await q.add(THREAD_READ_JOB_NAME, data, {
-    jobId,
     delay,
+    jobId,
     priority,
   });
 
@@ -131,11 +157,11 @@ export const enqueueThreadRead = async (
 
 // Crawl Documentation Queue
 
-export type CrawlDocumentationJobData = {
+export interface CrawlDocumentationJobData {
   documentationSourceId: string;
   organizationId: string;
   baseUrl: string;
-};
+}
 
 let crawlDocQueue: Queue<CrawlDocumentationJobData> | null = null;
 
@@ -155,27 +181,93 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
       connection,
       defaultJobOptions: {
         attempts: 3,
-        backoff: { type: "exponential", delay: 5000 },
+        backoff: { delay: 5000, type: "exponential" },
       },
-    },
+    }
   );
   return crawlDocQueue;
 };
 
 export const enqueueCrawlDocumentation = async (
-  data: CrawlDocumentationJobData,
+  data: CrawlDocumentationJobData
 ): Promise<string | null> => {
   if (WORKER_JOBS_DISABLED) {
     return null;
   }
 
-  const queue = getCrawlDocQueue();
-  if (!queue) {
+  const crawlQueue = getCrawlDocQueue();
+  if (!crawlQueue) {
     return null;
   }
 
-  const job = await queue.add("crawl-documentation", data, {
+  const job = await crawlQueue.add("crawl-documentation", data, {
     jobId: `crawl-${data.documentationSourceId}`,
+  });
+
+  return job.id ?? null;
+};
+
+// PR embedding index queue (FRO-203)
+//
+// The worker owns the PR vector index (embedding + Qdrant live only there); the
+// API is the single mirror choke point (`externalEntity.upsert`), so it enqueues
+// an index job after every PR mirror write. Index-only: this never fans out
+// `pr_matched` thread reads. One pending job per PR (`pr-index:{externalKey}`)
+// coalesces a burst of mirror events into a single re-embed.
+
+let prIndexQueue: Queue<PrIndexJobData> | null = null;
+
+const getPrIndexQueue = (): Queue<PrIndexJobData> | null => {
+  if (prIndexQueue) {
+    return prIndexQueue;
+  }
+
+  connection ??= createRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  prIndexQueue = new Queue<PrIndexJobData>(PR_INDEX_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { delay: 5000, type: "exponential" },
+    },
+  });
+  return prIndexQueue;
+};
+
+export const enqueuePrIndex = async (
+  data: PrIndexJobData
+): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
+  const q = getPrIndexQueue();
+  if (!q) {
+    return null;
+  }
+
+  // Latest mirror state wins: any prior re-index for the same PR is replaced by
+  // this newer one (BullMQ ignores `add` for an existing jobId — across *all*
+  // states, including completed/failed — so drop the stale job first). We remove
+  // in every state except `active`, where the processor is mid-run and removal is
+  // unsafe; that window is narrow and the worker's content-hash dedup mitigates
+  // it. Cheap because the worker skips re-embedding on unchanged content anyway.
+  const jobId = `pr-index:${data.externalKey}`;
+  const existing = await q.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "active") {
+      await existing.remove();
+    }
+  }
+
+  const job = await q.add(PR_INDEX_JOB_NAME, data, {
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 100 },
+    removeOnFail: { count: 500 },
   });
 
   return job.id ?? null;
@@ -192,13 +284,13 @@ export const enqueueCrawlDocumentation = async (
 const GITHUB_BACKFILL_QUEUE = "github-backfill";
 const GITHUB_BACKFILL_JOB_NAME = "backfill-repo";
 
-export type GithubBackfillJobData = {
+export interface GithubBackfillJobData {
   organizationId: string;
   installationId: number;
   owner: string;
   repo: string;
   fullName: string;
-};
+}
 
 let githubBackfillQueue: Queue<GithubBackfillJobData> | null = null;
 
@@ -216,7 +308,7 @@ const getGithubBackfillQueue = (): Queue<GithubBackfillJobData> | null => {
     GITHUB_BACKFILL_QUEUE,
     {
       connection,
-    },
+    }
   );
   return githubBackfillQueue;
 };
@@ -228,10 +320,10 @@ const getGithubBackfillQueue = (): Queue<GithubBackfillJobData> | null => {
  * (upsert-by-externalKey), so re-running only refreshes existing rows.
  */
 export const enqueueGithubBackfill = async (
-  data: GithubBackfillJobData,
+  data: GithubBackfillJobData
 ): Promise<string | null> => {
-  const queue = getGithubBackfillQueue();
-  if (!queue) {
+  const backfillQueue = getGithubBackfillQueue();
+  if (!backfillQueue) {
     return null;
   }
 
@@ -239,11 +331,11 @@ export const enqueueGithubBackfill = async (
   // stays injective (e.g. `a_b/c` and `a/b_c` map to distinct ids).
   const safeFullName = data.fullName.replaceAll("_", "__").replace("/", "_");
   const jobId = `backfill_${data.organizationId}_${safeFullName}`;
-  const job = await queue.add(GITHUB_BACKFILL_JOB_NAME, data, {
-    jobId,
+  const job = await backfillQueue.add(GITHUB_BACKFILL_JOB_NAME, data, {
     attempts: 3,
-    backoff: { type: "exponential", delay: 10_000 },
-    removeOnComplete: { count: 50, age: 24 * 3600 },
+    backoff: { delay: 10_000, type: "exponential" },
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 50 },
     removeOnFail: { count: 200 },
   });
 

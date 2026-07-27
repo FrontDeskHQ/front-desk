@@ -8,12 +8,12 @@ interface LinkedPrSuggestionsSectionProps {
   user: { id: string; name: string };
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
 export function LinkedPrSuggestionsSection(
-  _props: LinkedPrSuggestionsSectionProps,
+  _props: LinkedPrSuggestionsSectionProps
 ) {
   return null;
 }

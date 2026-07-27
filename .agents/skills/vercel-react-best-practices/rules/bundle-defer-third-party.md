@@ -12,7 +12,7 @@ Analytics, logging, and error tracking don't block user interaction. Load them a
 **Incorrect (blocks initial bundle):**
 
 ```tsx
-import { Analytics } from '@vercel/analytics/react'
+import { Analytics } from "@vercel/analytics/react";
 
 export default function RootLayout({ children }) {
   return (
@@ -22,18 +22,18 @@ export default function RootLayout({ children }) {
         <Analytics />
       </body>
     </html>
-  )
+  );
 }
 ```
 
 **Correct (loads after hydration):**
 
 ```tsx
-import { lazy, Suspense } from 'react'
+import { lazy, Suspense } from "react";
 
 const Analytics = lazy(() =>
-  import('@vercel/analytics/react').then((m) => ({ default: m.Analytics }))
-)
+  import("@vercel/analytics/react").then((m) => ({ default: m.Analytics }))
+);
 
 export default function RootLayout({ children }) {
   return (
@@ -45,6 +45,6 @@ export default function RootLayout({ children }) {
         </Suspense>
       </body>
     </html>
-  )
+  );
 }
 ```

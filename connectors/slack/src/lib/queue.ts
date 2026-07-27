@@ -1,25 +1,11 @@
+import { createQueue, createWorker } from "@connectors/framework/runtime";
+import type { Job, Worker } from "@connectors/framework/runtime";
 import type { WebClient } from "@slack/web-api";
-import { type Job, Queue, Worker } from "bullmq";
+
 import "../env";
 
-// Redis connection configuration
-const getRedisConnection = () => {
-  if (process.env.REDIS_URL) {
-    return { url: process.env.REDIS_URL };
-  }
-
-  return {
-    host: process.env.REDIS_HOST ?? "localhost",
-    port: process.env.REDIS_PORT
-      ? Number.parseInt(process.env.REDIS_PORT, 10)
-      : 6379,
-    password: process.env.REDIS_PASSWORD,
-    db: process.env.REDIS_DB ? Number.parseInt(process.env.REDIS_DB, 10) : 0,
-  };
-};
-
 // Job data types adapted for Slack
-export type BackfillChannelJobData = {
+export interface BackfillChannelJobData {
   type: "backfill-channel";
   channelId: string; // Slack channel ID
   channelName: string;
@@ -27,32 +13,31 @@ export type BackfillChannelJobData = {
   organizationId: string;
   integrationId: string;
   cursor?: string;
-};
+}
 
-export type BackfillThreadJobData = {
+export interface BackfillThreadJobData {
   type: "backfill-thread";
   channelId: string; // Parent channel (needed for API calls)
   threadTs: string; // Thread parent timestamp
   teamId: string;
   organizationId: string;
   integrationId: string;
-};
+}
 
 export type BackfillJobData = BackfillChannelJobData | BackfillThreadJobData;
 
-export type BackfillChannelResult = {
+export interface BackfillChannelResult {
   hasMore: boolean;
   nextCursor?: string;
-};
+}
 
 // Queue instance
-export const backfillQueue = new Queue<BackfillJobData>("slack-backfill", {
-  connection: getRedisConnection(),
+export const backfillQueue = createQueue<BackfillJobData>("slack-backfill", {
   defaultJobOptions: {
     attempts: 3,
     backoff: {
-      type: "exponential",
       delay: 1000,
+      type: "exponential",
     },
     removeOnComplete: {
       count: 100, // Keep last 100 completed jobs
@@ -66,35 +51,35 @@ export const backfillQueue = new Queue<BackfillJobData>("slack-backfill", {
 // Worker setup - must be initialized with the Slack client getter
 let backfillWorker: Worker<BackfillJobData> | null = null;
 
-export type BackfillHandlers = {
+export interface BackfillHandlers {
   processChannel: (
     client: WebClient,
     channelId: string,
     teamId: string,
     organizationId: string,
     integrationId: string,
-    options: { cursor?: string },
+    options: { cursor?: string }
   ) => Promise<BackfillChannelResult>;
   processThread: (
     client: WebClient,
     channelId: string,
     threadTs: string,
     teamId: string,
-    organizationId: string,
+    organizationId: string
   ) => Promise<void>;
   onThreadBackfillComplete: (integrationId: string) => Promise<void>;
-};
+}
 
 export const initializeBackfillWorker = (
   getClientForTeam: (teamId: string) => Promise<WebClient | null>,
-  handlers: BackfillHandlers,
+  handlers: BackfillHandlers
 ) => {
   if (backfillWorker) {
     console.log("[Slack] Backfill worker already initialized");
     return backfillWorker;
   }
 
-  backfillWorker = new Worker<BackfillJobData>(
+  backfillWorker = createWorker<BackfillJobData>(
     "slack-backfill",
     async (job: Job<BackfillJobData>) => {
       const { data } = job;
@@ -106,7 +91,7 @@ export const initializeBackfillWorker = (
 
       if (data.type === "backfill-channel") {
         console.log(
-          `[Queue] Processing channel backfill: #${data.channelName}`,
+          `[Queue] Processing channel backfill: #${data.channelName}`
         );
         const result = await handlers.processChannel(
           client,
@@ -114,7 +99,7 @@ export const initializeBackfillWorker = (
           data.teamId,
           data.organizationId,
           data.integrationId,
-          { cursor: data.cursor },
+          { cursor: data.cursor }
         );
 
         // If there are more pages, queue the next page
@@ -125,7 +110,7 @@ export const initializeBackfillWorker = (
             data.teamId,
             data.organizationId,
             data.integrationId,
-            result.nextCursor,
+            result.nextCursor
           );
         }
 
@@ -137,19 +122,18 @@ export const initializeBackfillWorker = (
           data.channelId,
           data.threadTs,
           data.teamId,
-          data.organizationId,
+          data.organizationId
         );
         console.log(`[Queue] Completed thread backfill: ${data.threadTs}`);
       }
     },
     {
-      connection: getRedisConnection(),
       concurrency: 1, // Process 1 job at a time (more conservative for Slack)
       limiter: {
+        duration: 60_000, // Per minute (Slack rate limits are stricter)
         max: 5, // Max 5 jobs
-        duration: 60000, // Per minute (Slack rate limits are stricter)
       },
-    },
+    }
   );
 
   backfillWorker.on("completed", async (job) => {
@@ -158,10 +142,10 @@ export const initializeBackfillWorker = (
       if (job.data.type === "backfill-thread") {
         await handlers.onThreadBackfillComplete(job.data.integrationId);
       }
-    } catch (err) {
+    } catch (error) {
       console.error(
         `[Queue] Job ${job.id} onThreadBackfillComplete failed:`,
-        err,
+        error
       );
     }
   });
@@ -185,21 +169,21 @@ export const addChannelBackfillJob = async (
   teamId: string,
   organizationId: string,
   integrationId: string,
-  cursor?: string,
+  cursor?: string
 ) => {
   const jobId = `channel-${channelId}-${Date.now()}`;
   await backfillQueue.add(
     "backfill-channel",
     {
-      type: "backfill-channel",
       channelId,
       channelName,
-      teamId,
-      organizationId,
-      integrationId,
       cursor,
+      integrationId,
+      organizationId,
+      teamId,
+      type: "backfill-channel",
     },
-    { jobId },
+    { jobId }
   );
   console.log(`[Queue] Added channel backfill job: #${channelName}`);
 };
@@ -210,20 +194,20 @@ export const addThreadBackfillJob = async (
   threadTs: string,
   teamId: string,
   organizationId: string,
-  integrationId: string,
+  integrationId: string
 ) => {
   const jobId = `thread-${threadTs}-${Date.now()}`;
   await backfillQueue.add(
     "backfill-thread",
     {
-      type: "backfill-thread",
       channelId,
-      threadTs,
-      teamId,
-      organizationId,
       integrationId,
+      organizationId,
+      teamId,
+      threadTs,
+      type: "backfill-thread",
     },
-    { jobId },
+    { jobId }
   );
   console.log(`[Queue] Added thread backfill job: ${threadTs}`);
 };

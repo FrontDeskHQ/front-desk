@@ -1,5 +1,6 @@
 import type { InferLiveCollection } from "@live-state/sync";
 import type { schema } from "api/schema";
+
 import type { SimilarThreadResult } from "./lib/qdrant/threads";
 
 /**
@@ -42,7 +43,7 @@ export interface SummaryOutput {
 export type PreProcessorResult = PipelineStageResult<SummaryOutput>;
 
 export type PreProcessor = (
-  input: PreProcessorInput,
+  input: PreProcessorInput
 ) => Promise<PreProcessorResult>;
 
 /**
@@ -83,7 +84,7 @@ export interface SimilarThreadsOutput {
 export type PostProcessorResult = PipelineStageResult<SimilarThreadsOutput>;
 
 export type PostProcessor = (
-  input: PostProcessorInput,
+  input: PostProcessorInput
 ) => Promise<PostProcessorResult>;
 
 /**

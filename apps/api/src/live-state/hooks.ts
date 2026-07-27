@@ -1,6 +1,7 @@
 import { defineHooks } from "@live-state/sync/server";
+
 import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
-import { schema } from "./schema";
+import type { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
   message: {
@@ -18,13 +19,13 @@ export const liveStateHooks = defineHooks<typeof schema>({
 
           if (!jobId && areWorkerJobsEnabled()) {
             console.warn(
-              `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}`,
+              `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}`
             );
           }
         } catch (error) {
           console.error(
             `Unhandled error in afterInsert thread-read enqueue for message ${value.id}`,
-            error,
+            error
           );
         }
       })();

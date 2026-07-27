@@ -1,8 +1,8 @@
 import type { InferLiveObject } from "@live-state/sync";
+import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
-  type BaseItem,
   Combobox,
   ComboboxContent,
   ComboboxEmpty,
@@ -11,6 +11,7 @@ import {
   ComboboxList,
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
+import type { BaseItem } from "@workspace/ui/components/combobox";
 import {
   PriorityIndicator,
   PriorityText,
@@ -19,9 +20,9 @@ import {
   statusValues,
 } from "@workspace/ui/components/indicator";
 import { cn } from "@workspace/ui/lib/utils";
-import { PRIORITY_LABELS } from "@workspace/schemas/signals";
 import type { schema } from "api/schema";
 import { CircleUser } from "lucide-react";
+
 import { mutate } from "~/lib/live-state";
 
 interface PropertiesSectionProps {
@@ -37,7 +38,7 @@ interface PropertiesSectionProps {
   >[];
   captureThreadEvent: (
     eventName: string,
-    properties?: Record<string, unknown>,
+    properties?: Record<string, unknown>
   ) => void;
 }
 
@@ -54,8 +55,8 @@ export function PropertiesSection({
       <div className="flex flex-col gap-1.5">
         <Combobox
           items={Object.entries(statusValues).map(([key, value]) => ({
-            value: key,
             label: value.label,
+            value: key,
           }))}
           value={thread?.status ?? 0}
           onValueChange={(value) => {
@@ -65,18 +66,18 @@ export function PropertiesSection({
             const newStatusLabel = statusValues[newStatus]?.label ?? "Unknown";
 
             mutate.thread.setStatus({
-              threadId: id,
               organizationId: thread.organizationId,
               status: newStatus,
+              threadId: id,
               userId: user.id,
               userName: user.name,
             });
 
             captureThreadEvent("thread:status_update", {
-              old_status: oldStatus,
-              old_status_label: oldStatusLabel,
               new_status: newStatus,
               new_status_label: newStatusLabel,
+              old_status: oldStatus,
+              old_status_label: oldStatusLabel,
             });
           }}
         >
@@ -113,20 +114,20 @@ export function PropertiesSection({
         <Combobox
           items={[
             {
-              value: 0,
               label: "No priority",
+              value: 0,
             },
             {
-              value: 1,
               label: "Low priority",
+              value: 1,
             },
             {
-              value: 2,
               label: "Medium priority",
+              value: 2,
             },
             {
-              value: 3,
               label: "High priority",
+              value: 3,
             },
           ]}
           value={thread?.priority}
@@ -137,18 +138,18 @@ export function PropertiesSection({
             const newPriorityLabel = PRIORITY_LABELS[newPriority] ?? "Unknown";
 
             mutate.thread.setPriority({
-              threadId: id,
               organizationId: thread.organizationId,
               priority: newPriority,
+              threadId: id,
               userId: user.id,
               userName: user.name,
             });
 
             captureThreadEvent("thread:priority_update", {
-              old_priority: oldPriority,
-              old_priority_label: oldPriorityLabel,
               new_priority: newPriority,
               new_priority_label: newPriorityLabel,
+              old_priority: oldPriority,
+              old_priority_label: oldPriorityLabel,
             });
           }}
         >
@@ -186,12 +187,12 @@ export function PropertiesSection({
         <Combobox
           items={[
             {
-              value: null,
               label: "Unassigned",
+              value: null,
             },
-            ...(organizationUsers?.map((user) => ({
-              value: user.userId,
-              label: user.user.name,
+            ...(organizationUsers?.map((orgUser) => ({
+              label: orgUser.user.name,
+              value: orgUser.userId,
             })) ?? []),
           ]}
           value={thread?.assignedUser?.id}
@@ -204,19 +205,19 @@ export function PropertiesSection({
               null;
 
             mutate.thread.assignUser({
-              threadId: id,
-              organizationId: thread.organizationId,
               assignedUserId: newAssignedUserId,
+              organizationId: thread.organizationId,
+              threadId: id,
               userId: user.id,
               userName: user.name,
             });
 
             captureThreadEvent("thread:assignee_update", {
-              old_assigned_user_id: oldAssignedUserId,
-              old_assigned_user_name: oldAssignedUserName,
+              action: newAssignedUserId ? "assigned" : "unassigned",
               new_assigned_user_id: newAssignedUserId,
               new_assigned_user_name: newAssignedUserName,
-              action: newAssignedUserId ? "assigned" : "unassigned",
+              old_assigned_user_id: oldAssignedUserId,
+              old_assigned_user_name: oldAssignedUserName,
             });
           }}
         >
@@ -227,7 +228,7 @@ export function PropertiesSection({
                 variant="ghost"
                 size="sm"
                 className={cn(
-                  "text-sm px-1.5 max-w-40 py-1 w-full justify-start",
+                  "text-sm px-1.5 max-w-40 py-1 w-full justify-start"
                 )}
                 tooltip="Assign to"
                 keybind="a"

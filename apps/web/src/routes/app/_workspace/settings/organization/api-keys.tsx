@@ -39,11 +39,12 @@ import { useAtomValue } from "jotai/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 
 export const Route = createFileRoute(
-  "/app/_workspace/settings/organization/api-keys",
+  "/app/_workspace/settings/organization/api-keys"
 )({
   component: RouteComponent,
 });
@@ -57,7 +58,6 @@ function RouteComponent() {
   const [apiKeyName, setApiKeyName] = useState("");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["organization", "api-keys", currentOrg?.id],
     queryFn: () => {
       if (!currentOrg) return [];
 
@@ -65,10 +65,13 @@ function RouteComponent() {
         organizationId: currentOrg.id,
       });
     },
+    queryKey: ["organization", "api-keys", currentOrg?.id],
   });
 
   const handleRevoke = async (apiKeyId: string) => {
-    if (!currentOrg) return;
+    if (!currentOrg) {
+      return;
+    }
 
     try {
       await fetchClient.mutate.organization.revokePublicApiKey({
@@ -82,18 +85,20 @@ function RouteComponent() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to revoke API key. Please try again.",
+          : "Failed to revoke API key. Please try again."
       );
     }
   };
 
   const handleCreateApiKey = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg) {
+      return;
+    }
 
     try {
       const result = await fetchClient.mutate.organization.createPublicApiKey({
-        organizationId: currentOrg.id,
         name: apiKeyName || undefined,
+        organizationId: currentOrg.id,
       });
 
       setCreatedApiKey(result.key);
@@ -108,7 +113,7 @@ function RouteComponent() {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Failed to create API key. Please try again.",
+          : "Failed to create API key. Please try again."
       );
     }
   };
@@ -214,7 +219,7 @@ function RouteComponent() {
                   <TableHead>Name</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[50px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -246,7 +251,7 @@ function RouteComponent() {
                   <TableHead>Name</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
-                  <TableHead className="w-[50px]"></TableHead>
+                  <TableHead className="w-[50px]" />
                 </TableRow>
               </TableHeader>
               <TableBody>

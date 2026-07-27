@@ -8,21 +8,15 @@ import { LabelBadge } from "@workspace/ui/components/label-badge";
 import { cn } from "@workspace/ui/lib/utils";
 import { Mail } from "lucide-react";
 import { AnimatePresence, motion, useInView } from "motion/react";
-import {
-  type ComponentType,
-  type ReactNode,
-  type SVGProps,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useRef, useState } from "react";
+import type { ComponentType, ReactNode, SVGProps } from "react";
 
-type MockThread = {
+interface MockThread {
   name: string;
   author: string;
-};
+}
 
-type ThreadData = {
+interface ThreadData {
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   channel: string;
   question: string;
@@ -33,15 +27,19 @@ type ThreadData = {
     status: number;
     duplicateThreads: MockThread[];
   };
-};
+}
 
 const threads: ThreadData[] = [
   {
-    icon: Discord,
     channel: "Discord",
+    icon: Discord,
     question: "How do I set up webhooks?",
-    user: "@daniel",
     results: {
+      duplicateThreads: [],
+      labels: [
+        { name: "integrations", color: "#8b5cf6" },
+        { name: "how-to", color: "#3b82f6" },
+      ],
       similarThreads: [
         { name: "Webhook setup guide", author: "Sarah", match: 94 },
         { name: "Setting up integrations", author: "Tom", match: 81 },
@@ -49,20 +47,20 @@ const threads: ThreadData[] = [
         { name: "Discord bot webhooks", author: "Sam", match: 68 },
         { name: "Webhook troubleshooting", author: "Lee", match: 61 },
       ],
-      labels: [
-        { name: "integrations", color: "#8b5cf6" },
-        { name: "how-to", color: "#3b82f6" },
-      ],
       status: 1,
-      duplicateThreads: [],
     },
+    user: "@daniel",
   },
   {
-    icon: Slack,
     channel: "Slack",
+    icon: Slack,
     question: "Our billing page shows the wrong plan",
-    user: "@maria",
     results: {
+      duplicateThreads: [{ name: "Wrong plan shown", author: "Li" }],
+      labels: [
+        { name: "billing", color: "#f59e0b" },
+        { name: "bug-report", color: "#ef4444" },
+      ],
       similarThreads: [
         { name: "Billing display bug", author: "Tom", match: 87 },
         { name: "Plan not updating", author: "Rex", match: 76 },
@@ -70,20 +68,20 @@ const threads: ThreadData[] = [
         { name: "Wrong pricing shown", author: "Pat", match: 65 },
         { name: "Billing plan mismatch", author: "Alex", match: 59 },
       ],
-      labels: [
-        { name: "billing", color: "#f59e0b" },
-        { name: "bug-report", color: "#ef4444" },
-      ],
       status: 0,
-      duplicateThreads: [{ name: "Wrong plan shown", author: "Li" }],
     },
+    user: "@maria",
   },
   {
-    icon: GitHub,
     channel: "GitHub",
+    icon: GitHub,
     question: "API returns 429 after only 10 requests",
-    user: "@jake",
     results: {
+      duplicateThreads: [{ name: "429 on batch calls", author: "Rex" }],
+      labels: [
+        { name: "api", color: "#06b6d4" },
+        { name: "rate-limiting", color: "#f97316" },
+      ],
       similarThreads: [
         { name: "Rate limit errors", author: "Amy", match: 91 },
         { name: "429 too many requests", author: "Jon", match: 88 },
@@ -91,20 +89,20 @@ const threads: ThreadData[] = [
         { name: "Request limit exceeded", author: "Max", match: 64 },
         { name: "API quota issues", author: "Nina", match: 57 },
       ],
-      labels: [
-        { name: "api", color: "#06b6d4" },
-        { name: "rate-limiting", color: "#f97316" },
-      ],
       status: 1,
-      duplicateThreads: [{ name: "429 on batch calls", author: "Rex" }],
     },
+    user: "@jake",
   },
   {
-    icon: Mail,
     channel: "Email",
+    icon: Mail,
     question: "Can we get SSO for our team?",
-    user: "alex@acme.co",
     results: {
+      duplicateThreads: [],
+      labels: [
+        { name: "enterprise", color: "#8b5cf6" },
+        { name: "feature-request", color: "#10b981" },
+      ],
       similarThreads: [
         { name: "SSO enterprise setup", author: "Kim", match: 78 },
         { name: "SAML config guide", author: "Dev", match: 71 },
@@ -112,20 +110,20 @@ const threads: ThreadData[] = [
         { name: "Okta integration", author: "Raj", match: 58 },
         { name: "Single sign-on request", author: "Tara", match: 52 },
       ],
-      labels: [
-        { name: "enterprise", color: "#8b5cf6" },
-        { name: "feature-request", color: "#10b981" },
-      ],
       status: 0,
-      duplicateThreads: [],
     },
+    user: "alex@acme.co",
   },
   {
-    icon: Discord,
     channel: "Discord",
+    icon: Discord,
     question: "Notifications stopped working on mobile",
-    user: "@priya",
     results: {
+      duplicateThreads: [],
+      labels: [
+        { name: "mobile", color: "#3b82f6" },
+        { name: "bug-report", color: "#ef4444" },
+      ],
       similarThreads: [
         { name: "Mobile push broken", author: "Jon", match: 82 },
         { name: "iOS alerts missing", author: "Eli", match: 74 },
@@ -133,22 +131,18 @@ const threads: ThreadData[] = [
         { name: "Push not working", author: "Kai", match: 61 },
         { name: "Mobile alerts issue", author: "Luna", match: 55 },
       ],
-      labels: [
-        { name: "mobile", color: "#3b82f6" },
-        { name: "bug-report", color: "#ef4444" },
-      ],
       status: 0,
-      duplicateThreads: [],
     },
+    user: "@priya",
   },
 ];
 
 const CYCLE_INTERVAL = 7500;
 
 const slideBlurFade = {
-  initial: { opacity: 0, y: 6, filter: "blur(4px)" },
-  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
-  exit: { opacity: 0, y: -6, filter: "blur(4px)" },
+  animate: { filter: "blur(0px)", opacity: 1, y: 0 },
+  exit: { filter: "blur(4px)", opacity: 0, y: -6 },
+  initial: { filter: "blur(4px)", opacity: 0, y: 6 },
 };
 
 function MockThreadChip({ name, author }: MockThread) {
@@ -160,13 +154,13 @@ function MockThreadChip({ name, author }: MockThread) {
   );
 }
 
-type ResultCardProps = {
+interface ResultCardProps {
   heading: string;
   children: ReactNode;
   index: number;
   isInView: boolean;
   className?: string;
-};
+}
 
 function ResultCard({
   heading,
@@ -177,12 +171,12 @@ function ResultCard({
 }: ResultCardProps) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: 10, filter: "blur(8px)" }}
-      animate={isInView ? { opacity: 1, x: 0, filter: "blur(0px)" } : undefined}
-      transition={{ duration: 0.4, delay: 0.9 + index * 0.12 }}
+      initial={{ filter: "blur(8px)", opacity: 0, x: 10 }}
+      animate={isInView ? { filter: "blur(0px)", opacity: 1, x: 0 } : undefined}
+      transition={{ delay: 0.9 + index * 0.12, duration: 0.4 }}
       className={cn(
         "relative w-48 md:w-56 rounded-md border bg-background-primary px-3 pb-1.5 pt-6 shadow-sm",
-        className,
+        className
       )}
     >
       <div className="top-1.5 left-3 absolute text-[10px] font-medium uppercase tracking-wider text-foreground-secondary mb-1">
@@ -197,7 +191,7 @@ function ResultCard({
 
 export function AiTriageVisual() {
   const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-10%" });
+  const isInView = useInView(ref, { margin: "-10%", once: true });
   const [activeIndex, setActiveIndex] = useState(0);
   const [shimmerKey, setShimmerKey] = useState(0);
   const [resultsVisible, setResultsVisible] = useState(true);
@@ -211,7 +205,9 @@ export function AiTriageVisual() {
   }, [isInView, hasEnteredView]);
 
   useEffect(() => {
-    if (!hasEnteredView) return;
+    if (!hasEnteredView) {
+      return;
+    }
     let t1: ReturnType<typeof setTimeout>;
     let t2: ReturnType<typeof setTimeout>;
     const interval = setInterval(() => {
@@ -242,9 +238,9 @@ export function AiTriageVisual() {
     >
       {/* Thread card */}
       <motion.div
-        initial={{ opacity: 0, x: -20, filter: "blur(8px)" }}
+        initial={{ filter: "blur(8px)", opacity: 0, x: -20 }}
         animate={
-          isInView ? { opacity: 1, x: 0, filter: "blur(0px)" } : undefined
+          isInView ? { filter: "blur(0px)", opacity: 1, x: 0 } : undefined
         }
         transition={{ duration: 0.5 }}
         className="shrink-0 w-48 md:w-56 h-27 rounded-lg border bg-background-primary p-3 shadow-sm"
@@ -316,7 +312,7 @@ export function AiTriageVisual() {
                 className="text-foreground-secondary/40 md:stroke-[0.5]"
                 initial={{ pathLength: 0 }}
                 animate={isInView ? { pathLength: 1 } : undefined}
-                transition={{ duration: 0.5, delay: 0.6 + i * 0.1 }}
+                transition={{ delay: 0.6 + i * 0.1, duration: 0.5 }}
               />
             );
           })}
@@ -335,17 +331,17 @@ export function AiTriageVisual() {
                   strokeWidth="2"
                   className="text-foreground-secondary md:stroke-1"
                   filter="url(#shimmer-glow)"
-                  initial={{ pathLength: 0.15, pathOffset: 0, opacity: 0.5 }}
-                  animate={{ pathOffset: 1.15, opacity: 0 }}
+                  initial={{ opacity: 0.5, pathLength: 0.15, pathOffset: 0 }}
+                  animate={{ opacity: 0, pathOffset: 1.15 }}
                   transition={{
-                    pathOffset: {
-                      duration: 0.6,
-                      delay: i * 0.08,
-                      ease: "easeInOut",
-                    },
                     opacity: {
-                      duration: 0.15,
                       delay: i * 0.08 + 0.45,
+                      duration: 0.15,
+                    },
+                    pathOffset: {
+                      delay: i * 0.08,
+                      duration: 0.6,
+                      ease: "easeInOut",
                     },
                   }}
                 />
@@ -366,9 +362,9 @@ export function AiTriageVisual() {
           <div
             className="max-h-18 overflow-hidden"
             style={{
-              maskImage:
-                "linear-gradient(to bottom, black 0%, black 91.67%, transparent 100%)",
               WebkitMaskImage:
+                "linear-gradient(to bottom, black 0%, black 91.67%, transparent 100%)",
+              maskImage:
                 "linear-gradient(to bottom, black 0%, black 91.67%, transparent 100%)",
             }}
           >
@@ -411,7 +407,7 @@ export function AiTriageVisual() {
                 initial={hasEnteredView ? slideBlurFade.initial : false}
                 animate={slideBlurFade.animate}
                 exit={slideBlurFade.exit}
-                transition={{ duration: 0.25, delay: 0.05 }}
+                transition={{ delay: 0.05, duration: 0.25 }}
               >
                 {results.labels.map((label) => (
                   <LabelBadge
@@ -440,7 +436,7 @@ export function AiTriageVisual() {
                 initial={hasEnteredView ? slideBlurFade.initial : false}
                 animate={slideBlurFade.animate}
                 exit={slideBlurFade.exit}
-                transition={{ duration: 0.25, delay: 0.1 }}
+                transition={{ delay: 0.1, duration: 0.25 }}
               >
                 <StatusIndicator status={results.status} />
                 <span className="text-xs font-medium">{statusLabel}</span>
@@ -464,7 +460,7 @@ export function AiTriageVisual() {
                 initial={hasEnteredView ? slideBlurFade.initial : false}
                 animate={slideBlurFade.animate}
                 exit={slideBlurFade.exit}
-                transition={{ duration: 0.25, delay: 0.15 }}
+                transition={{ delay: 0.15, duration: 0.25 }}
               >
                 {results.duplicateThreads.length === 0 ? (
                   <span className="text-xs text-foreground-primary font-medium">

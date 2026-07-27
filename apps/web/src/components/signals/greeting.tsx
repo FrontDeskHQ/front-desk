@@ -1,6 +1,6 @@
-type Props = {
+interface Props {
   userName: string;
-};
+}
 
 export function Greeting({ userName }: Props) {
   const greeting = greetingFor(new Date());
@@ -18,8 +18,14 @@ export function Greeting({ userName }: Props) {
 
 function greetingFor(date: Date): string {
   const h = date.getHours();
-  if (h < 5) return "Working late";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Good afternoon";
+  if (h < 5) {
+    return "Working late";
+  }
+  if (h < 12) {
+    return "Good morning";
+  }
+  if (h < 18) {
+    return "Good afternoon";
+  }
   return "Good evening";
 }

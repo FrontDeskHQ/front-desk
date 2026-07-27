@@ -2,6 +2,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import z from "zod";
+
 import { WorkerDb } from "../waitlist-db";
 
 const applySchema = z.object({

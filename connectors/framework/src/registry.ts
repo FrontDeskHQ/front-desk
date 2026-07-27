@@ -1,9 +1,8 @@
 import type { Capability } from "./capabilities";
 import { CAPABILITY_INVOKE_PATH } from "./invoke";
-import {
-  type ConnectorManifest,
-  manifests as defaultManifests,
-} from "./manifest";
+import { manifests as defaultManifests } from "./manifest";
+import type { ConnectorManifest } from "./manifest";
+import { CONNECTION_PROBE_PATH } from "./probe";
 
 /** A manifest with its resolved host location. */
 export interface RegistryEntry {
@@ -11,6 +10,11 @@ export interface RegistryEntry {
   baseUrl: string;
   /** Fully-resolved URL to POST invoke envelopes to. */
   invokeUrl: string;
+  /**
+   * Fully-resolved URL to POST connection probes to. Only meaningful when
+   * `manifest.supportsConnectionProbe` is true.
+   */
+  probeUrl: string;
 }
 
 export interface ConnectorRegistry {
@@ -25,7 +29,7 @@ export interface ConnectorRegistry {
    */
   hasCapability(
     enabledTypes: Iterable<string>,
-    capability: Capability,
+    capability: Capability
   ): boolean;
 }
 
@@ -35,14 +39,14 @@ export interface ConnectorRegistry {
  */
 export function buildRegistry(
   manifests: ConnectorManifest[] = defaultManifests,
-  env: Record<string, string | undefined> = process.env,
+  env: Record<string, string | undefined> = process.env
 ): ConnectorRegistry {
   const entries = new Map<string, RegistryEntry>();
 
   for (const manifest of manifests) {
     if (entries.has(manifest.type)) {
       throw new Error(
-        `DUPLICATE_CONNECTOR_TYPE: ${manifest.type} is registered by more than one manifest`,
+        `DUPLICATE_CONNECTOR_TYPE: ${manifest.type} is registered by more than one manifest`
       );
     }
 
@@ -51,28 +55,29 @@ export function buildRegistry(
       env[manifest.baseUrlEnv] ?? manifest.defaultBaseUrl
     ).replace(/\/+$/, "");
     entries.set(manifest.type, {
-      manifest,
       baseUrl,
       invokeUrl: `${baseUrl}${CAPABILITY_INVOKE_PATH}`,
+      manifest,
+      probeUrl: `${baseUrl}${CONNECTION_PROBE_PATH}`,
     });
   }
 
   const providersOf = (capability: Capability): RegistryEntry[] =>
     [...entries.values()].filter((entry) =>
-      entry.manifest.capabilities.includes(capability),
+      entry.manifest.capabilities.includes(capability)
     );
 
   return {
     getByType: (type) => entries.get(type),
-    providersOf,
     hasCapability: (enabledTypes, capability) => {
       const providerTypes = new Set(
-        providersOf(capability).map((entry) => entry.manifest.type),
+        providersOf(capability).map((entry) => entry.manifest.type)
       );
       for (const type of enabledTypes) {
         if (providerTypes.has(type)) return true;
       }
       return false;
     },
+    providersOf,
   };
 }

@@ -11,8 +11,7 @@ You are an expert in search engine optimization. Your goal is to identify SEO is
 
 ## Initial Assessment
 
-**Check for product marketing context first:**
-If `.claude/product-marketing-context.md` exists, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
+**Check for product marketing context first:** If `.claude/product-marketing-context.md` exists, read it before asking questions. Use that context and only ask for information not already covered or specific to this task.
 
 Before auditing, understand:
 
@@ -42,6 +41,7 @@ Before auditing, understand:
 Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaScript — it won't appear in static HTML or `web_fetch` output (which strips `<script>` tags during conversion).
 
 **To accurately check for schema markup, use one of these methods:**
+
 1. **Browser tool** — render the page and run: `document.querySelectorAll('script[type="application/ld+json"]')`
 2. **Google Rich Results Test** — https://search.google.com/test/rich-results
 3. **Screaming Frog export** — if the client provides one, use it (SF renders JavaScript)
@@ -49,6 +49,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 **Never report "no schema found" based solely on `web_fetch` or `curl`.** This has led to false audit findings in production.
 
 ### Priority Order
+
 1. **Crawlability & Indexation** (can Google find and index it?)
 2. **Technical Foundations** (is the site fast and functional?)
 3. **On-Page Optimization** (is content optimized?)
@@ -62,11 +63,13 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Crawlability
 
 **Robots.txt**
+
 - Check for unintentional blocks
 - Verify important pages allowed
 - Check sitemap reference
 
 **XML Sitemap**
+
 - Exists and accessible
 - Submitted to Search Console
 - Contains only canonical, indexable URLs
@@ -74,12 +77,14 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Proper formatting
 
 **Site Architecture**
+
 - Important pages within 3 clicks of homepage
 - Logical hierarchy
 - Internal linking structure
 - No orphan pages
 
 **Crawl Budget Issues** (for large sites)
+
 - Parameterized URLs under control
 - Faceted navigation handled properly
 - Infinite scroll with pagination fallback
@@ -88,11 +93,13 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Indexation
 
 **Index Status**
+
 - site:domain.com check
 - Search Console coverage report
 - Compare indexed vs. expected
 
 **Indexation Issues**
+
 - Noindex tags on important pages
 - Canonicals pointing wrong direction
 - Redirect chains/loops
@@ -100,6 +107,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Duplicate content without canonicals
 
 **Canonicalization**
+
 - All pages have canonical tags
 - Self-referencing canonicals on unique pages
 - HTTP → HTTPS canonicals
@@ -109,11 +117,13 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Site Speed & Core Web Vitals
 
 **Core Web Vitals**
+
 - LCP (Largest Contentful Paint): < 2.5s
 - INP (Interaction to Next Paint): < 200ms
 - CLS (Cumulative Layout Shift): < 0.1
 
 **Speed Factors**
+
 - Server response time (TTFB)
 - Image optimization
 - JavaScript execution
@@ -123,6 +133,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Font loading
 
 **Tools**
+
 - PageSpeed Insights
 - WebPageTest
 - Chrome DevTools
@@ -160,6 +171,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Title Tags
 
 **Check for:**
+
 - Unique titles for each page
 - Primary keyword near beginning
 - 50-60 characters (visible in SERP)
@@ -167,6 +179,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Brand name placement (end, usually)
 
 **Common issues:**
+
 - Duplicate titles
 - Too long (truncated)
 - Too short (wasted opportunity)
@@ -176,6 +189,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Meta Descriptions
 
 **Check for:**
+
 - Unique descriptions per page
 - 150-160 characters
 - Includes primary keyword
@@ -183,6 +197,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Call to action
 
 **Common issues:**
+
 - Duplicate descriptions
 - Auto-generated garbage
 - Too long/short
@@ -191,6 +206,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Heading Structure
 
 **Check for:**
+
 - One H1 per page
 - H1 contains primary keyword
 - Logical hierarchy (H1 → H2 → H3)
@@ -198,6 +214,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Not just for styling
 
 **Common issues:**
+
 - Multiple H1s
 - Skip levels (H1 → H3)
 - Headings used for styling only
@@ -206,6 +223,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Content Optimization
 
 **Primary Page Content**
+
 - Keyword in first 100 words
 - Related keywords naturally used
 - Sufficient depth/length for topic
@@ -213,6 +231,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Better than competitors
 
 **Thin Content Issues**
+
 - Pages with little unique content
 - Tag/category pages with no value
 - Doorway pages
@@ -221,6 +240,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Image Optimization
 
 **Check for:**
+
 - Descriptive file names
 - Alt text on all images
 - Alt text describes image
@@ -232,6 +252,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Internal Linking
 
 **Check for:**
+
 - Important pages well-linked
 - Descriptive anchor text
 - Logical link relationships
@@ -239,6 +260,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Reasonable link count per page
 
 **Common issues:**
+
 - Orphan pages (no internal links)
 - Over-optimized anchor text
 - Important pages buried
@@ -247,12 +269,14 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Keyword Targeting
 
 **Per Page**
+
 - Clear primary keyword target
 - Title, H1, URL aligned
 - Content satisfies search intent
 - Not competing with other pages (cannibalization)
 
 **Site-Wide**
+
 - Keyword mapping document
 - No major gaps in coverage
 - No keyword cannibalization
@@ -265,21 +289,25 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### E-E-A-T Signals
 
 **Experience**
+
 - First-hand experience demonstrated
 - Original insights/data
 - Real examples and case studies
 
 **Expertise**
+
 - Author credentials visible
 - Accurate, detailed information
 - Properly sourced claims
 
 **Authoritativeness**
+
 - Recognized in the space
 - Cited by others
 - Industry credentials
 
 **Trustworthiness**
+
 - Accurate information
 - Transparent about business
 - Contact information available
@@ -305,6 +333,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ## Common Issues by Site Type
 
 ### SaaS/Product Sites
+
 - Product pages lack content depth
 - Blog not integrated with product pages
 - Missing comparison/alternative pages
@@ -312,6 +341,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - No glossary/educational content
 
 ### E-commerce
+
 - Thin category pages
 - Duplicate product descriptions
 - Missing product schema
@@ -319,6 +349,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Out-of-stock pages mishandled
 
 ### Content/Blog Sites
+
 - Outdated content not refreshed
 - Keyword cannibalization
 - No topical clustering
@@ -326,6 +357,7 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 - Missing author pages
 
 ### Local Business
+
 - Inconsistent NAP
 - Missing local schema
 - No Google Business Profile optimization
@@ -339,25 +371,25 @@ Many CMS plugins (AIOSEO, Yoast, RankMath) inject JSON-LD via client-side JavaSc
 ### Audit Report Structure
 
 **Executive Summary**
+
 - Overall health assessment
 - Top 3-5 priority issues
 - Quick wins identified
 
-**Technical SEO Findings**
-For each issue:
+**Technical SEO Findings** For each issue:
+
 - **Issue**: What's wrong
 - **Impact**: SEO impact (High/Medium/Low)
 - **Evidence**: How you found it
 - **Fix**: Specific recommendation
 - **Priority**: 1-5 or High/Medium/Low
 
-**On-Page SEO Findings**
-Same format as above
+**On-Page SEO Findings** Same format as above
 
-**Content Findings**
-Same format as above
+**Content Findings** Same format as above
 
 **Prioritized Action Plan**
+
 1. Critical fixes (blocking indexation/ranking)
 2. High-impact improvements
 3. Quick wins (easy, immediate benefit)
@@ -375,6 +407,7 @@ Same format as above
 ## Tools Referenced
 
 **Free Tools**
+
 - Google Search Console (essential)
 - Google PageSpeed Insights
 - Bing Webmaster Tools
@@ -385,6 +418,7 @@ Same format as above
 > **Note on schema detection:** `web_fetch` strips `<script>` tags (including JSON-LD) and cannot detect JS-injected schema. Always use the browser tool, Rich Results Test, or Screaming Frog for schema checks. See the warning at the top of the Audit Framework section.
 
 **Paid Tools** (if available)
+
 - Screaming Frog
 - Ahrefs / Semrush
 - Sitebulb

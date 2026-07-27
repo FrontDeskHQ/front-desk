@@ -1,5 +1,6 @@
-import { createScorer } from "evalite";
 import { Factuality, ClosedQA } from "autoevals";
+import { createScorer } from "evalite";
+
 import type {
   ToolSelectionTestCase,
   ProactiveToolTestCase,
@@ -19,9 +20,9 @@ export const toolSelectionAccuracy = createScorer<
   string[],
   ToolSelectionTestCase["expected"]
 >({
-  name: "Tool Selection Accuracy",
   description:
     "Checks whether the model called exactly the expected tools (order-independent)",
+  name: "Tool Selection Accuracy",
   scorer: ({ output, expected }) => {
     if (!expected) return { score: 0 };
 
@@ -70,9 +71,9 @@ export const proactiveToolUsage = createScorer<
   string[],
   ProactiveToolTestCase["expected"]
 >({
-  name: "Proactive Tool Usage",
   description:
     "Checks that the model proactively gathered context before acting",
+  name: "Proactive Tool Usage",
   scorer: ({ output, expected }) => {
     if (!expected) return { score: 0 };
 
@@ -124,9 +125,9 @@ export const draftQualityScorer = createScorer<
   string,
   string
 >({
-  name: "Draft Quality",
   description:
     "LLM-as-judge scoring draft tone, relevance, and professionalism",
+  name: "Draft Quality",
   scorer: async ({ input, output, expected }) => {
     const result = await closedQAScorer({
       input: `Thread: "${input.thread.name}"\nMessages:\n${input.thread.messages.map((m) => `[${m.author}]: ${m.content}`).join("\n")}\n\nExpected draft behavior: ${expected}`,
@@ -148,8 +149,8 @@ export const draftFactualityScorer = createScorer<
   string,
   string
 >({
-  name: "Draft Factuality",
   description: "Checks that the draft is grounded in thread context",
+  name: "Draft Factuality",
   scorer: async ({ input, output, expected }) => {
     const context = input.thread.messages
       .map((m) => `[${m.author}]: ${m.content}`)
@@ -180,9 +181,9 @@ export const threadReferenceFormat = createScorer<
   string,
   ThreadReferenceTestCase["expected"]
 >({
-  name: "Thread Reference Format",
   description:
     "Checks that thread references use [Name](thread:id) markdown link syntax",
+  name: "Thread Reference Format",
   scorer: ({ output, expected }) => {
     if (!expected || expected.threadIds.length === 0) {
       return { score: 1 };
@@ -199,7 +200,7 @@ export const threadReferenceFormat = createScorer<
     // Raw ID check: strip all valid links, then check for raw thread IDs
     const textWithoutLinks = output.replace(threadLinkPattern, "");
     const rawIdHits = expected.threadIds.filter((id) =>
-      textWithoutLinks.includes(id),
+      textWithoutLinks.includes(id)
     );
     const noRawIdsScore = rawIdHits.length === 0 ? 1 : 0;
 

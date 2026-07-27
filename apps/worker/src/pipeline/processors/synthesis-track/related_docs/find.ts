@@ -1,11 +1,12 @@
 import type { RelatedDocEvidenceItem } from "@workspace/schemas/signals";
+
 import type { DocumentationSearchHit } from "../../../../lib/qdrant/search-documentation";
 
 export const RELATED_DOCS_LIMIT = 5;
 
 export function pickRelatedDocs(
   hits: DocumentationSearchHit[],
-  opts: { limit?: number } = {},
+  opts: { limit?: number } = {}
 ): RelatedDocEvidenceItem[] {
   const limit = opts.limit ?? RELATED_DOCS_LIMIT;
   const byPage = new Map<string, DocumentationSearchHit>();
@@ -22,17 +23,19 @@ export function pickRelatedDocs(
     .slice(0, limit)
     .map((hit) => ({
       docId: hit.pageUrl,
+      score: hit.score,
       title: hit.pageTitle,
       url: hit.pageUrl,
-      score: hit.score,
     }));
 }
 
 export function toRelatedDocsEvidence(
   hits: DocumentationSearchHit[],
-  opts?: { limit?: number },
+  opts?: { limit?: number }
 ): { docs: RelatedDocEvidenceItem[] } | null {
   const docs = pickRelatedDocs(hits, opts);
-  if (docs.length === 0) return null;
+  if (docs.length === 0) {
+    return null;
+  }
   return { docs };
 }
