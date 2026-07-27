@@ -185,11 +185,30 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       return { outcome: "needs_connect" as const };
     }
 
+    const probedConfigStr = integration.configStr;
     const probeResult = await probeConnection(
       entry.probeUrl,
-      { config: integration.configStr },
+      { config: probedConfigStr },
       { secret: connectorInvokeSecret }
     );
+
+    // Probe is a network round-trip — reconnect/setup or uninstall clearing may
+    // have rewritten config (or flipped enabled) while we were waiting. Do not
+    // apply a stale probe result over a newer install identity.
+    const current = await db.integration.one(integration.id).get();
+    if (!current) {
+      throw new Error("INTEGRATION_NOT_FOUND");
+    }
+    if (current.configStr !== probedConfigStr) {
+      return {
+        outcome: current.enabled
+          ? ("enabled" as const)
+          : ("needs_connect" as const),
+      };
+    }
+    if (current.enabled) {
+      return { outcome: "enabled" as const };
+    }
 
     const now = new Date();
 

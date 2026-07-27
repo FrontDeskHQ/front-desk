@@ -80,7 +80,7 @@ The counterpart of an [integration](#integration) on the external system — the
 
 ### External install liveness
 
-Whether an [integration](#integration)'s [external install](#external-install) still exists and is usable on the other system. Orthogonal to FrontDesk's `integration.enabled` flag and to any [capability](#capability) the connector provides — it is a property of the install itself, not of issue tracking, notifications, or support entry.
+Whether an [integration](#integration)'s [external install](#external-install) still exists and is reachable on the other system. Orthogonal to FrontDesk's `integration.enabled` flag and to any [capability](#capability) the connector provides — it is a property of the install itself, not of issue tracking, notifications, or support entry. The probe answers existence/reachability only (e.g. GitHub: installation still present); it does not validate repository access or broader install usability.
 
 ### Thread
 

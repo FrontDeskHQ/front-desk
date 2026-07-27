@@ -9,7 +9,12 @@ import type { ExternalEntityFields } from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
 import { enqueuePrMatch } from "../lib/queue";
-import { STATUS_CLOSED, STATUS_OPEN, STATUS_RESOLVED } from "../utils";
+import {
+  STATUS_CLOSED,
+  STATUS_OPEN,
+  STATUS_RESOLVED,
+  sanitizeGithubInstallConfig,
+} from "../utils";
 
 /**
  * Pull-request actions that warrant a push-side thread match (FRO-205): the PR
@@ -154,29 +159,40 @@ export const setupWebhooks = () => {
         return;
       }
 
-      let rest: Record<string, unknown> = {};
-      if (integration.configStr) {
+      // Authoritative re-read before write: a delayed delivery must not wipe a
+      // newer install identity that replaced this one while the handler was queued.
+      const latest = await fetchClient.query.integration.byId({
+        id: integration.id,
+      });
+      if (!latest) {
+        return;
+      }
+
+      let raw: Record<string, unknown> = {};
+      if (latest.configStr) {
         try {
-          const {
-            installationId: _installationId,
-            repos: _repos,
-            ...kept
-          } = JSON.parse(integration.configStr) as Record<string, unknown>;
-          rest = kept;
+          raw = JSON.parse(latest.configStr) as Record<string, unknown>;
         } catch {
-          rest = {};
+          raw = {};
         }
       }
 
+      if (raw.installationId !== installationId) {
+        console.warn(
+          `[GitHub] Skipping installation.deleted cleanup for ${installationId}: stored install identity no longer matches`
+        );
+        return;
+      }
+
       await fetchClient.mutate.integration.updateInstallation({
-        configStr: JSON.stringify(rest),
+        configStr: JSON.stringify(sanitizeGithubInstallConfig(raw)),
         enabled: false,
-        integrationId: integration.id,
+        integrationId: latest.id,
         updatedAt: new Date(),
       });
 
       console.log(
-        `[GitHub] Cleared install identity for integration ${integration.id} after installation.deleted`
+        `[GitHub] Cleared install identity for integration ${latest.id} after installation.deleted`
       );
     } catch (error) {
       console.error("[GitHub] Error handling installation.deleted:", error);

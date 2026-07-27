@@ -93,7 +93,16 @@ export async function probeConnection(
     );
   }
 
-  const parsed = probeResultSchema.safeParse(await response.json());
+  let json: unknown;
+  try {
+    json = await response.json();
+  } catch (error) {
+    throw new Error("CONNECTION_PROBE_INVALID_RESPONSE: non-JSON body", {
+      cause: error,
+    });
+  }
+
+  const parsed = probeResultSchema.safeParse(json);
   if (!parsed.success) {
     throw new Error(
       `CONNECTION_PROBE_INVALID_RESPONSE: ${parsed.error.issues[0]?.message ?? "invalid body"}`

@@ -20,7 +20,7 @@ accepted
 - **New `connection` capability (rejected).** Liveness is not a role the product offers; stuffing it into the capability model invites every install concern to become a capability.
 - **Reuse `/api/capabilities/invoke` with a sentinel (rejected).** Convenient but lies about the model.
 - **Probe mutates config itself (rejected).** Opaque config interpretation stays in the connector; persistence stays in the core (`updateInstallation`).
-- **Fail open on probe transport errors (rejected).** Would reintroduce enabled-but-dead after outages. Fail soft instead; only explicit `live: false` clears and forces reconnect.
+- **Fail open on probe transport errors (rejected).** Would reintroduce enabled-but-dead after outages. Fail soft instead; only explicit `live: false` persists the probe's sanitized config suggestion (when provided) and forces reconnect.
 - **Refresh repos/metadata on live reenable (deferred).** Mirror/reconcile already own freshness; keep this probe minimal.
 
 ## Consequences

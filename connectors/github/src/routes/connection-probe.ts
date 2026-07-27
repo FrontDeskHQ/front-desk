@@ -6,16 +6,7 @@ import {
 import Elysia from "elysia";
 
 import { app } from "../lib/github";
-
-/**
- * Strip install identity from opaque GitHub config, keeping unrelated fields
- * (e.g. csrfToken, selectedEvents). The probe never writes FrontDesk state —
- * this string is a suggestion for the core to persist on `live: false`.
- */
-const sanitizeConfig = (raw: Record<string, unknown>): string => {
-  const { installationId: _installationId, repos: _repos, ...rest } = raw;
-  return JSON.stringify(rest);
-};
+import { sanitizeGithubInstallConfig } from "../utils";
 
 /**
  * External-install liveness probe (ADR-0010). Not a Capability — orthogonal to
@@ -63,9 +54,11 @@ export const connectionProbeRoutes = new Elysia().post(
 
     const configObj = raw as Record<string, unknown>;
     const installationId = Number(configObj.installationId);
+    const sanitizedConfigStr = () =>
+      JSON.stringify(sanitizeGithubInstallConfig(configObj));
 
     if (!Number.isInteger(installationId) || installationId <= 0) {
-      return { configStr: sanitizeConfig(configObj), live: false };
+      return { configStr: sanitizedConfigStr(), live: false };
     }
 
     try {
@@ -81,7 +74,7 @@ export const connectionProbeRoutes = new Elysia().post(
 
       // Installation gone (uninstalled) or never existed.
       if (status === 404) {
-        return { configStr: sanitizeConfig(configObj), live: false };
+        return { configStr: sanitizedConfigStr(), live: false };
       }
 
       console.error("[GitHub] Connection probe failed:", error);
