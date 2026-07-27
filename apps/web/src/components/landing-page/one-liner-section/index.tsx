@@ -98,7 +98,7 @@ export function OneLinerSection() {
   return (
     <section
       id="hero"
-      className="flex w-full justify-center bg-background-primary px-6 pt-50 pb-16 text-foreground-primary scroll-mt-15"
+      className="col-span-full flex w-full justify-center bg-background-primary px-6 pt-50 pb-16 text-foreground-primary scroll-mt-15"
     >
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
