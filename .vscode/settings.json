@@ -63,6 +63,11 @@
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
   "editor.codeActionsOnSave": {
-    "source.fixAll.oxc": "explicit"
-  }
+    "source.fixAll.oxc": "explicit",
+    // oxfmt (ultracite) owns import order via sortImports — disable TS/Biome
+    // organize-imports so user settings don't reshuffle on save.
+    "source.organizeImports": "never",
+    "source.unusedImports": "never"
+  },
+  "oxc.fmt.experimental": true
 }
