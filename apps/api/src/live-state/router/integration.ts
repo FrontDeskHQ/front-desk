@@ -168,9 +168,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
    * - connector has not opted in → `needs_connect` (never silent-enable)
    */
   reenable: mutation(reenableInputSchema).handler(async ({ req, db }) => {
-    const integration = await db.integration
-      .one(req.input.integrationId)
-      .get();
+    const integration = await db.integration.one(req.input.integrationId).get();
     if (!integration) {
       throw new Error("INTEGRATION_NOT_FOUND");
     }

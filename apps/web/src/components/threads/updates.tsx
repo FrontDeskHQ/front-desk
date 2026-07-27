@@ -158,8 +158,7 @@ export function Update({
   user?: { id: string; name: string };
   connectTop?: boolean;
 }) {
-  // biome-ignore lint/suspicious/noExplicitAny: metadata shape varies by update type
-  let metadata: any = null;
+  let metadata: Record<string, unknown> | null = null;
   if (update.metadataStr) {
     try {
       metadata = JSON.parse(update.metadataStr);
@@ -178,10 +177,17 @@ export function Update({
   );
 
   const duplicateThread = useLiveQuery(
-    query.thread.first({ id: metadata?.duplicateOfThreadId }).include({
-      assignedUser: { include: { user: true } },
-      author: { include: { user: true } },
-    })
+    query.thread
+      .first({
+        id:
+          typeof metadata?.duplicateOfThreadId === "string"
+            ? metadata.duplicateOfThreadId
+            : undefined,
+      })
+      .include({
+        assignedUser: { include: { user: true } },
+        author: { include: { user: true } },
+      })
   );
 
   const isAutonomous = metadata?.source === "autonomous";

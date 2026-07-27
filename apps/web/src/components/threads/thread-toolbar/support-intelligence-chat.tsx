@@ -865,7 +865,7 @@ export const SupportIntelligenceChat = ({
       className={cn("flex min-h-0 flex-col", className)}
     >
       <AnimatePresence initial={false}>
-        {hasDraft && agentChat && (
+        {agentChat?.draftStatus === "active" && agentChat.draft ? (
           <motion.div
             key="draft"
             initial={{ height: 0, opacity: 0 }}
@@ -876,12 +876,12 @@ export const SupportIntelligenceChat = ({
           >
             <DraftEditor
               chatId={agentChat.id}
-              draft={agentChat.draft!}
+              draft={agentChat.draft}
               onAccept={handleAcceptDraft}
               onDismiss={handleDismissDraft}
             />
           </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
       {messageGroups.length > 0 ? (
         <div

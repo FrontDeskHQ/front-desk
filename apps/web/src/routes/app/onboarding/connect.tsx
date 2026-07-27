@@ -37,10 +37,14 @@ export const Route = createFileRoute("/app/onboarding/connect")({
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const discordDetails = integrationOptions.find((o) => o.id === "discord")!;
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const slackDetails = integrationOptions.find((o) => o.id === "slack")!;
+const discordDetails = integrationOptions.find((o) => o.id === "discord");
+if (!discordDetails) {
+  throw new Error("Discord integration option not found");
+}
+const slackDetails = integrationOptions.find((o) => o.id === "slack");
+if (!slackDetails) {
+  throw new Error("Slack integration option not found");
+}
 
 function RouteComponent() {
   const { user } = Route.useRouteContext();

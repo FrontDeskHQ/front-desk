@@ -43,10 +43,12 @@ export const Route = createFileRoute(
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
   (option) => option.id === "slack"
-)!;
+);
+if (!integrationDetails) {
+  throw new Error("Slack integration option not found");
+}
 
 function RouteComponent() {
   const posthog = usePostHog();

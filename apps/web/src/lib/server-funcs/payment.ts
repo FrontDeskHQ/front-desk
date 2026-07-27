@@ -9,12 +9,19 @@ type OrganizationUserWithBilling = Awaited<
   ReturnType<(typeof fetchClient.query.organizationUser)["forUser"]>
 >[number];
 
+interface OrganizationBillingInclude {
+  organization?: {
+    subscriptions?: { customerId?: string }[];
+  };
+}
+
 const getOrganizationSubscription = (
   organizationUser: OrganizationUserWithBilling
   // `organization` types to `never` here because `forUser`'s include is
-  // conditional on `withSubscriptions`; cast through `any` like the
-  // pre-oxlint code did.
-) => (organizationUser as any).organization?.subscriptions?.[0];
+  // conditional on `withSubscriptions`.
+) =>
+  (organizationUser as unknown as OrganizationBillingInclude).organization
+    ?.subscriptions?.[0];
 
 const authorizeOrganizationUser = async (customerId: string) => {
   const sessionData = await getAuthUser();

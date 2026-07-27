@@ -5,14 +5,14 @@ import { cn } from "../lib/utils";
 
 export const HorizontalLine = ({
   variant = "full",
-  style = "dashed",
+  lineStyle = "dashed",
   className,
 }: {
   variant?: "full" | "outer" | "contained";
-  style?: "dashed" | "solid";
+  lineStyle?: "dashed" | "solid";
   className?: string;
 }) => {
-  const strokeDasharray = style === "dashed" ? "5 5" : "none";
+  const strokeDasharray = lineStyle === "dashed" ? "5 5" : "none";
 
   return (
     <div
@@ -101,13 +101,13 @@ export const HorizontalLine = ({
 };
 
 export const VerticalLine = ({
-  style = "dashed",
+  lineStyle = "dashed",
   className,
 }: {
-  style?: "dashed" | "solid";
+  lineStyle?: "dashed" | "solid";
   className?: string;
 }) => {
-  const strokeDasharray = style === "dashed" ? "5 5" : "none";
+  const strokeDasharray = lineStyle === "dashed" ? "5 5" : "none";
 
   return (
     <div className={cn("text-border", className)}>

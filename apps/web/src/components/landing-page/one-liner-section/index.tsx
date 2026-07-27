@@ -26,6 +26,7 @@ import {
   PlusIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
 import { ActionRow } from "~/components/signals/action-row";
 import { ToolbarActions } from "~/components/threads/thread-toolbar/toolbar-actions";
 
@@ -88,7 +89,7 @@ export function OneLinerSection() {
   useEffect(() => {
     const t = setTimeout(
       () => setPhase((p) => (p + 1) % PHASES.length),
-      PHASES[phase].dur,
+      PHASES[phase].dur
     );
     return () => clearTimeout(t);
   }, [phase]);
@@ -138,7 +139,10 @@ export function OneLinerSection() {
               size="xl"
               className="w-fit bg-primary text-primary-foreground hover:bg-primary/90"
               render={
-                <a href="mailto:hello@tryfrontdesk.app?subject=Early%20access" />
+                <a
+                  href="mailto:hello@tryfrontdesk.app?subject=Early%20access"
+                  aria-label="Request early access"
+                />
               }
             >
               Request early access
@@ -202,7 +206,7 @@ function Part({
     <span
       className={cn(
         "transition-colors duration-300",
-        active && "text-foreground-primary",
+        active && "text-foreground-primary"
       )}
     >
       {children}
@@ -259,7 +263,7 @@ function SlackThread({ phase }: { phase: number }) {
         <div
           className={cn(
             "flex items-center gap-3 px-5 py-2",
-            replyCount === 0 ? "invisible" : "fade-up",
+            replyCount === 0 ? "invisible" : "fade-up"
           )}
         >
           <span className="shrink-0 text-[12px] font-bold text-(--label-color-blue)">
@@ -680,7 +684,7 @@ function MockAppSidebar({ active }: { active: "threads" | "signals" }) {
             "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
             active === "signals"
               ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70",
+              : "text-sidebar-foreground/70"
           )}
         >
           <Activity className="size-4" />
@@ -691,7 +695,7 @@ function MockAppSidebar({ active }: { active: "threads" | "signals" }) {
             "flex items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors",
             active === "threads"
               ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground"
-              : "text-sidebar-foreground/70",
+              : "text-sidebar-foreground/70"
           )}
         >
           <MessagesSquare className="size-4" />
@@ -843,7 +847,7 @@ function ThreadMain({ phase }: { phase: number }) {
               <div
                 className={cn(
                   "flex flex-col gap-3",
-                  phase < 3 ? "invisible" : "fade-up",
+                  phase < 3 ? "invisible" : "fade-up"
                 )}
               >
                 <Separator />
@@ -911,7 +915,7 @@ function ThreadMain({ phase }: { phase: number }) {
             <div
               className={cn(
                 "flex w-full max-w-40 items-center gap-2 px-1.5 py-1 text-sm transition-colors",
-                assigned ? "text-primary" : "text-muted-foreground",
+                assigned ? "text-primary" : "text-muted-foreground"
               )}
             >
               <div className="flex size-4 items-center justify-center">

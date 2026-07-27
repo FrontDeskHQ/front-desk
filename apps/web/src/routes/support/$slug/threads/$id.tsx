@@ -44,7 +44,10 @@ type SupportThreadMessage = InferLiveObject<
   typeof schema.message,
   { author: true }
 >;
-type SupportThreadUpdate = InferLiveObject<typeof schema.update, { user: true }>;
+type SupportThreadUpdate = InferLiveObject<
+  typeof schema.update,
+  { user: true }
+>;
 type TimelineMessageItem = SupportThreadMessage & { itemType: "message" };
 type TimelineUpdateItem = SupportThreadUpdate & { itemType: "update" };
 

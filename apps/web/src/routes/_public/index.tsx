@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { HorizontalLine } from "@workspace/ui/components/surface";
+
 import { OneLinerSection } from "~/components/landing-page/one-liner-section";
 import { TensionSection } from "~/components/landing-page/tension-section";
 
@@ -13,7 +14,7 @@ function RouteComponent() {
       {/* 0. Hero — sits above the bordered slab */}
       <OneLinerSection />
 
-      <HorizontalLine variant="full" style="solid" />
+      <HorizontalLine variant="full" lineStyle="solid" />
 
       {/* Rails begin below the hero */}
       <div className="col-span-full grid grid-cols-12 border-x">
@@ -31,18 +32,20 @@ function RouteComponent() {
               already are, not another portal.
             </li>
             <li>
-              Triages the moment a message lands, 24/7 — nothing waits for office
-              hours.
+              Triages the moment a message lands, 24/7 — nothing waits for
+              office hours.
             </li>
             <li>
-              Nothing slips — every thread is seen, tagged, and tracked, even when
-              no one's watching.
+              Nothing slips — every thread is seen, tagged, and tracked, even
+              when no one's watching.
             </li>
             <li>
-              Knows the customer's history and past threads before it says a word.
+              Knows the customer's history and past threads before it says a
+              word.
             </li>
             <li>
-              De-dupes and links related issues so one problem isn't ten tickets.
+              De-dupes and links related issues so one problem isn't ten
+              tickets.
             </li>
           </ul>
         </section>
@@ -54,8 +57,8 @@ function RouteComponent() {
           <p>Care, automated</p>
           <ul>
             <li>
-              Tuned on your past replies, docs, and tone — on-brand, never canned
-              bot-speak.
+              Tuned on your past replies, docs, and tone — on-brand, never
+              canned bot-speak.
             </li>
             <li>
               Resolves the routine end-to-end: how-tos, status, refunds, common
@@ -70,7 +73,8 @@ function RouteComponent() {
               its training.
             </li>
             <li>
-              Knows what it doesn't know — asks or escalates instead of guessing.
+              Knows what it doesn't know — asks or escalates instead of
+              guessing.
             </li>
           </ul>
         </section>
@@ -90,8 +94,8 @@ function RouteComponent() {
               reply, ready to send.
             </li>
             <li>
-              You set the policy: what the Agent can send alone, what always needs
-              a human.
+              You set the policy: what the Agent can send alone, what always
+              needs a human.
             </li>
             <li>
               Every autonomous reply is logged, attributed, and reversible — no

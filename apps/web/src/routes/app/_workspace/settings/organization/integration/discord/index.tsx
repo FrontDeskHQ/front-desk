@@ -42,10 +42,12 @@ export const Route = createFileRoute(
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
 const integrationDetails = integrationOptions.find(
   (option) => option.id === "discord"
-)!;
+);
+if (!integrationDetails) {
+  throw new Error("Discord integration option not found");
+}
 
 function RouteComponent() {
   const posthog = usePostHog();
