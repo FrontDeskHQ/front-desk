@@ -3,6 +3,8 @@ import { HorizontalLine } from "@workspace/ui/components/surface";
 
 import { OneLinerSection } from "~/components/landing-page/one-liner-section";
 import { PicksUpSection } from "~/components/landing-page/picks-up-section";
+import { PullsYouInSection } from "~/components/landing-page/pulls-you-in-section";
+import { RepliesSection } from "~/components/landing-page/replies-section";
 import { TensionSection } from "~/components/landing-page/tension-section";
 
 export const Route = createFileRoute("/_public/")({
@@ -42,63 +44,11 @@ function RouteComponent() {
 
         {/* 3. Section 02 — Replies in your voice */}
         <SectionLabel n="02" name="Replies in your voice" />
-        <section id="replies" className="col-span-full p-8">
-          <h2>Replies in your voice.</h2>
-          <p>Care, automated</p>
-          <ul>
-            <li>
-              Tuned on your past replies, docs, and tone — on-brand, never
-              canned bot-speak.
-            </li>
-            <li>
-              Resolves the routine end-to-end: how-tos, status, refunds, common
-              bugs.
-            </li>
-            <li>
-              Reads like your best teammate wrote it — the customer feels cared
-              for, not deflected.
-            </li>
-            <li>
-              Gets better every time you edit a draft — your corrections become
-              its training.
-            </li>
-            <li>
-              Knows what it doesn't know — asks or escalates instead of
-              guessing.
-            </li>
-          </ul>
-        </section>
+        <RepliesSection />
 
         {/* 4. Section 03 — Pulls you in only when it matters */}
         <SectionLabel n="03" name="Pulls you in" />
-        <section id="pulls-you-in" className="col-span-full p-8">
-          <h2>
-            Pulls you in
-            <br />
-            only when it matters.
-          </h2>
-          <p>You stay in control</p>
-          <ul>
-            <li>
-              The hard ~20% comes to you — with full context and a suggested
-              reply, ready to send.
-            </li>
-            <li>
-              You set the policy: what the Agent can send alone, what always
-              needs a human.
-            </li>
-            <li>
-              Every autonomous reply is logged, attributed, and reversible — no
-              black box.
-            </li>
-            <li>
-              Your attention goes to the relationships that actually need you.
-            </li>
-            <li>
-              Governance improves as you use it — the policy learns your line.
-            </li>
-          </ul>
-        </section>
+        <PullsYouInSection />
 
         {/* 5. Proof — slots only until real */}
         <SectionLabel n="04" name="Proof" />
