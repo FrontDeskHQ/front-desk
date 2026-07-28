@@ -278,9 +278,9 @@ export const enqueuePrIndex = async (
 // The github app owns this job: it runs the processor (apps/github/src/jobs/
 // backfill.ts) and defines the canonical queue/job constants and enqueue helper
 // (apps/github/src/lib/queue.ts). The API only *enqueues* onto the same Redis
-// queue — currently for the dev-only manual sync that stands in for webhooks
-// locally. Keep the queue name, job name and jobId scheme in sync with the
-// owner.
+// queue — for the dev-only manual sync that stands in for webhooks locally, and
+// for the catch-up backfill on silent re-enable. Keep the queue name, job name
+// and jobId scheme in sync with the owner.
 const GITHUB_BACKFILL_QUEUE = "github-backfill";
 const GITHUB_BACKFILL_JOB_NAME = "backfill-repo";
 
