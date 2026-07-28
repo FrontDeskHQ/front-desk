@@ -45,11 +45,17 @@ const githubBackfillConfigSchema = z.object({
   installationId: z.number().int().positive().optional(),
   repos: z
     .array(
-      z.object({
-        fullName: z.string().min(1),
-        name: z.string().min(1),
-        owner: z.string().min(1),
-      })
+      z
+        .object({
+          fullName: z.string().min(1),
+          name: z.string().regex(/^[^/]+$/),
+          owner: z.string().regex(/^[^/]+$/),
+        })
+        // `fullName` keys the job id while `owner`/`name` address the API
+        // target, so a mismatch would dedupe against the wrong repo.
+        .refine(({ fullName, name, owner }) => fullName === `${owner}/${name}`, {
+          message: "fullName must match owner/name",
+        })
     )
     .default([]),
 });
@@ -105,10 +111,14 @@ const enqueueGithubReenableBackfill = async (
   );
 
   for (const [index, result] of results.entries()) {
-    if (result.status === "rejected") {
+    // A `null` value means the queue wasn't available, so the backfill was
+    // dropped just as surely as a rejection — both need to show up in logs.
+    if (result.status === "rejected" || result.value === null) {
       console.error(
         `[Integration] Failed to enqueue GitHub backfill for ${repos[index]?.fullName} on re-enable:`,
-        result.reason
+        result.status === "rejected"
+          ? result.reason
+          : "GitHub backfill queue is unavailable"
       );
     }
   }
