@@ -4,7 +4,7 @@ import { cn } from "@workspace/ui/lib/utils";
  * A 3×3 that degrades in reading order (left→right, then next row).
  * Offset, rotation, and opacity follow a flat exponential — nearly linear,
  * slight late acceleration — so structure frays gently until the end.
- * Perfect square for cols 10–12.
+ * Perfect square for cols 9–11.
  */
 
 type Cell = {

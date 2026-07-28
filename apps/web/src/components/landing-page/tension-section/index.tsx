@@ -1,6 +1,6 @@
 /**
  * Tension — the problem beat between hero and solution.
- * Prose on cols 2–9; breaking-grid visual is a square spanning cols 10–12.
+ * Prose on cols 2–8; breaking-grid visual is a square spanning cols 9–11.
  */
 
 import { BreakingGridVisual } from "./visuals/breaking-grid";
@@ -25,7 +25,7 @@ export function TensionSection() {
         </p>
       </div>
 
-      <div className="col-span-full hidden md:col-span-3 md:col-start-10 md:flex md:items-center">
+      <div className="col-span-full hidden md:col-span-3 md:col-start-9 md:flex md:items-center">
         <BreakingGridVisual />
       </div>
     </section>
