@@ -8,6 +8,18 @@ export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
 });
 
+function SectionLabel({ n, name }: { n: string; name: string }) {
+  return (
+    <>
+      {/* Full-bleed seam above the label (§5) */}
+      <HorizontalLine variant="full" lineStyle="solid" />
+      <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
+        {n} - {name}
+      </div>
+    </>
+  );
+}
+
 function RouteComponent() {
   return (
     <main className="mx-auto grid w-full max-w-[90rem] grid-cols-12">
@@ -22,8 +34,8 @@ function RouteComponent() {
         <TensionSection />
 
         {/* 2. Section 01 — Picks up every conversation */}
+        <SectionLabel n="01" name="Picks up every conversation" />
         <section id="picks-up" className="col-span-full p-8">
-          <p>01</p>
           <h2>Picks up every conversation.</h2>
           <p>Always-on coverage</p>
           <ul>
@@ -51,8 +63,8 @@ function RouteComponent() {
         </section>
 
         {/* 3. Section 02 — Replies in your voice */}
+        <SectionLabel n="02" name="Replies in your voice" />
         <section id="replies" className="col-span-full p-8">
-          <p>02</p>
           <h2>Replies in your voice.</h2>
           <p>Care, automated</p>
           <ul>
@@ -80,8 +92,8 @@ function RouteComponent() {
         </section>
 
         {/* 4. Section 03 — Pulls you in only when it matters */}
+        <SectionLabel n="03" name="Pulls you in" />
         <section id="pulls-you-in" className="col-span-full p-8">
-          <p>03</p>
           <h2>
             Pulls you in
             <br />
@@ -111,6 +123,7 @@ function RouteComponent() {
         </section>
 
         {/* 5. Proof — slots only until real */}
+        <SectionLabel n="04" name="Proof" />
         <section id="proof" className="col-span-full p-8">
           <h2>Proof</h2>
           <p>Testimonial — [TBD]</p>
@@ -119,6 +132,7 @@ function RouteComponent() {
         </section>
 
         {/* 6. Closing CTA */}
+        <SectionLabel n="05" name="Keep caring" />
         <section id="cta" className="col-span-full p-8">
           <h2>
             Keep caring.

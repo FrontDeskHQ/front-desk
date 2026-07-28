@@ -1,15 +1,17 @@
 /**
  * Tension — the problem beat between hero and solution.
- * Prose on cols 2–9; cols 10–12 stay empty for breathing room.
+ * Prose on cols 2–9; breaking-grid visual is a square spanning cols 10–12.
  */
+
+import { BreakingGridVisual } from "./visuals/breaking-grid";
 
 export function TensionSection() {
   return (
     <section
       id="tension"
-      className="col-span-full grid grid-cols-12 scroll-mt-15 py-12 md:py-16"
+      className="col-span-full grid grid-cols-12 scroll-mt-15"
     >
-      <div className="col-span-full flex flex-col gap-8 md:col-span-8 md:col-start-2">
+      <div className="col-span-full flex flex-col gap-8 py-24 md:col-span-7 md:col-start-2 md:py-32">
         <h2 className="text-3xl font-medium tracking-tight text-foreground-primary md:text-4xl">
           You won your first customers by caring.
           <br />
@@ -21,6 +23,10 @@ export function TensionSection() {
           <span className="text-foreground-primary">scale or care</span>.
           FrontDesk removes the choice.
         </p>
+      </div>
+
+      <div className="col-span-full hidden md:col-span-3 md:col-start-10 md:flex md:items-center">
+        <BreakingGridVisual />
       </div>
     </section>
   );
