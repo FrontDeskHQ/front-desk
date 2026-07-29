@@ -107,7 +107,7 @@ function RouteComponent() {
               <span className="text-base font-medium">FrontDesk</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              Support your customers wherever they are.
+              Care for every customer. Even when you&apos;re busy.
             </div>
           </div>
           <div className="p-4 space-y-4 col-span-3 md:col-start-4 md:col-span-1">

@@ -58,7 +58,7 @@ export const Route = createRootRoute({
     const baseUrl = getBaseUrl();
     const currentUrl = getCurrentUrl();
     const description =
-      "The all in one customer support platform. Making good customer support extremely easy.";
+      "FrontDesk picks up every conversation, handles it like you would, and pulls you in only when it matters. Support built for teams that care, in Slack, Discord, email, and GitHub.";
 
     const ogImageUrl = ogImage.startsWith("http")
       ? ogImage
@@ -80,10 +80,10 @@ export const Route = createRootRoute({
           content: "width=device-width, initial-scale=1, viewport-fit=cover",
         },
         ...seo({
-          title: "FrontDesk",
+          title: "FrontDesk — Care for every customer. Even when you're busy.",
           description,
           keywords:
-            "FrontDesk, FrontDesk AI, FrontDesk Support, FrontDesk Help Desk, FrontDesk Ticketing, FrontDesk Ticketing System, FrontDesk Ticketing Software, AI Help Desk, Customer Support Software, Ticketing System, Support Ticket Management, AI Customer Service",
+            "FrontDesk, FrontDesk AI, AI customer support, AI support agent, Slack customer support, Discord customer support, GitHub support, developer support tool, customer support for startups, shared inbox, customer support automation",
           url: currentUrl,
           siteName: "FrontDesk",
           locale: "en_US",

@@ -11,7 +11,7 @@ import { FrontDeskApp } from "./mock/front-desk-app";
  * Slack thread floating over the bottom-right corner. Both share the same
  * phase script:
  *   01 picks up      → a message lands (thread view)
- *   02 replies       → Agent replies in Pedro's voice (thread view)
+ *   02 handles it    → Agent resolves it in Pedro's voice (thread view)
  *   03 pulls you in  → Signals page + new signal pop-in (human action)
  */
 
@@ -66,14 +66,14 @@ export function OneLinerSection() {
           <h1 className="text-4xl leading-tight font-medium tracking-tight md:text-5xl">
             Care for every customer.
             <br />
-            Even when you can&apos;t keep up.
+            Even when you&apos;re busy.
           </h1>
           <div className="flex flex-col gap-8">
             <h2 className="text-2xl leading-tight font-light tracking-tight text-foreground-primary/45 transition-colors md:text-[1.75rem]">
               <Part active={hl === 0}>
                 FrontDesk picks up every conversation,
               </Part>{" "}
-              <Part active={hl === 1}>replies in your voice,</Part>{" "}
+              <Part active={hl === 1}>handles it like you would,</Part>{" "}
               <Part active={hl === 2}>
                 and pulls you in only when it matters
               </Part>
@@ -96,7 +96,7 @@ export function OneLinerSection() {
           {/* <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs">
             {[
               "Nothing waits on you",
-              "Care, automated",
+              "Not just replies. Resolutions.",
               "You stay in control",
             ].map((tag, i) => (
               <div key={tag} className="flex items-center gap-2">
