@@ -19,7 +19,7 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "..";
+import { requireIntegrationOption } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/github/"
@@ -35,12 +35,7 @@ export const Route = createFileRoute(
   }),
 });
 
-const integrationDetails = integrationOptions.find(
-  (option) => option.id === "github"
-);
-if (!integrationDetails) {
-  throw new Error("GitHub integration option not found");
-}
+const integrationDetails = requireIntegrationOption("github");
 
 const generateStateToken = (): string => {
   const array = new Uint8Array(32);

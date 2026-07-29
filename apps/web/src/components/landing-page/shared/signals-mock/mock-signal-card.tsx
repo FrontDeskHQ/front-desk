@@ -1,9 +1,14 @@
 /* mirror: thread-read signal card — apps/web/src/components/signals/action-row/thread-read-card.tsx
  * fork: apps/web/src/components/signals/action-row/thread-read-card.tsx @ d83ec749
  *   why: live-state, Link, handlers, mutate, reply draft editor
- * reuse: ActionRow, Avatar, TreeJoin, TreeSkip, ActionButton, ThreadChip, MockRichMarkdown, ACTION_KIND_LABEL, ACTION_KIND_VERB
+ * reuse: ActionRow, Avatar, TreeJoin, TreeSkip, treeRowClassName,
+ *   treeContentClassName, TREE_ROW_GAP_PX, ActionButton, ThreadChip,
+ *   MockRichMarkdown, ACTION_KIND_LABEL, ACTION_KIND_VERB, urgencyTierFromScore
  * state: static card from props — primary/alternative action kinds drive button row
- * marketing: none
+ * marketing: none. Shared by the hero (one signal) and section 03 (three).
+ * note: the row-geometry class strings used to be copied verbatim here; they
+ *   are now exported from @workspace/ui/components/tree and reused, so that
+ *   part of the fork can no longer drift.
  */
 
 import {
@@ -15,23 +20,18 @@ import type { ActionKind } from "@workspace/schemas/signals";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { ActionButton } from "@workspace/ui/components/button";
 import {
+  treeContentClassName,
   TreeJoin,
+  treeRowClassName,
   TreeSkip,
   TREE_ROW_GAP_PX,
 } from "@workspace/ui/components/tree";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
 
-import { ActionRow } from "~/components/signals/action-row";
+import { ActionRow } from "~/components/signals/action-row/action-row";
 
-import { THREAD_REFERENCES } from "./data";
 import { MockRichMarkdown } from "./mock-rich-markdown";
-import type { MockSignalCardData } from "./types";
-
-const treeRowClassName =
-  "flex min-h-8 min-w-0 items-stretch gap-1 overflow-visible text-sm";
-
-const treeContentClassName =
-  "flex min-w-0 flex-1 gap-2 py-1 text-foreground-primary";
+import type { MockSignalCardData, MockThreadReference } from "./types";
 
 function orderReplyFirst(kinds: ActionKind[]): ActionKind[] {
   return [...kinds].sort((a, b) => {
@@ -67,9 +67,16 @@ function compoundButtonLabel(primaryKinds: ActionKind[]): string {
 
 interface MockSignalCardProps {
   signal: MockSignalCardData;
+  /** Threads referenced from summary/recommendation markdown, by id. */
+  threadReferences?: Record<string, MockThreadReference>;
 }
 
-export function MockSignalCard({ signal }: MockSignalCardProps) {
+const NO_THREAD_REFERENCES: Record<string, MockThreadReference> = {};
+
+export function MockSignalCard({
+  signal,
+  threadReferences = NO_THREAD_REFERENCES,
+}: MockSignalCardProps) {
   const { alternativeKinds = [], primaryKinds } = signal;
 
   return (
@@ -101,7 +108,7 @@ export function MockSignalCard({ signal }: MockSignalCardProps) {
               <MockRichMarkdown
                 content={signal.summary}
                 preset="inline"
-                threadReferences={THREAD_REFERENCES}
+                threadReferences={threadReferences}
                 className={
                   signal.recommendation
                     ? "text-foreground-secondary"
@@ -117,7 +124,7 @@ export function MockSignalCard({ signal }: MockSignalCardProps) {
                 <MockRichMarkdown
                   content={signal.recommendation}
                   preset="inline"
-                  threadReferences={THREAD_REFERENCES}
+                  threadReferences={threadReferences}
                   className="text-foreground-primary"
                 />
               </div>

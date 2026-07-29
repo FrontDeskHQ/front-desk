@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
 import { OneLinerSection } from "~/components/landing-page/one-liner-section";
+import { LandingMotionStyles } from "~/components/landing-page/shared/motion-styles";
 
 export const Route = createFileRoute("/explore-one-liner")({
   component: RouteComponent,
@@ -10,6 +11,7 @@ export const Route = createFileRoute("/explore-one-liner")({
 function RouteComponent() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background-primary">
+      <LandingMotionStyles />
       <OneLinerSection />
     </main>
   );

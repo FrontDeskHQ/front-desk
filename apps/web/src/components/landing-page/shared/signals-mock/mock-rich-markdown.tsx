@@ -1,4 +1,12 @@
-/* marketing: static ThreadChip for thread: links — real RichMarkdown uses live-state ThreadMention */
+/* mirror: signal recommendation body — apps/web/src/components/markdown/rich-markdown.tsx
+ * reuse: RichMarkdown, ThreadChip — the real renderer, only its `a` component
+ *   overridden, so prose styling and markdown handling cannot drift
+ * state: recommendation markdown from fixture; thread: links resolved against
+ *   the threadReferences map the caller passes
+ * marketing: the app resolves thread mentions through a live-state
+ *   ThreadMention lookup. Fixture links are encoded as a proxy https: URL
+ *   (streamdown drops unknown schemes) and swapped for a static ThreadChip.
+ */
 
 import type { ComponentProps } from "react";
 import { useMemo } from "react";

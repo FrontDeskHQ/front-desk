@@ -3,7 +3,7 @@
  *   why: composes live AppSidebar + Widget; mock swaps in MockSidebar, drops Widget
  * reuse: SidebarProvider, MockSidebar
  * state: active sidebar item from props; children fill the main Card slot
- * marketing: none — callers own DesignFrame / inert / role=img
+ * marketing: none — ProductMockFrame owns the design canvas, inert and role=img
  */
 
 import { SidebarProvider } from "@workspace/ui/components/sidebar";
@@ -15,20 +15,14 @@ import { MockSidebar } from "./mock-sidebar";
 interface MockAppFrameProps {
   children: React.ReactNode;
   activeSidebarItem?: MockSidebarActive;
-  className?: string;
 }
 
 export function MockAppFrame({
   children,
   activeSidebarItem = "threads",
-  className,
 }: MockAppFrameProps) {
   return (
-    <SidebarProvider
-      className={["min-h-0 h-full overflow-hidden", className]
-        .filter(Boolean)
-        .join(" ")}
-    >
+    <SidebarProvider className="min-h-0 h-full overflow-hidden">
       <div className="flex size-full overflow-hidden">
         <MockSidebar active={activeSidebarItem} />
         {children}

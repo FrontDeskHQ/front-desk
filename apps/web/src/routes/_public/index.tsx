@@ -7,9 +7,26 @@ import { OneLinerSection } from "~/components/landing-page/one-liner-section";
 import { PicksUpSection } from "~/components/landing-page/picks-up-section";
 import { PullsYouInSection } from "~/components/landing-page/pulls-you-in-section";
 import { RepliesSection } from "~/components/landing-page/replies-section";
+import { LandingMotionStyles } from "~/components/landing-page/shared/motion-styles";
 
 export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
+  head: () => ({
+    links: [
+      // Lato is the hero's Slack panel typeface — declared by the only page
+      // that uses it, and discoverable in <head> instead of mid-body.
+      { rel: "preconnect", href: "https://fonts.googleapis.com" },
+      {
+        rel: "preconnect",
+        href: "https://fonts.gstatic.com",
+        crossOrigin: "anonymous",
+      },
+      {
+        rel: "stylesheet",
+        href: "https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap",
+      },
+    ],
+  }),
 });
 
 function SectionLabel({ n, name }: { n: string; name: string }) {
@@ -29,6 +46,8 @@ function SectionLabel({ n, name }: { n: string; name: string }) {
 function RouteComponent() {
   return (
     <main className="mx-auto grid w-full max-w-[90rem] grid-cols-24">
+      <LandingMotionStyles />
+
       {/* 0. Hero — sits above the bordered slab */}
       <OneLinerSection />
 

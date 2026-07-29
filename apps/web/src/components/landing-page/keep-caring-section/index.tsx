@@ -5,9 +5,7 @@
 
 import { Button } from "@workspace/ui/components/button";
 
-const EARLY_ACCESS_HREF =
-  "mailto:hello@tryfrontdesk.app?subject=Early%20access";
-const TALK_TO_US_HREF = "mailto:hello@tryfrontdesk.app";
+import { EARLY_ACCESS_HREF, TALK_TO_US_HREF } from "../shared/links";
 
 export function KeepCaringSection() {
   return (

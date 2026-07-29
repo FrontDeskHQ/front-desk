@@ -26,7 +26,7 @@ import { activateDiscord } from "~/lib/integrations/activate";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "..";
+import { requireIntegrationOption } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/discord/"
@@ -42,12 +42,7 @@ export const Route = createFileRoute(
   }),
 });
 
-const integrationDetails = integrationOptions.find(
-  (option) => option.id === "discord"
-);
-if (!integrationDetails) {
-  throw new Error("Discord integration option not found");
-}
+const integrationDetails = requireIntegrationOption("discord");
 
 function RouteComponent() {
   const posthog = usePostHog();

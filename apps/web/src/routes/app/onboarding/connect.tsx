@@ -12,7 +12,7 @@ import { activateDiscord, activateSlack } from "~/lib/integrations/activate";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "../_workspace/settings/organization/integration";
+import { requireIntegrationOption } from "../_workspace/settings/organization/integration";
 
 const searchParams = {
   name: parseAsString.withDefault(""),
@@ -37,14 +37,8 @@ export const Route = createFileRoute("/app/onboarding/connect")({
   }),
 });
 
-const discordDetails = integrationOptions.find((o) => o.id === "discord");
-if (!discordDetails) {
-  throw new Error("Discord integration option not found");
-}
-const slackDetails = integrationOptions.find((o) => o.id === "slack");
-if (!slackDetails) {
-  throw new Error("Slack integration option not found");
-}
+const discordDetails = requireIntegrationOption("discord");
+const slackDetails = requireIntegrationOption("slack");
 
 function RouteComponent() {
   const { user } = Route.useRouteContext();

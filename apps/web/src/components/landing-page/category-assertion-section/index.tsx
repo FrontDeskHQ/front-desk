@@ -11,8 +11,6 @@
  * Col 1 is the page gutter. Prose on cols 2–15; visual spans cols 17–22.
  */
 
-// import { BreakingGridVisual } from "./visuals/breaking-grid";
-
 export function CategoryAssertionSection() {
   return (
     <section
@@ -29,10 +27,6 @@ export function CategoryAssertionSection() {
           you&apos;d have written yourself.
         </p>
       </div>
-
-      {/* <div className="col-span-full hidden md:col-span-6 md:col-start-17 md:flex md:items-center">
-        <BreakingGridVisual />
-      </div> */}
     </section>
   );
 }

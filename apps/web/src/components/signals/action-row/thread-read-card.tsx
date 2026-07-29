@@ -25,7 +25,9 @@ import {
 } from "@workspace/ui/components/hover-card";
 import { StatusIndicator } from "@workspace/ui/components/indicator";
 import {
+  treeContentClassName,
   TreeJoin,
+  treeRowClassName,
   TreeSkip,
   TREE_ROW_GAP_PX,
 } from "@workspace/ui/components/tree";
@@ -106,12 +108,6 @@ function primaryReplyDraftMarkdown(primary: Action[]): string {
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
-
-const treeRowClassName =
-  "flex min-h-8 min-w-0 items-stretch gap-1 overflow-visible text-sm";
-
-const treeContentClassName =
-  "flex min-w-0 flex-1 gap-2 py-1 text-foreground-primary";
 
 /**
  * Selected bundle actions in display order: reply always leads, the rest keep

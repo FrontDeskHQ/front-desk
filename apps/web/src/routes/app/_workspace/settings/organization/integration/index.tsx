@@ -33,13 +33,15 @@ export const Route = createFileRoute(
   }),
 });
 
-export const integrationOptions: {
+export interface IntegrationOption {
   label: string;
   id: string;
   icon: React.ReactNode;
   description: string;
   fullDescription: string;
-}[] = [
+}
+
+export const integrationOptions: IntegrationOption[] = [
   {
     description: "Sync forum channels and threads from your Discord server",
     fullDescription: `
@@ -120,6 +122,18 @@ To get started, connect your GitHub account and select the repository you want t
   //   fullDescription: "Connect your support email to sync incoming emails.",
   // },
 ];
+
+/**
+ * Lookup for an integration we ship a dedicated page for. The id set is closed,
+ * so callers get a non-optional option instead of asserting at each use site.
+ */
+export function requireIntegrationOption(id: string): IntegrationOption {
+  const option = integrationOptions.find((o) => o.id === id);
+  if (!option) {
+    throw new Error(`Integration option not found: ${id}`);
+  }
+  return option;
+}
 
 const integrationLabel = (type: string): string =>
   integrationOptions.find((option) => option.id === type)?.label ?? type;

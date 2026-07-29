@@ -1,3 +1,4 @@
+import { paragraph } from "../shared/thread-detail-mock";
 import type {
   MockMessage,
   MockSiMessage,
@@ -5,15 +6,6 @@ import type {
 } from "../shared/thread-detail-mock";
 
 const NOW = Date.now();
-
-function paragraph(text: string): string {
-  return JSON.stringify([
-    {
-      content: [{ text, type: "text" }],
-      type: "paragraph",
-    },
-  ]);
-}
 
 /** Billing refund how-to, distinct from the hero webhook thread. */
 export const THREAD: MockThreadState = {

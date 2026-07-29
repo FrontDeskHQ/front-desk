@@ -3,7 +3,7 @@
  *   why: row is inlined in ThreadsList; pulls live-state thread + Link navigation
  * reuse: Avatar, LabelBadge, PriorityIndicator, StatusIndicator, formatRelativeTime
  * state: one open-inbox row from demoThreads (props)
- * marketing: optional simulated hover via isSimulatedHover
+ * marketing: none
  */
 
 import { Avatar } from "@workspace/ui/components/avatar";
@@ -19,23 +19,11 @@ import type { DemoThread } from "./types";
 
 interface MockThreadRowProps {
   thread: DemoThread;
-  isSimulatedHover?: boolean;
 }
 
-export function MockThreadRow({
-  thread,
-  isSimulatedHover = false,
-}: MockThreadRowProps) {
+export function MockThreadRow({ thread }: MockThreadRowProps) {
   return (
-    <div
-      className={[
-        "max-w-5xl flex flex-col p-3 gap-2 mx-auto w-full",
-        isSimulatedHover ? "bg-muted" : undefined,
-      ]
-        .filter(Boolean)
-        .join(" ")}
-      data-active={isSimulatedHover || undefined}
-    >
+    <div className="max-w-5xl flex flex-col p-3 gap-2 mx-auto w-full">
       <div className="flex justify-between">
         <div className="flex items-center gap-2">
           <span className="text-foreground-secondary text-sm tabular-nums">

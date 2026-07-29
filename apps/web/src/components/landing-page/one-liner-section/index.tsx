@@ -1,7 +1,8 @@
-import { Avatar } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
 import { useEffect, useState } from "react";
+
+import { EARLY_ACCESS_HREF } from "../shared/links";
 
 import { FrontDeskApp } from "./mock/front-desk-app";
 
@@ -45,21 +46,6 @@ export function OneLinerSection() {
       id="hero"
       className="col-span-full flex w-full justify-center bg-background-primary px-6 pt-50 pb-16 text-foreground-primary scroll-mt-15"
     >
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap');
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-        .fade-up { animation: fadeUp .4s ease-out both; }
-        @keyframes blink { 0%,100% { opacity:.25; } 50% { opacity:1; } }
-        @keyframes popIn {
-          from { opacity: 0; transform: translateY(10px) scale(0.97); }
-          to { opacity: 1; transform: none; }
-        }
-        .pop-in { animation: popIn .5s cubic-bezier(0.23, 1, 0.32, 1) both; }
-        @media (prefers-reduced-motion: reduce) {
-          .fade-up, .pop-in { animation: none; }
-        }
-      `}</style>
-
       <div className="flex w-full flex-col gap-30">
         {/* ---------- HERO COPY ---------- */}
         <div className="flex w-full flex-col gap-8 max-w-2xl">
@@ -83,53 +69,25 @@ export function OneLinerSection() {
               size="xl"
               className="w-fit bg-primary text-primary-foreground hover:bg-primary/90"
               render={
-                <a
-                  href="mailto:hello@tryfrontdesk.app?subject=Early%20access"
-                  aria-label="Request early access"
-                />
+                <a href={EARLY_ACCESS_HREF} aria-label="Request early access" />
               }
             >
               Request early access
             </Button>
           </div>
-
-          {/* <div className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-xs">
-            {[
-              "Nothing waits on you",
-              "Not just replies. Resolutions.",
-              "You stay in control",
-            ].map((tag, i) => (
-              <div key={tag} className="flex items-center gap-2">
-                <span
-                  className={cn(
-                    "font-mono transition-colors",
-                    hl === i
-                      ? "text-foreground-primary"
-                      : "text-foreground-tertiary/60",
-                  )}
-                >
-                  {`0${i + 1}`}
-                </span>
-                <span
-                  className={cn(
-                    "transition-colors",
-                    hl === i
-                      ? "text-foreground-secondary"
-                      : "text-foreground-tertiary/50",
-                  )}
-                >
-                  {tag}
-                </span>
-              </div>
-            ))}
-          </div> */}
         </div>
 
         {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
         <div className="relative w-full">
           <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
-          <div className="pointer-events-none absolute right-4 bottom-4 z-10 w-[min(100%-2rem,22rem)] shadow-2xl sm:right-6 sm:bottom-6 sm:w-96 md:w-[26rem]">
-            <SlackThread phase={phase} />
+          <div
+            role="img"
+            aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
+            className="absolute right-4 bottom-4 z-10 w-[min(100%-2rem,22rem)] shadow-2xl sm:right-6 sm:bottom-6 sm:w-96 md:w-[26rem]"
+          >
+            <div inert className="pointer-events-none select-none">
+              <SlackThread phase={phase} />
+            </div>
           </div>
         </div>
       </div>
@@ -160,7 +118,13 @@ function Part({
 
 /* ======================== Slack mock ======================== */
 
-/** High-fidelity Slack thread panel — app color tokens, Slack layout. */
+/* rebuild: Slack, not FrontDesk — nothing in the product renders this, so there
+ *   is no source to pin and no drift to check. Slack layout, our color tokens.
+ * reuse: none — every glyph below is hand-drawn to match Slack's composer
+ * state: #support thread, phase-gated: customer report → Agent reply → pushback
+ * marketing: Lato is loaded by the /_public route's `head`, not here — this
+ *   panel only asks for it. Caller owns inert / role=img.
+ */
 function SlackThread({ phase }: { phase: number }) {
   // Agent handles the first reply; pushback stays open — human acts via Signals.
   const replyCount = (phase >= 3 ? 1 : 0) + (phase >= 5 ? 1 : 0);

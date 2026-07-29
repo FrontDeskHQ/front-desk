@@ -1,13 +1,9 @@
-import type {
-  MockLabel,
-  MockMessage,
-  MockStatusSuggestion,
-  MockThreadState,
-} from "./types";
+import type { MockMessage, MockThreadState } from "./types";
 
 const NOW = Date.now();
 
-function paragraph(text: string): string {
+/** TipTap JSON body — the encoding every mock message content uses. */
+export function paragraph(text: string): string {
   return JSON.stringify([
     {
       content: [{ text, type: "text" }],
@@ -16,7 +12,11 @@ function paragraph(text: string): string {
   ]);
 }
 
-function paragraphWithLink(before: string, label: string, href: string): string {
+export function paragraphWithLink(
+  before: string,
+  label: string,
+  href: string
+): string {
   return JSON.stringify([
     {
       content: [
@@ -81,43 +81,3 @@ export const MESSAGES = {
     markedAsAnswer: false,
   },
 } as const satisfies Record<string, MockMessage>;
-
-/** SI quick suggestions for the open webhook thread (reply-mode toolbar). */
-export const SUGGESTIONS = {
-  statusSuggestion: {
-    label: "Resolved",
-    status: 2,
-  } satisfies MockStatusSuggestion,
-  suggestedLabels: [
-    { color: "var(--label-color-red)", name: "Bug" },
-  ] satisfies MockLabel[],
-};
-
-/** Markdown draft shown in Support Intelligence → Draft Reply. */
-export const SI_DRAFT = `Thanks for flagging! That usually means your signing secret rotated. Here's how to update it and replay the missed events: [docs.acme.co/webhooks/signing-secret](https://docs.acme.co/webhooks/signing-secret)`;
-
-/** TipTap JSON draft for the reply composer (reply mode). */
-export const REPLY_DRAFT = paragraphWithLink(
-  "Thanks for flagging! That usually means your signing secret rotated. Here's how to update it and replay the missed events: ",
-  "docs.acme.co/webhooks/signing-secret",
-  "https://docs.acme.co/webhooks/signing-secret"
-);
-
-/** Chat transcript under the SI draft — search then draft. */
-export const SI_MESSAGES = [
-  {
-    content: "Draft a reply for this webhook issue.",
-    id: "si-user-1",
-    role: "user" as const,
-  },
-  {
-    content:
-      "Signing secret rotation is the usual cause here. I pulled the docs and drafted a reply you can send.",
-    id: "si-assistant-1",
-    role: "assistant" as const,
-    toolCalls: [
-      { displayName: "Searched documentation", name: "searchDocumentation" },
-      { displayName: "Drafted a reply", name: "setDraft" },
-    ],
-  },
-];

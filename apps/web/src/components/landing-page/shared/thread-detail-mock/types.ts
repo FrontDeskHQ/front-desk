@@ -23,8 +23,3 @@ export interface MockThreadState {
   assignedUserName: string | null;
   labels: MockLabel[];
 }
-
-export interface MockStatusSuggestion {
-  status: number;
-  label: string;
-}

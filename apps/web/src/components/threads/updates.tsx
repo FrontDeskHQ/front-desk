@@ -206,7 +206,7 @@ export function Update({
           {verbPrefix}
           {action === "applied" ? "labeled as " : "removed label "}
           <span className="text-foreground">
-            {metadata?.labelName ?? "label"}
+            {getMetadataString(metadata, "labelName") ?? "label"}
           </span>
         </>
       );
@@ -217,7 +217,11 @@ export function Update({
         return `self-assigned the thread`;
       }
 
-      if (!metadata?.newAssignedUserName) {
+      const newAssignedUserName = getMetadataString(
+        metadata,
+        "newAssignedUserName"
+      );
+      if (!newAssignedUserName) {
         return `unassigned the thread`;
       }
 
@@ -225,7 +229,7 @@ export function Update({
         <>
           assigned the thread to{" "}
           <span className="text-foreground">
-            {metadata?.newAssignedUserName}
+            {newAssignedUserName}
           </span>
         </>
       );
@@ -235,7 +239,9 @@ export function Update({
       return (
         <>
           {verbPrefix}changed status to{" "}
-          <span className="text-foreground">{metadata?.newStatusLabel}</span>
+          <span className="text-foreground">
+            {getMetadataString(metadata, "newStatusLabel")}
+          </span>
         </>
       );
     }
@@ -244,7 +250,9 @@ export function Update({
       return (
         <>
           changed priority to{" "}
-          <span className="text-foreground">{metadata?.newPriorityLabel}</span>
+          <span className="text-foreground">
+            {getMetadataString(metadata, "newPriorityLabel")}
+          </span>
         </>
       );
     }
@@ -287,7 +295,8 @@ export function Update({
             />
           ) : (
             <span className="text-foreground">
-              {metadata?.duplicateOfThreadName ?? "another thread"}
+              {getMetadataString(metadata, "duplicateOfThreadName") ??
+                "another thread"}
             </span>
           )}
         </span>
@@ -298,7 +307,7 @@ export function Update({
   const isFrontDesk = isAutonomous || isAutonomousUndo;
   const actorName = isFrontDesk
     ? "FrontDesk"
-    : (update.user?.name ?? metadata?.userName ?? "Someone");
+    : (update.user?.name ?? getMetadataString(metadata, "userName") ?? "Someone");
 
   return (
     <div className="flex gap-2 items-center text-xs text-muted-foreground">
@@ -338,7 +347,7 @@ export function Update({
       <span>
         <span className="text-foreground">{actorName}</span> {getUpdateText()}
       </span>
-      {isFrontDesk && metadata?.signalId && (
+      {isFrontDesk && getMetadataString(metadata, "signalId") && (
         <Link
           to="/app/signal"
           className="text-foreground underline-offset-2 hover:underline"

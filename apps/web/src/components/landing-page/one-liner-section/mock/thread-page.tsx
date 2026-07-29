@@ -1,7 +1,9 @@
-/* mirror: open thread — apps/web/src/routes/app/_workspace/_main/threads/$id/index.tsx
- * reuse: MockThreadDetailPage (shared/thread-detail-mock)
+/* rebuild: marketing composition — binds the hero's phase number to the shared
+ *   thread mirror; the mirror header lives on MockThreadDetailPage
+ * reuse: MockThreadDetailPage, MESSAGES (shared/thread-detail-mock)
  * state: webhook thread; customer msg → Agent reply → churn pushback → human
- * marketing: phase-gated reveal via shared scripted layout; Churn risk label after pushback
+ * marketing: phase-gated reveal via layout="scripted" so hidden replies keep
+ *   their space and the page never reflows; Churn risk label after pushback
  */
 
 import {

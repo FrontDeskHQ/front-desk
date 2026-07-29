@@ -27,6 +27,13 @@ const indicatorClassName =
 /** Matches `gap-1` on tree rows and lists. */
 const TREE_ROW_GAP_PX = 4;
 
+/** Row geometry for hand-composed tree rows (guide + content, outside <TreeItemRow>). */
+const treeRowClassName =
+  "flex min-h-8 min-w-0 items-stretch gap-1 overflow-visible text-sm";
+
+const treeContentClassName =
+  "flex min-w-0 flex-1 gap-2 py-1 text-foreground-primary";
+
 /** Radius for the join branch corner. */
 const TREE_CORNER_RADIUS_PX = 4;
 
@@ -256,6 +263,15 @@ function TreeSkip({
   );
 }
 
-export { TreeItem, TreeItemRow, TreeJoin, TreeList, TreeSkip, TREE_ROW_GAP_PX };
+export {
+  treeContentClassName,
+  TreeItem,
+  TreeItemRow,
+  TreeJoin,
+  TreeList,
+  treeRowClassName,
+  TreeSkip,
+  TREE_ROW_GAP_PX,
+};
 
 export type { TreeGuide, TreeIndicatorStretch };

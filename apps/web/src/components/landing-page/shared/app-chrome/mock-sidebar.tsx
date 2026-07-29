@@ -33,13 +33,11 @@ export type MockSidebarActive = "threads" | "signals" | null;
 
 interface MockSidebarProps {
   active?: MockSidebarActive;
-  orgName?: string;
 }
 
-export function MockSidebar({
-  active = "threads",
-  orgName = "Acme",
-}: MockSidebarProps) {
+const ORG_NAME = "Acme";
+
+export function MockSidebar({ active = "threads" }: MockSidebarProps) {
   return (
     <Sidebar variant="inset" className="bg-transparent p-2" collapsible="none">
       <SidebarHeader className="bg-transparent flex-row">
@@ -47,8 +45,8 @@ export function MockSidebar({
           <SidebarMenuItem>
             <SidebarMenuButton asChild className="w-fit px-1.5 select-none">
               <div>
-                <Avatar variant="org" fallback={orgName} />
-                <span className="truncate font-semibold">{orgName}</span>
+                <Avatar variant="org" fallback={ORG_NAME} />
+                <span className="truncate font-semibold">{ORG_NAME}</span>
                 <ChevronDown className="opacity-50" />
               </div>
             </SidebarMenuButton>

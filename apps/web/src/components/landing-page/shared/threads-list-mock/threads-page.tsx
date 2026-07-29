@@ -3,7 +3,7 @@
  *   why: ThreadsList reads live-state org/users/threads, router Link, Filter state
  * reuse: Card*, Button, Breadcrumb*, MockThreadRow, Avatar (via row)
  * state: open inbox from demoThreads props; Display/Filter chrome inert
- * marketing: none here — callers own crop, motion, simulated hover
+ * marketing: none here — ProductMockFrame owns the canvas, crop and inert wrapper
  */
 
 import {
@@ -27,18 +27,10 @@ import type { DemoThread } from "./types";
 
 interface MockThreadsPageProps {
   threads: DemoThread[];
-  hoveredThreadId?: string;
   className?: string;
-  /** Subtitle after Threads breadcrumb (e.g. "Open"). */
-  subTitle?: string;
 }
 
-export function MockThreadsPage({
-  threads,
-  hoveredThreadId,
-  className,
-  subTitle,
-}: MockThreadsPageProps) {
+export function MockThreadsPage({ threads, className }: MockThreadsPageProps) {
   return (
     <Card
       className={["flex flex-col overflow-hidden", className]
@@ -54,9 +46,6 @@ export function MockThreadsPage({
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          {subTitle ? (
-            <span className="text-muted-foreground text-sm">{subTitle}</span>
-          ) : null}
           <Button variant="ghost" size="sm" tabIndex={-1} aria-hidden>
             <FilterIcon />
             Filter
@@ -74,11 +63,7 @@ export function MockThreadsPage({
         <div className="overflow-hidden flex-1 p-4">
           <div className="flex flex-col gap-0 items-stretch w-full">
             {threads.map((thread) => (
-              <MockThreadRow
-                key={thread.id}
-                thread={thread}
-                isSimulatedHover={thread.id === hoveredThreadId}
-              />
+              <MockThreadRow key={thread.id} thread={thread} />
             ))}
           </div>
         </div>

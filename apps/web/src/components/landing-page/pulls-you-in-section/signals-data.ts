@@ -1,4 +1,7 @@
-import type { MockSignalCardData, MockThreadReference } from "./types";
+import type {
+  MockSignalCardData,
+  MockThreadReference,
+} from "../shared/signals-mock";
 
 const NOW = Date.now();
 

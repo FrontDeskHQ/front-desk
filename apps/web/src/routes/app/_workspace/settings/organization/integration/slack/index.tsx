@@ -27,7 +27,7 @@ import { activateSlack } from "~/lib/integrations/activate";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "..";
+import { requireIntegrationOption } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/slack/"
@@ -43,12 +43,7 @@ export const Route = createFileRoute(
   }),
 });
 
-const integrationDetails = integrationOptions.find(
-  (option) => option.id === "slack"
-);
-if (!integrationDetails) {
-  throw new Error("Slack integration option not found");
-}
+const integrationDetails = requireIntegrationOption("slack");
 
 function RouteComponent() {
   const posthog = usePostHog();

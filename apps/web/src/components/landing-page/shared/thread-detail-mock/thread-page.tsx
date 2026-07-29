@@ -4,8 +4,9 @@
  * reuse: ThreadHeader, ThreadReply, Breadcrumb*, CardHeader, Button, Separator,
  *   MockProperties, MockLabels, MockThreadToolbar
  * state: from props — typically webhook thread with customer header + agent reply
- * marketing: callers own DesignFrame / inert / role=img; scripted layout keeps
- *   invisible placeholders + fade-up for the hero phase script
+ * marketing: ProductMockFrame owns inert / role=img; `layout="scripted"` keeps
+ *   invisible placeholders + fade-up for the hero phase script, `"static"`
+ *   omits them. Reply composer is out of scope — no mirror needs it.
  */
 
 import type { InferLiveObject } from "@live-state/sync";
@@ -29,10 +30,7 @@ import { ThreadReply } from "~/components/threads/thread-reply";
 
 import { MockLabels } from "./mock-labels";
 import { MockProperties } from "./mock-properties";
-import {
-  MockThreadToolbar,
-  type MockToolbarSuggestions,
-} from "./mock-toolbar";
+import { MockThreadToolbar } from "./mock-toolbar";
 import type { MockSiMessage } from "./mock-support-intelligence-chat";
 import type { MockMessage, MockThreadState } from "./types";
 
@@ -56,12 +54,8 @@ interface MockThreadDetailPageProps {
   layout?: "scripted" | "static";
   headerVisible?: boolean;
   repliesHeadingVisible?: boolean;
-  /** Toolbar mode — defaults to null (actions only), or reply/SI when content given. */
-  toolbarMode?: "reply" | "support-intelligence" | null;
-  /** SI suggestions strip (hidden when toolbarMode is support-intelligence). */
-  suggestions?: MockToolbarSuggestions;
-  /** TipTap JSON draft for reply mode. */
-  replyDraft?: string;
+  /** Toolbar mode — defaults to null (actions only), or SI when a draft is given. */
+  toolbarMode?: "support-intelligence" | null;
   /** Markdown draft for SI chat Draft Reply. */
   siDraft?: string;
   siMessages?: MockSiMessage[];
@@ -101,8 +95,6 @@ export function MockThreadDetailPage({
   headerVisible = true,
   repliesHeadingVisible = true,
   toolbarMode = null,
-  suggestions,
-  replyDraft,
   siDraft,
   siMessages,
   className,
@@ -195,8 +187,6 @@ export function MockThreadDetailPage({
               <div className="sticky bottom-0 mx-auto w-full max-w-5xl px-8 pb-4">
                 <MockThreadToolbar
                   mode={toolbarMode}
-                  suggestions={suggestions}
-                  replyDraft={replyDraft}
                   siDraft={siDraft}
                   siMessages={siMessages}
                   isResolved={thread.status === 2}
