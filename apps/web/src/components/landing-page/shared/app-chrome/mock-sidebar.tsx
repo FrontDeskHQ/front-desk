@@ -5,7 +5,7 @@
  *   why: jotai org atom, auth logout, org switcher hook, PostHog
  * reuse: Sidebar, SidebarHeader, SidebarContent, SidebarGroup, SidebarMenu*,
  *   SidebarRail, Avatar
- * state: Acme org; active nav from props (threads | signals)
+ * state: Acme org; active nav from props (threads | signals | none)
  * marketing: collapsible=none + p-2 so inset chrome survives below md viewport
  *   (real inset uses md:flex; media queries follow the page, not the design canvas).
  *   bg-transparent overrides the collapsible=none hard-coded bg-sidebar — real inset
@@ -29,7 +29,7 @@ import {
 } from "@workspace/ui/components/sidebar";
 import { Activity, ChevronDown, MessagesSquare } from "lucide-react";
 
-export type MockSidebarActive = "threads" | "signals";
+export type MockSidebarActive = "threads" | "signals" | null;
 
 interface MockSidebarProps {
   active?: MockSidebarActive;

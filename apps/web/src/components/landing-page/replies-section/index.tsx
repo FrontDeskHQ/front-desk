@@ -4,6 +4,8 @@
  * Decorations: title `border-r`, topic sub-grid cell-owned borders (§5).
  */
 
+import { ThreadDetailVisual } from "./thread-detail-visual";
+
 const TOPICS = [
   {
     lead: "Resolves the routine, end to end.",
@@ -48,7 +50,7 @@ export function RepliesSection() {
       {/* —— Visual band —— */}
       <div className="col-span-full grid grid-cols-24 border-b pb-10 md:pb-14">
         <div className="col-span-full md:col-span-20 md:col-start-2">
-          <div className="aspect-2/1 w-full border border-white" aria-hidden />
+          <ThreadDetailVisual />
         </div>
       </div>
 
