@@ -4,6 +4,8 @@
  * Decorations: title `border-r`, topic sub-grid cell-owned borders (§5).
  */
 
+import { SignalsVisual } from "./signals-visual";
+
 const TOPICS = [
   {
     lead: "The hard 20% comes to you.",
@@ -50,7 +52,7 @@ export function PullsYouInSection() {
       {/* —— Visual band —— */}
       <div className="col-span-full grid grid-cols-24 border-b pb-10 md:pb-14">
         <div className="col-span-full md:col-span-20 md:col-start-2">
-          <div className="aspect-2/1 w-full border border-white" aria-hidden />
+          <SignalsVisual />
         </div>
       </div>
 

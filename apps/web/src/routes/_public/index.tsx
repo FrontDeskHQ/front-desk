@@ -1,11 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { HorizontalLine } from "@workspace/ui/components/surface";
 
+import { CategoryAssertionSection } from "~/components/landing-page/category-assertion-section";
+import { KeepCaringSection } from "~/components/landing-page/keep-caring-section";
 import { OneLinerSection } from "~/components/landing-page/one-liner-section";
 import { PicksUpSection } from "~/components/landing-page/picks-up-section";
 import { PullsYouInSection } from "~/components/landing-page/pulls-you-in-section";
 import { RepliesSection } from "~/components/landing-page/replies-section";
-import { CategoryAssertionSection } from "~/components/landing-page/category-assertion-section";
 
 export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
@@ -55,23 +56,8 @@ function RouteComponent() {
             placeholders costs more credibility than the empty slot does.
             See COMPANY/landing-page-copy-v4.md §04. */}
 
-        {/* 6. Closing CTA */}
-        <SectionLabel n="04" name="Keep caring" />
-        <section id="cta" className="col-span-full p-8">
-          <h2>
-            Keep caring.
-            <br />
-            However busy you get.
-          </h2>
-          <p>
-            <a href="mailto:hello@tryfrontdesk.app?subject=Early%20access">
-              Request early access
-            </a>
-          </p>
-          <p>
-            <a href="mailto:hello@tryfrontdesk.app">Talk to us</a>
-          </p>
-        </section>
+        {/* 6. Closing CTA — see landing-page-copy-v4.md §Close */}
+        <KeepCaringSection />
       </div>
     </main>
   );
