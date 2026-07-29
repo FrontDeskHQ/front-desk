@@ -14,6 +14,9 @@ import { MockAppFrame } from "./mock/mock-app-frame";
 import { MockPortalSlide } from "./mock/pages/portal-slide";
 import { MockThreadsSlide } from "./mock/pages/threads-slide";
 
+/** Slide keeps a short subset; picks-up uses the full shared inbox. */
+const slideThreads = demoThreads.slice(0, 6);
+
 const SLIDE_DURATION_MS = 10_000;
 const DEV_CONTROLS_VISIBLE = false; // Set to true to show dev controls
 const TIME_STEP_MS = 1000; // 1 second for advance/rewind
@@ -32,7 +35,7 @@ const slides: Slide[] = [
   {
     content: ({ elapsedMs, slideDurationMs }) => (
       <MockThreadsSlide
-        threads={demoThreads}
+        threads={slideThreads}
         elapsedMs={elapsedMs}
         slideDurationMs={slideDurationMs}
       />
@@ -44,7 +47,7 @@ const slides: Slide[] = [
   {
     content: ({ elapsedMs, slideDurationMs }) => (
       <MockPortalSlide
-        threads={demoThreads}
+        threads={slideThreads}
         elapsedMs={elapsedMs}
         slideDurationMs={slideDurationMs}
       />

@@ -1,9 +1,8 @@
-import { SidebarProvider } from "@workspace/ui/components/sidebar";
-import type * as React from "react";
+/* marketing: product-demo outer border over shared MockAppFrame */
 
-import { MockSidebar } from "./mock-sidebar";
+import { MockAppFrame as SharedMockAppFrame } from "../../shared/app-chrome";
 
-interface MockAppFrameProps {
+interface ProductDemoAppFrameProps {
   children: React.ReactNode;
   activeSidebarItem?: "threads";
   ariaLabel?: string;
@@ -15,14 +14,17 @@ export const MockAppFrame = ({
   activeSidebarItem = "threads",
   ariaLabel = "FrontDesk app preview (non-interactive)",
   showSidebar = true,
-}: MockAppFrameProps) => (
+}: ProductDemoAppFrameProps) => (
   <div
-    className="w-full h-full flex overflow-hidden pointer-events-none select-none gap-2 bg-background-primary border"
+    className="flex h-full w-full overflow-hidden border bg-background-primary"
     aria-label={ariaLabel}
   >
-    <SidebarProvider>
-      {showSidebar && <MockSidebar activeItem={activeSidebarItem} />}
-      {children}
-    </SidebarProvider>
+    {showSidebar ? (
+      <SharedMockAppFrame activeSidebarItem={activeSidebarItem}>
+        {children}
+      </SharedMockAppFrame>
+    ) : (
+      children
+    )}
   </div>
 );
