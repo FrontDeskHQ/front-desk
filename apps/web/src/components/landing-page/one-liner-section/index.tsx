@@ -201,8 +201,8 @@ function SlackThread({ phase }: { phase: number }) {
           visible={phase >= 1}
         >
           <SlackMessage who="jordan" name="Jordan Chen" time="9:41 AM">
-            Hey — our webhook stopped firing this morning and orders aren&apos;t
-            syncing 😕
+            our webhook stopped delivering sometime this morning — orders
+            aren&apos;t syncing to shopify anymore
           </SlackMessage>
         </SlackMessageSlot>
 
@@ -220,8 +220,9 @@ function SlackThread({ phase }: { phase: number }) {
 
         <SlackMessageSlot typing={phase === 2} who="pedro" visible={phase >= 3}>
           <SlackMessage who="pedro" name="Pedro" time="9:41 AM" app>
-            Thanks for flagging! That usually means your signing secret rotated.
-            Here&apos;s how to update it and replay the missed events:
+            Thanks for reporting this. If your signing secret rotated recently,
+            your endpoint needs the new value before deliveries resume.
+            Here&apos;s how to update it and replay missed events:
             <SlackLink>docs.acme.co/webhooks/signing-secret</SlackLink>
           </SlackMessage>
         </SlackMessageSlot>
@@ -232,8 +233,8 @@ function SlackThread({ phase }: { phase: number }) {
           visible={phase >= 5}
         >
           <SlackMessage who="jordan" name="Jordan Chen" time="9:42 AM">
-            Tried that — still nothing, and orders are piling up. If this
-            isn&apos;t fixed today we&apos;ll have to move off the product.
+            updated the secret per the doc, still nothing. got ~40 orders sitting
+            in limbo
           </SlackMessage>
         </SlackMessageSlot>
 

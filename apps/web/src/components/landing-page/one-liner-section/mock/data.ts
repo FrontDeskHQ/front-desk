@@ -21,10 +21,10 @@ export const HERO_SIGNALS: MockSignalCardData[] = [
     id: "sig-hero-webhook",
     primaryKinds: ["reply"],
     recommendation:
-      "Take this one — reply personally and dig into the webhook logs.",
+      "Reply with an update on the webhook investigation and what you are checking next.",
     shortId: THREAD.shortId,
     summary:
-      "Jordan tried the signing-secret fix — still nothing. Orders are piling up; they'll leave if this isn't fixed today.",
+      "Customer updated the webhook signing secret per the guide but deliveries still have not resumed and orders are not syncing.",
     title: THREAD.title,
     urgencyScore: 92,
   },

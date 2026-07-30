@@ -45,7 +45,7 @@ export const MESSAGES = {
   agent: {
     author: { name: "Pedro" },
     content: paragraphWithLink(
-      "Thanks for flagging! That usually means your signing secret rotated. Here's how to update it and replay the missed events: ",
+      "Thanks for reporting this. If your signing secret rotated recently, your endpoint needs the new value before deliveries resume. Here's how to update it and replay missed events: ",
       "docs.acme.co/webhooks/signing-secret",
       "https://docs.acme.co/webhooks/signing-secret"
     ),
@@ -56,7 +56,7 @@ export const MESSAGES = {
   customer: {
     author: { name: "Jordan Chen" },
     content: paragraph(
-      "Hey — our webhook stopped firing this morning and orders aren't syncing."
+      "our webhook stopped delivering sometime this morning — orders aren't syncing to shopify anymore"
     ),
     createdAt: new Date(NOW - 1000 * 60 * 4),
     id: "msg-customer",
@@ -65,7 +65,7 @@ export const MESSAGES = {
   human: {
     author: { name: "Pedro" },
     content: paragraph(
-      "Got it — this needs a closer look. Digging into the webhook logs now; I'll follow up shortly."
+      "checking your endpoint's delivery logs now — i'll update you shortly"
     ),
     createdAt: new Date(NOW - 1000 * 30),
     id: "msg-human",
@@ -74,7 +74,7 @@ export const MESSAGES = {
   pushback: {
     author: { name: "Jordan Chen" },
     content: paragraph(
-      "Tried that — still nothing, and orders are piling up. If this isn't fixed today we'll have to move off the product."
+      "updated the secret per the doc, still nothing. got ~40 orders sitting in limbo"
     ),
     createdAt: new Date(NOW - 1000 * 60 * 2),
     id: "msg-pushback",

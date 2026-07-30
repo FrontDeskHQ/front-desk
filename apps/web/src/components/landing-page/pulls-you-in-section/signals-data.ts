@@ -36,7 +36,7 @@ export const SIGNALS: MockSignalCardData[] = [
       "Reply with an update on the webhook investigation and what you are checking next.",
     shortId: 1842,
     summary:
-      "Customer reports that updating the webhook signing secret did not restore delivery and orders are still not syncing.",
+      "Customer updated the webhook signing secret per the guide but deliveries still have not resumed and orders are not syncing.",
     title: "Webhook stopped firing — orders not syncing",
     urgencyScore: 92,
   },
