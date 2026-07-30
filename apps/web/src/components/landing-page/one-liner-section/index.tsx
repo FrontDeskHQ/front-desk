@@ -3,6 +3,7 @@ import { cn } from "@workspace/ui/lib/utils";
 import { useEffect, useState } from "react";
 
 import { EARLY_ACCESS_HREF } from "../shared/links";
+import { RedGlareBackground } from "../shared/red-glare";
 
 import { FrontDeskApp } from "./mock/front-desk-app";
 
@@ -44,9 +45,45 @@ export function OneLinerSection() {
   return (
     <section
       id="hero"
-      className="col-span-full flex w-full justify-center bg-background-primary px-6 pt-50 pb-16 text-foreground-primary scroll-mt-15"
+      className="relative col-span-full flex w-full justify-center bg-background-primary px-6 pt-50 pb-16 text-foreground-primary scroll-mt-15"
     >
-      <div className="flex w-full flex-col gap-30">
+      {/* Glare backdrop — breaks the 90rem grid to span the full viewport, so
+          the field reads as sky behind the page rather than a boxed panel.
+          `w-screen` is 100vw (scrollbar included); the `_public` layout carries
+          `overflow-x-clip` to swallow that overhang without a scroll container.
+          The top third is pure background, so the canvas starts there rather
+          than being masked away — fewer pixels to shade. It fades in over its
+          own height and hits full strength on a hard cut at the section edge. */}
+      <div
+        className="pointer-events-none absolute top-1/3 bottom-0 left-1/2 w-screen -translate-x-1/2 select-none"
+        style={{
+          maskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
+          WebkitMaskImage:
+            "linear-gradient(to bottom, transparent 0%, black 100%)",
+        }}
+      >
+        {/* Vignette — punches the glare out behind the mocks so the UI reads on
+            flat dark. Anchored to the canvas's top edge, so the dark pocket
+            hangs down over the mocks and the field burns in below and to the
+            sides. Mixed units on purpose: the width is rem so it tracks the
+            90rem content column rather than growing with the viewport, while
+            the height is a % of the canvas so it scales with however tall the
+            hero renders. Nested rather than composited: the two masks multiply
+            on their own, no `mask-composite` needed. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            maskImage:
+              "radial-gradient(ellipse 62rem 175% at 50% 0%, transparent 0%, transparent 45%, black 100%)",
+            WebkitMaskImage:
+              "radial-gradient(ellipse 62rem 175% at 50% 0%, transparent 0%, transparent 45%, black 100%)",
+          }}
+        >
+          <RedGlareBackground className="absolute inset-0 h-full w-full" />
+        </div>
+      </div>
+
+      <div className="relative flex w-full flex-col gap-30">
         {/* ---------- HERO COPY ---------- */}
         <div className="flex w-full flex-col gap-8 max-w-2xl">
           <h1 className="text-4xl leading-tight font-medium tracking-tight md:text-5xl">
