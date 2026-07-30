@@ -14,7 +14,6 @@ import {
   ProductMockFrame,
 } from "../../shared/app-chrome";
 import { MockSignalsPage } from "../../shared/signals-mock";
-
 import { HERO_SIGNALS, VIEWER } from "./data";
 import { ThreadPage } from "./thread-page";
 import type { FrontDeskPage } from "./types";
@@ -31,6 +30,7 @@ export function FrontDeskApp({ phase, page }: FrontDeskAppProps) {
   return (
     <ProductMockFrame
       activeSidebarItem={page}
+      frameClassName="border-foreground-primary/13"
       ariaLabel={
         page === "signals"
           ? "FrontDesk Signals, showing one high-urgency thread that needs a human reply"

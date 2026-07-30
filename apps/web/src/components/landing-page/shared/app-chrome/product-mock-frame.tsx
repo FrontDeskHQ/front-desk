@@ -7,6 +7,7 @@
  *   gives it. Mirrors below this point never re-declare any of that.
  */
 
+import { cn } from "@workspace/ui/lib/utils";
 import type * as React from "react";
 import { useEffect, useRef } from "react";
 
@@ -24,12 +25,14 @@ export const MOCK_MAIN_CARD_CLASS =
 interface ProductMockFrameProps {
   ariaLabel: string;
   activeSidebarItem?: MockSidebarActive;
+  frameClassName?: string;
   children: React.ReactNode;
 }
 
 export function ProductMockFrame({
   ariaLabel,
   activeSidebarItem,
+  frameClassName,
   children,
 }: ProductMockFrameProps) {
   const frameRef = useRef<HTMLDivElement>(null);
@@ -61,7 +64,10 @@ export function ProductMockFrame({
       <div inert className="pointer-events-none select-none">
         <div
           ref={frameRef}
-          className="relative aspect-video w-full overflow-hidden rounded-md border border-border-secondary bg-background-primary shadow-sm"
+          className={cn(
+            "relative aspect-video w-full overflow-hidden rounded-md border border-border-secondary bg-background-primary shadow-sm",
+            frameClassName
+          )}
         >
           <div
             ref={canvasRef}

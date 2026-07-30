@@ -116,7 +116,9 @@ export function OneLinerSection() {
 
         {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
         <div className="relative w-full">
-          <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
+          <div className="rounded-md shadow-[0_40px_100px_-20px_rgba(0,0,0,0.55),0_20px_50px_-15px_rgba(0,0,0,0.4)]">
+            <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
+          </div>
           <div
             role="img"
             aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
