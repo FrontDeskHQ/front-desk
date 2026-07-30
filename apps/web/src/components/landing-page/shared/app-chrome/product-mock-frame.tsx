@@ -15,12 +15,112 @@ import type { MockSidebarActive } from "./mock-sidebar";
 import { MockAppFrame } from "./mock-app-frame";
 
 /** Design canvas — full desktop chrome, then scaled into the section band. */
-const FD_DESIGN_W = 1280;
-const FD_DESIGN_H = 720; // 16:9
+export const FD_DESIGN_W = 1280;
+export const FD_DESIGN_H = 720; // 16:9
+
+/** Slack thread panel — hero overlay, scaled like the app mock. */
+export const SLACK_THREAD_DESIGN_W = 416;
+
+/** Slack width as a fraction of the app mock band — keeps both mocks on one scale. */
+export const SLACK_THREAD_WIDTH_RATIO = SLACK_THREAD_DESIGN_W / FD_DESIGN_W;
 
 /** The main content Card every mock page sits in, beside the sidebar. */
 export const MOCK_MAIN_CARD_CLASS =
   "relative m-2 ml-0 h-auto flex-1 overflow-hidden";
+
+interface ScaledCanvasOptions {
+  dynamicHeight?: boolean;
+  /** scale = scaleSource.clientWidth / scaleBaseWidth (default: frame / designWidth) */
+  scaleBaseWidth?: number;
+  scaleSourceRef?: React.RefObject<HTMLElement | null>;
+}
+
+function useScaledDesignCanvas(
+  designWidth: number,
+  options: ScaledCanvasOptions = {},
+) {
+  const {
+    dynamicHeight = false,
+    scaleBaseWidth,
+    scaleSourceRef,
+  } = options;
+  const frameRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    const canvas = canvasRef.current;
+    if (!frame || !canvas) {
+      return;
+    }
+
+    // Written imperatively: a resize should cost a style write, not a re-render
+    // of the whole mock tree (which would remount editors and markdown).
+    const update = () => {
+      const referenceWidth =
+        scaleSourceRef?.current?.clientWidth ?? frame.clientWidth;
+      const denominator = scaleBaseWidth ?? designWidth;
+      const scale = referenceWidth / denominator;
+      canvas.style.transform = `scale(${scale})`;
+      canvas.style.opacity = scale > 0 ? "1" : "0";
+      if (dynamicHeight) {
+        frame.style.height = `${canvas.offsetHeight * scale}px`;
+      }
+    };
+    update();
+
+    const ro = new ResizeObserver(update);
+    ro.observe(frame);
+    if (dynamicHeight) {
+      ro.observe(canvas);
+    }
+    const scaleSource = scaleSourceRef?.current;
+    if (scaleSource) {
+      ro.observe(scaleSource);
+    }
+    return () => ro.disconnect();
+  }, [designWidth, dynamicHeight, scaleBaseWidth, scaleSourceRef]);
+
+  return { frameRef, canvasRef };
+}
+
+interface ScaledContentFrameProps {
+  designWidth: number;
+  className?: string;
+  scaleBaseWidth?: number;
+  scaleSourceRef?: React.RefObject<HTMLElement | null>;
+  children: React.ReactNode;
+}
+
+/** Fixed-width design canvas scaled to its container — for non-16:9 mocks. */
+export function ScaledContentFrame({
+  designWidth,
+  className,
+  scaleBaseWidth,
+  scaleSourceRef,
+  children,
+}: ScaledContentFrameProps) {
+  const { frameRef, canvasRef } = useScaledDesignCanvas(designWidth, {
+    dynamicHeight: true,
+    scaleBaseWidth,
+    scaleSourceRef,
+  });
+
+  return (
+    <div
+      ref={frameRef}
+      className={cn("relative w-full overflow-hidden", className)}
+    >
+      <div
+        ref={canvasRef}
+        className="absolute top-0 left-0 origin-top-left opacity-0"
+        style={{ width: designWidth }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
 
 interface ProductMockFrameProps {
   ariaLabel: string;
@@ -35,29 +135,7 @@ export function ProductMockFrame({
   frameClassName,
   children,
 }: ProductMockFrameProps) {
-  const frameRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const frame = frameRef.current;
-    const canvas = canvasRef.current;
-    if (!frame || !canvas) {
-      return;
-    }
-
-    // Written imperatively: a resize should cost a style write, not a re-render
-    // of the whole mock tree (which would remount editors and markdown).
-    const update = () => {
-      const scale = frame.clientWidth / FD_DESIGN_W;
-      canvas.style.transform = `scale(${scale})`;
-      canvas.style.opacity = scale > 0 ? "1" : "0";
-    };
-    update();
-
-    const ro = new ResizeObserver(update);
-    ro.observe(frame);
-    return () => ro.disconnect();
-  }, []);
+  const { frameRef, canvasRef } = useScaledDesignCanvas(FD_DESIGN_W);
 
   return (
     <div role="img" aria-label={ariaLabel}>

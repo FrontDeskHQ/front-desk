@@ -34,7 +34,7 @@ export function NarrativeSection({
     <section id={id} className="col-span-full grid grid-cols-24 scroll-mt-15">
       {/* —— Title band —— */}
       <div className="col-span-full grid grid-cols-24 pt-24 pb-10 md:pt-32 md:pb-14">
-        <div className="col-span-full flex flex-col gap-8 md:col-span-14 md:col-start-2 md:border-r md:pr-10">
+        <div className="col-span-full max-md:col-span-22 max-md:col-start-2 flex flex-col gap-8 md:col-span-14 md:col-start-2 md:border-r md:pr-10">
           <h2 className="text-3xl font-medium tracking-tight text-foreground-primary md:text-4xl">
             {title}
           </h2>
@@ -48,7 +48,7 @@ export function NarrativeSection({
 
       {/* —— Visual band —— */}
       <div className="col-span-full grid grid-cols-24 border-b pb-10 md:pb-14">
-        <div className="col-span-full md:col-span-20 md:col-start-2">
+        <div className="col-span-22 col-start-2">
           {visual}
         </div>
       </div>
@@ -69,7 +69,7 @@ export function NarrativeSection({
               <div
                 key={topic.lead}
                 className={[
-                  "grid grid-cols-1 py-10 md:col-span-12 md:grid-cols-12 md:py-12",
+                  "grid grid-cols-1 py-10 max-md:col-span-22 max-md:col-start-2 md:col-span-12 md:grid-cols-12 md:py-12",
                   col === 0
                     ? "border-b md:border-r md:border-b-0"
                     : "",

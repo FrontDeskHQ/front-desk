@@ -16,7 +16,7 @@ export function KeepCaringSection() {
         id="cta"
         className="col-span-full grid grid-cols-24 scroll-mt-15"
       >
-        <div className="col-span-full flex flex-col items-center gap-10 px-6 py-24 text-center md:py-48">
+        <div className="col-span-full max-md:col-span-22 max-md:col-start-2 flex flex-col items-center gap-10 py-24 text-center md:py-48">
           <h2 className="text-3xl font-medium tracking-tight text-foreground-primary md:text-4xl lg:text-5xl">
             Keep caring.
             <br />

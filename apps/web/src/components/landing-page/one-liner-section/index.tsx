@@ -1,7 +1,13 @@
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
+import {
+  FD_DESIGN_W,
+  ScaledContentFrame,
+  SLACK_THREAD_DESIGN_W,
+  SLACK_THREAD_WIDTH_RATIO,
+} from "../shared/app-chrome/product-mock-frame";
 import { EARLY_ACCESS_HREF } from "../shared/links";
 import { RedGlareBackground } from "../shared/red-glare";
 import { FrontDeskApp } from "./mock/front-desk-app";
@@ -31,6 +37,7 @@ const PHASES = [
 
 export function OneLinerSection() {
   const [phase, setPhase] = useState(0);
+  const mockAreaRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const t = setTimeout(
@@ -45,7 +52,7 @@ export function OneLinerSection() {
   return (
     <section
       id="hero"
-      className="relative col-span-full flex w-full justify-center bg-background-primary px-6 pt-40 pb-16 text-foreground-primary scroll-mt-15"
+      className="relative col-span-full grid grid-cols-24 bg-background-primary pt-40 pb-16 text-foreground-primary scroll-mt-15"
     >
       {/* Glare backdrop — breaks the 90rem grid to span the full viewport, so
           the field reads as sky behind the page rather than a boxed panel.
@@ -83,7 +90,7 @@ export function OneLinerSection() {
         </div>
       </div>
 
-      <div className="relative flex w-full flex-col gap-30">
+      <div className="relative col-span-22 col-start-2 flex w-full flex-col gap-30">
         {/* ---------- HERO COPY ---------- */}
         <div className="flex w-full flex-col gap-8 max-w-2xl">
           <h1 className="text-4xl leading-tight font-medium tracking-tight md:text-5xl">
@@ -115,16 +122,23 @@ export function OneLinerSection() {
         </div>
 
         {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
-        <div className="relative w-full">
+        <div ref={mockAreaRef} className="relative w-full">
           <div className="relative overflow-visible rounded-md shadow-[0_40px_100px_-20px_rgba(0,0,0,0.55),0_20px_50px_-15px_rgba(0,0,0,0.4)]">
             <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
             <div
               role="img"
               aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
-              className="absolute right-0 -bottom-2 z-10 w-[min(100%-2rem,22rem)] translate-x-[32%] shadow-2xl sm:-bottom-4 sm:w-96 md:w-104 md:translate-x-[36%]"
+              className="absolute right-0 -bottom-2 z-10 translate-x-0 shadow-2xl sm:-bottom-4 min-[1650px]:translate-x-[36%]"
+              style={{ width: `${SLACK_THREAD_WIDTH_RATIO * 100}%` }}
             >
               <div inert className="pointer-events-none select-none">
-                <SlackThread phase={phase} />
+                <ScaledContentFrame
+                  designWidth={SLACK_THREAD_DESIGN_W}
+                  scaleBaseWidth={FD_DESIGN_W}
+                  scaleSourceRef={mockAreaRef}
+                >
+                  <SlackThread phase={phase} />
+                </ScaledContentFrame>
               </div>
             </div>
           </div>
