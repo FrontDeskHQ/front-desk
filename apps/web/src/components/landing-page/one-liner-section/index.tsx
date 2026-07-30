@@ -10,7 +10,8 @@ import { FrontDeskApp } from "./mock/front-desk-app";
 /**
  * Landing hero — one-liner + dual mocks.
  * Top: the one-liner. Below: FrontDesk UI (full-width 16:9) with the
- * Slack thread floating over the bottom-right corner. Both share the same
+ * Slack thread floating over the bottom-right corner, partly outside the
+ * frame. Both share the same
  * phase script:
  *   01 picks up      → a message lands (thread view)
  *   02 handles it    → Agent resolves it in Pedro's voice (thread view)
@@ -116,16 +117,16 @@ export function OneLinerSection() {
 
         {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
         <div className="relative w-full">
-          <div className="rounded-md shadow-[0_40px_100px_-20px_rgba(0,0,0,0.55),0_20px_50px_-15px_rgba(0,0,0,0.4)]">
+          <div className="relative overflow-visible rounded-md shadow-[0_40px_100px_-20px_rgba(0,0,0,0.55),0_20px_50px_-15px_rgba(0,0,0,0.4)]">
             <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
-          </div>
-          <div
-            role="img"
-            aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
-            className="absolute right-4 bottom-4 z-10 w-[min(100%-2rem,22rem)] shadow-2xl sm:right-6 sm:bottom-6 sm:w-96 md:w-[26rem]"
-          >
-            <div inert className="pointer-events-none select-none">
-              <SlackThread phase={phase} />
+            <div
+              role="img"
+              aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
+              className="absolute right-0 -bottom-2 z-10 w-[min(100%-2rem,22rem)] translate-x-[32%] shadow-2xl sm:-bottom-4 sm:w-96 md:w-104 md:translate-x-[36%]"
+            >
+              <div inert className="pointer-events-none select-none">
+                <SlackThread phase={phase} />
+              </div>
             </div>
           </div>
         </div>
@@ -170,7 +171,7 @@ function SlackThread({ phase }: { phase: number }) {
 
   return (
     <div
-      className="overflow-hidden rounded-md border border-border-secondary bg-background-primary text-foreground-primary shadow-sm"
+      className="overflow-hidden rounded-md border border-foreground-primary/13 bg-background-primary text-foreground-primary shadow-sm"
       style={{
         fontFamily:
           'Lato, Slack-Lato, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
