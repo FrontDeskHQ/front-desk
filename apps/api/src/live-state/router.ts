@@ -2,6 +2,7 @@
 import { isCapability } from "@connectors/framework";
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
+import { earlyAccessRequestSchema } from "@workspace/schemas/early-access";
 import { organizationSettingsSchema } from "@workspace/schemas/organization";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
@@ -908,6 +909,38 @@ export const router = createRouter({
           )[0];
         }
       ),
+    })),
+    /**
+     * Landing-page early-access form. Write-only on purpose — no query is
+     * exposed, so the public site can submit but never read the list. Repeat
+     * submissions from the same email overwrite the previous answers.
+     */
+    earlyAccessRequest: publicRoute.withProcedures(({ mutation }) => ({
+      submit: mutation(earlyAccessRequestSchema).handler(async ({ db, req }) => {
+        const email = req.input.email.trim().toLowerCase();
+        const fields = {
+          autonomy: req.input.autonomy,
+          channels: req.input.channels,
+          email,
+          volume: req.input.volume,
+        };
+
+        const existing = Object.values(
+          await db.find(schema.earlyAccessRequest, { where: { email } })
+        )[0];
+
+        if (existing) {
+          await db.earlyAccessRequest.update(existing.id, fields);
+        } else {
+          await db.earlyAccessRequest.insert({
+            ...fields,
+            createdAt: new Date(),
+            id: ulid().toLowerCase(),
+          });
+        }
+
+        return { success: true };
+      }),
     })),
     subscription: privateRoute.withProcedures(({ query }) => ({
       /**

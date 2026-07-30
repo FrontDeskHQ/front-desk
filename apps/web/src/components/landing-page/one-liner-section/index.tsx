@@ -8,7 +8,7 @@ import {
   SLACK_THREAD_DESIGN_W,
   SLACK_THREAD_WIDTH_RATIO,
 } from "../shared/app-chrome/product-mock-frame";
-import { EARLY_ACCESS_HREF } from "../shared/links";
+import { EarlyAccessDialog } from "../shared/early-access-dialog";
 import { RedGlareBackground } from "../shared/red-glare";
 import { FrontDeskApp } from "./mock/front-desk-app";
 
@@ -109,15 +109,17 @@ export function OneLinerSection() {
               </Part>
               .
             </h2>
-            <Button
-              size="xl"
-              className="w-fit bg-primary text-primary-foreground hover:bg-primary/90"
-              render={
-                <a href={EARLY_ACCESS_HREF} aria-label="Request early access" />
+            <EarlyAccessDialog
+              trigger={
+                <Button
+                  size="xl"
+                  className="w-fit bg-primary text-primary-foreground hover:bg-primary/90"
+                  aria-label="Request early access"
+                >
+                  Request early access
+                </Button>
               }
-            >
-              Request early access
-            </Button>
+            />
           </div>
         </div>
 

@@ -6,7 +6,8 @@
 import { Button } from "@workspace/ui/components/button";
 import { HorizontalLine } from "@workspace/ui/components/surface";
 
-import { EARLY_ACCESS_HREF, TALK_TO_US_HREF } from "../shared/links";
+import { EarlyAccessDialog } from "../shared/early-access-dialog";
+import { TALK_TO_US_HREF } from "../shared/links";
 
 export function KeepCaringSection() {
   return (
@@ -24,15 +25,17 @@ export function KeepCaringSection() {
           </h2>
 
           <div className="flex flex-wrap items-center justify-center gap-3">
-            <Button
-              size="xl"
-              className="bg-primary text-primary-foreground hover:bg-primary/90"
-              render={
-                <a href={EARLY_ACCESS_HREF} aria-label="Request early access" />
+            <EarlyAccessDialog
+              trigger={
+                <Button
+                  size="xl"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90"
+                  aria-label="Request early access"
+                >
+                  Request early access
+                </Button>
               }
-            >
-              Request early access
-            </Button>
+            />
             <Button
               size="xl"
               variant="outline"
