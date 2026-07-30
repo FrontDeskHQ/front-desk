@@ -1,5 +1,5 @@
 /** biome-ignore-all lint/a11y/useAnchorContent: <explanation> */
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Logo } from "@workspace/ui/components/logo";
 import { HorizontalLine } from "@workspace/ui/components/surface";
@@ -15,6 +15,7 @@ export const Route = createFileRoute("/_public")({
 
 function RouteComponent() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const isHome = useRouterState({ select: (s) => s.location.pathname === "/" });
 
   return (
     <div className="w-full min-h-screen flex flex-col items-center relative">
@@ -96,7 +97,7 @@ function RouteComponent() {
         </nav>
       </div>
       <Outlet />
-      <HorizontalLine variant="full" />
+      {!isHome && <HorizontalLine variant="full" />}
       <footer className="col-span-full grid grid-cols-12 border-x max-w-[90rem] w-full">
         <div className="col-span-full grid grid-cols-6 px-4 py-12">
           <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
