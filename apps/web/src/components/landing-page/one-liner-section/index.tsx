@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 
 import { EARLY_ACCESS_HREF } from "../shared/links";
 import { RedGlareBackground } from "../shared/red-glare";
-
 import { FrontDeskApp } from "./mock/front-desk-app";
 
 /**
@@ -46,7 +45,7 @@ export function OneLinerSection() {
   return (
     <section
       id="hero"
-      className="relative col-span-full flex w-full justify-center bg-background-primary px-6 pt-50 pb-16 text-foreground-primary scroll-mt-15"
+      className="relative col-span-full flex w-full justify-center bg-background-primary px-6 pt-40 pb-16 text-foreground-primary scroll-mt-15"
     >
       {/* Glare backdrop — breaks the 90rem grid to span the full viewport, so
           the field reads as sky behind the page rather than a boxed panel.
@@ -233,8 +232,8 @@ function SlackThread({ phase }: { phase: number }) {
           visible={phase >= 5}
         >
           <SlackMessage who="jordan" name="Jordan Chen" time="9:42 AM">
-            updated the secret per the doc, still nothing. got ~40 orders sitting
-            in limbo
+            updated the secret per the doc, still nothing. got ~40 orders
+            sitting in limbo
           </SlackMessage>
         </SlackMessageSlot>
 
