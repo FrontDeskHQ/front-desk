@@ -4,10 +4,11 @@ import { redGlareFrag } from "./shaders/red-glare.frag";
 import { useAnimatedShader } from "./use-animated-shader";
 
 /**
- * Red glare — animated WebGL field of drifting bokeh blobs, used as the hero
- * backdrop. Ported from the personal-site lab version with its dialkit control
- * panel dropped: the values in `red-glare-defaults` are the tuned preset and
- * nothing on the landing page changes them.
+ * Blue glare — animated WebGL field of drifting bokeh blobs, used as the hero
+ * backdrop. Tinted to match the primary button (#345BCA). Ported from the
+ * personal-site lab version with its dialkit control panel dropped: the values
+ * in `red-glare-defaults` are the tuned preset and nothing on the landing page
+ * changes them.
  *
  * `ogl` is imported dynamically inside the hook, so it stays out of the
  * initial bundle and never runs during SSR. If WebGL is unavailable the
@@ -27,7 +28,7 @@ export function RedGlareBackground({ className }: { className?: string }) {
       ref={containerRef}
       aria-hidden
       className={className}
-      style={{ background: "#050000" }}
+      style={{ background: "#030510" }}
     />
   );
 }
