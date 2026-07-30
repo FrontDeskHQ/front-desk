@@ -53,33 +53,40 @@ export function NarrativeSection({
         </div>
       </div>
 
-      {/* —— Topics: 2×2 sub-grid with cell-owned borders —— */}
-      <ul className="col-span-full grid grid-cols-1 md:col-span-20 md:col-start-2 md:grid-cols-2">
-        {topics.map((topic, i) => {
-          const isRight = i % 2 === 1;
-          const isBottom = i >= 2;
-
-          return (
-            <li
-              key={topic.lead}
-              className={[
-                "flex flex-col gap-3 py-10 md:py-12",
-                !isRight && "md:border-r md:pr-10",
-                isRight && "md:pl-10",
-                !isBottom && "border-b",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <p className="text-xl font-medium tracking-tight text-foreground-primary md:text-2xl">
-                {topic.lead}
-              </p>
-              <p className="max-w-md text-base leading-relaxed text-foreground-secondary">
-                {topic.body}
-              </p>
-            </li>
-          );
-        })}
+      {/* —— Topics: 2×2 — each half is 12 cols; inner 12-col sub-grid with 1-col side gutters —— */}
+      <ul className="col-span-full list-none">
+        {[0, 2].map((rowStart) => (
+          <li
+            key={rowStart}
+            className={[
+              "grid grid-cols-1 md:grid-cols-24",
+              rowStart === 0 && "border-b",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
+            {topics.slice(rowStart, rowStart + 2).map((topic, col) => (
+              <div
+                key={topic.lead}
+                className={[
+                  "grid grid-cols-1 py-10 md:col-span-12 md:grid-cols-12 md:py-12",
+                  col === 0
+                    ? "border-b md:border-r md:border-b-0"
+                    : "",
+                ].join(" ")}
+              >
+                <div className="col-span-full flex flex-col gap-3 md:col-span-10 md:col-start-2">
+                  <p className="text-xl font-medium tracking-tight text-foreground-primary md:text-2xl">
+                    {topic.lead}
+                  </p>
+                  <p className="text-base leading-relaxed text-foreground-secondary">
+                    {topic.body}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </li>
+        ))}
       </ul>
     </section>
   );
