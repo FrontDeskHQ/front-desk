@@ -288,7 +288,7 @@ function RouteComponent() {
                   disabled={isDisabled}
                   aria-disabled={isDisabled}
                   tabIndex={isDisabled ? -1 : undefined}
-                  onClick={(e) => {
+                  onClick={(e: React.MouseEvent<HTMLAnchorElement>) => {
                     if (isDisabled) {
                       e.preventDefault();
                     }
