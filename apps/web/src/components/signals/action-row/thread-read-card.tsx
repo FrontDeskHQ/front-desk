@@ -25,10 +25,10 @@ import {
 } from "@workspace/ui/components/hover-card";
 import { StatusIndicator } from "@workspace/ui/components/indicator";
 import {
-  TreeItem,
-  TreeItemRow,
+  treeContentClassName,
   TreeJoin,
-  TreeList,
+  treeRowClassName,
+  TreeSkip,
   TREE_ROW_GAP_PX,
 } from "@workspace/ui/components/tree";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
@@ -108,12 +108,6 @@ function primaryReplyDraftMarkdown(primary: Action[]): string {
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
 }
-
-const treeRowClassName =
-  "flex min-h-8 min-w-0 items-stretch gap-1 overflow-visible text-sm";
-
-const treeContentClassName =
-  "flex min-w-0 flex-1 gap-2 py-1 text-foreground-primary";
 
 /**
  * Selected bundle actions in display order: reply always leads, the rest keep
@@ -677,67 +671,60 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   return (
     <ActionRow.Root tier={urgencyTierFromScore(read.urgencyScore)}>
       <ActionRow.Header>
-        <TreeList>
-          <TreeItem>
-            <TreeItemRow>
-              <div className="flex w-full items-center gap-2 pr-16 text-sm text-foreground-primary">
-                <ThreadRef thread={thread} />
-                {read.createdAt ? (
-                  <ActionRow.Meta>
-                    {formatRelativeTime(new Date(read.createdAt))}
-                  </ActionRow.Meta>
-                ) : null}
-              </div>
-            </TreeItemRow>
-            <TreeList>
-              <TreeItem>
-                <div className={cn(treeRowClassName, "items-start")}>
-                  <TreeJoin
-                    isLast={!read.recommendation}
-                    stretchStart={TREE_ROW_GAP_PX}
-                    stretchEnd={read.recommendation ? TREE_ROW_GAP_PX : 0}
-                  />
-                  <div className={cn(treeContentClassName, "items-start")}>
-                    <RichMarkdown
-                      content={read.summary}
-                      preset="inline"
-                      className={
-                        read.recommendation
-                          ? "text-foreground-secondary"
-                          : "text-foreground-primary"
-                      }
-                    />
-                  </div>
-                </div>
-              </TreeItem>
-              {read.recommendation ? (
-                <TreeItem>
-                  <div className={cn(treeRowClassName, "items-start")}>
-                    <TreeJoin isLast stretchStart={TREE_ROW_GAP_PX} />
-                    <div className={cn(treeContentClassName, "items-start")}>
-                      <RichMarkdown
-                        content={read.recommendation}
-                        preset="inline"
-                        className="text-foreground-primary"
-                      />
-                    </div>
-                  </div>
-                </TreeItem>
-              ) : null}
-            </TreeList>
-            {inlineSuggestions.length > 0 ? (
-              <div className="py-1 pl-5">
-                <InlineSuggestionsRow
-                  suggestions={inlineSuggestions}
-                  organizationId={ctx.organizationId}
-                  busy={busyKey !== null}
-                  onAccept={handleInlineAccept}
-                  onDismiss={handleInlineDismiss}
+        <div className="flex flex-col">
+          <div className="flex min-h-8 w-full items-center gap-2 pr-16 text-sm text-foreground-primary">
+            <ThreadRef thread={thread} />
+            {read.createdAt ? (
+              <ActionRow.Meta>
+                {formatRelativeTime(new Date(read.createdAt))}
+              </ActionRow.Meta>
+            ) : null}
+          </div>
+          <div className={cn(treeRowClassName, "items-start")}>
+            {read.recommendation ? (
+              <TreeSkip
+                stretchStart={TREE_ROW_GAP_PX}
+                stretchEnd={TREE_ROW_GAP_PX}
+              />
+            ) : (
+              <TreeJoin isLast stretchStart={TREE_ROW_GAP_PX} />
+            )}
+            <div className={cn(treeContentClassName, "items-start")}>
+              <RichMarkdown
+                content={read.summary}
+                preset="inline"
+                className={
+                  read.recommendation
+                    ? "text-foreground-secondary"
+                    : "text-foreground-primary"
+                }
+              />
+            </div>
+          </div>
+          {read.recommendation ? (
+            <div className={cn(treeRowClassName, "items-start")}>
+              <TreeJoin isLast stretchStart={TREE_ROW_GAP_PX} />
+              <div className={cn(treeContentClassName, "items-start")}>
+                <RichMarkdown
+                  content={read.recommendation}
+                  preset="inline"
+                  className="text-foreground-primary"
                 />
               </div>
-            ) : null}
-          </TreeItem>
-        </TreeList>
+            </div>
+          ) : null}
+          {inlineSuggestions.length > 0 ? (
+            <div className="py-1 pl-5">
+              <InlineSuggestionsRow
+                suggestions={inlineSuggestions}
+                organizationId={ctx.organizationId}
+                busy={busyKey !== null}
+                onAccept={handleInlineAccept}
+                onDismiss={handleInlineDismiss}
+              />
+            </div>
+          ) : null}
+        </div>
         <ActionRow.TopActions>
           <AgentReadReasoningTrigger reasoning={read.reasoning} />
           <ActionRow.Dismiss onClick={handleDismissRead} label="Dismiss read" />

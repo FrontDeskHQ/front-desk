@@ -27,7 +27,7 @@ import { activateSlack } from "~/lib/integrations/activate";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "..";
+import { requireIntegrationOption } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/slack/"
@@ -43,10 +43,7 @@ export const Route = createFileRoute(
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const integrationDetails = integrationOptions.find(
-  (option) => option.id === "slack"
-)!;
+const integrationDetails = requireIntegrationOption("slack");
 
 function RouteComponent() {
   const posthog = usePostHog();

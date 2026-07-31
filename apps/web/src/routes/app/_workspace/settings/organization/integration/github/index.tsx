@@ -19,7 +19,7 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "..";
+import { requireIntegrationOption } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/github/"
@@ -35,10 +35,7 @@ export const Route = createFileRoute(
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const integrationDetails = integrationOptions.find(
-  (option) => option.id === "github"
-)!;
+const integrationDetails = requireIntegrationOption("github");
 
 const generateStateToken = (): string => {
   const array = new Uint8Array(32);

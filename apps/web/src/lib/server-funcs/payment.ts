@@ -1,4 +1,6 @@
+import type { InferLiveObject } from "@live-state/sync";
 import { createServerFn } from "@tanstack/react-start";
+import type { schema } from "api/schema";
 import z from "zod";
 
 import { fetchClient } from "../live-state";
@@ -9,12 +11,22 @@ type OrganizationUserWithBilling = Awaited<
   ReturnType<(typeof fetchClient.query.organizationUser)["forUser"]>
 >[number];
 
+type Subscription = InferLiveObject<typeof schema.subscription>;
+
+/**
+ * `organization` types to `never` on the base row because `forUser`'s include
+ * is conditional on `withSubscriptions` — only call this on rows fetched with
+ * `withSubscriptions: true`. The subscription shape itself comes from the
+ * schema, so it can't drift.
+ */
 const getOrganizationSubscription = (
   organizationUser: OrganizationUserWithBilling
-  // `organization` types to `never` here because `forUser`'s include is
-  // conditional on `withSubscriptions`; cast through `any` like the
-  // pre-oxlint code did.
-) => (organizationUser as any).organization?.subscriptions?.[0];
+): Subscription | undefined =>
+  (
+    organizationUser as unknown as {
+      organization?: { subscriptions?: Subscription[] };
+    }
+  ).organization?.subscriptions?.[0];
 
 const authorizeOrganizationUser = async (customerId: string) => {
   const sessionData = await getAuthUser();

@@ -8,6 +8,7 @@ import { MenuIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { AuthButtonGroup } from "~/components/auth";
+import { FooterWordmark } from "~/components/landing-page/shared/footer-wordmark";
 
 export const Route = createFileRoute("/_public")({
   component: RouteComponent,
@@ -17,14 +18,17 @@ function RouteComponent() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <div className="w-full min-h-screen flex flex-col items-center relative">
+    // overflow-x-clip: the hero's glare backdrop breaks the grid to 100vw,
+    // which overhangs by the scrollbar width. `clip` swallows it without
+    // creating a scroll container, so the sticky header keeps working.
+    <div className="w-full min-h-screen flex flex-col items-center relative overflow-x-clip">
       <header
         className={cn(
           "h-15 border-b flex justify-center w-full px-4 sticky top-0 backdrop-blur-sm z-50 bg-background-primary/90 transition-colors",
           menuOpen && "border-0 bg-transparent"
         )}
       >
-        <div className="flex items-center h-full w-full max-w-6xl justify-between">
+        <div className="flex items-center h-full w-full max-w-[90rem] justify-between">
           <div className="flex gap-px">
             <Link to="/" className="flex items-center gap-2 mr-4">
               <Logo>
@@ -35,23 +39,16 @@ function RouteComponent() {
             <Button
               variant="link"
               className="hidden md:inline-flex"
-              render={<Link to="/" hash="pricing" />}
+              render={<a href="/docs" aria-label="Docs" />}
             >
-              Pricing
+              Docs
             </Button>
             <Button
               variant="link"
               className="hidden md:inline-flex"
-              render={
-                <a
-                  href="https://support.tryfrontdesk.app"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Community"
-                />
-              }
+              render={<Link to="/updates" aria-label="Changelog" />}
             >
-              Community
+              Changelog
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -59,8 +56,9 @@ function RouteComponent() {
             <Button
               variant="ghost"
               size="icon"
-              className="hidden max-md:inline-flex"
+              className="md:hidden"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
               onClick={() => setMenuOpen(!menuOpen)}
             >
               {menuOpen ? (
@@ -72,32 +70,37 @@ function RouteComponent() {
           </div>
         </div>
       </header>
+      {/* The overlay stays mounted so it can fade; `inert` keeps the closed
+          menu out of tab order and the accessibility tree, which
+          `pointer-events-none opacity-0` alone does not do. */}
       <div
-        className={`fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden ${menuOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        inert={!menuOpen}
+        aria-hidden={!menuOpen}
+        className={cn(
+          "fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden",
+          menuOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
       >
-        <nav className="flex flex-col gap-2 w-full max-w-6xl p-4">
-          <Link
-            to="/"
-            hash="pricing"
-            className="py-2 text-lg"
-            onClick={() => setMenuOpen(false)}
-          >
-            Pricing
-          </Link>
+        <nav className="flex flex-col gap-2 w-full max-w-[90rem] p-4">
           <a
-            href="https://support.tryfrontdesk.app"
-            target="_blank"
-            rel="noreferrer"
+            href="/docs"
             className="py-2 text-lg"
             onClick={() => setMenuOpen(false)}
           >
-            Community
+            Docs
           </a>
+          <Link
+            to="/updates"
+            className="py-2 text-lg"
+            onClick={() => setMenuOpen(false)}
+          >
+            Changelog
+          </Link>
         </nav>
       </div>
       <Outlet />
-      <HorizontalLine variant="full" />
-      <footer className="col-span-full grid grid-cols-12 border-x max-w-6xl">
+      <HorizontalLine variant="full" lineStyle="solid" />
+      <footer className="col-span-full grid grid-cols-12 border-x max-w-[90rem] w-full">
         <div className="col-span-full grid grid-cols-6 px-4 py-12">
           <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
             <div className="flex gap-2">
@@ -107,13 +110,12 @@ function RouteComponent() {
               <span className="text-base font-medium">FrontDesk</span>
             </div>
             <div className="text-sm text-muted-foreground">
-              Support your customers wherever they are.
+              Care for every customer. Even when you&apos;re busy.
             </div>
           </div>
           <div className="p-4 space-y-4 col-span-3 md:col-start-4 md:col-span-1">
             <div className="text-base font-medium">Resources</div>
             <div className="flex flex-col gap-2">
-              <a href="/#pricing">Pricing</a>
               <a href="https://support.tryfrontdesk.app">Support</a>
               <a href="/docs">Docs</a>
               <a href="/updates">Updates</a>
@@ -157,32 +159,8 @@ function RouteComponent() {
             </div>
           </div>
         </div>
-        <div className="col-span-full text-center px-4 select-none text-muted-foreground/40">
-          <svg
-            width="100%"
-            height="1.1em"
-            viewBox="0 0 460 50"
-            fill="none"
-            style={{ fontSize: "calc(var(--spacing)*24)" }}
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <title>FrontDesk</title>
-            <text
-              x="50%"
-              y="50%"
-              dominantBaseline="middle"
-              textAnchor="middle"
-              fontFamily="inherit"
-              fontWeight="450"
-              fontSize="48"
-              fill="transparent"
-              stroke="currentColor"
-              strokeWidth="1"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              FrontDesk
-            </text>
-          </svg>
+        <div className="col-span-full select-none px-8 md:px-16">
+          <FooterWordmark />
         </div>
       </footer>
     </div>

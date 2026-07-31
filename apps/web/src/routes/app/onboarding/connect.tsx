@@ -12,7 +12,7 @@ import { activateDiscord, activateSlack } from "~/lib/integrations/activate";
 import { fetchClient } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "../_workspace/settings/organization/integration";
+import { requireIntegrationOption } from "../_workspace/settings/organization/integration";
 
 const searchParams = {
   name: parseAsString.withDefault(""),
@@ -37,10 +37,8 @@ export const Route = createFileRoute("/app/onboarding/connect")({
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const discordDetails = integrationOptions.find((o) => o.id === "discord")!;
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const slackDetails = integrationOptions.find((o) => o.id === "slack")!;
+const discordDetails = requireIntegrationOption("discord");
+const slackDetails = requireIntegrationOption("slack");
 
 function RouteComponent() {
   const { user } = Route.useRouteContext();

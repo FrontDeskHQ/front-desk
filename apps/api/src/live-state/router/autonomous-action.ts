@@ -69,7 +69,10 @@ export default privateRoute.withProcedures(({ mutation }) => ({
     const now = Date.now();
     const rows = [];
     for (let i = 0; i < req.input.count; i++) {
-      const actionKind = kinds[Math.floor(Math.random() * kinds.length)]!;
+      // Explicit literal fallback: `kinds[0]` is itself an indexed access, so
+      // under noUncheckedIndexedAccess it leaves `actionKind` possibly undefined.
+      const actionKind: ActionKind =
+        kinds[Math.floor(Math.random() * kinds.length)] ?? "apply_label";
       const appliedAt = new Date(
         now - Math.floor(Math.random() * 24 * 60 * 60 * 1000)
       );

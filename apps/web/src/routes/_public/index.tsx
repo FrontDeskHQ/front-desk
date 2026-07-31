@@ -1,560 +1,103 @@
-import { useForm } from "@tanstack/react-form";
+// Lato is the hero's Slack panel typeface. Self-hosted via fontsource and
+// imported by the only route that uses it, so the CSS ships in this route's
+// chunk instead of a render-blocking third-party request.
+import "@fontsource/lato/400.css";
+import "@fontsource/lato/700.css";
+import "@fontsource/lato/900.css";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@workspace/ui/components/accordion";
-import { Button } from "@workspace/ui/components/button";
-import {
-  FormControl,
-  FormItem,
-  FormMessage,
-} from "@workspace/ui/components/form";
-import { Input } from "@workspace/ui/components/input";
-import { AnimatedGroup } from "@workspace/ui/components/motion";
-import { Spinner } from "@workspace/ui/components/spinner";
-import Dither, {
-  DashedPattern,
-  HorizontalLine,
-} from "@workspace/ui/components/surface";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@workspace/ui/components/tooltip";
-import { cn } from "@workspace/ui/lib/utils";
-import { ArrowUpRight } from "lucide-react";
-import { usePostHog } from "posthog-js/react";
-import { Fragment, useEffect, useState } from "react";
-import z from "zod";
+import { HorizontalLine } from "@workspace/ui/components/surface";
 
-import { FeaturesSection } from "~/components/landing-page/features-section";
-import { ProductDemo } from "~/components/landing-page/product-demo";
-import { applyToWaitlist } from "~/lib/server-funcs/waitlist";
+import { CategoryAssertionSection } from "~/components/landing-page/category-assertion-section";
+import { KeepCaringSection } from "~/components/landing-page/keep-caring-section";
+import { OneLinerSection } from "~/components/landing-page/one-liner-section";
+import { PicksUpSection } from "~/components/landing-page/picks-up-section";
+import { PullsYouInSection } from "~/components/landing-page/pulls-you-in-section";
+import { RepliesSection } from "~/components/landing-page/replies-section";
+import { LandingMotionStyles } from "~/components/landing-page/shared/motion-styles";
+import { seo } from "~/utils/seo";
+import { absoluteAssetUrl, getCurrentUrl } from "~/utils/url";
+
+import ogImage from "../../assets/frontdesk-og.png";
 
 export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
-});
+  head: () => {
+    const currentUrl = getCurrentUrl();
+    const description =
+      "FrontDesk picks up every conversation, handles it like you would, and pulls you in only when it matters. Support built for teams that care, in Slack, Discord, email, and GitHub.";
+    const title = "FrontDesk — Care for every customer. Even when you're busy.";
 
-interface CommitWeek {
-  days: number[];
-  total: number;
-  week: number;
-}
-
-const getCommitLevel = (count: number): number => {
-  if (count === 0) {
-    return 0;
-  }
-  if (count <= 3) {
-    return 1;
-  }
-  if (count <= 6) {
-    return 2;
-  }
-  if (count <= 9) {
-    return 3;
-  }
-  return 4;
-};
-
-const getCommitColor = (level: number): string => {
-  const colors = [
-    "bg-foreground-secondary/5", // 0 commits
-    "bg-foreground-secondary/20", // 1-3 commits
-    "bg-foreground-secondary/50", // 4-6 commits
-    "bg-foreground-secondary/70", // 7-9 commits
-    "bg-foreground-secondary/90", // 10+ commits
-  ];
-  return colors[level];
-};
-
-function CommitHeatmap({ className }: { className?: string }) {
-  const [commitData, setCommitData] = useState<CommitWeek[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const fetchCommitActivity = async (retryCount = 0): Promise<void> => {
-      try {
-        setIsLoading(true);
-        const response = await fetch(
-          "https://api.github.com/repos/frontdeskhq/front-desk/stats/commit_activity"
-        );
-        // 202 means github is generating the data, wait and retry
-        if (response.status === 202) {
-          if (retryCount < 3) {
-            // Max 3 retries
-            await new Promise((resolve) =>
-              setTimeout(resolve, 3000 + retryCount ** 2 * 1000)
-            );
-            return fetchCommitActivity(retryCount + 1);
-          }
-          throw new Error(
-            "Data is still being generated. Please try again later."
-          );
-        }
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch commit activity");
-        }
-
-        const data: CommitWeek[] = await response.json();
-        setCommitData(data);
-        setError(null);
-      } catch (fetchError) {
-        setError(
-          fetchError instanceof Error ? fetchError.message : "An error occurred"
-        );
-      } finally {
-        setIsLoading(false);
-      }
+    return {
+      meta: seo({
+        title,
+        description,
+        keywords:
+          "FrontDesk, FrontDesk AI, AI customer support, AI support agent, Slack customer support, Discord customer support, GitHub support, developer support tool, customer support for startups, shared inbox, customer support automation",
+        url: currentUrl,
+        siteName: "FrontDesk",
+        locale: "en_US",
+        author: "FrontDesk",
+        openGraph: {
+          title: "FrontDesk",
+          description,
+          image: absoluteAssetUrl(ogImage),
+          url: currentUrl,
+          type: "website",
+          siteName: "FrontDesk",
+          locale: "en_US",
+        },
+      }),
     };
-
-    fetchCommitActivity();
-  }, []);
-
-  if (isLoading) {
-    return (
-      <div className="w-full h-full flex items-center justify-center py-12">
-        <div className="text-foreground-secondary">
-          Loading commit activity...
-        </div>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="w-full h-full flex items-center justify-center py-12">
-        <div className="text-foreground-secondary">
-          Failed to load commit activity
-        </div>
-      </div>
-    );
-  }
-
-  // Get the last 52 weeks for full year display
-  const recentWeeks = commitData.slice(-52);
-
-  // Calculate total commits
-  const totalCommits = recentWeeks.reduce((sum, week) => sum + week.total, 0);
-
-  return (
-    <TooltipProvider>
-      <div className="w-full flex flex-col gap-4">
-        <div className="text-sm text-foreground-secondary">
-          <span className="font-semibold text-foreground">{totalCommits}</span>{" "}
-          commits in the last year
-        </div>
-        <div
-          className={cn(
-            "grid grid-rows-7 grid-flow-col grid-cols-52 w-full gap-0.5",
-            className
-          )}
-        >
-          {recentWeeks.map((week, weekIndex) => (
-            <Fragment
-              key={`week-${
-                // biome-ignore lint/suspicious/noArrayIndexKey: false positive
-                weekIndex
-              }`}
-            >
-              {week.days.map((commitCount, dayIndex) => {
-                const level = getCommitLevel(commitCount);
-                const dayDate = new Date(week.week * 1000);
-                dayDate.setDate(dayDate.getDate() + dayIndex);
-
-                const formattedDate = dayDate.toLocaleDateString("en-US", {
-                  day: "numeric",
-                  month: "short",
-                  timeZone: "UTC",
-                  weekday: "short",
-                  year: "numeric",
-                });
-
-                return (
-                  <Tooltip key={`commit-${dayIndex}-${week.week}`}>
-                    <TooltipTrigger
-                      className={`rounded-xs aspect-square ${getCommitColor(level)} cursor-pointer`}
-                    />
-                    <TooltipContent side="top" sideOffset={4}>
-                      <div className="flex flex-col gap-0.5">
-                        <div className="font-medium">
-                          {commitCount}{" "}
-                          {commitCount === 1 ? "commit" : "commits"}
-                        </div>
-                        <div className="text-xs text-foreground-secondary">
-                          {formattedDate}
-                        </div>
-                      </div>
-                    </TooltipContent>
-                  </Tooltip>
-                );
-              })}
-            </Fragment>
-          ))}
-        </div>
-      </div>
-    </TooltipProvider>
-  );
-}
-
-const applyToWaitlistSchema = z.object({
-  email: z.email(),
+  },
 });
 
-function ApplyToWaitlistForm() {
-  const posthog = usePostHog();
-
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-
-  const form = useForm({
-    defaultValues: {
-      email: "",
-    },
-    onSubmit: async ({ value }) => {
-      setLoading(true);
-      await applyToWaitlist({ data: value })
-        .then(() => {
-          setSuccess(true);
-          waitlistApply();
-        })
-        .finally(() => {
-          setLoading(false);
-        });
-    },
-    validators: {
-      onSubmit: applyToWaitlistSchema,
-    },
-  });
-
-  const { Field, handleSubmit } = form;
-
-  const waitlistApply = () => {
-    if (form.state.values.email.trim() !== "") {
-      posthog?.capture("waitlist:form_submit");
-    }
-  };
-
+function SectionLabel({ n, name }: { n: string; name: string }) {
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        handleSubmit();
-      }}
-      className="flex gap-4 mx-auto max-w-md w-full flex-col md:flex-row"
-    >
-      <Field name="email">
-        {(field) => (
-          <FormItem field={field} className="w-full">
-            <FormControl>
-              <Input
-                placeholder="Enter your email..."
-                className="w-full dark:bg-background-primary/75"
-                id={field.name}
-                value={field.state.value}
-                onChange={(e) => field.setValue(e.target.value)}
-              />
-            </FormControl>
-            <FormMessage />
-          </FormItem>
-        )}
-      </Field>
-      <Button variant="primary" type="submit" size="lg" disabled={loading}>
-        {loading ? <Spinner /> : null}
-        {success ? "Thank you!" : "Request access"}
-      </Button>
-    </form>
+    <>
+      {/* Full-bleed seam above the label (§5) */}
+      <HorizontalLine variant="full" lineStyle="solid" />
+      <div className="col-span-full grid grid-cols-24 border-b pt-8 pb-4">
+        <div className="text-foreground-secondary col-span-full max-md:col-span-22 max-md:col-start-2 font-mono uppercase md:col-span-22 md:col-start-2">
+          {n} - {name}
+        </div>
+      </div>
+    </>
   );
 }
 
 function RouteComponent() {
   return (
-    <main className="w-full overflow-x-hidden">
-      <div className="w-full max-w-6xl grid grid-cols-12 mx-auto">
-        <section
-          id="hero"
-          className="col-span-12 flex flex-col items-center py-32 relative border-x scroll-mt-15"
-        >
-          <div className="absolute inset-0 text-foreground-secondary/50 grid grid-cols-[repeat(20,1fr)] -z-50 animate-in fade-in blur-in opacity-35 ease-in duration-[2s]">
-            {/* <DashedPattern className="border-r" /> */}
-            <Dither
-              waveColor={[0.7, 0.7, 0.7]}
-              disableAnimation={false}
-              enableMouseInteraction={false}
-              colorNum={4}
-              pixelSize={2.3}
-              waveAmplitude={0.3}
-              waveFrequency={3}
-              waveSpeed={0.05}
-              className="col-span-full"
-            />
-            {/* <DashedPattern className="col-start-20 border-l" /> */}
-          </div>
-          <AnimatedGroup
-            preset="blur-slide"
-            className="w-full max-w-2xl text-center flex flex-col gap-10 px-6"
-          >
-            <h1 className="text-5xl font-bold text-center">
-              Make community support actually good
-            </h1>
-            <h2 className="text-xl">
-              FrontDesk gives you everything you need to deliver really good
-              community support at scale. Built for products that value their
-              communities and are truly customer-obsessed.
-            </h2>
-            <ApplyToWaitlistForm />
-          </AnimatedGroup>
-        </section>
-        <div className="col-span-full md:block hidden">
-          <HorizontalLine variant="outer" />
-          <ProductDemo />
-        </div>
-        <DashedPattern className="col-span-full md:hidden block h-3 border-y text-foreground-tertiary/65" />
+    <main className="mx-auto grid w-full max-w-[90rem] grid-cols-24">
+      <LandingMotionStyles />
 
-        <HorizontalLine variant="outer" />
-        <FeaturesSection />
-        <HorizontalLine variant="outer" />
-        <section
-          id="pricing"
-          className="col-span-full grid grid-cols-subgrid border-x border-b scroll-mt-15"
-        >
-          <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
-            02 - Pricing
-          </div>
-          <DashedPattern className="h-full border-r text-foreground-tertiary/65" />
-          <div className="col-span-10 grid grid-cols-subgrid">
-            <div className="text-center col-span-full h-fit flex flex-col items-center justify-center py-10 px-8">
-              <div className="text-3xl font-bold mb-4">
-                Simple pricing that scales with you
-              </div>
-              <div className="col-span-full text-center text-lg">
-                Start today, no demo calls, no credit card required.
-              </div>
-            </div>
-            <div className="md:col-span-3 col-span-full border-y py-6 px-4">
-              <div className="text-lg font-medium">Starter</div>
-              <div className="mb-4">
-                <span className="text-2xl font-semibold text-primary">$9</span>
-                <span className="text-sm text-foreground-secondary">
-                  /seat/month
-                </span>
-              </div>
-              <div className="mb-2 h-5" />
-              <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
-                <li>Unlimited support tickets</li>
-                <li>Unlimited customers</li>
-                <li>Public support portal</li>
-                <li>2 support channels</li>
-              </ul>
-            </div>
-            <div className="md:col-span-7 col-span-full border-l border-y py-6 px-4">
-              <div className="text-lg font-medium">Pro</div>
-              <div className="mb-4">
-                <span className="text-2xl font-semibold text-primary">$24</span>
-                <span className="text-sm text-foreground-secondary">
-                  /seat/month
-                </span>
-              </div>
-              <div className="text-foreground-secondary text-sm mb-2 h-5">
-                Everything in Starter, plus:
-              </div>
-              <ul className="flex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
-                <li>Unlimited team members</li>
-                <li>Unlimited support channels</li>
-                <li>Custom domain for your support portal</li>
-                <li>Priority support</li>
-              </ul>
-            </div>
-            <div className="col-span-full py-4 px-4 border-b flex flex-col gap-4">
-              <div className="font-mono uppercase">
-                WANT TO GET FREE ACCESS DURING THE BETA?
-              </div>
-              <div className="">
-                We're sponsoring the Starter plan for teams that are willing to
-                help us with the beta testing.
-                <br /> All you need to do is to provide constant feedback and
-                help us improve FrontDesk.{" "}
-                <a
-                  href="https://discord.gg/5MDHqKHrHr"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline"
-                >
-                  Reach out on Discord
-                </a>
-                .
-              </div>
-            </div>
-            <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
-              FREQUENTLY ASKED QUESTIONS
-            </div>
-            <div className="col-span-full">
-              <Accordion type="single" collapsible className="w-full">
-                <AccordionItem value="item-1">
-                  <AccordionTrigger>
-                    What makes FrontDesk different from other support tools?
-                  </AccordionTrigger>
-                  <AccordionContent className="flex flex-col gap-4 text-balance">
-                    <p>
-                      FrontDesk transforms your support conversations into a
-                      public, searchable knowledge base. Every ticket you
-                      resolve becomes a resource that future customers can find
-                      through search engines, reducing repetitive questions and
-                      improving your SEO.
-                    </p>
-                    <p>
-                      FrontDesk is a modern support tool built for speed, not
-                      complexity. We believe in simplicity, not bloat. Our
-                      internal architecture is designed to be fast, with
-                      realtime sync, instant feedback, zero page loads and even
-                      offline support.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-                {/* TODO: uncomment when migration is implemented - it's a good question but we don't have it yet */}
-                {/* <AccordionItem value="item-2">
-                    <AccordionTrigger>
-                      Can I migrate my existing support tickets from another
-                      platform?
-                    </AccordionTrigger>
-                    <AccordionContent className="flex flex-col gap-4 text-balance">
-                      <p>
-                        Yes! We provide migration tools to help you import your
-                        existing support tickets, customer data, and conversation
-                        history from popular platforms like Zendesk, Intercom, and
-                        Help Scout.
-                      </p>
-                      <p>
-                        Our team will work with you during the migration process
-                        to ensure a smooth transition. All your historical data,
-                        including attachments and metadata, will be preserved and
-                        fully searchable in FrontDesk.
-                      </p>
-                    </AccordionContent>
-                  </AccordionItem> */}
-                <AccordionItem value="item-3">
-                  <AccordionTrigger>
-                    How does the public support portal work?
-                  </AccordionTrigger>
-                  <AccordionContent className="flex flex-col gap-4 text-balance">
-                    <p>
-                      Your public support portal is where all users can see
-                      previous support threads. Customers can search for
-                      answers, browse by topic, and find solutions to common
-                      problems without contacting support.
-                    </p>
-                    <p>
-                      It also doubles as a free SEO tool for your business.
-                      Since a lot of times potential customers are searching for
-                      answers before they even know you exist, having a public
-                      support portal helps them discover your business and feel
-                      confident that you care about your customers needs.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="item-4">
-                  <AccordionTrigger>
-                    What support channels can I connect?
-                  </AccordionTrigger>
-                  <AccordionContent className="flex flex-col gap-4 text-balance">
-                    <p>
-                      FrontDesk aims to unify all your support channels in one
-                      inbox. Currently, we only support Discord, with more
-                      integrations including email, our built-in web widget,
-                      Slack, Telegram, WhatsApp, and social media coming soon.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="item-5">
-                  <AccordionTrigger>
-                    Can I upgrade or downgrade my plan at any time?
-                  </AccordionTrigger>
-                  <AccordionContent className="flex flex-col gap-4 text-balance">
-                    <p>
-                      Absolutely! You can upgrade or downgrade your plan at any
-                      time with no penalties or long-term commitments. Changes
-                      take effect immediately, and we&apos;ll prorate any
-                      billing adjustments.
-                    </p>
-                    <p>
-                      Start with the Starter plan to explore FrontDesk, and
-                      upgrade to Pro when you need more team members, more
-                      support channels, or a custom domain. You can also
-                      downgrade if your needs change, and all your data remains
-                      intact.
-                    </p>
-                  </AccordionContent>
-                </AccordionItem>
-                {/* TODO: uncomment when compliance is implemented - it's a good thing to have but we don't have it yet */}
-                {/* <AccordionItem value="item-6">
-                    <AccordionTrigger>
-                      Is my customer data secure and private?
-                    </AccordionTrigger>
-                    <AccordionContent className="flex flex-col gap-4 text-balance">
-                      <p>
-                        Security is our top priority. All data is encrypted in
-                        transit and at rest using industry-standard encryption.
-                        We&apos;re SOC 2 compliant and undergo regular security
-                        audits to ensure your customer data is protected.
-                      </p>
-                      <p>
-                        You maintain full ownership of your data and can export it
-                        at any time. Our public portal only displays information
-                        you choose to publish, and we automatically filter out
-                        sensitive data like email addresses, phone numbers, and
-                        payment information.
-                      </p>
-                    </AccordionContent>
-                  </AccordionItem> */}
-              </Accordion>
-            </div>
-          </div>
-          <DashedPattern className="h-full border-l text-foreground-tertiary/65" />
-        </section>
-        <HorizontalLine variant="outer" />
-        <section
-          className="col-span-full grid grid-cols-subgrid border-x border-b scroll-mt-15"
-          id="engineering"
-        >
-          <div className="text-foreground-secondary col-span-full font-mono uppercase pt-8 pb-4 px-4 border-b">
-            03 - Engineering
-          </div>
-          <div className="col-span-full text-center pt-12 pb-6 px-4">
-            <div className="text-2xl font-medium">Proudly open source</div>
-            <a
-              href="https://github.com/frontdeskhq/front-desk"
-              className="text-lg text-foreground-secondary hover:underline"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Star us on GitHub
-              <ArrowUpRight className="size-5 inline-block" />
-            </a>
-          </div>
-          <div className="col-span-10 col-start-2 pb-12">
-            <CommitHeatmap />
-          </div>
-        </section>
-        <HorizontalLine variant="outer" />
-        <section
-          className="col-span-full grid grid-cols-subgrid border-x border-b relative scroll-mt-15"
-          id="cta"
-        >
-          <DashedPattern className="absolute inset-0 -z-10 mask-radial-[80%_60%] md:mask-radial-[40%_50%] mask-radial-at-center mask-radial-from-60% mask-radial-from-transparent mask-radial-to-white text-foreground-tertiary/65" />
-          {/* <DashedPattern className="absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_40%_50%_at_center,transparent_60%,black_100%)]" /> */}
-          <div className="col-span-full text-center px-8 md:px-4 py-40">
-            <div className="text-3xl font-medium mb-12">
-              Join the future of customer support
-            </div>
-            <ApplyToWaitlistForm />
-          </div>
-        </section>
+      {/* 0. Hero — sits above the bordered slab */}
+      <OneLinerSection />
+
+      <HorizontalLine variant="full" lineStyle="solid" />
+
+      {/* Rails begin below the hero */}
+      <div className="col-span-full grid grid-cols-24 border-x">
+        {/* 1. Category assertion */}
+        <CategoryAssertionSection />
+
+        {/* 2. Section 01 — Picks up every conversation */}
+        <SectionLabel n="01" name="Picks up every conversation" />
+        <PicksUpSection />
+
+        {/* 3. Section 02 — Handles it like you would */}
+        <SectionLabel n="02" name="Handles it like you would" />
+        <RepliesSection />
+
+        {/* 4. Section 03 — Pulls you in only when it matters */}
+        <SectionLabel n="03" name="Pulls you in only when it matters" />
+        <PullsYouInSection />
+
+        {/* 5. Proof — intentionally omitted until it's real. Testimonial,
+            the number, and trust posture all still [TBD]; shipping the
+            placeholders costs more credibility than the empty slot does. */}
+
+        {/* 6. Closing CTA */}
+        <KeepCaringSection />
       </div>
     </main>
   );

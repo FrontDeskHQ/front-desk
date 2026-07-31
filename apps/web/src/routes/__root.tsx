@@ -8,8 +8,6 @@ import {
 } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { createIsomorphicFn } from "@tanstack/react-start";
-import { getRequestUrl } from "@tanstack/react-start/server";
 import { Toaster } from "@workspace/ui/components/sonner";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 
@@ -17,52 +15,20 @@ import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { Providers } from "~/components/providers";
 import { seo } from "~/utils/seo";
+import { absoluteAssetUrl, getCurrentUrl } from "~/utils/url";
 
 import "../../../../packages/ui/src/styles/globals.css";
 import ogImage from "../assets/frontdesk-og.png";
 
-const getBaseUrl = createIsomorphicFn()
-  .server(() => {
-    try {
-      const url = getRequestUrl();
-      return `${url.protocol}//${url.host}`;
-    } catch {
-      return import.meta.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
-    }
-  })
-  .client(() => {
-    if (typeof window !== "undefined") {
-      return `${window.location.protocol}//${window.location.host}`;
-    }
-    return "https://tryfrontdesk.app";
-  });
-
-const getCurrentUrl = createIsomorphicFn()
-  .server(() => {
-    try {
-      const url = getRequestUrl();
-      return url.toString();
-    } catch {
-      return import.meta.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
-    }
-  })
-  .client(() => {
-    if (typeof window !== "undefined") {
-      return window.location.href;
-    }
-    return "https://tryfrontdesk.app";
-  });
-
 export const Route = createRootRoute({
   head: () => {
-    const baseUrl = getBaseUrl();
     const currentUrl = getCurrentUrl();
+    // Site-wide defaults only. Landing-specific copy lives in the `/_public/`
+    // index route so pages like /updates don't inherit the landing SEO.
     const description =
       "The all in one customer support platform. Making good customer support extremely easy.";
 
-    const ogImageUrl = ogImage.startsWith("http")
-      ? ogImage
-      : `${baseUrl}${ogImage.startsWith("/") ? ogImage : `/${ogImage}`}`;
+    const ogImageUrl = absoluteAssetUrl(ogImage);
 
     return {
       links: [

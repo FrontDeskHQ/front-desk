@@ -8,6 +8,7 @@
     "./external-issue": "./src/external-issue.ts",
     "./organization": "./src/organization.ts",
     "./digest": "./src/digest.ts",
+    "./early-access": "./src/early-access.ts",
     "./signals": "./src/signals.ts"
   },
   "scripts": {

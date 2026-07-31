@@ -26,7 +26,7 @@ import { activateDiscord } from "~/lib/integrations/activate";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
-import { integrationOptions } from "..";
+import { requireIntegrationOption } from "..";
 
 export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/discord/"
@@ -42,10 +42,7 @@ export const Route = createFileRoute(
   }),
 });
 
-// biome-ignore lint/style/noNonNullAssertion: This is a constant and we know it will always be found
-const integrationDetails = integrationOptions.find(
-  (option) => option.id === "discord"
-)!;
+const integrationDetails = requireIntegrationOption("discord");
 
 function RouteComponent() {
   const posthog = usePostHog();

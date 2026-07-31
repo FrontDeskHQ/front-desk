@@ -30,5 +30,6 @@ yarn-error.log*
 
 # company mental model & internal docs (local only, not for public repo)
 COMPANY/
+apps/web/src/components/landing-page/DESIGN_SPEC.md
 
 *.log

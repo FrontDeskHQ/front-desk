@@ -116,6 +116,7 @@
         "@faker-js/faker": "^10.0.0",
         "@fontsource-variable/intel-one-mono": "^5.2.1",
         "@fontsource-variable/inter": "^5.2.6",
+        "@fontsource/lato": "^5.3.0",
         "@front-desk/sdk": "^0.0.5",
         "@front-desk/widget": "^0.0.5",
         "@live-state/sync": "catalog:",
@@ -146,6 +147,7 @@
         "motion": "^12.23.18",
         "next-themes": "^0.4.6",
         "nuqs": "^2.8.5",
+        "ogl": "^1.0.11",
         "postgres": "^3.4.7",
         "posthog-js": "^1.302.2",
         "qs": "^6.14.0",
@@ -838,6 +840,8 @@
     "@fontsource-variable/intel-one-mono": ["@fontsource-variable/intel-one-mono@5.2.2", "", {}, "sha512-dXmY1M3SJhQ3mtCdI4L3zMik8YabWMO912BjI2LG3uQQVBZJubH9+sEt/YHHPz5e3II0h+LhORd2JIGNTynldw=="],
 
     "@fontsource-variable/inter": ["@fontsource-variable/inter@5.2.8", "", {}, "sha512-kOfP2D+ykbcX/P3IFnokOhVRNoTozo5/JxhAIVYLpea/UBmCQ/YWPBfWIDuBImXX/15KH+eKh4xpEUyS2sQQGQ=="],
+
+    "@fontsource/lato": ["@fontsource/lato@5.3.0", "", {}, "sha512-0WhF/4rhrw+ErIyneKvhHn2YAl+xf8GDtllgOgOzDmeaSlLQtjpChXaQOpWhG2BchQW0WJy2zLV12Hdg0ndOMw=="],
 
     "@formatjs/intl-localematcher": ["@formatjs/intl-localematcher@0.6.2", "", { "dependencies": { "tslib": "^2.8.0" } }, "sha512-XOMO2Hupl0wdd172Y06h6kLpBz6Dv+J4okPLl4LPtzbr8f66WbIoy4ev98EBuZ6ZK4h5ydTN6XneT4QVpD7cdA=="],
 

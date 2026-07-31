@@ -9,6 +9,7 @@ import {
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Bot, CircleUserIcon, CopySlash, Github, Tag } from "lucide-react";
+import { z } from "zod";
 
 import { ThreadChipWithSummary } from "~/components/chips";
 import {
@@ -149,6 +150,43 @@ const IssueCreatedUpdateText = ({
   );
 };
 
+/**
+ * `metadataStr` is free-form JSON on the wire, but every reader below treats it
+ * as an object bag. Anything else (a bare string, an array, null) is discarded
+ * rather than handed downstream as a `Record`.
+ */
+const updateMetadataSchema = z
+  .object({
+    newPriority: z.number().optional(),
+    newStatus: z.number().optional(),
+  })
+  .catchall(z.unknown());
+
+type UpdateMetadata = z.infer<typeof updateMetadataSchema>;
+
+function parseUpdateMetadata(
+  metadataStr: string | null | undefined
+): UpdateMetadata | null {
+  if (!metadataStr) {
+    return null;
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(metadataStr);
+  } catch (error) {
+    console.error("Error parsing update metadata:", error);
+    return null;
+  }
+
+  const parsed = updateMetadataSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("Invalid update metadata shape:", parsed.error);
+    return null;
+  }
+  return parsed.data;
+}
+
 export function Update({
   update,
   user,
@@ -158,15 +196,7 @@ export function Update({
   user?: { id: string; name: string };
   connectTop?: boolean;
 }) {
-  // biome-ignore lint/suspicious/noExplicitAny: metadata shape varies by update type
-  let metadata: any = null;
-  if (update.metadataStr) {
-    try {
-      metadata = JSON.parse(update.metadataStr);
-    } catch (error) {
-      console.error("Error parsing update metadata:", error);
-    }
-  }
+  const metadata = parseUpdateMetadata(update.metadataStr);
 
   const assignedUser = useLiveQuery(
     query.user.first({
@@ -178,10 +208,17 @@ export function Update({
   );
 
   const duplicateThread = useLiveQuery(
-    query.thread.first({ id: metadata?.duplicateOfThreadId }).include({
-      assignedUser: { include: { user: true } },
-      author: { include: { user: true } },
-    })
+    query.thread
+      .first({
+        id:
+          typeof metadata?.duplicateOfThreadId === "string"
+            ? metadata.duplicateOfThreadId
+            : undefined,
+      })
+      .include({
+        assignedUser: { include: { user: true } },
+        author: { include: { user: true } },
+      })
   );
 
   const isAutonomous = metadata?.source === "autonomous";
@@ -200,7 +237,7 @@ export function Update({
           {verbPrefix}
           {action === "applied" ? "labeled as " : "removed label "}
           <span className="text-foreground">
-            {metadata?.labelName ?? "label"}
+            {getMetadataString(metadata, "labelName") ?? "label"}
           </span>
         </>
       );
@@ -211,16 +248,18 @@ export function Update({
         return `self-assigned the thread`;
       }
 
-      if (!metadata?.newAssignedUserName) {
+      const newAssignedUserName = getMetadataString(
+        metadata,
+        "newAssignedUserName"
+      );
+      if (!newAssignedUserName) {
         return `unassigned the thread`;
       }
 
       return (
         <>
           assigned the thread to{" "}
-          <span className="text-foreground">
-            {metadata?.newAssignedUserName}
-          </span>
+          <span className="text-foreground">{newAssignedUserName}</span>
         </>
       );
     }
@@ -229,7 +268,9 @@ export function Update({
       return (
         <>
           {verbPrefix}changed status to{" "}
-          <span className="text-foreground">{metadata?.newStatusLabel}</span>
+          <span className="text-foreground">
+            {getMetadataString(metadata, "newStatusLabel")}
+          </span>
         </>
       );
     }
@@ -238,7 +279,9 @@ export function Update({
       return (
         <>
           changed priority to{" "}
-          <span className="text-foreground">{metadata?.newPriorityLabel}</span>
+          <span className="text-foreground">
+            {getMetadataString(metadata, "newPriorityLabel")}
+          </span>
         </>
       );
     }
@@ -281,7 +324,8 @@ export function Update({
             />
           ) : (
             <span className="text-foreground">
-              {metadata?.duplicateOfThreadName ?? "another thread"}
+              {getMetadataString(metadata, "duplicateOfThreadName") ??
+                "another thread"}
             </span>
           )}
         </span>
@@ -292,7 +336,9 @@ export function Update({
   const isFrontDesk = isAutonomous || isAutonomousUndo;
   const actorName = isFrontDesk
     ? "FrontDesk"
-    : (update.user?.name ?? metadata?.userName ?? "Someone");
+    : (update.user?.name ??
+      getMetadataString(metadata, "userName") ??
+      "Someone");
 
   return (
     <div className="flex gap-2 items-center text-xs text-muted-foreground">
@@ -304,12 +350,14 @@ export function Update({
           <Bot className="size-3.5" />
         ) : (
           <>
-            {update.type === "status_changed" && (
-              <StatusIndicator status={metadata?.newStatus as number} />
-            )}
-            {update.type === "priority_changed" && (
-              <PriorityIndicator priority={metadata?.newPriority as number} />
-            )}
+            {update.type === "status_changed" &&
+              metadata?.newStatus !== undefined && (
+                <StatusIndicator status={metadata?.newStatus} />
+              )}
+            {update.type === "priority_changed" &&
+              metadata?.newPriority !== undefined && (
+                <PriorityIndicator priority={metadata?.newPriority} />
+              )}
             {update.type === "assigned_changed" &&
               (assignedUser ? (
                 <Avatar variant="user" size="sm" fallback={assignedUser.name} />
@@ -332,7 +380,7 @@ export function Update({
       <span>
         <span className="text-foreground">{actorName}</span> {getUpdateText()}
       </span>
-      {isFrontDesk && metadata?.signalId && (
+      {isFrontDesk && getMetadataString(metadata, "signalId") && (
         <Link
           to="/app/signal"
           className="text-foreground underline-offset-2 hover:underline"

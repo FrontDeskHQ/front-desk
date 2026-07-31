@@ -10,6 +10,7 @@ import {
   string,
   timestamp,
 } from "@live-state/sync";
+import type { SupportChannel } from "@workspace/schemas/early-access";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import type {
   Hints,
@@ -360,6 +361,19 @@ const allowlist = object("allowlist", {
   id: id(),
 });
 
+// Landing-page early-access requests. Write-only from the public site (see the
+// `earlyAccessRequest` route); never synced to clients.
+const earlyAccessRequest = object("earlyAccessRequest", {
+  autonomy: string(),
+  channels: json<SupportChannel[]>(),
+  createdAt: timestamp(),
+  // Unique so concurrent first submissions can't create duplicate rows for the
+  // same address — the submit mutation relies on the conflict to stay idempotent.
+  email: string().unique().index(),
+  id: id(),
+  volume: string(),
+});
+
 /**
  *  Ingesting-related tables
  *
@@ -401,6 +415,7 @@ export const schema = createSchema({
   integration,
   update,
   allowlist,
+  earlyAccessRequest,
   label,
   threadLabel,
   autonomousAction,

@@ -52,6 +52,7 @@ import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from './r
 import { Route as AppWorkspaceMainThreadsOpenRouteImport } from './routes/app/_workspace/_main/threads/open'
 import { Route as AppWorkspaceMainThreadsAssignedRouteImport } from './routes/app/_workspace/_main/threads/assigned'
 import { Route as AppWorkspaceMainPlaygroundRichMarkdownRouteImport } from './routes/app/_workspace/_main/playground/rich-markdown'
+import { Route as AppWorkspaceMainPlaygroundCardFrameRouteImport } from './routes/app/_workspace/_main/playground/card-frame'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
 import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
 import { Route as AppWorkspaceMainThreadsIdIndexRouteImport } from './routes/app/_workspace/_main/threads/$id/index'
@@ -294,6 +295,12 @@ const AppWorkspaceMainPlaygroundRichMarkdownRoute =
     path: '/playground/rich-markdown',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceMainPlaygroundCardFrameRoute =
+  AppWorkspaceMainPlaygroundCardFrameRouteImport.update({
+    id: '/playground/card-frame',
+    path: '/playground/card-frame',
+    getParentRoute: () => AppWorkspaceMainRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport.update({
     id: '/organization/integration/',
@@ -375,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
+  '/app/playground/card-frame': typeof AppWorkspaceMainPlaygroundCardFrameRoute
   '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -423,6 +431,7 @@ export interface FileRoutesByTo {
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
+  '/app/playground/card-frame': typeof AppWorkspaceMainPlaygroundCardFrameRoute
   '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -478,6 +487,7 @@ export interface FileRoutesById {
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads/': typeof SupportSlugThreadsIndexRoute
+  '/app/_workspace/_main/playground/card-frame': typeof AppWorkspaceMainPlaygroundCardFrameRoute
   '/app/_workspace/_main/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/_workspace/_main/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/_workspace/_main/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -531,6 +541,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/settings/'
     | '/support/$slug/threads'
+    | '/app/playground/card-frame'
     | '/app/playground/rich-markdown'
     | '/app/threads/assigned'
     | '/app/threads/open'
@@ -579,6 +590,7 @@ export interface FileRouteTypes {
     | '/support/$slug/threads/$id'
     | '/app/settings'
     | '/support/$slug/threads'
+    | '/app/playground/card-frame'
     | '/app/playground/rich-markdown'
     | '/app/threads/assigned'
     | '/app/threads/open'
@@ -633,6 +645,7 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/support/$slug/threads/'
+    | '/app/_workspace/_main/playground/card-frame'
     | '/app/_workspace/_main/playground/rich-markdown'
     | '/app/_workspace/_main/threads/assigned'
     | '/app/_workspace/_main/threads/open'
@@ -974,6 +987,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/_main/playground/card-frame': {
+      id: '/app/_workspace/_main/playground/card-frame'
+      path: '/playground/card-frame'
+      fullPath: '/app/playground/card-frame'
+      preLoaderRoute: typeof AppWorkspaceMainPlaygroundCardFrameRouteImport
+      parentRoute: typeof AppWorkspaceMainRouteRoute
+    }
     '/app/_workspace/settings/organization/integration/': {
       id: '/app/_workspace/settings/organization/integration/'
       path: '/organization/integration'
@@ -1060,6 +1080,7 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
 
 interface AppWorkspaceMainRouteRouteChildren {
   AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
+  AppWorkspaceMainPlaygroundCardFrameRoute: typeof AppWorkspaceMainPlaygroundCardFrameRoute
   AppWorkspaceMainPlaygroundRichMarkdownRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   AppWorkspaceMainThreadsAssignedRoute: typeof AppWorkspaceMainThreadsAssignedRoute
   AppWorkspaceMainThreadsOpenRoute: typeof AppWorkspaceMainThreadsOpenRoute
@@ -1074,6 +1095,8 @@ interface AppWorkspaceMainRouteRouteChildren {
 
 const AppWorkspaceMainRouteRouteChildren: AppWorkspaceMainRouteRouteChildren = {
   AppWorkspaceMainIndexRoute: AppWorkspaceMainIndexRoute,
+  AppWorkspaceMainPlaygroundCardFrameRoute:
+    AppWorkspaceMainPlaygroundCardFrameRoute,
   AppWorkspaceMainPlaygroundRichMarkdownRoute:
     AppWorkspaceMainPlaygroundRichMarkdownRoute,
   AppWorkspaceMainThreadsAssignedRoute: AppWorkspaceMainThreadsAssignedRoute,
