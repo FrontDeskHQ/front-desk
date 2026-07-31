@@ -464,7 +464,9 @@ async function finishMount(
 ) {
   const next = await initPipeline(container, vertex, fragment, initialUniforms);
   if (!state.active) {
-    next.canvas.remove();
+    // Unmounted mid-init: the cleanup already ran against a null pipeline, so
+    // release this context here or it stays counted against the browser cap.
+    destroyPipeline(next);
     return null;
   }
   state.pipeline = next;

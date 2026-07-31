@@ -1,3 +1,9 @@
+// Lato is the hero's Slack panel typeface. Self-hosted via fontsource and
+// imported by the only route that uses it, so the CSS ships in this route's
+// chunk instead of a render-blocking third-party request.
+import "@fontsource/lato/400.css";
+import "@fontsource/lato/700.css";
+import "@fontsource/lato/900.css";
 import { createFileRoute } from "@tanstack/react-router";
 import { HorizontalLine } from "@workspace/ui/components/surface";
 
@@ -8,25 +14,41 @@ import { PicksUpSection } from "~/components/landing-page/picks-up-section";
 import { PullsYouInSection } from "~/components/landing-page/pulls-you-in-section";
 import { RepliesSection } from "~/components/landing-page/replies-section";
 import { LandingMotionStyles } from "~/components/landing-page/shared/motion-styles";
+import { seo } from "~/utils/seo";
+import { absoluteAssetUrl, getCurrentUrl } from "~/utils/url";
+
+import ogImage from "../../assets/frontdesk-og.png";
 
 export const Route = createFileRoute("/_public/")({
   component: RouteComponent,
-  head: () => ({
-    links: [
-      // Lato is the hero's Slack panel typeface — declared by the only page
-      // that uses it, and discoverable in <head> instead of mid-body.
-      { rel: "preconnect", href: "https://fonts.googleapis.com" },
-      {
-        rel: "preconnect",
-        href: "https://fonts.gstatic.com",
-        crossOrigin: "anonymous",
-      },
-      {
-        rel: "stylesheet",
-        href: "https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap",
-      },
-    ],
-  }),
+  head: () => {
+    const currentUrl = getCurrentUrl();
+    const description =
+      "FrontDesk picks up every conversation, handles it like you would, and pulls you in only when it matters. Support built for teams that care, in Slack, Discord, email, and GitHub.";
+    const title = "FrontDesk — Care for every customer. Even when you're busy.";
+
+    return {
+      meta: seo({
+        title,
+        description,
+        keywords:
+          "FrontDesk, FrontDesk AI, AI customer support, AI support agent, Slack customer support, Discord customer support, GitHub support, developer support tool, customer support for startups, shared inbox, customer support automation",
+        url: currentUrl,
+        siteName: "FrontDesk",
+        locale: "en_US",
+        author: "FrontDesk",
+        openGraph: {
+          title: "FrontDesk",
+          description,
+          image: absoluteAssetUrl(ogImage),
+          url: currentUrl,
+          type: "website",
+          siteName: "FrontDesk",
+          locale: "en_US",
+        },
+      }),
+    };
+  },
 });
 
 function SectionLabel({ n, name }: { n: string; name: string }) {

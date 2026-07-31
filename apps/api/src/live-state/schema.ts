@@ -367,7 +367,9 @@ const earlyAccessRequest = object("earlyAccessRequest", {
   autonomy: string(),
   channels: json<SupportChannel[]>(),
   createdAt: timestamp(),
-  email: string().index(),
+  // Unique so concurrent first submissions can't create duplicate rows for the
+  // same address — the submit mutation relies on the conflict to stay idempotent.
+  email: string().unique().index(),
   id: id(),
   volume: string(),
 });

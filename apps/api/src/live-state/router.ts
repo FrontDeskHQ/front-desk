@@ -916,31 +916,46 @@ export const router = createRouter({
      * submissions from the same email overwrite the previous answers.
      */
     earlyAccessRequest: publicRoute.withProcedures(({ mutation }) => ({
-      submit: mutation(earlyAccessRequestSchema).handler(async ({ db, req }) => {
-        const email = req.input.email.trim().toLowerCase();
-        const fields = {
-          autonomy: req.input.autonomy,
-          channels: req.input.channels,
-          email,
-          volume: req.input.volume,
-        };
+      submit: mutation(earlyAccessRequestSchema).handler(
+        async ({ db, req }) => {
+          const email = req.input.email.trim().toLowerCase();
+          const fields = {
+            autonomy: req.input.autonomy,
+            channels: req.input.channels,
+            email,
+            volume: req.input.volume,
+          };
 
-        const existing = Object.values(
-          await db.find(schema.earlyAccessRequest, { where: { email } })
-        )[0];
+          const findExisting = async () =>
+            Object.values(
+              await db.find(schema.earlyAccessRequest, { where: { email } })
+            )[0];
 
-        if (existing) {
-          await db.earlyAccessRequest.update(existing.id, fields);
-        } else {
-          await db.earlyAccessRequest.insert({
-            ...fields,
-            createdAt: new Date(),
-            id: ulid().toLowerCase(),
-          });
+          const existing = await findExisting();
+
+          if (existing) {
+            await db.earlyAccessRequest.update(existing.id, fields);
+          } else {
+            try {
+              await db.earlyAccessRequest.insert({
+                ...fields,
+                createdAt: new Date(),
+                id: ulid().toLowerCase(),
+              });
+            } catch {
+              // Concurrent first submission won the unique(email) race — fold
+              // this one into the row it just created so the last write wins.
+              const raced = await findExisting();
+              if (!raced) {
+                throw new Error("EARLY_ACCESS_SUBMIT_FAILED");
+              }
+              await db.earlyAccessRequest.update(raced.id, fields);
+            }
+          }
+
+          return { success: true };
         }
-
-        return { success: true };
-      }),
+      ),
     })),
     subscription: privateRoute.withProcedures(({ query }) => ({
       /**

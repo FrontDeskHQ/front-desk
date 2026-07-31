@@ -8,8 +8,6 @@ import {
 } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
 import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
-import { createIsomorphicFn } from "@tanstack/react-start";
-import { getRequestUrl } from "@tanstack/react-start/server";
 import { Toaster } from "@workspace/ui/components/sonner";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 
@@ -17,52 +15,20 @@ import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import { NotFound } from "~/components/NotFound";
 import { Providers } from "~/components/providers";
 import { seo } from "~/utils/seo";
+import { absoluteAssetUrl, getCurrentUrl } from "~/utils/url";
 
 import "../../../../packages/ui/src/styles/globals.css";
 import ogImage from "../assets/frontdesk-og.png";
 
-const getBaseUrl = createIsomorphicFn()
-  .server(() => {
-    try {
-      const url = getRequestUrl();
-      return `${url.protocol}//${url.host}`;
-    } catch {
-      return import.meta.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
-    }
-  })
-  .client(() => {
-    if (typeof window !== "undefined") {
-      return `${window.location.protocol}//${window.location.host}`;
-    }
-    return "https://tryfrontdesk.app";
-  });
-
-const getCurrentUrl = createIsomorphicFn()
-  .server(() => {
-    try {
-      const url = getRequestUrl();
-      return url.toString();
-    } catch {
-      return import.meta.env.VITE_BASE_URL ?? "https://tryfrontdesk.app";
-    }
-  })
-  .client(() => {
-    if (typeof window !== "undefined") {
-      return window.location.href;
-    }
-    return "https://tryfrontdesk.app";
-  });
-
 export const Route = createRootRoute({
   head: () => {
-    const baseUrl = getBaseUrl();
     const currentUrl = getCurrentUrl();
+    // Site-wide defaults only. Landing-specific copy lives in the `/_public/`
+    // index route so pages like /updates don't inherit the landing SEO.
     const description =
-      "FrontDesk picks up every conversation, handles it like you would, and pulls you in only when it matters. Support built for teams that care, in Slack, Discord, email, and GitHub.";
+      "The all in one customer support platform. Making good customer support extremely easy.";
 
-    const ogImageUrl = ogImage.startsWith("http")
-      ? ogImage
-      : `${baseUrl}${ogImage.startsWith("/") ? ogImage : `/${ogImage}`}`;
+    const ogImageUrl = absoluteAssetUrl(ogImage);
 
     return {
       links: [
@@ -80,10 +46,10 @@ export const Route = createRootRoute({
           content: "width=device-width, initial-scale=1, viewport-fit=cover",
         },
         ...seo({
-          title: "FrontDesk — Care for every customer. Even when you're busy.",
+          title: "FrontDesk",
           description,
           keywords:
-            "FrontDesk, FrontDesk AI, AI customer support, AI support agent, Slack customer support, Discord customer support, GitHub support, developer support tool, customer support for startups, shared inbox, customer support automation",
+            "FrontDesk, FrontDesk AI, FrontDesk Support, FrontDesk Help Desk, FrontDesk Ticketing, FrontDesk Ticketing System, FrontDesk Ticketing Software, AI Help Desk, Customer Support Software, Ticketing System, Support Ticket Management, AI Customer Service",
           url: currentUrl,
           siteName: "FrontDesk",
           locale: "en_US",

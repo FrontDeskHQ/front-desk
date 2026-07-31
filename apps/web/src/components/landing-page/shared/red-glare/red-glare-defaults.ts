@@ -2,7 +2,11 @@
 const PRIMARY_BLUE: [number, number, number] = [52 / 202, 91 / 202, 1];
 
 /** Dark void tint derived from the same hue as the primary button. */
-const PRIMARY_BLUE_VOID: [number, number, number] = [3 / 255, 5 / 255, 16 / 255];
+const PRIMARY_BLUE_VOID: [number, number, number] = [
+  3 / 255,
+  5 / 255,
+  16 / 255,
+];
 
 export const RED_GLARE_UNIFORMS = {
   u_aberration: { value: 0.2 },
@@ -27,4 +31,4 @@ export const RED_GLARE_UNIFORMS = {
   u_softness: { value: 2.24 },
   u_speed: { value: 0.245 },
   u_spread: { value: 1.2 },
-} as const;
+} satisfies Record<string, { value: number | number[] }>;
