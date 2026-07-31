@@ -155,11 +155,18 @@ const IssueCreatedUpdateText = ({
  * as an object bag. Anything else (a bare string, an array, null) is discarded
  * rather than handed downstream as a `Record`.
  */
-const updateMetadataSchema = z.record(z.string(), z.unknown());
+const updateMetadataSchema = z
+  .object({
+    newPriority: z.number().optional(),
+    newStatus: z.number().optional(),
+  })
+  .catchall(z.unknown());
+
+type UpdateMetadata = z.infer<typeof updateMetadataSchema>;
 
 function parseUpdateMetadata(
   metadataStr: string | null | undefined
-): Record<string, unknown> | null {
+): UpdateMetadata | null {
   if (!metadataStr) {
     return null;
   }
@@ -343,12 +350,14 @@ export function Update({
           <Bot className="size-3.5" />
         ) : (
           <>
-            {update.type === "status_changed" && (
-              <StatusIndicator status={metadata?.newStatus as number} />
-            )}
-            {update.type === "priority_changed" && (
-              <PriorityIndicator priority={metadata?.newPriority as number} />
-            )}
+            {update.type === "status_changed" &&
+              metadata?.newStatus !== undefined && (
+                <StatusIndicator status={metadata?.newStatus} />
+              )}
+            {update.type === "priority_changed" &&
+              metadata?.newPriority !== undefined && (
+                <PriorityIndicator priority={metadata?.newPriority} />
+              )}
             {update.type === "assigned_changed" &&
               (assignedUser ? (
                 <Avatar variant="user" size="sm" fallback={assignedUser.name} />
