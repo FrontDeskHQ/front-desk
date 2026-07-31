@@ -14,7 +14,6 @@ import { Route as SignUpRouteImport } from './routes/sign-up'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
 import { Route as NowAllowedRouteImport } from './routes/now-allowed'
-import { Route as ExploreOneLinerRouteImport } from './routes/explore-one-liner'
 import { Route as AppRouteRouteImport } from './routes/app/route'
 import { Route as PublicRouteRouteImport } from './routes/_public/route'
 import { Route as PublicIndexRouteImport } from './routes/_public/index'
@@ -53,6 +52,7 @@ import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from './r
 import { Route as AppWorkspaceMainThreadsOpenRouteImport } from './routes/app/_workspace/_main/threads/open'
 import { Route as AppWorkspaceMainThreadsAssignedRouteImport } from './routes/app/_workspace/_main/threads/assigned'
 import { Route as AppWorkspaceMainPlaygroundRichMarkdownRouteImport } from './routes/app/_workspace/_main/playground/rich-markdown'
+import { Route as AppWorkspaceMainPlaygroundCardFrameRouteImport } from './routes/app/_workspace/_main/playground/card-frame'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
 import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
 import { Route as AppWorkspaceMainThreadsIdIndexRouteImport } from './routes/app/_workspace/_main/threads/$id/index'
@@ -86,11 +86,6 @@ const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
 const NowAllowedRoute = NowAllowedRouteImport.update({
   id: '/now-allowed',
   path: '/now-allowed',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ExploreOneLinerRoute = ExploreOneLinerRouteImport.update({
-  id: '/explore-one-liner',
-  path: '/explore-one-liner',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRouteRoute = AppRouteRouteImport.update({
@@ -300,6 +295,12 @@ const AppWorkspaceMainPlaygroundRichMarkdownRoute =
     path: '/playground/rich-markdown',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceMainPlaygroundCardFrameRoute =
+  AppWorkspaceMainPlaygroundCardFrameRouteImport.update({
+    id: '/playground/card-frame',
+    path: '/playground/card-frame',
+    getParentRoute: () => AppWorkspaceMainRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport.update({
     id: '/organization/integration/',
@@ -357,7 +358,6 @@ const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
 
 export interface FileRoutesByFullPath {
   '/app': typeof AppWorkspaceMainRouteRouteWithChildren
-  '/explore-one-liner': typeof ExploreOneLinerRoute
   '/now-allowed': typeof NowAllowedRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
@@ -382,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
+  '/app/playground/card-frame': typeof AppWorkspaceMainPlaygroundCardFrameRoute
   '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -409,7 +410,6 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/app': typeof AppWorkspaceMainIndexRoute
-  '/explore-one-liner': typeof ExploreOneLinerRoute
   '/now-allowed': typeof NowAllowedRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
@@ -431,6 +431,7 @@ export interface FileRoutesByTo {
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/settings': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
+  '/app/playground/card-frame': typeof AppWorkspaceMainPlaygroundCardFrameRoute
   '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -460,7 +461,6 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_public': typeof PublicRouteRouteWithChildren
   '/app': typeof AppRouteRouteWithChildren
-  '/explore-one-liner': typeof ExploreOneLinerRoute
   '/now-allowed': typeof NowAllowedRoute
   '/robots.txt': typeof RobotsDottxtRoute
   '/sign-in': typeof SignInRoute
@@ -487,6 +487,7 @@ export interface FileRoutesById {
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads/': typeof SupportSlugThreadsIndexRoute
+  '/app/_workspace/_main/playground/card-frame': typeof AppWorkspaceMainPlaygroundCardFrameRoute
   '/app/_workspace/_main/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/_workspace/_main/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/_workspace/_main/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -516,7 +517,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/app'
-    | '/explore-one-liner'
     | '/now-allowed'
     | '/robots.txt'
     | '/sign-in'
@@ -541,6 +541,7 @@ export interface FileRouteTypes {
     | '/app/'
     | '/app/settings/'
     | '/support/$slug/threads'
+    | '/app/playground/card-frame'
     | '/app/playground/rich-markdown'
     | '/app/threads/assigned'
     | '/app/threads/open'
@@ -568,7 +569,6 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/app'
-    | '/explore-one-liner'
     | '/now-allowed'
     | '/robots.txt'
     | '/sign-in'
@@ -590,6 +590,7 @@ export interface FileRouteTypes {
     | '/support/$slug/threads/$id'
     | '/app/settings'
     | '/support/$slug/threads'
+    | '/app/playground/card-frame'
     | '/app/playground/rich-markdown'
     | '/app/threads/assigned'
     | '/app/threads/open'
@@ -618,7 +619,6 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_public'
     | '/app'
-    | '/explore-one-liner'
     | '/now-allowed'
     | '/robots.txt'
     | '/sign-in'
@@ -645,6 +645,7 @@ export interface FileRouteTypes {
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/support/$slug/threads/'
+    | '/app/_workspace/_main/playground/card-frame'
     | '/app/_workspace/_main/playground/rich-markdown'
     | '/app/_workspace/_main/threads/assigned'
     | '/app/_workspace/_main/threads/open'
@@ -674,7 +675,6 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   PublicRouteRoute: typeof PublicRouteRouteWithChildren
   AppRouteRoute: typeof AppRouteRouteWithChildren
-  ExploreOneLinerRoute: typeof ExploreOneLinerRoute
   NowAllowedRoute: typeof NowAllowedRoute
   RobotsDottxtRoute: typeof RobotsDottxtRoute
   SignInRoute: typeof SignInRoute
@@ -719,13 +719,6 @@ declare module '@tanstack/react-router' {
       path: '/now-allowed'
       fullPath: '/now-allowed'
       preLoaderRoute: typeof NowAllowedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/explore-one-liner': {
-      id: '/explore-one-liner'
-      path: '/explore-one-liner'
-      fullPath: '/explore-one-liner'
-      preLoaderRoute: typeof ExploreOneLinerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/app': {
@@ -994,6 +987,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/_main/playground/card-frame': {
+      id: '/app/_workspace/_main/playground/card-frame'
+      path: '/playground/card-frame'
+      fullPath: '/app/playground/card-frame'
+      preLoaderRoute: typeof AppWorkspaceMainPlaygroundCardFrameRouteImport
+      parentRoute: typeof AppWorkspaceMainRouteRoute
+    }
     '/app/_workspace/settings/organization/integration/': {
       id: '/app/_workspace/settings/organization/integration/'
       path: '/organization/integration'
@@ -1080,6 +1080,7 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
 
 interface AppWorkspaceMainRouteRouteChildren {
   AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
+  AppWorkspaceMainPlaygroundCardFrameRoute: typeof AppWorkspaceMainPlaygroundCardFrameRoute
   AppWorkspaceMainPlaygroundRichMarkdownRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   AppWorkspaceMainThreadsAssignedRoute: typeof AppWorkspaceMainThreadsAssignedRoute
   AppWorkspaceMainThreadsOpenRoute: typeof AppWorkspaceMainThreadsOpenRoute
@@ -1094,6 +1095,8 @@ interface AppWorkspaceMainRouteRouteChildren {
 
 const AppWorkspaceMainRouteRouteChildren: AppWorkspaceMainRouteRouteChildren = {
   AppWorkspaceMainIndexRoute: AppWorkspaceMainIndexRoute,
+  AppWorkspaceMainPlaygroundCardFrameRoute:
+    AppWorkspaceMainPlaygroundCardFrameRoute,
   AppWorkspaceMainPlaygroundRichMarkdownRoute:
     AppWorkspaceMainPlaygroundRichMarkdownRoute,
   AppWorkspaceMainThreadsAssignedRoute: AppWorkspaceMainThreadsAssignedRoute,
@@ -1225,7 +1228,6 @@ const SupportSlugRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
-  ExploreOneLinerRoute: ExploreOneLinerRoute,
   NowAllowedRoute: NowAllowedRoute,
   RobotsDottxtRoute: RobotsDottxtRoute,
   SignInRoute: SignInRoute,

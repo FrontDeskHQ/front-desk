@@ -14,7 +14,6 @@ export const Route = createFileRoute("/robots.txt")({
 
           const robotsContent = `User-agent: *
 Allow: /
-Disallow: /explore-one-liner
 
 Sitemap: ${sitemapUrl}
 `;
@@ -30,7 +29,6 @@ Sitemap: ${sitemapUrl}
 
           const robotsContent = `User-agent: *
 Allow: /
-Disallow: /explore-one-liner
 
 Sitemap: ${sitemapUrl}
 `;
