@@ -30,6 +30,8 @@ interface ProgramLike {
 interface BloomPipeline {
   canvas: HTMLCanvasElement;
   dpr: number;
+  /** Kept so teardown can force-release the context, not just drop the ref. */
+  gl: unknown;
   sceneMesh: unknown;
   blurMesh: unknown;
   compositeMesh: unknown;
@@ -209,6 +211,7 @@ function buildPipeline(
     compositeMesh: composite.mesh,
     compositeProgram: composite.program,
     dpr,
+    gl,
     renderer,
     sceneMesh: scene.mesh,
     sceneProgram: scene.program,
@@ -319,6 +322,25 @@ async function initPipeline(
     renderer,
     canvas
   );
+}
+
+/**
+ * Browsers cap live WebGL contexts per page and only reclaim a dropped one when
+ * the GC runs, so remounting (route changes back to the landing page, HMR) can
+ * silently exhaust the cap and leave the backdrop blank. `loseContext()` frees
+ * the context and its render targets synchronously.
+ */
+function destroyPipeline(pipeline: BloomPipeline | null) {
+  if (!pipeline) {
+    return;
+  }
+  const gl = pipeline.gl as WebGL2RenderingContext | null;
+  try {
+    gl?.getExtension("WEBGL_lose_context")?.loseContext();
+  } catch {
+    // Context already lost — nothing to release.
+  }
+  pipeline.canvas.remove();
 }
 
 function attachResizeObserver(
@@ -540,6 +562,7 @@ function runAnimatedShader(
     pauseLoop();
     unwatch();
     resizeObserver?.disconnect();
+    destroyPipeline(state.pipeline);
     container.querySelector("canvas")?.remove();
     state.pipeline = null;
   };

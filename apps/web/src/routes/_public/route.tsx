@@ -58,6 +58,7 @@ function RouteComponent() {
               size="icon"
               className="md:hidden"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
+              aria-expanded={menuOpen}
               onClick={() => setMenuOpen(!menuOpen)}
             >
               {menuOpen ? (
@@ -69,7 +70,12 @@ function RouteComponent() {
           </div>
         </div>
       </header>
+      {/* The overlay stays mounted so it can fade; `inert` keeps the closed
+          menu out of tab order and the accessibility tree, which
+          `pointer-events-none opacity-0` alone does not do. */}
       <div
+        inert={!menuOpen}
+        aria-hidden={!menuOpen}
         className={cn(
           "fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden",
           menuOpen ? "opacity-100" : "pointer-events-none opacity-0"
@@ -110,7 +116,6 @@ function RouteComponent() {
           <div className="p-4 space-y-4 col-span-3 md:col-start-4 md:col-span-1">
             <div className="text-base font-medium">Resources</div>
             <div className="flex flex-col gap-2">
-              <a href="/#pricing">Pricing</a>
               <a href="https://support.tryfrontdesk.app">Support</a>
               <a href="/docs">Docs</a>
               <a href="/updates">Updates</a>

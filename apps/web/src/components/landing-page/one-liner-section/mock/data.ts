@@ -11,13 +11,11 @@ export const CHURN_LABEL = {
   name: "Churn risk",
 } as const;
 
-const SIGNAL_CREATED_AT = new Date();
-
 /** The single read the hero pops in on phase 03. */
 export const HERO_SIGNALS: MockSignalCardData[] = [
   {
     authorName: MESSAGES.customer.author.name,
-    createdAt: SIGNAL_CREATED_AT,
+    createdAtLabel: "now",
     id: "sig-hero-webhook",
     primaryKinds: ["reply"],
     recommendation:

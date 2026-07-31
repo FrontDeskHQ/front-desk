@@ -146,10 +146,7 @@ function TreeItemRow({ className, children, ...props }: TreeItemRowProps) {
   return (
     <div
       data-slot="tree-item-row"
-      className={cn(
-        "flex min-h-8 min-w-0 items-stretch gap-1 overflow-visible text-sm",
-        className
-      )}
+      className={cn(treeRowClassName, className)}
       {...props}
     >
       {guides.map((guide, index) =>

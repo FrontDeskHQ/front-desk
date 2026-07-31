@@ -382,11 +382,10 @@ function SlackTyping({ who }: { who: "jordan" | "pedro" }) {
         {[0, 0.18, 0.36].map((d) => (
           <span
             key={d}
-            className="size-1.5 rounded-full bg-foreground-tertiary"
-            style={{
-              animation: "blink 1s ease-in-out infinite",
-              animationDelay: `${d}s`,
-            }}
+            // `.blink` rather than an inline `animation`: the inline rule
+            // outranks the `prefers-reduced-motion` override in motion-styles.
+            className="blink size-1.5 rounded-full bg-foreground-tertiary"
+            style={{ animationDelay: `${d}s` }}
           />
         ))}
       </div>

@@ -61,13 +61,24 @@ export const AUTONOMY_APPETITE_OPTIONS: {
 }[] = [
   { label: "Draft replies — I send them myself", value: "drafts_only" },
   { label: "Reply, but only after I approve", value: "approve_each" },
-  { label: "Reply on its own to routine questions", value: "routine_autonomous" },
+  {
+    label: "Reply on its own to routine questions",
+    value: "routine_autonomous",
+  },
   { label: "Handle most conversations end to end", value: "mostly_autonomous" },
 ];
 
 export const earlyAccessRequestSchema = z.object({
   autonomy: autonomyAppetiteSchema,
-  channels: z.array(supportChannelSchema).min(1),
+  // Bounded and deduped: the form offers each channel once, so anything
+  // longer or repeated is a hand-rolled payload skewing qualification data.
+  channels: z
+    .array(supportChannelSchema)
+    .min(1)
+    .max(supportChannelSchema.options.length)
+    .refine((values) => new Set(values).size === values.length, {
+      message: "Channels must not repeat.",
+    }),
   email: z.email(),
   volume: conversationVolumeSchema,
 });

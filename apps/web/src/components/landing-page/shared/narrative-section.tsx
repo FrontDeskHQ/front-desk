@@ -43,14 +43,15 @@ export function NarrativeSection({
           </p>
         </div>
         {/* Empty cells keep the column rhythm visible beside the copy */}
-        <div aria-hidden className="hidden md:col-span-8 md:col-start-16 md:block" />
+        <div
+          aria-hidden
+          className="hidden md:col-span-8 md:col-start-16 md:block"
+        />
       </div>
 
       {/* —— Visual band —— */}
       <div className="col-span-full grid grid-cols-24 border-b pb-10 md:pb-14">
-        <div className="col-span-22 col-start-2">
-          {visual}
-        </div>
+        <div className="col-span-22 col-start-2">{visual}</div>
       </div>
 
       {/* —— Topics: 2×2 — each half is 12 cols; inner 12-col sub-grid with 1-col side gutters —— */}
@@ -59,7 +60,10 @@ export function NarrativeSection({
           <li
             key={rowStart}
             className={[
-              "grid grid-cols-1 md:grid-cols-24",
+              // 24 columns at every width: the topic cells below use
+              // `max-md:col-start-2 / col-span-22`, which needs the full track
+              // count to resolve instead of overflowing a 1-column parent.
+              "grid grid-cols-24",
               rowStart === 0 && "border-b",
             ]
               .filter(Boolean)
@@ -70,9 +74,7 @@ export function NarrativeSection({
                 key={topic.lead}
                 className={[
                   "grid grid-cols-1 py-10 max-md:col-span-22 max-md:col-start-2 md:col-span-12 md:grid-cols-12 md:py-12",
-                  col === 0
-                    ? "border-b md:border-r md:border-b-0"
-                    : "",
+                  col === 0 ? "border-b md:border-r md:border-b-0" : "",
                 ].join(" ")}
               >
                 <div className="col-span-full flex flex-col gap-3 md:col-span-10 md:col-start-2">

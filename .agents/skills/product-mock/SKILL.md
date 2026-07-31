@@ -12,7 +12,7 @@ Two failure modes it exists to prevent:
 - **Reimplementation** — hand-rolled divs that approximate the app. They look wrong immediately and wrong forever.
 - **Drift** — the app moves, the mirror doesn't, and the marketing page advertises a product that no longer exists. Cured by **pins**: the commit hash of every source file a mirror was built from, recorded in the file.
 
-Mocks live under `apps/web/src/components/landing-page/`. Read `apps/web/src/components/landing-page/DESIGN_SPEC.md` before laying anything out — it owns the page grid, type scale, and full-bleed exceptions, and this skill does not restate it.
+Mocks live under `apps/web/src/components/landing-page/`. Read `apps/web/src/components/landing-page/DESIGN_SPEC.md` before laying anything out — it owns the page grid, type scale, and full-bleed exceptions, and this skill does not restate it. That file is **gitignored and local-only**, so a fresh checkout will not have it; if it is missing, derive the grid from the existing sections under `landing-page/` and say so rather than inventing one.
 
 ## Branch A — build a new mirror
 
@@ -76,7 +76,7 @@ Done when every mirrored file has a header whose `fork` list matches the pins fr
 
 Run the app (`bun dev`), open the real screen and the marketing page, and compare them at the same width. Check the responsive breakpoints the real component declares.
 
-Then Tab through the marketing page from the top: focus must skip the mirror entirely and land on the next real link or button, and the cursor must not change shape anywhere over it.
+Then Tab through the marketing page from the top. For an inert mirror, focus must skip the mirror entirely and land on the next real link or button. For an interactive mirror, only the controls the user explicitly asked for may take focus; everything around them stays inert. Either way, the cursor must not change shape over any inert part.
 
 Done when you can name every visual difference between mirror and source and justify each as a deliberate marketing-layer choice, and the Tab pass reaches no mirrored element the user did not explicitly ask to be interactive.
 
@@ -147,4 +147,4 @@ Record it in the mirror header's `marketing:` line: which element is live, and w
 - Never screenshot the app and ship an image. A mirror is code, or it cannot be checked for drift.
 - Never edit a real app component unasked, even to make it reusable. Propose it; a primitive variant is a `ui-component` task first.
 - Fixture data lives in `data.ts` next to the mock, never inline in JSX — it is the thing most often rewritten and must be editable without touching layout.
-- Update `DESIGN_SPEC.md` in the same commit whenever a mock changes the page's structure or grid usage.
+- Update `DESIGN_SPEC.md` whenever a mock changes the page's structure or grid usage. It is gitignored, so this is a local edit, not part of the commit — skip it if the file is not present.

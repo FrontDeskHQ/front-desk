@@ -9,6 +9,7 @@ import {
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 import { Bot, CircleUserIcon, CopySlash, Github, Tag } from "lucide-react";
+import { z } from "zod";
 
 import { ThreadChipWithSummary } from "~/components/chips";
 import {
@@ -149,6 +150,36 @@ const IssueCreatedUpdateText = ({
   );
 };
 
+/**
+ * `metadataStr` is free-form JSON on the wire, but every reader below treats it
+ * as an object bag. Anything else (a bare string, an array, null) is discarded
+ * rather than handed downstream as a `Record`.
+ */
+const updateMetadataSchema = z.record(z.string(), z.unknown());
+
+function parseUpdateMetadata(
+  metadataStr: string | null | undefined
+): Record<string, unknown> | null {
+  if (!metadataStr) {
+    return null;
+  }
+
+  let raw: unknown;
+  try {
+    raw = JSON.parse(metadataStr);
+  } catch (error) {
+    console.error("Error parsing update metadata:", error);
+    return null;
+  }
+
+  const parsed = updateMetadataSchema.safeParse(raw);
+  if (!parsed.success) {
+    console.error("Invalid update metadata shape:", parsed.error);
+    return null;
+  }
+  return parsed.data;
+}
+
 export function Update({
   update,
   user,
@@ -158,14 +189,7 @@ export function Update({
   user?: { id: string; name: string };
   connectTop?: boolean;
 }) {
-  let metadata: Record<string, unknown> | null = null;
-  if (update.metadataStr) {
-    try {
-      metadata = JSON.parse(update.metadataStr);
-    } catch (error) {
-      console.error("Error parsing update metadata:", error);
-    }
-  }
+  const metadata = parseUpdateMetadata(update.metadataStr);
 
   const assignedUser = useLiveQuery(
     query.user.first({
@@ -228,9 +252,7 @@ export function Update({
       return (
         <>
           assigned the thread to{" "}
-          <span className="text-foreground">
-            {newAssignedUserName}
-          </span>
+          <span className="text-foreground">{newAssignedUserName}</span>
         </>
       );
     }
@@ -307,7 +329,9 @@ export function Update({
   const isFrontDesk = isAutonomous || isAutonomousUndo;
   const actorName = isFrontDesk
     ? "FrontDesk"
-    : (update.user?.name ?? getMetadataString(metadata, "userName") ?? "Someone");
+    : (update.user?.name ??
+      getMetadataString(metadata, "userName") ??
+      "Someone");
 
   return (
     <div className="flex gap-2 items-center text-xs text-muted-foreground">

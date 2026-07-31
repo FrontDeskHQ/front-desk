@@ -26,7 +26,7 @@ import {
   TreeSkip,
   TREE_ROW_GAP_PX,
 } from "@workspace/ui/components/tree";
-import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import { cn } from "@workspace/ui/lib/utils";
 
 import { ActionRow } from "~/components/signals/action-row/action-row";
 
@@ -91,9 +91,7 @@ export function MockSignalCard({
                 #{signal.shortId}
               </span>
             </div>
-            <ActionRow.Meta>
-              {formatRelativeTime(signal.createdAt)}
-            </ActionRow.Meta>
+            <ActionRow.Meta>{signal.createdAtLabel}</ActionRow.Meta>
           </div>
           <div className={cn(treeRowClassName, "items-start")}>
             {signal.recommendation ? (

@@ -11,13 +11,14 @@ export function LandingMotionStyles() {
       @keyframes fadeUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
       .fade-up { animation: fadeUp .4s ease-out both; }
       @keyframes blink { 0%,100% { opacity:.25; } 50% { opacity:1; } }
+      .blink { animation: blink 1s ease-in-out infinite; }
       @keyframes popIn {
         from { opacity: 0; transform: translateY(10px) scale(0.97); }
         to { opacity: 1; transform: none; }
       }
       .pop-in { animation: popIn .5s cubic-bezier(0.23, 1, 0.32, 1) both; }
       @media (prefers-reduced-motion: reduce) {
-        .fade-up, .pop-in { animation: none; }
+        .fade-up, .pop-in, .blink { animation: none; }
       }
     `}</style>
   );

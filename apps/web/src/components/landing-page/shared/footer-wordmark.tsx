@@ -34,12 +34,18 @@ export function FooterWordmark() {
         xmlns="http://www.w3.org/2000/svg"
         className="absolute inset-x-0 top-0 w-full text-muted-foreground/40"
       >
-        <title>FrontDesk</title>
+        {/* No <title>: the mark is decorative and `aria-hidden`; the footer
+            already renders a "FrontDesk" text label next to the logo. */}
         <mask id={WORDMARK_MASK_ID} fill="white">
           <path fillRule="evenodd" clipRule="evenodd" d={wordmarkPath} />
           <path d={wordmarkAccentPath} />
         </mask>
-        <path fillRule="evenodd" clipRule="evenodd" d={wordmarkPath} {...strokeProps} />
+        <path
+          fillRule="evenodd"
+          clipRule="evenodd"
+          d={wordmarkPath}
+          {...strokeProps}
+        />
         <path d={wordmarkAccentPath} {...strokeProps} />
       </svg>
     </div>

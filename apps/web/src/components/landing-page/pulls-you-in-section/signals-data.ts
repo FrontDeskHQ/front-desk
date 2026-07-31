@@ -29,7 +29,7 @@ export const SIGNALS: MockSignalCardData[] = [
   {
     alternativeKinds: [],
     authorName: "Jordan Chen",
-    createdAt: new Date(NOW - 1000 * 60 * 4),
+    createdAtLabel: "4 minutes ago",
     id: "sig-webhook",
     primaryKinds: ["reply"],
     recommendation:
@@ -43,7 +43,7 @@ export const SIGNALS: MockSignalCardData[] = [
   {
     alternativeKinds: ["close"],
     authorName: "Sam Okonkwo",
-    createdAt: new Date(NOW - 1000 * 60 * 18),
+    createdAtLabel: "18 minutes ago",
     id: "sig-duplicate",
     primaryKinds: ["mark_duplicate", "reply"],
     recommendation:
@@ -57,7 +57,7 @@ export const SIGNALS: MockSignalCardData[] = [
   {
     alternativeKinds: ["reply"],
     authorName: "Priya Patel",
-    createdAt: new Date(NOW - 1000 * 60 * 55),
+    createdAtLabel: "55 minutes ago",
     id: "sig-close",
     primaryKinds: ["close"],
     recommendation:

@@ -42,7 +42,7 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { CheckIcon } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { fetchClient } from "~/lib/live-state";
 
@@ -96,7 +96,13 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // Identifies the submission the open dialog is waiting on. Closing mid-flight
+  // bumps it, so a response that lands afterwards can't flip the reopened form
+  // into its confirmation state.
+  const submissionIdRef = useRef(0);
+
   const resetForm = () => {
+    submissionIdRef.current += 1;
     setEmail("");
     setChannels([]);
     setVolume(null);
@@ -112,6 +118,9 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
     }
     setOpen(nextOpen);
   };
+
+  /** Stale validation text must not linger while the user fixes the field. */
+  const clearError = () => setError(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -134,6 +143,7 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
       return;
     }
 
+    const submissionId = submissionIdRef.current;
     setIsSubmitting(true);
     setError(null);
 
@@ -144,12 +154,20 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
         email: email.trim().toLowerCase(),
         volume: volume.value,
       });
+      if (submissionIdRef.current !== submissionId) {
+        return;
+      }
       setSubmitted(true);
     } catch (submitError) {
       console.error("Failed to submit early access request:", submitError);
+      if (submissionIdRef.current !== submissionId) {
+        return;
+      }
       setError("Something went wrong. Please try again.");
     } finally {
-      setIsSubmitting(false);
+      if (submissionIdRef.current === submissionId) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -198,14 +216,20 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
               aria-label="Company email"
               placeholder="Company email"
               value={email}
-              onChange={(event) => setEmail(event.target.value)}
+              onChange={(event) => {
+                setEmail(event.target.value);
+                clearError();
+              }}
             />
 
             <Combobox<ChannelItem, true>
               multiple
               items={CHANNEL_ITEMS}
               value={channels}
-              onValueChange={setChannels}
+              onValueChange={(value) => {
+                setChannels(value);
+                clearError();
+              }}
               itemToStringLabel={(item) =>
                 Array.isArray(item)
                   ? item.map((entry) => entry.label).join(", ")
@@ -257,7 +281,10 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
             <Combobox<VolumeItem, false>
               items={VOLUME_ITEMS}
               value={volume ?? undefined}
-              onValueChange={(value) => setVolume(value ?? null)}
+              onValueChange={(value) => {
+                setVolume(value ?? null);
+                clearError();
+              }}
               itemToStringLabel={(item) => item?.label ?? ""}
               itemToStringValue={(item) => item.value}
               isItemEqualToValue={(a, b) => a.value === b.value}
@@ -290,7 +317,10 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
             <Combobox<AutonomyItem, false>
               items={AUTONOMY_ITEMS}
               value={autonomy ?? undefined}
-              onValueChange={(value) => setAutonomy(value ?? null)}
+              onValueChange={(value) => {
+                setAutonomy(value ?? null);
+                clearError();
+              }}
               itemToStringLabel={(item) => item?.label ?? ""}
               itemToStringValue={(item) => item.value}
               isItemEqualToValue={(a, b) => a.value === b.value}
