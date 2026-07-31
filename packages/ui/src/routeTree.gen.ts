@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TreeRouteImport } from './routes/tree'
 import { Route as ToggleGroupRouteImport } from './routes/toggle-group'
+import { Route as SurfaceFrameRouteImport } from './routes/surface-frame'
 import { Route as StatusIndicatorRouteImport } from './routes/status-indicator'
 import { Route as SegmentedControlRouteImport } from './routes/segmented-control'
 import { Route as CompositeRouteImport } from './routes/composite'
@@ -28,6 +29,11 @@ const TreeRoute = TreeRouteImport.update({
 const ToggleGroupRoute = ToggleGroupRouteImport.update({
   id: '/toggle-group',
   path: '/toggle-group',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SurfaceFrameRoute = SurfaceFrameRouteImport.update({
+  id: '/surface-frame',
+  path: '/surface-frame',
   getParentRoute: () => rootRouteImport,
 } as any)
 const StatusIndicatorRoute = StatusIndicatorRouteImport.update({
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/composite': typeof CompositeRoute
   '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
+  '/surface-frame': typeof SurfaceFrameRoute
   '/toggle-group': typeof ToggleGroupRoute
   '/tree': typeof TreeRoute
 }
@@ -92,6 +99,7 @@ export interface FileRoutesByTo {
   '/composite': typeof CompositeRoute
   '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
+  '/surface-frame': typeof SurfaceFrameRoute
   '/toggle-group': typeof ToggleGroupRoute
   '/tree': typeof TreeRoute
 }
@@ -105,6 +113,7 @@ export interface FileRoutesById {
   '/composite': typeof CompositeRoute
   '/segmented-control': typeof SegmentedControlRoute
   '/status-indicator': typeof StatusIndicatorRoute
+  '/surface-frame': typeof SurfaceFrameRoute
   '/toggle-group': typeof ToggleGroupRoute
   '/tree': typeof TreeRoute
 }
@@ -119,6 +128,7 @@ export interface FileRouteTypes {
     | '/composite'
     | '/segmented-control'
     | '/status-indicator'
+    | '/surface-frame'
     | '/toggle-group'
     | '/tree'
   fileRoutesByTo: FileRoutesByTo
@@ -131,6 +141,7 @@ export interface FileRouteTypes {
     | '/composite'
     | '/segmented-control'
     | '/status-indicator'
+    | '/surface-frame'
     | '/toggle-group'
     | '/tree'
   id:
@@ -143,6 +154,7 @@ export interface FileRouteTypes {
     | '/composite'
     | '/segmented-control'
     | '/status-indicator'
+    | '/surface-frame'
     | '/toggle-group'
     | '/tree'
   fileRoutesById: FileRoutesById
@@ -156,6 +168,7 @@ export interface RootRouteChildren {
   CompositeRoute: typeof CompositeRoute
   SegmentedControlRoute: typeof SegmentedControlRoute
   StatusIndicatorRoute: typeof StatusIndicatorRoute
+  SurfaceFrameRoute: typeof SurfaceFrameRoute
   ToggleGroupRoute: typeof ToggleGroupRoute
   TreeRoute: typeof TreeRoute
 }
@@ -174,6 +187,13 @@ declare module '@tanstack/react-router' {
       path: '/toggle-group'
       fullPath: '/toggle-group'
       preLoaderRoute: typeof ToggleGroupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/surface-frame': {
+      id: '/surface-frame'
+      path: '/surface-frame'
+      fullPath: '/surface-frame'
+      preLoaderRoute: typeof SurfaceFrameRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/status-indicator': {
@@ -244,6 +264,7 @@ const rootRouteChildren: RootRouteChildren = {
   CompositeRoute: CompositeRoute,
   SegmentedControlRoute: SegmentedControlRoute,
   StatusIndicatorRoute: StatusIndicatorRoute,
+  SurfaceFrameRoute: SurfaceFrameRoute,
   ToggleGroupRoute: ToggleGroupRoute,
   TreeRoute: TreeRoute,
 }

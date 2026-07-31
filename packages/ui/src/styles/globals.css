@@ -10,6 +10,7 @@
 
 :root {
   --background-primary: oklch(95% 0 none);
+  --surface-frame-bevel-y: -1px;
 
   --step-multiplier: 1;
   --foreground-multiplier: 1;
@@ -151,6 +152,7 @@
 
 .dark {
   --background-primary: oklch(14.5% 0 none);
+  --surface-frame-bevel-y: 1px;
 
   --step-multiplier: 1;
   --foreground-multiplier: 1;
@@ -256,6 +258,109 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@utility surface-frame {
+  --surface-frame-backdrop: var(--background-primary);
+  --surface-frame-ring-color: var(--color-border-primary);
+  --surface-frame-ring-spread: 1px;
+  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
+  --surface-frame-halo-gap: 5px;
+  --surface-frame-halo-spread: 6px;
+  --surface-frame-halo-color: color-mix(
+    in oklch,
+    var(--color-border-primary) 64%,
+    transparent
+  );
+  --surface-frame-bevel-color: color-mix(
+    in oklch,
+    var(--color-foreground-primary) 4%,
+    transparent
+  );
+  --surface-frame-elevation: 0 4px 12px -4px
+    color-mix(in oklch, var(--color-black) 5%, transparent);
+  box-shadow:
+    inset 0 var(--surface-frame-bevel-y) 0 var(--surface-frame-bevel-color),
+    0 0 0 var(--surface-frame-ring-spread) var(--surface-frame-ring-color),
+    0 0 0 var(--surface-frame-halo-gap) var(--surface-frame-halo-spacer),
+    0 0 0 var(--surface-frame-halo-spread) var(--surface-frame-halo-color),
+    var(--surface-frame-elevation);
+}
+
+@utility surface-frame-elevation-none {
+  --surface-frame-elevation: 0 0 0 0 transparent;
+}
+
+@utility surface-frame-elevation-sm {
+  --surface-frame-elevation: 0 4px 12px -4px
+    color-mix(in oklch, var(--color-black) 5%, transparent);
+}
+
+@utility surface-frame-elevation-md {
+  --surface-frame-elevation: 0 8px 20px -6px
+    color-mix(in oklch, var(--color-black) 8%, transparent);
+}
+
+@utility surface-frame-elevation-lg {
+  --surface-frame-elevation: 0 12px 28px -8px
+    color-mix(in oklch, var(--color-black) 12%, transparent);
+}
+
+@utility surface-frame-halo-none {
+  --surface-frame-halo-color: transparent;
+  --surface-frame-halo-gap: 0px;
+  --surface-frame-halo-spacer: transparent;
+  --surface-frame-halo-spread: 0px;
+}
+
+@utility surface-frame-halo-subtle {
+  --surface-frame-halo-color: color-mix(
+    in oklch,
+    var(--color-border-primary) 40%,
+    transparent
+  );
+  --surface-frame-halo-gap: 3px;
+  --surface-frame-halo-spread: 4px;
+}
+
+@utility surface-frame-halo-default {
+  --surface-frame-halo-color: color-mix(
+    in oklch,
+    var(--color-border-primary) 64%,
+    transparent
+  );
+  --surface-frame-halo-gap: 5px;
+  --surface-frame-halo-spread: 6px;
+}
+
+@utility surface-frame-halo-strong {
+  --surface-frame-halo-color: color-mix(
+    in oklch,
+    var(--color-border-primary) 80%,
+    transparent
+  );
+  --surface-frame-halo-gap: 6px;
+  --surface-frame-halo-spread: 7px;
+}
+
+@utility surface-frame-bevel-none {
+  --surface-frame-bevel-color: transparent;
+}
+
+@utility surface-frame-bevel-subtle {
+  --surface-frame-bevel-color: color-mix(
+    in oklch,
+    var(--color-foreground-primary) 4%,
+    transparent
+  );
+}
+
+@utility surface-frame-bevel-strong {
+  --surface-frame-bevel-color: color-mix(
+    in oklch,
+    var(--color-foreground-primary) 8%,
+    transparent
+  );
 }
 
 @layer base {
