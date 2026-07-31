@@ -8,6 +8,7 @@ import { MenuIcon, XIcon } from "lucide-react";
 import { useState } from "react";
 
 import { AuthButtonGroup } from "~/components/auth";
+import { FooterWordmark } from "~/components/landing-page/shared/footer-wordmark";
 
 export const Route = createFileRoute("/_public")({
   component: RouteComponent,
@@ -38,23 +39,16 @@ function RouteComponent() {
             <Button
               variant="link"
               className="hidden md:inline-flex"
-              render={<Link to="/" hash="pricing" />}
+              render={<a href="/docs" aria-label="Docs" />}
             >
-              Pricing
+              Docs
             </Button>
             <Button
               variant="link"
               className="hidden md:inline-flex"
-              render={
-                <a
-                  href="https://support.tryfrontdesk.app"
-                  target="_blank"
-                  rel="noreferrer"
-                  aria-label="Community"
-                />
-              }
+              render={<Link to="/updates" aria-label="Changelog" />}
             >
-              Community
+              Changelog
             </Button>
           </div>
           <div className="flex items-center gap-2">
@@ -62,7 +56,7 @@ function RouteComponent() {
             <Button
               variant="ghost"
               size="icon"
-              className="hidden max-md:inline-flex"
+              className="md:hidden"
               aria-label={menuOpen ? "Close menu" : "Open menu"}
               onClick={() => setMenuOpen(!menuOpen)}
             >
@@ -76,26 +70,26 @@ function RouteComponent() {
         </div>
       </header>
       <div
-        className={`fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden ${menuOpen ? "opacity-100" : "pointer-events-none opacity-0"}`}
+        className={cn(
+          "fixed inset-0 z-40 bg-background-primary flex flex-col items-center pt-15 transition-opacity duration-200 ease-out md:hidden",
+          menuOpen ? "opacity-100" : "pointer-events-none opacity-0"
+        )}
       >
         <nav className="flex flex-col gap-2 w-full max-w-[90rem] p-4">
-          <Link
-            to="/"
-            hash="pricing"
-            className="py-2 text-lg"
-            onClick={() => setMenuOpen(false)}
-          >
-            Pricing
-          </Link>
           <a
-            href="https://support.tryfrontdesk.app"
-            target="_blank"
-            rel="noreferrer"
+            href="/docs"
             className="py-2 text-lg"
             onClick={() => setMenuOpen(false)}
           >
-            Community
+            Docs
           </a>
+          <Link
+            to="/updates"
+            className="py-2 text-lg"
+            onClick={() => setMenuOpen(false)}
+          >
+            Changelog
+          </Link>
         </nav>
       </div>
       <Outlet />
@@ -160,32 +154,8 @@ function RouteComponent() {
             </div>
           </div>
         </div>
-        <div className="col-span-full text-center px-4 select-none text-muted-foreground/40">
-          <svg
-            width="100%"
-            height="1.1em"
-            viewBox="0 0 460 50"
-            fill="none"
-            style={{ fontSize: "calc(var(--spacing)*24)" }}
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <title>FrontDesk</title>
-            <text
-              x="50%"
-              y="50%"
-              dominantBaseline="middle"
-              textAnchor="middle"
-              fontFamily="inherit"
-              fontWeight="450"
-              fontSize="48"
-              fill="transparent"
-              stroke="currentColor"
-              strokeWidth="1"
-              style={{ letterSpacing: "-0.02em" }}
-            >
-              FrontDesk
-            </text>
-          </svg>
+        <div className="col-span-full select-none px-8 md:px-16">
+          <FooterWordmark />
         </div>
       </footer>
     </div>
