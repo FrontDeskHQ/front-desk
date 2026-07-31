@@ -3,6 +3,7 @@ import { SurfaceFrame } from "@workspace/ui/components/surface-frame";
 import { cn } from "@workspace/ui/lib/utils";
 import { TextCursor } from "lucide-react";
 import { useState } from "react";
+import type * as React from "react";
 
 export const Route = createFileRoute(
   "/app/_workspace/_main/playground/card-frame"
@@ -62,7 +63,7 @@ function CardFrame({
         // pseudo-element paints a hard line over the parent's border.
         // Down + dark in light mode, up + light in dark mode.
         layers.bevel &&
-          "before:pointer-events-none before:absolute before:inset-0 before:rounded-[var(--frame-inner-radius)] before:shadow-[0_1px_--theme(--color-black/4%)] dark:before:shadow-[0_-1px_--theme(--color-white/6%)]",
+          "before:pointer-events-none before:absolute before:inset-0 before:rounded-[var(--frame-inner-radius)] before:shadow-[0_1px_--alpha(var(--color-black)/4%)] dark:before:shadow-[0_-1px_--alpha(var(--color-white)/6%)]",
 
         // Layer 1 — behind the frame's own background, so only the outside shows.
         layers.halo &&
@@ -114,7 +115,7 @@ function getSurfaceFrameVariants(layers: Layers) {
   return {
     bevel: layers.bevel ? "subtle" : "none",
     elevation: layers.shadow ? "sm" : "none",
-    halo: layers.halo ? (layers.tightHalo ? "subtle" : "default") : "none",
+    halo: layers.halo ? "default" : "none",
   } as const;
 }
 
@@ -177,6 +178,7 @@ function CardFramePlaygroundPage() {
             key={key}
             type="button"
             onClick={() => toggle(key)}
+            aria-pressed={layers[key]}
             title={hint}
             className={cn(
               "rounded-md border px-3 py-1.5 text-sm transition-colors",
@@ -199,13 +201,13 @@ function CardFramePlaygroundPage() {
           <FramePanel>
             <div className="flex flex-1 items-center justify-center px-8">
               <div className="flex w-full max-w-56 flex-col gap-2">
-                <div className="relative flex w-full flex-col rounded-[10px] border border-border-primary bg-background-secondary shadow-md/5 not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[9px] before:shadow-[0_-1px_--theme(--color-white/6%),0_1px_--theme(--color-black/6%)]">
+                <div className="relative flex w-full flex-col rounded-[10px] border border-border-primary bg-background-secondary shadow-md/5 not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[9px] before:shadow-[0_-1px_--alpha(var(--color-white)/6%),0_1px_--alpha(var(--color-black)/6%)]">
                   <div className="flex items-center gap-2 px-3 py-2">
                     <div className="h-1.5 w-[40%] rounded-full bg-foreground-tertiary/40" />
                     <TextCursor className="size-4 text-foreground-tertiary/88" />
                   </div>
                 </div>
-                <div className="relative flex w-full flex-col rounded-[10px] border border-border-primary bg-background-secondary shadow-md/5 not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[9px] before:shadow-[0_-1px_--theme(--color-white/6%),0_1px_--theme(--color-black/6%)]">
+                <div className="relative flex w-full flex-col rounded-[10px] border border-border-primary bg-background-secondary shadow-md/5 not-dark:bg-clip-padding before:pointer-events-none before:absolute before:inset-0 before:rounded-[9px] before:shadow-[0_-1px_--alpha(var(--color-white)/6%),0_1px_--alpha(var(--color-black)/6%)]">
                   <div className="flex flex-col gap-3 p-3">
                     <div className="h-1.5 rounded-full bg-foreground-tertiary/20" />
                     <div className="h-1.5 rounded-full bg-foreground-tertiary/20" />
