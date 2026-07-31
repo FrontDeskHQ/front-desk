@@ -34,7 +34,7 @@ function RouteComponent() {
     <DocPage meta={meta}>
       <DocSection
         title="Default"
-        description="The default frame combines a subtle bevel, low elevation, and the standard halo."
+        description="The default frame combines a subtle bevel and low elevation. Halo is opt-in for selected surfaces."
       >
         <Demo code='<SurfaceFrame className="min-h-24 w-64 p-4 text-sm">Default frame</SurfaceFrame>'>
           <SurfaceFrame className="min-h-24 w-64 p-4 text-sm">
@@ -154,7 +154,7 @@ function RouteComponent() {
               type: '"none" | "sm" | "md" | "lg"',
             },
             {
-              default: '"default"',
+              default: '"none"',
               description: "Detached outer ring strength.",
               name: "halo",
               type: '"none" | "subtle" | "default" | "strong"',

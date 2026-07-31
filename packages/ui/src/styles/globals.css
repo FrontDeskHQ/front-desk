@@ -264,14 +264,10 @@
   --surface-frame-backdrop: var(--background-primary);
   --surface-frame-ring-color: var(--color-border-primary);
   --surface-frame-ring-spread: 1px;
-  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
-  --surface-frame-halo-gap: 5px;
-  --surface-frame-halo-spread: 6px;
-  --surface-frame-halo-color: color-mix(
-    in oklch,
-    var(--color-border-primary) 64%,
-    transparent
-  );
+  --surface-frame-halo-spacer: transparent;
+  --surface-frame-halo-gap: 0px;
+  --surface-frame-halo-spread: 0px;
+  --surface-frame-halo-color: transparent;
   --surface-frame-bevel-color: color-mix(
     in oklch,
     var(--color-foreground-primary) 4%,
@@ -314,6 +310,7 @@
 }
 
 @utility surface-frame-halo-subtle {
+  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
   --surface-frame-halo-color: color-mix(
     in oklch,
     var(--color-border-primary) 40%,
@@ -324,6 +321,7 @@
 }
 
 @utility surface-frame-halo-default {
+  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
   --surface-frame-halo-color: color-mix(
     in oklch,
     var(--color-border-primary) 64%,
@@ -334,6 +332,7 @@
 }
 
 @utility surface-frame-halo-strong {
+  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
   --surface-frame-halo-color: color-mix(
     in oklch,
     var(--color-border-primary) 80%,

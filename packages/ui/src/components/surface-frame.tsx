@@ -10,7 +10,7 @@ const surfaceFrameVariants = cva(
     defaultVariants: {
       bevel: "subtle",
       elevation: "sm",
-      halo: "default",
+      halo: "none",
       radius: "xl",
     },
     variants: {
