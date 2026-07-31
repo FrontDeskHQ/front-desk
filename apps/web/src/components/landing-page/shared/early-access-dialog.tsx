@@ -7,22 +7,6 @@
  * CTA into a form people abandon.
  */
 
-import { Button } from "@workspace/ui/components/button";
-import { Checkbox } from "@workspace/ui/components/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@workspace/ui/components/dialog";
-import { Input } from "@workspace/ui/components/input";
-import { Label } from "@workspace/ui/components/label";
-import {
-  RadioGroup,
-  RadioGroupItem,
-} from "@workspace/ui/components/radio-group";
 import {
   AUTONOMY_APPETITE_OPTIONS,
   CONVERSATION_VOLUME_OPTIONS,
@@ -33,8 +17,32 @@ import type {
   ConversationVolume,
   SupportChannel,
 } from "@workspace/schemas/early-access";
+import { Button } from "@workspace/ui/components/button";
+import {
+  Combobox,
+  ComboboxChip,
+  ComboboxChips,
+  ComboboxChipRemove,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+  ComboboxValue,
+} from "@workspace/ui/components/combobox";
+import type { BaseItem } from "@workspace/ui/components/combobox";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@workspace/ui/components/dialog";
+import { Input } from "@workspace/ui/components/input";
 import { CheckIcon } from "lucide-react";
-import { useId, useState } from "react";
+import { useState } from "react";
 
 import { fetchClient } from "~/lib/live-state";
 
@@ -54,6 +62,14 @@ const PERSONAL_EMAIL_DOMAINS = new Set([
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type ChannelItem = BaseItem<SupportChannel>;
+type VolumeItem = BaseItem<ConversationVolume>;
+type AutonomyItem = BaseItem<AutonomyAppetite>;
+
+const CHANNEL_ITEMS: ChannelItem[] = SUPPORT_CHANNEL_OPTIONS;
+const VOLUME_ITEMS: VolumeItem[] = CONVERSATION_VOLUME_OPTIONS;
+const AUTONOMY_ITEMS: AutonomyItem[] = AUTONOMY_APPETITE_OPTIONS;
+
 function validateEmail(value: string) {
   const email = value.trim().toLowerCase();
 
@@ -71,12 +87,11 @@ interface EarlyAccessDialogProps {
 }
 
 export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
-  const fieldId = useId();
   const [open, setOpen] = useState(false);
   const [email, setEmail] = useState("");
-  const [channels, setChannels] = useState<SupportChannel[]>([]);
-  const [volume, setVolume] = useState<ConversationVolume | null>(null);
-  const [autonomy, setAutonomy] = useState<AutonomyAppetite | null>(null);
+  const [channels, setChannels] = useState<ChannelItem[]>([]);
+  const [volume, setVolume] = useState<VolumeItem | null>(null);
+  const [autonomy, setAutonomy] = useState<AutonomyItem | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -96,14 +111,6 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
       resetForm();
     }
     setOpen(nextOpen);
-  };
-
-  const toggleChannel = (channel: SupportChannel, checked: boolean) => {
-    setChannels((current) =>
-      checked
-        ? [...current, channel]
-        : current.filter((value) => value !== channel)
-    );
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -132,10 +139,10 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
 
     try {
       await fetchClient.mutate.earlyAccessRequest.submit({
-        autonomy,
-        channels,
+        autonomy: autonomy.value,
+        channels: channels.map((channel) => channel.value),
         email: email.trim().toLowerCase(),
-        volume,
+        volume: volume.value,
       });
       setSubmitted(true);
     } catch (submitError) {
@@ -158,11 +165,21 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
               </div>
               <DialogTitle>You're on the list.</DialogTitle>
               <DialogDescription>
-                We're onboarding teams a few at a time. If you're a fit, we'll
-                email you from hello@tryfrontdesk.app.
+                We're onboarding teams a few at a time.
+                <br />
+                We will get in touch with you soon. <br />
+                You can talk to the founder at{" "}
+                <a href="mailto:pedro@tryfrontdesk.app">
+                  pedro@tryfrontdesk.app
+                </a>
+                .
               </DialogDescription>
             </DialogHeader>
-            <Button variant="outline" onClick={() => handleOpenChange(false)}>
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => handleOpenChange(false)}
+            >
               Close
             </Button>
           </>
@@ -171,101 +188,137 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
             <DialogHeader>
               <DialogTitle>Request early access</DialogTitle>
               <DialogDescription>
-                Three questions so we know if FrontDesk is right for you today.
+                Three questions so we get to know you better.
               </DialogDescription>
             </DialogHeader>
 
-            <div className="grid gap-2">
-              <Label htmlFor={`${fieldId}-email`}>Company email</Label>
-              <Input
-                autoFocus
-                id={`${fieldId}-email`}
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(event) => setEmail(event.target.value)}
-              />
-            </div>
+            <Input
+              autoFocus
+              type="email"
+              aria-label="Company email"
+              placeholder="Company email"
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+            />
 
-            <fieldset className="grid gap-3">
-              <legend className="text-sm font-medium">
-                Where does your support happen today?
-              </legend>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {SUPPORT_CHANNEL_OPTIONS.map((option) => (
-                  <div className="flex items-center gap-2" key={option.value}>
-                    <Checkbox
-                      id={`${fieldId}-channel-${option.value}`}
-                      checked={channels.includes(option.value)}
-                      onCheckedChange={(checked) =>
-                        toggleChannel(option.value, checked === true)
+            <Combobox<ChannelItem, true>
+              multiple
+              items={CHANNEL_ITEMS}
+              value={channels}
+              onValueChange={setChannels}
+              itemToStringLabel={(item) =>
+                Array.isArray(item)
+                  ? item.map((entry) => entry.label).join(", ")
+                  : (item?.label ?? "")
+              }
+              itemToStringValue={(item) => item.value}
+              isItemEqualToValue={(a, b) => a.value === b.value}
+            >
+              <ComboboxTrigger
+                aria-label="Where does your support happen today?"
+                className="h-auto min-h-9 items-center py-1"
+              >
+                <ComboboxChips className="gap-1">
+                  <ComboboxValue>
+                    {(value: ChannelItem[]) => {
+                      if (!value || value.length === 0) {
+                        return (
+                          <span className="text-muted-foreground">
+                            Where does your support happen today?
+                          </span>
+                        );
                       }
-                    />
-                    <Label
-                      className="font-normal"
-                      htmlFor={`${fieldId}-channel-${option.value}`}
-                    >
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </fieldset>
 
-            <fieldset className="grid gap-3">
-              <legend className="text-sm font-medium">
-                How many support conversations do you get in a week?
-              </legend>
-              <RadioGroup
-                className="grid gap-3 sm:grid-cols-2"
-                value={volume ?? ""}
-                onValueChange={(value) =>
-                  setVolume(value as ConversationVolume)
-                }
-              >
-                {CONVERSATION_VOLUME_OPTIONS.map((option) => (
-                  <div className="flex items-center gap-2" key={option.value}>
-                    <RadioGroupItem
-                      id={`${fieldId}-volume-${option.value}`}
-                      value={option.value}
-                    />
-                    <Label
-                      className="font-normal"
-                      htmlFor={`${fieldId}-volume-${option.value}`}
-                    >
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </fieldset>
+                      return value.map((item) => (
+                        <ComboboxChip key={item.value} aria-label={item.label}>
+                          {item.label}
+                          <ComboboxChipRemove
+                            aria-label={`Remove ${item.label}`}
+                          />
+                        </ComboboxChip>
+                      ));
+                    }}
+                  </ComboboxValue>
+                </ComboboxChips>
+              </ComboboxTrigger>
+              <ComboboxContent className="w-(--anchor-width) max-w-(--anchor-width)">
+                <ComboboxInput placeholder="Search…" />
+                <ComboboxEmpty>No channels found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(item: ChannelItem) => (
+                    <ComboboxItem key={item.value} value={item}>
+                      {item.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
 
-            <fieldset className="grid gap-3">
-              <legend className="text-sm font-medium">
-                How much would you let the Agent handle on its own?
-              </legend>
-              <RadioGroup
-                value={autonomy ?? ""}
-                onValueChange={(value) =>
-                  setAutonomy(value as AutonomyAppetite)
-                }
+            <Combobox<VolumeItem, false>
+              items={VOLUME_ITEMS}
+              value={volume ?? undefined}
+              onValueChange={(value) => setVolume(value ?? null)}
+              itemToStringLabel={(item) => item?.label ?? ""}
+              itemToStringValue={(item) => item.value}
+              isItemEqualToValue={(a, b) => a.value === b.value}
+            >
+              <ComboboxTrigger
+                aria-label="How many support conversations do you get in a week?"
+                className="h-auto min-h-9 py-1.5"
               >
-                {AUTONOMY_APPETITE_OPTIONS.map((option) => (
-                  <div className="flex items-center gap-2" key={option.value}>
-                    <RadioGroupItem
-                      id={`${fieldId}-autonomy-${option.value}`}
-                      value={option.value}
-                    />
-                    <Label
-                      className="font-normal"
-                      htmlFor={`${fieldId}-autonomy-${option.value}`}
-                    >
-                      {option.label}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </fieldset>
+                {volume ? (
+                  volume.label
+                ) : (
+                  <span className="text-muted-foreground text-left">
+                    How many support conversations do you get in a week?
+                  </span>
+                )}
+              </ComboboxTrigger>
+              <ComboboxContent className="w-(--anchor-width) max-w-(--anchor-width)">
+                <ComboboxInput placeholder="Search…" />
+                <ComboboxEmpty>No options found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(item: VolumeItem) => (
+                    <ComboboxItem key={item.value} value={item}>
+                      {item.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+
+            <Combobox<AutonomyItem, false>
+              items={AUTONOMY_ITEMS}
+              value={autonomy ?? undefined}
+              onValueChange={(value) => setAutonomy(value ?? null)}
+              itemToStringLabel={(item) => item?.label ?? ""}
+              itemToStringValue={(item) => item.value}
+              isItemEqualToValue={(a, b) => a.value === b.value}
+            >
+              <ComboboxTrigger
+                aria-label="How much would you let the Agent handle on its own?"
+                className="h-auto min-h-9 py-1.5"
+              >
+                {autonomy ? (
+                  autonomy.label
+                ) : (
+                  <span className="text-muted-foreground text-left">
+                    How much would you let the Agent handle on its own?
+                  </span>
+                )}
+              </ComboboxTrigger>
+              <ComboboxContent className="w-(--anchor-width) max-w-(--anchor-width)">
+                <ComboboxInput placeholder="Search…" />
+                <ComboboxEmpty>No options found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(item: AutonomyItem) => (
+                    <ComboboxItem key={item.value} value={item}>
+                      {item.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
 
             {error ? (
               <p className="text-destructive text-sm" role="alert">
@@ -273,7 +326,12 @@ export function EarlyAccessDialog({ trigger }: EarlyAccessDialogProps) {
               </p>
             ) : null}
 
-            <Button type="submit" variant="primary" disabled={isSubmitting}>
+            <Button
+              type="submit"
+              variant="primary"
+              size="lg"
+              disabled={isSubmitting}
+            >
               {isSubmitting ? "Sending…" : "Request early access"}
             </Button>
           </form>
