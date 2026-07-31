@@ -1,6 +1,6 @@
 /**
  * 04 — Keep caring.
- * Closing CTA — echoes the hero. See COMPANY/landing-page-copy-v4.md §Close.
+ * Closing CTA — echoes the hero.
  */
 
 import { Button } from "@workspace/ui/components/button";

@@ -227,7 +227,7 @@ function SlackThread({ phase }: { phase: number }) {
         >
           <SlackMessage who="jordan" name="Jordan Chen" time="9:41 AM">
             our webhook stopped delivering sometime this morning — orders
-            aren&apos;t syncing to shopify anymore
+            aren&apos;t syncing to our store anymore
           </SlackMessage>
         </SlackMessageSlot>
 

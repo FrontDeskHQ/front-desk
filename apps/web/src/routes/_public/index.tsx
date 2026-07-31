@@ -55,7 +55,7 @@ function RouteComponent() {
 
       {/* Rails begin below the hero */}
       <div className="col-span-full grid grid-cols-24 border-x">
-        {/* 1. Category assertion — see landing-page-copy-v4.md §1 */}
+        {/* 1. Category assertion */}
         <CategoryAssertionSection />
 
         {/* 2. Section 01 — Picks up every conversation */}
@@ -72,10 +72,9 @@ function RouteComponent() {
 
         {/* 5. Proof — intentionally omitted until it's real. Testimonial,
             the number, and trust posture all still [TBD]; shipping the
-            placeholders costs more credibility than the empty slot does.
-            See COMPANY/landing-page-copy-v4.md §04. */}
+            placeholders costs more credibility than the empty slot does. */}
 
-        {/* 6. Closing CTA — see landing-page-copy-v4.md §Close */}
+        {/* 6. Closing CTA */}
         <KeepCaringSection />
       </div>
     </main>

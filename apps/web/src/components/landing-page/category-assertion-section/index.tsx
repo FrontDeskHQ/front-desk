@@ -1,6 +1,5 @@
 /**
  * Category assertion — the beat between hero and the numbered sections.
- * See COMPANY/landing-page-copy-v4.md §1.
  *
  * This is NOT a problem statement. Three slots: (1) fragment naming the
  * category with one differentiating modifier, (2) audience + mechanism,

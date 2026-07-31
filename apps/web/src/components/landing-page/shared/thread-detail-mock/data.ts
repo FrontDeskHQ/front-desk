@@ -56,7 +56,7 @@ export const MESSAGES = {
   customer: {
     author: { name: "Jordan Chen" },
     content: paragraph(
-      "our webhook stopped delivering sometime this morning — orders aren't syncing to shopify anymore"
+      "our webhook stopped delivering sometime this morning — orders aren't syncing to our store anymore"
     ),
     createdAt: new Date(NOW - 1000 * 60 * 4),
     id: "msg-customer",
