@@ -8,6 +8,7 @@ import type { schema } from "api/schema";
 import z from "zod";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
+import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import type { ParsedSummary } from "../../types";
 import type {
@@ -37,26 +38,6 @@ const isRateLimitError = (error: unknown): boolean => {
       message.includes("quota") ||
       message.includes("429")
     );
-  }
-  return false;
-};
-
-const isRetryableError = (error: unknown): boolean => {
-  if (error instanceof Error) {
-    const errorName = error.constructor.name;
-    const message = error.message.toLowerCase();
-
-    if (
-      errorName.includes("RetryError") ||
-      errorName.includes("NoObjectGeneratedError") ||
-      errorName.includes("APIError") ||
-      message.includes("timeout") ||
-      message.includes("network") ||
-      message.includes("connection") ||
-      isRateLimitError(error)
-    ) {
-      return true;
-    }
   }
   return false;
 };
@@ -287,6 +268,7 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
         };
       }
 
+      requestLog.set({ outcome: { status: "completed" } });
       return {
         threadId,
         success: true,

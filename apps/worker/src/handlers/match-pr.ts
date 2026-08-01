@@ -101,7 +101,7 @@ export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
         action: "matched",
         candidateCount: matches.length,
         enqueued,
-        reason: enqueued === 0 ? "all_candidates_already_linked" : "enqueued",
+        reason: enqueued === 0 ? "no_candidates_enqueued" : "enqueued",
       },
     });
     return { action: "matched" as const, enqueued, externalKey };

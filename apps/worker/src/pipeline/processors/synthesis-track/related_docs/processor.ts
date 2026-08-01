@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { RelatedDocsEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
+import { isRetryableError } from "../../../../lib/logging";
 import { searchDocumentation } from "../../../../lib/qdrant/search-documentation";
 import { writeHintSlot } from "../../../../lib/read-hints";
 import type { ParsedSummary } from "../../../../types";
@@ -112,7 +113,7 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "related_docs",
         });
         requestLog.set({ outcome: { status: "failed" } });

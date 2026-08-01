@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { DuplicateEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
+import { isRetryableError } from "../../../../lib/logging";
 import { searchSimilarThreads } from "../../../../lib/qdrant/threads";
 import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
@@ -121,7 +122,7 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "duplicate",
         });
         requestLog.set({ outcome: { status: "failed" } });

@@ -4,7 +4,7 @@ import type { Router } from "api/router";
 import { schema } from "api/schema";
 
 import type { Thread } from "../../types";
-import { errorFields } from "../logging";
+import { errorFields, sanitizeUrl } from "../logging";
 
 /**
  * Fetch client for database operations
@@ -65,7 +65,7 @@ export const fetchMirroredPrByUrl = async (
       action: "worker.database",
       operation: "pull_request.fetch",
       organizationId,
-      url,
+      url: sanitizeUrl(url),
       error: errorFields(error),
     });
     return null;

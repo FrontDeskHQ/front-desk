@@ -327,6 +327,8 @@ export const handleCrawlDocumentation = async (
   const ai = createAILogger(requestLog, { cost: AI_PRICING });
   let status = 200;
   let pagesWithoutContent = 0;
+  let totalChunks = 0;
+  let processedPages = 0;
 
   requestLog.set({
     crawl: {
@@ -370,8 +372,8 @@ export const handleCrawlDocumentation = async (
         outcome: {
           status: "failed",
           reason: "empty_sitemap",
-          pagesProcessed: 0,
-          chunksIndexed: 0,
+          pagesProcessed: processedPages,
+          chunksIndexed: totalChunks,
         },
       });
       return { error: "No pages found in sitemap", success: false };
@@ -388,9 +390,6 @@ export const handleCrawlDocumentation = async (
     }
 
     // 3. Process pages and collect chunks
-    let totalChunks = 0;
-    let processedPages = 0;
-
     for (
       let pageIdx = 0;
       pageIdx < pageUrls.length;
@@ -577,7 +576,9 @@ export const handleCrawlDocumentation = async (
     requestLog.set({
       outcome: {
         status: "failed",
-        pagesProcessed: 0,
+        chunksIndexed: totalChunks,
+        pagesProcessed: processedPages,
+        pagesWithoutContent,
         reason: "exception",
       },
     });

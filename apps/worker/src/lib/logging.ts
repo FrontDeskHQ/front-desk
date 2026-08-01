@@ -21,7 +21,7 @@ const jobContext = (queue: string, job?: JobLike) => {
     return { queue };
   }
 
-  const maxAttempts = job.opts.attempts ?? 1;
+  const maxAttempts = job.opts.attempts || 1;
   return {
     job: {
       attempt: job.attemptsMade + 1,
@@ -86,20 +86,109 @@ export const emitQueueLifecycle = (options: {
     });
   }
 
-  requestLog.emit({ status: options.status ?? (options.error ? 500 : 200) });
+  requestLog.emit({
+    status: options.status ?? (options.error !== undefined ? 500 : 200),
+  });
+};
+
+interface StructuredError {
+  code?: unknown;
+  details?: unknown;
+  message?: unknown;
+  name?: unknown;
+  stack?: unknown;
+}
+
+const getStructuredError = (error: unknown): StructuredError | undefined =>
+  typeof error === "object" && error !== null
+    ? (error as StructuredError)
+    : undefined;
+
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  const structuredError = getStructuredError(error);
+  if (typeof structuredError?.message === "string") {
+    return structuredError.message;
+  }
+
+  return String(error);
 };
 
 export const errorFields = (
   error: unknown
 ): {
+  code?: string;
+  details?: unknown;
   message: string;
   name: string;
   stack?: string;
-} => ({
-  message: error instanceof Error ? error.message : String(error),
-  name: error instanceof Error ? error.name : "UnknownError",
-  ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
-});
+} => {
+  const structuredError = getStructuredError(error);
+  const code =
+    typeof structuredError?.code === "string"
+      ? structuredError.code
+      : undefined;
+  const name =
+    error instanceof Error
+      ? error.name
+      : typeof structuredError?.name === "string"
+        ? structuredError.name
+        : "UnknownError";
+  const stack =
+    error instanceof Error
+      ? error.stack
+      : typeof structuredError?.stack === "string"
+        ? structuredError.stack
+        : undefined;
+
+  return {
+    ...(code ? { code } : {}),
+    ...(structuredError?.details !== undefined
+      ? { details: structuredError.details }
+      : {}),
+    message: getErrorMessage(error),
+    name,
+    ...(stack ? { stack } : {}),
+  };
+};
+
+export const isRetryableError = (error: unknown): boolean => {
+  const structuredError = getStructuredError(error);
+  const errorName =
+    error instanceof Error
+      ? error.constructor.name
+      : typeof structuredError?.name === "string"
+        ? structuredError.name
+        : "";
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    errorName.includes("RetryError") ||
+    errorName.includes("NoObjectGeneratedError") ||
+    errorName.includes("APIError") ||
+    message.includes("timeout") ||
+    message.includes("network") ||
+    message.includes("connection") ||
+    message.includes("overloaded") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests") ||
+    message.includes("quota") ||
+    message.includes("429")
+  );
+};
+
+export const sanitizeUrl = (value: string): string => {
+  try {
+    const url = new URL(value);
+    return `${url.origin}${url.pathname}`;
+  } catch {
+    const withoutQuery = value.split(/[?#]/, 1)[0] ?? "[invalid-url]";
+    return withoutQuery.replace(/\/\/[^/]*@/, "//[REDACTED]@");
+  }
+};
 
 export const toError = (error: unknown): Error =>
-  error instanceof Error ? error : new Error(String(error));
+  error instanceof Error ? error : new Error(getErrorMessage(error));

@@ -3,7 +3,12 @@ import type {
   PrMatchJobData,
   ThreadReadJobData,
 } from "@workspace/schemas/signals";
-import { createLogger, initSharedLogger, log } from "@workspace/utils/logging";
+import {
+  createLogger,
+  flushSharedLogger,
+  initSharedLogger,
+  log,
+} from "@workspace/utils/logging";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
 import Redis from "ioredis";
@@ -100,8 +105,6 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
               prMatched: {
                 prId: prMatched.prId,
                 score: prMatched.score,
-                title: prMatched.title,
-                url: prMatched.url,
               },
             }
           : {}),
@@ -170,7 +173,7 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     }
     requestLog.error(error instanceof Error ? error : String(error), {
       step: "thread.pipeline",
-      retryable: true,
+      retryable: status >= 500,
     });
     throw error;
   } finally {
@@ -390,9 +393,19 @@ const handleShutdown = async () => {
     requestLog.error(error instanceof Error ? error : String(error), {
       step: "shutdown_worker",
     });
-    throw error;
+    requestLog.set({ outcome: { status: "failed" } });
   } finally {
     requestLog.emit({ status });
+    try {
+      await flushSharedLogger();
+    } catch (error) {
+      status = 500;
+      log.error({
+        action: "worker.shutdown",
+        event: "log_flush_failed",
+        error: errorFields(error),
+      });
+    }
   }
   process.exit(status === 200 ? 0 : 1);
 };

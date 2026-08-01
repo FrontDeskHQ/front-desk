@@ -6,6 +6,7 @@ import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getLabelAutonomyMode } from "../../../../lib/autonomy";
 import { fetchClient } from "../../../../lib/database/client";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
+import { isRetryableError } from "../../../../lib/logging";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -183,7 +184,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
       } catch (error) {
         status = 500;
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "label_classifier",
         });
         requestLog.set({ outcome: { status: "failed" } });

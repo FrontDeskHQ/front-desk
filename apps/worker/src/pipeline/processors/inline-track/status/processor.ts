@@ -6,6 +6,7 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getStatusAutonomyMode } from "../../../../lib/autonomy";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
+import { isRetryableError } from "../../../../lib/logging";
 import { resolveMessageRoles } from "../../../../lib/message-roles";
 import type {
   ProcessorDefinition,
@@ -187,7 +188,7 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
       } catch (error) {
         status = 500;
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "status_inferer",
         });
         requestLog.set({ outcome: { status: "failed" } });

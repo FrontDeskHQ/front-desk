@@ -5,6 +5,7 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { embed } from "ai";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
+import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import { upsertThreadVector } from "../../lib/qdrant/threads";
 import type { ThreadPayload } from "../../lib/qdrant/threads";
@@ -81,7 +82,7 @@ const generateEmbedding = async (
     return embedding.map((value) => value / norm);
   } catch (error) {
     requestLog?.error(error instanceof Error ? error : String(error), {
-      retryable: true,
+      retryable: isRetryableError(error),
       step: "generate_thread_embedding",
     });
     return null;
@@ -323,16 +324,27 @@ export const batchEmbedThread = async (
 
     const batchResults = await Promise.all(
       batch.map(async (thread): Promise<BatchEmbedThreadResult> => {
+        const threadLog = createLogger({
+          action: "worker.batch_embed.item",
+          operation: "thread.embed",
+          threadId: thread.id,
+        });
+        const ai = createAILogger(threadLog, { cost: AI_PRICING });
+        let status = 200;
+
         try {
-          const summary = await summarizeThread(thread);
+          const summary = await summarizeThread(thread, ai, threadLog);
           const summaryText = createSummaryText(summary);
-          const embedding = await generateEmbedding(
-            summaryText,
-            undefined,
-            batchLog
-          );
+          const embedding = await generateEmbedding(summaryText, ai, threadLog);
 
           if (!embedding) {
+            status = 500;
+            threadLog.set({
+              outcome: {
+                status: "failed",
+                reason: "embedding_generation_failed",
+              },
+            });
             return {
               error: "Failed to generate embedding",
               success: false,
@@ -340,6 +352,12 @@ export const batchEmbedThread = async (
             };
           }
 
+          threadLog.set({
+            outcome: {
+              status: "completed",
+              embeddingDimensions: embedding.length,
+            },
+          });
           return {
             embedding,
             success: true,
@@ -347,11 +365,19 @@ export const batchEmbedThread = async (
             threadId: thread.id,
           };
         } catch (error) {
+          status = 500;
+          threadLog.error(error instanceof Error ? error : String(error), {
+            retryable: isRetryableError(error),
+            step: "batch_embed_thread",
+          });
+          threadLog.set({ outcome: { status: "failed" } });
           return {
             error: error instanceof Error ? error.message : String(error),
             success: false,
             threadId: thread.id,
           };
+        } finally {
+          threadLog.emit({ status });
         }
       })
     );

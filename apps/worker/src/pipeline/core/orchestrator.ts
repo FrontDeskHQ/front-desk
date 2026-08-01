@@ -401,15 +401,17 @@ export const executePipeline = async (
       });
 
       requestLog.set({
-        turns: {
-          turnNumber,
-          processors: turnProcessors,
-          durationMs: turnDuration,
-          processorStats: turnResults.map((turnResult) => ({
-            processor: turnResult.processor,
-            ...turnResult.stats,
-          })),
-        },
+        turns: [
+          {
+            turnNumber,
+            processors: turnProcessors,
+            durationMs: turnDuration,
+            processorStats: turnResults.map((turnResult) => ({
+              processor: turnResult.processor,
+              ...turnResult.stats,
+            })),
+          },
+        ],
       });
     }
 

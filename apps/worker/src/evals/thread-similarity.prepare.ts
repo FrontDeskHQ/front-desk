@@ -1,6 +1,9 @@
-import { createLogger } from "@workspace/utils/logging";
+import {
+  createLogger,
+  flushSharedLogger,
+  initSharedLogger,
+} from "@workspace/utils/logging";
 
-import { errorFields } from "../lib/logging";
 import {
   ensureThreadsCollection,
   upsertThreadVector,
@@ -11,6 +14,22 @@ import {
   convertToThread,
   TEST_ORGANIZATION_ID,
 } from "./thread-similarity.dataset";
+
+const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  return value.toLowerCase() === "true";
+};
+
+initSharedLogger({
+  enabled: parseBooleanEnv(process.env.LOGGING_ENABLED),
+  environment: process.env.NODE_ENV,
+  pretty: parseBooleanEnv(process.env.LOGGING_PRETTY),
+  service: "worker",
+  silent: parseBooleanEnv(process.env.LOGGING_SILENT),
+});
 
 const parseSummaryValue = (lines: string[], prefix: string): string => {
   const match = lines.find((line) =>
@@ -190,12 +209,12 @@ const main = async (): Promise<void> => {
   } catch (error) {
     status = 500;
     requestLog.error(error instanceof Error ? error : String(error), {
-      error: errorFields(error),
       step: "thread_similarity.prepare",
     });
     throw error;
   } finally {
     requestLog.emit({ status });
+    await flushSharedLogger();
   }
 };
 

@@ -7,6 +7,7 @@ import { embed } from "ai";
 import { ULIDtoUUID } from "ulid-uuid-converter";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
+import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import {
   deleteStaleMessageVectors,
@@ -79,7 +80,7 @@ const generateMessageEmbedding = async (
     return embedding.map((value) => value / norm);
   } catch (error) {
     requestLog?.error(error instanceof Error ? error : String(error), {
-      retryable: true,
+      retryable: isRetryableError(error),
       step: "generate_message_embedding",
     });
     return null;
@@ -131,6 +132,8 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
           data: { embeddedCount: 0, skippedCount: 0 },
         };
       }
+
+      let staleVectorsDeleted = false;
 
       try {
         requestLog.set({ input: { messageCount: messages.length } });
@@ -259,7 +262,27 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
           }
 
           const keptMessageIds = points.map((p) => p.payload.messageId);
-          await deleteStaleMessageVectors(threadId, keptMessageIds);
+          staleVectorsDeleted = await deleteStaleMessageVectors(
+            threadId,
+            keptMessageIds
+          );
+          if (!staleVectorsDeleted) {
+            status = 500;
+            requestLog.set({
+              outcome: {
+                status: "failed",
+                reason: "stale_message_vector_delete_failed",
+                embeddedCount: points.length,
+                skippedCount,
+                staleVectorsDeleted,
+              },
+            });
+            return {
+              threadId,
+              success: false,
+              error: "Failed to delete stale message vectors in Qdrant",
+            };
+          }
         }
 
         requestLog.set({
@@ -267,7 +290,7 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
             status: "completed",
             embeddedCount: points.length,
             skippedCount,
-            staleVectorsDeleted: points.length > 0,
+            staleVectorsDeleted,
           },
         });
 
@@ -282,7 +305,7 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
       } catch (error) {
         status = 500;
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "embed_messages",
         });
         requestLog.set({ outcome: { status: "failed" } });

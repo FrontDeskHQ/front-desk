@@ -2,7 +2,7 @@ import { google } from "@ai-sdk/google";
 import { log } from "@workspace/utils/logging";
 import { embed } from "ai";
 
-import { errorFields } from "../logging";
+import { errorFields, sanitizeUrl } from "../logging";
 import { qdrantClient } from "./client";
 import type { DocumentationChunkPayload } from "./documentation";
 import { DOCUMENTATION_COLLECTION } from "./documentation";
@@ -157,7 +157,7 @@ export async function readDocumentationPage(options: {
       action: "worker.documentation_search",
       operation: "qdrant.page_read",
       organizationId,
-      pageUrl,
+      pageUrl: sanitizeUrl(pageUrl),
       limit,
       error: errorFields(error),
     });
