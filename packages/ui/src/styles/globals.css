@@ -284,7 +284,7 @@
     transparent
   );
   --surface-frame-shadow-color: var(--tw-shadow-color, black);
-  --surface-frame-elevation:
+  --surface-frame-elevation-default:
     0 18px 47px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
     0 7.5px 19px 0
@@ -297,6 +297,7 @@
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
     0 0.5px 1.3px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
+  --surface-frame-elevation: var(--surface-frame-elevation-default);
 
   box-shadow:
     inset 0 var(--surface-frame-bevel-y) 0 -0.5px
@@ -317,19 +318,7 @@
 }
 
 @utility surface-frame-elevation-sm {
-  --surface-frame-elevation:
-    0 18px 47px 0
-      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
-    0 7.5px 19px 0
-      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
-    0 4px 10.5px 0
-      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
-    0 2.3px 5.8px 0
-      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
-    0 1.2px 3.1px 0
-      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
-    0 0.5px 1.3px 0
-      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
+  --surface-frame-elevation: var(--surface-frame-elevation-default);
 }
 
 @utility surface-frame-elevation-md {
