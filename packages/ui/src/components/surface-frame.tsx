@@ -21,9 +21,12 @@ const surfaceFrameVariants = cva(
       },
       elevation: {
         none: "surface-frame-elevation-none",
+        xs: "surface-frame-elevation-xs",
         sm: "surface-frame-elevation-sm",
         md: "surface-frame-elevation-md",
         lg: "surface-frame-elevation-lg",
+        xl: "surface-frame-elevation-xl",
+        "2xl": "surface-frame-elevation-2xl",
       },
       halo: {
         none: "surface-frame-halo-none",

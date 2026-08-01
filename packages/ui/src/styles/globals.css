@@ -11,6 +11,8 @@
 :root {
   --background-primary: oklch(95% 0 none);
   --surface-frame-bevel-y: -1px;
+  --surface-frame-bevel-subtle-opacity: 4%;
+  --surface-frame-bevel-strong-opacity: 8%;
 
   --step-multiplier: 1;
   --foreground-multiplier: 1;
@@ -153,6 +155,8 @@
 .dark {
   --background-primary: oklch(14.5% 0 none);
   --surface-frame-bevel-y: 1px;
+  --surface-frame-bevel-subtle-opacity: 8%;
+  --surface-frame-bevel-strong-opacity: 12%;
 
   --step-multiplier: 1;
   --foreground-multiplier: 1;
@@ -260,6 +264,11 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
+/*
+ * Smooth stacked shadows adapted from flornkm/shadow-plugin:
+ * https://github.com/flornkm/shadow-plugin
+ * Original author: Florian Kiem. Used under the original MIT license.
+ */
 @utility surface-frame {
   --surface-frame-backdrop: var(--background-primary);
   --surface-frame-ring-color: var(--color-border-primary);
@@ -270,37 +279,132 @@
   --surface-frame-halo-color: transparent;
   --surface-frame-bevel-color: color-mix(
     in oklch,
-    var(--color-foreground-primary) 4%,
+    var(--color-foreground-primary) var(--surface-frame-bevel-subtle-opacity),
     transparent
   );
-  --surface-frame-elevation: 0 4px 12px -4px
-    color-mix(in oklch, var(--color-black) 5%, transparent);
+  --surface-frame-shadow-color: var(--tw-shadow-color, black);
+  --surface-frame-elevation:
+    0 18px 47px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
+    0 7.5px 19px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
+    0 4px 10.5px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
+    0 2.3px 5.8px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
+    0 1.2px 3.1px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
+    0 0.5px 1.3px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
 
   box-shadow:
-    inset 0 var(--surface-frame-bevel-y) 0 var(--surface-frame-bevel-color),
-    0 0 0 var(--surface-frame-ring-spread) var(--surface-frame-ring-color),
+    inset 0 var(--surface-frame-bevel-y) 0 -0.5px
+      var(--surface-frame-bevel-color),
+    var(--surface-frame-elevation),
     0 0 0 var(--surface-frame-halo-gap) var(--surface-frame-halo-spacer),
     0 0 0 var(--surface-frame-halo-spread) var(--surface-frame-halo-color),
-    var(--surface-frame-elevation);
+    0 0 0 var(--surface-frame-ring-spread) var(--surface-frame-ring-color) !important;
 }
 
 @utility surface-frame-elevation-none {
   --surface-frame-elevation: 0 0 0 0 transparent;
 }
 
+@utility surface-frame-elevation-xs {
+  --surface-frame-elevation: 0 0 4px 0
+    color-mix(in srgb, var(--surface-frame-shadow-color) 4%, transparent);
+}
+
 @utility surface-frame-elevation-sm {
-  --surface-frame-elevation: 0 4px 12px -4px
-    color-mix(in oklch, var(--color-black) 5%, transparent);
+  --surface-frame-elevation:
+    0 18px 47px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
+    0 7.5px 19px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
+    0 4px 10.5px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
+    0 2.3px 5.8px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
+    0 1.2px 3.1px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
+    0 0.5px 1.3px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
 }
 
 @utility surface-frame-elevation-md {
-  --surface-frame-elevation: 0 8px 20px -6px
-    color-mix(in oklch, var(--color-black) 8%, transparent);
+  --surface-frame-elevation:
+    0 17.54px 23.39px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 4%, transparent),
+    0 9.4px 12.5px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
+    0 5.25px 7px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
+    0 2.79px 3.72px -2px
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
+    0 1.16px 1.5px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
 }
 
 @utility surface-frame-elevation-lg {
-  --surface-frame-elevation: 0 12px 28px -8px
-    color-mix(in oklch, var(--color-black) 12%, transparent);
+  --surface-frame-elevation:
+    0 25px 50px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 5%, transparent),
+    0 12px 24px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 4%, transparent),
+    0 6px 12px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
+    0 3px 6px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
+    0 1.5px 3px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent);
+}
+
+@utility surface-frame-elevation-xl {
+  --surface-frame-elevation:
+    0 40px 80px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 6%, transparent),
+    0 20px 40px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 5%, transparent),
+    0 10px 20px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 4%, transparent),
+    0 5px 10px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
+    0 2px 4px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent);
+}
+
+@utility surface-frame-elevation-2xl {
+  --surface-frame-elevation:
+    0 60px 120px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 7%, transparent),
+    0 30px 60px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 6%, transparent),
+    0 15px 30px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 5%, transparent),
+    0 7.5px 15px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 4%, transparent),
+    0 3px 6px 0
+      color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent);
+}
+
+@utility surface-frame-bevel-none {
+  --surface-frame-bevel-color: transparent;
+}
+
+@utility surface-frame-bevel-subtle {
+  --surface-frame-bevel-color: color-mix(
+    in oklch,
+    var(--color-foreground-primary) var(--surface-frame-bevel-subtle-opacity),
+    transparent
+  );
+}
+
+@utility surface-frame-bevel-strong {
+  --surface-frame-bevel-color: color-mix(
+    in oklch,
+    var(--color-foreground-primary) var(--surface-frame-bevel-strong-opacity),
+    transparent
+  );
 }
 
 @utility surface-frame-halo-none {
@@ -341,26 +445,6 @@
   );
   --surface-frame-halo-gap: 6px;
   --surface-frame-halo-spread: 7px;
-}
-
-@utility surface-frame-bevel-none {
-  --surface-frame-bevel-color: transparent;
-}
-
-@utility surface-frame-bevel-subtle {
-  --surface-frame-bevel-color: color-mix(
-    in oklch,
-    var(--color-foreground-primary) 4%,
-    transparent
-  );
-}
-
-@utility surface-frame-bevel-strong {
-  --surface-frame-bevel-color: color-mix(
-    in oklch,
-    var(--color-foreground-primary) 8%,
-    transparent
-  );
 }
 
 @layer base {
