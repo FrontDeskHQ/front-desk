@@ -92,6 +92,17 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
           hash
         );
 
+        requestLog.set({
+          search: {
+            queryPresent: query.length > 0,
+            hitCount: hits.length,
+          },
+          outcome: {
+            status: "completed",
+            evidenceCount: evidence?.docs.length ?? 0,
+          },
+        });
+
         return {
           threadId,
           success: true,
@@ -100,13 +111,11 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
       } catch (error) {
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
-        console.error(
-          `Related docs processor failed for thread ${threadId}:`,
-          error
-        );
-        requestLog.error(
-          `Related docs failed for thread ${threadId}: ${message}`
-        );
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: true,
+          step: "related_docs",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return { threadId, success: false, error: message };
       } finally {
         requestLog.emit({ status });

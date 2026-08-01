@@ -3,7 +3,7 @@ import type {
   PrMatchJobData,
   ThreadReadJobData,
 } from "@workspace/schemas/signals";
-import { initSharedLogger, log } from "@workspace/utils/logging";
+import { createLogger, initSharedLogger, log } from "@workspace/utils/logging";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
 import Redis from "ioredis";
@@ -11,6 +11,11 @@ import Redis from "ioredis";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleIndexPr } from "./handlers/index-pr";
 import { handleMatchPr } from "./handlers/match-pr";
+import {
+  emitQueueLifecycle,
+  errorFields,
+  createWorkerJobLogger,
+} from "./lib/logging";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
@@ -29,14 +34,6 @@ const parseBooleanEnv = (value: string | undefined): boolean | undefined => {
   }
 
   return value.toLowerCase() === "true";
-};
-
-const formatError = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.stack ?? error.message;
-  }
-
-  return String(error);
 };
 
 initSharedLogger({
@@ -88,46 +85,97 @@ const connection = getRedisConnection();
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
   const { threadId, kind, prMatched } = job.data;
+  const loggedThreadId = threadId || "missing";
 
-  if (!threadId) {
-    throw new Error("No threadId provided");
+  const requestLog = createWorkerJobLogger(
+    THREAD_PIPELINE_QUEUE,
+    job,
+    "thread.pipeline",
+    {
+      thread: { id: loggedThreadId },
+      trigger: {
+        kind,
+        ...(prMatched
+          ? {
+              prMatched: {
+                prId: prMatched.prId,
+                score: prMatched.score,
+                title: prMatched.title,
+                url: prMatched.url,
+              },
+            }
+          : {}),
+      },
+    }
+  );
+  let status = 200;
+
+  try {
+    if (!threadId) {
+      status = 400;
+      throw new Error("No threadId provided");
+    }
+
+    const result = await executePipeline({
+      threadIds: [threadId],
+      trigger: { kind, ...(prMatched ? { prMatched } : {}) },
+    });
+
+    const successRate =
+      result.summary.totalThreads > 0
+        ? (
+            (result.summary.processedThreads / result.summary.totalThreads) *
+            100
+          ).toFixed(1)
+        : "0";
+
+    requestLog.set({
+      pipeline: {
+        jobId: result.jobId,
+        durationMs: result.duration,
+        status: result.status,
+        successRate: `${successRate}%`,
+        summary: result.summary,
+      },
+      outcome: {
+        status:
+          result.status === "failed"
+            ? "failed"
+            : result.summary.failedThreads > 0
+              ? "partial"
+              : "completed",
+        successRate: `${successRate}%`,
+      },
+    });
+
+    if (result.status === "failed") {
+      status = 500;
+    } else if (result.summary.failedThreads > 0) {
+      status = 207;
+    }
+
+    return {
+      bullmqJobId: job.id,
+      duration: result.duration,
+      jobId: result.jobId,
+      kind,
+      status: result.status,
+      successRate: `${successRate}%`,
+      summary: result.summary,
+      threadId,
+    };
+  } catch (error) {
+    if (status === 200) {
+      status = 500;
+    }
+    requestLog.error(error instanceof Error ? error : String(error), {
+      step: "thread.pipeline",
+      retryable: true,
+    });
+    throw error;
+  } finally {
+    requestLog.emit({ status });
   }
-
-  log.info(
-    "worker.thread-pipeline",
-    `Processing job ${job.id} (thread=${threadId}, kind=${kind}${
-      prMatched ? `, pr=${prMatched.prId}` : ""
-    })`
-  );
-
-  const result = await executePipeline({
-    threadIds: [threadId],
-    trigger: { kind, ...(prMatched ? { prMatched } : {}) },
-  });
-
-  const successRate =
-    result.summary.totalThreads > 0
-      ? (
-          (result.summary.processedThreads / result.summary.totalThreads) *
-          100
-        ).toFixed(1)
-      : "0";
-
-  log.info(
-    "worker.thread-pipeline",
-    `Completed job ${job.id} with ${successRate}% success rate`
-  );
-
-  return {
-    bullmqJobId: job.id,
-    duration: result.duration,
-    jobId: result.jobId,
-    kind,
-    status: result.status,
-    successRate: `${successRate}%`,
-    summary: result.summary,
-    threadId,
-  };
 };
 
 // Create workers for each queue (autorun: false — started after collections are ready)
@@ -148,18 +196,15 @@ const threadPipelineWorker = new Worker<ThreadReadJobData>(
   }
 );
 
-// Event handlers for thread-pipeline worker
-threadPipelineWorker.on("completed", (job) => {
-  log.info("worker.thread-pipeline", `Job ${job.id} completed`);
-});
-
-threadPipelineWorker.on("failed", (job, err) => {
-  log.error("worker.thread-pipeline", `Job ${job?.id} failed: ${err.message}`);
-  log.error("worker.thread-pipeline", formatError(err));
-});
-
+// Event handler for infrastructure errors outside a job-scoped handler.
 threadPipelineWorker.on("error", (err) => {
-  log.error("worker.thread-pipeline", `Worker error: ${formatError(err)}`);
+  emitQueueLifecycle({
+    error: err,
+    event: "error",
+    operation: "thread.pipeline.worker",
+    queue: THREAD_PIPELINE_QUEUE,
+    status: 500,
+  });
 });
 
 // Create crawl-documentation worker
@@ -180,20 +225,14 @@ const crawlDocWorker = new Worker(
   }
 );
 
-crawlDocWorker.on("completed", (job) => {
-  log.info("worker.crawl-documentation", `Job ${job.id} completed`);
-});
-
-crawlDocWorker.on("failed", (job, err) => {
-  log.error(
-    "worker.crawl-documentation",
-    `Job ${job?.id} failed: ${err.message}`
-  );
-  log.error("worker.crawl-documentation", formatError(err));
-});
-
 crawlDocWorker.on("error", (err) => {
-  log.error("worker.crawl-documentation", `Worker error: ${formatError(err)}`);
+  emitQueueLifecycle({
+    error: err,
+    event: "error",
+    operation: "documentation.crawl.worker",
+    queue: CRAWL_DOCUMENTATION_QUEUE,
+    status: 500,
+  });
 });
 
 // Create PR embedding index worker (FRO-203). Index-only: keeps the PR vector
@@ -215,17 +254,14 @@ const prIndexWorker = new Worker<PrIndexJobData>(
   }
 );
 
-prIndexWorker.on("completed", (job) => {
-  log.info("worker.pr-index", `Job ${job.id} completed`);
-});
-
-prIndexWorker.on("failed", (job, err) => {
-  log.error("worker.pr-index", `Job ${job?.id} failed: ${err.message}`);
-  log.error("worker.pr-index", formatError(err));
-});
-
 prIndexWorker.on("error", (err) => {
-  log.error("worker.pr-index", `Worker error: ${formatError(err)}`);
+  emitQueueLifecycle({
+    error: err,
+    event: "error",
+    operation: "pr.index.worker",
+    queue: PR_INDEX_QUEUE,
+    status: 500,
+  });
 });
 
 // Create PR push-side match worker (FRO-205). Embeds an eligible PR, searches
@@ -248,64 +284,117 @@ const prMatchWorker = new Worker<PrMatchJobData>(
   }
 );
 
-prMatchWorker.on("completed", (job) => {
-  log.info("worker.match-pr", `Job ${job.id} completed`);
-});
-
-prMatchWorker.on("failed", (job, err) => {
-  log.error("worker.match-pr", `Job ${job?.id} failed: ${err.message}`);
-  log.error("worker.match-pr", formatError(err));
-});
-
 prMatchWorker.on("error", (err) => {
-  log.error("worker.match-pr", `Worker error: ${formatError(err)}`);
+  emitQueueLifecycle({
+    error: err,
+    event: "error",
+    operation: "pr.match.worker",
+    queue: PR_MATCH_QUEUE,
+    status: 500,
+  });
 });
 
 // Initialize and start
 const initialize = async () => {
-  log.info("worker", "Initializing worker");
+  const requestLog = createLogger({
+    action: "worker.startup",
+    queues: [
+      THREAD_PIPELINE_QUEUE,
+      CRAWL_DOCUMENTATION_QUEUE,
+      PR_INDEX_QUEUE,
+      PR_MATCH_QUEUE,
+    ],
+  });
+  let status = 200;
 
-  // Register default processors
-  registerDefaultProcessors();
-  log.info("worker", "Processors registered");
+  try {
+    const processorNames = registerDefaultProcessors();
+    requestLog.set({
+      processors: {
+        count: processorNames.length,
+        names: processorNames,
+      },
+    });
 
-  // Ensure Qdrant collections exist
-  const [threadsReady, messagesReady, documentationReady, prsReady] =
-    await Promise.all([
-      ensureThreadsCollection(),
-      ensureMessagesCollection(),
-      ensureDocumentationCollection(),
-      ensurePrsCollection(),
-    ]);
-  if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
-    throw new Error(
-      "Qdrant collections are not ready; refusing to start workers"
-    );
+    // Ensure Qdrant collections exist
+    const [threadsReady, messagesReady, documentationReady, prsReady] =
+      await Promise.all([
+        ensureThreadsCollection(),
+        ensureMessagesCollection(),
+        ensureDocumentationCollection(),
+        ensurePrsCollection(),
+      ]);
+    requestLog.set({
+      qdrant: {
+        collections: {
+          threads: threadsReady,
+          messages: messagesReady,
+          documentation: documentationReady,
+          pullRequests: prsReady,
+        },
+      },
+    });
+    if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
+      throw new Error(
+        "Qdrant collections are not ready; refusing to start workers"
+      );
+    }
+
+    // Start workers now that collections are ready
+    threadPipelineWorker.run();
+    crawlDocWorker.run();
+    prIndexWorker.run();
+    prMatchWorker.run();
+
+    requestLog.set({
+      outcome: {
+        status: "listening",
+        workersStarted: 4,
+      },
+    });
+  } catch (error) {
+    status = 500;
+    requestLog.error(error instanceof Error ? error : String(error), {
+      step: "initialize_worker",
+    });
+    throw error;
+  } finally {
+    requestLog.emit({ status });
   }
-
-  log.info("worker", "Qdrant collections ready");
-
-  // Start workers now that collections are ready
-  threadPipelineWorker.run();
-  crawlDocWorker.run();
-  prIndexWorker.run();
-  prMatchWorker.run();
-
-  log.info("worker", "Listening for jobs");
 };
 
 // Graceful shutdown
 const handleShutdown = async () => {
-  log.info("worker", "Shutting down workers");
-  await Promise.all([
-    threadPipelineWorker.close(),
-    crawlDocWorker.close(),
-    prIndexWorker.close(),
-    prMatchWorker.close(),
-  ]);
-  await connection.quit();
-  log.info("worker", "Workers shut down successfully");
-  process.exit(0);
+  const requestLog = createLogger({
+    action: "worker.shutdown",
+    queues: [
+      THREAD_PIPELINE_QUEUE,
+      CRAWL_DOCUMENTATION_QUEUE,
+      PR_INDEX_QUEUE,
+      PR_MATCH_QUEUE,
+    ],
+  });
+  let status = 200;
+
+  try {
+    await Promise.all([
+      threadPipelineWorker.close(),
+      crawlDocWorker.close(),
+      prIndexWorker.close(),
+      prMatchWorker.close(),
+    ]);
+    await connection.quit();
+    requestLog.set({ outcome: { status: "stopped", workersClosed: 4 } });
+  } catch (error) {
+    status = 500;
+    requestLog.error(error instanceof Error ? error : String(error), {
+      step: "shutdown_worker",
+    });
+    throw error;
+  } finally {
+    requestLog.emit({ status });
+  }
+  process.exit(status === 200 ? 0 : 1);
 };
 
 process.on("SIGTERM", handleShutdown);
@@ -313,6 +402,10 @@ process.on("SIGINT", handleShutdown);
 
 // Start the worker
 initialize().catch((error) => {
-  log.error("worker", `Failed to initialize worker: ${formatError(error)}`);
+  log.error({
+    action: "worker.fatal",
+    event: "initialization_failed",
+    error: errorFields(error),
+  });
   process.exit(1);
 });

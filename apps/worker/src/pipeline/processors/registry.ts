@@ -1,3 +1,5 @@
+import { log } from "@workspace/utils/logging";
+
 import type { ProcessorDefinition } from "../core/types";
 
 /**
@@ -37,9 +39,11 @@ export class ProcessorRegistry {
    */
   register(processor: ProcessorDefinition): void {
     if (this.processors.has(processor.name)) {
-      console.warn(
-        `Processor "${processor.name}" is already registered, replacing`
-      );
+      log.warn({
+        action: "worker.processor_registry",
+        event: "processor_replaced",
+        processor: processor.name,
+      });
     }
     this.processors.set(processor.name, processor);
   }

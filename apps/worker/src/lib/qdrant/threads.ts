@@ -1,3 +1,6 @@
+import { log } from "@workspace/utils/logging";
+
+import { errorFields } from "../logging";
 import { qdrantClient } from "./client";
 
 export const THREADS_COLLECTION = "threads-v1";
@@ -76,10 +79,20 @@ export const ensureThreadsCollection = async (): Promise<boolean> => {
       field_schema: "keyword",
     });
 
-    console.log(`Created Qdrant collection: ${THREADS_COLLECTION}`);
+    log.info({
+      action: "worker.qdrant",
+      operation: "collection.create",
+      collection: THREADS_COLLECTION,
+      embeddingDimensions: EMBEDDING_DIMENSIONS,
+    });
     return true;
   } catch (error) {
-    console.error("Failed to ensure threads collection:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "collection.ensure",
+      collection: THREADS_COLLECTION,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -102,10 +115,15 @@ export const upsertThreadVector = async (
     });
     return true;
   } catch (error) {
-    console.error(
-      `Failed to upsert thread vector ${payload.threadId} (pointId: ${pointId}):`,
-      error
-    );
+    log.error({
+      action: "worker.qdrant",
+      operation: "thread_vector.upsert",
+      collection: THREADS_COLLECTION,
+      pointId,
+      threadId: payload.threadId,
+      organizationId: payload.organizationId,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -116,7 +134,13 @@ export const deleteThreadVector = async (
   try {
     const result = await getThreadVector(threadId);
     if (!result) {
-      console.warn(`Thread vector not found for deletion: ${threadId}`);
+      log.warn({
+        action: "worker.qdrant",
+        operation: "thread_vector.delete",
+        collection: THREADS_COLLECTION,
+        threadId,
+        outcome: "not_found",
+      });
       return false;
     }
 
@@ -126,7 +150,13 @@ export const deleteThreadVector = async (
     });
     return true;
   } catch (error) {
-    console.error(`Failed to delete thread vector ${threadId}:`, error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "thread_vector.delete",
+      collection: THREADS_COLLECTION,
+      threadId,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -190,7 +220,16 @@ export const searchSimilarThreads = async (
       threadId: (result.payload as unknown as ThreadPayload).threadId,
     }));
   } catch (error) {
-    console.error("Failed to search similar threads:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "thread_vector.search",
+      collection: THREADS_COLLECTION,
+      organizationId,
+      limit,
+      scoreThreshold,
+      statusFilter,
+      error: errorFields(error),
+    });
     return [];
   }
 };
@@ -223,7 +262,13 @@ export const getThreadVector = async (
       vector: point.vector as number[],
     };
   } catch (error) {
-    console.error(`Failed to get thread vector ${threadId}:`, error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "thread_vector.retrieve",
+      collection: THREADS_COLLECTION,
+      threadId,
+      error: errorFields(error),
+    });
     return null;
   }
 };

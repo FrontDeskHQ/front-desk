@@ -9,9 +9,7 @@ import { relatedDocsProcessor } from "./synthesis-track/related_docs/processor";
 import { relatedPrsProcessor } from "./synthesis-track/related_prs/processor";
 import { synthesisProcessor } from "./synthesis-track/synthesis/processor";
 
-export const registerDefaultProcessors = (): void => {
-  console.log("Registering default processors...");
-
+export const registerDefaultProcessors = (): string[] => {
   processorRegistry.register(summarizeProcessor);
   processorRegistry.register(embedProcessor);
   processorRegistry.register(embedMessagesProcessor);
@@ -33,14 +31,5 @@ export const registerDefaultProcessors = (): void => {
   processorRegistry.register(relatedPrsProcessor);
   processorRegistry.register(synthesisProcessor);
 
-  console.log(
-    `  Registered ${processorRegistry.getNames().length} processors:`
-  );
-  for (const name of processorRegistry.getNames()) {
-    const processor = processorRegistry.get(name);
-    const deps = processor?.dependencies.length
-      ? `(depends on: ${processor.dependencies.join(", ")})`
-      : "(no dependencies)";
-    console.log(`    - ${name} ${deps}`);
-  }
+  return processorRegistry.getNames();
 };

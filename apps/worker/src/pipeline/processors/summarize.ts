@@ -8,6 +8,7 @@ import type { schema } from "api/schema";
 import z from "zod";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
+import type { WorkerLogger } from "../../lib/logging";
 import type { ParsedSummary } from "../../types";
 import type {
   ProcessorDefinition,
@@ -100,9 +101,16 @@ export const summarizeThread = async (
     typeof schema.thread,
     { messages: true; labels: { include: { label: true } } }
   >,
-  ai?: ReturnType<typeof createAILogger>
+  ai?: ReturnType<typeof createAILogger>,
+  requestLog?: WorkerLogger
 ): Promise<ParsedSummary> => {
-  console.log(`Summarizing thread ${thread.id}`);
+  requestLog?.set({
+    input: {
+      messageCount: thread.messages?.length ?? 0,
+      labelCount: thread.labels?.length ?? 0,
+      hasTitle: Boolean(thread.name),
+    },
+  });
   const firstMessage = thread.messages?.toSorted((a, b) =>
     a.id.localeCompare(b.id)
   )[0];
@@ -174,7 +182,13 @@ Think: "If another user has the exact same underlying problem with different wor
         prompt,
       });
 
-      console.log(`Summary for thread ${thread.id}`);
+      requestLog?.set({
+        output: {
+          entityCount: output.entities.length,
+          keywordCount: output.keywords.length,
+          hasTitle: output.title.trim().length > 0,
+        },
+      });
       return {
         entities: output.entities,
         expectedAction: output.expectedAction,
@@ -189,28 +203,24 @@ Think: "If another user has the exact same underlying problem with different wor
       const isRateLimit = isRateLimitError(error);
 
       if (!isRetryable) {
-        console.error(
-          `Non-retryable error summarizing thread ${thread.id}:`,
-          error
-        );
         throw error;
       }
 
       if (isLastAttempt) {
-        console.error(
-          `Failed to summarize thread ${thread.id} after ${MAX_RETRIES} attempts:`,
-          error
-        );
         throw error;
       }
 
       const delay = getRetryDelay(attempt, isRateLimit);
       const errorType = isRateLimit ? "rate limit" : "retryable";
-      console.warn(
-        `Thread ${thread.id} summary attempt ${
-          attempt + 1
-        }/${MAX_RETRIES} failed (${errorType} error), retrying in ${delay}ms...`
-      );
+      requestLog?.warn("Summary generation attempt failed; retrying", {
+        retry: {
+          attempt: attempt + 1,
+          maxAttempts: MAX_RETRIES,
+          delayMs: delay,
+          errorType,
+          rateLimited: isRateLimit,
+        },
+      });
 
       await sleep(delay);
     }
@@ -263,10 +273,13 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
     let status = 200;
 
     try {
-      const summary = await summarizeThread(thread, ai);
+      const summary = await summarizeThread(thread, ai, requestLog);
 
       if (!summary || !summary.title || summary.title.trim().length === 0) {
         status = 500;
+        requestLog.set({
+          outcome: { status: "failed", reason: "empty_summary" },
+        });
         return {
           threadId,
           success: false,
@@ -281,13 +294,11 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
       };
     } catch (error) {
       status = 500;
-      console.error(
-        `Summarize processor failed for thread ${threadId}:`,
-        error
-      );
-      requestLog.error(
-        `Summarize failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`
-      );
+      requestLog.error(error instanceof Error ? error : String(error), {
+        retryable: isRetryableError(error),
+        step: "summarize",
+      });
+      requestLog.set({ outcome: { status: "failed" } });
       return {
         threadId,
         success: false,

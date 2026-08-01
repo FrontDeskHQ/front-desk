@@ -1,3 +1,6 @@
+import { log } from "@workspace/utils/logging";
+
+import { errorFields } from "../logging";
 import { qdrantClient } from "./client";
 
 export const DOCUMENTATION_COLLECTION = "documentation-v1";
@@ -54,10 +57,20 @@ export const ensureDocumentationCollection = async (): Promise<boolean> => {
       field_schema: "keyword",
     });
 
-    console.log(`Created Qdrant collection: ${DOCUMENTATION_COLLECTION}`);
+    log.info({
+      action: "worker.qdrant",
+      operation: "collection.create",
+      collection: DOCUMENTATION_COLLECTION,
+      embeddingDimensions: DOCUMENTATION_EMBEDDING_DIMENSIONS,
+    });
     return true;
   } catch (error) {
-    console.error("Failed to ensure documentation collection:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "collection.ensure",
+      collection: DOCUMENTATION_COLLECTION,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -83,7 +96,13 @@ export const upsertDocumentationChunksBatch = async (
     });
     return true;
   } catch (error) {
-    console.error("Failed to upsert documentation chunks batch:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "documentation_chunks.upsert",
+      collection: DOCUMENTATION_COLLECTION,
+      pointCount: points.length,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -105,10 +124,13 @@ export const deleteDocumentationVectorsBySource = async (
     });
     return true;
   } catch (error) {
-    console.error(
-      `Failed to delete documentation vectors for source ${documentationSourceId}:`,
-      error
-    );
+    log.error({
+      action: "worker.qdrant",
+      operation: "documentation_vectors.delete_by_source",
+      collection: DOCUMENTATION_COLLECTION,
+      documentationSourceId,
+      error: errorFields(error),
+    });
     return false;
   }
 };

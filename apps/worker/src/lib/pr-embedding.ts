@@ -1,6 +1,8 @@
 import { google } from "@ai-sdk/google";
 import { embed } from "ai";
 
+import type { WorkerLogger } from "./logging";
+
 const EMBEDDING_MODEL = "gemini-embedding-001";
 const embeddingModel = google.embedding(EMBEDDING_MODEL);
 
@@ -33,7 +35,8 @@ export const buildPrEmbedText = (data: PrEmbedInput): string =>
  * cross-searches.
  */
 export const generatePrEmbedding = async (
-  text: string
+  text: string,
+  requestLog?: WorkerLogger
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -49,7 +52,10 @@ export const generatePrEmbedding = async (
 
   const norm = Math.hypot(...embedding);
   if (!Number.isFinite(norm) || norm === 0) {
-    console.warn("PR embedding normalization failed: invalid norm", norm);
+    requestLog?.warn("PR embedding normalization produced an invalid norm", {
+      embedding: { dimensions: embedding.length, norm },
+      step: "normalize_embedding",
+    });
     return embedding;
   }
   return embedding.map((value) => value / norm);

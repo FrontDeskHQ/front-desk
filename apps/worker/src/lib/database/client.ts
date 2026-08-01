@@ -1,8 +1,10 @@
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
+import { log } from "@workspace/utils/logging";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 
 import type { Thread } from "../../types";
+import { errorFields } from "../logging";
 
 /**
  * Fetch client for database operations
@@ -27,7 +29,12 @@ export const fetchThreadWithRelations = async (
     const thread = threads[0];
     return (thread as Thread) ?? null;
   } catch (error) {
-    console.error(`Failed to fetch thread ${threadId}:`, error);
+    log.error({
+      action: "worker.database",
+      operation: "thread.fetch",
+      threadId,
+      error: errorFields(error),
+    });
     return null;
   }
 };
@@ -54,7 +61,13 @@ export const fetchMirroredPrByUrl = async (
       url,
     });
   } catch (error) {
-    console.error(`Failed to fetch mirrored PR ${url}:`, error);
+    log.error({
+      action: "worker.database",
+      operation: "pull_request.fetch",
+      organizationId,
+      url,
+      error: errorFields(error),
+    });
     return null;
   }
 };
@@ -78,7 +91,12 @@ export const fetchThreadsWithRelations = async (
       threads.set(thread.id, thread as Thread);
     }
   } catch (error) {
-    console.error(`Failed to fetch threads:`, error);
+    log.error({
+      action: "worker.database",
+      operation: "threads.fetch",
+      requestedCount: threadIds.length,
+      error: errorFields(error),
+    });
   }
 
   return threads;

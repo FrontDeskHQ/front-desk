@@ -5,6 +5,7 @@ import type { AxiomConfig } from "evlog/axiom";
 
 export { createLogger, createRequestLogger, log } from "evlog";
 export { createAILogger, createEvlogIntegration } from "evlog/ai";
+export type { RequestLogger } from "evlog";
 
 type EnvMap = Record<string, string | undefined>;
 
@@ -15,6 +16,7 @@ export interface SharedLoggerOptions {
   pretty?: boolean;
   silent?: boolean;
   minLevel?: LoggerConfig["minLevel"];
+  redact?: LoggerConfig["redact"];
   axiom?: {
     dataset?: string;
     token?: string;
@@ -79,6 +81,7 @@ export const createSharedLoggerConfig = (
       service: options.service,
     },
     minLevel: options.minLevel ?? "info",
+    redact: options.redact ?? true,
     pretty: options.pretty ?? env.NODE_ENV !== "production",
     silent: options.silent ?? false,
   };

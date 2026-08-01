@@ -1,6 +1,8 @@
+import { log } from "@workspace/utils/logging";
 import { ulid } from "ulid";
 
 import { fetchClient } from "../../lib/database/client";
+import { errorFields } from "../../lib/logging";
 
 /**
  * Build an idempotency key from processor name and thread ID
@@ -32,7 +34,12 @@ export const checkIdempotency = async (
 
     return existing.hash === hash;
   } catch (error) {
-    console.error(`Error checking idempotency for key ${key}:`, error);
+    log.error({
+      action: "worker.idempotency",
+      operation: "check",
+      key,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -54,7 +61,12 @@ export const storeIdempotencyKey = async (
 
     return true;
   } catch (error) {
-    console.error(`Error storing idempotency key ${key}:`, error);
+    log.error({
+      action: "worker.idempotency",
+      operation: "store",
+      key,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -71,7 +83,12 @@ export const invalidateIdempotencyKey = async (
 
     return true;
   } catch (error) {
-    console.error(`Error invalidating idempotency key ${key}:`, error);
+    log.error({
+      action: "worker.idempotency",
+      operation: "invalidate",
+      key,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -110,7 +127,12 @@ export const batchCheckIdempotency = async (
       }
     }
   } catch (error) {
-    console.error("Error batch checking idempotency:", error);
+    log.error({
+      action: "worker.idempotency",
+      operation: "batch_check",
+      keyCount: keyHashPairs.length,
+      error: errorFields(error),
+    });
     for (const { key } of keyHashPairs) {
       results.set(key, false);
     }
@@ -145,7 +167,12 @@ export const batchCheckIdempotencyKeyExists = async (
       results.set(key, existingSet.has(key));
     }
   } catch (error) {
-    console.error("Error batch checking idempotency key existence:", error);
+    log.error({
+      action: "worker.idempotency",
+      operation: "batch_check_exists",
+      keyCount: keys.length,
+      error: errorFields(error),
+    });
     for (const key of keys) {
       results.set(key, false);
     }
@@ -171,7 +198,12 @@ export const batchStoreIdempotencyKeys = async (
 
     return true;
   } catch (error) {
-    console.error("Error batch storing idempotency keys:", error);
+    log.error({
+      action: "worker.idempotency",
+      operation: "batch_store",
+      keyCount: keyHashPairs.length,
+      error: errorFields(error),
+    });
     return false;
   }
 };

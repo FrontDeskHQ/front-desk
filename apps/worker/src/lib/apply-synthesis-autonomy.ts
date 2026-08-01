@@ -1,8 +1,10 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
+import { log } from "@workspace/utils/logging";
 
 import { nextAgentReadAfterExecution, persistAgentRead } from "./agent-read";
 import { getOrgActionAutonomy } from "./autonomy";
 import { fetchClient } from "./database/client";
+import { errorFields } from "./logging";
 
 const keepForRead = (
   action: Action,
@@ -75,10 +77,15 @@ export const applySynthesisAutonomy = async (
       // can replay non-idempotent actions (e.g. a duplicate reply) if it did.
       // Give execution idempotency keys so a retry/re-suggest is a safe no-op
       // when the original call already succeeded.
-      console.error(
-        `Autonomous bundle failed for thread ${threadId}; keeping auto actions in read:`,
-        error
-      );
+      log.error({
+        action: "worker.synthesis_autonomy",
+        event: "autonomous_bundle_failed",
+        organizationId,
+        threadId,
+        autoActionCount: autoActions.length,
+        error: errorFields(error),
+        outcome: "auto_actions_retained_for_review",
+      });
       finalPrimary = [...autoActions, ...suggestPrimary];
     }
   }

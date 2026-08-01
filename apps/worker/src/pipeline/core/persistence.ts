@@ -1,6 +1,8 @@
+import { log } from "@workspace/utils/logging";
 import { ulid } from "ulid";
 
 import { fetchClient } from "../../lib/database/client";
+import { errorFields } from "../../lib/logging";
 import type {
   PipelineJobMetadata,
   PipelineStatus,
@@ -48,7 +50,12 @@ export const updatePipelineJobStatus = async (
     const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!existing) {
-      console.error(`Pipeline job ${jobId} not found`);
+      log.error({
+        action: "worker.pipeline_persistence",
+        operation: "job.update",
+        jobId,
+        error: { message: "Pipeline job not found", name: "NotFoundError" },
+      });
       return false;
     }
 
@@ -61,7 +68,13 @@ export const updatePipelineJobStatus = async (
 
     return true;
   } catch (error) {
-    console.error(`Error updating pipeline job ${jobId}:`, error);
+    log.error({
+      action: "worker.pipeline_persistence",
+      operation: "job.update",
+      jobId,
+      status,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -77,7 +90,12 @@ export const completePipelineJob = async (
     const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!existing) {
-      console.error(`Pipeline job ${jobId} not found`);
+      log.error({
+        action: "worker.pipeline_persistence",
+        operation: "job.complete",
+        jobId,
+        error: { message: "Pipeline job not found", name: "NotFoundError" },
+      });
       return false;
     }
 
@@ -93,7 +111,13 @@ export const completePipelineJob = async (
 
     return true;
   } catch (error) {
-    console.error(`Error completing pipeline job ${jobId}:`, error);
+    log.error({
+      action: "worker.pipeline_persistence",
+      operation: "job.complete",
+      jobId,
+      status: result.status,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -109,7 +133,12 @@ export const failPipelineJob = async (
     const existing = await fetchClient.query.pipelineJob.byId({ id: jobId });
 
     if (!existing) {
-      console.error(`Pipeline job ${jobId} not found`);
+      log.error({
+        action: "worker.pipeline_persistence",
+        operation: "job.fail",
+        jobId,
+        error: { message: "Pipeline job not found", name: "NotFoundError" },
+      });
       return false;
     }
 
@@ -122,7 +151,12 @@ export const failPipelineJob = async (
 
     return true;
   } catch (persistError) {
-    console.error(`Error failing pipeline job ${jobId}:`, persistError);
+    log.error({
+      action: "worker.pipeline_persistence",
+      operation: "job.fail",
+      jobId,
+      error: errorFields(persistError),
+    });
     return false;
   }
 };
@@ -156,7 +190,12 @@ export const getPipelineJob = async (
       updatedAt: job.updatedAt,
     };
   } catch (error) {
-    console.error(`Error fetching pipeline job ${jobId}:`, error);
+    log.error({
+      action: "worker.pipeline_persistence",
+      operation: "job.fetch",
+      jobId,
+      error: errorFields(error),
+    });
     return null;
   }
 };

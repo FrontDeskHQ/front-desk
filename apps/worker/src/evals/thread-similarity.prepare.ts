@@ -1,3 +1,6 @@
+import { createLogger } from "@workspace/utils/logging";
+
+import { errorFields } from "../lib/logging";
 import {
   ensureThreadsCollection,
   upsertThreadVector,
@@ -82,84 +85,120 @@ const buildPayload = (
 
 const main = async (): Promise<void> => {
   const startTime = performance.now();
+  const requestLog = createLogger({
+    action: "worker.eval_prepare",
+    operation: "thread_similarity.prepare",
+    organizationId: TEST_ORGANIZATION_ID,
+  });
+  let status = 200;
 
-  console.log("=".repeat(72));
-  console.log("Thread Similarity Dataset Preparation");
-  console.log("=".repeat(72));
-  console.log(`Organization ID: ${TEST_ORGANIZATION_ID}`);
+  try {
+    const datasetStartTime = performance.now();
+    const { threads: rawThreads } = buildThreadSimilarityDataset();
+    const threads = rawThreads.map(convertToThread);
+    const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
+    const datasetTime = performance.now() - datasetStartTime;
+    requestLog.set({
+      dataset: { threadCount: threads.length, durationMs: datasetTime },
+    });
 
-  const datasetStartTime = performance.now();
-  const { threads: rawThreads } = buildThreadSimilarityDataset();
-  const threads = rawThreads.map(convertToThread);
-  const threadMap = new Map(threads.map((thread) => [thread.id, thread]));
-  const datasetTime = performance.now() - datasetStartTime;
-  console.log(`Dataset loaded in ${(datasetTime / 1000).toFixed(2)}s`);
+    const collectionStartTime = performance.now();
+    const collectionReady = await ensureThreadsCollection();
+    if (!collectionReady) {
+      throw new Error("Failed to ensure Qdrant collection");
+    }
+    const collectionTime = performance.now() - collectionStartTime;
+    requestLog.set({
+      qdrant: { collectionReady: true, durationMs: collectionTime },
+    });
 
-  const collectionStartTime = performance.now();
-  const collectionReady = await ensureThreadsCollection();
-  if (!collectionReady) {
-    console.error("Failed to ensure Qdrant collection.");
-    process.exit(1);
+    const embedStartTime = performance.now();
+    const results = await batchEmbedThread(threads, { concurrency: 4 });
+    const embedTime = performance.now() - embedStartTime;
+    requestLog.set({
+      embedding: {
+        durationMs: embedTime,
+        successCount: results.filter((result) => result.success).length,
+        errorCount: results.filter((result) => !result.success).length,
+      },
+    });
+
+    let successCount = 0;
+    let errorCount = 0;
+    const upsertStartTime = performance.now();
+
+    for (const result of results) {
+      if (!result.success) {
+        errorCount += 1;
+        requestLog.warn("Thread embedding failed", {
+          threadId: result.threadId,
+          error: { message: result.error },
+          step: "embed_thread",
+        });
+        continue;
+      }
+
+      const thread = threadMap.get(result.threadId);
+      if (!thread) {
+        errorCount += 1;
+        requestLog.warn("Embedded thread was not found in the dataset", {
+          threadId: result.threadId,
+          step: "build_thread_payload",
+        });
+        continue;
+      }
+
+      const payload = buildPayload(thread, result.summary);
+      const pointId = crypto.randomUUID();
+      const upserted = await upsertThreadVector(
+        pointId,
+        result.embedding,
+        payload
+      );
+
+      if (!upserted) {
+        errorCount += 1;
+        requestLog.warn("Failed to upsert embedded thread", {
+          threadId: result.threadId,
+          step: "upsert_thread_vector",
+        });
+        continue;
+      }
+
+      successCount += 1;
+    }
+
+    const upsertTime = performance.now() - upsertStartTime;
+    const totalTime = performance.now() - startTime;
+    requestLog.set({
+      outcome: {
+        status: errorCount > 0 ? "completed_with_errors" : "completed",
+        upserted: successCount,
+        errors: errorCount,
+      },
+      timing: {
+        datasetMs: datasetTime,
+        collectionMs: collectionTime,
+        embeddingMs: embedTime,
+        upsertingMs: upsertTime,
+        totalMs: totalTime,
+      },
+    });
+    if (errorCount > 0) {
+      status = 207;
+    }
+  } catch (error) {
+    status = 500;
+    requestLog.error(error instanceof Error ? error : String(error), {
+      error: errorFields(error),
+      step: "thread_similarity.prepare",
+    });
+    throw error;
+  } finally {
+    requestLog.emit({ status });
   }
-  const collectionTime = performance.now() - collectionStartTime;
-  console.log(`Collection ensured in ${(collectionTime / 1000).toFixed(2)}s`);
-
-  console.log(`\nSummarizing + embedding ${threads.length} threads...`);
-  const embedStartTime = performance.now();
-  const results = await batchEmbedThread(threads, { concurrency: 4 });
-  const embedTime = performance.now() - embedStartTime;
-  console.log(`Embedding completed in ${(embedTime / 1000).toFixed(2)}s`);
-
-  let successCount = 0;
-  let errorCount = 0;
-
-  const upsertStartTime = performance.now();
-  for (const result of results) {
-    if (!result.success) {
-      errorCount += 1;
-      console.warn(`  ⚠️  ${result.threadId}: ${result.error}`);
-      continue;
-    }
-
-    const thread = threadMap.get(result.threadId);
-    if (!thread) {
-      errorCount += 1;
-      console.warn(`  ⚠️  Missing thread for ${result.threadId}`);
-      continue;
-    }
-
-    const payload = buildPayload(thread, result.summary);
-    const pointId = crypto.randomUUID();
-    const upserted = await upsertThreadVector(
-      pointId,
-      result.embedding,
-      payload
-    );
-
-    if (!upserted) {
-      errorCount += 1;
-      console.warn(`  ⚠️  Failed to upsert ${result.threadId}`);
-      continue;
-    }
-
-    successCount += 1;
-  }
-  const upsertTime = performance.now() - upsertStartTime;
-
-  const totalTime = performance.now() - startTime;
-
-  console.log("\nPreparation complete.");
-  console.log(`  ✅ Upserted: ${successCount}`);
-  console.log(`  ⚠️  Errors: ${errorCount}`);
-  console.log(`\nTiming Summary:`);
-  console.log(`  Dataset loading: ${(datasetTime / 1000).toFixed(2)}s`);
-  console.log(`  Collection setup: ${(collectionTime / 1000).toFixed(2)}s`);
-  console.log(`  Embedding: ${(embedTime / 1000).toFixed(2)}s`);
-  console.log(`  Upserting: ${(upsertTime / 1000).toFixed(2)}s`);
-  console.log(`  Total time: ${(totalTime / 1000).toFixed(2)}s`);
 };
 
-main().catch((error) => {
-  console.error("Fatal error:", error);
+main().catch(() => {
   process.exit(1);
 });

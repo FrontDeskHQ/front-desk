@@ -7,6 +7,7 @@ import { embed } from "ai";
 import { ULIDtoUUID } from "ulid-uuid-converter";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
+import type { WorkerLogger } from "../../lib/logging";
 import {
   deleteStaleMessageVectors,
   upsertMessageVectorsBatch,
@@ -38,7 +39,8 @@ const computeSha256 = (data: string): string =>
  */
 const generateMessageEmbedding = async (
   text: string,
-  ai?: ReturnType<typeof createAILogger>
+  ai?: ReturnType<typeof createAILogger>,
+  requestLog?: WorkerLogger
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -64,13 +66,22 @@ const generateMessageEmbedding = async (
     const norm = Math.hypot(...embedding);
 
     if (!Number.isFinite(norm) || norm === 0) {
-      console.warn("Embedding normalization failed: invalid norm", norm);
+      requestLog?.warn(
+        "Message embedding normalization produced an invalid norm",
+        {
+          embedding: { dimensions: embedding.length, norm },
+          step: "normalize_embedding",
+        }
+      );
       return embedding;
     }
 
     return embedding.map((value) => value / norm);
   } catch (error) {
-    console.error("Error generating message embedding:", error);
+    requestLog?.error(error instanceof Error ? error : String(error), {
+      retryable: true,
+      step: "generate_message_embedding",
+    });
     return null;
   }
 };
@@ -109,6 +120,10 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
       let status = 200;
 
       if (messages.length === 0) {
+        requestLog.set({
+          input: { messageCount: 0 },
+          outcome: { status: "completed", embeddedCount: 0, skippedCount: 0 },
+        });
         requestLog.emit({ status });
         return {
           threadId,
@@ -118,9 +133,7 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
       }
 
       try {
-        console.log(
-          `Embedding ${messages.length} messages for thread ${threadId}`
-        );
+        requestLog.set({ input: { messageCount: messages.length } });
 
         const sorted = [...messages].toSorted((a, b) =>
           a.id.localeCompare(b.id)
@@ -174,13 +187,20 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
 
           const batchResults = await Promise.all(
             batch.map(async ({ message, plainText, index }) => {
-              const embedding = await generateMessageEmbedding(plainText, ai);
+              const embedding = await generateMessageEmbedding(
+                plainText,
+                ai,
+                requestLog
+              );
               if (!embedding) return null;
               const qdrantPointId = ULIDtoUUID(message.id.toUpperCase(), {
                 nullOnInvalidInput: true,
               });
               if (!qdrantPointId) {
-                console.warn("Invalid ULID for message, skipping:", message.id);
+                requestLog.warn("Message has an invalid ULID and was skipped", {
+                  message: { id: message.id },
+                  step: "convert_message_id",
+                });
                 return null;
               }
 
@@ -222,6 +242,15 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
           const stored = await upsertMessageVectorsBatch(points);
 
           if (!stored) {
+            status = 500;
+            requestLog.set({
+              outcome: {
+                status: "failed",
+                reason: "message_vector_upsert_failed",
+                embeddedCount: points.length,
+                skippedCount,
+              },
+            });
             return {
               threadId,
               success: false,
@@ -233,9 +262,14 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
           await deleteStaleMessageVectors(threadId, keptMessageIds);
         }
 
-        console.log(
-          `Embedded ${points.length} messages for thread ${threadId} (${skippedCount} skipped)`
-        );
+        requestLog.set({
+          outcome: {
+            status: "completed",
+            embeddedCount: points.length,
+            skippedCount,
+            staleVectorsDeleted: points.length > 0,
+          },
+        });
 
         return {
           threadId,
@@ -247,13 +281,11 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
         };
       } catch (error) {
         status = 500;
-        console.error(
-          `Embed-messages processor failed for thread ${threadId}:`,
-          error
-        );
-        requestLog.error(
-          `Embed-messages failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`
-        );
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: true,
+          step: "embed_messages",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return {
           threadId,
           success: false,
