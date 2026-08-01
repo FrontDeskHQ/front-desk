@@ -61,6 +61,7 @@ function RouteComponent() {
 <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-lg min-h-20 w-28 p-3 text-xs">Large</div>
 <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-xl min-h-20 w-28 p-3 text-xs">Extra large</div>
 <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-2xl min-h-20 w-28 p-3 text-xs">2XL</div>`}
+          className="py-48"
         >
           <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-none min-h-20 w-28 p-3 text-xs">
             None
