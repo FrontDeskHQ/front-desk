@@ -269,6 +269,7 @@
  * https://github.com/flornkm/shadow-plugin
  * Original author: Florian Kiem. Used under the original MIT license.
  */
+/* stylelint-disable scss/at-rule-no-unknown -- Tailwind CSS v4 provides @utility. */
 @utility surface-frame {
   --surface-frame-backdrop: var(--background-primary);
   --surface-frame-ring-color: var(--color-border-primary);
@@ -446,6 +447,7 @@
   --surface-frame-halo-gap: 6px;
   --surface-frame-halo-spread: 7px;
 }
+/* stylelint-enable scss/at-rule-no-unknown */
 
 @layer base {
   * {
