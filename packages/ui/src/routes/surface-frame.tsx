@@ -135,7 +135,7 @@ function RouteComponent() {
 
       <DocSection
         title="Custom halo values"
-        description="Use the documented CSS variables for exceptional halo colors or backdrop contexts; prefer the named utility variants for normal usage."
+        description="Use --surface-frame-halo-color for exceptional halo colors and --surface-frame-backdrop to match a halo gap to its surrounding surface; prefer named utility variants for normal usage."
       >
         <Demo
           code={`<div
