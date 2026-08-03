@@ -323,15 +323,15 @@
 
 @utility surface-frame-elevation-md {
   --surface-frame-elevation:
-    0 17.54px 23.39px 0
+    0 22px 48.5px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 4%, transparent),
-    0 9.4px 12.5px 0
+    0 10px 22px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 3%, transparent),
-    0 5.25px 7px 0
+    0 5px 11px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 2%, transparent),
-    0 2.79px 3.72px -2px
+    0 2.6px 5.9px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent),
-    0 1.16px 1.5px 0
+    0 1.35px 3.05px 0
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
 }
 
