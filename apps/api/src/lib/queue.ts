@@ -144,6 +144,14 @@ export const enqueueThreadRead = async (
       await existing.updateData(merged);
       return existing.id ?? jobId;
     }
+
+    // BullMQ keeps completed and failed jobs under their job ID. Remove those
+    // terminal records before reusing the stable per-thread ID, otherwise a
+    // later trigger can be reported as enqueued while BullMQ silently returns
+    // the old completed job instead of scheduling a new read.
+    if (state === "completed" || state === "failed") {
+      await existing.remove();
+    }
   }
 
   const job = await q.add(THREAD_READ_JOB_NAME, data, {
