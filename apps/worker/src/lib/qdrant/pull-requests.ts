@@ -13,8 +13,9 @@ export const PR_EMBEDDING_DIMENSIONS = 3072;
 
 /**
  * Default cosine-similarity floor for treating a PR as a match (design lock,
- * FRO-201). Consumed by the push-side match and pull-side `related_prs` hint;
- * the index itself stores every eligible PR regardless of any thread's score.
+ * FRO-201). Consumed by the pull-side `related_prs` hint; push-side matching
+ * uses a broader retrieval floor followed by a separate relevance judge. The
+ * index itself stores every eligible PR regardless of any thread's score.
  */
 export const PR_MATCH_THRESHOLD = 0.85;
 

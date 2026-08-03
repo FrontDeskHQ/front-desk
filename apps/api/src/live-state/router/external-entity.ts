@@ -86,6 +86,19 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const { organizationId, externalKey, matches } = req.input;
     if (matches.length === 0) return { enqueued: 0 };
 
+    // A candidate can be repeated when retrieval or reranking is composed from
+    // multiple sources. Keep one score per thread before the authoritative DB
+    // filter and fan-out so one PR cannot enqueue the same thread twice.
+    const uniqueMatches = [
+      ...matches.reduce((byThread, match) => {
+        const previous = byThread.get(match.threadId);
+        if (!previous || match.score > previous.score) {
+          byThread.set(match.threadId, match);
+        }
+        return byThread;
+      }, new Map<string, (typeof matches)[number]>()),
+    ].map(([, match]) => match);
+
     const pr = Object.values(
       await db.find(schema.externalEntity, {
         where: {
@@ -107,7 +120,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       Object.values(
         await db.find(schema.thread, {
           where: {
-            id: { $in: matches.map((m) => m.threadId) },
+            id: { $in: uniqueMatches.map((m) => m.threadId) },
             organizationId,
           },
         })
@@ -115,7 +128,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     );
 
     let enqueued = 0;
-    for (const { threadId, score } of matches) {
+    for (const { threadId, score } of uniqueMatches) {
       const thread = threads.get(threadId);
       // Skip threads that are gone, archived, closed/resolved, or already
       // PR-linked.
