@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { DuplicateEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
+import { isRetryableError } from "../../../../lib/logging";
 import { searchSimilarThreads } from "../../../../lib/qdrant/threads";
 import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
@@ -63,6 +64,9 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
         );
         if (!embedOutput?.embedding) {
           status = 500;
+          requestLog.set({
+            outcome: { status: "failed", reason: "embedding_missing" },
+          });
           return {
             threadId,
             success: false,
@@ -97,6 +101,18 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           hash
         );
 
+        requestLog.set({
+          search: {
+            candidateCount: results.length,
+            limit: 5,
+            scoreThreshold: DUPLICATE_THRESHOLD,
+          },
+          outcome: {
+            status: "completed",
+            duplicateFound: Boolean(evidence),
+          },
+        });
+
         return {
           threadId,
           success: true,
@@ -105,11 +121,11 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
       } catch (error) {
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
-        console.error(
-          `Duplicate processor failed for thread ${threadId}:`,
-          error
-        );
-        requestLog.error(`Duplicate failed for thread ${threadId}: ${message}`);
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: isRetryableError(error),
+          step: "duplicate",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return { threadId, success: false, error: message };
       } finally {
         requestLog.emit({ status });

@@ -5,6 +5,7 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
+import { isRetryableError } from "../../../../lib/logging";
 import {
   resolveMessageRoles,
   threadHasTeamReply,
@@ -129,6 +130,9 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
 
         if (!latestMessage) {
           await applySynthesisAutonomy(threadId, thread.organizationId, null);
+          requestLog.set({
+            outcome: { status: "completed", reason: "no_messages" },
+          });
           return {
             threadId,
             success: true,
@@ -174,7 +178,8 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
             hasTeamReply,
           },
           tools,
-          ai
+          ai,
+          requestLog
         );
 
         const rawActionSet = normalizeSynthesisRawActionSet({
@@ -190,6 +195,20 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           rawActionSet
         );
 
+        requestLog.set({
+          synthesis: {
+            messageCount: messages.length,
+            hintCount: Object.keys(hints).length,
+            primaryActionCount: rawActionSet?.primary.length ?? 0,
+            alternativeActionCount: rawActionSet?.alternatives?.length ?? 0,
+            teamReplyPresent: hasTeamReply,
+          },
+          outcome: {
+            status: "completed",
+            agentReadPresent: Boolean(agentRead),
+          },
+        });
+
         return {
           threadId,
           success: true,
@@ -198,11 +217,11 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
       } catch (error) {
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
-        console.error(
-          `Synthesis processor failed for thread ${threadId}:`,
-          error
-        );
-        requestLog.error(`Synthesis failed for thread ${threadId}: ${message}`);
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: isRetryableError(error),
+          step: "synthesis",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return { threadId, success: false, error: message };
       } finally {
         requestLog.emit({ status });

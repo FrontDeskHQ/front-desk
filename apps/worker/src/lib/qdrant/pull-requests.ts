@@ -1,5 +1,8 @@
 import { createHash } from "node:crypto";
 
+import { log } from "@workspace/utils/logging";
+
+import { errorFields } from "../logging";
 import { qdrantClient } from "./client";
 
 // v2: FRO-203 reshaped the payload (eligibility + content hash, keyed by
@@ -107,10 +110,20 @@ export const ensurePrsCollection = async (): Promise<boolean> => {
       field_schema: "bool",
     });
 
-    console.log(`Created Qdrant collection: ${PRS_COLLECTION}`);
+    log.info({
+      action: "worker.qdrant",
+      operation: "collection.create",
+      collection: PRS_COLLECTION,
+      embeddingDimensions: PR_EMBEDDING_DIMENSIONS,
+    });
     return true;
   } catch (error) {
-    console.error("Failed to ensure PRs collection:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "collection.ensure",
+      collection: PRS_COLLECTION,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -131,7 +144,14 @@ export const getPrPoint = async (
     }
     return { payload: point.payload as unknown as PrPayload };
   } catch (error) {
-    console.error(`Failed to retrieve PR vector ${externalKey}:`, error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "pr_vector.retrieve",
+      collection: PRS_COLLECTION,
+      externalKey,
+      organizationId,
+      error: errorFields(error),
+    });
     return null;
   }
 };
@@ -154,7 +174,15 @@ export const upsertPrVector = async (
     });
     return true;
   } catch (error) {
-    console.error(`Failed to upsert PR vector ${payload.externalKey}:`, error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "pr_vector.upsert",
+      collection: PRS_COLLECTION,
+      externalKey: payload.externalKey,
+      organizationId: payload.organizationId,
+      eligible: payload.eligible,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -178,7 +206,15 @@ export const setPrEligibility = async (
     });
     return true;
   } catch (error) {
-    console.error(`Failed to set PR eligibility ${externalKey}:`, error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "pr_vector.update_eligibility",
+      collection: PRS_COLLECTION,
+      externalKey,
+      organizationId,
+      eligible,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -195,7 +231,14 @@ export const deletePrVector = async (
     });
     return true;
   } catch (error) {
-    console.error(`Failed to delete PR vector ${externalKey}:`, error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "pr_vector.delete",
+      collection: PRS_COLLECTION,
+      externalKey,
+      organizationId,
+      error: errorFields(error),
+    });
     return false;
   }
 };

@@ -6,6 +6,7 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getStatusAutonomyMode } from "../../../../lib/autonomy";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
+import { isRetryableError } from "../../../../lib/logging";
 import { resolveMessageRoles } from "../../../../lib/message-roles";
 import type {
   ProcessorDefinition,
@@ -84,6 +85,9 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
       try {
         const autonomy = await getStatusAutonomyMode(thread.organizationId);
         if (autonomy === "off") {
+          requestLog.set({
+            outcome: { status: "skipped", reason: "autonomy_off" },
+          });
           return {
             data: { skipped: "autonomy_off" },
             success: true,
@@ -93,6 +97,9 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
 
         const ordered = sortedMessages(thread.messages);
         if (ordered.length === 0) {
+          requestLog.set({
+            outcome: { status: "skipped", reason: "no_messages" },
+          });
           return {
             data: { skipped: "no_messages" },
             success: true,
@@ -132,6 +139,14 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         );
 
         if (inferred === null || confidence < SUGGEST_THRESHOLD) {
+          requestLog.set({
+            inference: {
+              confidence,
+              suggestedStatus: inferred,
+              threshold: SUGGEST_THRESHOLD,
+            },
+            outcome: { status: "skipped", reason: "below_threshold" },
+          });
           return {
             data: {
               confidence,
@@ -156,6 +171,15 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
           id: `status:${threadId}`,
         });
 
+        requestLog.set({
+          inference: {
+            confidence,
+            suggestedStatus: inferred,
+            threshold: SUGGEST_THRESHOLD,
+          },
+          outcome: { status: "suggested", suggestion: "set_status" },
+        });
+
         return {
           data: { confidence, status: inferred },
           success: true,
@@ -163,12 +187,11 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         };
       } catch (error) {
         status = 500;
-        console.error(`Status inferer failed for thread ${threadId}:`, error);
-        requestLog.error(
-          `Status inferer failed for thread ${threadId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: isRetryableError(error),
+          step: "status_inferer",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return {
           error: error instanceof Error ? error.message : String(error),
           success: false,

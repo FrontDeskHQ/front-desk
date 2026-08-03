@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { RelatedPrsEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
+import { isRetryableError } from "../../../../lib/logging";
 import {
   PR_MATCH_THRESHOLD,
   searchSimilarPrs,
@@ -99,6 +100,9 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
             null,
             computeSha256("linked")
           );
+          requestLog.set({
+            outcome: { status: "skipped", reason: "already_linked" },
+          });
           return {
             data: { evidence: null },
             success: true,
@@ -120,6 +124,9 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
         );
         if (!embedOutput?.embedding) {
           status = 500;
+          requestLog.set({
+            outcome: { status: "failed", reason: "embedding_missing" },
+          });
           return {
             error: "No embedding available from embed processor",
             success: false,
@@ -147,6 +154,18 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
           hash
         );
 
+        requestLog.set({
+          search: {
+            candidateCount: hits.length,
+            limit: RELATED_PRS_LIMIT,
+            scoreThreshold: PR_MATCH_THRESHOLD,
+          },
+          outcome: {
+            status: "completed",
+            evidenceCount: evidence?.prs.length ?? 0,
+          },
+        });
+
         return {
           data: { evidence },
           success: true,
@@ -155,13 +174,11 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
       } catch (error) {
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
-        console.error(
-          `Related PRs processor failed for thread ${threadId}:`,
-          error
-        );
-        requestLog.error(
-          `Related PRs failed for thread ${threadId}: ${message}`
-        );
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: isRetryableError(error),
+          step: "related_prs",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return { error: message, success: false, threadId };
       } finally {
         requestLog.emit({ status });

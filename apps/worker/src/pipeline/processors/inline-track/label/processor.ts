@@ -6,6 +6,7 @@ import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { getLabelAutonomyMode } from "../../../../lib/autonomy";
 import { fetchClient } from "../../../../lib/database/client";
 import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
+import { isRetryableError } from "../../../../lib/logging";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -72,6 +73,9 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
       try {
         const autonomy = await getLabelAutonomyMode(thread.organizationId);
         if (autonomy === "off") {
+          requestLog.set({
+            outcome: { status: "skipped", reason: "autonomy_off" },
+          });
           return {
             data: { skipped: "autonomy_off" },
             success: true,
@@ -85,6 +89,9 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         })) as LabelRow[];
 
         if (orgLabels.length === 0) {
+          requestLog.set({
+            outcome: { status: "skipped", reason: "no_labels" },
+          });
           return {
             data: { skipped: "no_labels" },
             success: true,
@@ -120,6 +127,10 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         );
 
         if (!labelId || confidence < SUGGEST_THRESHOLD) {
+          requestLog.set({
+            classification: { confidence, threshold: SUGGEST_THRESHOLD },
+            outcome: { status: "skipped", reason: "below_threshold" },
+          });
           return {
             data: {
               confidence,
@@ -132,6 +143,14 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         }
 
         if (appliedLabelIds.has(labelId)) {
+          requestLog.set({
+            classification: {
+              confidence,
+              labelId,
+              threshold: SUGGEST_THRESHOLD,
+            },
+            outcome: { status: "skipped", reason: "already_applied" },
+          });
           return {
             data: { confidence, labelId, skipped: "already_applied" },
             success: true,
@@ -152,6 +171,11 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
           id: `label:${threadId}`,
         });
 
+        requestLog.set({
+          classification: { confidence, labelId, threshold: SUGGEST_THRESHOLD },
+          outcome: { status: "suggested", suggestion: "apply_label" },
+        });
+
         return {
           data: { confidence, labelId },
           success: true,
@@ -159,12 +183,11 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         };
       } catch (error) {
         status = 500;
-        console.error(`Label classifier failed for thread ${threadId}:`, error);
-        requestLog.error(
-          `Label classifier failed for thread ${threadId}: ${
-            error instanceof Error ? error.message : String(error)
-          }`
-        );
+        requestLog.error(error instanceof Error ? error : String(error), {
+          retryable: isRetryableError(error),
+          step: "label_classifier",
+        });
+        requestLog.set({ outcome: { status: "failed" } });
         return {
           error: error instanceof Error ? error.message : String(error),
           success: false,

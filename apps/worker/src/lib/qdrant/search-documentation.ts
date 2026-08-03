@@ -1,6 +1,8 @@
 import { google } from "@ai-sdk/google";
+import { log } from "@workspace/utils/logging";
 import { embed } from "ai";
 
+import { errorFields, sanitizeUrl } from "../logging";
 import { qdrantClient } from "./client";
 import type { DocumentationChunkPayload } from "./documentation";
 import { DOCUMENTATION_COLLECTION } from "./documentation";
@@ -43,7 +45,11 @@ const generateQueryEmbedding = async (
     });
     return embedding;
   } catch (error) {
-    console.error("Failed to generate documentation query embedding:", error);
+    log.error({
+      action: "worker.documentation_search",
+      operation: "query_embedding.generate",
+      error: errorFields(error),
+    });
     return null;
   }
 };
@@ -99,7 +105,14 @@ export async function searchDocumentation(options: {
     // TODO: This swallows embedding/query failures and returns [], which is
     // indistinguishable from a genuine no-results. Revisit to surface failures
     // (explicit Result type or propagated error) so callers can tell them apart.
-    console.error("Failed to search documentation in Qdrant:", error);
+    log.error({
+      action: "worker.documentation_search",
+      operation: "qdrant.search",
+      organizationId,
+      limit,
+      queryLength: query.length,
+      error: errorFields(error),
+    });
     return [];
   }
 }
@@ -140,7 +153,14 @@ export async function readDocumentationPage(options: {
       })
       .toSorted((a, b) => a.chunkIndex - b.chunkIndex);
   } catch (error) {
-    console.error("Failed to read documentation page chunks in Qdrant:", error);
+    log.error({
+      action: "worker.documentation_search",
+      operation: "qdrant.page_read",
+      organizationId,
+      pageUrl: sanitizeUrl(pageUrl),
+      limit,
+      error: errorFields(error),
+    });
     return [];
   }
 }

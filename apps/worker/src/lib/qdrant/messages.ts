@@ -1,3 +1,6 @@
+import { log } from "@workspace/utils/logging";
+
+import { errorFields } from "../logging";
 import { qdrantClient } from "./client";
 
 export const MESSAGES_COLLECTION = "messages-v1";
@@ -50,10 +53,20 @@ export const ensureMessagesCollection = async (): Promise<boolean> => {
       field_schema: "keyword",
     });
 
-    console.log(`Created Qdrant collection: ${MESSAGES_COLLECTION}`);
+    log.info({
+      action: "worker.qdrant",
+      operation: "collection.create",
+      collection: MESSAGES_COLLECTION,
+      embeddingDimensions: MESSAGE_EMBEDDING_DIMENSIONS,
+    });
     return true;
   } catch (error) {
-    console.error("Failed to ensure messages collection:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "collection.ensure",
+      collection: MESSAGES_COLLECTION,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -79,7 +92,13 @@ export const upsertMessageVectorsBatch = async (
     });
     return true;
   } catch (error) {
-    console.error("Failed to upsert message vectors batch:", error);
+    log.error({
+      action: "worker.qdrant",
+      operation: "message_vectors.upsert",
+      collection: MESSAGES_COLLECTION,
+      pointCount: points.length,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -96,10 +115,13 @@ export const deleteMessageVectorsByThread = async (
     });
     return true;
   } catch (error) {
-    console.error(
-      `Failed to delete message vectors for thread ${threadId}:`,
-      error
-    );
+    log.error({
+      action: "worker.qdrant",
+      operation: "message_vectors.delete_by_thread",
+      collection: MESSAGES_COLLECTION,
+      threadId,
+      error: errorFields(error),
+    });
     return false;
   }
 };
@@ -136,10 +158,14 @@ export const deleteStaleMessageVectors = async (
     });
     return true;
   } catch (error) {
-    console.error(
-      `Failed to delete stale message vectors for thread ${threadId}:`,
-      error
-    );
+    log.error({
+      action: "worker.qdrant",
+      operation: "message_vectors.delete_stale",
+      collection: MESSAGES_COLLECTION,
+      threadId,
+      keepMessageCount: keepMessageIds.length,
+      error: errorFields(error),
+    });
     return false;
   }
 };

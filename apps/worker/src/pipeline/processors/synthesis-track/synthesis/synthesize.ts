@@ -10,6 +10,7 @@ import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, stepCountIs } from "ai";
 import z from "zod";
 
+import type { WorkerLogger } from "../../../../lib/logging";
 import type { ParsedSummary } from "../../../../types";
 import {
   collectVerifiedPrUrlsFromToolSteps,
@@ -57,7 +58,10 @@ export interface SynthesizeThreadReadInput {
   sourceInputMessageId: string;
 }
 
-const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
+const parseRawActionSetFromText = (
+  text: string,
+  requestLog?: WorkerLogger
+): SynthesisRawActionSet => {
   const trimmed = text.trim();
   const fencedMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
   const candidate = (fencedMatch?.[1] ?? trimmed).trim();
@@ -65,10 +69,10 @@ const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
     const parsed = JSON.parse(candidate);
     return synthesisRawActionSetSchema.parse(parsed);
   } catch (error) {
-    console.error("Failed to parse synthesis output", {
+    requestLog?.error(error instanceof Error ? error : String(error), {
       candidateLength: candidate.length,
-      error,
       rawTextLength: text.length,
+      step: "parse_synthesis_output",
     });
     throw new Error(
       `Synthesis output parsing failed: ${
@@ -82,7 +86,8 @@ const parseRawActionSetFromText = (text: string): SynthesisRawActionSet => {
 export const synthesizeThreadRead = async (
   input: SynthesizeThreadReadInput,
   tools: ReturnType<typeof createSynthesisTools>,
-  ai?: ReturnType<typeof createAILogger>
+  ai?: ReturnType<typeof createAILogger>,
+  requestLog?: WorkerLogger
 ): Promise<SynthesisRawActionSet> => {
   const transcript =
     input.threadMessages.length > 0
@@ -213,7 +218,7 @@ Return a single valid JSON object with exactly this shape:
     tools,
   });
 
-  const raw = parseRawActionSetFromText(text);
+  const raw = parseRawActionSetFromText(text, requestLog);
   // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
   // Prompt instructions alone cannot authorize an external PR link. If primary
   // loses a link_pr, discard the set so recommendation stays consistent.

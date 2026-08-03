@@ -1,4 +1,7 @@
+import { createLogger } from "@workspace/utils/logging";
+
 import { fetchThreadsWithRelations } from "../../lib/database/client";
+import type { WorkerLogger } from "../../lib/logging";
 import type { Thread } from "../../types";
 import { processorRegistry } from "../processors/registry";
 import { JobContext } from "./context";
@@ -52,7 +55,8 @@ const executeProcessor = async (
   processor: ProcessorDefinition,
   context: JobContext,
   threadIds: string[],
-  concurrency: number
+  concurrency: number,
+  requestLog: WorkerLogger
 ): Promise<ProcessorResult[]> => {
   const results: ProcessorResult[] = [];
   const dependencies = processor.dependencies ?? [];
@@ -65,6 +69,11 @@ const executeProcessor = async (
   for (const threadId of threadIds) {
     const thread = context.threads.get(threadId);
     if (!thread) {
+      requestLog.warn("Requested thread was not returned by the database", {
+        processor: processor.name,
+        threadId,
+        step: "load_thread",
+      });
       results.push({
         error: "Thread not found in context",
         success: false,
@@ -96,8 +105,13 @@ const executeProcessor = async (
       const keyExists = keyExistsMap.get(key);
 
       if (!keyExists) {
-        console.warn(
-          `Processor ${processor.name} for thread ${threadId}: dependencies skipped but no prior run found. Skipping.`
+        requestLog.warn(
+          "Processor dependencies were skipped without a prior run",
+          {
+            processor: processor.name,
+            threadId,
+            step: "dependency_skip",
+          }
         );
       }
 
@@ -193,10 +207,12 @@ const executeProcessor = async (
 
         return { hash: item.hash, key: item.key, result };
       } catch (error) {
-        console.error(
-          `Processor ${processor.name} threw for thread ${item.threadId}:`,
-          error
-        );
+        requestLog.error(error instanceof Error ? error : String(error), {
+          processor: processor.name,
+          threadId: item.threadId,
+          retryable: true,
+          step: "processor.execute",
+        });
         return {
           hash: item.hash,
           key: item.key,
@@ -239,31 +255,48 @@ export const executePipeline = async (
     options.concurrency && options.concurrency > 0
       ? options.concurrency
       : DEFAULT_CONCURRENCY;
-
-  console.log("=".repeat(72));
-  console.log(
-    `Pipeline Execution - Processing ${input.threadIds.length} threads`
-  );
-  console.log("=".repeat(72));
-
-  const jobId = await createPipelineJob(input.threadIds, options);
-  console.log(`\n[Setup] Created pipeline job: ${jobId}`);
-
-  await updatePipelineJobStatus(jobId, "running");
+  const requestLog = createLogger({
+    action: "worker.thread_pipeline",
+    operation: "pipeline.execute",
+    input: {
+      requestedThreadCount: input.threadIds.length,
+      threadIds: input.threadIds,
+      triggerKind: input.trigger?.kind,
+      concurrency,
+    },
+    options,
+  });
+  let status = 200;
+  let jobId: string | undefined;
 
   try {
-    console.log("\n[Step 1] Fetching thread data...");
+    const pipelineJobId = await createPipelineJob(input.threadIds, options);
+    jobId = pipelineJobId;
+    requestLog.set({ pipeline: { jobId: pipelineJobId, state: "created" } });
+
+    const markedRunning = await updatePipelineJobStatus(
+      pipelineJobId,
+      "running"
+    );
+    requestLog.set({ persistence: { markedRunning } });
+
     const fetchStartTime = performance.now();
     const threads = await fetchThreadsWithRelations(input.threadIds);
     const fetchTime = performance.now() - fetchStartTime;
-    console.log(
-      `  Fetched ${threads.size}/${input.threadIds.length} threads in ${(fetchTime / 1000).toFixed(2)}s`
-    );
+    requestLog.set({
+      fetch: {
+        requestedCount: input.threadIds.length,
+        fetchedCount: threads.size,
+        missingCount: input.threadIds.length - threads.size,
+        durationMs: fetchTime,
+      },
+    });
 
     if (threads.size === 0) {
+      status = 404;
       const result: PipelineExecutionResult = {
         duration: performance.now() - startTime,
-        jobId,
+        jobId: pipelineJobId,
         status: "completed",
         summary: {
           completedProcessors: 0,
@@ -275,26 +308,38 @@ export const executePipeline = async (
         },
         turns: [],
       };
-      await completePipelineJob(jobId, result);
+      const persisted = await completePipelineJob(pipelineJobId, result);
+      requestLog.set({
+        persistence: { completed: persisted },
+        outcome: { status: "completed", reason: "no_threads_found" },
+      });
       return result;
     }
 
-    const context = new JobContext(jobId, input, options, threads);
+    const context = new JobContext(pipelineJobId, input, options, threads);
 
-    console.log("\n[Step 2] Resolving processor execution order...");
     const executionOrder = processorRegistry.resolveExecutionOrder();
     const totalProcessors = executionOrder.flat().length;
-    console.log(
-      `  Execution plan: ${executionOrder.length} turns, ${totalProcessors} processors`
-    );
-    for (let i = 0; i < executionOrder.length; i++) {
-      const turn = executionOrder[i];
-      if (turn) {
-        console.log(`    Turn ${i + 1}: ${turn.join(", ")}`);
-      }
-    }
+    requestLog.set({
+      plan: {
+        turnCount: executionOrder.length,
+        processorCount: totalProcessors,
+        turns: executionOrder,
+      },
+    });
 
     const turns: TurnSummary[] = [];
+    const turnLogSummaries: {
+      durationMs: number;
+      processorStats: {
+        failed: number;
+        processor: string;
+        skipped: number;
+        successful: number;
+      }[];
+      processors: string[];
+      turnNumber: number;
+    }[] = [];
     const requestedThreadIds = input.threadIds;
     let completedProcessors = 0;
 
@@ -307,15 +352,17 @@ export const executePipeline = async (
       const turnNumber = turnIndex + 1;
       const turnStartTime = performance.now();
 
-      console.log(
-        `\n[Turn ${turnNumber}/${executionOrder.length}] Running: ${turnProcessors.join(", ")}`
-      );
-
       const turnResults = await Promise.all(
         turnProcessors.map(async (processorName) => {
           const processor = processorRegistry.get(processorName);
           if (!processor) {
-            console.error(`Processor "${processorName}" not found in registry`);
+            requestLog.error(
+              new Error(`Processor "${processorName}" not found in registry`),
+              {
+                processor: processorName,
+                step: "resolve_processor",
+              }
+            );
             return {
               processor: processorName,
               threadResults: requestedThreadIds.map((threadId) => ({
@@ -323,15 +370,20 @@ export const executePipeline = async (
                 success: false as const,
                 threadId,
               })),
+              stats: {
+                successful: 0,
+                skipped: 0,
+                failed: requestedThreadIds.length,
+              },
             };
           }
 
-          console.log(`  - Starting processor: ${processorName}`);
           const results = await executeProcessor(
             processor,
             context,
             requestedThreadIds,
-            concurrency
+            concurrency,
+            requestLog
           );
 
           const successful = results.filter(
@@ -340,13 +392,10 @@ export const executePipeline = async (
           const skipped = results.filter((r) => r.success && r.skipped).length;
           const failed = results.filter((r) => !r.success).length;
 
-          console.log(
-            `    ${processorName}: ${successful} processed, ${skipped} skipped, ${failed} failed`
-          );
-
           return {
             processor: processorName,
             threadResults: results,
+            stats: { successful, skipped, failed },
           };
         })
       );
@@ -362,10 +411,18 @@ export const executePipeline = async (
         turnNumber,
       });
 
-      console.log(
-        `  Turn ${turnNumber} completed in ${(turnDuration / 1000).toFixed(2)}s`
-      );
+      turnLogSummaries.push({
+        turnNumber,
+        processors: turnProcessors,
+        durationMs: turnDuration,
+        processorStats: turnResults.map((turnResult) => ({
+          processor: turnResult.processor,
+          ...turnResult.stats,
+        })),
+      });
     }
+
+    requestLog.set({ turns: turnLogSummaries });
 
     const processedSet = new Set<string>();
     const failedSet = new Set<string>();
@@ -402,7 +459,7 @@ export const executePipeline = async (
 
     const result: PipelineExecutionResult = {
       duration: totalDuration,
-      jobId,
+      jobId: pipelineJobId,
       status: "completed",
       summary: {
         completedProcessors,
@@ -415,36 +472,51 @@ export const executePipeline = async (
       turns,
     };
 
-    await completePipelineJob(jobId, result);
+    const persisted = await completePipelineJob(pipelineJobId, result);
+    requestLog.set({
+      persistence: { completed: persisted },
+      outcome: {
+        status: result.summary.failedThreads > 0 ? "partial" : "completed",
+        durationMs: totalDuration,
+        operations: {
+          processed: processedOps,
+          skipped: skippedOps,
+          failed: failedOps,
+        },
+        summary: result.summary,
+      },
+    });
 
-    console.log(`\n${"=".repeat(72)}`);
-    console.log("Pipeline Complete");
-    console.log("=".repeat(72));
-    console.log(`  Job ID: ${jobId}`);
-    console.log(`  Total threads: ${result.summary.totalThreads}`);
-    console.log(
-      `  Threads: ${result.summary.processedThreads} processed, ${result.summary.skippedThreads} fully skipped, ${result.summary.failedThreads} failed`
-    );
-    console.log(
-      `  Operations: ${processedOps} processed, ${skippedOps} skipped, ${failedOps} failed`
-    );
-    console.log(
-      `  Processors: ${result.summary.completedProcessors}/${result.summary.totalProcessors}`
-    );
-    console.log(`  Total duration: ${(totalDuration / 1000).toFixed(2)}s`);
+    if (result.summary.failedThreads > 0) {
+      status = 207;
+    }
 
     return result;
   } catch (error) {
+    status = 500;
     const errorMessage = error instanceof Error ? error.message : String(error);
-    console.error("\nPipeline execution failed:", errorMessage);
+    requestLog.error(error instanceof Error ? error : String(error), {
+      retryable: true,
+      step: "pipeline.execute",
+    });
 
-    await failPipelineJob(jobId, errorMessage);
+    const persisted = jobId
+      ? await failPipelineJob(jobId, errorMessage)
+      : false;
+    requestLog.set({
+      persistence: { failed: persisted },
+      outcome: {
+        status: "failed",
+        durationMs: performance.now() - startTime,
+        reason: "exception",
+      },
+    });
 
     const totalDuration = performance.now() - startTime;
 
     return {
       duration: totalDuration,
-      jobId,
+      jobId: jobId ?? "unknown",
       status: "failed",
       summary: {
         completedProcessors: 0,
@@ -456,5 +528,7 @@ export const executePipeline = async (
       },
       turns: [],
     };
+  } finally {
+    requestLog.emit({ status });
   }
 };

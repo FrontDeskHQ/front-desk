@@ -5,6 +5,8 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { embed } from "ai";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
+import { isRetryableError } from "../../lib/logging";
+import type { WorkerLogger } from "../../lib/logging";
 import { upsertThreadVector } from "../../lib/qdrant/threads";
 import type { ThreadPayload } from "../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
@@ -39,7 +41,8 @@ const createSummaryText = (summary: ParsedSummary): string =>
  */
 const generateEmbedding = async (
   text: string,
-  ai?: ReturnType<typeof createAILogger>
+  ai?: ReturnType<typeof createAILogger>,
+  requestLog?: WorkerLogger
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -66,13 +69,22 @@ const generateEmbedding = async (
     const norm = Math.hypot(...embedding);
 
     if (!Number.isFinite(norm) || norm === 0) {
-      console.warn("Embedding normalization failed: invalid norm", norm);
+      requestLog?.warn(
+        "Thread embedding normalization produced an invalid norm",
+        {
+          embedding: { dimensions: embedding.length, norm },
+          step: "normalize_embedding",
+        }
+      );
       return embedding;
     }
 
     return embedding.map((value) => value / norm);
   } catch (error) {
-    console.error("Error generating embedding:", error);
+    requestLog?.error(error instanceof Error ? error : String(error), {
+      retryable: isRetryableError(error),
+      step: "generate_thread_embedding",
+    });
     return null;
   }
 };
@@ -162,6 +174,9 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
 
     if (!summarizeOutput) {
       status = 500;
+      requestLog.set({
+        outcome: { status: "failed", reason: "summary_missing" },
+      });
       requestLog.emit({ status });
       return {
         threadId,
@@ -173,13 +188,22 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
     const { summary } = summarizeOutput;
 
     try {
-      console.log(`Embedding thread ${threadId}`);
+      requestLog.set({
+        input: {
+          summaryPresent: true,
+          summaryFieldCount: Object.keys(summary).length,
+        },
+      });
 
       const summaryText = createSummaryText(summary);
 
-      const embedding = await generateEmbedding(summaryText, ai);
+      const embedding = await generateEmbedding(summaryText, ai, requestLog);
 
       if (!embedding) {
+        status = 500;
+        requestLog.set({
+          outcome: { status: "failed", reason: "embedding_generation_failed" },
+        });
         return {
           threadId,
           success: false,
@@ -197,9 +221,17 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       );
 
       if (!storedInQdrant) {
-        console.warn(
-          `Failed to store thread ${threadId} in Qdrant, but embedding was generated`
+        status = 500;
+        requestLog.warn(
+          "Thread embedding was generated but Qdrant storage failed",
+          {
+            embedding: { dimensions: embedding.length },
+            step: "store_thread_vector",
+          }
         );
+        requestLog.set({
+          outcome: { status: "failed", reason: "thread_vector_upsert_failed" },
+        });
         return {
           threadId,
           success: false,
@@ -212,6 +244,13 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
         } as ProcessorResult<EmbedOutput>;
       }
 
+      requestLog.set({
+        outcome: {
+          status: "completed",
+          embeddingDimensions: embedding.length,
+          storedInQdrant: true,
+        },
+      });
       return {
         threadId,
         success: true,
@@ -223,10 +262,11 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       };
     } catch (error) {
       status = 500;
-      console.error(`Embed processor failed for thread ${threadId}:`, error);
-      requestLog.error(
-        `Embed failed for thread ${threadId}: ${error instanceof Error ? error.message : String(error)}`
-      );
+      requestLog.error(error instanceof Error ? error : String(error), {
+        retryable: true,
+        step: "embed_thread",
+      });
+      requestLog.set({ outcome: { status: "failed" } });
       return {
         threadId,
         success: false,
@@ -271,9 +311,11 @@ export const batchEmbedThread = async (
     return [];
   }
 
-  console.log(
-    `Batch embedding ${threads.length} threads with concurrency ${concurrency}`
-  );
+  const batchLog = createLogger({
+    action: "worker.batch_embed",
+    operation: "thread.embed.batch",
+    input: { threadCount: threads.length, concurrency },
+  });
 
   const results: BatchEmbedThreadResult[] = [];
 
@@ -282,12 +324,27 @@ export const batchEmbedThread = async (
 
     const batchResults = await Promise.all(
       batch.map(async (thread): Promise<BatchEmbedThreadResult> => {
+        const threadLog = createLogger({
+          action: "worker.batch_embed.item",
+          operation: "thread.embed",
+          threadId: thread.id,
+        });
+        const ai = createAILogger(threadLog, { cost: AI_PRICING });
+        let status = 200;
+
         try {
-          const summary = await summarizeThread(thread);
+          const summary = await summarizeThread(thread, ai, threadLog);
           const summaryText = createSummaryText(summary);
-          const embedding = await generateEmbedding(summaryText);
+          const embedding = await generateEmbedding(summaryText, ai, threadLog);
 
           if (!embedding) {
+            status = 500;
+            threadLog.set({
+              outcome: {
+                status: "failed",
+                reason: "embedding_generation_failed",
+              },
+            });
             return {
               error: "Failed to generate embedding",
               success: false,
@@ -295,6 +352,12 @@ export const batchEmbedThread = async (
             };
           }
 
+          threadLog.set({
+            outcome: {
+              status: "completed",
+              embeddingDimensions: embedding.length,
+            },
+          });
           return {
             embedding,
             success: true,
@@ -302,11 +365,19 @@ export const batchEmbedThread = async (
             threadId: thread.id,
           };
         } catch (error) {
+          status = 500;
+          threadLog.error(error instanceof Error ? error : String(error), {
+            retryable: isRetryableError(error),
+            step: "batch_embed_thread",
+          });
+          threadLog.set({ outcome: { status: "failed" } });
           return {
             error: error instanceof Error ? error.message : String(error),
             success: false,
             threadId: thread.id,
           };
+        } finally {
+          threadLog.emit({ status });
         }
       })
     );
@@ -317,9 +388,15 @@ export const batchEmbedThread = async (
   const successCount = results.filter((r) => r.success).length;
   const errorCount = results.filter((r) => !r.success).length;
 
-  console.log(
-    `Batch embedding complete: ${successCount} successful, ${errorCount} failed out of ${threads.length} threads`
-  );
+  batchLog.set({
+    outcome: {
+      status: errorCount > 0 ? "completed_with_errors" : "completed",
+      successCount,
+      errorCount,
+      threadCount: threads.length,
+    },
+  });
+  batchLog.emit({ status: errorCount > 0 ? 207 : 200 });
 
   return results;
 };

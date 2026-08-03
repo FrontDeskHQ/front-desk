@@ -1,12 +1,18 @@
 import { createHash } from "node:crypto";
 
 import { google } from "@ai-sdk/google";
-import { createAILogger, createLogger, log } from "@workspace/utils/logging";
+import { createAILogger } from "@workspace/utils/logging";
 import { embed } from "ai";
 import type { Job } from "bullmq";
 
 import { AI_PRICING } from "../lib/ai-pricing";
 import { fetchClient } from "../lib/database/client";
+import {
+  createWorkerJobLogger,
+  isRetryableError,
+  sanitizeUrl,
+} from "../lib/logging";
+import type { WorkerLogger } from "../lib/logging";
 import {
   deleteDocumentationVectorsBySource,
   upsertDocumentationChunksBatch,
@@ -34,6 +40,8 @@ const formatError = (error: unknown): string => {
   return String(error);
 };
 
+type CrawlLogger = WorkerLogger;
+
 /**
  * Update the documentation source status via the API
  */
@@ -47,7 +55,8 @@ const updateSourceStatus = async (
     chunksIndexed?: number;
     lastCrawledAt?: Date;
     updatedAt?: Date;
-  }
+  },
+  requestLog: CrawlLogger
 ) => {
   try {
     await fetchClient.mutate.documentationSource.syncCrawlProgress({
@@ -56,86 +65,97 @@ const updateSourceStatus = async (
       ...updates,
     });
   } catch (error) {
-    log.error(
-      "worker.crawl-documentation",
-      `Failed to update documentation source ${id}: ${formatError(error)}`
-    );
+    requestLog.error(error instanceof Error ? error : String(error), {
+      documentationSourceId: id,
+      organizationId,
+      step: "update_source_status",
+      sourceStatus: updates.status,
+    });
   }
 };
 
 /**
  * Fetch sitemap URLs from a base URL
  */
-const fetchSitemapUrls = async (baseUrl: string): Promise<string[]> => {
+const fetchSitemapUrls = async (
+  baseUrl: string,
+  requestLog: CrawlLogger
+): Promise<string[]> => {
   const sitemapUrl = `${baseUrl.replace(/\/$/, "")}/sitemap.xml`;
   const urls: string[] = [];
 
-  try {
-    const response = await fetch(sitemapUrl, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  const response = await fetch(sitemapUrl, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    requestLog.warn("Sitemap request returned a non-success status", {
+      crawl: {
+        sitemapUrl: sanitizeUrl(sitemapUrl),
+        statusCode: response.status,
+      },
     });
-    if (!response.ok) {
-      log.warn(
-        "worker.crawl-documentation",
-        `Failed to fetch sitemap from ${sitemapUrl}: ${response.status}`
-      );
-      return urls;
-    }
-
-    const xml = await response.text();
-
-    // Check if this is a sitemap index (contains <sitemapindex>)
-    const isSitemapIndex = xml.includes("<sitemapindex");
-
-    if (isSitemapIndex) {
-      // Extract child sitemap URLs
-      const sitemapLocs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
-        (m) => m[1] ?? []
-      );
-
-      // Fetch each child sitemap (one level deep)
-      for (const childSitemapUrl of sitemapLocs) {
-        try {
-          const childResponse = await fetch(childSitemapUrl, {
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-          });
-          if (!childResponse.ok) {
-            continue;
-          }
-
-          const childXml = await childResponse.text();
-          const childUrls = [
-            ...childXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g),
-          ].flatMap((m) => m[1] ?? []);
-          urls.push(...childUrls);
-        } catch {
-          log.warn(
-            "worker.crawl-documentation",
-            `Failed to fetch child sitemap: ${childSitemapUrl}`
-          );
-        }
-      }
-    } else {
-      // Regular sitemap — extract <loc> URLs
-      const locs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
-        (m) => m[1] ?? []
-      );
-      urls.push(...locs);
-    }
-  } catch (error) {
-    log.error(
-      "worker.crawl-documentation",
-      `Error fetching sitemap from ${sitemapUrl}: ${formatError(error)}`
-    );
+    return urls;
   }
 
+  const xml = await response.text();
+
+  // Check if this is a sitemap index (contains <sitemapindex>)
+  const isSitemapIndex = xml.includes("<sitemapindex");
+
+  if (isSitemapIndex) {
+    // Extract child sitemap URLs
+    const sitemapLocs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
+      (m) => m[1] ?? []
+    );
+
+    // Fetch each child sitemap (one level deep)
+    for (const childSitemapUrl of sitemapLocs) {
+      try {
+        const childResponse = await fetch(childSitemapUrl, {
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!childResponse.ok) {
+          requestLog.warn(
+            "Child sitemap request returned a non-success status",
+            {
+              crawl: {
+                sitemapUrl: sanitizeUrl(childSitemapUrl),
+                statusCode: childResponse.status,
+              },
+            }
+          );
+          continue;
+        }
+
+        const childXml = await childResponse.text();
+        const childUrls = [
+          ...childXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g),
+        ].flatMap((m) => m[1] ?? []);
+        urls.push(...childUrls);
+      } catch (error) {
+        requestLog.warn("Child sitemap request failed", {
+          crawl: { sitemapUrl: sanitizeUrl(childSitemapUrl) },
+          error: { message: formatError(error) },
+        });
+      }
+    }
+  } else {
+    // Regular sitemap — extract <loc> URLs
+    const locs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
+      (m) => m[1] ?? []
+    );
+    urls.push(...locs);
+  }
   return urls;
 };
 
 /**
  * Fetch markdown content for a page URL
  */
-const fetchMarkdown = async (pageUrl: string): Promise<string | null> => {
+const fetchMarkdown = async (
+  pageUrl: string,
+  requestLog: CrawlLogger
+): Promise<string | null> => {
   const mdUrl = `${pageUrl.replace(/\/$/, "")}.md`;
 
   try {
@@ -143,12 +163,27 @@ const fetchMarkdown = async (pageUrl: string): Promise<string | null> => {
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
     if (!response.ok) {
+      requestLog.warn(
+        "Documentation page request returned a non-success status",
+        {
+          crawl: {
+            pageUrl: sanitizeUrl(pageUrl),
+            statusCode: response.status,
+          },
+        }
+      );
       return null;
     }
 
     const text = await response.text();
     return text.trim() || null;
-  } catch {
+  } catch (error) {
+    requestLog.warn("Documentation page request failed", {
+      crawl: { pageUrl: sanitizeUrl(pageUrl) },
+      error: {
+        message: formatError(error),
+      },
+    });
     return null;
   }
 };
@@ -276,46 +311,83 @@ export const handleCrawlDocumentation = async (
   job: Job<CrawlDocumentationJobData>
 ) => {
   const { documentationSourceId, organizationId, baseUrl } = job.data;
-  const requestLog = createLogger({
-    action: "crawl-documentation",
-    baseUrl,
-    documentationSourceId,
-    jobId: String(job.id ?? "unknown"),
-    organizationId,
-    queue: "crawl-documentation",
-  });
+  const requestLog = createWorkerJobLogger(
+    "crawl-documentation",
+    job,
+    "documentation.crawl",
+    {
+      documentation: {
+        baseUrl: sanitizeUrl(baseUrl),
+        documentationSourceId,
+        organizationId,
+        fetchTimeoutMs: FETCH_TIMEOUT_MS,
+        batchConcurrency: BATCH_CONCURRENCY,
+      },
+    }
+  );
   const ai = createAILogger(requestLog, { cost: AI_PRICING });
   let status = 200;
+  let pagesWithoutContent = 0;
+  let sitemapUrlCount = 0;
+  let totalChunks = 0;
+  let processedPages = 0;
 
-  log.info(
-    "worker.crawl-documentation",
-    `Job ${job.id}: starting crawl for ${baseUrl}`
-  );
-  requestLog.info(`Starting crawl for ${baseUrl}`);
-
-  await updateSourceStatus(documentationSourceId, organizationId, {
-    errorStr: null,
-    status: "crawling",
-    updatedAt: new Date(),
+  requestLog.set({
+    crawl: {
+      phase: "started",
+      status: "running",
+    },
   });
 
   try {
+    await updateSourceStatus(
+      documentationSourceId,
+      organizationId,
+      {
+        errorStr: null,
+        status: "crawling",
+        updatedAt: new Date(),
+      },
+      requestLog
+    );
+
     // 1. Fetch sitemap URLs
-    const pageUrls = await fetchSitemapUrls(baseUrl);
+    const pageUrls = await fetchSitemapUrls(baseUrl, requestLog);
+    sitemapUrlCount = pageUrls.length;
+    requestLog.set({ crawl: { sitemapUrlCount } });
 
     if (pageUrls.length === 0) {
-      await updateSourceStatus(documentationSourceId, organizationId, {
-        errorStr: "No pages found in sitemap",
-        status: "failed",
-        updatedAt: new Date(),
+      status = 422;
+      requestLog.warn("Documentation sitemap contained no pages", {
+        step: "fetch_sitemap",
+      });
+      await updateSourceStatus(
+        documentationSourceId,
+        organizationId,
+        {
+          errorStr: "No pages found in sitemap",
+          status: "failed",
+          updatedAt: new Date(),
+        },
+        requestLog
+      );
+      requestLog.set({
+        crawl: {
+          phase: "failed",
+          status: "failed",
+          sitemapUrlCount,
+          pagesProcessed: processedPages,
+          chunksIndexed: totalChunks,
+        },
+        outcome: {
+          status: "failed",
+          reason: "empty_sitemap",
+          pagesProcessed: processedPages,
+          chunksIndexed: totalChunks,
+        },
       });
       return { error: "No pages found in sitemap", success: false };
     }
-
-    log.info(
-      "worker.crawl-documentation",
-      `Found ${pageUrls.length} URLs in sitemap for ${baseUrl}`
-    );
 
     // 2. Delete existing vectors for this source (for re-crawl)
     const deleteOk = await deleteDocumentationVectorsBySource(
@@ -328,9 +400,6 @@ export const handleCrawlDocumentation = async (
     }
 
     // 3. Process pages and collect chunks
-    let totalChunks = 0;
-    let processedPages = 0;
-
     for (
       let pageIdx = 0;
       pageIdx < pageUrls.length;
@@ -340,7 +409,7 @@ export const handleCrawlDocumentation = async (
 
       const batchResults = await Promise.all(
         pageBatch.map(async (pageUrl) => {
-          const markdown = await fetchMarkdown(pageUrl);
+          const markdown = await fetchMarkdown(pageUrl, requestLog);
           if (!markdown) {
             return null;
           }
@@ -353,6 +422,9 @@ export const handleCrawlDocumentation = async (
           return { chunks, pageUrl };
         })
       );
+      pagesWithoutContent += batchResults.filter(
+        (result) => result === null
+      ).length;
 
       for (const result of batchResults) {
         if (!result) {
@@ -432,41 +504,57 @@ export const handleCrawlDocumentation = async (
       }
 
       // Update progress
-      await updateSourceStatus(documentationSourceId, organizationId, {
-        chunksIndexed: totalChunks,
-        pageCount: processedPages,
-        updatedAt: new Date(),
-      });
+      await updateSourceStatus(
+        documentationSourceId,
+        organizationId,
+        {
+          chunksIndexed: totalChunks,
+          pageCount: processedPages,
+          updatedAt: new Date(),
+        },
+        requestLog
+      );
 
       try {
         await job.updateProgress(
           Math.round(((pageIdx + pageBatch.length) / pageUrls.length) * 100)
         );
       } catch (error) {
-        log.warn(
-          "worker.crawl-documentation",
-          `Failed to update job progress for ${job.id}: ${formatError(error)}`
-        );
+        requestLog.warn("Failed to update BullMQ job progress", {
+          job: { id: String(job.id ?? "unknown") },
+          step: "update_progress",
+          error: { message: formatError(error) },
+        });
       }
     }
 
     // 4. Mark as completed
-    await updateSourceStatus(documentationSourceId, organizationId, {
-      chunksIndexed: totalChunks,
-      lastCrawledAt: new Date(),
-      pageCount: processedPages,
-      status: "completed",
-      updatedAt: new Date(),
-    });
-
-    log.info(
-      "worker.crawl-documentation",
-      `Crawl complete for ${baseUrl}: ${processedPages} pages, ${totalChunks} chunks`
+    await updateSourceStatus(
+      documentationSourceId,
+      organizationId,
+      {
+        chunksIndexed: totalChunks,
+        lastCrawledAt: new Date(),
+        pageCount: processedPages,
+        status: "completed",
+        updatedAt: new Date(),
+      },
+      requestLog
     );
+
     requestLog.set({
       crawl: {
-        processedPages,
+        phase: "completed",
+        pagesProcessed: processedPages,
+        pagesWithoutContent,
+        sitemapUrlCount,
+        status: "completed",
         totalChunks,
+      },
+      outcome: {
+        status: "completed",
+        chunksIndexed: totalChunks,
+        pagesProcessed: processedPages,
       },
     });
 
@@ -479,17 +567,42 @@ export const handleCrawlDocumentation = async (
     status = 500;
     const errorMessage = error instanceof Error ? error.message : String(error);
 
-    await updateSourceStatus(documentationSourceId, organizationId, {
-      errorStr: errorMessage,
-      status: "failed",
-      updatedAt: new Date(),
-    });
-
-    log.error(
-      "worker.crawl-documentation",
-      `Crawl failed for ${baseUrl}: ${formatError(error)}`
+    await updateSourceStatus(
+      documentationSourceId,
+      organizationId,
+      {
+        errorStr: errorMessage,
+        status: "failed",
+        updatedAt: new Date(),
+      },
+      requestLog
     );
-    requestLog.error(`Crawl failed for ${baseUrl}: ${formatError(error)}`);
+
+    requestLog.error(error instanceof Error ? error : String(error), {
+      crawl: {
+        pagesWithoutContent,
+        sitemapUrlCount,
+      },
+      retryable: isRetryableError(error),
+      step: "crawl",
+    });
+    requestLog.set({
+      crawl: {
+        phase: "failed",
+        status: "failed",
+        sitemapUrlCount,
+        pagesProcessed: processedPages,
+        pagesWithoutContent,
+        totalChunks,
+      },
+      outcome: {
+        status: "failed",
+        chunksIndexed: totalChunks,
+        pagesProcessed: processedPages,
+        pagesWithoutContent,
+        reason: "exception",
+      },
+    });
     throw error;
   } finally {
     requestLog.emit({ status });
@@ -499,7 +612,7 @@ export const handleCrawlDocumentation = async (
 const generateEmbeddingWithObservability = async (
   text: string,
   ai: ReturnType<typeof createAILogger>,
-  requestLog: ReturnType<typeof createLogger>
+  requestLog: CrawlLogger
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
@@ -524,15 +637,22 @@ const generateEmbeddingWithObservability = async (
 
     const norm = Math.hypot(...embedding);
     if (!Number.isFinite(norm) || norm === 0) {
-      requestLog.warn(`Embedding normalization failed: invalid norm (${norm})`);
+      requestLog.warn(
+        "Documentation embedding normalization produced an invalid norm",
+        {
+          embedding: { dimensions: embedding.length, norm },
+          step: "normalize_embedding",
+        }
+      );
       return embedding;
     }
 
     return embedding.map((value) => value / norm);
   } catch (error) {
-    requestLog.error(
-      `Error generating documentation embedding: ${formatError(error)}`
-    );
+    requestLog.error(error instanceof Error ? error : String(error), {
+      step: "generate_documentation_embedding",
+      retryable: true,
+    });
     return null;
   }
 };

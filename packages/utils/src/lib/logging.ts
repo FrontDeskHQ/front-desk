@@ -1,10 +1,14 @@
 import { initLogger } from "evlog";
-import type { LoggerConfig } from "evlog";
+import type { DrainContext, LoggerConfig } from "evlog";
 import { createAxiomDrain } from "evlog/axiom";
 import type { AxiomConfig } from "evlog/axiom";
+import { createDrainPipeline } from "evlog/pipeline";
 
 export { createLogger, createRequestLogger, log } from "evlog";
 export { createAILogger, createEvlogIntegration } from "evlog/ai";
+export type { RequestLogger } from "evlog";
+
+let sharedLoggerFlush: (() => Promise<void>) | undefined;
 
 type EnvMap = Record<string, string | undefined>;
 
@@ -15,6 +19,7 @@ export interface SharedLoggerOptions {
   pretty?: boolean;
   silent?: boolean;
   minLevel?: LoggerConfig["minLevel"];
+  redact?: LoggerConfig["redact"];
   axiom?: {
     dataset?: string;
     token?: string;
@@ -43,6 +48,7 @@ const getAxiomDrain = (options: SharedLoggerOptions): LoggerConfig["drain"] => {
   const token = options.axiom?.token ?? env.AXIOM_TOKEN;
 
   if (!dataset || !token) {
+    sharedLoggerFlush = undefined;
     return undefined;
   }
 
@@ -63,7 +69,12 @@ const getAxiomDrain = (options: SharedLoggerOptions): LoggerConfig["drain"] => {
     config.baseUrl = baseUrl;
   }
 
-  return createAxiomDrain(config);
+  const axiomDrain = createAxiomDrain(config);
+  const drain = createDrainPipeline<DrainContext>()((batch) =>
+    axiomDrain(batch)
+  );
+  sharedLoggerFlush = drain.flush;
+  return drain;
 };
 
 export const createSharedLoggerConfig = (
@@ -79,6 +90,7 @@ export const createSharedLoggerConfig = (
       service: options.service,
     },
     minLevel: options.minLevel ?? "info",
+    redact: options.redact ?? true,
     pretty: options.pretty ?? env.NODE_ENV !== "production",
     silent: options.silent ?? false,
   };
@@ -86,4 +98,8 @@ export const createSharedLoggerConfig = (
 
 export const initSharedLogger = (options: SharedLoggerOptions): void => {
   initLogger(createSharedLoggerConfig(options));
+};
+
+export const flushSharedLogger = async (): Promise<void> => {
+  await sharedLoggerFlush?.();
 };
