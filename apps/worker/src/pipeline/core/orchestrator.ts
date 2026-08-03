@@ -329,6 +329,17 @@ export const executePipeline = async (
     });
 
     const turns: TurnSummary[] = [];
+    const turnLogSummaries: {
+      durationMs: number;
+      processorStats: {
+        failed: number;
+        processor: string;
+        skipped: number;
+        successful: number;
+      }[];
+      processors: string[];
+      turnNumber: number;
+    }[] = [];
     const requestedThreadIds = input.threadIds;
     let completedProcessors = 0;
 
@@ -400,20 +411,18 @@ export const executePipeline = async (
         turnNumber,
       });
 
-      requestLog.set({
-        turns: [
-          {
-            turnNumber,
-            processors: turnProcessors,
-            durationMs: turnDuration,
-            processorStats: turnResults.map((turnResult) => ({
-              processor: turnResult.processor,
-              ...turnResult.stats,
-            })),
-          },
-        ],
+      turnLogSummaries.push({
+        turnNumber,
+        processors: turnProcessors,
+        durationMs: turnDuration,
+        processorStats: turnResults.map((turnResult) => ({
+          processor: turnResult.processor,
+          ...turnResult.stats,
+        })),
       });
     }
+
+    requestLog.set({ turns: turnLogSummaries });
 
     const processedSet = new Set<string>();
     const failedSet = new Set<string>();

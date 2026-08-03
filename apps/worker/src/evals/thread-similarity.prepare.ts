@@ -4,6 +4,7 @@ import {
   initSharedLogger,
 } from "@workspace/utils/logging";
 
+import { errorFields } from "../lib/logging";
 import {
   ensureThreadsCollection,
   upsertThreadVector,
@@ -214,7 +215,13 @@ const main = async (): Promise<void> => {
     throw error;
   } finally {
     requestLog.emit({ status });
-    await flushSharedLogger();
+    try {
+      await flushSharedLogger();
+    } catch (error) {
+      process.stderr.write(
+        `[worker.eval_prepare] log flush failed: ${JSON.stringify(errorFields(error))}\n`
+      );
+    }
   }
 };
 

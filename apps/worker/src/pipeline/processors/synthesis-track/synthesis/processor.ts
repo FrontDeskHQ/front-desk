@@ -5,6 +5,7 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
+import { isRetryableError } from "../../../../lib/logging";
 import {
   resolveMessageRoles,
   threadHasTeamReply,
@@ -217,7 +218,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "synthesis",
         });
         requestLog.set({ outcome: { status: "failed" } });

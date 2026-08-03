@@ -399,12 +399,9 @@ const handleShutdown = async () => {
     try {
       await flushSharedLogger();
     } catch (error) {
-      status = 500;
-      log.error({
-        action: "worker.shutdown",
-        event: "log_flush_failed",
-        error: errorFields(error),
-      });
+      process.stderr.write(
+        `[worker.shutdown] log flush failed: ${JSON.stringify(errorFields(error))}\n`
+      );
     }
   }
   process.exit(status === 200 ? 0 : 1);

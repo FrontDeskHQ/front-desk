@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { RelatedPrsEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
+import { isRetryableError } from "../../../../lib/logging";
 import {
   PR_MATCH_THRESHOLD,
   searchSimilarPrs,
@@ -174,7 +175,7 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
         status = 500;
         const message = error instanceof Error ? error.message : String(error);
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: true,
+          retryable: isRetryableError(error),
           step: "related_prs",
         });
         requestLog.set({ outcome: { status: "failed" } });

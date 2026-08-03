@@ -183,7 +183,8 @@ export const isRetryableError = (error: unknown): boolean => {
 export const sanitizeUrl = (value: string): string => {
   try {
     const url = new URL(value);
-    return `${url.origin}${url.pathname}`;
+    const authority = url.host ? `//${url.host}` : "";
+    return `${url.protocol}${authority}${url.pathname}`;
   } catch {
     const withoutQuery = value.split(/[?#]/, 1)[0] ?? "[invalid-url]";
     return withoutQuery.replace(/\/\/[^/]*@/, "//[REDACTED]@");

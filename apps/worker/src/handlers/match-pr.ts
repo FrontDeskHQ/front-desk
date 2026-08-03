@@ -2,7 +2,7 @@ import type { PrMatchJobData } from "@workspace/schemas/signals";
 import type { Job } from "bullmq";
 
 import { fetchClient } from "../lib/database/client";
-import { createWorkerJobLogger } from "../lib/logging";
+import { createWorkerJobLogger, isRetryableError } from "../lib/logging";
 import { buildPrEmbedText, generatePrEmbedding } from "../lib/pr-embedding";
 import { PR_MATCH_THRESHOLD } from "../lib/qdrant/pull-requests";
 import { searchSimilarThreads } from "../lib/qdrant/threads";
@@ -109,7 +109,7 @@ export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
     status = 500;
     requestLog.error(error instanceof Error ? error : String(error), {
       step: "pr.match",
-      retryable: true,
+      retryable: isRetryableError(error),
     });
     throw error;
   } finally {

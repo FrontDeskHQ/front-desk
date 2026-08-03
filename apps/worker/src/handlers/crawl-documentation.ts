@@ -7,7 +7,11 @@ import type { Job } from "bullmq";
 
 import { AI_PRICING } from "../lib/ai-pricing";
 import { fetchClient } from "../lib/database/client";
-import { createWorkerJobLogger } from "../lib/logging";
+import {
+  createWorkerJobLogger,
+  isRetryableError,
+  sanitizeUrl,
+} from "../lib/logging";
 import type { WorkerLogger } from "../lib/logging";
 import {
   deleteDocumentationVectorsBySource,
@@ -80,74 +84,68 @@ const fetchSitemapUrls = async (
   const sitemapUrl = `${baseUrl.replace(/\/$/, "")}/sitemap.xml`;
   const urls: string[] = [];
 
-  try {
-    const response = await fetch(sitemapUrl, {
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  const response = await fetch(sitemapUrl, {
+    signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+  });
+  if (!response.ok) {
+    requestLog.warn("Sitemap request returned a non-success status", {
+      crawl: {
+        sitemapUrl: sanitizeUrl(sitemapUrl),
+        statusCode: response.status,
+      },
     });
-    if (!response.ok) {
-      requestLog.warn("Sitemap request returned a non-success status", {
-        crawl: { sitemapUrl, statusCode: response.status },
-      });
-      return urls;
-    }
-
-    const xml = await response.text();
-
-    // Check if this is a sitemap index (contains <sitemapindex>)
-    const isSitemapIndex = xml.includes("<sitemapindex");
-
-    if (isSitemapIndex) {
-      // Extract child sitemap URLs
-      const sitemapLocs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
-        (m) => m[1] ?? []
-      );
-
-      // Fetch each child sitemap (one level deep)
-      for (const childSitemapUrl of sitemapLocs) {
-        try {
-          const childResponse = await fetch(childSitemapUrl, {
-            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-          });
-          if (!childResponse.ok) {
-            requestLog.warn(
-              "Child sitemap request returned a non-success status",
-              {
-                crawl: {
-                  sitemapUrl: childSitemapUrl,
-                  statusCode: childResponse.status,
-                },
-              }
-            );
-            continue;
-          }
-
-          const childXml = await childResponse.text();
-          const childUrls = [
-            ...childXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g),
-          ].flatMap((m) => m[1] ?? []);
-          urls.push(...childUrls);
-        } catch (error) {
-          requestLog.warn("Child sitemap request failed", {
-            crawl: { sitemapUrl: childSitemapUrl },
-            error: { message: formatError(error) },
-          });
-        }
-      }
-    } else {
-      // Regular sitemap — extract <loc> URLs
-      const locs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
-        (m) => m[1] ?? []
-      );
-      urls.push(...locs);
-    }
-  } catch (error) {
-    requestLog.error(error instanceof Error ? error : String(error), {
-      crawl: { sitemapUrl },
-      step: "fetch_sitemap",
-    });
-    throw error;
+    return urls;
   }
 
+  const xml = await response.text();
+
+  // Check if this is a sitemap index (contains <sitemapindex>)
+  const isSitemapIndex = xml.includes("<sitemapindex");
+
+  if (isSitemapIndex) {
+    // Extract child sitemap URLs
+    const sitemapLocs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
+      (m) => m[1] ?? []
+    );
+
+    // Fetch each child sitemap (one level deep)
+    for (const childSitemapUrl of sitemapLocs) {
+      try {
+        const childResponse = await fetch(childSitemapUrl, {
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+        });
+        if (!childResponse.ok) {
+          requestLog.warn(
+            "Child sitemap request returned a non-success status",
+            {
+              crawl: {
+                sitemapUrl: sanitizeUrl(childSitemapUrl),
+                statusCode: childResponse.status,
+              },
+            }
+          );
+          continue;
+        }
+
+        const childXml = await childResponse.text();
+        const childUrls = [
+          ...childXml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g),
+        ].flatMap((m) => m[1] ?? []);
+        urls.push(...childUrls);
+      } catch (error) {
+        requestLog.warn("Child sitemap request failed", {
+          crawl: { sitemapUrl: sanitizeUrl(childSitemapUrl) },
+          error: { message: formatError(error) },
+        });
+      }
+    }
+  } else {
+    // Regular sitemap — extract <loc> URLs
+    const locs = [...xml.matchAll(/<loc>\s*(.*?)\s*<\/loc>/g)].flatMap(
+      (m) => m[1] ?? []
+    );
+    urls.push(...locs);
+  }
   return urls;
 };
 
@@ -168,7 +166,10 @@ const fetchMarkdown = async (
       requestLog.warn(
         "Documentation page request returned a non-success status",
         {
-          crawl: { pageUrl, statusCode: response.status },
+          crawl: {
+            pageUrl: sanitizeUrl(pageUrl),
+            statusCode: response.status,
+          },
         }
       );
       return null;
@@ -178,7 +179,7 @@ const fetchMarkdown = async (
     return text.trim() || null;
   } catch (error) {
     requestLog.warn("Documentation page request failed", {
-      crawl: { pageUrl },
+      crawl: { pageUrl: sanitizeUrl(pageUrl) },
       error: {
         message: formatError(error),
       },
@@ -316,7 +317,7 @@ export const handleCrawlDocumentation = async (
     "documentation.crawl",
     {
       documentation: {
-        baseUrl,
+        baseUrl: sanitizeUrl(baseUrl),
         documentationSourceId,
         organizationId,
         fetchTimeoutMs: FETCH_TIMEOUT_MS,
@@ -327,6 +328,7 @@ export const handleCrawlDocumentation = async (
   const ai = createAILogger(requestLog, { cost: AI_PRICING });
   let status = 200;
   let pagesWithoutContent = 0;
+  let sitemapUrlCount = 0;
   let totalChunks = 0;
   let processedPages = 0;
 
@@ -351,7 +353,8 @@ export const handleCrawlDocumentation = async (
 
     // 1. Fetch sitemap URLs
     const pageUrls = await fetchSitemapUrls(baseUrl, requestLog);
-    requestLog.set({ crawl: { sitemapUrlCount: pageUrls.length } });
+    sitemapUrlCount = pageUrls.length;
+    requestLog.set({ crawl: { sitemapUrlCount } });
 
     if (pageUrls.length === 0) {
       status = 422;
@@ -369,6 +372,13 @@ export const handleCrawlDocumentation = async (
         requestLog
       );
       requestLog.set({
+        crawl: {
+          phase: "failed",
+          status: "failed",
+          sitemapUrlCount,
+          pagesProcessed: processedPages,
+          chunksIndexed: totalChunks,
+        },
         outcome: {
           status: "failed",
           reason: "empty_sitemap",
@@ -534,8 +544,10 @@ export const handleCrawlDocumentation = async (
 
     requestLog.set({
       crawl: {
+        phase: "completed",
         pagesProcessed: processedPages,
         pagesWithoutContent,
+        sitemapUrlCount,
         status: "completed",
         totalChunks,
       },
@@ -569,11 +581,20 @@ export const handleCrawlDocumentation = async (
     requestLog.error(error instanceof Error ? error : String(error), {
       crawl: {
         pagesWithoutContent,
+        sitemapUrlCount,
       },
-      retryable: true,
+      retryable: isRetryableError(error),
       step: "crawl",
     });
     requestLog.set({
+      crawl: {
+        phase: "failed",
+        status: "failed",
+        sitemapUrlCount,
+        pagesProcessed: processedPages,
+        pagesWithoutContent,
+        totalChunks,
+      },
       outcome: {
         status: "failed",
         chunksIndexed: totalChunks,
