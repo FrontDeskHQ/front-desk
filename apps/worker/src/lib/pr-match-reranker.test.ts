@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyPrMatchRerankDecisions,
   buildPrMatchRerankPrompt,
+  buildPrMatchRerankSystemPrompt,
 } from "./pr-match-reranker";
 import type { SimilarThreadResult } from "./qdrant/threads";
 
@@ -47,14 +48,14 @@ describe("PR match reranking", () => {
         headRef: "fix/upload-progress",
         title: "Show upload progress as a percentage",
       },
-      [supportThread],
-      0.85
+      [supportThread]
     );
 
     expect(prompt).toContain("Progress bar barely moves");
     expect(prompt).toContain(
       "Convert the stored upload ratio into a percentage"
     );
+    expect(buildPrMatchRerankSystemPrompt(0.85)).toContain("at least 0.85");
 
     const [decision] = applyPrMatchRerankDecisions(
       [supportThread],
@@ -97,5 +98,23 @@ describe("PR match reranking", () => {
 
     expect(decision?.accepted).toBeFalsy();
     expect(decision?.reason).toContain("quota limits");
+  });
+
+  it("rejects a candidate when the reranker omits its decision", () => {
+    const candidateWithoutDecision = candidate(
+      "thread-missing-decision",
+      "Progress bar barely moves",
+      "The upload progress indicator stays near zero even though the upload completes.",
+      0.9
+    );
+
+    const [decision] = applyPrMatchRerankDecisions(
+      [candidateWithoutDecision],
+      [],
+      0.85
+    );
+
+    expect(decision?.accepted).toBeFalsy();
+    expect(decision?.reason).toBe("reranker_missing_decision");
   });
 });

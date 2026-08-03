@@ -2,6 +2,8 @@ const DEFAULT_CANDIDATE_LIMIT = 20;
 const MAX_CANDIDATE_LIMIT = 50;
 const DEFAULT_RETRIEVAL_FLOOR = 0.7;
 const DEFAULT_RERANK_THRESHOLD = 0.85;
+const DECIMAL_PATTERN = /^[+-]?(?:\d+(?:\.\d+)?|\.\d+)$/;
+const INTEGER_PATTERN = /^[+-]?\d+$/;
 
 const readBoundedNumber = (
   name: string,
@@ -9,7 +11,12 @@ const readBoundedNumber = (
   min: number,
   max: number
 ): number => {
-  const value = Number.parseFloat(process.env[name] ?? "");
+  const rawValue = process.env[name]?.trim() ?? "";
+  if (!DECIMAL_PATTERN.test(rawValue)) {
+    return fallback;
+  }
+
+  const value = Number(rawValue);
   if (!Number.isFinite(value)) {
     return fallback;
   }
@@ -22,7 +29,12 @@ const readBoundedInteger = (
   min: number,
   max: number
 ): number => {
-  const value = Number.parseInt(process.env[name] ?? "", 10);
+  const rawValue = process.env[name]?.trim() ?? "";
+  if (!INTEGER_PATTERN.test(rawValue)) {
+    return fallback;
+  }
+
+  const value = Number(rawValue);
   if (!Number.isFinite(value)) {
     return fallback;
   }
