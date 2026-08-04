@@ -21,6 +21,11 @@ import { toast } from "sonner";
 
 import { useCommand, useCommandPage } from "~/lib/commands/hooks";
 import type { Command, CommandPage } from "~/lib/commands/types";
+import {
+  buildRepositoryBackfillPayload,
+  getEligibleDeveloperPullRequests,
+  toggleRepositorySelection,
+} from "~/lib/developer-tools/github-selection";
 import { reflagClient } from "~/lib/feature-flag";
 import { fetchClient, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
@@ -109,15 +114,7 @@ export const DeveloperToolsCommands = ({
   }, [githubIntegration?.configStr]);
 
   const eligiblePullRequests = useMemo(
-    () =>
-      (mirroredPullRequests ?? [])
-        .filter((pullRequest) => {
-          return pullRequest.state === "open" && pullRequest.draft !== true;
-        })
-        .toSorted((a, b) => {
-          const repositoryOrder = a.repoFullName.localeCompare(b.repoFullName);
-          return repositoryOrder || a.number - b.number;
-        }),
+    () => getEligibleDeveloperPullRequests(mirroredPullRequests ?? []),
     [mirroredPullRequests]
   );
 
@@ -289,11 +286,17 @@ export const DeveloperToolsCommands = ({
               id: "developer-tools.github.backfill.selected",
               label: `Run selected backfill (${selectedRepositories.length})`,
               onSelect: () => {
-                const repositories = [...selectedRepositories].toSorted();
+                const payload = buildRepositoryBackfillPayload({
+                  allRepositories: false,
+                  selectedRepositories,
+                });
+                if (payload.allRepositories) {
+                  return;
+                }
                 void invokeGithubAction({
                   action: "repository_backfill",
-                  payload: { allRepositories: false, repositories },
-                  successMessage: `Accepted backfill for ${repositories.length} repositor${repositories.length === 1 ? "y" : "ies"}`,
+                  payload,
+                  successMessage: `Accepted backfill for ${payload.repositories.length} repositor${payload.repositories.length === 1 ? "y" : "ies"}`,
                 });
                 setSelectedRepositories([]);
               },
@@ -320,9 +323,7 @@ export const DeveloperToolsCommands = ({
               label: repo.fullName,
               onSelect: () => {
                 setSelectedRepositories((current) =>
-                  current.includes(repo.fullName)
-                    ? current.filter((fullName) => fullName !== repo.fullName)
-                    : [...current, repo.fullName]
+                  toggleRepositorySelection(current, repo.fullName)
                 );
               },
             })),
