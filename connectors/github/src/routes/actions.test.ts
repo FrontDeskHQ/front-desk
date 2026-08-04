@@ -362,6 +362,30 @@ describe("GitHub developer-action handlers", () => {
     );
   });
 
+  it("reports a complete backfill enqueue failure as an action failure", async () => {
+    const enqueueRepoBackfill = vi
+      .fn<GithubDeveloperActionDependencies["enqueueRepoBackfill"]>()
+      .mockRejectedValue(new Error("queue unavailable"));
+    const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+    const handlers = createGithubDeveloperActionHandlers({
+      enqueueRepoBackfill,
+    });
+
+    const response = await handlers.repository_backfill(githubConfig, {
+      allRepositories: false,
+      organizationId: "org-a",
+      repositories: ["owner/repo"],
+    });
+
+    expect(response).toStrictEqual({
+      body: { error: "ACTION_FAILED" },
+      status: 500,
+    });
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('"event":"developer_action.execution_failed"')
+    );
+  });
+
   it("rejects foreign repositories without enqueueing any backfill", async () => {
     const enqueueRepoBackfill =
       vi.fn<GithubDeveloperActionDependencies["enqueueRepoBackfill"]>();

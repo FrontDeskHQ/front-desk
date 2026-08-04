@@ -268,7 +268,10 @@ const backfillRepositories = async (
   if (rejectedCount > 0) {
     logFailure({
       action: "repository_backfill",
-      event: "developer_action.partial_failure",
+      event:
+        jobIds.length === 0
+          ? "developer_action.execution_failed"
+          : "developer_action.partial_failure",
       jobIds,
       organizationId,
       rejectedCount,
