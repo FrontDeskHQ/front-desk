@@ -72,15 +72,23 @@ const getQueue = (): Queue<BackfillJobData> => {
 const safeFullName = (fullName: string): string =>
   fullName.replaceAll("_", "__").replace("/", "_");
 
-export const enqueueRepoBackfill = async (data: BackfillJobData) => {
-  const jobId = `backfill_${data.organizationId}_${safeFullName(data.fullName)}`;
-  await getQueue().add(BACKFILL_JOB_NAME, data, {
+export const buildRepoBackfillJobId = (
+  organizationId: string,
+  fullName: string
+): string => `backfill_${organizationId}_${safeFullName(fullName)}`;
+
+export const enqueueRepoBackfill = async (
+  data: BackfillJobData
+): Promise<string> => {
+  const jobId = buildRepoBackfillJobId(data.organizationId, data.fullName);
+  const job = await getQueue().add(BACKFILL_JOB_NAME, data, {
     attempts: 3,
     backoff: { delay: 10_000, type: "exponential" },
     jobId,
     removeOnComplete: { age: 24 * 3600, count: 50 },
     removeOnFail: { count: 200 },
   });
+  return job.id ?? jobId;
 };
 
 let reconcileQueue: Queue | null = null;
@@ -153,6 +161,16 @@ const getPrMatchQueue = (): Queue<PrMatchJobData> => {
   return prMatchQueue;
 };
 
+export const buildPrMatchJobId = (
+  organizationId: string,
+  externalKey: string
+): string => {
+  const safeExternalKey = externalKey
+    .replaceAll("_", "__")
+    .replaceAll(":", "_");
+  return `pr-match_${organizationId}_${safeExternalKey}`;
+};
+
 /**
  * Enqueue a push-side match for a PR. One pending job per PR — scoped by
  * `(organizationId, externalKey)` so orgs sharing a repo don't coalesce onto
@@ -166,12 +184,9 @@ const getPrMatchQueue = (): Queue<PrMatchJobData> => {
  * (its `_`s escaped first) to keep the id injective — the same scheme the
  * backfill/reconcile ids use.
  */
-export const enqueuePrMatch = async (data: PrMatchJobData) => {
+export const enqueuePrMatch = async (data: PrMatchJobData): Promise<string> => {
   const q = getPrMatchQueue();
-  const safeExternalKey = data.externalKey
-    .replaceAll("_", "__")
-    .replaceAll(":", "_");
-  const jobId = `pr-match_${data.organizationId}_${safeExternalKey}`;
+  const jobId = buildPrMatchJobId(data.organizationId, data.externalKey);
 
   const existing = await q.getJob(jobId);
   if (existing) {
@@ -181,9 +196,10 @@ export const enqueuePrMatch = async (data: PrMatchJobData) => {
     }
   }
 
-  await q.add(PR_MATCH_JOB_NAME, data, {
+  const job = await q.add(PR_MATCH_JOB_NAME, data, {
     jobId,
     removeOnComplete: { age: 24 * 3600, count: 100 },
     removeOnFail: { count: 500 },
   });
+  return job.id ?? jobId;
 };
