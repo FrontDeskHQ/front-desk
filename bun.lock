@@ -61,6 +61,7 @@
         "@types/react": "catalog:",
         "tsdown": "^0.10.2",
         "tsx": "^4.19.3",
+        "vitest": "^4.0.0",
       },
     },
     "apps/cli": {
