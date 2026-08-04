@@ -1,3 +1,4 @@
+export { developerActionsRoutes } from "./actions";
 export { capabilitiesRoutes } from "./capabilities";
 export { connectionProbeRoutes } from "./connection-probe";
 export { issuesRoutes } from "./issues";

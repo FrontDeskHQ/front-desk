@@ -32,6 +32,7 @@ import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatRoute } from "./router/agent-chat";
 import autonomousActionRoute from "./router/autonomous-action";
+import developerActionRoute from "./router/developer-action";
 import documentationSourcesRoute from "./router/documentation-sources";
 import externalEntityRoute from "./router/external-entity";
 import { ingestRoute } from "./router/ingest";
@@ -980,6 +981,7 @@ export const router = createRouter({
     // Mirror of external issues/PRs. Default mutators are disabled; writes go
     // through the route's custom `upsert` / `softDelete` procedures.
     externalEntity: externalEntityRoute,
+    developerAction: developerActionRoute,
     // Emitting-side (`support-entry-point`) ingest — connector → core.
     ingest: ingestRoute,
     thread: threadsRoute,
