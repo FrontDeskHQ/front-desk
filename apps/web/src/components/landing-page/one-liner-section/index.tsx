@@ -1,5 +1,6 @@
 import { Button } from "@workspace/ui/components/button";
 import { cn } from "@workspace/ui/lib/utils";
+import { motion, useReducedMotion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 
 import {
@@ -36,19 +37,52 @@ const PHASES = [
   { hl: 2, dur: 1600 }, // hold, then loop
 ] as const;
 
+/* Marketing entrance — ease-out, blur under 12px. Shared timing so
+   staggered pieces read as one sequence rather than competing motions. */
+const BLUR_FADE = {
+  duration: 0.8,
+  ease: "easeOut" as const,
+};
+/** Pause before the first piece so the page can settle. Stagger offsets add on. */
+const BLUR_FADE_BASE_DELAY = 0.12;
+const BLUR_FADE_STAGGER = 0.28;
+const BLUR_FADE_HIDDEN = {
+  opacity: 0,
+  filter: "blur(10px)",
+  y: 10,
+};
+const BLUR_FADE_VISIBLE = {
+  opacity: 1,
+  filter: "blur(0px)",
+  y: 0,
+};
+/** Slack is the last staggered piece (index 5). Demo loop waits until it lands. */
+const DEMO_LOOP_START_MS =
+  (BLUR_FADE_BASE_DELAY + BLUR_FADE_STAGGER * 5 + BLUR_FADE.duration) * 1000;
+
 export function OneLinerSection() {
   const [phase, setPhase] = useState(0);
+  const [loopReady, setLoopReady] = useState(false);
   const mockAreaRef = useRef<HTMLDivElement>(null);
+  const reduceMotion = useReducedMotion();
 
   useEffect(() => {
+    const ms = reduceMotion ? 0 : DEMO_LOOP_START_MS;
+    const t = setTimeout(() => setLoopReady(true), ms);
+    return () => clearTimeout(t);
+  }, [reduceMotion]);
+
+  useEffect(() => {
+    if (!loopReady) return;
     const t = setTimeout(
       () => setPhase((p) => (p + 1) % PHASES.length),
       PHASES[phase].dur
     );
     return () => clearTimeout(t);
-  }, [phase]);
+  }, [phase, loopReady]);
 
   const hl = PHASES[phase].hl;
+  const initial = reduceMotion ? false : BLUR_FADE_HIDDEN;
 
   return (
     <section
@@ -62,45 +96,68 @@ export function OneLinerSection() {
           The top third is pure background, so the canvas starts there rather
           than being masked away — fewer pixels to shade. It fades in over its
           own height and hits full strength on a hard cut at the section edge. */}
-      <div
-        className="pointer-events-none absolute top-1/3 bottom-0 left-1/2 w-screen -translate-x-1/2 select-none"
-        style={{
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
-          WebkitMaskImage:
-            "linear-gradient(to bottom, transparent 0%, black 100%)",
-        }}
-      >
-        {/* Vignette — punches the glare out behind the mocks so the UI reads on
-            flat dark. Anchored to the canvas's top edge, so the dark pocket
-            hangs down over the mocks and the field burns in below and to the
-            sides. Mixed units on purpose: the width is rem so it tracks the
-            90rem content column rather than growing with the viewport, while
-            the height is a % of the canvas so it scales with however tall the
-            hero renders. Nested rather than composited: the two masks multiply
-            on their own, no `mask-composite` needed. */}
-        <div
+      <div className="pointer-events-none absolute top-1/3 bottom-0 left-1/2 w-screen -translate-x-1/2 select-none">
+        {/* Inner layer owns the entrance so Motion's y never fights the
+            parent's -translate-x-1/2 centering. Shader leads the stagger. */}
+        <motion.div
           className="absolute inset-0"
+          initial={initial}
+          animate={BLUR_FADE_VISIBLE}
+          transition={{ ...BLUR_FADE, delay: BLUR_FADE_BASE_DELAY }}
           style={{
-            maskImage:
-              "radial-gradient(ellipse 62rem 175% at 50% 0%, transparent 0%, transparent 45%, black 100%)",
+            maskImage: "linear-gradient(to bottom, transparent 0%, black 100%)",
             WebkitMaskImage:
-              "radial-gradient(ellipse 62rem 175% at 50% 0%, transparent 0%, transparent 45%, black 100%)",
+              "linear-gradient(to bottom, transparent 0%, black 100%)",
           }}
         >
-          <RedGlareBackground className="absolute inset-0 h-full w-full" />
-        </div>
+          {/* Vignette — punches the glare out behind the mocks so the UI reads on
+              flat dark. Anchored to the canvas's top edge, so the dark pocket
+              hangs down over the mocks and the field burns in below and to the
+              sides. Mixed units on purpose: the width is rem so it tracks the
+              90rem content column rather than growing with the viewport, while
+              the height is a % of the canvas so it scales with however tall the
+              hero renders. Nested rather than composited: the two masks multiply
+              on their own, no `mask-composite` needed. */}
+          <div
+            className="absolute inset-0"
+            style={{
+              maskImage:
+                "radial-gradient(ellipse 62rem 175% at 50% 0%, transparent 0%, transparent 45%, black 100%)",
+              WebkitMaskImage:
+                "radial-gradient(ellipse 62rem 175% at 50% 0%, transparent 0%, transparent 45%, black 100%)",
+            }}
+          >
+            <RedGlareBackground className="absolute inset-0 h-full w-full" />
+          </div>
+        </motion.div>
       </div>
 
       <div className="relative col-span-22 col-start-2 flex w-full flex-col gap-30">
         {/* ---------- HERO COPY ---------- */}
         <div className="flex w-full flex-col gap-8 max-w-2xl">
-          <h1 className="text-4xl leading-tight font-medium tracking-tight md:text-5xl">
+          <motion.h1
+            className="text-4xl leading-tight font-medium tracking-tight md:text-5xl"
+            initial={initial}
+            animate={BLUR_FADE_VISIBLE}
+            transition={{
+              ...BLUR_FADE,
+              delay: BLUR_FADE_BASE_DELAY + BLUR_FADE_STAGGER,
+            }}
+          >
             Care for every customer.
             <br />
             Even when you&apos;re busy.
-          </h1>
+          </motion.h1>
           <div className="flex flex-col gap-8">
-            <h2 className="text-2xl leading-tight font-light tracking-tight text-foreground-primary/45 transition-colors md:text-[1.75rem]">
+            <motion.h2
+              className="text-2xl leading-tight font-light tracking-tight text-foreground-primary/45 transition-colors md:text-[1.75rem]"
+              initial={initial}
+              animate={BLUR_FADE_VISIBLE}
+              transition={{
+                ...BLUR_FADE,
+                delay: BLUR_FADE_BASE_DELAY + BLUR_FADE_STAGGER * 2,
+              }}
+            >
               <Part active={hl === 0}>
                 FrontDesk picks up every conversation,
               </Part>{" "}
@@ -109,8 +166,16 @@ export function OneLinerSection() {
                 and pulls you in only when it matters
               </Part>
               .
-            </h2>
-            <div className="flex flex-wrap items-center gap-3">
+            </motion.h2>
+            <motion.div
+              className="flex flex-wrap items-center gap-3"
+              initial={initial}
+              animate={BLUR_FADE_VISIBLE}
+              transition={{
+                ...BLUR_FADE,
+                delay: BLUR_FADE_BASE_DELAY + BLUR_FADE_STAGGER * 3,
+              }}
+            >
               <EarlyAccessDialog
                 trigger={
                   <Button
@@ -129,19 +194,39 @@ export function OneLinerSection() {
               >
                 Talk to us
               </Button>
-            </div>
+            </motion.div>
           </div>
         </div>
 
         {/* ---------- MOCKS: FrontDesk full-bleed, Slack floating ---------- */}
+        {/* Entrance sits on each surface, not a shared parent — `filter` on a
+            wrapper would composite-clip the Slack panel where it overhangs. */}
         <div ref={mockAreaRef} className="relative w-full">
-          <div className="relative overflow-visible rounded-md shadow-[0_40px_100px_-20px_rgba(0,0,0,0.55),0_20px_50px_-15px_rgba(0,0,0,0.4)]">
+          <motion.div
+            className="relative overflow-visible rounded-md shadow-[0_40px_100px_-20px_rgba(0,0,0,0.55),0_20px_50px_-15px_rgba(0,0,0,0.4)]"
+            initial={initial}
+            animate={BLUR_FADE_VISIBLE}
+            transition={{
+              ...BLUR_FADE,
+              delay: BLUR_FADE_BASE_DELAY + BLUR_FADE_STAGGER * 4,
+            }}
+          >
             <FrontDeskApp phase={phase} page={hl < 2 ? "threads" : "signals"} />
-            <div
-              role="img"
-              aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
-              className="absolute right-0 -bottom-2 z-10 translate-x-0 shadow-2xl sm:-bottom-4 min-[1650px]:translate-x-[36%]"
-              style={{ width: `${SLACK_THREAD_WIDTH_RATIO * 100}%` }}
+          </motion.div>
+          <div
+            role="img"
+            aria-label="A Slack thread in #support where a customer reports failing webhooks and FrontDesk replies in Pedro's voice"
+            className="absolute right-0 -bottom-2 z-10 translate-x-0 shadow-2xl sm:-bottom-4 min-[1650px]:translate-x-[36%]"
+            style={{ width: `${SLACK_THREAD_WIDTH_RATIO * 100}%` }}
+          >
+            {/* Nested so Motion's y doesn't override translate-x. */}
+            <motion.div
+              initial={initial}
+              animate={BLUR_FADE_VISIBLE}
+              transition={{
+                ...BLUR_FADE,
+                delay: BLUR_FADE_BASE_DELAY + BLUR_FADE_STAGGER * 5,
+              }}
             >
               <div inert className="pointer-events-none select-none">
                 <ScaledContentFrame
@@ -152,7 +237,7 @@ export function OneLinerSection() {
                   <SlackThread phase={phase} />
                 </ScaledContentFrame>
               </div>
-            </div>
+            </motion.div>
           </div>
         </div>
       </div>
