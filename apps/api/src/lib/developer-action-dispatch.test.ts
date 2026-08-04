@@ -1,5 +1,5 @@
 import type { ServerDB } from "@live-state/sync/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   developerActionInputSchema,
@@ -7,6 +7,7 @@ import {
 } from "../live-state/router/developer-action";
 import type { schema } from "../live-state/schema";
 import type { AuthorizeReq } from "./authorize";
+import { connectorRegistry } from "./connector-registry";
 import type { DeveloperActionError } from "./developer-action-dispatch";
 import { dispatchDeveloperAction } from "./developer-action-dispatch";
 
@@ -54,9 +55,27 @@ const dbWithIntegrations = (integrations: Record<string, unknown>) => {
 };
 
 describe("developer-action transport", () => {
+  const previousNodeEnv = process.env.NODE_ENV;
+  const previousConnectorSecret = process.env.DISCORD_BOT_KEY;
+
+  beforeEach(() => {
+    process.env.NODE_ENV = "test";
+    process.env.DISCORD_BOT_KEY = "test-connector-secret";
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+    if (previousConnectorSecret === undefined) {
+      delete process.env.DISCORD_BOT_KEY;
+    } else {
+      process.env.DISCORD_BOT_KEY = previousConnectorSecret;
+    }
   });
 
   it("authorizes before resolving organization integrations", async () => {
@@ -70,7 +89,7 @@ describe("developer-action transport", () => {
       },
     });
 
-    const previousNodeEnv = process.env.NODE_ENV;
+    const nodeEnvBeforeProduction = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
 
     try {
@@ -88,10 +107,10 @@ describe("developer-action transport", () => {
       ).rejects.toThrow("UNAUTHORIZED");
       expect(find).not.toHaveBeenCalled();
     } finally {
-      if (previousNodeEnv === undefined) {
+      if (nodeEnvBeforeProduction === undefined) {
         delete process.env.NODE_ENV;
       } else {
-        process.env.NODE_ENV = previousNodeEnv;
+        process.env.NODE_ENV = nodeEnvBeforeProduction;
       }
     }
   });
@@ -111,6 +130,9 @@ describe("developer-action transport", () => {
     >(async (input: RequestInfo | URL, init?: RequestInit) => {
       expect(String(input)).toMatch(/\/api\/actions\/invoke$/);
       expect(init?.method).toBe("POST");
+      expect(init?.headers).toMatchObject({
+        "x-connector-secret": "test-connector-secret",
+      });
       expect(JSON.parse(String(init?.body))).toStrictEqual({
         action: "pr_match_replay",
         config: '{"installationId":123,"secret":"do-not-log"}',
@@ -208,6 +230,54 @@ describe("developer-action transport", () => {
     await expect(
       runDeveloperAction(db, memberRequest(), actionInput())
     ).rejects.toThrow("DEVELOPER_ACTION_FAILED");
+  });
+
+  it("fails closed when the connector secret is not configured", async () => {
+    const { db } = dbWithIntegrations({
+      integration: {
+        configStr: '{"secret":"do-not-send"}',
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    delete process.env.DISCORD_BOT_KEY;
+    const fetchMock = vi.fn<() => void>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runDeveloperAction(db, memberRequest(), actionInput())
+    ).rejects.toThrow("CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects insecure connector targets outside local development", async () => {
+    const { db } = dbWithIntegrations({
+      integration: {
+        configStr: '{"secret":"do-not-send"}',
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    process.env.NODE_ENV = "production";
+    const entry = connectorRegistry.getByType("github");
+    if (!entry) {
+      throw new Error("GitHub connector is not registered");
+    }
+    vi.spyOn(connectorRegistry, "getByType").mockReturnValue({
+      ...entry,
+      actionInvokeUrl: "http://localhost:3334/api/actions/invoke",
+    });
+    const fetchMock = vi.fn<() => void>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      runDeveloperAction(db, memberRequest(), actionInput())
+    ).rejects.toThrow("INSECURE_CONNECTOR_ACTION_URL");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
   it("does not accept an integration id in the action payload", () => {

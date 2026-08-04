@@ -4,7 +4,10 @@ import type { ServerDB } from "@live-state/sync/server";
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
-import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
+import {
+  connectorRegistry,
+  getConnectorInvokeSecret,
+} from "./connector-registry";
 
 /**
  * Explicit developer actions known to the API. This is intentionally separate
@@ -40,6 +43,50 @@ export const developerActionAcceptedResultSchema = z
 export type DeveloperActionAcceptedResult = z.infer<
   typeof developerActionAcceptedResultSchema
 >;
+
+const LOCAL_DEVELOPMENT_ENVIRONMENTS = new Set([
+  "development",
+  "local",
+  "test",
+]);
+
+const isLocalDevelopment = (): boolean => {
+  const environment = process.env.NODE_ENV;
+  return (
+    environment !== undefined &&
+    LOCAL_DEVELOPMENT_ENVIRONMENTS.has(environment.toLowerCase())
+  );
+};
+
+const isLoopbackHost = (hostname: string): boolean =>
+  hostname === "localhost" ||
+  hostname === "127.0.0.1" ||
+  hostname === "[::1]" ||
+  hostname === "::1";
+
+const assertSafeActionInvokeTarget = (
+  actionInvokeUrl: string,
+  secret: string | null
+): void => {
+  if (!secret) {
+    throw new DeveloperActionError("CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED");
+  }
+
+  let url: URL;
+  try {
+    url = new URL(actionInvokeUrl);
+  } catch {
+    throw new DeveloperActionError("INVALID_CONNECTOR_ACTION_URL");
+  }
+
+  const isExplicitLocalTarget =
+    isLocalDevelopment() &&
+    url.protocol === "http:" &&
+    isLoopbackHost(url.hostname);
+  if (url.protocol !== "https:" && !isExplicitLocalTarget) {
+    throw new DeveloperActionError("INSECURE_CONNECTOR_ACTION_URL");
+  }
+};
 
 export interface DeveloperActionTarget {
   config: string;
@@ -100,6 +147,9 @@ export const dispatchDeveloperAction = async (
     throw new DeveloperActionError("DEVELOPER_ACTION_FAILED");
   }
 
+  const connectorSecret = getConnectorInvokeSecret();
+  assertSafeActionInvokeTarget(target.entry.actionInvokeUrl, connectorSecret);
+
   let rawResult: unknown;
   try {
     rawResult = await invokeDeveloperAction(
@@ -109,7 +159,7 @@ export const dispatchDeveloperAction = async (
         config: target.config,
         payload: args.payload,
       },
-      { secret: connectorInvokeSecret }
+      { secret: connectorSecret }
     );
   } catch {
     throw new DeveloperActionError("DEVELOPER_ACTION_FAILED");
