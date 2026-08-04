@@ -28,6 +28,7 @@
     "build": "turbo build",
     "lint": "bunx --bun ultracite check",
     "lint:fix": "bunx --bun ultracite fix",
+    "test": "turbo test --filter=github",
     "format": "bunx --bun ultracite fix",
     "typecheck": "turbo typecheck",
     "dev": "turbo dev"

@@ -11,6 +11,7 @@
     "dev": "bun --watch src/index.ts",
     "build": "bun build.ts",
     "start": "NODE_ENV=production bun dist/index.js",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
