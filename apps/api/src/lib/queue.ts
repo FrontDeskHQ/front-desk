@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import type {
   PrIndexJobData,
   PrMatchCandidate,
@@ -18,6 +20,8 @@ export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
 
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const THREAD_READ_JOB_NAME = "thread-read";
+const THREAD_READ_ENQUEUE_LOCK_TTL_MS = 30_000;
+const THREAD_READ_ENQUEUE_LOCK_RETRY_MS = 25;
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
 const PR_INDEX_JOB_NAME = "index-pr";
@@ -46,6 +50,57 @@ export interface EnqueueThreadReadOptions {
 
 let connection: Redis | null = null;
 let queue: Queue<ThreadReadJobData> | null = null;
+
+const RELEASE_THREAD_READ_LOCK_SCRIPT = `
+  if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("del", KEYS[1])
+  end
+  return 0
+`;
+
+const sleep = (milliseconds: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, milliseconds));
+
+const withThreadReadEnqueueLock = async <T>(
+  threadId: string,
+  operation: () => Promise<T>
+): Promise<T> => {
+  const redis = connection;
+  if (!redis) {
+    return operation();
+  }
+
+  const lockKey = `frontdesk:thread-read-enqueue:${threadId}`;
+  const lockToken = randomUUID();
+  const deadline = Date.now() + THREAD_READ_ENQUEUE_LOCK_TTL_MS;
+
+  while (
+    !(await redis.set(
+      lockKey,
+      lockToken,
+      "PX",
+      THREAD_READ_ENQUEUE_LOCK_TTL_MS,
+      "NX"
+    ))
+  ) {
+    if (Date.now() >= deadline) {
+      throw new Error(
+        `Timed out acquiring thread-read enqueue lock: ${threadId}`
+      );
+    }
+    await sleep(THREAD_READ_ENQUEUE_LOCK_RETRY_MS);
+  }
+
+  try {
+    return await operation();
+  } finally {
+    try {
+      await redis.eval(RELEASE_THREAD_READ_LOCK_SCRIPT, 1, lockKey, lockToken);
+    } catch {
+      // Lock key expires via TTL; avoid masking successful enqueue results.
+    }
+  }
+};
 
 const createRedisConnection = (): Redis | null => {
   if (process.env.REDIS_URL) {
@@ -126,33 +181,49 @@ export const enqueueThreadRead = async (
     ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
   };
 
-  const existing = await q.getJob(jobId);
-  if (existing) {
-    const state = await existing.getState();
-    if (state === "delayed" || state === "waiting") {
-      // Coalesce onto the single pending job (ADR 0006). The latest cause wins
-      // for `kind` (it drives cadence/hash-invalidation), but never drop a PR
-      // payload a prior `pr_matched` trigger pushed: keep the existing candidate
-      // when this enqueue carries none, so both surfaces reach synthesis.
-      const merged: ThreadReadJobData = {
-        kind: opts.kind,
-        threadId,
-        ...((opts.prMatched ?? existing.data.prMatched)
-          ? { prMatched: opts.prMatched ?? existing.data.prMatched }
-          : {}),
-      };
-      await existing.updateData(merged);
-      return existing.id ?? jobId;
+  return withThreadReadEnqueueLock(threadId, async () => {
+    const existing = await q.getJob(jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (
+        state === "delayed" ||
+        state === "waiting" ||
+        state === "prioritized"
+      ) {
+        // Coalesce onto the single pending job (ADR 0006). The latest cause
+        // wins for `kind` (it drives cadence/hash-invalidation), but never drop
+        // a PR payload a prior `pr_matched` trigger pushed: keep the existing
+        // candidate when this enqueue carries none, so both surfaces reach
+        // synthesis.
+        const merged: ThreadReadJobData = {
+          kind: opts.kind,
+          threadId,
+          ...((opts.prMatched ?? existing.data.prMatched)
+            ? { prMatched: opts.prMatched ?? existing.data.prMatched }
+            : {}),
+        };
+        await existing.updateData(merged);
+        return existing.id ?? jobId;
+      }
+
+      // BullMQ keeps completed and failed jobs under their job ID. Remove
+      // those terminal records before reusing the stable per-thread ID,
+      // otherwise a later trigger can be reported as enqueued while BullMQ
+      // silently returns the old completed job instead of scheduling a new
+      // read.
+      if (state === "completed" || state === "failed") {
+        await existing.remove();
+      }
     }
-  }
 
-  const job = await q.add(THREAD_READ_JOB_NAME, data, {
-    delay,
-    jobId,
-    priority,
+    const job = await q.add(THREAD_READ_JOB_NAME, data, {
+      delay,
+      jobId,
+      priority,
+    });
+
+    return job.id ?? null;
   });
-
-  return job.id ?? null;
 };
 
 // Crawl Documentation Queue
