@@ -5,6 +5,8 @@ import {
 } from "@connectors/framework";
 import Elysia from "elysia";
 
+import { createGithubDeveloperActionHandlers } from "../lib/developer-actions";
+
 /** A connector-owned developer action handler. */
 export type DeveloperActionHandler = (
   config: string,
@@ -77,11 +79,11 @@ export const createDeveloperActionsRoute = (
     }
   );
 
-// Keep the production dispatch map private to the connector. FRO-211 adds
-// explicit action entries here without changing the capability manifest.
+// Keep the production dispatch map private to the connector. These explicit
+// entries do not change the capability manifest or create a discovery surface.
 const developerActionHandlers: Readonly<
   Record<string, DeveloperActionHandler>
-> = {};
+> = createGithubDeveloperActionHandlers();
 
 export const developerActionsRoutes = createDeveloperActionsRoute(
   developerActionHandlers

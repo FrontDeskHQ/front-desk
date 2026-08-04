@@ -1,5 +1,6 @@
 import { invokeDeveloperAction } from "@connectors/framework";
 import type { RegistryEntry } from "@connectors/framework";
+import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 import { z } from "zod";
 
@@ -8,6 +9,7 @@ import {
   connectorRegistry,
   getConnectorInvokeSecret,
 } from "./connector-registry";
+import { buildEntityRef } from "./capability-dispatch";
 
 /**
  * Explicit developer actions known to the API. This is intentionally separate
@@ -90,6 +92,123 @@ export interface DeveloperActionTarget {
   entry: RegistryEntry;
 }
 
+type ExternalEntityRow = InferLiveObject<typeof schema.externalEntity>;
+
+const prMatchReplayInputSchema = z
+  .object({
+    entityId: z.string().min(1),
+  })
+  .strict();
+
+const repositoryBackfillInputSchema = z
+  .object({
+    allRepositories: z.boolean().optional(),
+    repositories: z.array(z.string().min(1)).optional(),
+  })
+  .strict()
+  .superRefine((input, context) => {
+    const allRepositories = input.allRepositories === true;
+    const repositories = input.repositories ?? [];
+
+    if (allRepositories && repositories.length > 0) {
+      context.addIssue({
+        code: "custom",
+        message: "allRepositories cannot be combined with repositories",
+        path: ["repositories"],
+      });
+    }
+
+    if (!allRepositories && repositories.length === 0) {
+      context.addIssue({
+        code: "custom",
+        message: "repositories or allRepositories is required",
+        path: ["repositories"],
+      });
+    }
+  });
+
+type ParsedDeveloperActionInput =
+  | { action: "pr_match_replay"; entityId: string }
+  | {
+      action: "repository_backfill";
+      allRepositories: boolean;
+      repositories: string[];
+    };
+
+const parseDeveloperActionInput = (args: {
+  action: string;
+  payload: Record<string, unknown>;
+}): ParsedDeveloperActionInput => {
+  if (args.action === "pr_match_replay") {
+    const parsed = prMatchReplayInputSchema.safeParse(args.payload);
+    if (!parsed.success) {
+      throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_INPUT");
+    }
+    return { action: args.action, entityId: parsed.data.entityId };
+  }
+
+  if (args.action === "repository_backfill") {
+    const parsed = repositoryBackfillInputSchema.safeParse(args.payload);
+    if (!parsed.success) {
+      throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_INPUT");
+    }
+    return {
+      action: args.action,
+      allRepositories: parsed.data.allRepositories === true,
+      repositories: [...new Set(parsed.data.repositories ?? [])],
+    };
+  }
+
+  throw new DeveloperActionError("UNKNOWN_DEVELOPER_ACTION");
+};
+
+/**
+ * Resolve browser-facing action input into the provider-neutral payload the
+ * connector needs. Entity IDs are looked up with both organization and PR
+ * type filters so a caller cannot turn an ID from another organization or
+ * another mirrored entity kind into a connector target.
+ */
+export const resolveDeveloperActionPayload = async (
+  db: Pick<ServerDB<typeof schema>, "find">,
+  args: {
+    action: string;
+    connectorType: string;
+    organizationId: string;
+    payload: Record<string, unknown>;
+  }
+): Promise<Record<string, unknown>> => {
+  const input = parseDeveloperActionInput(args);
+
+  if (input.action === "pr_match_replay") {
+    const entity = Object.values(
+      await db.find(schema.externalEntity, {
+        where: {
+          deletedAt: null,
+          id: input.entityId,
+          organizationId: args.organizationId,
+          provider: args.connectorType,
+          type: "pull_request",
+        },
+      })
+    )[0] as ExternalEntityRow | undefined;
+
+    if (!entity) {
+      throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_TARGET");
+    }
+
+    return {
+      organizationId: args.organizationId,
+      target: buildEntityRef(entity),
+    };
+  }
+
+  return {
+    allRepositories: input.allRepositories,
+    organizationId: args.organizationId,
+    repositories: input.repositories,
+  };
+};
+
 export const resolveDeveloperActionTarget = async (
   db: Pick<ServerDB<typeof schema>, "find">,
   args: {
@@ -135,8 +254,10 @@ export const dispatchDeveloperAction = async (
   }
 ): Promise<DeveloperActionAcceptedResult> => {
   let target: DeveloperActionTarget;
+  let payload: Record<string, unknown>;
   try {
     target = await resolveDeveloperActionTarget(db, args);
+    payload = await resolveDeveloperActionPayload(db, args);
   } catch (error) {
     if (error instanceof DeveloperActionError) {
       throw error;
@@ -154,7 +275,7 @@ export const dispatchDeveloperAction = async (
       {
         action: args.action,
         config: target.config,
-        payload: args.payload,
+        payload,
       },
       { secret: connectorSecret }
     );
