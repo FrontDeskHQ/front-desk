@@ -117,4 +117,46 @@ describe("PR match reranking", () => {
     expect(decision?.accepted).toBeFalsy();
     expect(decision?.reason).toBe("reranker_missing_decision");
   });
+
+  it("caps serialized summary arrays", () => {
+    const baseCandidate = candidate(
+      "thread-large-summary",
+      "Large summary",
+      "A support thread with many extracted summary values.",
+      0.9
+    );
+    const largeCandidate: SimilarThreadResult = {
+      ...baseCandidate,
+      payload: {
+        ...baseCandidate.payload,
+        entities: Array.from({ length: 25 }, (_, index) => `entity-${index}`),
+        keywords: Array.from({ length: 25 }, (_, index) => `keyword-${index}`),
+      },
+    };
+
+    const prompt = buildPrMatchRerankPrompt(
+      {
+        body: "body",
+        headRef: "head",
+        title: "title",
+      },
+      [largeCandidate]
+    );
+    const serializedCandidates = prompt
+      .split("<thread_candidates_data>\n")[1]
+      ?.split("\n</thread_candidates_data>")[0];
+    const parsed = JSON.parse(serializedCandidates ?? "{}") as {
+      candidates?: {
+        summary?: { entities?: string[]; keywords?: string[] };
+      }[];
+    };
+    const summary = parsed.candidates?.[0]?.summary;
+
+    expect(summary?.entities).toStrictEqual(
+      Array.from({ length: 20 }, (_, index) => `entity-${index}`)
+    );
+    expect(summary?.keywords).toStrictEqual(
+      Array.from({ length: 20 }, (_, index) => `keyword-${index}`)
+    );
+  });
 });

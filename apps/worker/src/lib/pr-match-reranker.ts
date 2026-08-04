@@ -10,6 +10,7 @@ import type { SimilarThreadResult } from "./qdrant/threads";
 const RERANK_MODEL = "gemini-2.5-flash-lite";
 const RERANK_TIMEOUT_MS = 30_000;
 const MAX_PROMPT_FIELD_LENGTH = 4000;
+const MAX_PROMPT_SUMMARY_ITEMS = 20;
 
 const rerankDecisionSchema = z.object({
   accepted: z.boolean(),
@@ -71,9 +72,13 @@ export const buildPrMatchRerankPrompt = (
   const threadCandidates = candidates.map(({ payload, score, threadId }) => ({
     initialVectorScore: Number(score.toFixed(3)),
     summary: {
-      entities: payload.entities.map((entity) => truncate(entity, 500)),
+      entities: payload.entities
+        .slice(0, MAX_PROMPT_SUMMARY_ITEMS)
+        .map((entity) => truncate(entity, 500)),
       expectedAction: truncate(payload.expectedAction),
-      keywords: payload.keywords.map((keyword) => truncate(keyword, 500)),
+      keywords: payload.keywords
+        .slice(0, MAX_PROMPT_SUMMARY_ITEMS)
+        .map((keyword) => truncate(keyword, 500)),
       shortDescription: truncate(payload.shortDescription),
       title: truncate(payload.title),
     },
