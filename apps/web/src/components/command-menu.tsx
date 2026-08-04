@@ -12,16 +12,18 @@ import {
   CommandTrail,
 } from "@workspace/ui/components/command";
 import { Keybind } from "@workspace/ui/components/keybind";
+import { useAtom } from "jotai/react";
 import { Check, ChevronRight } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { useHotkeys } from "react-hotkeys-hook";
 
 import { useCommandMenu } from "~/lib/commands/hooks";
+import { commandMenuOpenAtom } from "~/lib/commands/registry";
 import type { Command, DirectCommand, PageCommand } from "~/lib/commands/types";
 
 export const CommandMenu = () => {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useAtom(commandMenuOpenAtom);
   const [animationKey, setAnimationKey] = useState(0);
   const prevPageIdRef = useRef<string | null>(null);
   const {
@@ -80,7 +82,9 @@ export const CommandMenu = () => {
       setSearch("");
     } else {
       (command as DirectCommand).onSelect();
-      setOpen(false);
+      if (!command.keepOpen) {
+        setOpen(false);
+      }
     }
   };
 

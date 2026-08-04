@@ -275,7 +275,7 @@ function RouteComponent() {
           </Dialog>
           <Outlet />
         </SidebarProvider>
-        {import.meta.env.DEV && <Toolbar />}
+        <Toolbar />
       </ReflagClientProvider>
     </div>
   );
