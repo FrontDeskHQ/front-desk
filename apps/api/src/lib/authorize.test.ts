@@ -119,6 +119,31 @@ describe("developer-action authorization gate", () => {
     expect(event.reason).toBe("non_internal_email");
   });
 
+  it("fails closed when NODE_ENV is unset", () => {
+    const previousNodeEnv = process.env.NODE_ENV;
+    delete process.env.NODE_ENV;
+
+    try {
+      const event = expectDenied(
+        workspaceRequest({
+          user: {
+            email: "developer@example.com",
+            emailVerified: true,
+          },
+        }),
+        { action: "github.pr_replay" }
+      );
+
+      expect(event.reason).toBe("non_internal_email");
+    } finally {
+      if (previousNodeEnv === undefined) {
+        delete process.env.NODE_ENV;
+      } else {
+        process.env.NODE_ENV = previousNodeEnv;
+      }
+    }
+  });
+
   it("denies unauthenticated and non-member requests", () => {
     const unauthenticated = expectDenied(
       { context: { orgUsers: [] } },
