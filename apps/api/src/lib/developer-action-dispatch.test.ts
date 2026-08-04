@@ -133,6 +133,7 @@ describe("developer-action transport", () => {
       expect(init?.headers).toMatchObject({
         "x-connector-secret": "test-connector-secret",
       });
+      expect(init?.redirect).toBe("error");
       expect(JSON.parse(String(init?.body))).toStrictEqual({
         action: "pr_match_replay",
         config: '{"installationId":123,"secret":"do-not-log"}',

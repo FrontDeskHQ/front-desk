@@ -59,6 +59,7 @@ export const actionInvokeEnvelopeSchema = z.object({
 
 interface RemoteInvokeOptions {
   failure: (response: Response) => Promise<string>;
+  redirect?: "error" | "follow" | "manual";
   secret?: string | null;
   timeoutMs: number;
   timeoutMessage: string;
@@ -82,6 +83,7 @@ const invokeRemote = async <Result = unknown>(
       body: JSON.stringify(envelope),
       headers,
       method: "POST",
+      redirect: options.redirect ?? "follow",
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   } catch (error) {
@@ -136,6 +138,7 @@ export async function invokeDeveloperAction<Result = unknown>(
   return invokeRemote(invokeUrl, envelope, {
     failure: async (response) =>
       `DEVELOPER_ACTION_INVOKE_FAILED: ${response.status}`,
+    redirect: "error",
     secret: options.secret,
     timeoutMs: ACTION_INVOKE_TIMEOUT_MS,
     timeoutMessage: `DEVELOPER_ACTION_INVOKE_TIMEOUT: no response after ${ACTION_INVOKE_TIMEOUT_MS}ms`,
