@@ -40,14 +40,35 @@ const actionInput = (
     action: "pr_match_replay",
     connectorType: "github",
     organizationId,
-    payload: { target: "entity-a" },
+    payload: { entityId: "entity-a" },
     ...overrides,
   });
 
 const dbWithIntegrations = (integrations: Record<string, unknown>) => {
   const find = vi
-    .fn<() => Promise<Record<string, unknown>>>()
-    .mockResolvedValue(integrations);
+    .fn<
+      (
+        table: unknown,
+        request: { where?: Record<string, unknown> }
+      ) => Promise<Record<string, unknown>>
+    >()
+    .mockImplementation(
+      async (_table: unknown, request: { where?: Record<string, unknown> }) => {
+        const where = request.where ?? {};
+        if ("id" in where && "type" in where) {
+          const entity = integrations.externalEntity as
+            | Record<string, unknown>
+            | undefined;
+          return entity?.id === where.id ? { externalEntity: entity } : {};
+        }
+
+        return Object.fromEntries(
+          Object.entries(integrations).filter(
+            ([key]) => key !== "externalEntity"
+          )
+        );
+      }
+    );
   return {
     db: { find } as unknown as Pick<ServerDB<typeof schema>, "find">,
     find,
@@ -117,6 +138,16 @@ describe("developer-action transport", () => {
 
   it("resolves the org integration and returns a safe accepted result", async () => {
     const { db, find } = dbWithIntegrations({
+      externalEntity: {
+        externalKey: "github:owner/repo#123",
+        id: "entity-a",
+        number: 123,
+        organizationId,
+        provider: "github",
+        repoFullName: "owner/repo",
+        type: "pull_request",
+        url: "https://github.com/owner/repo/pull/123",
+      },
       integration: {
         configStr: '{"installationId":123,"secret":"do-not-log"}',
         enabled: true,
@@ -137,14 +168,22 @@ describe("developer-action transport", () => {
       expect(JSON.parse(String(init?.body))).toStrictEqual({
         action: "pr_match_replay",
         config: '{"installationId":123,"secret":"do-not-log"}',
-        payload: { target: "entity-a" },
+        payload: {
+          organizationId,
+          target: {
+            externalKey: "github:owner/repo#123",
+            number: 123,
+            repoFullName: "owner/repo",
+            url: "https://github.com/owner/repo/pull/123",
+          },
+        },
       });
 
       return new Response(
         JSON.stringify({
           accepted: true,
           jobIds: ["pr-match:entity-a"],
-          target: "entity-a",
+          target: "github:owner/repo#123",
         }),
         { status: 202 }
       );
@@ -157,10 +196,120 @@ describe("developer-action transport", () => {
     expect(result).toStrictEqual({
       accepted: true,
       jobIds: ["pr-match:entity-a"],
-      target: "entity-a",
+      target: "github:owner/repo#123",
     });
-    expect(find).toHaveBeenCalledOnce();
+    expect(find).toHaveBeenCalledTimes(2);
     expect(log).toHaveBeenCalledWith(expect.not.stringContaining("do-not-log"));
+  });
+
+  it("rejects a missing mirrored PR target before invoking the connector", async () => {
+    const { db } = dbWithIntegrations({
+      integration: {
+        configStr: "{}",
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    const fetchMock = vi.fn<() => void>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      dispatchDeveloperAction(db, {
+        ...actionInput(),
+        payload: { entityId: "missing-entity" },
+      })
+    ).rejects.toMatchObject<DeveloperActionError>({
+      code: "INVALID_DEVELOPER_ACTION_TARGET",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("normalizes repository selection for the connector", async () => {
+    const { db } = dbWithIntegrations({
+      integration: {
+        configStr: "{}",
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    const fetchMock = vi.fn<
+      (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+    >(async (_input, init) => {
+      expect(JSON.parse(String(init?.body))).toStrictEqual({
+        action: "repository_backfill",
+        config: "{}",
+        payload: {
+          allRepositories: false,
+          organizationId,
+          repositories: ["owner/repo"],
+        },
+      });
+      return new Response(
+        JSON.stringify({
+          accepted: true,
+          jobIds: ["backfill-job"],
+          target: "selected",
+        }),
+        { status: 202 }
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await dispatchDeveloperAction(db, {
+      ...actionInput({ action: "repository_backfill" }),
+      payload: { repositories: ["owner/repo"] },
+    });
+
+    expect(result).toStrictEqual({
+      accepted: true,
+      jobIds: ["backfill-job"],
+      target: "selected",
+    });
+  });
+
+  it("preserves partial repository backfill acceptance", async () => {
+    const { db } = dbWithIntegrations({
+      integration: {
+        configStr: "{}",
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >(
+        async () =>
+          new Response(
+            JSON.stringify({
+              accepted: true,
+              jobIds: ["backfill-job"],
+              partial: true,
+              target: "selected",
+            }),
+            { status: 207 }
+          )
+      )
+    );
+
+    const result = await dispatchDeveloperAction(db, {
+      ...actionInput({ action: "repository_backfill" }),
+      payload: { repositories: ["owner/repo"] },
+    });
+
+    expect(result).toStrictEqual({
+      accepted: true,
+      jobIds: ["backfill-job"],
+      partial: true,
+      target: "selected",
+    });
   });
 
   it("fails safely when the integration is missing", async () => {
@@ -208,6 +357,16 @@ describe("developer-action transport", () => {
 
   it("normalizes connector rejection and does not expose its response body", async () => {
     const { db } = dbWithIntegrations({
+      externalEntity: {
+        externalKey: "github:owner/repo#123",
+        id: "entity-a",
+        number: 123,
+        organizationId,
+        provider: "github",
+        repoFullName: "owner/repo",
+        type: "pull_request",
+        url: "https://github.com/owner/repo/pull/123",
+      },
       integration: {
         configStr: '{"secret":"do-not-leak"}',
         enabled: true,
@@ -248,7 +407,14 @@ describe("developer-action transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runDeveloperAction(db, memberRequest(), actionInput())
+      runDeveloperAction(
+        db,
+        memberRequest(),
+        actionInput({
+          action: "repository_backfill",
+          payload: { repositories: ["owner/repo"] },
+        })
+      )
     ).rejects.toThrow("CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED");
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -276,7 +442,14 @@ describe("developer-action transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runDeveloperAction(db, memberRequest(), actionInput())
+      runDeveloperAction(
+        db,
+        memberRequest(),
+        actionInput({
+          action: "repository_backfill",
+          payload: { repositories: ["owner/repo"] },
+        })
+      )
     ).rejects.toThrow("INSECURE_CONNECTOR_ACTION_URL");
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -287,7 +460,7 @@ describe("developer-action transport", () => {
         action: "pr_match_replay",
         connectorType: "github",
         organizationId,
-        payload: { integrationId: "integration-a" },
+        payload: { entityId: "entity-a", integrationId: "integration-a" },
       })
     ).toThrow("integrationId is not accepted");
   });

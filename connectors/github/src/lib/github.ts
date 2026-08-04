@@ -1,6 +1,7 @@
 import { App } from "octokit";
 
 import { getGitHubConfig } from "../utils";
+import type { GitHubPullRequestLike } from "./external-entity";
 
 const config = getGitHubConfig();
 
@@ -150,6 +151,33 @@ export const fetchPullRequests = async (
     return data;
   } catch (error) {
     console.error(`Error fetching pull requests:`, error);
+    throw error;
+  }
+};
+
+/** Fetch one authoritative pull request for a developer-action replay. */
+export const fetchPullRequest = async (
+  installationId: number,
+  owner: string,
+  repo: string,
+  pullNumber: number
+): Promise<GitHubPullRequestLike> => {
+  try {
+    const octokit = await getOctokit(installationId);
+    const { data } = await octokit.request(
+      "GET /repos/{owner}/{repo}/pulls/{pull_number}",
+      {
+        headers: {
+          "X-GitHub-Api-Version": "2022-11-28",
+        },
+        owner,
+        pull_number: pullNumber,
+        repo,
+      }
+    );
+    return data as GitHubPullRequestLike;
+  } catch (error) {
+    console.error("Error fetching pull request:", error);
     throw error;
   }
 };
