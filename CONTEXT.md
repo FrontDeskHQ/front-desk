@@ -82,6 +82,24 @@ The counterpart of an [integration](#integration) on the external system — the
 
 Whether an [integration](#integration)'s [external install](#external-install) still exists and is reachable on the other system. Orthogonal to FrontDesk's `integration.enabled` flag and to any [capability](#capability) the connector provides — it is a property of the install itself, not of issue tracking, notifications, or support entry. The probe answers existence/reachability only (e.g. GitHub: installation still present); it does not validate repository access or broader install usability.
 
+### Developer tooling
+
+**Organization**: A FrontDesk tenant and membership boundary. It owns threads, integrations, and configuration; a user gets access through organization membership. _Avoid_: "account" when the tenant is meant.
+
+**Internal developer**: A workspace user with a verified `@tryfrontdesk.app` email address. An internal developer may use [developer tools](#developer-tool) for any [organization](#organization) they belong to; this does not make them an organization owner. _Avoid_: "admin" as a synonym — ownership and internal status are different concepts.
+
+**Developer tool**: An internal-only surface for inspecting or intentionally exercising FrontDesk behavior. Developer tools are available to internal developers in the organizations where they are members, regardless of deployment environment.
+
+**Developer action**: A named operation exposed by developer tools to exercise or repair a supported workflow for a selected organization or [integration](#integration). Developer actions are explicit commands owned by the developer-tool surface, not [capabilities](#capability): they are not part of the connector's product-role vocabulary and are not discovered dynamically.
+
+**External entity replay**: A [developer action](#developer-action) against an existing mirrored [external issue](#external-issue) or [external pull request](#external-pull-request) that re-fetches current upstream state and re-runs an explicitly selected internal reaction. The first use is replaying PR matching for an existing pull request so the AI pipeline can be exercised without creating a new pull request. It is not a historical webhook replay and does not create or mutate the external entity. _Avoid_: "replay webhook" unless the original payload is actually stored.
+
+**Example dialogue**:
+
+> **Dev**: Can I run the GitHub backfill in production for Acme?
+>
+> **Domain expert**: Yes, if you are an internal developer and a member of Acme. The action operates through Acme's GitHub integration; it does not grant access to any other organization.
+
 ### Thread
 
 The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record _where it came from_ (Discord channel, Slack message, portal) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).
