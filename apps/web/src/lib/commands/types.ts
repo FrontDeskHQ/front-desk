@@ -12,6 +12,8 @@ interface BaseCommand {
   shortcut?: string;
   contextId?: ContextId; // If set, only shows in this context
   disabled?: boolean;
+  /** Keep the palette open after selecting this command (e.g. multi-select). */
+  keepOpen?: boolean;
   group?: string; // Optional group label for organizing commands
   visible?: boolean | ((state: CommandRegistryState) => boolean);
   checked?: boolean;

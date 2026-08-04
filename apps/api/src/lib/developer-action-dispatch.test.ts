@@ -59,13 +59,24 @@ const dbWithIntegrations = (integrations: Record<string, unknown>) => {
           const entity = integrations.externalEntity as
             | Record<string, unknown>
             | undefined;
-          return entity?.id === where.id ? { externalEntity: entity } : {};
+          const matches =
+            entity &&
+            Object.entries(where).every(
+              ([key, value]) => entity[key] === value
+            );
+          return matches ? { externalEntity: entity } : {};
         }
 
         return Object.fromEntries(
-          Object.entries(integrations).filter(
-            ([key]) => key !== "externalEntity"
-          )
+          Object.entries(integrations).filter(([key, value]) => {
+            if (key === "externalEntity") {
+              return false;
+            }
+            return Object.entries(where).every(
+              ([whereKey, whereValue]) =>
+                (value as Record<string, unknown>)[whereKey] === whereValue
+            );
+          })
         );
       }
     );
@@ -139,6 +150,7 @@ describe("developer-action transport", () => {
   it("resolves the org integration and returns a safe accepted result", async () => {
     const { db, find } = dbWithIntegrations({
       externalEntity: {
+        deletedAt: null,
         externalKey: "github:owner/repo#123",
         id: "entity-a",
         number: 123,
@@ -223,6 +235,42 @@ describe("developer-action transport", () => {
     ).rejects.toMatchObject<DeveloperActionError>({
       code: "INVALID_DEVELOPER_ACTION_TARGET",
     });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not resolve a mirrored target from another organization", async () => {
+    const { db, find } = dbWithIntegrations({
+      externalEntity: {
+        deletedAt: null,
+        externalKey: "github:owner/repo#123",
+        id: "entity-a",
+        number: 123,
+        organizationId: "org-b",
+        provider: "github",
+        repoFullName: "owner/repo",
+        type: "pull_request",
+        url: "https://github.com/owner/repo/pull/123",
+      },
+      integration: {
+        configStr: "{}",
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    const fetchMock = vi.fn<() => void>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      dispatchDeveloperAction(db, {
+        ...actionInput(),
+        payload: { entityId: "entity-a" },
+      })
+    ).rejects.toMatchObject<DeveloperActionError>({
+      code: "INVALID_DEVELOPER_ACTION_TARGET",
+    });
+    expect(find).toHaveBeenCalledTimes(2);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -358,6 +406,7 @@ describe("developer-action transport", () => {
   it("normalizes connector rejection and does not expose its response body", async () => {
     const { db } = dbWithIntegrations({
       externalEntity: {
+        deletedAt: null,
         externalKey: "github:owner/repo#123",
         id: "entity-a",
         number: 123,
