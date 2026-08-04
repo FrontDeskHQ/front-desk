@@ -366,7 +366,14 @@ describe("developer-action transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runDeveloperAction(db, memberRequest(), actionInput())
+      runDeveloperAction(
+        db,
+        memberRequest(),
+        actionInput({
+          action: "repository_backfill",
+          payload: { repositories: ["owner/repo"] },
+        })
+      )
     ).rejects.toThrow("CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED");
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -394,7 +401,14 @@ describe("developer-action transport", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(
-      runDeveloperAction(db, memberRequest(), actionInput())
+      runDeveloperAction(
+        db,
+        memberRequest(),
+        actionInput({
+          action: "repository_backfill",
+          payload: { repositories: ["owner/repo"] },
+        })
+      )
     ).rejects.toThrow("INSECURE_CONNECTOR_ACTION_URL");
     expect(fetchMock).not.toHaveBeenCalled();
   });
