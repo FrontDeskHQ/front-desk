@@ -71,7 +71,12 @@ const repositoryBackfillPayloadSchema = z
     organizationId: z.string().min(1),
     repositories: z.array(z.string().min(1)),
   })
-  .strict();
+  .strict()
+  .refine(
+    ({ allRepositories, repositories }) =>
+      !allRepositories || repositories.length === 0,
+    { message: "repositories must be empty when allRepositories is true" }
+  );
 
 const result = (
   status: number,
@@ -228,6 +233,10 @@ const backfillRepositories = async (
   }
 
   const { allRepositories, organizationId, repositories } = parsedPayload.data;
+  if (!allRepositories && repositories.length === 0) {
+    return result(400, "NO_REPOSITORIES_SELECTED");
+  }
+
   const configuredRepos = new Map(
     config.repos.map((repo) => [repo.fullName, repo])
   );

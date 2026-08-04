@@ -198,12 +198,11 @@ describe("GitHub developer-action handlers", () => {
         organizationId: "org-a",
       })
     );
-    expect(info).toHaveBeenCalledWith(
-      expect.stringContaining('"event":"developer_action.accepted"')
-    );
-    expect(info).toHaveBeenCalledWith(
-      expect.not.stringContaining("installationId")
-    );
+    expect(info.mock.calls).toStrictEqual([
+      [expect.stringContaining('"event":"developer_action.accepted"')],
+    ]);
+    const [message] = info.mock.calls[0] ?? [];
+    expect(message).not.toContain("installationId");
   });
 
   it.each([{ draft: true }, { state: "closed" }])(
@@ -326,6 +325,58 @@ describe("GitHub developer-action handlers", () => {
       status: 202,
     });
     expect(enqueueRepoBackfill).toHaveBeenCalledTimes(3);
+  });
+
+  it("rejects a contradictory repository selection", async () => {
+    const enqueueRepoBackfill =
+      vi.fn<GithubDeveloperActionDependencies["enqueueRepoBackfill"]>();
+    const handlers = createGithubDeveloperActionHandlers({
+      enqueueRepoBackfill,
+    });
+
+    const response = await handlers.repository_backfill(githubConfig, {
+      allRepositories: true,
+      organizationId: "org-a",
+      repositories: ["owner/repo"],
+    });
+
+    expect(response).toStrictEqual({
+      body: { error: "INVALID_SELECTION" },
+      status: 400,
+    });
+    expect(enqueueRepoBackfill).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes an empty selection from an unconfigured repository list", async () => {
+    const enqueueRepoBackfill =
+      vi.fn<GithubDeveloperActionDependencies["enqueueRepoBackfill"]>();
+    const handlers = createGithubDeveloperActionHandlers({
+      enqueueRepoBackfill,
+    });
+
+    const emptySelection = await handlers.repository_backfill(githubConfig, {
+      allRepositories: false,
+      organizationId: "org-a",
+      repositories: [],
+    });
+    const noConfiguredRepositories = await handlers.repository_backfill(
+      JSON.stringify({ installationId: 123, repos: [] }),
+      {
+        allRepositories: true,
+        organizationId: "org-a",
+        repositories: [],
+      }
+    );
+
+    expect(emptySelection).toStrictEqual({
+      body: { error: "NO_REPOSITORIES_SELECTED" },
+      status: 400,
+    });
+    expect(noConfiguredRepositories).toStrictEqual({
+      body: { error: "NO_REPOSITORIES_CONFIGURED" },
+      status: 400,
+    });
+    expect(enqueueRepoBackfill).not.toHaveBeenCalled();
   });
 
   it("returns fulfilled job IDs when a backfill is partially accepted", async () => {
