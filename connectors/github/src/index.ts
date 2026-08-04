@@ -5,6 +5,7 @@ import { startBackfillWorker } from "./jobs/backfill";
 import { startReconcileWorker } from "./jobs/reconcile";
 import { app as githubApp } from "./lib/github";
 import {
+  developerActionsRoutes,
   capabilitiesRoutes,
   connectionProbeRoutes,
   issuesRoutes,
@@ -19,6 +20,7 @@ startBackfillWorker();
 startReconcileWorker();
 
 const app = new Elysia()
+  .use(developerActionsRoutes)
   .use(capabilitiesRoutes)
   .use(connectionProbeRoutes)
   .use(issuesRoutes)
