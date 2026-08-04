@@ -23,12 +23,13 @@ export const Toolbar = () => {
   const [liveStateLogOpen, setLiveStateLogOpen] = useState(false);
   const setCommandMenuOpen = useSetAtom(commandMenuOpenAtom);
   const currentOrganization = useAtomValue(activeOrganizationAtom);
+  const organizationId = currentOrganization?.id;
   const { organizationUsers } = useOrganizationSwitcher();
   const { user } = getRouteApi("/app").useRouteContext();
 
   const hasAccess = hasDeveloperToolAccess({
     isDevelopment: import.meta.env.DEV,
-    organizationId: currentOrganization?.id,
+    organizationId,
     organizationUsers,
     user,
   });
@@ -41,7 +42,7 @@ export const Toolbar = () => {
     setHideMode(null);
   };
 
-  if (!hasAccess || hideMode === "section") {
+  if (!hasAccess || !organizationId || hideMode === "section") {
     return null;
   }
 
@@ -82,7 +83,7 @@ export const Toolbar = () => {
       <DeveloperToolsCommands
         onHideToolbar={handleHideToolbar}
         onOpenLiveStateLog={() => setLiveStateLogOpen(true)}
-        organizationId={currentOrganization?.id ?? ""}
+        organizationId={organizationId}
       />
       <ReactScan />
     </>

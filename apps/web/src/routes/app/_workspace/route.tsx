@@ -17,15 +17,21 @@ import type { schema } from "api/schema";
 import { addDays, isAfter } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 
-import { Toolbar } from "~/components/devtools/toolbar";
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { hasDeveloperToolAccess } from "~/lib/developer-tools/access";
 import { reflagClient } from "~/lib/feature-flag";
 import { useOrganizationPlan } from "~/lib/hooks/query/use-organization-plan";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { fetchClient, query } from "~/lib/live-state";
 import { createCheckoutSession } from "~/lib/server-funcs/payment";
+
+const LazyToolbar = lazy(() =>
+  import("~/components/devtools/toolbar").then(({ Toolbar }) => ({
+    default: Toolbar,
+  }))
+);
 
 export type WindowWithCachedOrgUsers = Window & {
   cachedOrgUsers?: {
@@ -79,6 +85,12 @@ function RouteComponent() {
   const posthog = usePostHog();
 
   const currentOrg = useAtomValue(activeOrganizationAtom);
+  const showDeveloperToolbar = hasDeveloperToolAccess({
+    isDevelopment: import.meta.env.DEV,
+    organizationId: currentOrg?.id,
+    organizationUsers,
+    user,
+  });
 
   useEffect(() => {
     if (user?.id) {
@@ -275,7 +287,11 @@ function RouteComponent() {
           </Dialog>
           <Outlet />
         </SidebarProvider>
-        <Toolbar />
+        {showDeveloperToolbar && (
+          <Suspense fallback={null}>
+            <LazyToolbar />
+          </Suspense>
+        )}
       </ReflagClientProvider>
     </div>
   );

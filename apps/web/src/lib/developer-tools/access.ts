@@ -4,6 +4,7 @@ export interface DeveloperToolUser {
 }
 
 export interface DeveloperToolOrganizationUser {
+  enabled: boolean;
   organizationId: string;
 }
 
@@ -45,7 +46,9 @@ export const hasDeveloperToolAccess = ({
   }
 
   const isMember = organizationUsers.some(
-    (organizationUser) => organizationUser.organizationId === organizationId
+    (organizationUser) =>
+      organizationUser.organizationId === organizationId &&
+      organizationUser.enabled
   );
   if (!isMember) {
     return false;

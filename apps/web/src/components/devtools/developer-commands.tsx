@@ -134,7 +134,7 @@ export const DeveloperToolsCommands = ({
       for (const [flagKey, flag] of Object.entries(reflagClient.getFlags())) {
         flagsState[flagKey] = {
           flagKey,
-          isEnabled: (flag.isEnabled || flag.isEnabledOverride) ?? false,
+          isEnabled: flag.isEnabledOverride ?? flag.isEnabled ?? false,
         };
       }
       setFlags(flagsState);

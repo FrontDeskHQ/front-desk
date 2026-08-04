@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { hasDeveloperToolAccess, isInternalDeveloperEmail } from "./access";
 
-const organizationUsers = [{ organizationId: "org-a" }];
+const organizationUsers = [{ enabled: true, organizationId: "org-a" }];
 
 describe("developer tool visibility", () => {
   it("matches the production internal mailbox predicate", () => {
@@ -47,7 +47,16 @@ describe("developer tool visibility", () => {
       "non-member internal user",
       {
         isDevelopment: false,
-        organizationUsers: [{ organizationId: "org-b" }],
+        organizationUsers: [{ enabled: true, organizationId: "org-b" }],
+        user: { email: "dev@tryfrontdesk.app", emailVerified: true },
+      },
+      false,
+    ],
+    [
+      "disabled production member",
+      {
+        isDevelopment: false,
+        organizationUsers: [{ enabled: false, organizationId: "org-a" }],
         user: { email: "dev@tryfrontdesk.app", emailVerified: true },
       },
       false,
@@ -57,7 +66,7 @@ describe("developer tool visibility", () => {
     string,
     {
       isDevelopment: boolean;
-      organizationUsers?: { organizationId: string }[];
+      organizationUsers?: { enabled: boolean; organizationId: string }[];
       user: { email: string; emailVerified?: boolean } | null;
     },
     boolean,

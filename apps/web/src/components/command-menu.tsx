@@ -68,6 +68,12 @@ export const CommandMenu = () => {
     }
   }, [open, resetNavigation, setSearch]);
 
+  useEffect(() => {
+    return () => {
+      setOpen(false);
+    };
+  }, [setOpen]);
+
   // Trigger animation on navigation
   useEffect(() => {
     if (prevPageIdRef.current !== currentPageId && open) {
