@@ -259,23 +259,31 @@ const backfillRepositories = async (
       })
     )
   );
-  const rejected = enqueueResults.find(
-    (enqueueResult) => enqueueResult.status === "rejected"
+  const jobIds = enqueueResults.flatMap((enqueueResult) =>
+    enqueueResult.status === "fulfilled" ? [enqueueResult.value] : []
   );
-  if (rejected) {
+  const rejectedCount = enqueueResults.length - jobIds.length;
+  const target = allRepositories ? "all" : "selected";
+
+  if (rejectedCount > 0) {
     logFailure({
       action: "repository_backfill",
-      event: "developer_action.execution_failed",
+      event: "developer_action.partial_failure",
+      jobIds,
       organizationId,
-      target: allRepositories ? "all" : "selected",
+      rejectedCount,
+      target,
     });
-    return result(500, "ACTION_FAILED");
+    if (jobIds.length === 0) {
+      return result(500, "ACTION_FAILED");
+    }
+
+    return {
+      body: { accepted: true, jobIds, partial: true, target },
+      status: 207,
+    };
   }
 
-  const jobIds = enqueueResults.map(
-    (enqueueResult) => (enqueueResult as PromiseFulfilledResult<string>).value
-  );
-  const target = allRepositories ? "all" : "selected";
   logAction({
     action: "repository_backfill",
     event: "developer_action.accepted",

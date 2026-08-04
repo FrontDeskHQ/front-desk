@@ -328,6 +328,40 @@ describe("GitHub developer-action handlers", () => {
     expect(enqueueRepoBackfill).toHaveBeenCalledTimes(3);
   });
 
+  it("returns fulfilled job IDs when a backfill is partially accepted", async () => {
+    const enqueueRepoBackfill = vi
+      .fn<GithubDeveloperActionDependencies["enqueueRepoBackfill"]>()
+      .mockImplementation(async (data) => {
+        if (data.fullName === "owner/other") {
+          throw new Error("queue unavailable");
+        }
+        return `job:${data.fullName}`;
+      });
+    const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+    const handlers = createGithubDeveloperActionHandlers({
+      enqueueRepoBackfill,
+    });
+
+    const response = await handlers.repository_backfill(githubConfig, {
+      allRepositories: false,
+      organizationId: "org-a",
+      repositories: ["owner/repo", "owner/other"],
+    });
+
+    expect(response).toStrictEqual({
+      body: {
+        accepted: true,
+        jobIds: ["job:owner/repo"],
+        partial: true,
+        target: "selected",
+      },
+      status: 207,
+    });
+    expect(error).toHaveBeenCalledWith(
+      expect.stringContaining('"event":"developer_action.partial_failure"')
+    );
+  });
+
   it("rejects foreign repositories without enqueueing any backfill", async () => {
     const enqueueRepoBackfill =
       vi.fn<GithubDeveloperActionDependencies["enqueueRepoBackfill"]>();

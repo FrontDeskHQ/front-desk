@@ -5,11 +5,11 @@ import type { ServerDB } from "@live-state/sync/server";
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
+import { buildEntityRef } from "./capability-dispatch";
 import {
   connectorRegistry,
   getConnectorInvokeSecret,
 } from "./connector-registry";
-import { buildEntityRef } from "./capability-dispatch";
 
 /**
  * Explicit developer actions known to the API. This is intentionally separate
@@ -38,6 +38,7 @@ export const developerActionAcceptedResultSchema = z
   .object({
     accepted: z.literal(true),
     jobIds: z.array(z.string().min(1)).default([]),
+    partial: z.literal(true).optional(),
     target: z.string().min(1).optional(),
   })
   .strict();

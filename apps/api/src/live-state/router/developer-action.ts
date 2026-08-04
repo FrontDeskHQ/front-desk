@@ -67,7 +67,9 @@ export const runDeveloperAction = async (
       action: input.action,
       actorUserId: actor.userId,
       connectorType: input.connectorType,
-      event: "developer_action.accepted",
+      event: result.partial
+        ? "developer_action.partially_accepted"
+        : "developer_action.accepted",
       jobIds: result.jobIds,
       organizationId: input.organizationId,
       ...(result.target ? { target: result.target } : {}),

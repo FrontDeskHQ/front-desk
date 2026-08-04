@@ -271,6 +271,47 @@ describe("developer-action transport", () => {
     });
   });
 
+  it("preserves partial repository backfill acceptance", async () => {
+    const { db } = dbWithIntegrations({
+      integration: {
+        configStr: "{}",
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<
+        (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>
+      >(
+        async () =>
+          new Response(
+            JSON.stringify({
+              accepted: true,
+              jobIds: ["backfill-job"],
+              partial: true,
+              target: "selected",
+            }),
+            { status: 207 }
+          )
+      )
+    );
+
+    const result = await dispatchDeveloperAction(db, {
+      ...actionInput({ action: "repository_backfill" }),
+      payload: { repositories: ["owner/repo"] },
+    });
+
+    expect(result).toStrictEqual({
+      accepted: true,
+      jobIds: ["backfill-job"],
+      partial: true,
+      target: "selected",
+    });
+  });
+
   it("fails safely when the integration is missing", async () => {
     const { db } = dbWithIntegrations({});
     const fetchMock = vi.fn<() => void>();
