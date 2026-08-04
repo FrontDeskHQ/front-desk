@@ -1,5 +1,5 @@
 import type { Capability } from "./capabilities";
-import { CAPABILITY_INVOKE_PATH } from "./invoke";
+import { ACTION_INVOKE_PATH, CAPABILITY_INVOKE_PATH } from "./invoke";
 import { manifests as defaultManifests } from "./manifest";
 import type { ConnectorManifest } from "./manifest";
 import { CONNECTION_PROBE_PATH } from "./probe";
@@ -10,6 +10,8 @@ export interface RegistryEntry {
   baseUrl: string;
   /** Fully-resolved URL to POST invoke envelopes to. */
   invokeUrl: string;
+  /** Fully-resolved URL to POST developer-action envelopes to. */
+  actionInvokeUrl: string;
   /**
    * Fully-resolved URL to POST connection probes to. Only meaningful when
    * `manifest.supportsConnectionProbe` is true.
@@ -56,6 +58,7 @@ export function buildRegistry(
     ).replace(/\/+$/, "");
     entries.set(manifest.type, {
       baseUrl,
+      actionInvokeUrl: `${baseUrl}${ACTION_INVOKE_PATH}`,
       invokeUrl: `${baseUrl}${CAPABILITY_INVOKE_PATH}`,
       manifest,
       probeUrl: `${baseUrl}${CONNECTION_PROBE_PATH}`,

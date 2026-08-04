@@ -18,6 +18,12 @@ export const connectorRegistry = buildRegistry();
  */
 export const connectorInvokeSecret = process.env.DISCORD_BOT_KEY ?? null;
 
+/** Read the shared connector secret at dispatch time so tests and hosts that
+ * initialize environment configuration after module loading use the same
+ * fail-closed value as the connector itself. */
+export const getConnectorInvokeSecret = (): string | null =>
+  process.env.DISCORD_BOT_KEY ?? null;
+
 /**
  * Whether the org can offer `capability`, resolved from its enabled
  * integrations via the registry. Answers "can we offer this?"; a specific
