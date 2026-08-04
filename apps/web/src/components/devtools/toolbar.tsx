@@ -1,17 +1,37 @@
 "use client";
 
+import { getRouteApi } from "@tanstack/react-router";
+import { Button } from "@workspace/ui/components/button";
+import { useAtomValue, useSetAtom } from "jotai/react";
+import { Command as CommandIcon } from "lucide-react";
 import { useState } from "react";
 
-import { DevtoolsMenu } from "./devtools-menu/devtools-menu";
+import { activeOrganizationAtom } from "~/lib/atoms";
+import { commandMenuOpenAtom } from "~/lib/commands/registry";
+import { hasDeveloperToolAccess } from "~/lib/developer-tools/access";
+import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
+
+import { DeveloperToolsCommands } from "./developer-commands";
 import { FpsMeter } from "./fps-meter";
 import { LiveStateLog } from "./live-state-log";
 import { ReactScan } from "./react-scan";
-import { ReflagFlagsMenu } from "./reflag-flags-menu";
 
 type HideMode = "temporary" | "section" | null;
 
 export const Toolbar = () => {
   const [hideMode, setHideMode] = useState<HideMode>(null);
+  const [liveStateLogOpen, setLiveStateLogOpen] = useState(false);
+  const setCommandMenuOpen = useSetAtom(commandMenuOpenAtom);
+  const currentOrganization = useAtomValue(activeOrganizationAtom);
+  const { organizationUsers } = useOrganizationSwitcher();
+  const { user } = getRouteApi("/app").useRouteContext();
+
+  const hasAccess = hasDeveloperToolAccess({
+    isDevelopment: import.meta.env.DEV,
+    organizationId: currentOrganization?.id,
+    organizationUsers,
+    user,
+  });
 
   const handleHideToolbar = (mode: "temporary" | "section") => {
     setHideMode(mode);
@@ -21,7 +41,7 @@ export const Toolbar = () => {
     setHideMode(null);
   };
 
-  if (hideMode === "section") {
+  if (!hasAccess || hideMode === "section") {
     return null;
   }
 
@@ -43,12 +63,27 @@ export const Toolbar = () => {
       <div className="w-screen h-6 bg-background-secondary border-t shrink-0 flex font-mono text-xs gap-2 items-center px-8 z-10">
         <FpsMeter />
         <div className="bg-border w-px h-4" />
-        <DevtoolsMenu onHideToolbar={handleHideToolbar} />
+        <Button
+          aria-label="Open developer tools command menu"
+          className="h-5 px-2 rounded-sm font-mono text-xs"
+          onClick={() => setCommandMenuOpen(true)}
+          size="sm"
+          variant="ghost"
+        >
+          <CommandIcon />
+          Command K
+        </Button>
         <div className="bg-border w-px h-4" />
-        <ReflagFlagsMenu />
-        <div className="bg-border w-px h-4" />
-        <LiveStateLog />
+        <LiveStateLog
+          onOpenChange={setLiveStateLogOpen}
+          open={liveStateLogOpen}
+        />
       </div>
+      <DeveloperToolsCommands
+        onHideToolbar={handleHideToolbar}
+        onOpenLiveStateLog={() => setLiveStateLogOpen(true)}
+        organizationId={currentOrganization?.id ?? ""}
+      />
       <ReactScan />
     </>
   );

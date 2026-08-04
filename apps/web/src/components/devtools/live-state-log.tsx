@@ -38,9 +38,19 @@ interface EventLogEntry {
   data?: unknown;
 }
 
-export const LiveStateLog = () => {
+interface LiveStateLogProps {
+  onOpenChange?: (open: boolean) => void;
+  open?: boolean;
+}
+
+export const LiveStateLog = ({
+  onOpenChange,
+  open: controlledOpen,
+}: LiveStateLogProps = {}) => {
   const [events, setEvents] = useState<EventLogEntry[]>([]);
-  const [isOpen, setIsOpen] = useState(false);
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const isOpen = controlledOpen ?? uncontrolledOpen;
+  const setIsOpen = onOpenChange ?? setUncontrolledOpen;
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
   const parentRef = useRef<HTMLDivElement>(null);
   const eventIdRef = useRef(0);

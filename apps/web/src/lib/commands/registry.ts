@@ -21,6 +21,7 @@ const initialState: CommandRegistryState = {
 };
 
 export const commandRegistryAtom = atom<CommandRegistryState>(initialState);
+export const commandMenuOpenAtom = atom(false);
 
 export const commandRegistryActions = {
   getAvailableCommands: (state: CommandRegistryState): Command[] => {
