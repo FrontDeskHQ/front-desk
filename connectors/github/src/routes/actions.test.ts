@@ -62,16 +62,10 @@ describe("GitHub developer-action route", () => {
 
   it("returns the connector's accepted fire-and-forget result", async () => {
     process.env.DISCORD_BOT_KEY = secret;
-    const handler = vi.fn<DeveloperActionHandler>(
-      async (config: string, payload: unknown) => {
-        expect(config).toBe('{"installationId":123}');
-        expect(payload).toStrictEqual({ target: "entity-a" });
-        return {
-          body: { accepted: true, jobIds: ["job-1"] },
-          status: 202,
-        };
-      }
-    );
+    const handler = vi.fn<DeveloperActionHandler>(async () => ({
+      body: { accepted: true, jobIds: ["job-1"] },
+      status: 202,
+    }));
     const app = new Elysia().use(
       createDeveloperActionsRoute(actionHandlers(handler))
     );
@@ -92,7 +86,9 @@ describe("GitHub developer-action route", () => {
       accepted: true,
       jobIds: ["job-1"],
     });
-    expect(handler).toHaveBeenCalledOnce();
+    expect(handler).toHaveBeenCalledExactlyOnceWith('{"installationId":123}', {
+      target: "entity-a",
+    });
   });
 
   it("normalizes handler failures", async () => {

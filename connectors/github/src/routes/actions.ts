@@ -63,7 +63,8 @@ export const createDeveloperActionsRoute = (
         const result = await handler(config, payload);
         set.status = result.status;
         return result.body;
-      } catch {
+      } catch (error) {
+        console.error("Error handling developer action:", error);
         console.error(
           JSON.stringify({
             action,
