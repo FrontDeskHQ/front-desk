@@ -94,7 +94,11 @@ const withThreadReadEnqueueLock = async <T>(
   try {
     return await operation();
   } finally {
-    await redis.eval(RELEASE_THREAD_READ_LOCK_SCRIPT, 1, lockKey, lockToken);
+    try {
+      await redis.eval(RELEASE_THREAD_READ_LOCK_SCRIPT, 1, lockKey, lockToken);
+    } catch {
+      // Lock key expires via TTL; avoid masking successful enqueue results.
+    }
   }
 };
 
