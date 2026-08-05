@@ -53,10 +53,7 @@ export const FpsMeter = () => {
   };
 
   return (
-    <div
-      aria-label={`Frames per second: ${fps}`}
-      className="flex items-center gap-1"
-    >
+    <div className="flex items-center gap-1">
       <span className="text-foreground-secondary">FPS:</span>
       <span className={getFpsColor()}>{fps}</span>
       <Sparkline

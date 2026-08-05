@@ -16,13 +16,9 @@ const WIDTH = 64;
 const HEIGHT = 18;
 const PADDING = 1;
 
-const getPoints = (
-  values: readonly number[],
-  min: number,
-  max: number,
-  pointCount: number
-) => {
+const getPoints = (values: readonly number[], min: number, max: number) => {
   const range = Math.max(max - min, 1);
+  const pointCount = values.length;
 
   return values
     .map((value, index) => {
@@ -42,7 +38,6 @@ export const Sparkline = ({ className, max, min, series }: SparklineProps) => {
   const values = series.flatMap((item) => item.values);
   const resolvedMin = min ?? Math.min(0, ...values);
   const resolvedMax = max ?? Math.max(1, ...values);
-  const pointCount = Math.max(1, ...series.map((item) => item.values.length));
 
   return (
     <svg
@@ -56,7 +51,7 @@ export const Sparkline = ({ className, max, min, series }: SparklineProps) => {
       {series.map((item, index) => (
         <polyline
           key={`${item.color}-${index}`}
-          points={getPoints(item.values, resolvedMin, resolvedMax, pointCount)}
+          points={getPoints(item.values, resolvedMin, resolvedMax)}
           stroke={item.color}
           strokeLinecap="round"
           strokeLinejoin="round"

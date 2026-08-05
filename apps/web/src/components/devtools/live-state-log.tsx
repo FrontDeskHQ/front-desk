@@ -15,7 +15,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import type { LiveStateLogEntry } from "./live-state-metrics";
-import { useLiveStateDevtools } from "./live-state-metrics";
+import { useLiveStateEvents, useLiveStateMetrics } from "./live-state-metrics";
 
 interface LiveStateLogProps {
   onOpenChange?: (open: boolean) => void;
@@ -26,7 +26,7 @@ export const LiveStateLog = ({
   onOpenChange,
   open: controlledOpen,
 }: LiveStateLogProps = {}) => {
-  const { events, metrics } = useLiveStateDevtools();
+  const events = useLiveStateEvents();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isOpen = controlledOpen ?? uncontrolledOpen;
   const setIsOpen = onOpenChange ?? setUncontrolledOpen;
@@ -198,12 +198,7 @@ export const LiveStateLog = ({
         <SheetHeader className="border-b shrink-0 px-4 py-3">
           <div className="flex items-center justify-between gap-4">
             <SheetTitle>Live State WebSocket Event Log</SheetTitle>
-            <span
-              aria-label={`Live-state totals: ${metrics.sent} sent, ${metrics.received} received, ${metrics.queryUpdates} UI updates`}
-              className="text-muted-foreground shrink-0 font-mono text-xs"
-            >
-              ↑{metrics.sent} ↓{metrics.received} UI:{metrics.queryUpdates}
-            </span>
+            <LiveStateLogTotals />
           </div>
         </SheetHeader>
         <div
@@ -297,5 +292,15 @@ export const LiveStateLog = ({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  );
+};
+
+const LiveStateLogTotals = () => {
+  const metrics = useLiveStateMetrics();
+
+  return (
+    <span className="text-muted-foreground shrink-0 font-mono text-xs">
+      ↑{metrics.sent} ↓{metrics.received} UI:{metrics.queryUpdates}
+    </span>
   );
 };

@@ -17,6 +17,7 @@ import { ulid } from "ulid";
 import { calculateDeletionDate } from "~/utils/thread";
 
 import { authClient } from "./auth-client";
+import { createLiveStateDevtoolsStore } from "./live-state-devtools-store";
 import { getLiveStateApiUrl } from "./urls";
 
 type ExternalEntityKind = "issue" | "pull_request";
@@ -649,8 +650,9 @@ const { client, store } = createClient<Router>({
 });
 
 const { query, mutate } = store;
+const liveStateDevtoolsStore = createLiveStateDevtoolsStore(client);
 
-export { client, mutate, query };
+export { client, liveStateDevtoolsStore, mutate, query };
 
 // Check this setup when it's deployed
 export const fetchClient = createFetchClient<Router>({
