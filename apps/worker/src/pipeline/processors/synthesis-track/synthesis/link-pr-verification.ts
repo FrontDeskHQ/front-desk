@@ -1,4 +1,5 @@
 import type { Action } from "@workspace/schemas/signals";
+import { extractRenderedMarkdownLinkUrls } from "@workspace/utils/markdown-links";
 import z from "zod";
 
 export interface VerifiedPrDetails {
@@ -23,43 +24,12 @@ const readPrOutputSchema = z.object({
     .optional(),
 });
 
-const fencedCodePattern =
-  /(^|\n)[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n[\s\S]*?\n[ \t]{0,3}\2[^\n]*(?:\n|$))/g;
-const indentedCodePattern = /(^|\n)(?:[ \t]{4,}[^\n]*(?:\n|$))+/g;
-const htmlCodeBlockPattern = /<(pre|code)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
-
-const maskCode = (match: string): string => match.replace(/[^\r\n]/g, " ");
-
-const maskMarkdownCode = (markdown: string): string =>
-  markdown
-    .replace(htmlCodeBlockPattern, maskCode)
-    .replace(fencedCodePattern, maskCode)
-    .replace(indentedCodePattern, maskCode)
-    .replace(/`+[^`\r\n]*`+/g, maskCode);
-
-const extractCompleteMarkdownLinkUrls = (markdown: string): string[] => {
-  const codeFreeMarkdown = maskMarkdownCode(markdown);
-  return Array.from(
-    codeFreeMarkdown.matchAll(/\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g),
-    (match) => ({
-      index: match.index ?? -1,
-      url: match[1],
-    })
-  )
-    .filter(({ index }) => {
-      const precedingCharacter = codeFreeMarkdown[index - 1];
-      return precedingCharacter !== "!" && precedingCharacter !== "\\";
-    })
-    .map(({ url }) => url)
-    .filter((url): url is string => Boolean(url));
-};
-
 /** Return true only when the recommendation contains exactly this one link. */
 export const containsOnlyCompleteMarkdownLinkToUrl = (
   markdown: string,
   url: string
 ): boolean => {
-  const linkUrls = extractCompleteMarkdownLinkUrls(markdown);
+  const linkUrls = extractRenderedMarkdownLinkUrls(markdown);
   return linkUrls.length === 1 && linkUrls[0] === url;
 };
 
