@@ -438,7 +438,7 @@
     "csstype": "^3.1.3",
   },
   "catalog": {
-    "@live-state/sync": "1.0.0-canary-2",
+    "@live-state/sync": "1.0.0-canary-3",
     "@types/react": "^19.2.3",
     "@types/react-dom": "^19.2.3",
     "better-auth": "^1.4.0",
@@ -945,7 +945,7 @@
 
     "@keyv/serialize": ["@keyv/serialize@1.1.1", "", {}, "sha512-dXn3FZhPv0US+7dtJsIi2R+c7qWYiReoEh5zUntWCf4oSpMNib8FDhSoed6m3QyZdx5hK7iLFkYk3rNxwt8vTA=="],
 
-    "@live-state/sync": ["@live-state/sync@1.0.0-canary-2", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-deep-equal": "^3.1.3", "idb": "^8.0.3", "js-xxhash": "^4.0.0", "kysely": "^0.28.2", "qs": "^6.14.0", "ws": "^8.18.0", "zod": "^4.1.9" }, "peerDependencies": { "@types/react": ">=18.0.0", "react": ">=18.0.0" }, "optionalPeers": ["@types/react", "react"] }, "sha512-xNnP4SAvmcem172am6kRPtro5yr+D35TuR+qJINYCugxAQz4VO2/K1tqz4G5H0yTcgLkXtk5Szr9xP5sCdtyPA=="],
+    "@live-state/sync": ["@live-state/sync@1.0.0-canary-3", "", { "dependencies": { "@standard-schema/spec": "^1.1.0", "fast-deep-equal": "^3.1.3", "idb": "^8.0.3", "js-xxhash": "^4.0.0", "kysely": "^0.28.2", "qs": "^6.14.0", "ws": "^8.18.0", "zod": "^4.1.9" }, "peerDependencies": { "@types/react": ">=18.0.0", "react": ">=18.0.0" }, "optionalPeers": ["@types/react", "react"] }, "sha512-1qi57rfMpQfwEpzIz1iaqtHHAg3/NbtkoMZax4MpSweQ5QkM82gGEg8vcWVH4KbyelhAQPGOeO6WixCLi+tE8g=="],
 
     "@lukeed/ms": ["@lukeed/ms@2.0.2", "", {}, "sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA=="],
 
@@ -4701,7 +4701,7 @@
 
     "@isaacs/cliui/wrap-ansi": ["wrap-ansi@8.1.0", "", { "dependencies": { "ansi-styles": "^6.1.0", "string-width": "^5.0.1", "strip-ansi": "^7.0.1" } }, "sha512-si7QWI6zUMq56bESFvagtmzMdGOtoxfR+Sez11Mobfc7tm+VkUckk9bW2UeffTGVUbOksxmSw0AA2gs8g71NCQ=="],
 
-    "@live-state/sync/zod": ["zod@4.3.5", "", {}, "sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g=="],
+    "@live-state/sync/zod": ["zod@4.4.3", "", {}, "sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ=="],
 
     "@noble/curves/@noble/hashes": ["@noble/hashes@1.8.0", "", {}, "sha512-jCs9ldd7NwzpgXDIf6P3+NrHh9/sD6CQdxHyjQI+h/6rDNo88ypBxxz45UDuZHz9r3tNz7N/VInSVoVdtXEI4A=="],
 
