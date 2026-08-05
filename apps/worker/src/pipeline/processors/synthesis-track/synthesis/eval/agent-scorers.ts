@@ -1,6 +1,7 @@
 import { sanitizeAgentReadReasoning } from "@workspace/schemas/signals";
 import { createScorer } from "evalite";
 
+import { containsCompleteMarkdownLinkToUrl } from "../link-pr-verification";
 import type { SynthesisRawActionSet } from "../synthesize";
 import type {
   SynthesisAgentEvalCase,
@@ -365,13 +366,14 @@ export const recommendationPrLink = createScorer<In, Out, Expected>({
       };
     }
 
-    const markdownLink = `](${expectedUrl})`;
-    const valid = output.raw.recommendation.includes(markdownLink);
+    const valid = containsCompleteMarkdownLinkToUrl(
+      output.raw.recommendation,
+      expectedUrl
+    );
     return {
       score: valid ? 1 : 0,
       metadata: {
         expectedUrl,
-        markdownLink,
         recommendation: output.raw.recommendation,
       },
     };

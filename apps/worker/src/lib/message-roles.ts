@@ -1,6 +1,14 @@
+import z from "zod";
+
 import { fetchClient } from "./database/client";
 
 export type MessageRole = "customer" | "agent" | "unknown";
+
+const authorRowSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  userId: z.string().nullable(),
+});
 
 export interface ResolvedMessageAuthors {
   names: Map<string, string>;
@@ -16,9 +24,16 @@ export const resolveMessageAuthors = async (
   threadAuthorId: string | null | undefined
 ): Promise<ResolvedMessageAuthors> => {
   const unique = [...new Set(authorIds.filter(Boolean))];
-  const rows = (await fetchClient.query.author.byIds({
+  const rawRows = await fetchClient.query.author.byIds({
     ids: unique,
-  })) as { id: string; name: string; userId: string | null }[];
+  });
+  const parsedRows = z.array(z.unknown()).safeParse(rawRows);
+  const rows = parsedRows.success
+    ? parsedRows.data.flatMap((row) => {
+        const parsedRow = authorRowSchema.safeParse(row);
+        return parsedRow.success ? [parsedRow.data] : [];
+      })
+    : [];
   const names = new Map<string, string>();
   const roles = new Map<string, MessageRole>();
 

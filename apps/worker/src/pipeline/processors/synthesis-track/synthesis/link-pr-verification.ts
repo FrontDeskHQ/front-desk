@@ -1,4 +1,5 @@
 import type { Action } from "@workspace/schemas/signals";
+import z from "zod";
 
 export interface VerifiedPrDetails {
   number?: number;
@@ -11,6 +12,26 @@ interface ToolStep {
     output: unknown;
   }[];
 }
+
+const readPrOutputSchema = z.object({
+  found: z.boolean().optional(),
+  pr: z
+    .object({
+      number: z.number().optional(),
+      url: z.string().optional(),
+    })
+    .optional(),
+});
+
+const escapeRegExp = (value: string): string =>
+  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** Return true only for a complete Markdown link to the exact URL. */
+export const containsCompleteMarkdownLinkToUrl = (
+  markdown: string,
+  url: string
+): boolean =>
+  new RegExp(`\\[[^\\]\\r\\n]+\\]\\(${escapeRegExp(url)}\\)`).test(markdown);
 
 /**
  * Collect verified PR metadata from successful read_pr calls. The model may
@@ -26,18 +47,15 @@ export const collectVerifiedPrDetailsFromToolSteps = (
       if (result.toolName !== "read_pr") {
         continue;
       }
-      const output = result.output as
-        | {
-            found?: boolean;
-            pr?: { number?: number; url?: string };
-          }
-        | null
-        | undefined;
-      const url = output?.found === true ? output.pr?.url?.trim() : undefined;
+      const parsedOutput = readPrOutputSchema.safeParse(result.output);
+      if (!parsedOutput.success || parsedOutput.data.found !== true) {
+        continue;
+      }
+      const url = parsedOutput.data.pr?.url?.trim();
       if (url) {
         const number =
-          output?.found === true && typeof output.pr?.number === "number"
-            ? output.pr.number
+          typeof parsedOutput.data.pr?.number === "number"
+            ? parsedOutput.data.pr.number
             : undefined;
         verified.set(url, {
           number,
@@ -78,7 +96,7 @@ export const ensureVerifiedPrRecommendationLink = (
 
   const prUrl = linkPr.prUrl.trim();
   const verifiedPr = verifiedPrs.get(prUrl);
-  if (!verifiedPr || recommendation.includes(`](${prUrl})`)) {
+  if (!verifiedPr || containsCompleteMarkdownLinkToUrl(recommendation, prUrl)) {
     return recommendation;
   }
 

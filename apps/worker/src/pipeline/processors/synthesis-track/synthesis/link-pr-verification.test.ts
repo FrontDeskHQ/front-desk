@@ -51,6 +51,18 @@ describe("verified PR recommendation links", () => {
     ).toBe(recommendation);
   });
 
+  it("repairs a malformed URL suffix without a Markdown label", () => {
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        `Link ](${prUrl}) to the thread.`,
+        linkPrPrimary,
+        verifiedPrs
+      )
+    ).toBe(
+      `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
+    );
+  });
+
   it("does not add a PR link when link_pr is not primary", () => {
     const recommendation = "Reply with an update for the customer.";
     expect(
