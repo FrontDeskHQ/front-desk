@@ -283,9 +283,7 @@ export const createLiveStateDevtoolsStore = (
 
   const handleClientEvent = (event: ClientEvents) => {
     const now = Date.now();
-    if (advanceBuckets(now)) {
-      metricsDirty = true;
-    }
+    advanceBuckets(now);
 
     switch (event.type) {
       case "MESSAGE_SENT": {
