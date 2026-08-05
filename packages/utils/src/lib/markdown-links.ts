@@ -3,9 +3,18 @@ import { visit } from "unist-util-visit";
 
 import { parseRenderedMarkdown, stringifyMarkdown } from "./markdown-render";
 
+// A quoted attribute value, which may itself contain `>`.
+const attributeValue = /"[^"]*"|'[^']*'/.source;
+// Attributes up to the tag's real closing `>`. Written as an unrolled loop
+// (run of plain chars, then quoted value, repeat) so it cannot backtrack badly.
+const tagAttributes = `[^>"']*(?:(?:${attributeValue})[^>"']*)*`;
+
 // Tag-shaped spans in literal text. Only ever applied to `text` node values,
 // never re-fed to the parser — the parse happens once, up front.
-const htmlTagPattern = /<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>|<![^>]*>/g;
+const htmlTagPattern = new RegExp(
+  `<!--[\\s\\S]*?-->|</?[A-Za-z]${tagAttributes}>|<!${tagAttributes}>`,
+  "g"
+);
 
 /**
  * Remove raw HTML tags from agent-generated Markdown, keeping their text.

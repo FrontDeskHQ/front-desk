@@ -35,6 +35,25 @@ describe(stripHtmlTagsFromMarkdown, () => {
     );
   });
 
+  it("does not end a tag at a `>` inside a quoted attribute", () => {
+    expect(
+      stripHtmlTagsFromMarkdown('<span title=">">Recommendation</span>')
+    ).toBe("Recommendation");
+    expect(
+      stripHtmlTagsFromMarkdown("<span title='a > b'>Recommendation</span>")
+    ).toBe("Recommendation");
+  });
+
+  // Tag removal must not turn literal text into live Markdown: the text is
+  // re-serialized as a text node, so remark escapes anything it would reparse.
+  it("keeps text from a raw HTML block literal after stripping its tags", () => {
+    const stripped = stripHtmlTagsFromMarkdown(
+      `<pre>\n[PR #482](${prUrl})\n</pre>`
+    );
+    expect(stripped).toBe(`\\[PR #482](${prUrl})`);
+    expect(extractRenderedMarkdownLinkUrls(stripped)).toStrictEqual([]);
+  });
+
   it("leaves tags inside code spans and fences alone", () => {
     const markdown = "Use `<span>` here.";
     expect(stripHtmlTagsFromMarkdown(markdown)).toBe(markdown);
