@@ -23,15 +23,27 @@ const readPrOutputSchema = z.object({
     .optional(),
 });
 
-const escapeRegExp = (value: string): string =>
-  value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const extractCompleteMarkdownLinkUrls = (markdown: string): string[] =>
+  Array.from(
+    markdown.matchAll(/\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g),
+    (match) => match[1]
+  ).filter((url): url is string => Boolean(url));
 
 /** Return true only for a complete Markdown link to the exact URL. */
 export const containsCompleteMarkdownLinkToUrl = (
   markdown: string,
   url: string
 ): boolean =>
-  new RegExp(`\\[[^\\]\\r\\n]+\\]\\(${escapeRegExp(url)}\\)`).test(markdown);
+  extractCompleteMarkdownLinkUrls(markdown).some((linkUrl) => linkUrl === url);
+
+/** Return true only when the recommendation contains exactly this one link. */
+export const containsOnlyCompleteMarkdownLinkToUrl = (
+  markdown: string,
+  url: string
+): boolean => {
+  const linkUrls = extractCompleteMarkdownLinkUrls(markdown);
+  return linkUrls.length === 1 && linkUrls[0] === url;
+};
 
 /**
  * Collect verified PR metadata from successful read_pr calls. The model may
@@ -88,15 +100,25 @@ export const ensureVerifiedPrRecommendationLink = (
   recommendation: string,
   primary: Action[],
   verifiedPrs: Map<string, VerifiedPrDetails>
-): string => {
+): string | null => {
   const linkPr = primary.find((action) => action.kind === "link_pr");
   if (!linkPr || linkPr.kind !== "link_pr") {
     return recommendation;
   }
 
+  const hasIncompatiblePrimaryAction = primary.some(
+    (action) => action.kind !== "link_pr" && action.kind !== "reply"
+  );
+  if (hasIncompatiblePrimaryAction) {
+    return null;
+  }
+
   const prUrl = linkPr.prUrl.trim();
   const verifiedPr = verifiedPrs.get(prUrl);
-  if (!verifiedPr || containsCompleteMarkdownLinkToUrl(recommendation, prUrl)) {
+  if (
+    !verifiedPr ||
+    containsOnlyCompleteMarkdownLinkToUrl(recommendation, prUrl)
+  ) {
     return recommendation;
   }
 

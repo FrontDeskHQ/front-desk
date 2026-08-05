@@ -63,6 +63,29 @@ describe("verified PR recommendation links", () => {
     );
   });
 
+  it("repairs recommendations that include an unverified Markdown link", () => {
+    const otherPrUrl = "https://github.com/acme/api/pull/999";
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        `Link [PR #482](${prUrl}) and [another PR](${otherPrUrl}) to the thread.`,
+        linkPrPrimary,
+        verifiedPrs
+      )
+    ).toBe(
+      `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
+    );
+  });
+
+  it("discards a primary action set the fallback cannot describe", () => {
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        `Link [PR #482](${prUrl}) and close the thread.`,
+        [...linkPrPrimary, { kind: "close" }],
+        verifiedPrs
+      )
+    ).toBeNull();
+  });
+
   it("does not add a PR link when link_pr is not primary", () => {
     const recommendation = "Reply with an update for the customer.";
     expect(

@@ -258,14 +258,27 @@ Return a single valid JSON object with exactly this shape:
     raw.alternatives ?? [],
     verifiedPrUrls
   );
+  const recommendation = ensureVerifiedPrRecommendationLink(
+    raw.recommendation,
+    filtered.primary,
+    verifiedPrDetails
+  );
+
+  // A fallback recommendation can only account for link_pr and reply. If the
+  // model bundled another primary action, discard the set rather than showing
+  // a recommendation that hides an action the agent would still execute.
+  if (recommendation === null) {
+    return {
+      ...raw,
+      alternatives: [],
+      primary: [],
+    };
+  }
+
   return {
     ...raw,
     alternatives: filtered.alternatives,
     primary: filtered.primary,
-    recommendation: ensureVerifiedPrRecommendationLink(
-      raw.recommendation,
-      filtered.primary,
-      verifiedPrDetails
-    ),
+    recommendation,
   };
 };
