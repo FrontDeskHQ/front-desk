@@ -1,17 +1,25 @@
+import type { Action } from "@workspace/schemas/signals";
+
+export interface VerifiedPrDetails {
+  number?: number;
+  url: string;
+}
+
+interface ToolStep {
+  toolResults: {
+    toolName: string;
+    output: unknown;
+  }[];
+}
+
 /**
- * Collect PR URLs that were successfully returned by `read_pr` tool calls.
- * Only these URLs may appear in emitted `link_pr` actions — prompt instructions
- * alone are not a trust boundary (prompt injection / model bypass).
+ * Collect verified PR metadata from successful read_pr calls. The model may
+ * only link URLs returned by this trust-boundary lookup.
  */
-export const collectVerifiedPrUrlsFromToolSteps = (
-  steps: {
-    toolResults: {
-      toolName: string;
-      output: unknown;
-    }[];
-  }[]
-): Set<string> => {
-  const verified = new Set<string>();
+export const collectVerifiedPrDetailsFromToolSteps = (
+  steps: ToolStep[]
+): Map<string, VerifiedPrDetails> => {
+  const verified = new Map<string, VerifiedPrDetails>();
 
   for (const step of steps) {
     for (const result of step.toolResults) {
@@ -19,17 +27,70 @@ export const collectVerifiedPrUrlsFromToolSteps = (
         continue;
       }
       const output = result.output as
-        | { found?: boolean; pr?: { url?: string } }
+        | {
+            found?: boolean;
+            pr?: { number?: number; url?: string };
+          }
         | null
         | undefined;
       const url = output?.found === true ? output.pr?.url?.trim() : undefined;
       if (url) {
-        verified.add(url);
+        const number =
+          output?.found === true && typeof output.pr?.number === "number"
+            ? output.pr.number
+            : undefined;
+        verified.set(url, {
+          number,
+          url,
+        });
       }
     }
   }
 
   return verified;
+};
+
+/**
+ * Collect PR URLs that were successfully returned by `read_pr` tool calls.
+ * Only these URLs may appear in emitted `link_pr` actions — prompt instructions
+ * alone are not a trust boundary (prompt injection / model bypass).
+ */
+export const collectVerifiedPrUrlsFromToolSteps = (
+  steps: ToolStep[]
+): Set<string> => {
+  return new Set(collectVerifiedPrDetailsFromToolSteps(steps).keys());
+};
+
+/**
+ * Ensure a primary link_pr recommendation contains the exact verified PR
+ * Markdown link that RichMarkdown turns into a PR chip. If the model omitted
+ * or mismatched the link, use a conservative action-aligned fallback.
+ */
+export const ensureVerifiedPrRecommendationLink = (
+  recommendation: string,
+  primary: Action[],
+  verifiedPrs: Map<string, VerifiedPrDetails>
+): string => {
+  const linkPr = primary.find((action) => action.kind === "link_pr");
+  if (!linkPr || linkPr.kind !== "link_pr") {
+    return recommendation;
+  }
+
+  const prUrl = linkPr.prUrl.trim();
+  const verifiedPr = verifiedPrs.get(prUrl);
+  if (!verifiedPr || recommendation.includes(`](${prUrl})`)) {
+    return recommendation;
+  }
+
+  const prLabel = verifiedPr.number
+    ? `PR #${verifiedPr.number}`
+    : "pull request";
+  const prLink = `[${prLabel}](${prUrl})`;
+  const hasReply = primary.some((action) => action.kind === "reply");
+
+  return hasReply
+    ? `Link ${prLink} to the thread and reply to tell the customer that engineering is working on the fix.`
+    : `Link ${prLink} to the thread.`;
 };
 
 /** Drop `link_pr` actions whose `prUrl` was not returned by a successful `read_pr`. */

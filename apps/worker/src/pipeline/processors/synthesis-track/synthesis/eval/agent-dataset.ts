@@ -51,6 +51,8 @@ export interface SynthesisAgentEvalCase {
     allowEmptyPrimary?: boolean;
     requiresReplyDraft: boolean;
     replyMustContainAny?: string[];
+    replyMustContainAll?: string[];
+    replyMustStartWith?: string;
     minToolCalls?: {
       read_thread?: number;
       read_pr?: number;
@@ -836,10 +838,20 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
       expectedLinkPrUrl: "https://github.com/acme/api/pull/511",
       minToolCalls: { read_pr: 1 },
       mustIncludePrimaryKinds: ["link_pr", "reply"],
+      replyMustContainAll: ["engineering", "working on", "let you know"],
+      replyMustStartWith: "Hi Alex Rivera,",
       requiresReplyDraft: true,
+      forbiddenReplyPhrases: [
+        "we've identified a fix",
+        "we've linked the relevant pull request",
+        "the issue is fixed",
+        "the issue is resolved",
+        "should be available soon",
+      ],
     },
     input: {
       hasTeamReply: false,
+      customerName: "Alex Rivera",
       hints: {},
       sourceInputMessageId: "t18m1",
       summary: {

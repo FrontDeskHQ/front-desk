@@ -14,6 +14,7 @@ import {
   forbiddenPrimaryKinds,
   minimumToolCalls,
   nonEmptyPrimaryWhenExpected,
+  recommendationPrLink,
   reasoningUserSafe,
   replyFactualityGuard,
   replySubstance,
@@ -132,6 +133,7 @@ evalite("Synthesis Agent (Model In Loop)", {
     unrepliedThreadReplyCoupling,
     atMostOneLinkPr,
     expectedLinkPrUrl,
+    recommendationPrLink,
   ],
   task: async (input) => {
     const start = Date.now();
