@@ -46,7 +46,7 @@ A unit of work in the pipeline with declared dependencies, run in dependency ord
 
 ### Trigger
 
-The cause of a pipeline run, and an _orthogonal_ input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes the candidate [external pull request](#external-pull-request)), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: _what detectors found_ (hints) and _why I am running, with what_ (trigger). The trigger kind also drives which hints are invalidated and recomputed.
+One cause of a pipeline run, and an _orthogonal_ input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes a candidate [external pull request](#external-pull-request)), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: _what detectors found_ (hints) and _why I am running, with what_ (triggers). A thread-read job carries a collection of triggers so causes and multiple matched pull requests survive coalescing. Trigger kinds also drive which hints are invalidated and recomputed.
 
 `pr_matched` is **not** an authoritative link. It fires when a newly observed [external pull request](#external-pull-request) is found similar to one or more [threads](#thread) (e.g. embedding search); synthesis still decides whether to propose `link_pr`. Deterministic linking (e.g. a FrontDesk thread URL already present on the PR) is a separate path that does not produce a [thread read](#thread-read).
 

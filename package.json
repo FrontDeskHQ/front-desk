@@ -28,7 +28,7 @@
     "build": "turbo build",
     "lint": "bunx --bun ultracite check",
     "lint:fix": "bunx --bun ultracite fix",
-    "test": "turbo test --filter=github --filter=api",
+    "test": "bun run --filter github --filter api --filter worker --filter @workspace/queue --filter @workspace/schemas test",
     "format": "bunx --bun ultracite fix",
     "typecheck": "turbo typecheck",
     "dev": "turbo dev"

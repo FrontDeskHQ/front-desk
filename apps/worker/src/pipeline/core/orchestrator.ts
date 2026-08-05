@@ -85,7 +85,8 @@ const executeProcessor = async (
     if (
       dependencies.length > 0 &&
       context.wereAllProcessorsSkipped(dependencies, threadId) &&
-      !processor.runsWhenDependenciesSkipped?.({ context, thread, threadId })
+      !processor.runsWhenDependenciesSkipped?.({ context, thread, threadId }) &&
+      !processor.runsOnTrigger?.({ context, thread, threadId })
     ) {
       threadsWithAllDepsSkipped.push(threadId);
     } else {
@@ -167,6 +168,15 @@ const executeProcessor = async (
   }[] = [];
 
   for (const item of threadsToCheck) {
+    const execContext: ProcessorExecuteContext = {
+      context,
+      thread: item.thread,
+      threadId: item.threadId,
+    };
+    if (processor.runsOnTrigger?.(execContext)) {
+      toProcess.push(item);
+      continue;
+    }
     const shouldSkip = shouldSkipMap.get(item.key);
     if (shouldSkip) {
       results.push({
@@ -261,7 +271,7 @@ export const executePipeline = async (
     input: {
       requestedThreadCount: input.threadIds.length,
       threadIds: input.threadIds,
-      triggerKind: input.trigger?.kind,
+      triggerKinds: input.triggers?.map((trigger) => trigger.kind),
       concurrency,
     },
     options,

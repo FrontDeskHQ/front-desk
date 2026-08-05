@@ -84,7 +84,16 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     requireInternalApiKey(req.context);
 
     const { organizationId, externalKey, matches } = req.input;
-    if (matches.length === 0) return { enqueued: 0 };
+    const dispositions = {
+      buffered: 0,
+      coalesced: 0,
+      scheduled: 0,
+      skipped: 0,
+    };
+    let unavailable = 0;
+    if (matches.length === 0) {
+      return { dispositions, enqueued: 0, unavailable };
+    }
 
     // A candidate can be repeated when retrieval or reranking is composed from
     // multiple sources. Keep one score per thread before the authoritative DB
@@ -113,7 +122,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     // PR that went gone (closed-and-deleted / transferred out) or flipped to
     // closed / draft since the match ran is dropped rather than fanned out.
     if (!pr || pr.state !== "open" || pr.draft === true) {
-      return { enqueued: 0 };
+      return { dispositions, enqueued: 0, unavailable };
     }
 
     const threads = new Map(
@@ -127,7 +136,6 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       ).map((thread) => [thread.id, thread])
     );
 
-    let enqueued = 0;
     for (const { threadId, score } of uniqueMatches) {
       const thread = threads.get(threadId);
       // Skip threads that are gone, archived, closed/resolved, or already
@@ -141,7 +149,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         continue;
       }
 
-      const jobId = await enqueueThreadRead(threadId, {
+      const result = await enqueueThreadRead(threadId, {
         kind: "pr_matched",
         prMatched: {
           prId: pr.id,
@@ -150,10 +158,22 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           score,
         },
       });
-      if (jobId) enqueued += 1;
+      if (
+        result.reason === "queue_unavailable" &&
+        result.disposition !== "buffered"
+      ) {
+        unavailable += 1;
+      } else {
+        dispositions[result.disposition] += 1;
+      }
     }
 
-    return { enqueued };
+    return {
+      dispositions,
+      enqueued:
+        dispositions.scheduled + dispositions.coalesced + dispositions.buffered,
+      unavailable,
+    };
   }),
 
   /**

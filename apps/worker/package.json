@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "bun run --watch src/worker.ts",
     "start": "NODE_ENV=production bun run src/worker.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "eval:prepare": "bun run src/evals/thread-similarity.prepare.ts",
     "eval:labels": "evalite src/pipeline/processors/inline-track/label/eval/label.eval.ts",
@@ -19,6 +20,7 @@
     "@ai-sdk/google": "^3.0.13",
     "@live-state/sync": "catalog:",
     "@qdrant/js-client-rest": "^1.16.2",
+    "@workspace/queue": "workspace:*",
     "@workspace/schemas": "workspace:*",
     "@workspace/utils": "workspace:*",
     "ai": "^6.0.174",
@@ -31,7 +33,8 @@
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "dotenv": "^16.6.1"
+    "dotenv": "^16.6.1",
+    "vitest": "^4.0.0"
   },
   "peerDependencies": {
     "typescript": "^5"

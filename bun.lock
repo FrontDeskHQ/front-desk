@@ -33,6 +33,7 @@
         "@trigger.dev/sdk": "4.3.3",
         "@wll8/express-ws": "^1.0.6",
         "@workspace/emails": "workspace:*",
+        "@workspace/queue": "workspace:*",
         "@workspace/schemas": "workspace:*",
         "@workspace/utils": "workspace:*",
         "ai": "^6.0.33",
@@ -185,6 +186,7 @@
         "@ai-sdk/google": "^3.0.13",
         "@live-state/sync": "catalog:",
         "@qdrant/js-client-rest": "^1.16.2",
+        "@workspace/queue": "workspace:*",
         "@workspace/schemas": "workspace:*",
         "@workspace/utils": "workspace:*",
         "ai": "^6.0.174",
@@ -198,6 +200,7 @@
       "devDependencies": {
         "@types/bun": "latest",
         "dotenv": "^16.6.1",
+        "vitest": "^4.0.0",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -310,11 +313,28 @@
         "react-email": "4.3.0",
       },
     },
+    "packages/queue": {
+      "name": "@workspace/queue",
+      "version": "1.0.0",
+      "dependencies": {
+        "@workspace/schemas": "workspace:*",
+        "bullmq": "^5.0.0",
+        "ioredis": "^5.3.2",
+        "zod": "catalog:",
+      },
+      "devDependencies": {
+        "@types/node": "^22.15.3",
+        "vitest": "^4.0.0",
+      },
+    },
     "packages/schemas": {
       "name": "@workspace/schemas",
       "version": "1.0.0",
       "dependencies": {
         "zod": "catalog:",
+      },
+      "devDependencies": {
+        "vitest": "^4.0.0",
       },
     },
     "packages/ui": {
@@ -2064,6 +2084,8 @@
     "@wll8/express-ws": ["@wll8/express-ws@1.0.6", "", { "dependencies": { "@types/express": "^4.17.13", "@types/ws": "8.5.3", "path-to-regexp": "0.1.7", "ws": "7.5.5" } }, "sha512-SvMVWwugfMI13hfKmsl4grJ7ZqHo94y1L4E9Ov7SvzkZtCs89BUE+cJ2+79DiS5P5Lcd28TXQH1H6H511qTHeg=="],
 
     "@workspace/emails": ["@workspace/emails@workspace:packages/emails"],
+
+    "@workspace/queue": ["@workspace/queue@workspace:packages/queue"],
 
     "@workspace/schemas": ["@workspace/schemas@workspace:packages/schemas"],
 

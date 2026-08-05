@@ -101,3 +101,22 @@ export const fetchThreadsWithRelations = async (
 
   return threads;
 };
+
+/** Clear a superseded read without invoking synthesis. */
+export const clearThreadAgentRead = async (
+  threadId: string
+): Promise<boolean> => {
+  // Do not use fetchThreadWithRelations here: it deliberately degrades API
+  // failures to null for read-only pipeline hydration. A supersede is a write
+  // effect, so transport failures must reject the BullMQ job and be retried.
+  const thread = (await fetchClient.query.thread.byIds({ ids: [threadId] }))[0];
+  if (!thread) {
+    return false;
+  }
+  await fetchClient.mutate.thread.setAgentRead({
+    agentRead: null,
+    organizationId: thread.organizationId,
+    threadId,
+  });
+  return true;
+};

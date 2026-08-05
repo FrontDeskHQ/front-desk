@@ -12,9 +12,13 @@
     "./signals": "./src/signals.ts"
   },
   "scripts": {
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "vitest": "^4.0.0"
   }
 }

@@ -46,7 +46,7 @@ export interface PipelineJobInput {
    * `pr_matched` candidate distinctly from pull-side hint evidence. Batch-level
    * because the worker enqueues one thread per job.
    */
-  trigger?: ThreadReadTrigger;
+  triggers?: ThreadReadTrigger[];
 }
 
 export interface ProcessorExecuteContext {
@@ -77,6 +77,13 @@ export interface ProcessorDefinition<TOutput = unknown> {
    * linking a PR does not change the embedding its `embed` dependency produces).
    */
   runsWhenDependenciesSkipped?(context: ProcessorExecuteContext): boolean;
+
+  /**
+   * Explicit causes are ephemeral inputs, while idempotency stores only hashes.
+   * Return true to run even when the stored hash matches so downstream
+   * processors receive an output value for this pipeline execution.
+   */
+  runsOnTrigger?(context: ProcessorExecuteContext): boolean;
 
   execute(context: ProcessorExecuteContext): Promise<ProcessorResult<TOutput>>;
 }
