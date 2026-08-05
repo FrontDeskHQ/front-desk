@@ -114,6 +114,7 @@ export const DuplicateThreadMenuItem = () => {
 
   return (
     <MenuItem
+      disabled={!rawParam}
       onClick={handleDuplicateThread}
       aria-label="Duplicate current thread (title, first message and author)"
     >
