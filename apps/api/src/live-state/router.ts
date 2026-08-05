@@ -959,17 +959,17 @@ export const router = createRouter({
           }
 
           // Repeat submissions update the existing qualification data and do
-          // not create another notification. Discord delivery is best-effort;
-          // the waitlist signup has already been persisted successfully.
+          // not create another notification. Discord delivery is best-effort
+          // and detached so it cannot delay the successful signup response.
           if (createdAt) {
-            try {
-              await notifyWaitlistSignup({ ...fields, createdAt });
-            } catch (error) {
-              console.error(
-                "Failed to notify Discord about waitlist signup:",
-                error
-              );
-            }
+            void notifyWaitlistSignup({ ...fields, createdAt }).catch(
+              (error) => {
+                console.error(
+                  "Failed to notify Discord about waitlist signup:",
+                  error
+                );
+              }
+            );
           }
 
           return { success: true };
