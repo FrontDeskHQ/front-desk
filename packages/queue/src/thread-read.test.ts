@@ -9,14 +9,26 @@ import type {
 } from "./thread-read";
 
 class FakeRedis implements ThreadReadRedisAdapter {
+  private readonly expiries = new Map<string, number>();
   failLockForThreadIds = new Set<string>();
   failNextGet = false;
   onGet?: (key: string) => void;
   readonly values = new Map<string, string>();
 
+  private live(key: string): boolean {
+    const expiry = this.expiries.get(key);
+    if (expiry !== undefined && expiry <= Date.now()) {
+      this.expiries.delete(key);
+      this.values.delete(key);
+      return false;
+    }
+    return this.values.has(key);
+  }
+
   async del(...keys: string[]): Promise<number> {
     let removed = 0;
     for (const key of keys) {
+      this.expiries.delete(key);
       removed += this.values.delete(key) ? 1 : 0;
     }
     return removed;
@@ -29,6 +41,9 @@ class FakeRedis implements ThreadReadRedisAdapter {
   ): Promise<unknown> {
     const keys = args.slice(0, numberOfKeys).map(String);
     const argv = args.slice(numberOfKeys).map(String);
+    for (const key of keys) {
+      this.live(key);
+    }
     if (numberOfKeys === 3 && argv.length === 1) {
       const [pending, claimed, lock] = keys;
       if (!(pending && claimed && lock)) return null;
@@ -56,6 +71,7 @@ class FakeRedis implements ThreadReadRedisAdapter {
       if (this.values.get(claimed) !== argv[2]) return -3;
       this.values.set(pending, argv[3] ?? "");
       this.values.delete(claimed);
+      this.expiries.delete(claimed);
       return 1;
     }
 
@@ -80,16 +96,20 @@ class FakeRedis implements ThreadReadRedisAdapter {
       if (this.values.get(lock) !== argv[0]) return -1;
       if (this.values.get(claimed) !== argv[1]) return 0;
       this.values.delete(claimed);
+      this.expiries.delete(claimed);
       return 1;
     }
 
     const [key] = keys;
     if (!key) return 0;
     if (argv.length === 2) {
-      return this.values.get(key) === argv[0] ? 1 : 0;
+      if (this.values.get(key) !== argv[0]) return 0;
+      this.expiries.set(key, Date.now() + Number(argv[1]));
+      return 1;
     }
     if (this.values.get(key) === argv[0]) {
       this.values.delete(key);
+      this.expiries.delete(key);
       return 1;
     }
     return 0;
@@ -100,7 +120,7 @@ class FakeRedis implements ThreadReadRedisAdapter {
       this.failNextGet = false;
       throw new Error("redis unavailable");
     }
-    const value = this.values.get(key) ?? null;
+    const value = this.live(key) ? (this.values.get(key) ?? null) : null;
     this.onGet?.(key);
     return value;
   }
@@ -119,6 +139,9 @@ class FakeRedis implements ThreadReadRedisAdapter {
     _count: number
   ): Promise<[string, string[]]> {
     const prefix = pattern.endsWith("*") ? pattern.slice(0, -1) : pattern;
+    for (const key of this.values.keys()) {
+      this.live(key);
+    }
     return [
       "0",
       [...this.values.keys()].filter((key) => key.startsWith(prefix)),
@@ -130,6 +153,7 @@ class FakeRedis implements ThreadReadRedisAdapter {
     value: string,
     ...args: (string | number)[]
   ): Promise<unknown> {
+    this.live(key);
     if (
       args.includes("NX") &&
       [...this.failLockForThreadIds].some((threadId) => key.endsWith(threadId))
@@ -138,6 +162,13 @@ class FakeRedis implements ThreadReadRedisAdapter {
     }
     if (args.includes("NX") && this.values.has(key)) return null;
     this.values.set(key, value);
+    const pxIndex = args.indexOf("PX");
+    const ttl = pxIndex === -1 ? undefined : args[pxIndex + 1];
+    if (typeof ttl === "number") {
+      this.expiries.set(key, Date.now() + ttl);
+    } else {
+      this.expiries.delete(key);
+    }
     return "OK";
   }
 }
@@ -566,7 +597,9 @@ describe(ThreadReadQueueManager, () => {
 
     const slowEnqueue = manager.enqueue("t1", [prTrigger("pr-1")]);
     await vi.advanceTimersByTimeAsync(31_000);
-    expect(redis.values.has("frontdesk:thread-read-enqueue:t1")).toBeTruthy();
+    await expect(
+      redis.get("frontdesk:thread-read-enqueue:t1")
+    ).resolves.not.toBeNull();
 
     let newerSettled = false;
     const newerEnqueue = manager
