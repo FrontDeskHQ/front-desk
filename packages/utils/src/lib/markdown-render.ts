@@ -1,7 +1,6 @@
-import type { Root, RootContent } from "mdast";
+import type { Root } from "mdast";
 import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
-import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { visit } from "unist-util-visit";
 
@@ -12,7 +11,7 @@ import { visit } from "unist-util-visit";
  * never interpreted as markup.
  *
  * Anything that reasons about what the reader will actually see — link
- * validation, sanitization, eval scoring — must parse Markdown the same way, or
+ * validation, eval scoring — must parse Markdown the same way, or
  * it will disagree with the UI. This plugin is that shared behaviour; build
  * pipelines from the helpers below rather than hand-rolling a parser.
  *
@@ -33,8 +32,6 @@ const mdastPipeline = unified()
   .use(remarkGfm)
   .use(remarkHtmlAsText);
 
-const markdownStringifier = unified().use(remarkStringify).use(remarkGfm);
-
 /**
  * Parse Markdown into the mdast tree the UI renders. Raw HTML is already
  * flattened to text, and code spans/fences are `inlineCode`/`code` nodes, so
@@ -42,7 +39,3 @@ const markdownStringifier = unified().use(remarkStringify).use(remarkGfm);
  */
 export const parseRenderedMarkdown = (markdown: string): Root =>
   mdastPipeline.runSync(mdastPipeline.parse(markdown)) as Root;
-
-/** Serialize an mdast tree back to Markdown. */
-export const stringifyMarkdown = (children: RootContent[]): string =>
-  markdownStringifier.stringify({ children, type: "root" } as Root).trim();

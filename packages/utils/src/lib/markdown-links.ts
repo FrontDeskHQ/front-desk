@@ -1,46 +1,7 @@
 import type { Root } from "mdast";
 import { visit } from "unist-util-visit";
 
-import { parseRenderedMarkdown, stringifyMarkdown } from "./markdown-render";
-
-// A quoted attribute value, which may itself contain `>`.
-const attributeValue = /"[^"]*"|'[^']*'/.source;
-// Attributes up to the tag's real closing `>`. Written as an unrolled loop
-// (run of plain chars, then quoted value, repeat) so it cannot backtrack badly.
-const tagAttributes = `[^>"']*(?:(?:${attributeValue})[^>"']*)*`;
-
-// Tag-shaped spans in literal text. Only ever applied to `text` node values,
-// never re-fed to the parser — the parse happens once, up front.
-const htmlTagPattern = new RegExp(
-  `<!--[\\s\\S]*?-->|</?[A-Za-z]${tagAttributes}>|<!${tagAttributes}>`,
-  "g"
-);
-
-/**
- * Remove raw HTML tags from agent-generated Markdown, keeping their text.
- *
- * The UI shows raw HTML as literal text (see `remarkHtmlAsText`), so unstripped
- * markup reaches the reader as visible `<span>` noise. Tags inside code spans
- * and fences are left alone — those render as code and are meant to be literal.
- */
-export const stripHtmlTagsFromMarkdown = (markdown: string): string => {
-  const tree = parseRenderedMarkdown(markdown);
-  let changed = false;
-
-  visit(tree, "text", (node) => {
-    const stripped = node.value.replace(htmlTagPattern, "");
-    if (stripped !== node.value) {
-      changed = true;
-      node.value = stripped;
-    }
-  });
-
-  if (!changed) {
-    return markdown;
-  }
-
-  return stringifyMarkdown(tree.children);
-};
+import { parseRenderedMarkdown } from "./markdown-render";
 
 export interface RenderedMarkdownLink {
   /** Offset of the link's first character in the source Markdown. */
