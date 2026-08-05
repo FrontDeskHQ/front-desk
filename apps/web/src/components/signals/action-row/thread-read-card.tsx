@@ -687,7 +687,11 @@ export function ThreadReadCard({ thread, ctx }: Props) {
                 stretchEnd={TREE_ROW_GAP_PX}
               />
             ) : (
-              <TreeJoin isLast stretchStart={TREE_ROW_GAP_PX} />
+              <TreeJoin
+                isLast
+                stretchStart={TREE_ROW_GAP_PX}
+                className="h-8 self-start"
+              />
             )}
             <div className={cn(treeContentClassName, "items-start")}>
               <RichMarkdown
@@ -703,7 +707,11 @@ export function ThreadReadCard({ thread, ctx }: Props) {
           </div>
           {read.recommendation ? (
             <div className={cn(treeRowClassName, "items-start")}>
-              <TreeJoin isLast stretchStart={TREE_ROW_GAP_PX} />
+              <TreeJoin
+                isLast
+                stretchStart={TREE_ROW_GAP_PX}
+                className="h-8 self-start"
+              />
               <div className={cn(treeContentClassName, "items-start")}>
                 <RichMarkdown
                   content={read.recommendation}

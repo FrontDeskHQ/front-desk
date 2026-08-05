@@ -226,19 +226,23 @@ function useInlineChipSpacing() {
   return { hasLeadingSpace, hasTrailingSpace, ref };
 }
 
+/** Sizes the chip to the surrounding line box (parent `1lh`), not the chip's own text-xs lh. */
+const inlineChipSlotClassName =
+  "inline-flex h-[1lh] items-center align-middle";
+
 export function PrChipInline(props: GithubEntityChipInlineProps) {
   const { ref, hasLeadingSpace, hasTrailingSpace } = useInlineChipSpacing();
 
   return (
-    <span ref={ref} className="contents">
-      <PrChip
-        {...props}
-        className={cn(
-          "inline-flex mb-0 translate-y-0.5",
-          hasLeadingSpace && "ml-px",
-          hasTrailingSpace && "mr-px"
-        )}
-      />
+    <span
+      ref={ref}
+      className={cn(
+        inlineChipSlotClassName,
+        hasLeadingSpace && "ml-px",
+        hasTrailingSpace && "mr-px"
+      )}
+    >
+      <PrChip {...props} className="mb-0 h-full" />
     </span>
   );
 }
@@ -247,15 +251,15 @@ export function IssueChipInline(props: GithubEntityChipInlineProps) {
   const { ref, hasLeadingSpace, hasTrailingSpace } = useInlineChipSpacing();
 
   return (
-    <span ref={ref} className="contents">
-      <IssueChip
-        {...props}
-        className={cn(
-          "inline-flex mb-0 translate-y-0.5",
-          hasLeadingSpace && "ml-px",
-          hasTrailingSpace && "mr-px"
-        )}
-      />
+    <span
+      ref={ref}
+      className={cn(
+        inlineChipSlotClassName,
+        hasLeadingSpace && "ml-px",
+        hasTrailingSpace && "mr-px"
+      )}
+    >
+      <IssueChip {...props} className="mb-0 h-full" />
     </span>
   );
 }
@@ -272,34 +276,24 @@ export function ThreadMention({ where }: { where: Record<string, unknown> }) {
     })
   );
 
-  const ref = useRef<HTMLSpanElement>(null);
-  const [hasLeadingSpace, setHasLeadingSpace] = useState(false);
-  const [hasTrailingSpace, setHasTrailingSpace] = useState(false);
-
-  useLayoutEffect(() => {
-    const prev = ref.current?.previousSibling;
-    setHasLeadingSpace(
-      prev?.nodeType === Node.TEXT_NODE && /\s$/.test(prev.textContent ?? "")
-    );
-    const next = ref.current?.nextSibling;
-    setHasTrailingSpace(
-      next?.nodeType === Node.TEXT_NODE && /^\s/.test(next.textContent ?? "")
-    );
-  }, []);
+  const { ref, hasLeadingSpace, hasTrailingSpace } = useInlineChipSpacing();
 
   if (!thread || !!thread.deletedAt) {
     return null;
   }
 
   return (
-    <span ref={ref} className="contents">
+    <span
+      ref={ref}
+      className={cn(
+        inlineChipSlotClassName,
+        hasLeadingSpace && "ml-px",
+        hasTrailingSpace && "mr-px"
+      )}
+    >
       <ThreadChipWithSummary
         thread={thread}
-        className={cn(
-          "inline-flex mb-0 -translate-y-0.5",
-          hasLeadingSpace && "ml-px",
-          hasTrailingSpace && "mr-px"
-        )}
+        className="mb-0 h-full"
         render={
           <Link
             to="/app/threads/$id"
