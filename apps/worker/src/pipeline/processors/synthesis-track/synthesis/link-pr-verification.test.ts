@@ -76,6 +76,26 @@ describe("verified PR recommendation links", () => {
     );
   });
 
+  it.each([
+    `![PR #482](${prUrl})`,
+    `\`[PR #482](${prUrl})\``,
+    `~~~markdown\n[PR #482](${prUrl})\n~~~`,
+    `    [PR #482](${prUrl})`,
+  ])(
+    "repairs a verified URL used outside an anchor link: %s",
+    (recommendation) => {
+      expect(
+        ensureVerifiedPrRecommendationLink(
+          recommendation,
+          linkPrPrimary,
+          verifiedPrs
+        )
+      ).toBe(
+        `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
+      );
+    }
+  );
+
   it("discards a primary action set the fallback cannot describe", () => {
     expect(
       ensureVerifiedPrRecommendationLink(

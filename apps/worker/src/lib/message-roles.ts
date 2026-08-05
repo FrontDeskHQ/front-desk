@@ -38,9 +38,6 @@ export const resolveMessageAuthors = async (
   const roles = new Map<string, MessageRole>();
 
   for (const row of rows) {
-    if (!row) {
-      continue;
-    }
     if (row.name.trim()) {
       names.set(row.id, row.name);
     }

@@ -23,18 +23,32 @@ const readPrOutputSchema = z.object({
     .optional(),
 });
 
-const extractCompleteMarkdownLinkUrls = (markdown: string): string[] =>
-  Array.from(
-    markdown.matchAll(/\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g),
-    (match) => match[1]
-  ).filter((url): url is string => Boolean(url));
+const fencedCodePattern =
+  /(^|\n)[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n[\s\S]*?(?:\n[ \t]{0,3}\2[ \t]*(?:\n|$)|$)|$)/g;
+const indentedCodePattern = /(^|\n)(?:[ \t]{4,}[^\n]*(?:\n|$))+/g;
 
-/** Return true only for a complete Markdown link to the exact URL. */
-export const containsCompleteMarkdownLinkToUrl = (
-  markdown: string,
-  url: string
-): boolean =>
-  extractCompleteMarkdownLinkUrls(markdown).some((linkUrl) => linkUrl === url);
+const maskMarkdownCode = (markdown: string): string =>
+  markdown
+    .replace(fencedCodePattern, (match) => " ".repeat(match.length))
+    .replace(indentedCodePattern, (match) => " ".repeat(match.length))
+    .replace(/`+[^`\r\n]*`+/g, (match) => " ".repeat(match.length));
+
+const extractCompleteMarkdownLinkUrls = (markdown: string): string[] => {
+  const codeFreeMarkdown = maskMarkdownCode(markdown);
+  return Array.from(
+    codeFreeMarkdown.matchAll(/\[[^\]\r\n]+\]\(([^)\r\n]+)\)/g),
+    (match) => ({
+      index: match.index ?? -1,
+      url: match[1],
+    })
+  )
+    .filter(({ index }) => {
+      const precedingCharacter = codeFreeMarkdown[index - 1];
+      return precedingCharacter !== "!" && precedingCharacter !== "\\";
+    })
+    .map(({ url }) => url)
+    .filter((url): url is string => Boolean(url));
+};
 
 /** Return true only when the recommendation contains exactly this one link. */
 export const containsOnlyCompleteMarkdownLinkToUrl = (
@@ -65,10 +79,7 @@ export const collectVerifiedPrDetailsFromToolSteps = (
       }
       const url = parsedOutput.data.pr?.url?.trim();
       if (url) {
-        const number =
-          typeof parsedOutput.data.pr?.number === "number"
-            ? parsedOutput.data.pr.number
-            : undefined;
+        const number = parsedOutput.data.pr?.number;
         verified.set(url, {
           number,
           url,
