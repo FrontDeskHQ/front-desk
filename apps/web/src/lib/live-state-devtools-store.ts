@@ -84,6 +84,7 @@ export const createLiveStateDevtoolsStore = (
   let metricsSnapshot = emptyMetrics;
   let eventsDirty = false;
   let metricsDirty = false;
+  let eventUnsubscribe: (() => void) | null = null;
   let updateTimer: ReturnType<typeof setInterval> | null = null;
   const eventSubscribers = new Set<() => void>();
   const metricSubscribers = new Set<() => void>();
@@ -378,24 +379,34 @@ export const createLiveStateDevtoolsStore = (
     updateTimer = null;
   };
 
+  const startCollecting = () => {
+    if (eventUnsubscribe || typeof window === "undefined") {
+      return;
+    }
+    eventUnsubscribe = client.addEventListener(handleClientEvent);
+  };
+
+  const stopCollecting = () => {
+    eventUnsubscribe?.();
+    eventUnsubscribe = null;
+  };
+
   const subscribe = (
     subscribersForType: Set<() => void>,
     listener: () => void
   ) => {
     subscribersForType.add(listener);
+    startCollecting();
     startTimer();
 
     return () => {
       subscribersForType.delete(listener);
       if (eventSubscribers.size === 0 && metricSubscribers.size === 0) {
         stopTimer();
+        stopCollecting();
       }
     };
   };
-
-  if (typeof window !== "undefined") {
-    client.addEventListener(handleClientEvent);
-  }
 
   return {
     getEventsSnapshot: () => eventsSnapshot,
