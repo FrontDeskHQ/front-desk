@@ -1,5 +1,8 @@
 import type { Action } from "@workspace/schemas/signals";
-import { extractRenderedMarkdownLinkUrls } from "@workspace/utils/markdown-links";
+import {
+  extractRenderedMarkdownLinkUrls,
+  stripHtmlTagsFromMarkdown,
+} from "@workspace/utils/markdown-links";
 import z from "zod";
 
 export interface VerifiedPrDetails {
@@ -99,12 +102,13 @@ export const ensureVerifiedPrRecommendationLink = (
   }
 
   const prUrl = linkPr.prUrl.trim();
+  const sanitizedRecommendation = stripHtmlTagsFromMarkdown(recommendation);
   const verifiedPr = verifiedPrs.get(prUrl);
   if (
     !verifiedPr ||
-    containsOnlyCompleteMarkdownLinkToUrl(recommendation, prUrl)
+    containsOnlyCompleteMarkdownLinkToUrl(sanitizedRecommendation, prUrl)
   ) {
-    return recommendation;
+    return sanitizedRecommendation;
   }
 
   const prLabel = verifiedPr.number

@@ -7,6 +7,7 @@ import {
   replyActionSchema,
 } from "@workspace/schemas/signals";
 import type { createAILogger } from "@workspace/utils/logging";
+import { stripHtmlTagsFromMarkdown } from "@workspace/utils/markdown-links";
 import { generateText, stepCountIs } from "ai";
 import z from "zod";
 
@@ -248,18 +249,24 @@ Return a single valid JSON object with exactly this shape:
   });
 
   const raw = parseRawActionSetFromText(text, requestLog);
+  const sanitizedRaw: SynthesisRawActionSet = {
+    ...raw,
+    reasoning: stripHtmlTagsFromMarkdown(raw.reasoning),
+    recommendation: stripHtmlTagsFromMarkdown(raw.recommendation),
+    summary: stripHtmlTagsFromMarkdown(raw.summary),
+  };
   // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
   // Prompt instructions alone cannot authorize an external PR link. If primary
   // loses a link_pr, discard the set so recommendation stays consistent.
   const verifiedPrDetails = collectVerifiedPrDetailsFromToolSteps(steps);
   const verifiedPrUrls = new Set(verifiedPrDetails.keys());
   const filtered = filterActionSetToVerifiedLinkPr(
-    raw.primary,
-    raw.alternatives ?? [],
+    sanitizedRaw.primary,
+    sanitizedRaw.alternatives,
     verifiedPrUrls
   );
   const recommendation = ensureVerifiedPrRecommendationLink(
-    raw.recommendation,
+    sanitizedRaw.recommendation,
     filtered.primary,
     verifiedPrDetails
   );
@@ -269,14 +276,14 @@ Return a single valid JSON object with exactly this shape:
   // a recommendation that hides an action the agent would still execute.
   if (recommendation === null) {
     return {
-      ...raw,
+      ...sanitizedRaw,
       alternatives: [],
       primary: [],
     };
   }
 
   return {
-    ...raw,
+    ...sanitizedRaw,
     alternatives: filtered.alternatives,
     primary: filtered.primary,
     recommendation,

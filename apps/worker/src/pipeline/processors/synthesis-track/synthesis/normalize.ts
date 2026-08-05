@@ -3,6 +3,7 @@ import {
   sanitizeAgentReadReasoning,
   threadReadSchema,
 } from "@workspace/schemas/signals";
+import { stripHtmlTagsFromMarkdown } from "@workspace/utils/markdown-links";
 
 import type { SynthesisRawActionSet } from "./synthesize";
 
@@ -131,12 +132,14 @@ export const normalizeSynthesisRawActionSet = ({
     alternatives,
     createdAt: new Date().toISOString(),
     primary,
-    reasoning: sanitizeAgentReadReasoning(output.reasoning),
-    recommendation: output.recommendation.trim(),
+    reasoning: sanitizeAgentReadReasoning(
+      stripHtmlTagsFromMarkdown(output.reasoning)
+    ),
+    recommendation: stripHtmlTagsFromMarkdown(output.recommendation).trim(),
     sourceInputMessageId: messageIds.has(output.sourceInputMessageId)
       ? output.sourceInputMessageId
       : fallbackSourceInputMessageId,
-    summary: output.summary.trim(),
+    summary: stripHtmlTagsFromMarkdown(output.summary).trim(),
     urgencyScore: output.urgencyScore,
   };
 
