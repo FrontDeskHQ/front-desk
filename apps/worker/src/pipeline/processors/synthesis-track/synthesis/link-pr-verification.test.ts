@@ -110,21 +110,34 @@ describe("verified PR recommendation links", () => {
   });
 
   it.each([
-    [`<pre>[PR #482](${prUrl})</pre>`, `[PR #482](${prUrl})`],
-    [`<code>[PR #482](${prUrl})</code>`, `[PR #482](${prUrl})`],
-    [`<span>Link</span> [PR #482](${prUrl})`, `Link [PR #482](${prUrl})`],
+    `<pre>[PR #482](${prUrl})</pre>`,
+    `<code>[PR #482](${prUrl})</code>`,
+    `Link <code>[PR #482](${prUrl})</code> to the thread.`,
   ])(
-    "strips raw HTML before validating a PR link: %s",
-    (recommendation, expected) => {
+    "repairs a verified URL hidden in raw HTML code markup: %s",
+    (recommendation) => {
       expect(
         ensureVerifiedPrRecommendationLink(
           recommendation,
           linkPrPrimary,
           verifiedPrs
         )
-      ).toBe(expected);
+      ).toBe(
+        `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
+      );
     }
   );
+
+  it("accepts a verified link alongside non-code raw HTML", () => {
+    const recommendation = `<span>Link</span> [PR #482](${prUrl}) to the thread.`;
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        recommendation,
+        linkPrPrimary,
+        verifiedPrs
+      )
+    ).toBe(recommendation);
+  });
 
   it("discards a primary action set the fallback cannot describe", () => {
     expect(

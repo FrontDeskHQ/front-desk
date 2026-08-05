@@ -4,7 +4,7 @@ import { normalizeSynthesisRawActionSet } from "./normalize";
 import type { SynthesisRawActionSet } from "./synthesize";
 
 describe("agent read Markdown normalization", () => {
-  it("strips raw HTML from every Markdown field", () => {
+  it("strips raw HTML from text fields while preserving reply draft Markdown", () => {
     const output: SynthesisRawActionSet = {
       alternatives: [{ draftMarkdown: "<em>Alternative</em>", kind: "reply" }],
       primary: [{ draftMarkdown: "<strong>Primary</strong>", kind: "reply" }],
