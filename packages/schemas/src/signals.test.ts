@@ -30,6 +30,19 @@ describe("thread-read trigger contracts", () => {
     });
   });
 
+  it("normalizes a legacy matched PR into one candidate-bearing trigger", () => {
+    expect(
+      normalizeThreadReadJobData({
+        kind: "pr_matched",
+        prMatched: candidate("pr-1", 0.8),
+        threadId: "thread-1",
+      })
+    ).toStrictEqual({
+      threadId: "thread-1",
+      triggers: [{ kind: "pr_matched", prMatched: candidate("pr-1", 0.8) }],
+    });
+  });
+
   it("preserves arrival order and refreshes a duplicate PR candidate in place", () => {
     const triggers = mergeThreadReadTriggers(
       [

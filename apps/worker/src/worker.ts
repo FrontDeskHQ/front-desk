@@ -1,4 +1,7 @@
 import {
+  closeThreadReadQueue,
+  configureThreadReadQueue,
+  createQueueRedisConnection,
   drainPendingThreadRead,
   recoverPendingThreadReads,
 } from "@workspace/queue/thread-read";
@@ -16,7 +19,6 @@ import {
 } from "@workspace/utils/logging";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
-import Redis from "ioredis";
 
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleIndexPr } from "./handlers/index-pr";
@@ -41,6 +43,7 @@ const PR_MATCH_QUEUE = "pr-match";
 const THREAD_READ_RECOVERY_INTERVAL_MS = 30_000;
 const TERMINAL_DRAIN_RETRY_DELAYS_MS = [100, 250, 500];
 let threadReadRecoveryRunning = false;
+let threadReadRecoveryTimer: ReturnType<typeof setInterval> | undefined;
 
 const recoverThreadReadFollowUps = async (): Promise<number> => {
   if (threadReadRecoveryRunning) {
@@ -49,7 +52,10 @@ const recoverThreadReadFollowUps = async (): Promise<number> => {
   threadReadRecoveryRunning = true;
   try {
     const results = await recoverPendingThreadReads();
-    return results.length;
+    return results.filter(
+      ({ disposition }) =>
+        disposition === "scheduled" || disposition === "coalesced"
+    ).length;
   } finally {
     threadReadRecoveryRunning = false;
   }
@@ -71,38 +77,11 @@ initSharedLogger({
   silent: parseBooleanEnv(process.env.LOGGING_SILENT),
 });
 
-const getRedisConnection = (): Redis => {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  }
-
-  const redisConfig: {
-    host: string;
-    port?: number;
-    password?: string;
-    db?: number;
-    maxRetriesPerRequest: null;
-  } = {
-    host: process.env.REDIS_HOST ?? "localhost",
-    maxRetriesPerRequest: null,
-  };
-
-  if (process.env.REDIS_PORT) {
-    redisConfig.port = Number.parseInt(process.env.REDIS_PORT, 10);
-  }
-
-  if (process.env.REDIS_PASSWORD) {
-    redisConfig.password = process.env.REDIS_PASSWORD;
-  }
-
-  if (process.env.REDIS_DB) {
-    redisConfig.db = Number.parseInt(process.env.REDIS_DB, 10);
-  }
-
-  return new Redis(redisConfig);
-};
-
-const connection = getRedisConnection();
+const connection = createQueueRedisConnection();
+if (!connection) {
+  throw new Error("Redis is not configured for the worker");
+}
+configureThreadReadQueue({ connection });
 
 /**
  * Handler for thread-pipeline jobs
@@ -146,18 +125,20 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     const synthesisTriggers = triggers.filter(
       (trigger) => trigger.kind !== "supersede"
     );
-    if (hasSupersede) {
-      await clearThreadAgentRead(threadId);
-    }
+    const supersedeCleared = hasSupersede
+      ? await clearThreadAgentRead(threadId)
+      : undefined;
 
     if (synthesisTriggers.length === 0) {
       requestLog.set({
-        outcome: { status: "completed", reason: "superseded" },
+        outcome: supersedeCleared
+          ? { status: "completed", reason: "superseded" }
+          : { status: "skipped", reason: "thread_not_found" },
       });
       return {
         bullmqJobId: job.id,
         kind: "supersede",
-        status: "completed",
+        status: supersedeCleared ? "completed" : "skipped",
         threadId,
       };
     }
@@ -440,7 +421,18 @@ const initialize = async () => {
     // Recover persisted follow-ups before accepting new thread reads. A
     // non-overlapping scan below keeps retrying records that were active or
     // temporarily unavailable during startup.
-    const recoveredThreadReads = await recoverThreadReadFollowUps();
+    let recoveredThreadReads = 0;
+    try {
+      recoveredThreadReads = await recoverThreadReadFollowUps();
+    } catch (error) {
+      emitQueueLifecycle({
+        error: error instanceof Error ? error : new Error(String(error)),
+        event: "error",
+        operation: "thread.pipeline.recovery.startup",
+        queue: THREAD_PIPELINE_QUEUE,
+        status: 500,
+      });
+    }
     requestLog.set({
       recovery: { recoveredThreadReads },
     });
@@ -451,7 +443,7 @@ const initialize = async () => {
     prIndexWorker.run();
     prMatchWorker.run();
 
-    setInterval(() => {
+    threadReadRecoveryTimer = setInterval(() => {
       void recoverThreadReadFollowUps().catch((error) => {
         emitQueueLifecycle({
           error: error instanceof Error ? error : new Error(String(error)),
@@ -462,6 +454,7 @@ const initialize = async () => {
         });
       });
     }, THREAD_READ_RECOVERY_INTERVAL_MS);
+    threadReadRecoveryTimer.unref();
 
     requestLog.set({
       outcome: {
@@ -494,12 +487,17 @@ const handleShutdown = async () => {
   let status = 200;
 
   try {
+    if (threadReadRecoveryTimer) {
+      clearInterval(threadReadRecoveryTimer);
+      threadReadRecoveryTimer = undefined;
+    }
     await Promise.all([
       threadPipelineWorker.close(),
       crawlDocWorker.close(),
       prIndexWorker.close(),
       prMatchWorker.close(),
     ]);
+    await closeThreadReadQueue();
     await connection.quit();
     requestLog.set({ outcome: { status: "stopped", workersClosed: 4 } });
   } catch (error) {

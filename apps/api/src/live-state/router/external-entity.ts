@@ -90,7 +90,10 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       scheduled: 0,
       skipped: 0,
     };
-    if (matches.length === 0) return { dispositions, enqueued: 0 };
+    let unavailable = 0;
+    if (matches.length === 0) {
+      return { dispositions, enqueued: 0, unavailable };
+    }
 
     // A candidate can be repeated when retrieval or reranking is composed from
     // multiple sources. Keep one score per thread before the authoritative DB
@@ -119,7 +122,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     // PR that went gone (closed-and-deleted / transferred out) or flipped to
     // closed / draft since the match ran is dropped rather than fanned out.
     if (!pr || pr.state !== "open" || pr.draft === true) {
-      return { dispositions, enqueued: 0 };
+      return { dispositions, enqueued: 0, unavailable };
     }
 
     const threads = new Map(
@@ -155,13 +158,18 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           score,
         },
       });
-      dispositions[result.disposition] += 1;
+      if (result.reason === "queue_unavailable") {
+        unavailable += 1;
+      } else {
+        dispositions[result.disposition] += 1;
+      }
     }
 
     return {
       dispositions,
       enqueued:
         dispositions.scheduled + dispositions.coalesced + dispositions.buffered,
+      unavailable,
     };
   }),
 

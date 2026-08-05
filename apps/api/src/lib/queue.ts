@@ -1,4 +1,8 @@
-import { enqueueThreadRead as enqueueDurableThreadRead } from "@workspace/queue/thread-read";
+import {
+  configureThreadReadQueue,
+  createQueueRedisConnection,
+  enqueueThreadRead as enqueueDurableThreadRead,
+} from "@workspace/queue/thread-read";
 import type {
   EnqueueThreadReadOptions,
   ThreadReadEnqueueResult,
@@ -10,7 +14,7 @@ import type {
   ThreadReadKind,
 } from "@workspace/schemas/signals";
 import { Queue } from "bullmq";
-import Redis from "ioredis";
+import type Redis from "ioredis";
 
 import "../env";
 
@@ -32,41 +36,7 @@ export type {
 };
 
 let connection: Redis | null = null;
-
-const createRedisConnection = (): Redis | null => {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
-  }
-
-  if (!process.env.REDIS_HOST) {
-    return null;
-  }
-
-  const redisConfig: {
-    host: string;
-    port?: number;
-    password?: string;
-    db?: number;
-    maxRetriesPerRequest: null;
-  } = {
-    host: process.env.REDIS_HOST,
-    maxRetriesPerRequest: null,
-  };
-
-  if (process.env.REDIS_PORT) {
-    redisConfig.port = Number.parseInt(process.env.REDIS_PORT, 10);
-  }
-
-  if (process.env.REDIS_PASSWORD) {
-    redisConfig.password = process.env.REDIS_PASSWORD;
-  }
-
-  if (process.env.REDIS_DB) {
-    redisConfig.db = Number.parseInt(process.env.REDIS_DB, 10);
-  }
-
-  return new Redis(redisConfig);
-};
+let threadReadQueueConfigured = false;
 
 export const enqueueThreadRead = async (
   threadId: string,
@@ -82,6 +52,19 @@ export const enqueueThreadRead = async (
       jobId: null,
       reason: "worker_disabled",
     };
+  }
+
+  if (!threadReadQueueConfigured) {
+    connection ??= createQueueRedisConnection();
+    if (!connection) {
+      return {
+        disposition: "skipped",
+        jobId: null,
+        reason: "queue_unavailable",
+      };
+    }
+    configureThreadReadQueue({ connection });
+    threadReadQueueConfigured = true;
   }
 
   // TODO(issue-09): manual kind should bypass dedup (unique jobId + delay 0)
@@ -112,7 +95,7 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
     return crawlDocQueue;
   }
 
-  connection ??= createRedisConnection();
+  connection ??= createQueueRedisConnection();
   if (!connection) {
     return null;
   }
@@ -164,7 +147,7 @@ const getPrIndexQueue = (): Queue<PrIndexJobData> | null => {
     return prIndexQueue;
   }
 
-  connection ??= createRedisConnection();
+  connection ??= createQueueRedisConnection();
   if (!connection) {
     return null;
   }
@@ -241,7 +224,7 @@ const getGithubBackfillQueue = (): Queue<GithubBackfillJobData> | null => {
     return githubBackfillQueue;
   }
 
-  connection ??= createRedisConnection();
+  connection ??= createQueueRedisConnection();
   if (!connection) {
     return null;
   }

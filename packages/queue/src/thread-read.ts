@@ -4,6 +4,7 @@ import {
   mergeThreadReadTriggers,
   normalizeThreadReadJobData,
   sortThreadReadTriggers,
+  threadReadTriggerSchema,
 } from "@workspace/schemas/signals";
 import type {
   ThreadReadJobData,
@@ -12,11 +13,13 @@ import type {
 import { Queue } from "bullmq";
 import type { Job, JobState } from "bullmq";
 import Redis from "ioredis";
+import { z } from "zod";
 
 export const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 export const THREAD_READ_JOB_NAME = "thread-read";
 
 const LOCK_TTL_MS = 30_000;
+const LOCK_MAX_HOLD_MS = 15_000;
 const LOCK_RETRY_MS = 25;
 const PENDING_PREFIX = "frontdesk:thread-read-pending:";
 const CLAIMED_PREFIX = "frontdesk:thread-read-claimed:";
@@ -38,6 +41,9 @@ const RENEW_LOCK_SCRIPT = `
 `;
 
 const CLAIM_PENDING_SCRIPT = `
+  if redis.call("get", KEYS[3]) ~= ARGV[1] then
+    return "__LOCK_LOST__"
+  end
   local claimed = redis.call("get", KEYS[2])
   if claimed then
     return claimed
@@ -52,10 +58,49 @@ const CLAIM_PENDING_SCRIPT = `
 `;
 
 const ACK_CLAIM_SCRIPT = `
-  if redis.call("get", KEYS[1]) == ARGV[1] then
+  if redis.call("get", KEYS[2]) ~= ARGV[1] then
+    return -1
+  end
+  if redis.call("get", KEYS[1]) == ARGV[2] then
     return redis.call("del", KEYS[1])
   end
   return 0
+`;
+
+const WRITE_PENDING_SCRIPT = `
+  if redis.call("get", KEYS[1]) ~= ARGV[1] then
+    return -1
+  end
+  local current = redis.call("get", KEYS[2])
+  if ARGV[2] == "" then
+    if current then
+      return -2
+    end
+  elseif current ~= ARGV[2] then
+    return -2
+  end
+  redis.call("set", KEYS[2], ARGV[3])
+  return 1
+`;
+
+const RELEASE_CLAIM_SCRIPT = `
+  if redis.call("get", KEYS[1]) ~= ARGV[1] then
+    return -1
+  end
+  local currentPending = redis.call("get", KEYS[2])
+  if ARGV[2] == "" then
+    if currentPending then
+      return -2
+    end
+  elseif currentPending ~= ARGV[2] then
+    return -2
+  end
+  if redis.call("get", KEYS[3]) ~= ARGV[3] then
+    return -3
+  end
+  redis.call("set", KEYS[2], ARGV[4])
+  redis.call("del", KEYS[3])
+  return 1
 `;
 
 const DEFAULT_DEBOUNCE_MS = 2000;
@@ -102,6 +147,17 @@ interface PendingThreadRead {
   priority: number;
   triggers: ThreadReadTrigger[];
 }
+
+interface ThreadReadLockLease {
+  key: string;
+  token: string;
+}
+
+const pendingThreadReadSchema = z.object({
+  generation: z.number().int().positive(),
+  priority: z.number().int().nonnegative(),
+  triggers: z.array(threadReadTriggerSchema).min(1),
+});
 
 type ThreadReadJob = Pick<
   Job<ThreadReadJobData>,
@@ -150,14 +206,7 @@ const sleep = (milliseconds: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, milliseconds));
 
 const parsePending = (raw: string): PendingThreadRead => {
-  const parsed = JSON.parse(raw) as PendingThreadRead;
-  if (
-    !Number.isSafeInteger(parsed.generation) ||
-    !Number.isFinite(parsed.priority) ||
-    !Array.isArray(parsed.triggers)
-  ) {
-    throw new TypeError("Invalid pending thread-read record");
-  }
+  const parsed = pendingThreadReadSchema.parse(JSON.parse(raw));
   return {
     generation: parsed.generation,
     priority: parsed.priority,
@@ -212,7 +261,7 @@ export class ThreadReadQueueManager {
 
   private async withLock<T>(
     threadId: string,
-    operation: () => Promise<T>
+    operation: (lease: ThreadReadLockLease) => Promise<T>
   ): Promise<T> {
     const key = lockKey(threadId);
     const token = randomUUID();
@@ -227,12 +276,22 @@ export class ThreadReadQueueManager {
 
     let stopped = false;
     let renewalTimer: ReturnType<typeof setTimeout> | undefined;
+    const holdDeadline = Date.now() + LOCK_MAX_HOLD_MS;
     const renew = async (): Promise<void> => {
-      if (stopped) {
+      if (stopped || Date.now() >= holdDeadline) {
         return;
       }
       try {
-        await this.redis.eval(RENEW_LOCK_SCRIPT, 1, key, token, LOCK_TTL_MS);
+        const renewed = await this.redis.eval(
+          RENEW_LOCK_SCRIPT,
+          1,
+          key,
+          token,
+          LOCK_TTL_MS
+        );
+        if (Number(renewed) !== 1) {
+          stopped = true;
+        }
       } catch {
         // The original lease still expires safely. The operation may finish
         // before then, and its durable claim remains recoverable if it does not.
@@ -244,10 +303,24 @@ export class ThreadReadQueueManager {
     };
     renewalTimer = setTimeout(renew, LOCK_TTL_MS / 3);
 
+    let rejectHoldTimeout: ((error: Error) => void) | undefined;
+    const holdTimeout = setTimeout(() => {
+      rejectHoldTimeout?.(
+        new Error(`Timed out holding thread-read lock: ${threadId}`)
+      );
+    }, LOCK_MAX_HOLD_MS);
+    holdTimeout.unref?.();
+
     try {
-      return await operation();
+      return await Promise.race([
+        operation({ key, token }),
+        new Promise<never>((_resolve, reject) => {
+          rejectHoldTimeout = reject;
+        }),
+      ]);
     } finally {
       stopped = true;
+      clearTimeout(holdTimeout);
       if (renewalTimer) {
         clearTimeout(renewalTimer);
       }
@@ -260,6 +333,7 @@ export class ThreadReadQueueManager {
   }
 
   private async buffer(
+    lease: ThreadReadLockLease,
     threadId: string,
     triggers: readonly ThreadReadTrigger[],
     priority: number
@@ -273,37 +347,63 @@ export class ThreadReadQueueManager {
       priority: Math.min(current?.priority ?? priority, priority),
       triggers: mergeThreadReadTriggers(current?.triggers ?? [], triggers),
     };
-    await this.redis.set(key, serializePending(pending));
+    const written = await this.redis.eval(
+      WRITE_PENDING_SCRIPT,
+      2,
+      lease.key,
+      key,
+      lease.token,
+      currentRaw ?? "",
+      serializePending(pending)
+    );
+    if (Number(written) !== 1) {
+      throw new Error(`Lost thread-read lock before buffering: ${threadId}`);
+    }
     return pending;
   }
 
-  private async claim(threadId: string): Promise<{
+  private async claim(
+    lease: ThreadReadLockLease,
+    threadId: string
+  ): Promise<{
     pending: PendingThreadRead;
     raw: string;
   } | null> {
     const raw = await this.redis.eval(
       CLAIM_PENDING_SCRIPT,
-      2,
+      3,
       pendingKey(threadId),
-      claimedKey(threadId)
+      claimedKey(threadId),
+      lease.key,
+      lease.token
     );
+    if (raw === "__LOCK_LOST__") {
+      throw new Error(`Lost thread-read lock before claiming: ${threadId}`);
+    }
     if (typeof raw !== "string") {
       return null;
     }
     return { pending: parsePending(raw), raw };
   }
 
-  private async acknowledge(threadId: string, raw: string): Promise<boolean> {
+  private async acknowledge(
+    lease: ThreadReadLockLease,
+    threadId: string,
+    raw: string
+  ): Promise<boolean> {
     const acknowledged = await this.redis.eval(
       ACK_CLAIM_SCRIPT,
-      1,
+      2,
       claimedKey(threadId),
+      lease.key,
+      lease.token,
       raw
     );
     return Number(acknowledged) === 1;
   }
 
   private async releaseClaim(
+    lease: ThreadReadLockLease,
     threadId: string,
     claim: { pending: PendingThreadRead; raw: string }
   ): Promise<void> {
@@ -324,8 +424,20 @@ export class ThreadReadQueueManager {
         current?.triggers ?? []
       ),
     };
-    await this.redis.set(key, serializePending(restored));
-    await this.acknowledge(threadId, claim.raw);
+    const released = await this.redis.eval(
+      RELEASE_CLAIM_SCRIPT,
+      3,
+      lease.key,
+      key,
+      claimedKey(threadId),
+      lease.token,
+      currentRaw ?? "",
+      claim.raw,
+      serializePending(restored)
+    );
+    if (Number(released) !== 1) {
+      throw new Error(`Lost thread-read lock before releasing: ${threadId}`);
+    }
   }
 
   private async verifyApplied(
@@ -346,10 +458,11 @@ export class ThreadReadQueueManager {
   }
 
   private async drainUnderLock(
+    lease: ThreadReadLockLease,
     threadId: string,
     delayMs: number
   ): Promise<ThreadReadEnqueueResult> {
-    const claim = await this.claim(threadId);
+    const claim = await this.claim(lease, threadId);
     if (!claim) {
       return {
         disposition: "skipped",
@@ -366,7 +479,7 @@ export class ThreadReadQueueManager {
       if (existing) {
         existingState = await existing.getState();
         if (existingState === "active") {
-          await this.releaseClaim(threadId, claim);
+          await this.releaseClaim(lease, threadId, claim);
           return { disposition: "buffered", jobId, reason: "active_job" };
         }
 
@@ -401,17 +514,17 @@ export class ThreadReadQueueManager {
           const current = await this.queue.getJob(jobId);
           const currentState = current ? await current.getState() : "unknown";
           if (!isMutableState(currentState)) {
-            await this.releaseClaim(threadId, claim);
+            await this.releaseClaim(lease, threadId, claim);
             return { disposition: "buffered", jobId, reason: "active_job" };
           }
 
           if (!(await this.verifyApplied(threadId, claim.pending))) {
-            await this.releaseClaim(threadId, claim);
+            await this.releaseClaim(lease, threadId, claim);
             throw new Error(
               `Thread-read claim was not applied to existing job: ${threadId}`
             );
           }
-          if (!(await this.acknowledge(threadId, claim.raw))) {
+          if (!(await this.acknowledge(lease, threadId, claim.raw))) {
             throw new Error(
               `Thread-read claim changed before acknowledgement: ${threadId}`
             );
@@ -440,12 +553,12 @@ export class ThreadReadQueueManager {
       );
 
       if (!(await this.verifyApplied(threadId, claim.pending))) {
-        await this.releaseClaim(threadId, claim);
+        await this.releaseClaim(lease, threadId, claim);
         throw new Error(
           `Thread-read claim was not applied to new job: ${threadId}`
         );
       }
-      if (!(await this.acknowledge(threadId, claim.raw))) {
+      if (!(await this.acknowledge(lease, threadId, claim.raw))) {
         throw new Error(
           `Thread-read claim changed before acknowledgement: ${threadId}`
         );
@@ -469,19 +582,25 @@ export class ThreadReadQueueManager {
     } catch (error) {
       const stillClaimed = await this.redis.get(claimedKey(threadId));
       if (stillClaimed === claim.raw) {
-        await this.releaseClaim(threadId, claim);
+        try {
+          await this.releaseClaim(lease, threadId, claim);
+        } catch {
+          // A lost lease leaves the durable claim for its current owner or the
+          // next recovery pass. Never let a stale owner overwrite newer state.
+        }
       }
       throw error;
     }
   }
 
   private async drainAllUnderLock(
+    lease: ThreadReadLockLease,
     threadId: string,
     delayMs: number
   ): Promise<ThreadReadEnqueueResult> {
     let accepted: ThreadReadEnqueueResult | null = null;
     while (true) {
-      const result = await this.drainUnderLock(threadId, delayMs);
+      const result = await this.drainUnderLock(lease, threadId, delayMs);
       if (result.disposition === "buffered") {
         return result;
       }
@@ -507,22 +626,26 @@ export class ThreadReadQueueManager {
   ): Promise<ThreadReadEnqueueResult> {
     const priority = THREAD_READ_PRIORITY_VALUES[options.priority ?? "normal"];
     const delay = options.delayMs ?? this.defaultDebounceMs;
-    return this.withLock(threadId, async () => {
-      await this.buffer(threadId, triggers, priority);
-      try {
-        return await this.drainAllUnderLock(threadId, delay);
-      } catch {
-        return {
-          disposition: "buffered",
-          jobId: null,
-          reason: "queue_unavailable",
-        };
-      }
-    });
+    let persisted = false;
+    try {
+      return await this.withLock(threadId, async (lease) => {
+        await this.buffer(lease, threadId, triggers, priority);
+        persisted = true;
+        return this.drainAllUnderLock(lease, threadId, delay);
+      });
+    } catch {
+      return {
+        disposition: persisted ? "buffered" : "skipped",
+        jobId: null,
+        reason: "queue_unavailable",
+      };
+    }
   }
 
   async drain(threadId: string): Promise<ThreadReadEnqueueResult> {
-    return this.withLock(threadId, () => this.drainAllUnderLock(threadId, 0));
+    return this.withLock(threadId, (lease) =>
+      this.drainAllUnderLock(lease, threadId, 0)
+    );
   }
 
   async recover(): Promise<ThreadReadEnqueueResult[]> {
@@ -546,7 +669,15 @@ export class ThreadReadQueueManager {
 
     const results: ThreadReadEnqueueResult[] = [];
     for (const threadId of threadIds) {
-      results.push(await this.drain(threadId));
+      try {
+        results.push(await this.drain(threadId));
+      } catch {
+        results.push({
+          disposition: "skipped",
+          jobId: null,
+          reason: "queue_unavailable",
+        });
+      }
     }
     return results;
   }
@@ -555,53 +686,114 @@ export class ThreadReadQueueManager {
 let redisConnection: Redis | null = null;
 let queue: Queue<ThreadReadJobData> | null = null;
 let manager: ThreadReadQueueManager | null = null;
+let ownsQueue = false;
+let ownsRedisConnection = false;
 
-const createRedisConnection = (): Redis | null => {
-  if (process.env.REDIS_URL) {
-    return new Redis(process.env.REDIS_URL, { maxRetriesPerRequest: null });
+const optionalIntegerString = (minimum: number, maximum?: number) =>
+  z
+    .string()
+    .regex(/^\d+$/)
+    .transform(Number)
+    .pipe(
+      maximum === undefined
+        ? z.number().int().min(minimum)
+        : z.number().int().min(minimum).max(maximum)
+    )
+    .optional();
+
+const redisEnvironmentSchema = z.object({
+  NODE_ENV: z.string().optional(),
+  REDIS_DB: optionalIntegerString(0),
+  REDIS_HOST: z.string().min(1).optional(),
+  REDIS_PASSWORD: z.string().optional(),
+  REDIS_PORT: optionalIntegerString(1, 65_535),
+  REDIS_URL: z.string().min(1).optional(),
+});
+
+export const createQueueRedisConnection = (): Redis | null => {
+  const environment = redisEnvironmentSchema.parse(process.env);
+  const redisOptions = {
+    commandTimeout: LOCK_MAX_HOLD_MS,
+    maxRetriesPerRequest: null,
+  } as const;
+  if (environment.REDIS_URL) {
+    return new Redis(environment.REDIS_URL, redisOptions);
   }
   const redisHost =
-    process.env.REDIS_HOST ??
-    (process.env.NODE_ENV === "production" ? undefined : "localhost");
+    environment.REDIS_HOST ??
+    (environment.NODE_ENV === "production" ? undefined : "localhost");
   if (!redisHost) {
     return null;
   }
   const options: {
     db?: number;
     host: string;
+    commandTimeout: number;
     maxRetriesPerRequest: null;
     password?: string;
     port?: number;
   } = {
+    commandTimeout: LOCK_MAX_HOLD_MS,
     host: redisHost,
     maxRetriesPerRequest: null,
   };
-  if (process.env.REDIS_PORT) {
-    options.port = Number.parseInt(process.env.REDIS_PORT, 10);
+  if (environment.REDIS_PORT !== undefined) {
+    options.port = environment.REDIS_PORT;
   }
-  if (process.env.REDIS_PASSWORD) {
-    options.password = process.env.REDIS_PASSWORD;
+  if (environment.REDIS_PASSWORD) {
+    options.password = environment.REDIS_PASSWORD;
   }
-  if (process.env.REDIS_DB) {
-    options.db = Number.parseInt(process.env.REDIS_DB, 10);
+  if (environment.REDIS_DB !== undefined) {
+    options.db = environment.REDIS_DB;
   }
   return new Redis(options);
 };
 
-const getManager = (): ThreadReadQueueManager | null => {
-  if (manager) {
-    return manager;
+export const configureThreadReadQueue = (options: {
+  connection: Redis;
+  queue?: Queue<ThreadReadJobData>;
+}): void => {
+  if (manager || queue || redisConnection) {
+    throw new Error("Thread-read queue has already been initialized");
   }
-  redisConnection ??= createRedisConnection();
-  if (!redisConnection) {
-    return null;
-  }
-  queue ??= new Queue<ThreadReadJobData>(THREAD_PIPELINE_QUEUE, {
-    connection: redisConnection,
-  });
+  redisConnection = options.connection;
+  queue =
+    options.queue ??
+    new Queue<ThreadReadJobData>(THREAD_PIPELINE_QUEUE, {
+      connection: options.connection,
+    });
+  ownsQueue = options.queue === undefined;
+  ownsRedisConnection = false;
+};
+
+export const closeThreadReadQueue = async (): Promise<void> => {
   const currentQueue = queue;
   const currentConnection = redisConnection;
-  manager = new ThreadReadQueueManager(
+  const shouldCloseQueue = ownsQueue;
+  const shouldCloseConnection = ownsRedisConnection;
+
+  manager = null;
+  queue = null;
+  redisConnection = null;
+  ownsQueue = false;
+  ownsRedisConnection = false;
+
+  try {
+    if (shouldCloseQueue) {
+      await currentQueue?.close();
+    }
+  } finally {
+    if (shouldCloseConnection) {
+      await currentConnection?.quit();
+    }
+  }
+};
+
+const createManager = (
+  currentQueue: Queue<ThreadReadJobData>,
+  currentConnection: Redis
+): ThreadReadQueueManager =>
+  new ThreadReadQueueManager(
     {
       add: (name, data, options) => currentQueue.add(name, data, options),
       getJob: (jobId) => currentQueue.getJob(jobId),
@@ -636,6 +828,27 @@ const getManager = (): ThreadReadQueueManager | null => {
         : DEFAULT_DEBOUNCE_MS;
     })()
   );
+
+const getManager = (): ThreadReadQueueManager | null => {
+  if (manager) {
+    return manager;
+  }
+  if (!redisConnection) {
+    redisConnection = createQueueRedisConnection();
+    ownsRedisConnection = Boolean(redisConnection);
+  }
+  if (!redisConnection) {
+    return null;
+  }
+  if (!queue) {
+    queue = new Queue<ThreadReadJobData>(THREAD_PIPELINE_QUEUE, {
+      connection: redisConnection,
+    });
+    ownsQueue = true;
+  }
+  const currentQueue = queue;
+  const currentConnection = redisConnection;
+  manager = createManager(currentQueue, currentConnection);
   return manager;
 };
 

@@ -17,11 +17,7 @@ export const liveStateHooks = defineHooks<typeof schema>({
             priority: queuePriority,
           });
 
-          if (
-            result.disposition === "skipped" &&
-            result.reason === "queue_unavailable" &&
-            areWorkerJobsEnabled()
-          ) {
+          if (result.reason === "queue_unavailable" && areWorkerJobsEnabled()) {
             console.warn(
               `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}`
             );

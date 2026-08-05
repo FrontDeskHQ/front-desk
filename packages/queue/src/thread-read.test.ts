@@ -1,6 +1,6 @@
 import type { ThreadReadJobData } from "@workspace/schemas/signals";
 import type { JobState } from "bullmq";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { ThreadReadQueueManager } from "./thread-read";
 import type {
@@ -9,6 +9,9 @@ import type {
 } from "./thread-read";
 
 class FakeRedis implements ThreadReadRedisAdapter {
+  failLockForThreadIds = new Set<string>();
+  failNextGet = false;
+  onGet?: (key: string) => void;
   readonly values = new Map<string, string>();
 
   async del(...keys: string[]): Promise<number> {
@@ -25,10 +28,11 @@ class FakeRedis implements ThreadReadRedisAdapter {
     ...args: (string | number)[]
   ): Promise<unknown> {
     const keys = args.slice(0, numberOfKeys).map(String);
-    const argv = args.slice(numberOfKeys);
-    if (numberOfKeys === 2) {
-      const [pending, claimed] = keys;
-      if (!(pending && claimed)) return null;
+    const argv = args.slice(numberOfKeys).map(String);
+    if (numberOfKeys === 3 && argv.length === 1) {
+      const [pending, claimed, lock] = keys;
+      if (!(pending && claimed && lock)) return null;
+      if (this.values.get(lock) !== argv[0]) return "__LOCK_LOST__";
       const existingClaim = this.values.get(claimed);
       if (existingClaim) return existingClaim;
       const value = this.values.get(pending);
@@ -38,12 +42,53 @@ class FakeRedis implements ThreadReadRedisAdapter {
       return value;
     }
 
+    if (numberOfKeys === 3 && argv.length === 4) {
+      const [lock, pending, claimed] = keys;
+      if (!(lock && pending && claimed)) return -1;
+      if (this.values.get(lock) !== argv[0]) return -1;
+      const currentPending = this.values.get(pending);
+      if (
+        (argv[1] === "" && currentPending !== undefined) ||
+        (argv[1] !== "" && currentPending !== argv[1])
+      ) {
+        return -2;
+      }
+      if (this.values.get(claimed) !== argv[2]) return -3;
+      this.values.set(pending, argv[3] ?? "");
+      this.values.delete(claimed);
+      return 1;
+    }
+
+    if (numberOfKeys === 2 && argv.length === 3) {
+      const [lock, pending] = keys;
+      if (!(lock && pending)) return -1;
+      if (this.values.get(lock) !== argv[0]) return -1;
+      const current = this.values.get(pending);
+      if (
+        (argv[1] === "" && current !== undefined) ||
+        (argv[1] !== "" && current !== argv[1])
+      ) {
+        return -2;
+      }
+      this.values.set(pending, argv[2] ?? "");
+      return 1;
+    }
+
+    if (numberOfKeys === 2 && argv.length === 2) {
+      const [claimed, lock] = keys;
+      if (!(claimed && lock)) return -1;
+      if (this.values.get(lock) !== argv[0]) return -1;
+      if (this.values.get(claimed) !== argv[1]) return 0;
+      this.values.delete(claimed);
+      return 1;
+    }
+
     const [key] = keys;
     if (!key) return 0;
     if (argv.length === 2) {
-      return this.values.get(key) === String(argv[0]) ? 1 : 0;
+      return this.values.get(key) === argv[0] ? 1 : 0;
     }
-    if (this.values.get(key) === String(argv[0])) {
+    if (this.values.get(key) === argv[0]) {
       this.values.delete(key);
       return 1;
     }
@@ -51,7 +96,13 @@ class FakeRedis implements ThreadReadRedisAdapter {
   }
 
   async get(key: string): Promise<string | null> {
-    return this.values.get(key) ?? null;
+    if (this.failNextGet) {
+      this.failNextGet = false;
+      throw new Error("redis unavailable");
+    }
+    const value = this.values.get(key) ?? null;
+    this.onGet?.(key);
+    return value;
   }
 
   async incr(key: string): Promise<number> {
@@ -79,6 +130,12 @@ class FakeRedis implements ThreadReadRedisAdapter {
     value: string,
     ...args: (string | number)[]
   ): Promise<unknown> {
+    if (
+      args.includes("NX") &&
+      [...this.failLockForThreadIds].some((threadId) => key.endsWith(threadId))
+    ) {
+      throw new Error("lock unavailable");
+    }
     if (args.includes("NX") && this.values.has(key)) return null;
     this.values.set(key, value);
     return "OK";
@@ -91,6 +148,7 @@ class FakeJob {
   id: string;
   opts: { delay?: number; priority?: number };
   private readonly owner: FakeQueue;
+  onUpdate?: () => void;
   state: JobState | "unknown";
 
   constructor(
@@ -122,6 +180,7 @@ class FakeJob {
 
   async updateData(data: ThreadReadJobData): Promise<void> {
     this.data = data;
+    this.onUpdate?.();
     if (this.activateOnUpdate) {
       this.state = "active";
     }
@@ -181,6 +240,10 @@ const setup = () => {
 };
 
 describe(ThreadReadQueueManager, () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("coalesces delayed causes, preserves PR candidates, and promotes priority", async () => {
     const { manager, queue } = setup();
 
@@ -268,6 +331,42 @@ describe(ThreadReadQueueManager, () => {
     ]);
   });
 
+  it("fences a stale owner from overwriting a newer pending generation", async () => {
+    const { manager, queue, redis } = setup();
+    await manager.enqueue("t1", [{ kind: "message" }]);
+    const racingJob = queue.jobs.get("thread:t1:read");
+    if (!racingJob) throw new Error("missing test job");
+    racingJob.state = "waiting";
+    racingJob.activateOnUpdate = true;
+
+    const newerPending = JSON.stringify({
+      generation: 99,
+      priority: 1,
+      triggers: [{ kind: "sla" }],
+    });
+    redis.onGet = (key) => {
+      if (
+        key === "frontdesk:thread-read-pending:t1" &&
+        redis.values.has("frontdesk:thread-read-claimed:t1")
+      ) {
+        redis.onGet = undefined;
+        redis.values.set("frontdesk:thread-read-enqueue:t1", "new-owner");
+        redis.values.set(key, newerPending);
+      }
+    };
+
+    await expect(
+      manager.enqueue("t1", [prTrigger("pr-1")])
+    ).resolves.toMatchObject({
+      disposition: "buffered",
+      reason: "queue_unavailable",
+    });
+    expect(redis.values.get("frontdesk:thread-read-pending:t1")).toBe(
+      newerPending
+    );
+    expect(redis.values.has("frontdesk:thread-read-claimed:t1")).toBeTruthy();
+  });
+
   it.each([
     ["completed", "terminal_requeue"],
     ["failed", "terminal_requeue"],
@@ -313,6 +412,38 @@ describe(ThreadReadQueueManager, () => {
     expect(queue.jobs.get("thread:t1:read")?.data.triggers).toStrictEqual([
       { kind: "message" },
     ]);
+  });
+
+  it("returns a structured unavailable result when durable buffering fails", async () => {
+    const { manager, redis } = setup();
+    redis.failNextGet = true;
+
+    await expect(
+      manager.enqueue("t1", [{ kind: "message" }])
+    ).resolves.toMatchObject({
+      disposition: "skipped",
+      reason: "queue_unavailable",
+    });
+  });
+
+  it("rejects malformed pending trigger records at the Redis boundary", async () => {
+    const { manager, queue, redis } = setup();
+    redis.values.set(
+      "frontdesk:thread-read-pending:t1",
+      JSON.stringify({
+        generation: 1,
+        priority: 10,
+        triggers: [{ kind: "not_a_trigger" }],
+      })
+    );
+
+    await expect(manager.recover()).resolves.toStrictEqual([
+      expect.objectContaining({
+        disposition: "skipped",
+        reason: "queue_unavailable",
+      }),
+    ]);
+    expect(queue.jobs.size).toBe(0);
   });
 
   it("acknowledges a crash-left claim only after verifying the BullMQ payload", async () => {
@@ -383,6 +514,49 @@ describe(ThreadReadQueueManager, () => {
     expect(redis.values.has("frontdesk:thread-read-pending:t1")).toBeFalsy();
   });
 
+  it("continues recovery when one thread cannot acquire its lock", async () => {
+    const { manager, queue, redis } = setup();
+    for (const threadId of ["t1", "t2"]) {
+      redis.values.set(
+        `frontdesk:thread-read-pending:${threadId}`,
+        JSON.stringify({
+          generation: 1,
+          priority: 10,
+          triggers: [{ kind: "message" }],
+        })
+      );
+    }
+    redis.failLockForThreadIds.add("t1");
+
+    await expect(manager.recover()).resolves.toStrictEqual([
+      expect.objectContaining({
+        disposition: "skipped",
+        reason: "queue_unavailable",
+      }),
+      expect.objectContaining({ disposition: "scheduled" }),
+    ]);
+    expect(queue.jobs.has("thread:t2:read")).toBeTruthy();
+  });
+
+  it("bounds a hung queue mutation and keeps its pending generation durable", async () => {
+    vi.useFakeTimers();
+    const redis = new FakeRedis();
+    const hangingQueue: ThreadReadQueueAdapter = {
+      add: () => new Promise(() => undefined),
+      getJob: () => new Promise(() => undefined),
+    };
+    const manager = new ThreadReadQueueManager(hangingQueue, redis, 10);
+
+    const enqueue = manager.enqueue("t1", [{ kind: "message" }]);
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    await expect(enqueue).resolves.toMatchObject({
+      disposition: "buffered",
+      reason: "queue_unavailable",
+    });
+    expect(redis.values.has("frontdesk:thread-read-claimed:t1")).toBeTruthy();
+  });
+
   it("serializes concurrent enqueues into one stable job without dropping causes", async () => {
     const { manager, queue } = setup();
     await Promise.all([
@@ -391,7 +565,7 @@ describe(ThreadReadQueueManager, () => {
       manager.enqueue("t1", [{ kind: "sla" }]),
     ]);
 
-    expect(queue.jobs).toHaveLength(1);
+    expect(queue.jobs.size).toBe(1);
     expect(queue.jobs.get("thread:t1:read")?.data.triggers).toStrictEqual([
       prTrigger("pr-1"),
       prTrigger("pr-2"),

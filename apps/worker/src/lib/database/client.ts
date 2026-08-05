@@ -106,7 +106,10 @@ export const fetchThreadsWithRelations = async (
 export const clearThreadAgentRead = async (
   threadId: string
 ): Promise<boolean> => {
-  const thread = await fetchThreadWithRelations(threadId);
+  // Do not use fetchThreadWithRelations here: it deliberately degrades API
+  // failures to null for read-only pipeline hydration. A supersede is a write
+  // effect, so transport failures must reject the BullMQ job and be retried.
+  const thread = (await fetchClient.query.thread.byIds({ ids: [threadId] }))[0];
   if (!thread) {
     return false;
   }

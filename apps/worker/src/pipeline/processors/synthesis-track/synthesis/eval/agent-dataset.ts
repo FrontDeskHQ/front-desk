@@ -777,6 +777,15 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           kind: "pr_matched",
           prMatched: {
+            prId: "pr17-noise",
+            score: 0.87,
+            title: "Refresh webhook activity dashboard styles",
+            url: "https://github.com/acme/api/pull/481",
+          },
+        },
+        {
+          kind: "pr_matched",
+          prMatched: {
             prId: "pr17",
             score: 0.91,
             title: "Preserve Idempotency-Key header across webhook retries",
@@ -785,9 +794,23 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         },
       ],
     },
-    name: "verified pr_matched lead on replied thread should link the pr",
+    name: "coalesced pr_matched leads select the verified relevant pr",
     toolFixtures: {
       prsByUrl: {
+        "https://github.com/acme/api/pull/481": {
+          authorLogin: "dev-ui",
+          baseRef: "main",
+          body: "Updates spacing and colors on the webhook activity dashboard. No delivery, retry, header, or billing behavior changes.",
+          draft: false,
+          headRef: "style/webhook-dashboard",
+          labels: ["ui"],
+          merged: false,
+          number: 481,
+          repoFullName: "acme/api",
+          state: "open",
+          title: "Refresh webhook activity dashboard styles",
+          url: "https://github.com/acme/api/pull/481",
+        },
         "https://github.com/acme/api/pull/482": {
           authorLogin: "dev-alice",
           baseRef: "main",

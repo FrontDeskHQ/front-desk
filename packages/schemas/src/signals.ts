@@ -497,10 +497,14 @@ export const normalizeThreadReadJobData = (
   }
 
   const legacy = legacyThreadReadJobDataSchema.parse(input);
-  const triggers: ThreadReadTrigger[] = [{ kind: legacy.kind }];
-  if (legacy.prMatched) {
-    triggers.push({ kind: "pr_matched", prMatched: legacy.prMatched });
-  }
+  const triggers: ThreadReadTrigger[] = legacy.prMatched
+    ? legacy.kind === "pr_matched"
+      ? [{ kind: "pr_matched", prMatched: legacy.prMatched }]
+      : [
+          { kind: legacy.kind },
+          { kind: "pr_matched", prMatched: legacy.prMatched },
+        ]
+    : [{ kind: legacy.kind }];
   return {
     threadId: legacy.threadId,
     triggers: mergeThreadReadTriggers(triggers),
