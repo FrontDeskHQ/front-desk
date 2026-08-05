@@ -417,12 +417,99 @@ export const threadReadTriggerSchema = z.object({
 });
 export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
 
-export const threadReadJobDataSchema = z.object({
+const canonicalThreadReadJobDataSchema = z.object({
+  threadId: z.string(),
+  triggers: z.array(threadReadTriggerSchema).min(1),
+});
+
+/**
+ * Pre-generational payload retained for rolling deployments. The old enqueue
+ * path could leave a `prMatched` candidate attached to a different winning
+ * `kind`; normalization restores both causes instead of losing either one.
+ */
+export const legacyThreadReadJobDataSchema = z.object({
   kind: threadReadKindSchema,
-  /** Candidate PR carried by a `pr_matched` trigger; preserved across merges. */
   prMatched: prMatchCandidateSchema.optional(),
   threadId: z.string(),
 });
+export type LegacyThreadReadJobData = z.infer<
+  typeof legacyThreadReadJobDataSchema
+>;
+
+const triggerIdentity = (trigger: ThreadReadTrigger): string =>
+  trigger.kind === "pr_matched" && trigger.prMatched
+    ? `pr_matched:${trigger.prMatched.prId}`
+    : trigger.kind;
+
+/**
+ * Merge causes without overwriting them. The first occurrence fixes arrival
+ * position; a later trigger with the same identity replaces its payload so a
+ * refreshed PR candidate carries the newest title, URL, and score.
+ */
+export const mergeThreadReadTriggers = (
+  ...collections: readonly (readonly ThreadReadTrigger[])[]
+): ThreadReadTrigger[] => {
+  const merged: ThreadReadTrigger[] = [];
+  const positions = new Map<string, number>();
+
+  for (const trigger of collections.flat()) {
+    const parsed = threadReadTriggerSchema.parse(trigger);
+    const identity = triggerIdentity(parsed);
+    const position = positions.get(identity);
+    if (position === undefined) {
+      positions.set(identity, merged.length);
+      merged.push(parsed);
+    } else {
+      merged[position] = parsed;
+    }
+  }
+
+  return merged;
+};
+
+const THREAD_READ_KIND_ORDER = new Map<ThreadReadKind, number>(
+  threadReadKindSchema.options.map((kind, index) => [kind, index])
+);
+
+/** Stable order for hashes and equality checks; queue payload order stays FIFO. */
+export const sortThreadReadTriggers = (
+  triggers: readonly ThreadReadTrigger[]
+): ThreadReadTrigger[] =>
+  [...triggers].sort((left, right) => {
+    const kindDelta =
+      (THREAD_READ_KIND_ORDER.get(left.kind) ?? 0) -
+      (THREAD_READ_KIND_ORDER.get(right.kind) ?? 0);
+    if (kindDelta !== 0) {
+      return kindDelta;
+    }
+    return triggerIdentity(left).localeCompare(triggerIdentity(right));
+  });
+
+export const normalizeThreadReadJobData = (
+  input: unknown
+): { threadId: string; triggers: ThreadReadTrigger[] } => {
+  const canonical = canonicalThreadReadJobDataSchema.safeParse(input);
+  if (canonical.success) {
+    return {
+      threadId: canonical.data.threadId,
+      triggers: mergeThreadReadTriggers(canonical.data.triggers),
+    };
+  }
+
+  const legacy = legacyThreadReadJobDataSchema.parse(input);
+  const triggers: ThreadReadTrigger[] = [{ kind: legacy.kind }];
+  if (legacy.prMatched) {
+    triggers.push({ kind: "pr_matched", prMatched: legacy.prMatched });
+  }
+  return {
+    threadId: legacy.threadId,
+    triggers: mergeThreadReadTriggers(triggers),
+  };
+};
+
+export const threadReadJobDataSchema = z
+  .union([canonicalThreadReadJobDataSchema, legacyThreadReadJobDataSchema])
+  .transform(normalizeThreadReadJobData);
 export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
 
 // --- PR embedding index (FRO-203) -----------------------------------------

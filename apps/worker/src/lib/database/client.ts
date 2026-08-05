@@ -101,3 +101,19 @@ export const fetchThreadsWithRelations = async (
 
   return threads;
 };
+
+/** Clear a superseded read without invoking synthesis. */
+export const clearThreadAgentRead = async (
+  threadId: string
+): Promise<boolean> => {
+  const thread = await fetchThreadWithRelations(threadId);
+  if (!thread) {
+    return false;
+  }
+  await fetchClient.mutate.thread.setAgentRead({
+    agentRead: null,
+    organizationId: thread.organizationId,
+    threadId,
+  });
+  return true;
+};

@@ -1,6 +1,6 @@
 # 0006 — Triggers carry context on a channel separate from hints
 
-**Status:** Accepted (amended 2026-07-19) **Date:** 2026-05-28 **References:** [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md)
+**Status:** Accepted (amended 2026-08-04) **Date:** 2026-05-28 **References:** [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md)
 
 ## Context
 
@@ -26,7 +26,11 @@ Synthesis therefore reconciles **two input surfaces**:
 
 The trigger _kind_ also continues to drive cadence and hash-invalidation (e.g. a `message` trigger invalidates the status hint).
 
-**Job coalescing.** There remains one pending pipeline job per thread (`thread:{id}:read`). When causes race (e.g. `pr_matched` then `message` while still delayed), merge rather than overwrite: keep the PR payload and still run once so synthesis sees both surfaces.
+**Job coalescing.** There remains one pending pipeline job per thread (`thread:{id}:read`). Its canonical payload is `{ threadId, triggers[] }`; the former singular payload stays readable during rolling deployment. When causes race, merge rather than overwrite: preserve cause arrival order, deduplicate ordinary kinds, and deduplicate `pr_matched` by mirrored PR id while keeping the newest candidate data. Hashes use a deterministic trigger order rather than arrival order.
+
+**Active-job durability.** A running BullMQ job cannot safely accept new data. Later causes therefore enter a per-thread Redis pending record with a monotonic generation and the highest requested priority. The queue owner claims a generation before mutating BullMQ and acknowledges it only after verifying that the job payload contains every claimed cause at an equal or higher priority. Completion and final failure drain pending generations; startup and periodic scans recover records left by restarts or queue failures. BullMQ retries do not drain because the current job has not reached a terminal state.
+
+**Infrastructure ownership.** The API produces thread-read jobs and the worker drains/recoveries them, so neither application owns the complete lifecycle. Shared Redis/BullMQ behavior lives in the dedicated `@workspace/queue` infrastructure package. `@workspace/schemas` owns only the payload contract and pure merge/normalization helpers; unrelated queues remain with their existing application owners.
 
 ## Consequences
 
@@ -34,4 +38,6 @@ The trigger _kind_ also continues to drive cadence and hash-invalidation (e.g. a
 - Synthesis has two surfaces to reconcile rather than one — marginally more prompt-shaping work, accepted for the clarity of cause-vs-evidence.
 - Push (`pr_matched`) and pull (`related_prs`) coexist without fighting over a shared hint slot.
 - Producers of `pr_matched` jobs must populate the PR payload; enqueue must merge payloads when updating an existing delayed/waiting job.
+- Queue callers receive a structured disposition (`scheduled`, `coalesced`, `buffered`, or `skipped`) so fan-out and operational logs distinguish accepted work from duplicate or unavailable work.
+- Every non-`supersede` trigger can force synthesis even when detector dependencies are unchanged. Trigger collections are included in the synthesis hash; the summary processor also runs for explicit trigger-driven synthesis because idempotency stores hashes, not prior output values.
 - Authoritative/deterministic PR↔thread linking stays out of this channel and out of thread reads.

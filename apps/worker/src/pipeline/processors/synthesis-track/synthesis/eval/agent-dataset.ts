@@ -773,15 +773,17 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         },
       ],
       threadName: "Webhook retries drop the idempotency key",
-      trigger: {
-        kind: "pr_matched",
-        prMatched: {
-          prId: "pr17",
-          score: 0.91,
-          title: "Preserve Idempotency-Key header across webhook retries",
-          url: "https://github.com/acme/api/pull/482",
+      triggers: [
+        {
+          kind: "pr_matched",
+          prMatched: {
+            prId: "pr17",
+            score: 0.91,
+            title: "Preserve Idempotency-Key header across webhook retries",
+            url: "https://github.com/acme/api/pull/482",
+          },
         },
-      },
+      ],
     },
     name: "verified pr_matched lead on replied thread should link the pr",
     toolFixtures: {
@@ -836,15 +838,17 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         },
       ],
       threadName: "CSV export truncates rows past 10k",
-      trigger: {
-        kind: "pr_matched",
-        prMatched: {
-          prId: "pr18",
-          score: 0.9,
-          title: "Paginate CSV export beyond the 10k row cap",
-          url: "https://github.com/acme/api/pull/511",
+      triggers: [
+        {
+          kind: "pr_matched",
+          prMatched: {
+            prId: "pr18",
+            score: 0.9,
+            title: "Paginate CSV export beyond the 10k row cap",
+            url: "https://github.com/acme/api/pull/511",
+          },
         },
-      },
+      ],
     },
     name: "unreplied pr_matched lead must couple link_pr with a reply",
     toolFixtures: {
@@ -896,15 +900,17 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         },
       ],
       threadName: "How do I change my billing email?",
-      trigger: {
-        kind: "pr_matched",
-        prMatched: {
-          prId: "pr19",
-          score: 0.86,
-          title: "Add dark mode to the analytics dashboard",
-          url: "https://github.com/acme/api/pull/523",
+      triggers: [
+        {
+          kind: "pr_matched",
+          prMatched: {
+            prId: "pr19",
+            score: 0.86,
+            title: "Add dark mode to the analytics dashboard",
+            url: "https://github.com/acme/api/pull/523",
+          },
         },
-      },
+      ],
     },
     name: "weak unrelated pr lead should refuse link_pr",
     toolFixtures: {

@@ -11,6 +11,7 @@ import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import type { ParsedSummary } from "../../types";
+import { hasSynthesisTrigger } from "../core/trigger-policy";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -238,6 +239,10 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
   },
 
   dependencies: [],
+
+  runsOnTrigger(context: ProcessorExecuteContext): boolean {
+    return hasSynthesisTrigger(context.context.input.triggers);
+  },
 
   async execute(
     context: ProcessorExecuteContext

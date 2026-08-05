@@ -1,9 +1,12 @@
-import { randomUUID } from "node:crypto";
-
+import { enqueueThreadRead as enqueueDurableThreadRead } from "@workspace/queue/thread-read";
+import type {
+  EnqueueThreadReadOptions,
+  ThreadReadEnqueueResult,
+  ThreadReadJobPriority,
+} from "@workspace/queue/thread-read";
 import type {
   PrIndexJobData,
   PrMatchCandidate,
-  ThreadReadJobData,
   ThreadReadKind,
 } from "@workspace/schemas/signals";
 import { Queue } from "bullmq";
@@ -18,89 +21,17 @@ const WORKER_JOBS_DISABLED = process.env.NODE_ENV === "production";
 /** False when worker enqueue is intentionally skipped (e.g. prod without worker service). */
 export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
 
-const THREAD_PIPELINE_QUEUE = "thread-pipeline";
-const THREAD_READ_JOB_NAME = "thread-read";
-const THREAD_READ_ENQUEUE_LOCK_TTL_MS = 30_000;
-const THREAD_READ_ENQUEUE_LOCK_RETRY_MS = 25;
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
 const PR_INDEX_JOB_NAME = "index-pr";
 
-const DEFAULT_DEBOUNCE_MS = (() => {
-  const raw = process.env.THREAD_READ_DEBOUNCE_MS;
-  if (!raw) {
-    return 2000;
-  }
-  const parsed = Number.parseInt(raw, 10);
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 2000;
-})();
-
-export type ThreadReadJobPriority = "high" | "normal" | "low";
-
-const THREAD_READ_PRIORITY_VALUES: Record<ThreadReadJobPriority, number> = {
-  high: 1,
-  low: 100,
-  normal: 10,
+export type {
+  EnqueueThreadReadOptions,
+  ThreadReadEnqueueResult,
+  ThreadReadJobPriority,
 };
-
-export interface EnqueueThreadReadOptions {
-  priority?: ThreadReadJobPriority;
-  delayMs?: number;
-}
 
 let connection: Redis | null = null;
-let queue: Queue<ThreadReadJobData> | null = null;
-
-const RELEASE_THREAD_READ_LOCK_SCRIPT = `
-  if redis.call("get", KEYS[1]) == ARGV[1] then
-    return redis.call("del", KEYS[1])
-  end
-  return 0
-`;
-
-const sleep = (milliseconds: number): Promise<void> =>
-  new Promise((resolve) => setTimeout(resolve, milliseconds));
-
-const withThreadReadEnqueueLock = async <T>(
-  threadId: string,
-  operation: () => Promise<T>
-): Promise<T> => {
-  const redis = connection;
-  if (!redis) {
-    return operation();
-  }
-
-  const lockKey = `frontdesk:thread-read-enqueue:${threadId}`;
-  const lockToken = randomUUID();
-  const deadline = Date.now() + THREAD_READ_ENQUEUE_LOCK_TTL_MS;
-
-  while (
-    !(await redis.set(
-      lockKey,
-      lockToken,
-      "PX",
-      THREAD_READ_ENQUEUE_LOCK_TTL_MS,
-      "NX"
-    ))
-  ) {
-    if (Date.now() >= deadline) {
-      throw new Error(
-        `Timed out acquiring thread-read enqueue lock: ${threadId}`
-      );
-    }
-    await sleep(THREAD_READ_ENQUEUE_LOCK_RETRY_MS);
-  }
-
-  try {
-    return await operation();
-  } finally {
-    try {
-      await redis.eval(RELEASE_THREAD_READ_LOCK_SCRIPT, 1, lockKey, lockToken);
-    } catch {
-      // Lock key expires via TTL; avoid masking successful enqueue results.
-    }
-  }
-};
 
 const createRedisConnection = (): Redis | null => {
   if (process.env.REDIS_URL) {
@@ -137,20 +68,6 @@ const createRedisConnection = (): Redis | null => {
   return new Redis(redisConfig);
 };
 
-const getThreadPipelineQueue = (): Queue<ThreadReadJobData> | null => {
-  if (queue) {
-    return queue;
-  }
-
-  connection ??= createRedisConnection();
-  if (!connection) {
-    return null;
-  }
-
-  queue = new Queue<ThreadReadJobData>(THREAD_PIPELINE_QUEUE, { connection });
-  return queue;
-};
-
 export const enqueueThreadRead = async (
   threadId: string,
   opts: {
@@ -158,72 +75,26 @@ export const enqueueThreadRead = async (
     /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
     prMatched?: PrMatchCandidate;
   } & EnqueueThreadReadOptions
-): Promise<string | null> => {
+): Promise<ThreadReadEnqueueResult> => {
   if (WORKER_JOBS_DISABLED) {
-    return null;
+    return {
+      disposition: "skipped",
+      jobId: null,
+      reason: "worker_disabled",
+    };
   }
-
-  const q = getThreadPipelineQueue();
-  if (!q) {
-    return null;
-  }
-
-  const delay = opts.delayMs ?? DEFAULT_DEBOUNCE_MS;
-  const priority = THREAD_READ_PRIORITY_VALUES[opts.priority ?? "normal"];
 
   // TODO(issue-09): manual kind should bypass dedup (unique jobId + delay 0)
   // and invalidate synthesis-track idempotency keys before enqueueing. For now
   // it falls through to the normal-dedup path so the surface compiles.
-  const jobId = `thread:${threadId}:read`;
-  const data: ThreadReadJobData = {
-    kind: opts.kind,
+  return enqueueDurableThreadRead(
     threadId,
-    ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
-  };
-
-  return withThreadReadEnqueueLock(threadId, async () => {
-    const existing = await q.getJob(jobId);
-    if (existing) {
-      const state = await existing.getState();
-      if (
-        state === "delayed" ||
-        state === "waiting" ||
-        state === "prioritized"
-      ) {
-        // Coalesce onto the single pending job (ADR 0006). The latest cause
-        // wins for `kind` (it drives cadence/hash-invalidation), but never drop
-        // a PR payload a prior `pr_matched` trigger pushed: keep the existing
-        // candidate when this enqueue carries none, so both surfaces reach
-        // synthesis.
-        const merged: ThreadReadJobData = {
-          kind: opts.kind,
-          threadId,
-          ...((opts.prMatched ?? existing.data.prMatched)
-            ? { prMatched: opts.prMatched ?? existing.data.prMatched }
-            : {}),
-        };
-        await existing.updateData(merged);
-        return existing.id ?? jobId;
-      }
-
-      // BullMQ keeps completed and failed jobs under their job ID. Remove
-      // those terminal records before reusing the stable per-thread ID,
-      // otherwise a later trigger can be reported as enqueued while BullMQ
-      // silently returns the old completed job instead of scheduling a new
-      // read.
-      if (state === "completed" || state === "failed") {
-        await existing.remove();
-      }
-    }
-
-    const job = await q.add(THREAD_READ_JOB_NAME, data, {
-      delay,
-      jobId,
-      priority,
-    });
-
-    return job.id ?? null;
-  });
+    {
+      kind: opts.kind,
+      ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
+    },
+    { delayMs: opts.delayMs, priority: opts.priority }
+  );
 };
 
 // Crawl Documentation Queue

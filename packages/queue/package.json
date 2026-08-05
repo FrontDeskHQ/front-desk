@@ -1,0 +1,22 @@
+{
+  "name": "@workspace/queue",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./thread-read": "./src/thread-read.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@workspace/schemas": "workspace:*",
+    "bullmq": "^5.0.0",
+    "ioredis": "^5.3.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.3",
+    "vitest": "^4.0.0"
+  }
+}
