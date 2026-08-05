@@ -158,7 +158,10 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           score,
         },
       });
-      if (result.reason === "queue_unavailable") {
+      if (
+        result.reason === "queue_unavailable" &&
+        result.disposition !== "buffered"
+      ) {
         unavailable += 1;
       } else {
         dispositions[result.disposition] += 1;

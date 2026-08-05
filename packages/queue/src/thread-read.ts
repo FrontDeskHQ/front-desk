@@ -19,7 +19,7 @@ export const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 export const THREAD_READ_JOB_NAME = "thread-read";
 
 const LOCK_TTL_MS = 30_000;
-const LOCK_MAX_HOLD_MS = 15_000;
+const QUEUE_COMMAND_TIMEOUT_MS = 15_000;
 const LOCK_RETRY_MS = 25;
 const PENDING_PREFIX = "frontdesk:thread-read-pending:";
 const CLAIMED_PREFIX = "frontdesk:thread-read-claimed:";
@@ -276,9 +276,8 @@ export class ThreadReadQueueManager {
 
     let stopped = false;
     let renewalTimer: ReturnType<typeof setTimeout> | undefined;
-    const holdDeadline = Date.now() + LOCK_MAX_HOLD_MS;
     const renew = async (): Promise<void> => {
-      if (stopped || Date.now() >= holdDeadline) {
+      if (stopped) {
         return;
       }
       try {
@@ -303,24 +302,14 @@ export class ThreadReadQueueManager {
     };
     renewalTimer = setTimeout(renew, LOCK_TTL_MS / 3);
 
-    let rejectHoldTimeout: ((error: Error) => void) | undefined;
-    const holdTimeout = setTimeout(() => {
-      rejectHoldTimeout?.(
-        new Error(`Timed out holding thread-read lock: ${threadId}`)
-      );
-    }, LOCK_MAX_HOLD_MS);
-    holdTimeout.unref?.();
-
     try {
-      return await Promise.race([
-        operation({ key, token }),
-        new Promise<never>((_resolve, reject) => {
-          rejectHoldTimeout = reject;
-        }),
-      ]);
+      // Never abandon a BullMQ mutation while releasing its serialization
+      // lock. The production adapter bounds every Redis-backed queue command,
+      // and the lease stays renewed until that command settles so a stale
+      // mutation cannot race a newer owner and overwrite newer triggers.
+      return await operation({ key, token });
     } finally {
       stopped = true;
-      clearTimeout(holdTimeout);
       if (renewalTimer) {
         clearTimeout(renewalTimer);
       }
@@ -624,6 +613,13 @@ export class ThreadReadQueueManager {
     triggers: readonly ThreadReadTrigger[],
     options: EnqueueThreadReadOptions = {}
   ): Promise<ThreadReadEnqueueResult> {
+    if (triggers.length === 0) {
+      return {
+        disposition: "skipped",
+        jobId: null,
+        reason: "no_pending_triggers",
+      };
+    }
     const priority = THREAD_READ_PRIORITY_VALUES[options.priority ?? "normal"];
     const delay = options.delayMs ?? this.defaultDebounceMs;
     let persisted = false;
@@ -710,10 +706,12 @@ const redisEnvironmentSchema = z.object({
   REDIS_URL: z.string().min(1).optional(),
 });
 
-export const createQueueRedisConnection = (): Redis | null => {
+export const createQueueRedisConnection = (
+  settings: { allowLocalhostFallback?: boolean } = {}
+): Redis | null => {
   const environment = redisEnvironmentSchema.parse(process.env);
   const redisOptions = {
-    commandTimeout: LOCK_MAX_HOLD_MS,
+    commandTimeout: QUEUE_COMMAND_TIMEOUT_MS,
     maxRetriesPerRequest: null,
   } as const;
   if (environment.REDIS_URL) {
@@ -721,7 +719,10 @@ export const createQueueRedisConnection = (): Redis | null => {
   }
   const redisHost =
     environment.REDIS_HOST ??
-    (environment.NODE_ENV === "production" ? undefined : "localhost");
+    (settings.allowLocalhostFallback !== false &&
+    environment.NODE_ENV !== "production"
+      ? "localhost"
+      : undefined);
   if (!redisHost) {
     return null;
   }
@@ -733,7 +734,7 @@ export const createQueueRedisConnection = (): Redis | null => {
     password?: string;
     port?: number;
   } = {
-    commandTimeout: LOCK_MAX_HOLD_MS,
+    commandTimeout: QUEUE_COMMAND_TIMEOUT_MS,
     host: redisHost,
     maxRetriesPerRequest: null,
   };

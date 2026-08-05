@@ -37,6 +37,8 @@ export type {
 
 let connection: Redis | null = null;
 let threadReadQueueConfigured = false;
+const createApiRedisConnection = (): Redis | null =>
+  createQueueRedisConnection({ allowLocalhostFallback: false });
 
 export const enqueueThreadRead = async (
   threadId: string,
@@ -55,7 +57,7 @@ export const enqueueThreadRead = async (
   }
 
   if (!threadReadQueueConfigured) {
-    connection ??= createQueueRedisConnection();
+    connection ??= createApiRedisConnection();
     if (!connection) {
       return {
         disposition: "skipped",
@@ -95,7 +97,7 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
     return crawlDocQueue;
   }
 
-  connection ??= createQueueRedisConnection();
+  connection ??= createApiRedisConnection();
   if (!connection) {
     return null;
   }
@@ -147,7 +149,7 @@ const getPrIndexQueue = (): Queue<PrIndexJobData> | null => {
     return prIndexQueue;
   }
 
-  connection ??= createQueueRedisConnection();
+  connection ??= createApiRedisConnection();
   if (!connection) {
     return null;
   }
@@ -224,7 +226,7 @@ const getGithubBackfillQueue = (): Queue<GithubBackfillJobData> | null => {
     return githubBackfillQueue;
   }
 
-  connection ??= createQueueRedisConnection();
+  connection ??= createApiRedisConnection();
   if (!connection) {
     return null;
   }

@@ -150,6 +150,7 @@ class FakeJob {
   private readonly owner: FakeQueue;
   onUpdate?: () => void;
   state: JobState | "unknown";
+  updateGate?: Promise<void>;
 
   constructor(
     owner: FakeQueue,
@@ -179,6 +180,7 @@ class FakeJob {
   }
 
   async updateData(data: ThreadReadJobData): Promise<void> {
+    await this.updateGate;
     this.data = data;
     this.onUpdate?.();
     if (this.activateOnUpdate) {
@@ -426,6 +428,18 @@ describe(ThreadReadQueueManager, () => {
     });
   });
 
+  it("rejects empty trigger input before writing a durable generation", async () => {
+    const { manager, queue, redis } = setup();
+
+    await expect(manager.enqueue("t1", [])).resolves.toStrictEqual({
+      disposition: "skipped",
+      jobId: null,
+      reason: "no_pending_triggers",
+    });
+    expect(queue.jobs.size).toBe(0);
+    expect(redis.values.size).toBe(0);
+  });
+
   it("rejects malformed pending trigger records at the Redis boundary", async () => {
     const { manager, queue, redis } = setup();
     redis.values.set(
@@ -538,23 +552,47 @@ describe(ThreadReadQueueManager, () => {
     expect(queue.jobs.has("thread:t2:read")).toBeTruthy();
   });
 
-  it("bounds a hung queue mutation and keeps its pending generation durable", async () => {
+  it("retains its lease until a slow queue mutation settles", async () => {
     vi.useFakeTimers();
-    const redis = new FakeRedis();
-    const hangingQueue: ThreadReadQueueAdapter = {
-      add: () => new Promise(() => undefined),
-      getJob: () => new Promise(() => undefined),
-    };
-    const manager = new ThreadReadQueueManager(hangingQueue, redis, 10);
+    const { manager, queue, redis } = setup();
+    await manager.enqueue("t1", [{ kind: "message" }]);
+    const slowJob = queue.jobs.get("thread:t1:read");
+    if (!slowJob) throw new Error("missing test job");
 
-    const enqueue = manager.enqueue("t1", [{ kind: "message" }]);
-    await vi.advanceTimersByTimeAsync(15_000);
-
-    await expect(enqueue).resolves.toMatchObject({
-      disposition: "buffered",
-      reason: "queue_unavailable",
+    let releaseUpdate: (() => void) | undefined;
+    slowJob.updateGate = new Promise((resolve) => {
+      releaseUpdate = resolve;
     });
-    expect(redis.values.has("frontdesk:thread-read-claimed:t1")).toBeTruthy();
+
+    const slowEnqueue = manager.enqueue("t1", [prTrigger("pr-1")]);
+    await vi.advanceTimersByTimeAsync(31_000);
+    expect(redis.values.has("frontdesk:thread-read-enqueue:t1")).toBeTruthy();
+
+    let newerSettled = false;
+    const newerEnqueue = manager
+      .enqueue("t1", [{ kind: "sla" }])
+      .finally(() => {
+        newerSettled = true;
+      });
+    await vi.advanceTimersByTimeAsync(100);
+    expect(newerSettled).toBeFalsy();
+
+    slowJob.updateGate = undefined;
+    releaseUpdate?.();
+    await vi.advanceTimersByTimeAsync(0);
+    await expect(slowEnqueue).resolves.toMatchObject({
+      disposition: "coalesced",
+    });
+
+    await vi.advanceTimersByTimeAsync(25);
+    await expect(newerEnqueue).resolves.toMatchObject({
+      disposition: "coalesced",
+    });
+    expect(queue.jobs.get("thread:t1:read")?.data.triggers).toStrictEqual([
+      { kind: "message" },
+      prTrigger("pr-1"),
+      { kind: "sla" },
+    ]);
   });
 
   it("serializes concurrent enqueues into one stable job without dropping causes", async () => {

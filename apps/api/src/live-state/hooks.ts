@@ -18,8 +18,12 @@ export const liveStateHooks = defineHooks<typeof schema>({
           });
 
           if (result.reason === "queue_unavailable" && areWorkerJobsEnabled()) {
+            const outcome =
+              result.disposition === "buffered"
+                ? "buffered durably and awaiting recovery"
+                : "skipping enqueue";
             console.warn(
-              `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}`
+              `Thread-read queue unavailable; ${outcome} for thread ${value.threadId}`
             );
           }
         } catch (error) {
