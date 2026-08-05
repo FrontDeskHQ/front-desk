@@ -1,6 +1,6 @@
 "use client";
 
-import { getRouteApi, useNavigate } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { MenuItem } from "@workspace/ui/components/menu";
 import { getDefaultStore } from "jotai/vanilla";
 import { toast } from "sonner";
@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 import { buildThreadParam, parseThreadParam } from "~/utils/thread";
+
+import { useThreadRouteRawParam } from "./thread-route-for-devtools";
 
 const parseThreadMessage = (content: string | undefined) => {
   if (!content) {
@@ -96,13 +98,7 @@ export const duplicateThreadFromParam = async ({
 
 export const DuplicateThreadMenuItem = () => {
   const navigate = useNavigate();
-  const { id: rawParam } = (() => {
-    try {
-      return getRouteApi("/app/_workspace/_main/threads/$id/").useParams();
-    } catch {
-      return { id: null };
-    }
-  })();
+  const rawParam = useThreadRouteRawParam();
 
   const handleDuplicateThread = () =>
     duplicateThreadFromParam({
@@ -118,6 +114,7 @@ export const DuplicateThreadMenuItem = () => {
 
   return (
     <MenuItem
+      disabled={!rawParam}
       onClick={handleDuplicateThread}
       aria-label="Duplicate current thread (title, first message and author)"
     >
