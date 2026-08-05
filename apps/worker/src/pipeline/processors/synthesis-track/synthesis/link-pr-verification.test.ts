@@ -81,6 +81,8 @@ describe("verified PR recommendation links", () => {
     `\`[PR #482](${prUrl})\``,
     `~~~markdown\n[PR #482](${prUrl})\n~~~`,
     `    [PR #482](${prUrl})`,
+    `<pre>[PR #482](${prUrl})</pre>`,
+    `<code>[PR #482](${prUrl})</code>`,
   ])(
     "repairs a verified URL used outside an anchor link: %s",
     (recommendation) => {
@@ -95,6 +97,31 @@ describe("verified PR recommendation links", () => {
       );
     }
   );
+
+  it("does not reassemble a link across masked code lines", () => {
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        `[PR\n    code\n](${prUrl})`,
+        linkPrPrimary,
+        verifiedPrs
+      )
+    ).toBe(
+      `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
+    );
+  });
+
+  it.each([
+    `~~~markdown\nnot a link\n~~~ review\nLink [PR #482](${prUrl}) to the thread.`,
+    `~~~markdown\nunclosed code\nLink [PR #482](${prUrl}) to the thread.`,
+  ])("keeps a genuine link after a malformed fence: %s", (recommendation) => {
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        recommendation,
+        linkPrPrimary,
+        verifiedPrs
+      )
+    ).toBe(recommendation);
+  });
 
   it("discards a primary action set the fallback cannot describe", () => {
     expect(

@@ -24,14 +24,18 @@ const readPrOutputSchema = z.object({
 });
 
 const fencedCodePattern =
-  /(^|\n)[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n[\s\S]*?(?:\n[ \t]{0,3}\2[ \t]*(?:\n|$)|$)|$)/g;
+  /(^|\n)[ \t]{0,3}(`{3,}|~{3,})[^\n]*(?:\n[\s\S]*?\n[ \t]{0,3}\2[^\n]*(?:\n|$))/g;
 const indentedCodePattern = /(^|\n)(?:[ \t]{4,}[^\n]*(?:\n|$))+/g;
+const htmlCodeBlockPattern = /<(pre|code)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
+
+const maskCode = (match: string): string => match.replace(/[^\r\n]/g, " ");
 
 const maskMarkdownCode = (markdown: string): string =>
   markdown
-    .replace(fencedCodePattern, (match) => " ".repeat(match.length))
-    .replace(indentedCodePattern, (match) => " ".repeat(match.length))
-    .replace(/`+[^`\r\n]*`+/g, (match) => " ".repeat(match.length));
+    .replace(htmlCodeBlockPattern, maskCode)
+    .replace(fencedCodePattern, maskCode)
+    .replace(indentedCodePattern, maskCode)
+    .replace(/`+[^`\r\n]*`+/g, maskCode);
 
 const extractCompleteMarkdownLinkUrls = (markdown: string): string[] => {
   const codeFreeMarkdown = maskMarkdownCode(markdown);
