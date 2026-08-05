@@ -14,6 +14,7 @@ import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-swit
 import { DeveloperToolsCommands } from "./developer-commands";
 import { FpsMeter } from "./fps-meter";
 import { LiveStateLog } from "./live-state-log";
+import { LiveStateMetrics } from "./live-state-metrics";
 import { ReactScan } from "./react-scan";
 
 type HideMode = "temporary" | "section" | null;
@@ -26,9 +27,10 @@ export const Toolbar = () => {
   const organizationId = currentOrganization?.id;
   const { organizationUsers } = useOrganizationSwitcher();
   const { user } = getRouteApi("/app").useRouteContext();
+  const isLocalEnvironment = import.meta.env.DEV;
 
   const hasAccess = hasDeveloperToolAccess({
-    isDevelopment: import.meta.env.DEV,
+    isDevelopment: isLocalEnvironment,
     organizationId,
     organizationUsers,
     user,
@@ -62,7 +64,20 @@ export const Toolbar = () => {
   return (
     <>
       <div className="w-screen h-6 bg-background-secondary border-t shrink-0 flex font-mono text-xs gap-2 items-center px-8 z-10">
+        <span
+          aria-label={`Environment: ${isLocalEnvironment ? "local" : "production"}`}
+          className={
+            isLocalEnvironment
+              ? "rounded-sm bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-950"
+              : "rounded-sm bg-emerald-700 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
+          }
+        >
+          {isLocalEnvironment ? "LOCAL" : "PROD"}
+        </span>
+        <div className="bg-border w-px h-4" />
         <FpsMeter />
+        <div className="bg-border w-px h-4" />
+        <LiveStateMetrics />
         <div className="bg-border w-px h-4" />
         <Button
           aria-label="Open developer tools command menu"

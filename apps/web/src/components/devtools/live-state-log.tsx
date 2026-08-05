@@ -14,29 +14,8 @@ import {
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
-import { client } from "~/lib/live-state";
-
-interface EventLogEntry {
-  id: string;
-  timestamp: Date;
-  type:
-    | "open"
-    | "close"
-    | "message-received"
-    | "storage-loaded"
-    | "data-load-requested"
-    | "data-load-reply"
-    | "mutation-sent"
-    | "mutation-received"
-    | "mutation-rejected"
-    | "subscription-created"
-    | "subscription-removed"
-    | "query-executed"
-    | "store-updated"
-    | "optimistic-applied"
-    | "optimistic-undone";
-  data?: unknown;
-}
+import type { LiveStateLogEntry } from "./live-state-metrics";
+import { useLiveStateEvents, useLiveStateMetrics } from "./live-state-metrics";
 
 interface LiveStateLogProps {
   onOpenChange?: (open: boolean) => void;
@@ -47,13 +26,12 @@ export const LiveStateLog = ({
   onOpenChange,
   open: controlledOpen,
 }: LiveStateLogProps = {}) => {
-  const [events, setEvents] = useState<EventLogEntry[]>([]);
+  const events = useLiveStateEvents();
   const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
   const isOpen = controlledOpen ?? uncontrolledOpen;
   const setIsOpen = onOpenChange ?? setUncontrolledOpen;
   const [expandedEvents, setExpandedEvents] = useState<Set<string>>(new Set());
   const parentRef = useRef<HTMLDivElement>(null);
-  const eventIdRef = useRef(0);
   const shouldAutoScrollRef = useRef(true);
 
   const virtualizer = useVirtualizer({
@@ -81,136 +59,6 @@ export const LiveStateLog = ({
   useEffect(() => {
     virtualizer.measure();
   }, [expandedEvents, virtualizer]);
-
-  useEffect(() => {
-    const addEvent = (type: EventLogEntry["type"], data?: unknown) => {
-      setEvents((prev) => [
-        ...prev,
-        {
-          data,
-          id: `event-${eventIdRef.current++}`,
-          timestamp: new Date(),
-          type,
-        },
-      ]);
-    };
-
-    const unsubscribe = client.addEventListener((event) => {
-      switch (event.type) {
-        case "CONNECTION_STATE_CHANGE": {
-          addEvent(event.open ? "open" : "close", { open: event.open });
-          break;
-        }
-        case "MESSAGE_RECEIVED": {
-          addEvent("message-received", event.message);
-          break;
-        }
-        case "CLIENT_STORAGE_LOADED": {
-          addEvent("storage-loaded", {
-            resource: event.resource,
-            itemCount: event.itemCount,
-          });
-          break;
-        }
-        case "DATA_LOAD_REQUESTED": {
-          addEvent("data-load-requested", {
-            query: event.query,
-            subscriptionId: event.subscriptionId,
-          });
-          break;
-        }
-        case "DATA_LOAD_REPLY": {
-          addEvent("data-load-reply", {
-            resource: event.resource,
-            itemCount: event.itemCount,
-            subscriptionId: event.subscriptionId,
-          });
-          break;
-        }
-        case "MUTATION_SENT": {
-          addEvent("mutation-sent", {
-            mutationId: event.mutationId,
-            resource: event.resource,
-            resourceId: event.resourceId,
-            procedure: event.procedure,
-            optimistic: event.optimistic,
-          });
-          break;
-        }
-        case "MUTATION_RECEIVED": {
-          addEvent("mutation-received", {
-            mutationId: event.mutationId,
-            resource: event.resource,
-            resourceId: event.resourceId,
-            procedure: event.procedure,
-          });
-          break;
-        }
-        case "MUTATION_REJECTED": {
-          addEvent("mutation-rejected", {
-            mutationId: event.mutationId,
-            resource: event.resource,
-          });
-          break;
-        }
-        case "SUBSCRIPTION_CREATED": {
-          addEvent("subscription-created", {
-            query: event.query,
-            subscriptionKey: event.subscriptionKey,
-            subscriberCount: event.subscriberCount,
-          });
-          break;
-        }
-        case "SUBSCRIPTION_REMOVED": {
-          addEvent("subscription-removed", {
-            query: event.query,
-            subscriptionKey: event.subscriptionKey,
-          });
-          break;
-        }
-        case "QUERY_EXECUTED": {
-          addEvent("query-executed", {
-            query: event.query,
-            resultCount: event.resultCount,
-          });
-          break;
-        }
-        case "STORE_STATE_UPDATED": {
-          addEvent("store-updated", {
-            resource: event.resource,
-            itemCount: event.itemCount,
-          });
-          break;
-        }
-        case "OPTIMISTIC_MUTATION_APPLIED": {
-          addEvent("optimistic-applied", {
-            mutationId: event.mutationId,
-            resource: event.resource,
-            resourceId: event.resourceId,
-            procedure: event.procedure,
-            pendingMutations: event.pendingMutations,
-          });
-          break;
-        }
-        case "OPTIMISTIC_MUTATION_UNDONE": {
-          addEvent("optimistic-undone", {
-            mutationId: event.mutationId,
-            resource: event.resource,
-            resourceId: event.resourceId,
-            pendingMutations: event.pendingMutations,
-          });
-          break;
-        }
-        default: {
-          break;
-        }
-      }
-    });
-
-    return () => {
-      unsubscribe();
-    };
-  }, []);
 
   // Auto-scroll to bottom when new events arrive
   useEffect(() => {
@@ -252,7 +100,7 @@ export const LiveStateLog = ({
       fractionalSecondDigits: 3,
     });
 
-  const getEventTypeColor = (type: EventLogEntry["type"]) => {
+  const getEventTypeColor = (type: LiveStateLogEntry["type"]) => {
     switch (type) {
       case "open": {
         return "text-green-500";
@@ -262,6 +110,9 @@ export const LiveStateLog = ({
       }
       case "message-received": {
         return "text-blue-500";
+      }
+      case "message-sent": {
+        return "text-orange-500";
       }
       case "storage-loaded": {
         return "text-cyan-500";
@@ -289,6 +140,9 @@ export const LiveStateLog = ({
       }
       case "query-executed": {
         return "text-violet-500";
+      }
+      case "query-subscription-triggered": {
+        return "text-fuchsia-500";
       }
       case "store-updated": {
         return "text-teal-500";
@@ -342,7 +196,10 @@ export const LiveStateLog = ({
         className="max-h-[50vh] h-[50vh] flex flex-col p-0"
       >
         <SheetHeader className="border-b shrink-0 px-4 py-3">
-          <SheetTitle>Live State WebSocket Event Log</SheetTitle>
+          <div className="flex items-center justify-between gap-4">
+            <SheetTitle>Live State WebSocket Event Log</SheetTitle>
+            <LiveStateLogTotals />
+          </div>
         </SheetHeader>
         <div
           ref={parentRef}
@@ -435,5 +292,15 @@ export const LiveStateLog = ({
         </SheetFooter>
       </SheetContent>
     </Sheet>
+  );
+};
+
+const LiveStateLogTotals = () => {
+  const metrics = useLiveStateMetrics();
+
+  return (
+    <span className="text-muted-foreground shrink-0 font-mono text-xs">
+      ↑{metrics.sent} ↓{metrics.received} UI:{metrics.queryUpdates}
+    </span>
   );
 };
