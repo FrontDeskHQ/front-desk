@@ -90,7 +90,53 @@ const getRedisConnection = (): Redis => {
 const connection = getRedisConnection();
 
 const PENDING_THREAD_READ_RETRY_DELAYS_MS = [1000, 5000, 30_000] as const;
+const PENDING_THREAD_READ_RECOVERY_INTERVAL_MS = 60_000;
 const pendingThreadReadRetries = new Set<string>();
+let pendingThreadReadRecoveryTimer: ReturnType<typeof setInterval> | null =
+  null;
+let pendingThreadReadRecoveryInFlight = false;
+
+const runPendingThreadReadRecovery = (): void => {
+  if (pendingThreadReadRecoveryInFlight) {
+    return;
+  }
+
+  pendingThreadReadRecoveryInFlight = true;
+  void recoverPendingThreadReads()
+    .catch((error) => {
+      emitQueueLifecycle({
+        error,
+        event: "error",
+        operation: "thread.pipeline.pending_recovery",
+        queue: THREAD_PIPELINE_QUEUE,
+        status: 500,
+      });
+    })
+    .finally(() => {
+      pendingThreadReadRecoveryInFlight = false;
+    });
+};
+
+const startPendingThreadReadRecovery = (): void => {
+  if (pendingThreadReadRecoveryTimer) {
+    return;
+  }
+
+  pendingThreadReadRecoveryTimer = setInterval(
+    runPendingThreadReadRecovery,
+    PENDING_THREAD_READ_RECOVERY_INTERVAL_MS
+  );
+  pendingThreadReadRecoveryTimer.unref?.();
+};
+
+const stopPendingThreadReadRecovery = (): void => {
+  if (!pendingThreadReadRecoveryTimer) {
+    return;
+  }
+
+  clearInterval(pendingThreadReadRecoveryTimer);
+  pendingThreadReadRecoveryTimer = null;
+};
 
 const getThreadIdForLog = (data: unknown): string => {
   if (typeof data !== "object" || data === null) {
@@ -515,6 +561,7 @@ const initialize = async () => {
     crawlDocWorker.run();
     prIndexWorker.run();
     prMatchWorker.run();
+    startPendingThreadReadRecovery();
     const recoveredPendingThreadReads =
       await recoveredPendingThreadReadsPromise;
 
@@ -550,6 +597,7 @@ const handleShutdown = async () => {
   let status = 200;
 
   try {
+    stopPendingThreadReadRecovery();
     await Promise.all([
       threadPipelineWorker.close(),
       crawlDocWorker.close(),

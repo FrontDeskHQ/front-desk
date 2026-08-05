@@ -412,6 +412,44 @@ describe("thread-read enqueue lifecycle", () => {
     ).toBeFalsy();
   });
 
+  it("merges a claimed generation that was not written to the job payload", async () => {
+    await enqueueThreadRead("thread-claimed-payload", {
+      delayMs: 0,
+      kind: "message",
+    });
+    fakes.FakeRedis.values.set(
+      "frontdesk:thread-read-pending:thread-claimed-payload",
+      JSON.stringify({
+        claimedAt: Date.now(),
+        claimedGeneration: 1,
+        generation: 1,
+        priority: "high",
+        triggers: [{ kind: "pr_matched", prMatched: pr("pr-claimed") }],
+      })
+    );
+
+    const result = await drainPendingThreadRead("thread-claimed-payload");
+
+    expect(result?.disposition).toBe("coalesced");
+    expect(
+      getQueue().jobs.get("thread:thread-claimed-payload:read")?.data
+    ).toStrictEqual({
+      threadId: "thread-claimed-payload",
+      triggers: [
+        { kind: "message" },
+        { kind: "pr_matched", prMatched: pr("pr-claimed") },
+      ],
+    });
+    expect(
+      getQueue().jobs.get("thread:thread-claimed-payload:read")?.opts.priority
+    ).toBe(1);
+    expect(
+      fakes.FakeRedis.values.has(
+        "frontdesk:thread-read-pending:thread-claimed-payload"
+      )
+    ).toBeFalsy();
+  });
+
   it("serializes concurrent active enqueues into one pending generation", async () => {
     await enqueueThreadRead("thread-concurrent", {
       delayMs: 0,
@@ -479,6 +517,14 @@ describe("thread-read enqueue lifecycle", () => {
         key.endsWith("thread-recovery-fail")
       )
     ).toBeTruthy();
+
+    fakes.FakeQueue.failAddThreadIds.delete("thread-recovery-fail");
+    await expect(recoverPendingThreadReads()).resolves.toBe(1);
+    expect(
+      [...fakes.FakeRedis.values.keys()].some((key) =>
+        key.endsWith("thread-recovery-fail")
+      )
+    ).toBeFalsy();
   });
 
   it("reports disabled worker enqueueing without touching Redis", async () => {

@@ -386,6 +386,30 @@ const changePriorityIfNeeded = async (
   }
 };
 
+const hasPendingThreadReadBeenApplied = (
+  job: {
+    data: ThreadReadJobData;
+    opts: { priority?: number };
+  },
+  pending: PendingThreadReadState
+): boolean => {
+  try {
+    const existingData = normalizeThreadReadJobData(job.data);
+    const merged = mergeThreadReadTriggers(
+      existingData.triggers,
+      pending.triggers
+    );
+    const pendingPriority = THREAD_READ_PRIORITY_VALUES[pending.priority];
+    const existingPriority = job.opts.priority ?? 0;
+    return (
+      sameJson(existingData.triggers, merged) &&
+      existingPriority <= pendingPriority
+    );
+  } catch {
+    return false;
+  }
+};
+
 const mergePendingThreadRead = async (
   redis: Redis,
   threadId: string,
@@ -635,33 +659,57 @@ export const drainPendingThreadRead = async (
     }
 
     let existing = await q.getJob(jobId);
+    let existingState: string | undefined;
     if (isPendingThreadReadClaimed(pending)) {
       if (existing) {
-        const state = await existing.getState();
-        if (state !== "unknown") {
-          await acknowledgePendingThreadRead(
-            redis,
-            threadId,
-            pending.generation
-          );
-          return {
-            disposition: "coalesced",
-            generation: pending.generation,
-            jobId,
-          };
+        existingState = await existing.getState();
+        if (existingState !== "unknown") {
+          if (hasPendingThreadReadBeenApplied(existing, pending)) {
+            await acknowledgePendingThreadRead(
+              redis,
+              threadId,
+              pending.generation
+            );
+            return {
+              disposition: "coalesced",
+              generation: pending.generation,
+              jobId,
+            };
+          }
+
+          if (existingState === "active") {
+            await releasePendingThreadReadClaim(
+              redis,
+              threadId,
+              pending.generation
+            );
+            return {
+              disposition: "buffered",
+              generation: pending.generation,
+              jobId,
+              reason: "active_job",
+            };
+          }
+        } else {
+          await existing.remove();
         }
-        await existing.remove();
       }
 
-      // A claim without a corresponding job means the process may have
-      // crashed between recording the claim and enqueueing BullMQ. Release
-      // it and retry the enqueue instead of treating the generation as
-      // delivered.
-      await releasePendingThreadReadClaim(redis, threadId, pending.generation);
-      pending = await readPendingThreadRead(redis, threadId);
-      existing = await q.getJob(jobId);
-      if (!pending) {
-        return null;
+      if (!existing || existingState === "unknown") {
+        // A claim without a corresponding job means the process may have
+        // crashed between recording the claim and enqueueing BullMQ. Release
+        // it and retry the enqueue instead of treating the generation as
+        // delivered.
+        await releasePendingThreadReadClaim(
+          redis,
+          threadId,
+          pending.generation
+        );
+        pending = await readPendingThreadRead(redis, threadId);
+        existing = await q.getJob(jobId);
+        if (!pending) {
+          return null;
+        }
       }
     }
 
