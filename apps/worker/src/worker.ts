@@ -3,12 +3,14 @@ import type {
   PrMatchJobData,
   ThreadReadJobData,
 } from "@workspace/schemas/signals";
+import { normalizeThreadReadJobData } from "@workspace/schemas/signals";
 import {
   createLogger,
   flushSharedLogger,
   initSharedLogger,
   log,
 } from "@workspace/utils/logging";
+import { drainPendingThreadRead, recoverPendingThreadReads } from "api/queue";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
 import Redis from "ioredis";
@@ -85,11 +87,10 @@ const connection = getRedisConnection();
 /**
  * Handler for thread-pipeline jobs
  * Runs the full thread pipeline for a single thread. TODO(issue-06): branch on
- * job.data.kind === "supersede" to null thread.agentRead without invoking the
- * synthesis processor.
+ * a `supersede` trigger to null thread.agentRead without invoking synthesis.
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
-  const { threadId, kind, prMatched } = job.data;
+  const { threadId, triggers } = normalizeThreadReadJobData(job.data);
   const loggedThreadId = threadId || "missing";
 
   const requestLog = createWorkerJobLogger(
@@ -99,15 +100,10 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     {
       thread: { id: loggedThreadId },
       trigger: {
-        kind,
-        ...(prMatched
-          ? {
-              prMatched: {
-                prId: prMatched.prId,
-                score: prMatched.score,
-              },
-            }
-          : {}),
+        kinds: triggers.map((trigger) => trigger.kind),
+        prMatchedCount: triggers.filter(
+          (trigger) => trigger.kind === "pr_matched" && trigger.prMatched
+        ).length,
       },
     }
   );
@@ -121,7 +117,7 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
 
     const result = await executePipeline({
       threadIds: [threadId],
-      trigger: { kind, ...(prMatched ? { prMatched } : {}) },
+      triggers,
     });
 
     const successRate =
@@ -161,11 +157,11 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
       bullmqJobId: job.id,
       duration: result.duration,
       jobId: result.jobId,
-      kind,
       status: result.status,
       successRate: `${successRate}%`,
       summary: result.summary,
       threadId,
+      triggerKinds: triggers.map((trigger) => trigger.kind),
     };
   } catch (error) {
     if (status === 200) {
@@ -198,6 +194,69 @@ const threadPipelineWorker = new Worker<ThreadReadJobData>(
     },
   }
 );
+
+const handleThreadReadTerminal = async (
+  job: Job<ThreadReadJobData> | undefined,
+  event: "completed" | "failed",
+  error?: unknown
+): Promise<void> => {
+  if (!job) {
+    return;
+  }
+
+  const maxAttempts = job.opts.attempts ?? 1;
+  const terminal = event === "completed" || job.attemptsMade >= maxAttempts;
+  if (!terminal) {
+    emitQueueLifecycle({
+      context: {
+        followUp: { disposition: "deferred", reason: "retry_pending" },
+      },
+      event,
+      job,
+      operation: "thread.pipeline.follow_up",
+      queue: THREAD_PIPELINE_QUEUE,
+    });
+    return;
+  }
+
+  try {
+    const { threadId } = normalizeThreadReadJobData(job.data);
+    const followUp = await drainPendingThreadRead(threadId);
+    emitQueueLifecycle({
+      context: {
+        followUp: followUp ?? { disposition: "none" },
+        thread: { id: threadId },
+      },
+      error,
+      event,
+      job,
+      operation: "thread.pipeline.follow_up",
+      queue: THREAD_PIPELINE_QUEUE,
+    });
+  } catch (drainError) {
+    emitQueueLifecycle({
+      context: {
+        followUp: { disposition: "failed_to_drain" },
+        thread: {
+          id: normalizeThreadReadJobData(job.data).threadId,
+        },
+      },
+      error: drainError,
+      event: "failed",
+      job,
+      operation: "thread.pipeline.follow_up",
+      queue: THREAD_PIPELINE_QUEUE,
+    });
+  }
+};
+
+threadPipelineWorker.on("completed", (job) => {
+  void handleThreadReadTerminal(job, "completed");
+});
+
+threadPipelineWorker.on("failed", (job, error) => {
+  void handleThreadReadTerminal(job, "failed", error);
+});
 
 // Event handler for infrastructure errors outside a job-scoped handler.
 threadPipelineWorker.on("error", (err) => {
@@ -345,6 +404,7 @@ const initialize = async () => {
 
     // Start workers now that collections are ready
     threadPipelineWorker.run();
+    const recoveredPendingThreadReads = await recoverPendingThreadReads();
     crawlDocWorker.run();
     prIndexWorker.run();
     prMatchWorker.run();
@@ -352,6 +412,7 @@ const initialize = async () => {
     requestLog.set({
       outcome: {
         status: "listening",
+        recoveredPendingThreadReads,
         workersStarted: 4,
       },
     });

@@ -134,16 +134,18 @@ export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
     // The API owns the authoritative unlinked-thread filter (the vector payload's
     // status can lag the mirror) and the thread-read enqueue with its ADR-0006
     // coalescing, so hand it the raw candidates and let it fan out.
-    const { enqueued } = await fetchClient.mutate.externalEntity.fanOutPrMatch({
-      externalKey,
-      matches: acceptedMatches,
-      organizationId,
-    });
+    const { dispositions, enqueued } =
+      await fetchClient.mutate.externalEntity.fanOutPrMatch({
+        externalKey,
+        matches: acceptedMatches,
+        organizationId,
+      });
 
     requestLog.set({
       outcome: {
         action: "matched",
         candidateCount: matches.length,
+        dispositions,
         enqueued,
         reason: enqueued === 0 ? "no_candidates_enqueued" : "enqueued",
       },

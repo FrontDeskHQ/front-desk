@@ -41,12 +41,12 @@ export interface PipelineJobOptions {
 export interface PipelineJobInput {
   threadIds: string[];
   /**
-   * Why this run was triggered and any payload it pushed (ADR 0006). Carried
-   * on a channel separate from `hints` so synthesis can weight a push-side
-   * `pr_matched` candidate distinctly from pull-side hint evidence. Batch-level
+   * Why this run was triggered and any payloads it pushed (ADR 0006). Carried
+   * on a channel separate from `hints` so synthesis can weight push-side
+   * `pr_matched` candidates distinctly from pull-side hint evidence. Batch-level
    * because the worker enqueues one thread per job.
    */
-  trigger?: ThreadReadTrigger;
+  triggers?: ThreadReadTrigger[];
 }
 
 export interface ProcessorExecuteContext {

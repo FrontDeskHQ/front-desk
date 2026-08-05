@@ -12,14 +12,17 @@ export const liveStateHooks = defineHooks<typeof schema>({
           // dispatch kind:"supersede" instead so the worker handler can null
           // thread.agentRead without invoking synthesis.
           const queuePriority = value.isBackfill ? "low" : "high";
-          const jobId = await enqueueThreadRead(value.threadId, {
+          const enqueueResult = await enqueueThreadRead(value.threadId, {
             kind: "message",
             priority: queuePriority,
           });
 
-          if (!jobId && areWorkerJobsEnabled()) {
+          if (
+            enqueueResult.disposition === "skipped" &&
+            areWorkerJobsEnabled()
+          ) {
             console.warn(
-              `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}`
+              `Thread-read queue unavailable; skipping enqueue for thread ${value.threadId}: ${enqueueResult.reason ?? "unknown"}`
             );
           }
         } catch (error) {

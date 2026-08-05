@@ -261,7 +261,7 @@ export const executePipeline = async (
     input: {
       requestedThreadCount: input.threadIds.length,
       threadIds: input.threadIds,
-      triggerKind: input.trigger?.kind,
+      triggerKinds: input.triggers?.map((trigger) => trigger.kind) ?? [],
       concurrency,
     },
     options,

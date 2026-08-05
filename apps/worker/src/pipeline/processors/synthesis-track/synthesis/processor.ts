@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { sortThreadReadTriggers } from "@workspace/schemas/signals";
 import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 
@@ -12,6 +13,7 @@ import {
 } from "../../../../lib/message-roles";
 import { readHintBag } from "../../../../lib/read-hints";
 import type { ParsedSummary } from "../../../../types";
+import { hasSynthesisTrigger } from "../../../core/trigger-policy";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -65,6 +67,10 @@ export interface SynthesisProcessorOutput {
 
 export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
   {
+    runsWhenDependenciesSkipped(context: ProcessorExecuteContext): boolean {
+      return hasSynthesisTrigger(context.context.input.triggers);
+    },
+
     computeHash(context: ProcessorExecuteContext): string {
       const { context: jobContext, thread, threadId } = context;
       const messages = sortedMessages(thread.messages);
@@ -100,9 +106,13 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         JSON.stringify(duplicate?.evidence ?? null),
         JSON.stringify(relatedDocs?.evidence ?? null),
         JSON.stringify(relatedPrs?.evidence ?? null),
-        // Trigger channel (ADR 0006): a pushed PR candidate must re-run
-        // synthesis even when thread content is unchanged.
-        JSON.stringify(jobContext.input.trigger?.prMatched ?? null),
+        // Trigger channel (ADR 0006): explicit non-supersede causes must re-run
+        // synthesis even when thread content and detector inputs are unchanged.
+        JSON.stringify(
+          jobContext.input.triggers?.length
+            ? sortThreadReadTriggers(jobContext.input.triggers)
+            : null
+        ),
       ].join("|");
 
       return computeSha256(hashInput);
@@ -174,7 +184,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
             })),
             summary: summarize?.summary ?? null,
             hints,
-            trigger: jobContext.input.trigger ?? null,
+            triggers: jobContext.input.triggers ?? [],
             hasTeamReply,
           },
           tools,

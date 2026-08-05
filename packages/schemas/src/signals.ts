@@ -407,9 +407,12 @@ export const prMatchCandidateSchema = z.object({
 export type PrMatchCandidate = z.infer<typeof prMatchCandidateSchema>;
 
 /**
- * The trigger-context channel (ADR 0006): the cause of a pipeline run plus any
- * payload it pushed. Kept separate from `hints` so synthesis can distinguish a
- * push-side `pr_matched` candidate from a pull-side `related_prs` hint.
+ * One cause on the trigger-context channel (ADR 0006), plus any payload it
+ * pushed. Kept separate from `hints` so synthesis can distinguish a push-side
+ * `pr_matched` candidate from a pull-side `related_prs` hint.
+ *
+ * A job carries an array of these causes. Multiple `pr_matched` causes preserve
+ * multiple PR leads without changing the meaning of one cause.
  */
 export const threadReadTriggerSchema = z.object({
   kind: threadReadKindSchema,
@@ -417,13 +420,86 @@ export const threadReadTriggerSchema = z.object({
 });
 export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
 
-export const threadReadJobDataSchema = z.object({
+const canonicalThreadReadJobDataSchema = z.object({
+  /** All causes merged into this thread-read run. */
+  threadId: z.string(),
+  triggers: z.array(threadReadTriggerSchema).min(1),
+});
+
+// Keep accepting the pre-generation shape while delayed jobs from an older
+// worker are still in Redis. The worker normalizes it before execution.
+const legacyThreadReadJobDataSchema = z.object({
   kind: threadReadKindSchema,
-  /** Candidate PR carried by a `pr_matched` trigger; preserved across merges. */
   prMatched: prMatchCandidateSchema.optional(),
   threadId: z.string(),
 });
+
+export const threadReadJobDataSchema = z.union([
+  canonicalThreadReadJobDataSchema,
+  legacyThreadReadJobDataSchema,
+]);
 export type ThreadReadJobData = z.infer<typeof threadReadJobDataSchema>;
+export type CanonicalThreadReadJobData = z.infer<
+  typeof canonicalThreadReadJobDataSchema
+>;
+
+const threadReadTriggerIdentity = (trigger: ThreadReadTrigger): string =>
+  trigger.kind === "pr_matched"
+    ? `${trigger.kind}:${trigger.prMatched?.prId ?? "none"}`
+    : trigger.kind;
+
+/** Merge causes in arrival order, replacing duplicate identities with newest data. */
+export const mergeThreadReadTriggers = (
+  ...triggerLists: readonly (readonly ThreadReadTrigger[])[]
+): ThreadReadTrigger[] => {
+  const merged: ThreadReadTrigger[] = [];
+  const indexByIdentity = new Map<string, number>();
+
+  for (const triggerList of triggerLists) {
+    for (const trigger of triggerList) {
+      const identity = threadReadTriggerIdentity(trigger);
+      const existingIndex = indexByIdentity.get(identity);
+
+      if (existingIndex === undefined) {
+        indexByIdentity.set(identity, merged.length);
+        merged.push(trigger);
+      } else {
+        merged[existingIndex] = trigger;
+      }
+    }
+  }
+
+  return merged;
+};
+
+/** Stable ordering for hashes so arrival order does not cause needless reruns. */
+export const sortThreadReadTriggers = (
+  triggers: readonly ThreadReadTrigger[]
+): ThreadReadTrigger[] =>
+  [...mergeThreadReadTriggers(triggers)].sort((left, right) =>
+    threadReadTriggerIdentity(left).localeCompare(
+      threadReadTriggerIdentity(right)
+    )
+  );
+
+/** Normalize legacy BullMQ payloads during a rolling worker deployment. */
+export const normalizeThreadReadJobData = (
+  data: ThreadReadJobData
+): CanonicalThreadReadJobData => {
+  if ("triggers" in data) {
+    return data;
+  }
+
+  return {
+    threadId: data.threadId,
+    triggers: [
+      {
+        kind: data.kind,
+        ...(data.prMatched ? { prMatched: data.prMatched } : {}),
+      },
+    ],
+  };
+};
 
 // --- PR embedding index (FRO-203) -----------------------------------------
 
