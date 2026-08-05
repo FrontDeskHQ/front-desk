@@ -56,7 +56,7 @@ function SectionLabel({ n, name }: { n: string; name: string }) {
     <>
       {/* Full-bleed seam above the label (§5) */}
       <HorizontalLine variant="full" lineStyle="solid" />
-      <div className="col-span-full grid grid-cols-24 border-b pt-8 pb-4">
+      <div className="col-span-full grid grid-cols-24 pt-8 pb-4">
         <div className="text-foreground-secondary col-span-full max-md:col-span-22 max-md:col-start-2 font-mono uppercase md:col-span-22 md:col-start-2">
           {n} - {name}
         </div>
@@ -81,15 +81,15 @@ function RouteComponent() {
         <CategoryAssertionSection />
 
         {/* 2. Section 01 — Picks up every conversation */}
-        <SectionLabel n="01" name="Picks up every conversation" />
+        <SectionLabel n="01" name="Intake" />
         <PicksUpSection />
 
         {/* 3. Section 02 — Handles it like you would */}
-        <SectionLabel n="02" name="Handles it like you would" />
+        <SectionLabel n="02" name="Resolution" />
         <RepliesSection />
 
         {/* 4. Section 03 — Pulls you in only when it matters */}
-        <SectionLabel n="03" name="Pulls you in only when it matters" />
+        <SectionLabel n="03" name="Escalation" />
         <PullsYouInSection />
 
         {/* 5. Proof — intentionally omitted until it's real. Testimonial,

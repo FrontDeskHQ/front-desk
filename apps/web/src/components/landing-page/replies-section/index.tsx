@@ -9,20 +9,20 @@ import { ThreadDetailVisual } from "./thread-detail-visual";
 
 const TOPICS: readonly NarrativeTopic[] = [
   {
-    lead: "Resolves the routine, end to end.",
-    body: "How-tos, status, refunds, common bugs — answered, not routed.",
+    lead: "Grounded replies.",
+    body: "It reads your docs, the threads you've already answered, and everything attached to the conversation before it writes a word.",
   },
   {
-    lead: "On-brand, never canned.",
-    body: "Tuned on your past replies, docs, and tone. Reads like your best teammate wrote it.",
+    lead: "You set the rules. It learns the rest.",
+    body: "Say what it should never send on its own — then every draft you edit and every answer you mark teaches it the subtler details.",
   },
   {
-    lead: "Knows what it doesn't know.",
-    body: "Asks or escalates instead of guessing.",
+    lead: "Built for public channels.",
+    body: "When the same question comes back, it points to the thread that already answered it, so the answer compounds instead of repeating.",
   },
   {
-    lead: "Gets better every day.",
-    body: "Every draft you edit becomes its training.",
+    lead: "Closes the loop.",
+    body: "Link a thread to a pull request and it follows the fix. When it ships, the customer hears about it.",
   },
 ];
 
@@ -31,7 +31,12 @@ export function RepliesSection() {
     <NarrativeSection
       id="handles-it"
       title="Handles it like you would."
-      breath={<>It doesn&apos;t just reply. It resolves.</>}
+      breath={
+        <>
+          The Agent reads the thread, checks your docs, and writes the reply.
+          Sending it is up to you.
+        </>
+      }
       visual={<ThreadDetailVisual />}
       topics={TOPICS}
     />

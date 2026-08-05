@@ -9,20 +9,16 @@ import { SignalsVisual } from "./signals-visual";
 
 const TOPICS: readonly NarrativeTopic[] = [
   {
-    lead: "The hard 20% comes to you.",
-    body: "With full context and a suggested reply, ready to send.",
+    lead: "A briefing, not a notification.",
+    body: "Every signal carries the summary, the history, and the reasoning behind it — enough to act without reading the thread from the top.",
   },
   {
-    lead: "You set the rules.",
-    body: "Decide what the Agent sends on its own and what always needs a human.",
+    lead: "It never just hands you a problem.",
+    body: "Each one arrives with a recommended move and the alternatives it weighed, ready to send or adjust.",
   },
   {
-    lead: "No black box.",
-    body: "Every autonomous reply is logged, attributed, and reversible.",
-  },
-  {
-    lead: "Your time, where it matters.",
-    body: "Attention goes to the relationships that need you.",
+    lead: "Nothing happens off the record.",
+    body: "Every action, autonomous or human, lands on the thread's timeline — with a receipt and an undo.",
   },
 ];
 

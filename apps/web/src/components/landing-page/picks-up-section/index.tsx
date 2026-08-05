@@ -9,20 +9,16 @@ import { ThreadsListVisual } from "./threads-list-visual";
 
 const TOPICS: readonly NarrativeTopic[] = [
   {
-    lead: "Where your customers already are.",
-    body: "Native to Slack, Discord, email, and GitHub — not another portal to check.",
+    lead: "Native to every channel.",
+    body: "Slack, Discord, email, and GitHub — plus a portal of your own, for customers who'd rather have one.",
   },
   {
-    lead: "Triaged the moment it lands.",
-    body: "24/7. Nothing waits for office hours.",
+    lead: "Triaged before you open it.",
+    body: "Every message is read, understood, and given a next step the moment it arrives. You come back to decisions, not a pile.",
   },
   {
-    lead: "Nothing slips.",
-    body: "Every thread is seen, tagged, and tracked — even when no one's watching.",
-  },
-  {
-    lead: "Context from the first word.",
-    body: "Knows the customer's history and past threads before it responds.",
+    lead: "Knows who it's talking to.",
+    body: "It pulls the customer's history, past threads, and account data from your own systems — and acts on what it finds.",
   },
 ];
 
