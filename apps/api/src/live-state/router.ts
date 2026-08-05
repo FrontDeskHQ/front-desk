@@ -28,6 +28,7 @@ import {
 import { connectorRegistry } from "../lib/connector-registry";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
+import { notifyWaitlistSignup } from "../lib/waitlist-discord";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatRoute } from "./router/agent-chat";
@@ -926,6 +927,7 @@ export const router = createRouter({
             email,
             volume: req.input.volume,
           };
+          let createdAt: Date | undefined;
 
           const findExisting = async () =>
             Object.values(
@@ -938,11 +940,13 @@ export const router = createRouter({
             await db.earlyAccessRequest.update(existing.id, fields);
           } else {
             try {
+              const insertedAt = new Date();
               await db.earlyAccessRequest.insert({
                 ...fields,
-                createdAt: new Date(),
+                createdAt: insertedAt,
                 id: ulid().toLowerCase(),
               });
+              createdAt = insertedAt;
             } catch {
               // Concurrent first submission won the unique(email) race — fold
               // this one into the row it just created so the last write wins.
@@ -952,6 +956,20 @@ export const router = createRouter({
               }
               await db.earlyAccessRequest.update(raced.id, fields);
             }
+          }
+
+          // Repeat submissions update the existing qualification data and do
+          // not create another notification. Discord delivery is best-effort
+          // and detached so it cannot delay the successful signup response.
+          if (createdAt) {
+            void notifyWaitlistSignup({ ...fields, createdAt }).catch(
+              (error) => {
+                console.error(
+                  "Failed to notify Discord about waitlist signup:",
+                  error
+                );
+              }
+            );
           }
 
           return { success: true };

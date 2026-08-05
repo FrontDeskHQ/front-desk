@@ -79,7 +79,9 @@ export const earlyAccessRequestSchema = z.object({
     .refine((values) => new Set(values).size === values.length, {
       message: "Channels must not repeat.",
     }),
-  email: z.email(),
+  // RFC 5321's maximum mailbox length also keeps this within Discord's embed
+  // field limit when the signup is forwarded to the notification webhook.
+  email: z.email().max(254),
   volume: conversationVolumeSchema,
 });
 
