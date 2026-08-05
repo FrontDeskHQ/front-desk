@@ -476,11 +476,15 @@ export const mergeThreadReadTriggers = (
 export const sortThreadReadTriggers = (
   triggers: readonly ThreadReadTrigger[]
 ): ThreadReadTrigger[] =>
-  [...mergeThreadReadTriggers(triggers)].sort((left, right) =>
-    threadReadTriggerIdentity(left).localeCompare(
-      threadReadTriggerIdentity(right)
-    )
-  );
+  [...mergeThreadReadTriggers(triggers)].sort((left, right) => {
+    const leftIdentity = threadReadTriggerIdentity(left);
+    const rightIdentity = threadReadTriggerIdentity(right);
+    return leftIdentity < rightIdentity
+      ? -1
+      : leftIdentity > rightIdentity
+        ? 1
+        : 0;
+  });
 
 /** Normalize legacy BullMQ payloads during a rolling worker deployment. */
 export const normalizeThreadReadJobData = (

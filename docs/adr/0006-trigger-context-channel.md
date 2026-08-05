@@ -4,7 +4,7 @@
 
 ## Context
 
-A pipeline run has a cause: a new message, a PR↔thread similarity match, an SLA breach, a supersede, a manual re-read. Today that cause is a bare enum tag on the BullMQ job (`{ threadId, kind }`) carrying no payload — it selects behaviour but adds no data.
+A pipeline run has a cause: a new message, a PR↔thread similarity match, an SLA breach, a supersede, a manual re-read. Today that cause is a bare enum tag on the BullMQ job (`{ threadId, triggers: [{ kind }] }`) carrying no payload — it selects behaviour but adds no data.
 
 Some triggers want to _supply_ data to synthesis. The motivating case is `pr_matched`: after an [external pull request](../../CONTEXT.md) is mirrored, a worker job embeds it and searches for similar [threads](../../CONTEXT.md); each strong match enqueues a thread-pipeline run that carries the candidate PR. That data could reach synthesis two ways:
 
@@ -17,20 +17,20 @@ Option 1 is uniform but conflates two genuinely different things: _what a thread
 
 ## Decision
 
-Triggers carry an optional typed payload, and that payload reaches synthesis on a **trigger-context channel separate from hints**. The job schema grows from `{ threadId, kind }` to carry kind + optional payload (e.g. the candidate PR for `pr_matched`); `JobContext` carries the trigger through to synthesis.
+Triggers carry an optional typed payload, and those payloads reach synthesis on a **trigger-context channel separate from hints**. The job schema grows from `{ threadId, triggers: [{ kind }] }` to `{ threadId, triggers }`, where each trigger carries an optional payload (e.g. the candidate PR for `pr_matched`); `JobContext` carries the canonical trigger collection through to synthesis.
 
 Synthesis therefore reconciles **two input surfaces**:
 
 - `hints` — what detectors found (breadth evidence, possibly fuzzy) — including pull-side `related_prs`.
-- `trigger` — why this run happened and any payload it pushed (for `pr_matched`, the candidate PR + score).
+- `triggers` — why this run happened and any payloads it pushed (for `pr_matched`, one or more candidate PRs + scores).
 
-The trigger _kind_ also continues to drive cadence and hash-invalidation (e.g. a `message` trigger invalidates the status hint).
+Trigger _kinds_ also continue to drive cadence and hash-invalidation (e.g. a `message` trigger invalidates the status hint).
 
 **Job coalescing.** There remains one pending pipeline job per thread (`thread:{id}:read`). A job carries an ordered, deduplicated `triggers` list rather than one latest cause. When causes race (e.g. `pr_matched` then `message` while still delayed), merge rather than overwrite; multiple `pr_matched` causes may preserve multiple PR candidates, deduplicated by mirrored PR id and replaced with the newest candidate data.
 
 When the stable job is already active and BullMQ cannot update its payload, merge the causes into a durable per-thread Redis pending record with a monotonic generation. On terminal completion or terminal failure, the worker drains that record into one immediate follow-up job; an intermediate retry does not drain it. Worker startup also recovers pending records left behind by a process restart. Enqueue callers receive a structured disposition (`scheduled`, `coalesced`, `buffered`, or `skipped`) so active-job buffering is observable rather than reported as a successful enqueue with no follow-up.
 
-**Synthesis reruns.** Synthesis uses the canonical trigger list in its idempotency hash and opts out of the dependency-only skip fast path whenever a non-`supersede` trigger is present. This ensures trigger context can cause a read even when detector inputs are unchanged; `supersede` remains a separate clear-read path.
+**Synthesis reruns.** Synthesis uses the canonical trigger list in its idempotency hash and opts out of the dependency-only skip fast path whenever a non-`supersede` trigger is present. Because processor idempotency stores hashes rather than outputs, the summary processor also regenerates its output for those explicit triggers so synthesis retains its normal context. This ensures trigger context can cause a read even when detector inputs are unchanged; `supersede` remains a separate clear-read path.
 
 ## Consequences
 

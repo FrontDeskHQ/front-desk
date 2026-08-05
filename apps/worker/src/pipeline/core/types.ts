@@ -78,6 +78,13 @@ export interface ProcessorDefinition<TOutput = unknown> {
    */
   runsWhenDependenciesSkipped?(context: ProcessorExecuteContext): boolean;
 
+  /**
+   * Force a processor through its normal hash path even when its stored hash
+   * matches. This is for processors whose output is needed in the current
+   * in-memory JobContext by a trigger-only downstream rerun.
+   */
+  runsOnTrigger?(context: ProcessorExecuteContext): boolean;
+
   execute(context: ProcessorExecuteContext): Promise<ProcessorResult<TOutput>>;
 }
 

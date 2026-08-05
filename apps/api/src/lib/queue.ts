@@ -32,6 +32,10 @@ const THREAD_READ_JOB_ID_PREFIX = "thread:";
 const THREAD_READ_PENDING_KEY_PREFIX = "frontdesk:thread-read-pending:";
 const THREAD_READ_ENQUEUE_LOCK_TTL_MS = 30_000;
 const THREAD_READ_ENQUEUE_LOCK_RETRY_MS = 25;
+const THREAD_READ_ENQUEUE_LOCK_RENEW_INTERVAL_MS = Math.floor(
+  THREAD_READ_ENQUEUE_LOCK_TTL_MS / 3
+);
+const THREAD_READ_RECOVERY_CONCURRENCY = 8;
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
 const PR_INDEX_JOB_NAME = "index-pr";
@@ -61,6 +65,7 @@ export interface ThreadReadEnqueueResult {
     | "active_job"
     | "duplicate_trigger"
     | "queue_unavailable"
+    | "stale_job_requeued"
     | "terminal_job_requeued"
     | "worker_disabled";
 }
@@ -85,6 +90,8 @@ const pendingThreadReadStateSchema = z.object({
   generation: z.number().int().nonnegative(),
   priority: z.enum(["high", "normal", "low"]),
   triggers: z.array(threadReadTriggerSchema).min(1),
+  claimedGeneration: z.number().int().nonnegative().optional(),
+  claimedAt: z.number().int().positive().optional(),
 });
 
 type PendingThreadReadState = z.infer<typeof pendingThreadReadStateSchema>;
@@ -100,6 +107,13 @@ let queue: Queue<CanonicalThreadReadJobData> | null = null;
 const RELEASE_THREAD_READ_LOCK_SCRIPT = `
   if redis.call("get", KEYS[1]) == ARGV[1] then
     return redis.call("del", KEYS[1])
+  end
+  return 0
+`;
+
+const RENEW_THREAD_READ_LOCK_SCRIPT = `
+  if redis.call("get", KEYS[1]) == ARGV[1] then
+    return redis.call("pexpire", KEYS[1], ARGV[2])
   end
   return 0
 `;
@@ -137,9 +151,28 @@ const withThreadReadEnqueueLock = async <T>(
     await sleep(THREAD_READ_ENQUEUE_LOCK_RETRY_MS);
   }
 
+  const renewLock = async (): Promise<void> => {
+    try {
+      await redis.eval(
+        RENEW_THREAD_READ_LOCK_SCRIPT,
+        1,
+        lockKey,
+        lockToken,
+        String(THREAD_READ_ENQUEUE_LOCK_TTL_MS)
+      );
+    } catch {
+      // The lock still has its original TTL; the operation will release it or
+      // let it expire if Redis is unavailable during renewal.
+    }
+  };
+  const renewalTimer = setInterval(() => {
+    void renewLock();
+  }, THREAD_READ_ENQUEUE_LOCK_RENEW_INTERVAL_MS);
+
   try {
     return await operation();
   } finally {
+    clearInterval(renewalTimer);
     try {
       await redis.eval(RELEASE_THREAD_READ_LOCK_SCRIPT, 1, lockKey, lockToken);
     } catch {
@@ -272,6 +305,87 @@ const clearPendingThreadRead = async (
   }
 };
 
+const isPendingThreadReadClaimed = (state: PendingThreadReadState): boolean =>
+  state.claimedGeneration === state.generation;
+
+/**
+ * Claim a generation before touching BullMQ. If the acknowledgement write is
+ * lost after enqueue, a later terminal callback can recognize that the job was
+ * already scheduled instead of replaying the same generation.
+ */
+const claimPendingThreadRead = async (
+  redis: Redis,
+  threadId: string,
+  expected: PendingThreadReadState
+): Promise<PendingThreadReadState | null> => {
+  const current = await readPendingThreadRead(redis, threadId);
+  if (!current) {
+    return null;
+  }
+  if (current.generation !== expected.generation) {
+    return current;
+  }
+  if (isPendingThreadReadClaimed(current)) {
+    return current;
+  }
+
+  const claimed: PendingThreadReadState = {
+    ...current,
+    claimedAt: Date.now(),
+    claimedGeneration: current.generation,
+  };
+  await writePendingThreadRead(redis, threadId, claimed);
+  return claimed;
+};
+
+const releasePendingThreadReadClaim = async (
+  redis: Redis,
+  threadId: string,
+  generation: number
+): Promise<void> => {
+  const current = await readPendingThreadRead(redis, threadId);
+  if (
+    current?.generation === generation &&
+    isPendingThreadReadClaimed(current)
+  ) {
+    await writePendingThreadRead(redis, threadId, {
+      ...current,
+      claimedAt: undefined,
+      claimedGeneration: undefined,
+    });
+  }
+};
+
+/** Acknowledgement is best effort; a claimed generation prevents replay. */
+const acknowledgePendingThreadRead = async (
+  redis: Redis,
+  threadId: string,
+  generation: number
+): Promise<void> => {
+  try {
+    await clearPendingThreadRead(redis, threadId, generation);
+  } catch (error) {
+    console.error(
+      `[thread-read] Failed to acknowledge pending generation ${generation} for ${threadId}:`,
+      error
+    );
+  }
+};
+
+const changePriorityIfNeeded = async (
+  job: {
+    changePriority: (opts: { priority: number }) => Promise<void>;
+    opts: { priority?: number };
+  },
+  priority: ThreadReadJobPriority
+): Promise<void> => {
+  const target = THREAD_READ_PRIORITY_VALUES[priority];
+  const current = job.opts.priority ?? 0;
+  if (current > target) {
+    await job.changePriority({ priority: target });
+  }
+};
+
 const mergePendingThreadRead = async (
   redis: Redis,
   threadId: string,
@@ -349,8 +463,12 @@ export const enqueueThreadRead = async (
   const jobId = buildThreadReadJobId(threadId);
 
   return withThreadReadEnqueueLock(threadId, async () => {
-    const pending = await readPendingThreadRead(redis, threadId);
+    let pending = await readPendingThreadRead(redis, threadId);
     const existing = await q.getJob(jobId);
+    let requeueReason:
+      | "stale_job_requeued"
+      | "terminal_job_requeued"
+      | undefined;
 
     if (existing) {
       const state = await existing.getState();
@@ -392,23 +510,50 @@ export const enqueueThreadRead = async (
         const existingData = normalizeThreadReadJobData(
           existing.data as ThreadReadJobData
         );
-        const merged = mergeThreadReadTriggers(
-          existingData.triggers,
-          pending?.triggers ?? [],
-          triggers
-        );
-
-        if (!sameJson(existingData.triggers, merged)) {
-          await existing.updateData(
-            buildCanonicalThreadReadJobData(threadId, merged)
+        let pendingForMerge = pending;
+        if (pending) {
+          pendingForMerge = await claimPendingThreadRead(
+            redis,
+            threadId,
+            pending
           );
         }
-        if (pending) {
-          await clearPendingThreadRead(redis, threadId, pending.generation);
+        const merged = mergeThreadReadTriggers(
+          existingData.triggers,
+          pendingForMerge?.triggers ?? [],
+          triggers
+        );
+        const mergedPriority = pendingForMerge
+          ? higherPriority(pendingForMerge.priority, requestedPriority)
+          : requestedPriority;
+
+        try {
+          if (!sameJson(existingData.triggers, merged)) {
+            await existing.updateData(
+              buildCanonicalThreadReadJobData(threadId, merged)
+            );
+          }
+          await changePriorityIfNeeded(existing, mergedPriority);
+        } catch (error) {
+          if (pendingForMerge) {
+            await releasePendingThreadReadClaim(
+              redis,
+              threadId,
+              pendingForMerge.generation
+            );
+          }
+          throw error;
+        }
+        if (pendingForMerge) {
+          await acknowledgePendingThreadRead(
+            redis,
+            threadId,
+            pendingForMerge.generation
+          );
         }
         return {
           disposition: "coalesced",
-          generation: pending?.generation,
+          generation: pendingForMerge?.generation,
           jobId,
         };
       }
@@ -419,33 +564,54 @@ export const enqueueThreadRead = async (
       // silently returns the old completed job instead of scheduling a new
       // read.
       if (TERMINAL_THREAD_READ_STATES.has(state)) {
-        await existing.remove();
+        requeueReason = "terminal_job_requeued";
+      } else {
+        // A job record with an unrecognized state is stale/orphaned. Leaving
+        // it in Redis would make BullMQ silently ignore the next add with the
+        // stable job ID and falsely report a scheduled read.
+        requeueReason = "stale_job_requeued";
       }
+      await existing.remove();
     }
 
+    if (pending) {
+      pending = await claimPendingThreadRead(redis, threadId, pending);
+    }
     const merged = mergeThreadReadTriggers(pending?.triggers ?? [], triggers);
     const priority = pending
       ? higherPriority(pending.priority, requestedPriority)
       : requestedPriority;
-    const job = await q.add(
-      THREAD_READ_JOB_NAME,
-      buildCanonicalThreadReadJobData(threadId, merged),
-      {
-        delay,
-        jobId,
-        priority: THREAD_READ_PRIORITY_VALUES[priority],
+    let job;
+    try {
+      job = await q.add(
+        THREAD_READ_JOB_NAME,
+        buildCanonicalThreadReadJobData(threadId, merged),
+        {
+          delay,
+          jobId,
+          priority: THREAD_READ_PRIORITY_VALUES[priority],
+        }
+      );
+    } catch (error) {
+      if (pending) {
+        await releasePendingThreadReadClaim(
+          redis,
+          threadId,
+          pending.generation
+        );
       }
-    );
+      throw error;
+    }
 
     if (pending) {
-      await clearPendingThreadRead(redis, threadId, pending.generation);
+      await acknowledgePendingThreadRead(redis, threadId, pending.generation);
     }
 
     return {
       disposition: "scheduled",
       generation: pending?.generation,
       jobId: job.id ?? jobId,
-      ...(existing ? { reason: "terminal_job_requeued" as const } : {}),
+      ...(requeueReason ? { reason: requeueReason } : {}),
     };
   });
 };
@@ -463,12 +629,42 @@ export const drainPendingThreadRead = async (
   const jobId = buildThreadReadJobId(threadId);
 
   return withThreadReadEnqueueLock(threadId, async () => {
-    const pending = await readPendingThreadRead(redis, threadId);
+    let pending = await readPendingThreadRead(redis, threadId);
     if (!pending) {
       return null;
     }
 
-    const existing = await q.getJob(jobId);
+    let existing = await q.getJob(jobId);
+    if (isPendingThreadReadClaimed(pending)) {
+      if (existing) {
+        const state = await existing.getState();
+        if (state !== "unknown") {
+          await acknowledgePendingThreadRead(
+            redis,
+            threadId,
+            pending.generation
+          );
+          return {
+            disposition: "coalesced",
+            generation: pending.generation,
+            jobId,
+          };
+        }
+        await existing.remove();
+      }
+
+      // A claim without a corresponding job means the process may have
+      // crashed between recording the claim and enqueueing BullMQ. Release
+      // it and retry the enqueue instead of treating the generation as
+      // delivered.
+      await releasePendingThreadReadClaim(redis, threadId, pending.generation);
+      pending = await readPendingThreadRead(redis, threadId);
+      existing = await q.getJob(jobId);
+      if (!pending) {
+        return null;
+      }
+    }
+
     if (existing) {
       const state = await existing.getState();
       if (state === "active") {
@@ -484,42 +680,90 @@ export const drainPendingThreadRead = async (
         const existingData = normalizeThreadReadJobData(
           existing.data as ThreadReadJobData
         );
+        const pendingForMerge = await claimPendingThreadRead(
+          redis,
+          threadId,
+          pending
+        );
+        if (!pendingForMerge) {
+          return null;
+        }
         const merged = mergeThreadReadTriggers(
           existingData.triggers,
-          pending.triggers
+          pendingForMerge.triggers
         );
-        if (!sameJson(existingData.triggers, merged)) {
-          await existing.updateData(
-            buildCanonicalThreadReadJobData(threadId, merged)
+        try {
+          if (!sameJson(existingData.triggers, merged)) {
+            await existing.updateData(
+              buildCanonicalThreadReadJobData(threadId, merged)
+            );
+          }
+          await changePriorityIfNeeded(existing, pendingForMerge.priority);
+        } catch (error) {
+          await releasePendingThreadReadClaim(
+            redis,
+            threadId,
+            pendingForMerge.generation
           );
+          throw error;
         }
-        await clearPendingThreadRead(redis, threadId, pending.generation);
+        await acknowledgePendingThreadRead(
+          redis,
+          threadId,
+          pendingForMerge.generation
+        );
         return {
           disposition: "coalesced",
-          generation: pending.generation,
+          generation: pendingForMerge.generation,
           jobId,
         };
       }
 
-      if (TERMINAL_THREAD_READ_STATES.has(state)) {
+      if (
+        TERMINAL_THREAD_READ_STATES.has(state) ||
+        !PENDING_THREAD_READ_STATES.has(state)
+      ) {
         await existing.remove();
       }
     }
 
-    const job = await q.add(
-      THREAD_READ_JOB_NAME,
-      buildCanonicalThreadReadJobData(threadId, pending.triggers),
-      {
-        delay: 0,
-        jobId,
-        priority: THREAD_READ_PRIORITY_VALUES[pending.priority],
-      }
+    const pendingForEnqueue = await claimPendingThreadRead(
+      redis,
+      threadId,
+      pending
     );
-    await clearPendingThreadRead(redis, threadId, pending.generation);
+    if (!pendingForEnqueue) {
+      return null;
+    }
+
+    let job;
+    try {
+      job = await q.add(
+        THREAD_READ_JOB_NAME,
+        buildCanonicalThreadReadJobData(threadId, pendingForEnqueue.triggers),
+        {
+          delay: 0,
+          jobId,
+          priority: THREAD_READ_PRIORITY_VALUES[pendingForEnqueue.priority],
+        }
+      );
+    } catch (error) {
+      await releasePendingThreadReadClaim(
+        redis,
+        threadId,
+        pendingForEnqueue.generation
+      );
+      throw error;
+    }
+    await acknowledgePendingThreadRead(
+      redis,
+      threadId,
+      pendingForEnqueue.generation
+    );
 
     return {
       disposition: "scheduled",
-      generation: pending.generation,
+      generation: pendingForEnqueue.generation,
       jobId: job.id ?? jobId,
     };
   });
@@ -536,21 +780,45 @@ export const recoverPendingThreadReads = async (): Promise<number> => {
   let cursor = "0";
   let scheduled = 0;
   do {
-    const [nextCursor, keys] = await redis.scan(
-      cursor,
-      "MATCH",
-      `${THREAD_READ_PENDING_KEY_PREFIX}*`,
-      "COUNT",
-      "100"
-    );
+    let nextCursor: string;
+    let keys: string[];
+    try {
+      [nextCursor, keys] = await redis.scan(
+        cursor,
+        "MATCH",
+        `${THREAD_READ_PENDING_KEY_PREFIX}*`,
+        "COUNT",
+        "100"
+      );
+    } catch (error) {
+      console.error("[thread-read] Pending recovery scan failed:", error);
+      break;
+    }
     cursor = nextCursor;
 
-    for (const key of keys) {
-      const threadId = key.slice(THREAD_READ_PENDING_KEY_PREFIX.length);
-      const result = await drainPendingThreadRead(threadId);
-      if (result?.disposition === "scheduled") {
-        scheduled += 1;
-      }
+    for (
+      let index = 0;
+      index < keys.length;
+      index += THREAD_READ_RECOVERY_CONCURRENCY
+    ) {
+      const batch = keys.slice(index, index + THREAD_READ_RECOVERY_CONCURRENCY);
+      const results = await Promise.all(
+        batch.map(async (key) => {
+          const threadId = key.slice(THREAD_READ_PENDING_KEY_PREFIX.length);
+          try {
+            return await drainPendingThreadRead(threadId);
+          } catch (error) {
+            console.error(
+              `[thread-read] Pending recovery failed for ${threadId}:`,
+              error
+            );
+            return null;
+          }
+        })
+      );
+      scheduled += results.filter(
+        (result) => result?.disposition === "scheduled"
+      ).length;
     }
   } while (cursor !== "0");
 

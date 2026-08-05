@@ -1,9 +1,14 @@
 import type {
+  CanonicalThreadReadJobData,
   PrIndexJobData,
   PrMatchJobData,
+  ThreadReadTrigger,
   ThreadReadJobData,
 } from "@workspace/schemas/signals";
-import { normalizeThreadReadJobData } from "@workspace/schemas/signals";
+import {
+  normalizeThreadReadJobData,
+  threadReadJobDataSchema,
+} from "@workspace/schemas/signals";
 import {
   createLogger,
   flushSharedLogger,
@@ -84,14 +89,102 @@ const getRedisConnection = (): Redis => {
 
 const connection = getRedisConnection();
 
+const PENDING_THREAD_READ_RETRY_DELAYS_MS = [1000, 5000, 30_000] as const;
+const pendingThreadReadRetries = new Set<string>();
+
+const getThreadIdForLog = (data: unknown): string => {
+  if (typeof data !== "object" || data === null) {
+    return "invalid";
+  }
+  const threadId = (data as { threadId?: unknown }).threadId;
+  return typeof threadId === "string" && threadId.length > 0
+    ? threadId
+    : "missing";
+};
+
+const parseThreadReadJobData = (data: unknown): CanonicalThreadReadJobData => {
+  const parsed = threadReadJobDataSchema.safeParse(data);
+  if (!parsed.success) {
+    throw new Error(`Invalid thread-read job data: ${parsed.error.message}`);
+  }
+  return normalizeThreadReadJobData(parsed.data);
+};
+
+const triggerSummary = (triggers: readonly ThreadReadTrigger[]) => ({
+  kinds: triggers.map((trigger) => trigger.kind),
+  prMatchedCount: triggers.filter(
+    (trigger) => trigger.kind === "pr_matched" && trigger.prMatched
+  ).length,
+});
+
+const schedulePendingThreadReadRetry = (
+  threadId: string,
+  job: Job<ThreadReadJobData>,
+  event: "completed" | "failed",
+  attempt = 0
+): void => {
+  if (pendingThreadReadRetries.has(threadId)) {
+    return;
+  }
+
+  const delay =
+    PENDING_THREAD_READ_RETRY_DELAYS_MS[
+      Math.min(attempt, PENDING_THREAD_READ_RETRY_DELAYS_MS.length - 1)
+    ];
+  pendingThreadReadRetries.add(threadId);
+  const timer = setTimeout(() => {
+    pendingThreadReadRetries.delete(threadId);
+    void (async () => {
+      try {
+        const followUp = await drainPendingThreadRead(threadId);
+        if (followUp?.disposition === "skipped") {
+          throw new Error(
+            `Pending thread-read retry skipped: ${followUp.reason ?? "unknown"}`
+          );
+        }
+        emitQueueLifecycle({
+          context: {
+            followUp: followUp ?? { disposition: "none" },
+            retry: { attempt: attempt + 1 },
+            thread: { id: threadId },
+          },
+          event,
+          job,
+          operation: "thread.pipeline.follow_up.retry",
+          queue: THREAD_PIPELINE_QUEUE,
+        });
+      } catch (retryError) {
+        if (attempt + 1 < PENDING_THREAD_READ_RETRY_DELAYS_MS.length) {
+          schedulePendingThreadReadRetry(threadId, job, event, attempt + 1);
+          return;
+        }
+        emitQueueLifecycle({
+          context: {
+            followUp: { disposition: "failed_to_drain" },
+            retry: { attempt: attempt + 1, exhausted: true },
+            thread: { id: threadId },
+          },
+          error: retryError,
+          event: "failed",
+          job,
+          operation: "thread.pipeline.follow_up.retry",
+          queue: THREAD_PIPELINE_QUEUE,
+        });
+      }
+    })();
+  }, delay);
+  timer.unref?.();
+};
+
 /**
  * Handler for thread-pipeline jobs
  * Runs the full thread pipeline for a single thread. TODO(issue-06): branch on
  * a `supersede` trigger to null thread.agentRead without invoking synthesis.
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
-  const { threadId, triggers } = normalizeThreadReadJobData(job.data);
-  const loggedThreadId = threadId || "missing";
+  const loggedThreadId = getThreadIdForLog(job.data);
+  let threadId = loggedThreadId;
+  let triggers: ThreadReadTrigger[] = [];
 
   const requestLog = createWorkerJobLogger(
     THREAD_PIPELINE_QUEUE,
@@ -99,17 +192,17 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     "thread.pipeline",
     {
       thread: { id: loggedThreadId },
-      trigger: {
-        kinds: triggers.map((trigger) => trigger.kind),
-        prMatchedCount: triggers.filter(
-          (trigger) => trigger.kind === "pr_matched" && trigger.prMatched
-        ).length,
-      },
+      trigger: triggerSummary(triggers),
     }
   );
   let status = 200;
 
   try {
+    const parsedData = parseThreadReadJobData(job.data);
+    threadId = parsedData.threadId;
+    triggers = parsedData.triggers;
+    requestLog.set({ trigger: triggerSummary(triggers) });
+
     if (!threadId) {
       status = 400;
       throw new Error("No threadId provided");
@@ -220,8 +313,13 @@ const handleThreadReadTerminal = async (
   }
 
   try {
-    const { threadId } = normalizeThreadReadJobData(job.data);
+    const { threadId } = parseThreadReadJobData(job.data);
     const followUp = await drainPendingThreadRead(threadId);
+    if (followUp?.disposition === "skipped") {
+      throw new Error(
+        `Pending thread-read drain skipped: ${followUp.reason ?? "unknown"}`
+      );
+    }
     emitQueueLifecycle({
       context: {
         followUp: followUp ?? { disposition: "none" },
@@ -234,12 +332,12 @@ const handleThreadReadTerminal = async (
       queue: THREAD_PIPELINE_QUEUE,
     });
   } catch (drainError) {
+    const threadId = getThreadIdForLog(job.data);
     emitQueueLifecycle({
       context: {
         followUp: { disposition: "failed_to_drain" },
-        thread: {
-          id: normalizeThreadReadJobData(job.data).threadId,
-        },
+        retry: { scheduled: true },
+        thread: { id: threadId },
       },
       error: drainError,
       event: "failed",
@@ -247,6 +345,9 @@ const handleThreadReadTerminal = async (
       operation: "thread.pipeline.follow_up",
       queue: THREAD_PIPELINE_QUEUE,
     });
+    if (threadId !== "invalid" && threadId !== "missing") {
+      schedulePendingThreadReadRetry(threadId, job, event);
+    }
   }
 };
 
@@ -404,10 +505,18 @@ const initialize = async () => {
 
     // Start workers now that collections are ready
     threadPipelineWorker.run();
-    const recoveredPendingThreadReads = await recoverPendingThreadReads();
+    const recoveredPendingThreadReadsPromise =
+      recoverPendingThreadReads().catch((error) => {
+        requestLog.error(error instanceof Error ? error : String(error), {
+          step: "recover_pending_thread_reads",
+        });
+        return 0;
+      });
     crawlDocWorker.run();
     prIndexWorker.run();
     prMatchWorker.run();
+    const recoveredPendingThreadReads =
+      await recoveredPendingThreadReadsPromise;
 
     requestLog.set({
       outcome: {

@@ -168,7 +168,12 @@ const executeProcessor = async (
 
   for (const item of threadsToCheck) {
     const shouldSkip = shouldSkipMap.get(item.key);
-    if (shouldSkip) {
+    const runsOnTrigger = processor.runsOnTrigger?.({
+      context,
+      thread: item.thread,
+      threadId: item.threadId,
+    });
+    if (shouldSkip && !runsOnTrigger) {
       results.push({
         reason: "idempotent",
         skipped: true,

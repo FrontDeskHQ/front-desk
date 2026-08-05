@@ -11,6 +11,7 @@ import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import type { ParsedSummary } from "../../types";
+import { hasSynthesisTrigger } from "../core/trigger-policy";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -238,6 +239,13 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
   },
 
   dependencies: [],
+
+  // Trigger-only synthesis runs need the summary in the current JobContext.
+  // The idempotency store persists only the hash, not processor output, so
+  // regenerate it for explicit non-supersede causes before synthesis executes.
+  runsOnTrigger(context: ProcessorExecuteContext): boolean {
+    return hasSynthesisTrigger(context.context.input.triggers);
+  },
 
   async execute(
     context: ProcessorExecuteContext

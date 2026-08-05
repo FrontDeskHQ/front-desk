@@ -3,12 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const fakes = vi.hoisted(() => {
   class FakeRedis {
     static values = new Map<string, string>();
+    static failNextDelete = false;
     values = FakeRedis.values;
 
     async set(
       key: string,
       value: string,
-      ...args: string[]
+      ...args: (string | number)[]
     ): Promise<"OK" | null> {
       if (args.includes("NX") && this.values.has(key)) {
         return null;
@@ -22,17 +23,25 @@ const fakes = vi.hoisted(() => {
     }
 
     async del(key: string): Promise<number> {
+      if (FakeRedis.failNextDelete) {
+        FakeRedis.failNextDelete = false;
+        throw new Error("simulated pending-state acknowledgement failure");
+      }
       return this.values.delete(key) ? 1 : 0;
     }
 
     async eval(
-      _script: string,
+      script: string,
       _keyCount: number,
       key: string,
-      token: string
+      token: string,
+      _ttl?: string
     ): Promise<number> {
       if (this.values.get(key) !== token) {
         return 0;
+      }
+      if (script.includes("pexpire")) {
+        return 1;
       }
       this.values.delete(key);
       return 1;
@@ -86,6 +95,10 @@ const fakes = vi.hoisted(() => {
       this.data = data;
     }
 
+    async changePriority(opts: { priority: number }): Promise<void> {
+      this.opts.priority = opts.priority;
+    }
+
     async remove(): Promise<void> {
       const queue = FakeQueue.instances.find((candidate) =>
         candidate.jobs.has(this.id)
@@ -96,7 +109,9 @@ const fakes = vi.hoisted(() => {
 
   class FakeQueue {
     static instances: FakeQueue[] = [];
+    static failAddThreadIds = new Set<string>();
     jobs = new Map<string, FakeJob>();
+    addCalls = 0;
 
     constructor(..._args: unknown[]) {
       FakeQueue.instances.push(this);
@@ -111,9 +126,23 @@ const fakes = vi.hoisted(() => {
       data: unknown,
       opts: { delay?: number; jobId?: string; priority?: number }
     ): Promise<FakeJob> {
+      this.addCalls += 1;
+      const threadId =
+        typeof data === "object" && data !== null && "threadId" in data
+          ? data.threadId
+          : undefined;
+      if (
+        typeof threadId === "string" &&
+        FakeQueue.failAddThreadIds.has(threadId)
+      ) {
+        throw new Error(`simulated queue failure for ${threadId}`);
+      }
       const id = opts.jobId ?? `job-${this.jobs.size + 1}`;
-      if (this.jobs.has(id)) {
-        throw new Error(`duplicate job id: ${id}`);
+      const duplicate = this.jobs.get(id);
+      if (duplicate) {
+        // BullMQ ignores duplicate custom IDs and leaves the existing job in
+        // place. Keep the fake aligned so stale-record tests are meaningful.
+        return duplicate;
       }
       const job = new FakeJob(
         id,
@@ -136,7 +165,8 @@ vi.mock(import("ioredis"), () => ({ default: fakes.FakeRedis }));
 process.env.NODE_ENV = "test";
 process.env.REDIS_HOST = "fake";
 
-const { drainPendingThreadRead, enqueueThreadRead } = await import("./queue");
+const { drainPendingThreadRead, enqueueThreadRead, recoverPendingThreadReads } =
+  await import("./queue");
 
 const pr = (prId: string, score = 0.9) => ({
   prId,
@@ -154,7 +184,11 @@ const getQueue = () => {
 describe("thread-read enqueue lifecycle", () => {
   beforeEach(() => {
     fakes.FakeRedis.values.clear();
-    fakes.FakeQueue.instances.at(-1)?.jobs.clear();
+    fakes.FakeRedis.failNextDelete = false;
+    const queue = fakes.FakeQueue.instances.at(-1);
+    queue?.jobs.clear();
+    if (queue) queue.addCalls = 0;
+    fakes.FakeQueue.failAddThreadIds.clear();
   });
 
   it("coalesces delayed triggers into one job", async () => {
@@ -179,6 +213,43 @@ describe("thread-read enqueue lifecycle", () => {
         { kind: "pr_matched", prMatched: pr("pr-1") },
       ],
     });
+  });
+
+  it("promotes a coalesced job when a higher priority trigger arrives", async () => {
+    await enqueueThreadRead("thread-priority", {
+      delayMs: 1000,
+      kind: "message",
+      priority: "low",
+    });
+
+    const result = await enqueueThreadRead("thread-priority", {
+      kind: "message",
+      priority: "high",
+    });
+
+    expect(result.disposition).toBe("coalesced");
+    expect(
+      getQueue().jobs.get("thread:thread-priority:read")?.opts.priority
+    ).toBe(1);
+  });
+
+  it("models BullMQ duplicate custom IDs as the existing job", async () => {
+    await enqueueThreadRead("thread-duplicate", {
+      delayMs: 0,
+      kind: "message",
+    });
+    const queue = getQueue();
+    const existing = queue.jobs.get("thread:thread-duplicate:read");
+    if (!existing) throw new Error("Duplicate test job was not created");
+
+    const duplicate = await queue.add(
+      "thread-read",
+      { threadId: "thread-duplicate", triggers: [{ kind: "manual" }] },
+      { jobId: "thread:thread-duplicate:read" }
+    );
+
+    expect(duplicate).toBe(existing);
+    expect(queue.jobs.size).toBe(1);
   });
 
   it("buffers active triggers and schedules one follow-up after completion", async () => {
@@ -259,6 +330,88 @@ describe("thread-read enqueue lifecycle", () => {
     );
   });
 
+  it("removes an unknown stale job before requeueing", async () => {
+    await enqueueThreadRead("thread-unknown", {
+      delayMs: 0,
+      kind: "message",
+    });
+    const job = getQueue().jobs.get("thread:thread-unknown:read");
+    if (!job) throw new Error("Unknown-state test job was not created");
+    job.state = "unknown";
+
+    const result = await enqueueThreadRead("thread-unknown", {
+      kind: "manual",
+    });
+
+    expect(result).toMatchObject({
+      disposition: "scheduled",
+      reason: "stale_job_requeued",
+    });
+    expect(
+      getQueue().jobs.get("thread:thread-unknown:read")?.data
+    ).toStrictEqual({
+      threadId: "thread-unknown",
+      triggers: [{ kind: "manual" }],
+    });
+  });
+
+  it("does not replay a claimed follow-up when acknowledgement fails", async () => {
+    await enqueueThreadRead("thread-ack", {
+      delayMs: 0,
+      kind: "message",
+    });
+    const active = getQueue().jobs.get("thread:thread-ack:read");
+    if (!active) throw new Error("Acknowledgement test job was not created");
+    active.state = "active";
+    await enqueueThreadRead("thread-ack", {
+      kind: "pr_matched",
+      prMatched: pr("pr-ack"),
+    });
+
+    active.state = "completed";
+    fakes.FakeRedis.failNextDelete = true;
+    const firstDrain = await drainPendingThreadRead("thread-ack");
+    expect(firstDrain?.disposition).toBe("scheduled");
+
+    const followUp = getQueue().jobs.get("thread:thread-ack:read");
+    if (!followUp) throw new Error("Follow-up job was not created");
+    followUp.state = "completed";
+    const secondDrain = await drainPendingThreadRead("thread-ack");
+
+    expect(secondDrain?.disposition).toBe("coalesced");
+    expect(getQueue().addCalls).toBe(2);
+    expect(
+      [...fakes.FakeRedis.values.keys()].some((key) =>
+        key.startsWith("frontdesk:thread-read-pending:")
+      )
+    ).toBeFalsy();
+  });
+
+  it("retries a claimed generation when its job is missing", async () => {
+    fakes.FakeRedis.values.set(
+      "frontdesk:thread-read-pending:thread-claimed-missing",
+      JSON.stringify({
+        claimedAt: Date.now(),
+        claimedGeneration: 1,
+        generation: 1,
+        priority: "normal",
+        triggers: [{ kind: "message" }],
+      })
+    );
+
+    const result = await drainPendingThreadRead("thread-claimed-missing");
+
+    expect(result?.disposition).toBe("scheduled");
+    expect(
+      getQueue().jobs.get("thread:thread-claimed-missing:read")?.state
+    ).toBe("waiting");
+    expect(
+      fakes.FakeRedis.values.has(
+        "frontdesk:thread-read-pending:thread-claimed-missing"
+      )
+    ).toBeFalsy();
+  });
+
   it("serializes concurrent active enqueues into one pending generation", async () => {
     await enqueueThreadRead("thread-concurrent", {
       delayMs: 0,
@@ -298,5 +451,56 @@ describe("thread-read enqueue lifecycle", () => {
         { kind: "pr_matched", prMatched: pr("pr-2") },
       ],
     });
+  });
+
+  it("recovers pending threads independently when one enqueue fails", async () => {
+    const bufferTrigger = async (threadId: string, prId: string) => {
+      await enqueueThreadRead(threadId, { delayMs: 0, kind: "message" });
+      const active = getQueue().jobs.get(`thread:${threadId}:read`);
+      if (!active) throw new Error(`Missing active job for ${threadId}`);
+      active.state = "active";
+      await enqueueThreadRead(threadId, {
+        kind: "pr_matched",
+        prMatched: pr(prId),
+      });
+      active.state = "completed";
+    };
+
+    await bufferTrigger("thread-recovery-fail", "pr-recovery-fail");
+    await bufferTrigger("thread-recovery-good", "pr-recovery-good");
+    fakes.FakeQueue.failAddThreadIds.add("thread-recovery-fail");
+
+    await expect(recoverPendingThreadReads()).resolves.toBe(1);
+    expect(getQueue().jobs.get("thread:thread-recovery-good:read")?.state).toBe(
+      "waiting"
+    );
+    expect(
+      [...fakes.FakeRedis.values.keys()].some((key) =>
+        key.endsWith("thread-recovery-fail")
+      )
+    ).toBeTruthy();
+  });
+
+  it("reports disabled worker enqueueing without touching Redis", async () => {
+    const originalNodeEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = "production";
+    vi.resetModules();
+
+    try {
+      const { enqueueThreadRead: productionEnqueueThreadRead } =
+        await import("./queue");
+      await expect(
+        productionEnqueueThreadRead("thread-disabled", {
+          kind: "message",
+        })
+      ).resolves.toStrictEqual({
+        disposition: "skipped",
+        jobId: null,
+        reason: "worker_disabled",
+      });
+    } finally {
+      process.env.NODE_ENV = originalNodeEnv;
+      vi.resetModules();
+    }
   });
 });
