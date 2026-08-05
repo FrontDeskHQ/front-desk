@@ -1,0 +1,26 @@
+packages/utils/src/lib/markdown-links.ts
+  s_2b44db6272c30f::t_2cd6abe14f3d33 4
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_2b44db6272c30f::t_5413bc9c46695c 257-258,262,272,279
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/normalize.ts
+  s_2b44db6272c30f::t_237f7355f8f26f 134-135,139
+packages/utils/src/lib/markdown-render.ts
+  s_2b44db6272c30f::t_74c6bf7441ceab 14
+  s_2b44db6272c30f::t_237f7355f8f26f 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7047213999bd125a9361ebda7a42d369b33d5c88",
+  "prompts": {},
+  "sessions": {
+    "s_2b44db6272c30f": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3bd41436-ce36-4740-a0e6-082c09770082",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
