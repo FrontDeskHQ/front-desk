@@ -4,7 +4,7 @@
 
 ## Context
 
-A pipeline run has a cause: a new message, a PR↔thread similarity match, an SLA breach, a supersede, a manual re-read. Before this decision that cause was a bare enum tag on the BullMQ job (`{ threadId, kind }`) carrying no payload — it selected behaviour but added no data.
+A pipeline run has a cause: a new message, a PR↔thread similarity match, an SLA breach, a supersede, a manual re-read. Before this decision the cause was an enum tag on the BullMQ job (`{ threadId, kind }`) plus an optional `prMatched` candidate-PR payload; the enum selected behaviour, but the trigger data never surfaced into synthesis.
 
 Some triggers want to _supply_ data to synthesis. The motivating case is `pr_matched`: after an [external pull request](../../CONTEXT.md) is mirrored, a worker job embeds it and searches for similar [threads](../../CONTEXT.md); each strong match enqueues a thread-pipeline run that carries the candidate PR. That data could reach synthesis two ways:
 

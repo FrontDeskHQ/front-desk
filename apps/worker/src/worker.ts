@@ -561,9 +561,9 @@ const initialize = async () => {
     crawlDocWorker.run();
     prIndexWorker.run();
     prMatchWorker.run();
-    startPendingThreadReadRecovery();
     const recoveredPendingThreadReads =
       await recoveredPendingThreadReadsPromise;
+    startPendingThreadReadRecovery();
 
     requestLog.set({
       outcome: {
