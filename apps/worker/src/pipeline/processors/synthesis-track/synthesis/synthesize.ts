@@ -13,7 +13,8 @@ import z from "zod";
 import type { WorkerLogger } from "../../../../lib/logging";
 import type { ParsedSummary } from "../../../../types";
 import {
-  collectVerifiedPrUrlsFromToolSteps,
+  collectVerifiedPrDetailsFromToolSteps,
+  ensureVerifiedPrRecommendationLink,
   filterActionSetToVerifiedLinkPr,
 } from "./link-pr-verification";
 import type { createSynthesisTools } from "./tools";
@@ -40,6 +41,8 @@ export type SynthesisRawActionSet = z.infer<typeof synthesisRawActionSetSchema>;
 export interface SynthesizeThreadReadInput {
   threadId: string;
   threadName: string | null;
+  /** Customer display name used only for a first-reply greeting. */
+  customerName?: string | null;
   threadMessages: {
     id: string;
     content: string;
@@ -103,6 +106,7 @@ export const synthesizeThreadRead = async (
   const summaryJson = input.summary
     ? JSON.stringify(input.summary, null, 2)
     : "";
+  const customerName = input.customerName?.trim() || null;
 
   // Trigger-context channel (ADR 0006), kept separate from the hint bag. A
   // `pr_matched` trigger pushes a candidate PR — a fuzzy similarity match, not a
@@ -162,10 +166,19 @@ hasTeamReply: ${input.hasTeamReply}
 
 When hasTeamReply is false, the customer has written but no teammate has replied on this thread yet.
 
-- **Primary:** If you include mark_duplicate, link_pr, or close, you must also include a reply in the same primary array. Order the other action first: \`[mark_duplicate, reply]\`, \`[link_pr, reply]\`, or \`[close, reply]\`. The reply should briefly acknowledge the customer (thank them, explain the duplicate link, note the linked PR, or confirm closure) — never leave them without a first response.
+- **Primary:** If you include mark_duplicate, link_pr, or close, you must also include a reply in the same primary array. Order the other action first: \`[mark_duplicate, reply]\`, \`[link_pr, reply]\`, or \`[close, reply]\`. Never leave a customer without a first response.
 - **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone mark_duplicate, link_pr, or close in alternatives — the human would execute those without replying.
 - **Reply-only primary** is fine when that is the best move (no bundling required).
 - **Empty primary** is still allowed when no substantive move is justified.
+
+First-reply tone:
+- Every first reply must begin with \`Hi ${customerName ? "<customer name>" : "there"},\` — use the supplied customer display name when present, otherwise use \`Hi there,\`.
+- When primary includes link_pr, lead with the important customer-facing status: the engineering team is working on a fix for the reported issue.
+- Then promise to update the customer when the fix is available or complete. Do not invent an ETA.
+- Thank or acknowledge the report after the status and follow-up promise.
+- Do not say support has identified a fix, that the issue is fixed/resolved, or that the pull request was linked. The PR link is an internal thread action, not a customer-facing claim.
+
+Customer display name (use only in the greeting): ${JSON.stringify(customerName)}
 
 When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close, mark_duplicate, or link_pr).
 
@@ -179,11 +192,12 @@ When hasTeamReply is true, alternatives may be any allowed action kind (includin
 
 - mark_duplicate: "This is a duplicate of [target thread name](thread:targetThreadId)." Use the exact \`targetThreadId\` from primary and the name from read_thread when available.
 - reply: a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
-- link_pr: a link imperative naming the PR, e.g. "Link the pull request that fixes this and let the customer know a fix is on the way."
+- link_pr: a link imperative containing the exact verified PR URL as a Markdown link so it renders as a PR chip, e.g. "Link [PR #<number>](<exact verified PR URL>) to the thread and tell the customer that engineering is working on the fix."
 - close: a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
 - empty primary: state that no substantive move is justified, e.g. "No reply, duplicate link, or close is justified yet."
 
 Thread mentions in \`recommendation\` must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.
+When primary includes link_pr, recommendation must contain exactly the verified PR URL in a Markdown link. Never refer to an unlinked "pull request".
 
 Example (reply):
 - summary: "Customer is interested in upgrading to the enterprise plan and is asking for pricing details for 50+ users and additional features."
@@ -216,7 +230,7 @@ ${hintsJson}
 Return a single valid JSON object with exactly this shape:
 {
   "summary": string (one sentence: customer situation only, no imperative),
-  "recommendation": string (one imperative sentence tied to primary; use [name](thread:id) for duplicate targets),
+  "recommendation": string (one imperative sentence tied to primary; use [name](thread:id) for duplicate targets and [PR #number](verified-pr-url) for link_pr),
   "reasoning": string (user-facing evidence; no internal terms, scores, or raw ids),
   "primary": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "link_pr", "prUrl": string } | { "kind": "close" }>,
   "alternatives": Array<{ "kind": "reply", "draftMarkdown": string } | { "kind": "mark_duplicate", "targetThreadId": string } | { "kind": "link_pr", "prUrl": string } | { "kind": "close" }>,
@@ -237,15 +251,34 @@ Return a single valid JSON object with exactly this shape:
   // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
   // Prompt instructions alone cannot authorize an external PR link. If primary
   // loses a link_pr, discard the set so recommendation stays consistent.
-  const verifiedPrUrls = collectVerifiedPrUrlsFromToolSteps(steps);
+  const verifiedPrDetails = collectVerifiedPrDetailsFromToolSteps(steps);
+  const verifiedPrUrls = new Set(verifiedPrDetails.keys());
   const filtered = filterActionSetToVerifiedLinkPr(
     raw.primary,
-    raw.alternatives ?? [],
+    raw.alternatives,
     verifiedPrUrls
   );
+  const recommendation = ensureVerifiedPrRecommendationLink(
+    raw.recommendation,
+    filtered.primary,
+    verifiedPrDetails
+  );
+
+  // A fallback recommendation can only account for link_pr and reply. If the
+  // model bundled another primary action, discard the set rather than showing
+  // a recommendation that hides an action the agent would still execute.
+  if (recommendation === null) {
+    return {
+      ...raw,
+      alternatives: [],
+      primary: [],
+    };
+  }
+
   return {
     ...raw,
     alternatives: filtered.alternatives,
     primary: filtered.primary,
+    recommendation,
   };
 };

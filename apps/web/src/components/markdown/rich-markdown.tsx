@@ -1,6 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
 import { cn } from "@workspace/ui/lib/utils";
+import { remarkMapLinkUrls } from "@workspace/utils/markdown-links";
 import {
   useLayoutEffect,
   useMemo,
@@ -19,7 +20,25 @@ import { IssueChip, PrChip, ThreadChipWithSummary } from "~/components/chips";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
-const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
+export const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
+
+const THREAD_LINK_SCHEME = "thread:";
+
+/**
+ * Rewrite `[Name](thread:id)` destinations to a proxy https: URL that the `a`
+ * component below swaps for a thread chip.
+ *
+ * This runs on parsed link nodes, not on the Markdown source: a plain-prose or
+ * fenced-code `(thread:id)` is left alone, because it is not a link and the
+ * reader is not meant to see a chip there.
+ */
+const remarkThreadLinkProxy = remarkMapLinkUrls((url) =>
+  url.startsWith(THREAD_LINK_SCHEME)
+    ? `${THREAD_LINK_PROXY_PREFIX}${url.slice(THREAD_LINK_SCHEME.length)}`
+    : null
+);
+
+const THREAD_LINK_REMARK_PLUGINS = [remarkThreadLinkProxy];
 
 const GITHUB_PR_URL_REGEX =
   /^https?:\/\/(?:www\.)?github\.com\/([\w.-]+)\/([\w.-]+)\/pulls?\/(\d+)(?:\/[^?#]*)?(?:[?#].*)?$/;
@@ -379,16 +398,6 @@ export const RichMarkdown = ({
     [resolvedMarkings, preset]
   );
 
-  const normalizedContent = useMemo(() => {
-    if (!normalizeThreadLinks) {
-      return content;
-    }
-    return content.replaceAll(
-      /\(thread:([^)]+)\)/g,
-      (_, threadId: string) => `(${THREAD_LINK_PROXY_PREFIX}${threadId})`
-    );
-  }, [content, normalizeThreadLinks]);
-
   const mergedComponents = useMemo(
     () => ({ ...defaultMarkdownComponents, ...components }),
     [components]
@@ -401,12 +410,15 @@ export const RichMarkdown = ({
         className={cn("text-sm", className)}
         components={mergedComponents}
         parseIncompleteMarkdown={parseIncompleteMarkdown}
+        remarkPlugins={
+          normalizeThreadLinks ? THREAD_LINK_REMARK_PLUGINS : undefined
+        }
         disallowedElements={
           disallowedElements.length > 0 ? disallowedElements : undefined
         }
         unwrapDisallowed
       >
-        {normalizedContent}
+        {content}
       </Streamdown>
     </NormalizeThreadLinksContext>
   );

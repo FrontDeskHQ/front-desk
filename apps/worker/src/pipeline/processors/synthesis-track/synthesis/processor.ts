@@ -8,7 +8,7 @@ import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
 import { isRetryableError } from "../../../../lib/logging";
 import {
-  resolveMessageRoles,
+  resolveMessageAuthors,
   threadHasTeamReply,
 } from "../../../../lib/message-roles";
 import { readHintBag } from "../../../../lib/read-hints";
@@ -152,11 +152,20 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           threadId
         );
 
-        const messageRoles = await resolveMessageRoles(
-          messages.map((message) => message.authorId),
+        const resolvedAuthors = await resolveMessageAuthors(
+          [
+            ...messages.map((message) => message.authorId),
+            ...(thread.authorId ? [thread.authorId] : []),
+          ],
           thread.authorId
         );
-        const hasTeamReply = threadHasTeamReply(messages, messageRoles);
+        const hasTeamReply = threadHasTeamReply(
+          messages,
+          resolvedAuthors.roles
+        );
+        const customerName = thread.authorId
+          ? (resolvedAuthors.names.get(thread.authorId) ?? null)
+          : null;
 
         const tools = createSynthesisTools({
           organizationId: thread.organizationId,
@@ -168,6 +177,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           {
             threadId,
             threadName: thread.name ?? null,
+            customerName,
             sourceInputMessageId: latestMessage.id,
             threadMessages: messages.map((message) => ({
               id: message.id,

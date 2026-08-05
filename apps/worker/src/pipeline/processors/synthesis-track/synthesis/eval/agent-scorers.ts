@@ -1,6 +1,7 @@
 import { sanitizeAgentReadReasoning } from "@workspace/schemas/signals";
 import { createScorer } from "evalite";
 
+import { containsOnlyCompleteMarkdownLinkToUrl } from "../link-pr-verification";
 import type { SynthesisRawActionSet } from "../synthesize";
 import type {
   SynthesisAgentEvalCase,
@@ -123,14 +124,29 @@ export const replySubstance = createScorer<In, Out, Expected>({
         : expected.replyMustContainAny.some((token) =>
             lowerDraft.includes(token.toLowerCase())
           );
+    const missingRequiredTokens = (expected.replyMustContainAll ?? []).filter(
+      (token) => !lowerDraft.includes(token.toLowerCase())
+    );
+    const startsWithExpectedGreeting = expected.replyMustStartWith
+      ? lowerDraft.startsWith(expected.replyMustStartWith.toLowerCase())
+      : true;
 
     return {
-      score: !hasGenericFiller && longEnough && containsExpectedToken ? 1 : 0,
+      score:
+        !hasGenericFiller &&
+        longEnough &&
+        containsExpectedToken &&
+        missingRequiredTokens.length === 0 &&
+        startsWithExpectedGreeting
+          ? 1
+          : 0,
       metadata: {
         length: draft.length,
         hasGenericFiller,
         containsExpectedToken,
         expectedTokens: expected.replyMustContainAny ?? [],
+        missingRequiredTokens,
+        startsWithExpectedGreeting,
         draftPreview: draft.slice(0, 140),
       },
     };
@@ -326,6 +342,40 @@ export const expectedLinkPrUrl = createScorer<In, Out, Expected>({
     return {
       score: mismatches.length === 0 ? 1 : 0,
       metadata: { expectedUrl, linkPrUrls, mismatches },
+    };
+  },
+});
+
+export const recommendationPrLink = createScorer<In, Out, Expected>({
+  description:
+    "A primary link_pr recommendation contains the exact verified PR Markdown link used for the chip.",
+  name: "Recommendation PR Link",
+  scorer: ({ output, expected }) => {
+    const expectedUrl = expected?.expectedLinkPrUrl;
+    if (!expectedUrl) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+
+    const hasPrimaryLinkPr = output.raw.primary.some(
+      (action) => action.kind === "link_pr"
+    );
+    if (!hasPrimaryLinkPr) {
+      return {
+        score: 1,
+        metadata: { skipped: true, reason: "no_primary_link_pr" },
+      };
+    }
+
+    const valid = containsOnlyCompleteMarkdownLinkToUrl(
+      output.raw.recommendation,
+      expectedUrl
+    );
+    return {
+      score: valid ? 1 : 0,
+      metadata: {
+        expectedUrl,
+        recommendation: output.raw.recommendation,
+      },
     };
   },
 });
