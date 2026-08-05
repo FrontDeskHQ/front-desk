@@ -1,18 +1,23 @@
 "use client";
 
-import { getRouteApi } from "@tanstack/react-router";
+import { useParams } from "@tanstack/react-router";
 import { getDefaultStore } from "jotai/vanilla";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient } from "~/lib/live-state";
 import { parseThreadParam } from "~/utils/thread";
 
+const THREAD_DETAIL_ROUTE = "/app/_workspace/_main/threads/$id/";
+
 export const useThreadRouteRawParam = (): string | null => {
-  try {
-    return getRouteApi("/app/_workspace/_main/threads/$id/").useParams().id;
-  } catch {
-    return null;
-  }
+  // Always call useParams unconditionally. shouldThrow:false returns undefined
+  // when the thread detail route is not matched, instead of throwing mid-hooks.
+  const params = useParams({
+    from: THREAD_DETAIL_ROUTE,
+    shouldThrow: false,
+  });
+
+  return params?.id ?? null;
 };
 
 export const resolveThreadUlid = async (
