@@ -109,12 +109,15 @@ describe("verified PR recommendation links", () => {
     );
   });
 
+  // The UI renders raw HTML as literal text rather than parsing it, so inline
+  // tags around a link do not stop that link from rendering. Validation must
+  // match the renderer: accept it rather than swapping in the fallback.
   it.each([
-    `<pre>[PR #482](${prUrl})</pre>`,
     `<code>[PR #482](${prUrl})</code>`,
     `Link <code>[PR #482](${prUrl})</code> to the thread.`,
+    `<span>Link</span> [PR #482](${prUrl}) to the thread.`,
   ])(
-    "repairs a verified URL hidden in raw HTML code markup: %s",
+    "accepts a verified link alongside inline raw HTML: %s",
     (recommendation) => {
       expect(
         ensureVerifiedPrRecommendationLink(
@@ -122,21 +125,21 @@ describe("verified PR recommendation links", () => {
           linkPrPrimary,
           verifiedPrs
         )
-      ).toBe(
-        `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
-      );
+      ).toBe(recommendation);
     }
   );
 
-  it("accepts a verified link alongside non-code raw HTML", () => {
-    const recommendation = `<span>Link</span> [PR #482](${prUrl}) to the thread.`;
+  // A raw HTML *block* is one literal text node, so the link never renders.
+  it("repairs a verified URL buried in a raw HTML block", () => {
     expect(
       ensureVerifiedPrRecommendationLink(
-        recommendation,
+        `<pre>\n[PR #482](${prUrl})\n</pre>`,
         linkPrPrimary,
         verifiedPrs
       )
-    ).toBe(recommendation);
+    ).toBe(
+      `Link [PR #482](${prUrl}) to the thread and reply to tell the customer that engineering is working on the fix.`
+    );
   });
 
   it("discards a primary action set the fallback cannot describe", () => {

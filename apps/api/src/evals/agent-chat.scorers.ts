@@ -1,3 +1,7 @@
+import {
+  extractRenderedMarkdownLinkUrls,
+  stripRenderedMarkdownLinks,
+} from "@workspace/utils/markdown-links";
 import { Factuality, ClosedQA } from "autoevals";
 import { createScorer } from "evalite";
 
@@ -169,6 +173,8 @@ export const draftFactualityScorer = createScorer<
 
 // ─── Thread Reference Formatting ─────────────────────────────────────────────
 
+const THREAD_LINK_SCHEME = "thread:";
+
 /**
  * Deterministic scorer that checks thread references use [Name](thread:id) syntax.
  *
@@ -189,16 +195,20 @@ export const threadReferenceFormat = createScorer<
       return { score: 1 };
     }
 
-    const threadLinkPattern = /\[([^\]]+)\]\(thread:([^)]+)\)/g;
-    const foundLinks = [...output.matchAll(threadLinkPattern)];
-    const linkedIds = new Set(foundLinks.map((m) => m[2]));
+    // Parsed the way the UI renders it, so a `thread:` link written inside a
+    // code fence does not count as a real reference (it renders as text).
+    const linkedIds = new Set(
+      extractRenderedMarkdownLinkUrls(output)
+        .filter((url) => url.startsWith(THREAD_LINK_SCHEME))
+        .map((url) => url.slice(THREAD_LINK_SCHEME.length))
+    );
 
     // Coverage: how many expected threads were properly linked
     const linked = expected.threadIds.filter((id) => linkedIds.has(id));
     const coverageScore = linked.length / expected.threadIds.length;
 
     // Raw ID check: strip all valid links, then check for raw thread IDs
-    const textWithoutLinks = output.replace(threadLinkPattern, "");
+    const textWithoutLinks = stripRenderedMarkdownLinks(output);
     const rawIdHits = expected.threadIds.filter((id) =>
       textWithoutLinks.includes(id)
     );

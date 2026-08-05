@@ -9,7 +9,8 @@
     "./md-tiptap": "./src/lib/md-tiptap.ts",
     "./markdown-links": "./src/lib/markdown-links.ts",
     "./format": "./src/lib/format.ts",
-    "./logging": "./src/lib/logging.ts"
+    "./logging": "./src/lib/logging.ts",
+    "./markdown-render": "./src/lib/markdown-render.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -22,7 +23,8 @@
     "remark-gfm": "^4.0.1",
     "remark-parse": "^11.0.0",
     "remark-stringify": "^11.0.0",
-    "unified": "^11.0.5"
+    "unified": "^11.0.5",
+    "unist-util-visit": "^5.1.0"
   },
   "devDependencies": {
     "@types/mdast": "^4.0.4",

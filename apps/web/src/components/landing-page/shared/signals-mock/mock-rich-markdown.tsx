@@ -13,11 +13,12 @@ import { useMemo } from "react";
 import type { Components } from "streamdown";
 
 import { ThreadChip } from "~/components/chips";
-import { RichMarkdown } from "~/components/markdown/rich-markdown";
+import {
+  RichMarkdown,
+  THREAD_LINK_PROXY_PREFIX,
+} from "~/components/markdown/rich-markdown";
 
 import type { MockThreadReference } from "./types";
-
-const THREAD_LINK_PROXY_PREFIX = "https://frontdesk-thread.local/";
 
 function mockMarkdownComponents(
   threads: Record<string, MockThreadReference>

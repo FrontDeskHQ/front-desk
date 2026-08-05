@@ -1,194 +1,111 @@
-import type { Root, RootContent } from "mdast";
-import remarkGfm from "remark-gfm";
-import remarkParse from "remark-parse";
-import remarkStringify from "remark-stringify";
-import { unified } from "unified";
+import type { Root } from "mdast";
+import { visit } from "unist-util-visit";
 
-const markdownParser = unified().use(remarkParse).use(remarkGfm);
-const markdownStringifier = unified().use(remarkStringify).use(remarkGfm);
+import { parseRenderedMarkdown, stringifyMarkdown } from "./markdown-render";
+
+// Tag-shaped spans in literal text. Only ever applied to `text` node values,
+// never re-fed to the parser — the parse happens once, up front.
 const htmlTagPattern = /<!--[\s\S]*?-->|<\/?[A-Za-z][^>]*>|<![^>]*>/g;
-const codeOpenTagPattern = /<(code|pre)\b[^>]*>/i;
-const codeCloseTagPattern = /<\/(code|pre)\s*>/i;
 
-const parseStrippedHtmlNode = (value: string): RootContent[] => {
-  const markdown = value.replace(htmlTagPattern, "");
-  // Malformed markup (e.g. an unclosed `<!--`) strips to itself and would be
-  // re-parsed as the same raw HTML node forever — drop it instead of recursing.
-  if (markdown === value || !markdown.trim()) {
-    return [];
-  }
-
-  const parsed = markdownParser.parse(markdown) as Root;
-  return stripHtmlNodes(parsed.children, markdown).nodes;
-};
-
-// Node types whose children are phrasing content, where only `inlineCode` is valid.
-const phrasingParents = new Set([
-  "delete",
-  "emphasis",
-  "heading",
-  "link",
-  "linkReference",
-  "paragraph",
-  "strong",
-  "tableCell",
-]);
-
-/** Build a code node so masked content keeps its literal, non-rendered text. */
-const toCodeNode = (value: string, blockLevel: boolean): RootContent[] => {
-  const trimmed = value.trim();
-  if (!trimmed) {
-    return [];
-  }
-  return blockLevel
-    ? [{ lang: null, meta: null, type: "code", value: trimmed }]
-    : [{ type: "inlineCode", value: trimmed.replace(/\s+/g, " ") }];
-};
-
-const sourceSliceOf = (nodes: RootContent[], source: string): string => {
-  const start = nodes[0]?.position?.start?.offset;
-  const end = nodes.at(-1)?.position?.end?.offset;
-  if (typeof start !== "number" || typeof end !== "number") {
-    return "";
-  }
-  return source.slice(start, end);
-};
-
-const stripHtmlNodes = (
-  nodes: RootContent[],
-  source: string,
-  blockLevel = true
-): { hadHtml: boolean; nodes: RootContent[] } => {
-  let hadHtml = false;
-  const sanitizedNodes: RootContent[] = [];
-
-  for (let index = 0; index < nodes.length; index++) {
-    const node = nodes[index];
-    if (!node) {
-      continue;
-    }
-
-    if (node.type === "html") {
-      hadHtml = true;
-
-      // Raw `<code>`/`<pre>` markup: mask the contents so a link written inside
-      // it stays literal text instead of becoming a real Markdown link.
-      const openTag = node.value.match(codeOpenTagPattern);
-      if (openTag) {
-        const afterOpen = node.value.slice(
-          (openTag.index ?? 0) + openTag[0].length
-        );
-        if (codeCloseTagPattern.test(afterOpen)) {
-          // Self-contained: the whole span lives inside this one html node.
-          sanitizedNodes.push(
-            ...toCodeNode(node.value.replace(htmlTagPattern, ""), blockLevel)
-          );
-          continue;
-        }
-
-        // The span continues across siblings until a closing tag (or the end).
-        let end = index + 1;
-        while (end < nodes.length) {
-          const sibling = nodes[end];
-          if (sibling?.type === "html" && codeCloseTagPattern.test(sibling.value)) {
-            break;
-          }
-          end++;
-        }
-        const inner = nodes.slice(index + 1, end);
-        sanitizedNodes.push(
-          ...toCodeNode(
-            `${afterOpen}${sourceSliceOf(inner, source)}`.replace(
-              htmlTagPattern,
-              ""
-            ),
-            blockLevel
-          )
-        );
-        index = end;
-        continue;
-      }
-
-      // A closing tag with no matching opener carries no content.
-      if (codeCloseTagPattern.test(node.value)) {
-        continue;
-      }
-
-      sanitizedNodes.push(...parseStrippedHtmlNode(node.value));
-      continue;
-    }
-
-    if ("children" in node) {
-      const sanitizedChildren = stripHtmlNodes(
-        node.children as RootContent[],
-        source,
-        !phrasingParents.has(node.type)
-      );
-      hadHtml ||= sanitizedChildren.hadHtml;
-      sanitizedNodes.push({
-        ...node,
-        children: sanitizedChildren.nodes,
-      } as RootContent);
-      continue;
-    }
-
-    sanitizedNodes.push(node);
-  }
-
-  return { hadHtml, nodes: sanitizedNodes };
-};
-
-/** Remove raw HTML nodes from agent-generated Markdown. */
+/**
+ * Remove raw HTML tags from agent-generated Markdown, keeping their text.
+ *
+ * The UI shows raw HTML as literal text (see `remarkHtmlAsText`), so unstripped
+ * markup reaches the reader as visible `<span>` noise. Tags inside code spans
+ * and fences are left alone — those render as code and are meant to be literal.
+ */
 export const stripHtmlTagsFromMarkdown = (markdown: string): string => {
-  const tree = markdownParser.parse(markdown) as Root;
-  const sanitized = stripHtmlNodes(tree.children, markdown);
+  const tree = parseRenderedMarkdown(markdown);
+  let changed = false;
 
-  if (!sanitized.hadHtml) {
+  visit(tree, "text", (node) => {
+    const stripped = node.value.replace(htmlTagPattern, "");
+    if (stripped !== node.value) {
+      changed = true;
+      node.value = stripped;
+    }
+  });
+
+  if (!changed) {
     return markdown;
   }
 
-  return markdownStringifier
-    .stringify({ ...tree, children: sanitized.nodes })
-    .trim();
+  return stringifyMarkdown(tree.children);
 };
 
-const collectLinkUrls = (
-  node: unknown,
-  markdown: string,
-  urls: string[]
-): void => {
-  if (!node || typeof node !== "object") {
-    return;
-  }
+export interface RenderedMarkdownLink {
+  /** Offset of the link's first character in the source Markdown. */
+  start: number;
+  /** Offset just past the link's last character in the source Markdown. */
+  end: number;
+  url: string;
+}
 
-  const record = node as {
-    children?: unknown;
-    position?: { start?: { offset?: unknown } };
-    type?: unknown;
-    url?: unknown;
-  };
-  const startOffset = record.position?.start?.offset;
-  if (
-    record.type === "link" &&
-    typeof record.url === "string" &&
-    typeof startOffset === "number" &&
-    markdown[startOffset] === "["
-  ) {
-    urls.push(record.url);
-  }
+/**
+ * Extract the explicit `[label](url)` Markdown links that the UI turns into
+ * real anchors, with the source span each one occupies.
+ *
+ * Because this parses exactly like the renderer, links written inside code
+ * spans, code fences, indented code, or a raw HTML block are correctly ignored
+ * — they render as literal text, not as links. GFM autolinks and bare URLs are
+ * ignored too: callers need a labelled anchor, which is what becomes a chip.
+ */
+export const extractRenderedMarkdownLinks = (
+  markdown: string
+): RenderedMarkdownLink[] => {
+  const links: RenderedMarkdownLink[] = [];
 
-  if (Array.isArray(record.children)) {
-    for (const child of record.children) {
-      collectLinkUrls(child, markdown, urls);
+  visit(parseRenderedMarkdown(markdown), "link", (node) => {
+    const start = node.position?.start?.offset;
+    const end = node.position?.end?.offset;
+    // An autolink literal (`https://…`) or `<https://…>` starts with something
+    // other than `[`; only an explicit anchor renders with the label we need.
+    if (
+      typeof start === "number" &&
+      typeof end === "number" &&
+      markdown[start] === "["
+    ) {
+      links.push({ end, start, url: node.url });
     }
-  }
+  });
+
+  return links;
 };
 
-/** Extract explicit Markdown-link URLs after raw HTML has been stripped. */
-export const extractRenderedMarkdownLinkUrls = (markdown: string): string[] => {
-  const urls: string[] = [];
-  const sanitizedMarkdown = stripHtmlTagsFromMarkdown(markdown);
-  const tree = markdownParser.parse(sanitizedMarkdown);
-  collectLinkUrls(tree, sanitizedMarkdown, urls);
-  return urls;
+/** URLs of the explicit Markdown links the UI turns into real anchors. */
+export const extractRenderedMarkdownLinkUrls = (markdown: string): string[] =>
+  extractRenderedMarkdownLinks(markdown).map((link) => link.url);
+
+/**
+ * Remove every explicit Markdown link from the source, leaving the surrounding
+ * prose. Useful for asking "does this text still mention X outside a link?".
+ */
+export const stripRenderedMarkdownLinks = (markdown: string): string => {
+  const links = extractRenderedMarkdownLinks(markdown);
+  let result = "";
+  let cursor = 0;
+
+  for (const link of links) {
+    result += markdown.slice(cursor, link.start);
+    cursor = link.end;
+  }
+
+  return result + markdown.slice(cursor);
 };
+
+/**
+ * Build a remark plugin that rewrites link destinations in place.
+ *
+ * Use this instead of a regex over the Markdown source: it only ever touches
+ * real link nodes, so custom link syntax is never rewritten inside code blocks,
+ * code spans, or plain prose that merely looks like a link.
+ */
+export const remarkMapLinkUrls =
+  (mapUrl: (url: string) => string | null) => () => (tree: Root) => {
+    visit(tree, "link", (node) => {
+      const mapped = mapUrl(node.url);
+      if (mapped !== null) {
+        node.url = mapped;
+      }
+    });
+  };

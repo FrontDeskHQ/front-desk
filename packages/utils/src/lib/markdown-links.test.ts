@@ -1,48 +1,64 @@
+import remarkGfm from "remark-gfm";
+import remarkParse from "remark-parse";
+import remarkStringify from "remark-stringify";
+import { unified } from "unified";
 import { describe, expect, it } from "vitest";
 
 import {
   extractRenderedMarkdownLinkUrls,
+  remarkMapLinkUrls,
   stripHtmlTagsFromMarkdown,
+  stripRenderedMarkdownLinks,
 } from "./markdown-links";
 
 const prUrl = "https://github.com/acme/api/pull/482";
 
-describe("stripHtmlTagsFromMarkdown", () => {
+describe(stripHtmlTagsFromMarkdown, () => {
   it("removes raw HTML tags while keeping their text", () => {
     expect(stripHtmlTagsFromMarkdown("<span>Recommendation</span>")).toBe(
       "Recommendation"
     );
+    expect(stripHtmlTagsFromMarkdown("Ship <em>now</em>, please")).toBe(
+      "Ship now, please"
+    );
   });
 
-  // An unclosed comment is one raw HTML block that runs to the end of the
-  // document, so nothing survives it — the point is that it does not throw.
-  it("drops malformed markup instead of recursing forever", () => {
-    expect(stripHtmlTagsFromMarkdown("<!-- unclosed\n\nRecommendation")).toBe(
-      ""
-    );
+  // Regression: the old implementation re-parsed its own stripped output, so
+  // markup that strips to itself recursed until `Maximum call stack size
+  // exceeded`. The parse now happens once, before any stripping.
+  it("handles malformed markup without blowing the stack", () => {
+    expect(() =>
+      stripHtmlTagsFromMarkdown("<!-- unclosed\n\nRecommendation")
+    ).not.toThrow();
     expect(stripHtmlTagsFromMarkdown("Recommendation\n\n<!-- unclosed")).toBe(
-      "Recommendation"
+      "Recommendation\n\n<!-- unclosed"
     );
   });
 
-  it("masks raw HTML code markup so its contents stay literal", () => {
-    expect(stripHtmlTagsFromMarkdown(`<code>[PR #482](${prUrl})</code>`)).toBe(
-      `\`[PR #482](${prUrl})\``
-    );
+  it("leaves tags inside code spans and fences alone", () => {
+    const markdown = "Use `<span>` here.";
+    expect(stripHtmlTagsFromMarkdown(markdown)).toBe(markdown);
+    const fenced = "```html\n<span>Recommendation</span>\n```";
+    expect(stripHtmlTagsFromMarkdown(fenced)).toBe(fenced);
   });
 });
 
-describe("extractRenderedMarkdownLinkUrls", () => {
+describe(extractRenderedMarkdownLinkUrls, () => {
   it("returns explicit Markdown links", () => {
-    expect(extractRenderedMarkdownLinkUrls(`[PR #482](${prUrl})`)).toStrictEqual(
-      [prUrl]
-    );
+    expect(
+      extractRenderedMarkdownLinkUrls(`[PR #482](${prUrl})`)
+    ).toStrictEqual([prUrl]);
   });
 
-  it("ignores links written inside raw HTML code markup", () => {
+  // The UI renders raw HTML as literal text, so `<code>` never makes the link
+  // inside it into code — the link still renders, and we must agree.
+  it("still sees a link wrapped in inline raw HTML, as the renderer does", () => {
     expect(
       extractRenderedMarkdownLinkUrls(`<code>[PR #482](${prUrl})</code>`)
-    ).toStrictEqual([]);
+    ).toStrictEqual([prUrl]);
+  });
+
+  it("ignores a link inside a raw HTML block, which renders as literal text", () => {
     expect(
       extractRenderedMarkdownLinkUrls(`<pre>\n[PR #482](${prUrl})\n</pre>`)
     ).toStrictEqual([]);
@@ -55,11 +71,66 @@ describe("extractRenderedMarkdownLinkUrls", () => {
     expect(
       extractRenderedMarkdownLinkUrls(`\`\`\`\n[PR #482](${prUrl})\n\`\`\``)
     ).toStrictEqual([]);
+    // An unclosed fence runs to the end of the document in CommonMark, and the
+    // renderer agrees, so the link below it is code — not a link.
+    expect(
+      extractRenderedMarkdownLinkUrls(`\`\`\`\nfoo\n\n[PR #482](${prUrl})`)
+    ).toStrictEqual([]);
   });
 
-  it("still sees a link that follows non-code raw HTML", () => {
+  it("ignores bare URLs and images, which carry no anchor label", () => {
+    expect(extractRenderedMarkdownLinkUrls(`See ${prUrl}`)).toStrictEqual([]);
     expect(
-      extractRenderedMarkdownLinkUrls(`<span>Link</span> [PR #482](${prUrl})`)
-    ).toStrictEqual([prUrl]);
+      extractRenderedMarkdownLinkUrls(`![PR #482](${prUrl})`)
+    ).toStrictEqual([]);
+  });
+});
+
+describe(stripRenderedMarkdownLinks, () => {
+  it("removes explicit links and keeps the surrounding prose", () => {
+    expect(
+      stripRenderedMarkdownLinks(`Link [PR #482](${prUrl}) to the thread.`)
+    ).toBe("Link  to the thread.");
+  });
+
+  it("leaves link-looking text inside code alone", () => {
+    const markdown = `Use \`[PR #482](${prUrl})\` verbatim.`;
+    expect(stripRenderedMarkdownLinks(markdown)).toBe(markdown);
+  });
+});
+
+describe(remarkMapLinkUrls, () => {
+  const toProxy = unified()
+    .use(remarkParse)
+    .use(remarkGfm)
+    .use(
+      remarkMapLinkUrls((url) =>
+        url.startsWith("thread:") ? `https://proxy/${url.slice(7)}` : null
+      )
+    )
+    .use(remarkStringify);
+  const run = (markdown: string) =>
+    String(toProxy.processSync(markdown)).trim();
+
+  it("rewrites matching link destinations", () => {
+    expect(run("See [Billing bug](thread:abc123) for context.")).toBe(
+      "See [Billing bug](https://proxy/abc123) for context."
+    );
+  });
+
+  it("leaves non-matching links untouched", () => {
+    expect(run(`See [PR #482](${prUrl}).`)).toBe(`See [PR #482](${prUrl}).`);
+  });
+
+  // The old source-level regex rewrote any `(thread:id)` it found, including
+  // inside code samples and ordinary prose that was never a link.
+  it("does not rewrite code or prose that merely looks like a link", () => {
+    expect(run("Call `(thread:abc123)` directly.")).toBe(
+      "Call `(thread:abc123)` directly."
+    );
+    expect(run("```\n(thread:abc123)\n```")).toBe("```\n(thread:abc123)\n```");
+    expect(run("Mentioned in passing (thread:abc123) here.")).toBe(
+      "Mentioned in passing (thread:abc123) here."
+    );
   });
 });
