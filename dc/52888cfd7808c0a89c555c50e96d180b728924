@@ -1,0 +1,24 @@
+packages/ui/src/components/command.tsx
+  s_ac55fb31922f1e::t_67510f61ffaa29 46,55-59
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "dc52888cfd7808c0a89c555c50e96d180b728924",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_ac55fb31922f1e": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd461-bf95-75c2-99e4-d0442952c793",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
