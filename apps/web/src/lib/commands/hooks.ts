@@ -1,5 +1,5 @@
 import { useAtomValue, useSetAtom } from "jotai/react";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { commandRegistryActions, commandRegistryAtom } from "./registry";
 import type { Command, CommandContext, CommandPage } from "./types";
@@ -74,20 +74,43 @@ export const useCommandContext = (
 ) => {
   const { active = true, deps } = options;
   const setRegistry = useSetAtom(commandRegistryAtom);
+  const contextRef = useRef<CommandContext | null>(null);
 
   useEffect(() => {
     const context = factory();
+    const previousContext = contextRef.current;
+    contextRef.current = context;
 
-    // Atomic batch: register + optionally activate
     setRegistry((state) => {
-      let newState = commandRegistryActions.registerContext(state, context);
-      if (active) {
-        newState = commandRegistryActions.setContext(newState, context.id);
+      let newState = state;
+
+      if (previousContext && previousContext.id !== context.id) {
+        newState = commandRegistryActions.unregisterContext(
+          newState,
+          previousContext.id
+        );
       }
+
+      newState = commandRegistryActions.registerContext(newState, context);
+
+      if (active && newState.currentContextId !== context.id) {
+        newState = commandRegistryActions.setContext(newState, context.id);
+      } else if (!active && newState.currentContextId === context.id) {
+        newState = commandRegistryActions.setContext(newState, null);
+      }
+
       return newState;
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setRegistry, active, ...deps]);
 
-    return () => {
+  useEffect(
+    () => () => {
+      const context = contextRef.current;
+      if (!context) {
+        return;
+      }
+
       setRegistry((state) => {
         let newState = state;
         if (state.currentContextId === context.id) {
@@ -95,9 +118,9 @@ export const useCommandContext = (
         }
         return commandRegistryActions.unregisterContext(newState, context.id);
       });
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [setRegistry, active, ...deps]);
+    },
+    [setRegistry]
+  );
 };
 
 /**

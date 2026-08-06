@@ -8,6 +8,7 @@ import { query } from "~/lib/live-state";
 
 import { useCommandContext } from "../..";
 import { createAssignmentCommands } from "./assignment";
+import { createLabelCommands } from "./labels";
 import { createPriorityCommands } from "./priority";
 import { createStatusCommands } from "./status";
 
@@ -29,6 +30,22 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
     query.thread.first({ id: threadId }).include({
       assignedUser: true,
     })
+  );
+
+  const labels = useLiveQuery(
+    query.label.where({
+      enabled: true,
+      organizationId: activeOrganization?.id,
+    })
+  );
+
+  const threadLabels = useLiveQuery(
+    query.threadLabel
+      .where({
+        label: { enabled: true },
+        threadId,
+      })
+      .include({ label: true })
   );
 
   useCommandContext(
@@ -54,12 +71,18 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
           threadId,
           user,
         });
+      const { commands: labelCommands, labelsPage } = createLabelCommands({
+        labels,
+        threadId,
+        threadLabels,
+      });
 
       return {
         commands: [
           ...assignmentCommands,
           ...statusCommands,
           ...priorityCommands,
+          ...labelCommands,
           {
             id: "copy-link",
             label: "Copy Link",
@@ -79,6 +102,7 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
         label: "Thread",
         pages: {
           "assign-user": assignUserPage,
+          labels: labelsPage,
           priority: priorityPage,
           status: statusPage,
         },
@@ -86,7 +110,15 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
     },
     {
       active: Boolean(organizationId),
-      deps: [threadId, organizationId, thread, user, orgUsers],
+      deps: [
+        threadId,
+        organizationId,
+        thread,
+        user,
+        orgUsers,
+        labels,
+        threadLabels,
+      ],
     }
   );
 

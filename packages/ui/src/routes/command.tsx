@@ -1,15 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  CalendarIcon,
-  FileIcon,
-  HomeIcon,
-  SearchIcon,
-  SettingsIcon,
-  UserIcon,
-} from "lucide-react";
-import { useState } from "react";
-
-import { Button } from "@/components/button";
+import { Button } from "@workspace/ui/components/button";
 import {
   Command,
   CommandDialog,
@@ -18,480 +8,395 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandItemCheckbox,
   CommandList,
   CommandSeparator,
   CommandShortcut,
-} from "@/components/command";
-import { Keybind } from "@/components/keybind";
+  CommandTrail,
+} from "@workspace/ui/components/command";
+import { Keybind } from "@workspace/ui/components/keybind";
+import { FileText, Home, Settings, User } from "lucide-react";
+import { useState } from "react";
 
-export const Route = createFileRoute("/command")({
+import {
+  Anatomy,
+  Demo,
+  DocPage,
+  DocSection,
+  PropsTable,
+} from "./-components/doc-kit";
+import type { ComponentMeta } from "./-components/doc-kit";
+
+export const meta: ComponentMeta = {
+  description:
+    "A searchable command list and dialog with grouped actions, keyboard navigation, and an optional checkbox-based multi-select mode.",
+  import:
+    'import { CommandDialog, CommandInput, CommandItem, CommandItemCheckbox } from "@workspace/ui/components/command";',
+  name: "Command",
+  related: ["Dialog", "Combobox", "Select", "Keybind"],
+  status: "stable",
+  whenNotToUse: [
+    "Choosing one value from a fixed form field — use Select or RadioGroup.",
+    "Entering or editing data — use form controls such as Input and Checkbox.",
+    "A short menu without search — use DropdownMenu.",
+  ],
+  whenToUse: [
+    "Running actions or navigating from a searchable command palette.",
+    "Choosing several searchable options where checkbox clicks and Space should keep the dialog open.",
+    "Grouping a longer action set while preserving arrow-key navigation and shortcuts.",
+  ],
+};
+
+export const Route = createFileRoute("/command" as unknown as "/command")({
   component: RouteComponent,
 });
 
-function RouteComponent() {
+function CommandDialogDemo() {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="text-lg">Command</div>
+    <>
+      <Button onClick={() => setOpen(true)}>Open command palette</Button>
+      <CommandDialog open={open} onOpenChange={setOpen}>
+        <CommandInput placeholder="Search commands..." />
+        <CommandList>
+          <CommandEmpty>No commands found.</CommandEmpty>
+          <CommandGroup heading="Navigation">
+            <CommandItem onSelect={() => setOpen(false)}>
+              <Home />
+              <span>Home</span>
+              <CommandShortcut keybind="mod+h" />
+            </CommandItem>
+            <CommandItem onSelect={() => setOpen(false)}>
+              <Settings />
+              <span>Settings</span>
+              <CommandShortcut keybind="mod+," />
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+        <CommandFooter>
+          Press <Keybind keybind="esc" /> to close
+        </CommandFooter>
+      </CommandDialog>
+    </>
+  );
+}
 
-      {/* Basic Command */}
-      <div className="flex flex-col gap-4">
-        <div className="text-sm">Basic Command</div>
-        <div className="border rounded-md p-4 border-dashed">
-          <Command className="max-w-md">
-            <CommandInput placeholder="Type a command or search..." />
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Suggestions">
-                <CommandItem>
-                  <CalendarIcon />
-                  <span>Calendar</span>
-                </CommandItem>
-                <CommandItem>
-                  <FileIcon />
-                  <span>Search Emoji</span>
-                </CommandItem>
-                <CommandItem>
-                  <UserIcon />
-                  <span>Calculator</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Settings">
-                <CommandItem>
-                  <SettingsIcon />
-                  <span>Profile</span>
-                  <CommandShortcut keybind="mod+p" />
-                </CommandItem>
-                <CommandItem>
-                  <SettingsIcon />
-                  <span>Mail</span>
-                  <CommandShortcut keybind="mod+b" />
-                </CommandItem>
-                <CommandItem>
-                  <SettingsIcon />
-                  <span>Settings</span>
-                  <CommandShortcut keybind="mod+s" />
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-            <CommandFooter>
-              Press <Keybind keybind="esc" /> to close
-            </CommandFooter>
-          </Command>
-        </div>
-      </div>
+function MultiSelectDemo() {
+  const [open, setOpen] = useState(false);
+  const [selected, setSelected] = useState(["billing"]);
 
-      {/* Command Dialog */}
-      <div className="flex flex-col gap-4">
-        <div className="text-sm">Command Dialog</div>
-        <div className="border rounded-md p-4 border-dashed flex items-center gap-4">
-          <Button onClick={() => setOpen(true)}>Open Command Palette</Button>
-          <CommandDialog open={open} onOpenChange={setOpen}>
-            <CommandInput placeholder="Type a command or search..." />
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Navigation">
-                <CommandItem>
-                  <HomeIcon />
-                  <span>Home</span>
-                  <CommandShortcut keybind="mod+h" />
-                </CommandItem>
-                <CommandItem>
-                  <SearchIcon />
-                  <span>Search</span>
-                  <CommandShortcut keybind="mod+k" />
-                </CommandItem>
-                <CommandItem>
-                  <FileIcon />
-                  <span>Files</span>
-                  <CommandShortcut keybind="mod+f" />
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Account">
-                <CommandItem>
-                  <UserIcon />
-                  <span>Profile</span>
-                  <CommandShortcut keybind="mod+p" />
-                </CommandItem>
-                <CommandItem>
-                  <SettingsIcon />
-                  <span>Settings</span>
-                  <CommandShortcut keybind="mod+s" />
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-            <CommandFooter>
-              Press <Keybind keybind="esc" /> to close
-            </CommandFooter>
-          </CommandDialog>
-        </div>
-      </div>
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <Button onClick={() => setOpen(true)}>Assign topics</Button>
+      <span className="text-foreground-secondary text-sm">
+        {selected.length > 0 ? selected.join(", ") : "No topics selected"}
+      </span>
+      <CommandDialog
+        multiple
+        open={open}
+        onOpenChange={setOpen}
+        value={selected}
+        onValueChange={setSelected}
+      >
+        <CommandInput placeholder="Search topics..." />
+        <CommandList>
+          <CommandEmpty>No topics found.</CommandEmpty>
+          <CommandGroup heading="Topics">
+            <CommandItem value="billing">
+              <CommandItemCheckbox aria-label="Toggle Billing" />
+              <span>Billing</span>
+            </CommandItem>
+            <CommandItem value="product">
+              <CommandItemCheckbox aria-label="Toggle Product" />
+              <span>Product</span>
+            </CommandItem>
+            <CommandItem value="security">
+              <CommandItemCheckbox aria-label="Toggle Security" />
+              <span>Security</span>
+            </CommandItem>
+          </CommandGroup>
+        </CommandList>
+        <CommandFooter className="justify-end gap-3">
+          <span className="flex items-center gap-1">
+            <Keybind keybind="space" /> Toggle
+          </span>
+          <span className="flex items-center gap-1">
+            <Keybind keybind="enter" /> Toggle and close
+          </span>
+        </CommandFooter>
+      </CommandDialog>
+    </div>
+  );
+}
 
-      {/* Command with Multiple Groups */}
-      <div className="flex flex-col gap-4">
-        <div className="text-sm">Multiple Groups</div>
-        <div className="border rounded-md p-4 border-dashed">
-          <Command className="max-w-md">
-            <CommandInput placeholder="Search commands..." />
+function RouteComponent() {
+  return (
+    <DocPage meta={meta}>
+      <DocSection
+        title="Inline"
+        description="Compose an inline searchable list from explicit groups, items, trails, and separators."
+      >
+        <Demo
+          code={`<Command className="max-w-md rounded-md border">
+  <CommandInput placeholder="Search files..." />
+  <CommandList>
+    <CommandEmpty>No files found.</CommandEmpty>
+    <CommandGroup heading="Recent">
+      <CommandItem>
+        <FileText />
+        <span>Quarterly report</span>
+        <CommandTrail>
+          <CommandShortcut keybind="mod+1" />
+        </CommandTrail>
+      </CommandItem>
+      <CommandItem disabled>
+        <FileText />
+        <span>Archived notes</span>
+      </CommandItem>
+    </CommandGroup>
+    <CommandSeparator />
+    <CommandGroup heading="People">
+      <CommandItem>
+        <User />
+        <span>Pedro Costa</span>
+      </CommandItem>
+    </CommandGroup>
+  </CommandList>
+</Command>`}
+        >
+          <Command className="max-w-md rounded-md border">
+            <CommandInput placeholder="Search files..." />
             <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
+              <CommandEmpty>No files found.</CommandEmpty>
               <CommandGroup heading="Recent">
                 <CommandItem>
-                  <FileIcon />
-                  <span>Document 1</span>
-                </CommandItem>
-                <CommandItem>
-                  <FileIcon />
-                  <span>Document 2</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Favorites">
-                <CommandItem>
-                  <HomeIcon />
-                  <span>Dashboard</span>
-                </CommandItem>
-                <CommandItem>
-                  <SettingsIcon />
-                  <span>Configuration</span>
-                </CommandItem>
-              </CommandGroup>
-              <CommandSeparator />
-              <CommandGroup heading="Actions">
-                <CommandItem>
-                  <FileIcon />
-                  <span>New File</span>
-                  <CommandShortcut keybind="mod+n" />
-                </CommandItem>
-                <CommandItem>
-                  <FileIcon />
-                  <span>Open File</span>
-                  <CommandShortcut keybind="mod+o" />
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </div>
-      </div>
-
-      {/* Command with Disabled Items */}
-      <div className="flex flex-col gap-4">
-        <div className="text-sm">Disabled Items</div>
-        <div className="border rounded-md p-4 border-dashed">
-          <Command className="max-w-md">
-            <CommandInput placeholder="Type a command or search..." />
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Available">
-                <CommandItem>
-                  <CalendarIcon />
-                  <span>Calendar</span>
+                  <FileText />
+                  <span>Quarterly report</span>
+                  <CommandTrail>
+                    <CommandShortcut keybind="mod+1" />
+                  </CommandTrail>
                 </CommandItem>
                 <CommandItem disabled>
-                  <FileIcon />
-                  <span>Search Emoji (Disabled)</span>
+                  <FileText />
+                  <span>Archived notes</span>
                 </CommandItem>
+              </CommandGroup>
+              <CommandSeparator />
+              <CommandGroup heading="People">
                 <CommandItem>
-                  <UserIcon />
-                  <span>Calculator</span>
+                  <User />
+                  <span>Pedro Costa</span>
                 </CommandItem>
               </CommandGroup>
             </CommandList>
           </Command>
-        </div>
-      </div>
+        </Demo>
+      </DocSection>
 
-      {/* Command Empty State */}
-      <div className="flex flex-col gap-4">
-        <div className="text-sm">Empty State</div>
-        <div className="border rounded-md p-4 border-dashed">
-          <Command className="max-w-md">
-            <CommandInput placeholder="Type 'xyz' to see empty state..." />
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-            </CommandList>
-          </Command>
-        </div>
-      </div>
+      <DocSection
+        title="Dialog"
+        description="Single-select commands keep their existing explicit close behavior: close the controlled dialog from onSelect when the action completes."
+      >
+        <Demo
+          code={`const [open, setOpen] = useState(false);
 
-      {/* Command Footer */}
-      <div className="flex flex-col gap-4">
-        <div className="text-sm">Command Footer</div>
-        <div className="border rounded-md p-4 border-dashed">
-          <Command className="max-w-md">
-            <CommandInput placeholder="Type a command or search..." />
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Navigation">
-                <CommandItem>
-                  <HomeIcon />
-                  <span>Home</span>
-                </CommandItem>
-                <CommandItem>
-                  <SearchIcon />
-                  <span>Search</span>
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-            <CommandFooter>
-              <div className="flex items-center justify-between">
-                <span>Use arrow keys to navigate</span>
-                <div className="flex items-center gap-2">
-                  <span>Select:</span>
-                  <CommandShortcut keybind="enter" />
-                </div>
-              </div>
-            </CommandFooter>
-          </Command>
-        </div>
-        <div className="border rounded-md p-4 border-dashed">
-          <Command className="max-w-md">
-            <CommandInput placeholder="Type a command or search..." />
-            <CommandList>
-              <CommandEmpty>No results found.</CommandEmpty>
-              <CommandGroup heading="Actions">
-                <CommandItem>
-                  <FileIcon />
-                  <span>New File</span>
-                  <CommandShortcut keybind="mod+n" />
-                </CommandItem>
-                <CommandItem>
-                  <FileIcon />
-                  <span>Open File</span>
-                  <CommandShortcut keybind="mod+o" />
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-            <CommandFooter>
-              Press <Keybind keybind="esc" /> to close •{" "}
-              <Keybind keybind="mod+k" /> to open
-            </CommandFooter>
-          </Command>
-        </div>
-      </div>
+<>
+  <Button onClick={() => setOpen(true)}>Open command palette</Button>
+  <CommandDialog open={open} onOpenChange={setOpen}>
+    <CommandInput placeholder="Search commands..." />
+    <CommandList>
+      <CommandEmpty>No commands found.</CommandEmpty>
+      <CommandGroup heading="Navigation">
+        <CommandItem onSelect={() => setOpen(false)}>
+          <Home />
+          <span>Home</span>
+          <CommandShortcut keybind="mod+h" />
+        </CommandItem>
+        <CommandItem onSelect={() => setOpen(false)}>
+          <Settings />
+          <span>Settings</span>
+          <CommandShortcut keybind="mod+," />
+        </CommandItem>
+      </CommandGroup>
+    </CommandList>
+    <CommandFooter>
+      Press <Keybind keybind="esc" /> to close
+    </CommandFooter>
+  </CommandDialog>
+</>`}
+        >
+          <CommandDialogDemo />
+        </Demo>
+      </DocSection>
 
-      {/* Usage Guidelines */}
-      <div className="flex flex-col gap-4">
-        <div className="text-lg">Usage Guidelines</div>
-        <div className="space-y-6">
-          <div className="space-y-3">
-            <div className="text-sm font-medium">Overview</div>
-            <div className="text-sm space-y-2">
-              <p>
-                The{" "}
-                <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                  Command
-                </code>{" "}
-                component provides a command palette interface for quick actions
-                and navigation. It's built on top of{" "}
-                <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                  cmdk
-                </code>{" "}
-                and offers keyboard navigation, search, and grouping
-                capabilities.
-              </p>
-              <p>
-                Use{" "}
-                <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                  CommandDialog
-                </code>{" "}
-                for modal command palettes that overlay the entire screen, or
-                use{" "}
-                <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                  Command
-                </code>{" "}
-                directly for inline command interfaces.
-              </p>
-            </div>
-          </div>
+      <DocSection
+        title="Multi-select"
+        description="Click an item or press Enter to toggle it and close. Click its checkbox or press Space to toggle it and keep the dialog open. Every checkbox item needs an explicit value."
+      >
+        <Demo
+          code={`const [open, setOpen] = useState(false);
+const [selected, setSelected] = useState(["billing"]);
 
-          <div className="space-y-3">
-            <div className="text-sm font-medium">Component Structure</div>
-            <div className="text-sm space-y-2">
-              <ul className="text-sm space-y-1.5 list-disc list-inside">
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    Command
-                  </code>{" "}
-                  - Base container component
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandDialog
-                  </code>{" "}
-                  - Dialog wrapper with built-in modal behavior
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandInput
-                  </code>{" "}
-                  - Search input field with icon
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandList
-                  </code>{" "}
-                  - Scrollable list container
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandEmpty
-                  </code>{" "}
-                  - Empty state when no results found
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandGroup
-                  </code>{" "}
-                  - Group items with optional heading
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandItem
-                  </code>{" "}
-                  - Individual command item
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandSeparator
-                  </code>{" "}
-                  - Visual separator between groups
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandShortcut
-                  </code>{" "}
-                  - Display keyboard shortcuts
-                </li>
-                <li>
-                  <code className="px-1 py-0.5 bg-background-tertiary border font-mono rounded text-xs">
-                    CommandFooter
-                  </code>{" "}
-                  - Footer section for hints, tips, or additional information
-                </li>
-              </ul>
-            </div>
-          </div>
+<div className="flex flex-wrap items-center gap-3">
+  <Button onClick={() => setOpen(true)}>Assign topics</Button>
+  <span className="text-foreground-secondary text-sm">
+    {selected.length > 0 ? selected.join(", ") : "No topics selected"}
+  </span>
+  <CommandDialog
+    multiple
+    open={open}
+    onOpenChange={setOpen}
+    value={selected}
+    onValueChange={setSelected}
+  >
+    <CommandInput placeholder="Search topics..." />
+    <CommandList>
+      <CommandEmpty>No topics found.</CommandEmpty>
+      <CommandGroup heading="Topics">
+        <CommandItem value="billing">
+          <CommandItemCheckbox aria-label="Toggle Billing" />
+          <span>Billing</span>
+        </CommandItem>
+        <CommandItem value="product">
+          <CommandItemCheckbox aria-label="Toggle Product" />
+          <span>Product</span>
+        </CommandItem>
+        <CommandItem value="security">
+          <CommandItemCheckbox aria-label="Toggle Security" />
+          <span>Security</span>
+        </CommandItem>
+      </CommandGroup>
+    </CommandList>
+    <CommandFooter className="justify-end gap-3">
+      <span className="flex items-center gap-1">
+        <Keybind keybind="space" /> Toggle
+      </span>
+      <span className="flex items-center gap-1">
+        <Keybind keybind="enter" /> Toggle and close
+      </span>
+    </CommandFooter>
+  </CommandDialog>
+</div>`}
+        >
+          <MultiSelectDemo />
+        </Demo>
+      </DocSection>
 
-          <div className="space-y-3">
-            <div className="text-sm font-medium">Do's ✓</div>
-            <ul className="text-sm space-y-1.5 list-disc list-inside">
-              <li>
-                Use CommandDialog for global command palettes (typically
-                triggered by ⌘K or Ctrl+K)
-              </li>
-              <li>
-                Use Command for inline search interfaces (e.g., comboboxes,
-                search bars)
-              </li>
-              <li>
-                Group related commands together using CommandGroup with
-                descriptive headings
-              </li>
-              <li>
-                Use CommandShortcut to display keyboard shortcuts for common
-                actions
-              </li>
-              <li>
-                Use CommandFooter to display helpful hints, keyboard shortcuts,
-                or additional context at the bottom of the command palette
-              </li>
-              <li>
-                Always include CommandEmpty to show a helpful message when no
-                results are found
-              </li>
-              <li>
-                Use icons in CommandItem to provide visual context and improve
-                scanability
-              </li>
-              <li>
-                Use CommandSeparator to visually separate different groups of
-                commands
-              </li>
-              <li>
-                Disable items using the disabled prop rather than hiding them
-                when users should be aware of unavailable actions
-              </li>
-              <li>
-                Provide descriptive placeholder text in CommandInput to guide
-                users
-              </li>
-            </ul>
-          </div>
+      <DocSection
+        title="CommandDialog API"
+        description="Props in addition to the Base UI Dialog root props."
+      >
+        <PropsTable
+          rows={[
+            {
+              default: "false",
+              description:
+                "Enables checkbox multi-selection, Space-to-toggle, and automatic close after item click or Enter.",
+              name: "multiple",
+              type: "boolean",
+            },
+            {
+              description:
+                "Selected item values in controlled multi-select mode.",
+              name: "value",
+              type: "string[]",
+            },
+            {
+              default: "[]",
+              description:
+                "Initially selected item values in uncontrolled multi-select mode.",
+              name: "defaultValue",
+              type: "string[]",
+            },
+            {
+              description:
+                "Called with the next selected value array whenever an item is toggled.",
+              name: "onValueChange",
+              type: "(value: string[]) => void",
+            },
+            {
+              default: '"Command Palette"',
+              description:
+                "Accessible dialog title, visually hidden by default.",
+              name: "title",
+              type: "string",
+            },
+            {
+              default: '"Search for a command to run..."',
+              description:
+                "Accessible dialog description, visually hidden by default.",
+              name: "description",
+              type: "string",
+            },
+            {
+              default: "false",
+              description: "Shows the dialog close button.",
+              name: "showCloseButton",
+              type: "boolean",
+            },
+          ]}
+        />
+      </DocSection>
 
-          <div className="space-y-3">
-            <div className="text-sm font-medium">Don'ts ✗</div>
-            <ul className="text-sm space-y-1.5 list-disc list-inside">
-              <li>
-                Don't use CommandDialog for simple dropdown menus - use Select
-                or Combobox instead
-              </li>
-              <li>
-                Don't nest Command components - use CommandGroup for
-                organization instead
-              </li>
-              <li>
-                Don't use CommandItem without proper keyboard navigation support
-              </li>
-              <li>
-                Don't create overly deep nesting - keep command structure flat
-                and scannable
-              </li>
-              <li>
-                Don't use Command for forms or data entry - it's designed for
-                command execution and navigation
-              </li>
-              <li>
-                Don't forget to handle the onSelect event for CommandItem to
-                execute actions
-              </li>
-              <li>
-                Don't use CommandDialog without proper open/close state
-                management
-              </li>
-              <li>
-                Avoid using too many groups - keep the structure simple and
-                intuitive
-              </li>
-            </ul>
-          </div>
+      <DocSection
+        title="Item API"
+        description="CommandItem and CommandItemCheckbox props in addition to their underlying cmdk Item and Checkbox props."
+      >
+        <PropsTable
+          rows={[
+            {
+              description:
+                "Stable item identifier. Required when the item contains CommandItemCheckbox.",
+              name: "value (CommandItem)",
+              type: "string",
+            },
+            {
+              description:
+                "Runs after selection. In multi-select mode, the value array is updated before this callback.",
+              name: "onSelect (CommandItem)",
+              type: "(value: string) => void",
+            },
+            {
+              default: "false",
+              description:
+                "Excludes the item from pointer and keyboard selection.",
+              name: "disabled (CommandItem)",
+              type: "boolean",
+            },
+            {
+              description:
+                "Accessible name for the checkbox. Defaults to the item value; provide a human-readable label.",
+              name: "aria-label (CommandItemCheckbox)",
+              type: "string",
+            },
+          ]}
+        />
+      </DocSection>
 
-          <div className="space-y-3">
-            <div className="text-sm font-medium">Accessibility</div>
-            <ul className="text-sm space-y-1.5 list-disc list-inside">
-              <li>
-                Command components are fully keyboard accessible - use Arrow
-                keys to navigate, Enter to select, Escape to close
-              </li>
-              <li>
-                Search functionality filters items automatically as you type
-              </li>
-              <li>
-                Focus management is handled automatically when opening
-                CommandDialog
-              </li>
-              <li>
-                Use aria-label on CommandInput if the placeholder doesn't
-                provide sufficient context
-              </li>
-              <li>
-                Disabled items are automatically excluded from keyboard
-                navigation
-              </li>
-              <li>
-                CommandDialog includes proper ARIA attributes for modal dialogs
-              </li>
-              <li>
-                Screen readers will announce group headings and item labels
-                appropriately
-              </li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
+      <DocSection
+        title="Anatomy"
+        description="Checkboxes are explicit item slots; omit them for ordinary command items."
+      >
+        <Anatomy
+          code={`<CommandDialog multiple value={value} onValueChange={setValue}>
+  <CommandInput />
+  <CommandList>
+    <CommandEmpty />
+    <CommandGroup>
+      <CommandItem value="option">
+        <CommandItemCheckbox aria-label="Toggle option" />
+        <span>Option</span>
+        <CommandTrail>
+          <CommandShortcut keybind="mod+1" />
+        </CommandTrail>
+      </CommandItem>
+    </CommandGroup>
+  </CommandList>
+  <CommandFooter />
+</CommandDialog>`}
+        />
+      </DocSection>
+    </DocPage>
   );
 }
