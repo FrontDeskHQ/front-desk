@@ -50,6 +50,48 @@ function RouteComponent() {
       </DocSection>
 
       <DocSection
+        title="Sizing parity with a real border"
+        description="The frame is painted on a pseudo-element inside the box, not as a shadow spreading out of it, so a framed element occupies exactly the space a bordered one does. Stacked flush, the two edges stay collinear; at equal height and width, the two boxes render identically sized."
+      >
+        <Demo
+          code={`<div className="flex flex-col">
+  <div className="surface-frame surface-frame-bevel-none flex h-9 w-56 items-center rounded-none px-3 text-xs">
+    surface-frame
+  </div>
+  <div className="border border-border-primary flex h-9 w-56 items-center rounded-none px-3 text-xs">
+    border
+  </div>
+</div>
+
+<div className="flex items-center gap-4">
+  <div className="surface-frame surface-frame-bevel-none flex h-9 w-32 items-center justify-center rounded-md text-xs">
+    surface-frame
+  </div>
+  <div className="border border-border-primary flex h-9 w-32 items-center justify-center rounded-md text-xs">
+    border
+  </div>
+</div>`}
+        >
+          <div className="flex flex-col">
+            <div className="surface-frame surface-frame-bevel-none rounded-none flex h-9 w-56 items-center px-3 text-xs">
+              surface-frame
+            </div>
+            <div className="border border-border-primary rounded-none flex h-9 w-56 items-center px-3 text-xs">
+              border
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="surface-frame surface-frame-bevel-none flex h-9 w-32 items-center justify-center rounded-md text-xs">
+              surface-frame
+            </div>
+            <div className="border border-border-primary flex h-9 w-32 items-center justify-center rounded-md text-xs">
+              border
+            </div>
+          </div>
+        </Demo>
+      </DocSection>
+
+      <DocSection
         title="Elevation"
         description="Use the elevation utility to control the smooth stacked shadow. The scale is adapted from flornkm/shadow-plugin and can use Tailwind shadow colors through --tw-shadow-color."
       >

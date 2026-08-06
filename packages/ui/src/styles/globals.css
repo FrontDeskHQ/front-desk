@@ -301,13 +301,81 @@
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
   --surface-frame-elevation: var(--surface-frame-elevation-default);
 
+  /*
+   * An outset box-shadow spread renders outside the border box, so a ring
+   * drawn that way makes the element paint 1px larger than its layout box on
+   * every side, misaligning it with real-bordered elements of the same size.
+   * The transparent border below reserves that ring of space inside the border
+   * box instead, and the frame is painted into it by two pseudo-elements —
+   * they need different reference boxes, and one element only has two:
+   *
+   *   border box   radius r    the ring and the halo, on ::before
+   *   padding box  radius r-1  the fill, the bevel, and the elevation ::after
+   *                            casts, which has to originate here so its near
+   *                            field lands under the ring rather than outside
+   *                            it
+   *
+   * Those two are parallel offsets of each other, so the ring, the fill and
+   * the bevel stay concentric. ::after is the one approximation: it sits on
+   * the padding box but inherits radius r, since CSS gives no way to name r-1,
+   * leaving it a fraction of a pixel over the fill at the corners — which only
+   * a blur is soft enough to get away with.
+   */
+  position: relative;
+  border: var(--surface-frame-ring-spread) solid transparent;
+  /* Keep the fill ending where the ring begins: ring colors are translucent,
+   * and a background would otherwise paint under the transparent border and
+   * tint them with the element's own fill. */
+  background-clip: padding-box;
+  /* The bevel stays on the element: an inset shadow is clipped to the padding
+   * box, which is already the fill, at a radius the browser derives from the
+   * border width — so the highlight hugs the fill's corners with no radius
+   * math, and paints under the content the way it always has. Declaring the
+   * property here also keeps ring/shadow utilities inert on surface-frame
+   * elements, as they were when the whole frame lived on this declaration. */
   box-shadow:
     inset 0 var(--surface-frame-bevel-y) 0 -0.5px
-      var(--surface-frame-bevel-color),
-    var(--surface-frame-elevation),
-    0 0 0 var(--surface-frame-halo-gap) var(--surface-frame-halo-spacer),
-    0 0 0 var(--surface-frame-halo-spread) var(--surface-frame-halo-color),
-    0 0 0 var(--surface-frame-ring-spread) var(--surface-frame-ring-color) !important;
+      var(--surface-frame-bevel-color) !important;
+
+  /* The ring, lining the reserved border from the border box inwards: outer
+   * edge on the element's own radius, inner edge on the padding box's, which
+   * is where the fill and the bevel end. The halo rides along because it needs
+   * the same exact box — its spacer is opaque, so the fraction of a pixel that
+   * ::after can be off by would paint the backdrop over the fill's corners and
+   * scrub the bevel out of them. Measured from the outer edge, which the ring
+   * no longer extends past, the halo gives back the ring's width. */
+  &::before {
+    content: "";
+    position: absolute;
+    inset: calc(-1 * var(--surface-frame-ring-spread));
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      0 0 0
+        calc(var(--surface-frame-halo-gap) - var(--surface-frame-ring-spread))
+        var(--surface-frame-halo-spacer),
+      0 0 0
+        calc(var(--surface-frame-halo-spread) - var(--surface-frame-ring-spread))
+        var(--surface-frame-halo-color),
+      inset 0 0 0 var(--surface-frame-ring-spread)
+        var(--surface-frame-ring-color);
+  }
+
+  /* Elevation, cast from the padding box so its near field falls under the ring
+   * the way it always did — cast from the outer edge instead, it piles up just
+   * outside the ring and the edge stops reading as a line. An outset shadow is
+   * clipped to its caster's border box, so this is the only way to get it in
+   * there; no amount of spread moves a shadow inside the box casting it. Last
+   * of the two pseudo-elements, so it still paints over the ring and over the
+   * halo's opaque spacer, as it did when the frame was one shadow stack. */
+  &::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow: var(--surface-frame-elevation);
+  }
 }
 
 @utility surface-frame-elevation-none {
