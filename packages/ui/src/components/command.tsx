@@ -43,6 +43,7 @@ function Command({
   const handleKeyDown = React.useCallback(
     (event: React.KeyboardEvent<HTMLDivElement>) => {
       onKeyDown?.(event);
+      const target = event.target as HTMLElement | null;
 
       if (
         event.defaultPrevented ||
@@ -51,9 +52,11 @@ function Command({
         event.altKey ||
         event.ctrlKey ||
         event.metaKey ||
-        event.target instanceof HTMLInputElement ||
-        event.target instanceof HTMLTextAreaElement ||
-        (event.target instanceof HTMLElement && event.target.isContentEditable)
+        (target !== null &&
+          (target.isContentEditable ||
+            target.closest(
+              "input, textarea, select, [contenteditable='true']"
+            )))
       ) {
         return;
       }
