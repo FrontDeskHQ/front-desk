@@ -43,7 +43,8 @@ Style with semantic tokens from `packages/ui/src/styles/globals.css`, never ad-h
 - Borders: `border` / `border-border-primary`; dashed for doc/demo chrome.
 - Focus / invalid: `focus-visible:ring-ring/50 focus-visible:ring-[3px]`, `aria-invalid:border-destructive aria-invalid:ring-destructive/20`.
 - Status accents: emerald (success), amber (warning), red (destructive) — follow the `badge.tsx` light/dark pairs (`bg-emerald-100 ... dark:bg-emerald-500/10`).
-- The one sanctioned literal is the primary brand blue `#345BCA` (see the button `primary` variant). Don't introduce other raw hex values.
+- The brand accent is `--brand` / `bg-brand` (`oklch(0.5088 0.1783 265.68)`). Prefer the token over raw color values.
+- Don't introduce other raw hex values.
 - Radii: `rounded-sm`/`rounded-md` per size; the global `--radius` is `0.625rem`.
 
 ## Accessibility
@@ -54,6 +55,6 @@ Style with semantic tokens from `packages/ui/src/styles/globals.css`, never ad-h
 
 ## Don'ts
 
-- No raw hex (except `#345BCA`); no hard-coded light/dark colors that skip the tokens.
+- No raw hex (prefer `brand` / semantic tokens); no hard-coded light/dark colors that skip the tokens.
 - Don't break the variant API with one-off `className` overrides in the component itself — expose a variant instead.
 - Don't add tests unless the user asks.

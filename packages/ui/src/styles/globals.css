@@ -10,6 +10,7 @@
 
 :root {
   --background-primary: oklch(95% 0 none);
+  --brand: oklch(0.5088 0.1783 265.68);
   --surface-frame-bevel-y: -1px;
   --surface-frame-bevel-subtle-opacity: 4%;
   --surface-frame-bevel-strong-opacity: 8%;
@@ -224,6 +225,7 @@
   --color-border-quaternary: oklch(
     from var(--foreground-quaternary) l c h / 20%
   );
+  --color-brand: var(--brand);
 
   /* TODO remove these variables and use the new ones */
   --color-background: var(--background);

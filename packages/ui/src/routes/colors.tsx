@@ -87,6 +87,14 @@ const BORDER_SCALE: ThemeSwatch[] = [
   },
 ];
 
+const BRAND_SCALE: ThemeSwatch[] = [
+  {
+    swatchClassName: "bg-brand",
+    token: "brand",
+    utility: "bg-brand",
+  },
+];
+
 const LABEL_CSS_VARS: CssVarSwatch[] = [
   {
     name: "label-color-red",
@@ -443,6 +451,21 @@ function RouteComponent() {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           {BORDER_SCALE.map((row) => (
             <ThemeSwatchCard key={row.token} row={row} colorSample="border" />
+          ))}
+        </div>
+      </TokenSection>
+
+      <TokenSection
+        title="Brand"
+        description="Accent used for primary actions (e.g. Button primary). Same in light and dark."
+      >
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          {BRAND_SCALE.map((row) => (
+            <ThemeSwatchCard
+              key={row.token}
+              row={row}
+              colorSample="background"
+            />
           ))}
         </div>
       </TokenSection>

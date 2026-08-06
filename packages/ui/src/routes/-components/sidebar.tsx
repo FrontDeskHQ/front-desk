@@ -106,7 +106,7 @@ export const RootSidebar = () => {
                 <SidebarMenu>
                   <SidebarMenuItem>
                     <SidebarMenuButton
-                      data-active={matches.at(-1)?.pathname === "/buttons"}
+                      data-active={matches.at(-1)?.pathname === "/button"}
                       asChild
                     >
                       <Link to="/button">
