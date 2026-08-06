@@ -75,16 +75,27 @@ export const useCommandContext = (
   const { active = true, deps } = options;
   const setRegistry = useSetAtom(commandRegistryAtom);
   const contextRef = useRef<CommandContext | null>(null);
+  const activeRef = useRef(active);
 
   useEffect(() => {
     const context = factory();
     const previousContext = contextRef.current;
+    const previousActive = activeRef.current;
+    const contextChanged =
+      previousContext !== null && previousContext.id !== context.id;
     contextRef.current = context;
+    activeRef.current = active;
 
     setRegistry((state) => {
       let newState = state;
+      const wasPreviousContextActive =
+        previousContext !== null &&
+        state.currentContextId === previousContext.id;
 
-      if (previousContext && previousContext.id !== context.id) {
+      if (previousContext && contextChanged) {
+        if (wasPreviousContextActive) {
+          newState = commandRegistryActions.setContext(newState, null);
+        }
         newState = commandRegistryActions.unregisterContext(
           newState,
           previousContext.id
@@ -93,7 +104,13 @@ export const useCommandContext = (
 
       newState = commandRegistryActions.registerContext(newState, context);
 
-      if (active && newState.currentContextId !== context.id) {
+      const shouldActivate =
+        active &&
+        (previousContext === null ||
+          !previousActive ||
+          (contextChanged && wasPreviousContextActive));
+
+      if (shouldActivate && newState.currentContextId !== context.id) {
         newState = commandRegistryActions.setContext(newState, context.id);
       } else if (!active && newState.currentContextId === context.id) {
         newState = commandRegistryActions.setContext(newState, null);
@@ -107,6 +124,8 @@ export const useCommandContext = (
   useEffect(
     () => () => {
       const context = contextRef.current;
+      contextRef.current = null;
+      activeRef.current = true;
       if (!context) {
         return;
       }

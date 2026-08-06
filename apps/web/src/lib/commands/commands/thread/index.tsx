@@ -72,9 +72,9 @@ export const ThreadCommands = ({ threadId }: { threadId: string }) => {
           user,
         });
       const { commands: labelCommands, labelsPage } = createLabelCommands({
-        labels,
+        labels: labels ?? null,
         threadId,
-        threadLabels,
+        threadLabels: threadLabels ?? null,
       });
 
       return {

@@ -50,7 +50,10 @@ function Command({
         event.key !== " " ||
         event.altKey ||
         event.ctrlKey ||
-        event.metaKey
+        event.metaKey ||
+        event.target instanceof HTMLInputElement ||
+        event.target instanceof HTMLTextAreaElement ||
+        (event.target instanceof HTMLElement && event.target.isContentEditable)
       ) {
         return;
       }
@@ -287,9 +290,9 @@ function CommandItem({
 
   const handleSelect = React.useCallback(
     (itemValue: string) => {
-      select(itemValue, true);
+      select(value ?? itemValue, true);
     },
-    [select]
+    [select, value]
   );
 
   const itemContext = React.useMemo<CommandItemContextValue>(
@@ -337,12 +340,8 @@ function CommandItemCheckbox({
   const item = React.useContext(CommandItemContext);
   const selection = React.useContext(CommandSelectionContext);
 
-  if (!item) {
-    throw new Error("CommandItemCheckbox must be used within CommandItem.");
-  }
-
   const resolvedChecked =
-    selection?.multiple && item.value !== undefined
+    selection?.multiple && item?.value !== undefined
       ? selection.selectedValues.has(item.value)
       : checked;
 
@@ -350,7 +349,7 @@ function CommandItemCheckbox({
     (nextChecked: boolean | "indeterminate") => {
       onCheckedChange?.(nextChecked);
       if (selection?.multiple) {
-        item.selectWithoutClosing();
+        item?.selectWithoutClosing();
       }
     },
     [item, onCheckedChange, selection]
@@ -365,6 +364,10 @@ function CommandItemCheckbox({
     },
     [onClick]
   );
+
+  if (!item) {
+    throw new Error("CommandItemCheckbox must be used within CommandItem.");
+  }
 
   return (
     <Checkbox

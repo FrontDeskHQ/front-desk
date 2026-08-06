@@ -1,3 +1,5 @@
+import type { InferLiveObject } from "@live-state/sync";
+import type { schema } from "api/schema";
 import { Tag } from "lucide-react";
 import { ulid } from "ulid";
 
@@ -5,19 +7,11 @@ import { mutate } from "~/lib/live-state";
 
 import type { Command, CommandPage } from "../../types";
 
-interface LabelRecord {
-  color: string;
-  id: string;
-  name: string;
-}
-
-interface ThreadLabelRecord {
-  enabled: boolean;
-  id: string;
-  label: {
-    id: string;
-  };
-}
+type LabelRecord = InferLiveObject<typeof schema.label>;
+type ThreadLabelRecord = InferLiveObject<
+  typeof schema.threadLabel,
+  { label: true }
+>;
 
 interface LabelCommandsParams {
   labels: LabelRecord[] | null;
