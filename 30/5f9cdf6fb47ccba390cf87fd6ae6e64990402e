@@ -1,0 +1,55 @@
+packages/ui/src/routes/-components/sidebar.tsx
+  s_8c3db41ced4c85::t_f646bd0e3f51e6 109
+packages/ui/src/components/button.tsx
+  s_f0145252de12f6::t_a308915db2f1ae 33
+  s_f0145252de12f6::t_d5f56bf72e9fd2 31
+  s_f0145252de12f6::t_1b0837915fcb95 22,26
+  s_f0145252de12f6::t_d4480978d825ab 12,36
+  h_79bcdd5201702b 38
+  s_f0145252de12f6::t_61d2ce66aee381 40
+packages/ui/src/styles/globals.css
+  s_8c3db41ced4c85::t_57e5e3771a6ecd 228
+  s_8c3db41ced4c85::t_7223cd04a93337 13
+packages/ui/src/routes/colors.tsx
+  s_8c3db41ced4c85::t_598a3351bce1cc 459,461-462,470-472
+  s_8c3db41ced4c85::t_51edec7597cfe7 90-97
+  s_8c3db41ced4c85::t_979bd451a716f8 460,463-469
+.agents/skills/ui-component/REFERENCE.md
+  s_8c3db41ced4c85::t_5c3ea321328749 46
+  s_8c3db41ced4c85::t_d1035e9c2ad139 47
+  s_8c3db41ced4c85::t_1bcb577ec0b15e 58
+packages/ui/src/routes/button.tsx
+  s_8c3db41ced4c85::t_d1f40480212993 2,5-11,13-14,16-32,38-40,42-58,60-75,77-102,104-123,125-133,135-160
+  s_8c3db41ced4c85::t_2dec432430eebd 41
+  s_8c3db41ced4c85::t_ececbf131236df 15
+  s_8c3db41ced4c85::t_685dc4b351031e 134
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "305f9cdf6fb47ccba390cf87fd6ae6e64990402e",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_8c3db41ced4c85": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "c493a218-4ddb-4970-8b60-26a41f939740",
+        "model": "grok-4.5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_f0145252de12f6": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6fd3476b-fc5a-4da0-8d0e-17ca8d9fd300",
+        "model": "grok-4.5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
