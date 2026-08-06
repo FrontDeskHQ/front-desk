@@ -34,6 +34,7 @@ export interface CommandPage {
   label: string;
   icon?: ReactNode;
   commands: Command[];
+  multiple?: boolean;
   onBack?: () => void; // Custom back handler
 }
 

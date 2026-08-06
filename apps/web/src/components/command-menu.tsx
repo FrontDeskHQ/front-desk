@@ -7,6 +7,7 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
+  CommandItemCheckbox,
   CommandList,
   CommandShortcut,
   CommandTrail,
@@ -196,16 +197,39 @@ export const CommandMenu = () => {
     a.localeCompare(b)
   );
 
+  const isMultiSelectPage = currentPage?.multiple ?? false;
+  const selectedValues = isMultiSelectPage
+    ? commands.filter((command) => command.checked).map((command) => command.id)
+    : undefined;
+
   const renderCommand = (command: Command) => (
     <CommandItem
       key={command.id}
       disabled={command.disabled}
+      value={isMultiSelectPage ? command.id : undefined}
+      keywords={
+        isMultiSelectPage
+          ? [
+              ...(typeof command.label === "string" ? [command.label] : []),
+              ...(command.keywords ?? []),
+            ]
+          : command.keywords
+      }
       onSelect={() => handleCommandSelect(command)}
     >
+      {isMultiSelectPage && (
+        <CommandItemCheckbox
+          aria-label={`Toggle ${
+            typeof command.label === "string" ? command.label : command.id
+          }`}
+        />
+      )}
       {command.icon}
       <span>{command.label}</span>
       <CommandTrail>
-        {command.checked && <Check className="text-foreground-secondary" />}
+        {!isMultiSelectPage && command.checked && (
+          <Check className="text-foreground-secondary" />
+        )}
         {command.shortcut && <CommandShortcut keybind={command.shortcut} />}
         {(command as PageCommand).pageId && <ChevronRight />}
       </CommandTrail>
@@ -214,8 +238,10 @@ export const CommandMenu = () => {
 
   return (
     <CommandDialog
+      multiple={isMultiSelectPage}
       open={open}
       onOpenChange={setOpen}
+      value={selectedValues}
       render={
         <motion.div
           key={animationKey}
@@ -300,9 +326,20 @@ export const CommandMenu = () => {
               <Keybind keybind="backspace" /> Go back
             </div>
           )}
-          <div className="flex items-center gap-1">
-            <Keybind keybind="enter" /> Select
-          </div>
+          {isMultiSelectPage ? (
+            <>
+              <div className="flex items-center gap-1">
+                <Keybind keybind="space" /> Toggle
+              </div>
+              <div className="flex items-center gap-1">
+                <Keybind keybind="enter" /> Toggle and close
+              </div>
+            </>
+          ) : (
+            <div className="flex items-center gap-1">
+              <Keybind keybind="enter" /> Select
+            </div>
+          )}
         </div>
       </CommandFooter>
     </CommandDialog>
