@@ -30,6 +30,10 @@ export interface ResolvedIssueTracker {
  * GitHub connector config shape used only to pick a first-repo fallback for the
  * default issue target. Core still treats `target` as opaque at dispatch —
  * this is the same provider-aware boundary the web settings picker uses.
+ *
+ * TODO: Extract a shared GitHub repo schema with
+ * `githubBackfillConfigSchema` in live-state/router/integration.ts (and the
+ * web settings picker) so Agent fallback and re-enable/backfill stay aligned.
  */
 const githubIssueTargetConfigSchema = z.object({
   repos: z
