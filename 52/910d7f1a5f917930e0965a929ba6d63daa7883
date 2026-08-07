@@ -1,0 +1,33 @@
+apps/web/src/components/signals/action-row/thread-read-card.tsx
+  s_3db157928accd3::t_ba9f4659eacf53 489-496
+apps/api/src/lib/signals/handlers/link-issue.ts
+  s_3db157928accd3::t_ba9f4659eacf53 4,70-80,86
+apps/api/src/lib/queue.ts
+  s_3db157928accd3::t_4608591db4c687 256-260
+apps/api/src/lib/thread-mutations.ts
+  s_3db157928accd3::t_4608591db4c687 346
+apps/web/src/lib/issue-targets.ts
+  s_3db157928accd3::t_4608591db4c687 24-32
+  s_3db157928accd3::t_ba9f4659eacf53 33-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "52910d7f1a5f917930e0965a929ba6d63daa7883",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_3db157928accd3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2e264b5-5d36-4f08-b903-7e1d9a507e3f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
