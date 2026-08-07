@@ -172,7 +172,12 @@ function DefaultIssueTargetField({
       ? current
       : null;
 
+  // Sentinel for clearing a stale orphan; never collides with a repo fullName.
+  const clearValue = "__clear_default_issue_target__";
+
   // Base UI Select.Value shows the raw value unless `items` maps value → label.
+  // Orphans get a clear path so owners can disconnect a removed repo without
+  // waiting to reconnect a tracker.
   const targetItems = [
     ...(orphanCurrent
       ? [
@@ -180,6 +185,7 @@ function DefaultIssueTargetField({
             value: orphanCurrent.label,
             label: `${orphanCurrent.label} (no longer connected)`,
           },
+          { value: clearValue, label: "No target" },
         ]
       : []),
     ...options.map((option) => ({
@@ -188,15 +194,20 @@ function DefaultIssueTargetField({
     })),
   ];
 
-  // No "none" option — when nothing is saved, surface the first target so the
-  // control matches what the Agent will use.
+  // No "none" option when a real target is available — when nothing is saved,
+  // surface the first target so the control matches what the Agent will use.
+  // Orphans already resolve via current.label.
   const selected =
-    current?.label ??
-    (options.length > 0 ? options[0].label : null) ??
-    orphanCurrent?.label ??
-    null;
+    current?.label ?? (options.length > 0 ? options[0].label : null) ?? null;
 
   const handleChange = (label: string) => {
+    if (label === clearValue) {
+      mutate.organization.setDefaultIssueTarget({
+        organizationId,
+        target: null,
+      });
+      return;
+    }
     const option = options.find((o) => o.label === label);
     if (!option) {
       return;
@@ -214,7 +225,9 @@ function DefaultIssueTargetField({
     });
   };
 
-  const soleOption = targetItems.length === 1;
+  // Only real options count as a settled single choice; an orphan entry is
+  // display-only and must leave the control interactive so it stays clearable.
+  const soleOption = options.length === 1 && !orphanCurrent;
   const select = (
     <Select
       value={selected}

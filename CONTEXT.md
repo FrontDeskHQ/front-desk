@@ -88,7 +88,9 @@ Whether an [integration](#integration)'s [external install](#external-install) s
 
 ### Developer tooling
 
-**Organization**: A FrontDesk tenant and membership boundary. It owns threads, integrations, and configuration; a user gets access through organization membership. _Avoid_: "account" when the tenant is meant.
+### Organization
+
+A FrontDesk tenant and membership boundary. It owns threads, integrations, and configuration; a user gets access through organization membership. _Avoid_: "account" when the tenant is meant.
 
 **Internal developer**: A workspace user with a verified `@tryfrontdesk.app` email address. An internal developer may use [developer tools](#developer-tool) for any [organization](#organization) they belong to; this does not make them an organization owner. _Avoid_: "admin" as a synonym — ownership and internal status are different concepts.
 
