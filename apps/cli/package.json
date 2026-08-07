@@ -12,10 +12,13 @@
   "scripts": {
     "dev": "bun run src/index.ts",
     "fd": "bun run src/index.ts",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@live-state/sync": "catalog:",
+    "@workspace/schemas": "workspace:*",
+    "@workspace/utils": "workspace:*",
     "api": "workspace:*",
     "cac": "^6.7.14",
     "dotenv": "^16.5.0",

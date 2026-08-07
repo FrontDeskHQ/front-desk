@@ -8,6 +8,7 @@
     "./external-issue": "./src/external-issue.ts",
     "./organization": "./src/organization.ts",
     "./digest": "./src/digest.ts",
+    "./customer-channel": "./src/customer-channel.ts",
     "./early-access": "./src/early-access.ts",
     "./signals": "./src/signals.ts"
   },

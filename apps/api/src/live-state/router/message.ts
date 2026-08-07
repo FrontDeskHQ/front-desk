@@ -1,3 +1,4 @@
+import { customerChannelSchema } from "@workspace/schemas/customer-channel";
 // TODO refactor with new live-state mental model
 import { ulid } from "ulid";
 import z from "zod";
@@ -38,6 +39,13 @@ const messageCreateInputSchema = z.object({
 const setExternalMessageIdInputSchema = z.object({
   externalMessageId: z.string().min(1),
   messageId: z.string(),
+});
+
+const createAsThreadAuthorInputSchema = z.object({
+  content: z.union([z.string(), z.any()]),
+  organizationId: z.string(),
+  origin: customerChannelSchema,
+  threadId: z.string(),
 });
 
 export default publicRoute.withProcedures(({ mutation, query }) => ({
@@ -158,6 +166,63 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     return message;
   }),
+  /**
+   * Append a simulated inbound customer message using the thread's original
+   * author. This is intentionally restricted to the local/internal key used
+   * by the fd developer CLI so portal identities cannot be impersonated by a
+   * public caller.
+   */
+  createAsThreadAuthor: mutation(createAsThreadAuthorInputSchema).handler(
+    async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+
+      const thread = await db.thread.one(req.input.threadId).get();
+      if (!thread || thread.organizationId !== req.input.organizationId) {
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      if (
+        thread.externalOrigin !== null &&
+        thread.externalOrigin !== req.input.origin
+      ) {
+        throw new Error("THREAD_ORIGIN_MISMATCH");
+      }
+
+      const content = serializeMessageContent(req.input.content);
+      const messageId = ulid().toLowerCase();
+
+      await db.transaction(async ({ trx }) => {
+        // Legacy portal threads predate externalOrigin. Once the CLI continues
+        // one, make the inferred origin durable for subsequent messages.
+        if (thread.externalOrigin === null) {
+          await trx.thread.update(thread.id, {
+            externalOrigin: req.input.origin,
+          });
+        }
+
+        await trx.message.insert({
+          authorId: thread.authorId,
+          content,
+          createdAt: new Date(),
+          // A synthetic external id marks this as an inbound simulation. The
+          // outbound Slack/Discord replicators only watch rows with a null
+          // external id, so this can never be sent back to a live connector.
+          externalMessageId: `fd:${messageId}`,
+          id: messageId,
+          isBackfill: false,
+          origin: req.input.origin,
+          threadId: thread.id,
+        });
+      });
+
+      const message = await db.message
+        .one(messageId)
+        .include({ author: true })
+        .get();
+
+      return message;
+    }
+  ),
   markAsAnswer: mutation(
     z.object({
       messageId: z.string(),

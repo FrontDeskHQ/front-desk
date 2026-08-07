@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 
 import { fdAuthorMetaId } from "../../lib/author.js";
@@ -14,6 +15,7 @@ import { threadFixtureSchema } from "../../schema/thread-fixture.js";
 import type { ThreadFixture } from "../../schema/thread-fixture.js";
 
 export interface CreatedThreadResult {
+  channel: ThreadFixture["channel"];
   id: string;
   title: string;
   shortId: number | null;
@@ -32,6 +34,7 @@ export interface ThreadCreateOutput {
 }
 
 export interface ThreadCreateOptions {
+  channel?: ThreadFixture["channel"];
   org?: string;
   fixture?: string;
   title?: string;
@@ -61,6 +64,7 @@ const loadRawFixtures = async (
   return [
     {
       author: options.author,
+      channel: options.channel,
       message: options.message,
       title: options.title,
     },
@@ -100,12 +104,18 @@ const createOneThread = async ({
       id: fdAuthorMetaId(organizationId, fixture.author),
       name: fixture.author,
     },
+    externalOrigin: fixture.channel,
+    firstMessage: {
+      externalMessageId: `fd:${randomUUID()}`,
+      origin: fixture.channel,
+    },
     message: fixture.message,
     organizationId,
     title: fixture.title,
   });
 
   return {
+    channel: fixture.channel,
     id: thread.id,
     shortId: thread.shortId ?? null,
     title: thread.name,

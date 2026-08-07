@@ -73,6 +73,8 @@
       },
       "dependencies": {
         "@live-state/sync": "catalog:",
+        "@workspace/schemas": "workspace:*",
+        "@workspace/utils": "workspace:*",
         "api": "workspace:*",
         "cac": "^6.7.14",
         "dotenv": "^16.5.0",

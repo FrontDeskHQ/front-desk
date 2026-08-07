@@ -9,7 +9,9 @@ metadata:
 
 # Seed support threads with `fd`
 
-Use agent intelligence to author varied, believable thread fixtures, then seed them through the local `fd` CLI. The CLI is dumb pipes; this skill is the realism playbook.
+Use agent intelligence to author varied, believable thread fixtures, then seed
+and continue them through the local `fd` CLI. The CLI is dumb pipes; this skill
+is the realism playbook.
 
 ## When to use
 
@@ -21,7 +23,7 @@ Use agent intelligence to author varied, believable thread fixtures, then seed t
 
 1. `bun dev` running (API + web)
 2. `DISCORD_BOT_KEY` in `apps/api/.env.local` (CLI reads it automatically)
-3. CLI built: `bun run --filter cli build`
+3. CLI available through Bun: `bun run --filter cli dev ...`
 4. Optional defaults in `apps/cli/.env.local`:
    - `FD_DEV_ORG=acme`
    - `FD_API_URL=http://localhost:3333/api/ls`
@@ -34,6 +36,12 @@ Use agent intelligence to author varied, believable thread fixtures, then seed t
 3. **Write JSON** — single object or array to a temp file (e.g. `/tmp/seed-threads.json`)
 4. **Run CLI** — parse stdout JSON for created thread URLs/ids
 5. **Verify** — threads appear in the inbox with correct title, author, and message
+
+For multi-turn demos, save the create result's thread ID and message cursor,
+then poll with `fd thread read <id> --after <cursor>`. When a relevant
+`frontdesk` message appears, append the next customer turn with
+`fd thread reply <id> --message ...`. The calling agent controls timing and
+decides what counts as a meaningful reply; there is no built-in wait command.
 
 ### Selecting an org
 
@@ -54,6 +62,7 @@ For a quick one-off without a file:
 ```bash
 bun run --filter cli fd thread create \
   --org acme \
+  --channel slack \
   --title "Webhook deliveries failing since yesterday" \
   --author "Priya Sharma" \
   --message "Our integration started returning 502s around 6pm UTC. Retries aren't helping."
@@ -63,20 +72,22 @@ During active CLI development, use `bun run --filter cli dev thread create ...` 
 
 ## Fixture schema
 
-Each entry requires three fields:
+Each entry requires three fields; `channel` is optional:
 
 | Field     | Type   | Notes                                              |
 | --------- | ------ | -------------------------------------------------- |
 | `title`   | string | Min 3 chars. Specific, customer-voice subject line |
 | `author`  | string | Display name only (e.g. `"Michael Chen"`)          |
 | `message` | string | Opening message body — plain text, first person    |
+| `channel` | string | `slack`, `discord`, `widget`, or `portal`; defaults to `portal` |
 
 ```json
 [
   {
     "title": "Can't export billing history as CSV",
     "author": "Jordan Lee",
-    "message": "I'm trying to download invoices for our accountant but the export button spins forever. Chrome on macOS, started this morning."
+    "message": "I'm trying to download invoices for our accountant but the export button spins forever. Chrome on macOS, started this morning.",
+    "channel": "portal"
   }
 ]
 ```
@@ -126,17 +137,20 @@ Rotate believable customer types:
   {
     "title": "Charged twice for the same renewal",
     "author": "Michael Chen",
-    "message": "Our Pro plan renewed on March 1 and I see two identical $49 charges on the company card. Can you confirm whether one is a hold?"
+    "message": "Our Pro plan renewed on March 1 and I see two identical $49 charges on the company card. Can you confirm whether one is a hold?",
+    "channel": "portal"
   },
   {
     "title": "Need VAT number on invoices",
     "author": "Elena Rossi",
-    "message": "We're in Italy and our finance team needs VAT IDs on every invoice before they can approve payment. Is there a field for that in billing settings?"
+    "message": "We're in Italy and our finance team needs VAT IDs on every invoice before they can approve payment. Is there a field for that in billing settings?",
+    "channel": "widget"
   },
   {
     "title": "Downgrade didn't apply at renewal",
     "author": "Sam Okonkwo",
-    "message": "I switched us to Starter last week but today's receipt still shows Enterprise pricing. We only have 4 seats now."
+    "message": "I switched us to Starter last week but today's receipt still shows Enterprise pricing. We only have 4 seats now.",
+    "channel": "portal"
   }
 ]
 ```
@@ -147,7 +161,8 @@ Rotate believable customer types:
 {
   "title": "Slack replies not threading back",
   "author": "Alex Kim",
-  "message": "Since we reconnected Slack yesterday, new messages land in the channel but don't attach to the existing FrontDesk thread. Thread ID in the payload looks correct."
+  "message": "Since we reconnected Slack yesterday, new messages land in the channel but don't attach to the existing FrontDesk thread. Thread ID in the payload looks correct.",
+  "channel": "slack"
 }
 ```
 
@@ -160,6 +175,7 @@ Stdout is always JSON:
   "created": [
     {
       "id": "...",
+      "channel": "portal",
       "title": "...",
       "shortId": 42,
       "url": "http://localhost:3000/support/acme/threads/42-..."
@@ -182,7 +198,10 @@ Stdout is always JSON:
 
 ## Pipeline note
 
-Seeded threads behave like real user-created threads once the API enqueues the worker pipeline on `thread.create` (parallel fix, not CLI scope). Until then, threads appear in the inbox but may not trigger synthesis immediately.
+Both the opening message and later customer replies use the normal message
+insert path, so the existing after-insert hook can enqueue the worker pipeline.
+Replies are marked with a synthetic external ID to ensure local simulations do
+not get sent back through Slack or Discord outbound replication.
 
 ## Related
 

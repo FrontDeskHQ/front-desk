@@ -1,6 +1,6 @@
 # `fd` — FrontDesk devtool CLI
 
-Local-dev CLI for seeding realistic support threads via Live-State. Primary consumer is coding agents; stdout is always JSON.
+Local-dev CLI for seeding and driving realistic customer conversations via Live-State. Primary consumer is coding agents; successful commands write JSON to stdout.
 
 ## Setup
 
@@ -37,9 +37,19 @@ bun run --filter cli fd thread create --org acme --fixture ./threads.json
 # Inline one-off
 bun run --filter cli fd thread create \
   --org acme \
+  --channel slack \
   --title "Payment failed but money was deducted" \
   --author "Michael Chen" \
   --message "I tried to upgrade but the charge appeared on my card anyway."
+
+# Read a thread by ULID or (with --org) short ID
+bun run --filter cli fd thread read 01j... --org acme
+bun run --filter cli fd thread read 42 --org acme --after 01j...
+
+# Append as the original customer
+bun run --filter cli fd thread reply 01j... \
+  --message "I retried after clearing the cache and it still fails."
+bun run --filter cli fd thread reply 01j... --message-file ./follow-up.md
 ```
 
 ## Fixture format
@@ -47,15 +57,19 @@ bun run --filter cli fd thread create \
 Single object or array:
 
 ```json
-{ "title": "...", "author": "Michael Chen", "message": "..." }
+{ "title": "...", "author": "Michael Chen", "message": "...", "channel": "portal" }
 ```
 
 ```json
 [
-  { "title": "...", "author": "...", "message": "..." },
-  { "title": "...", "author": "...", "message": "..." }
+  { "title": "...", "author": "...", "message": "...", "channel": "slack" },
+  { "title": "...", "author": "...", "message": "...", "channel": "discord" }
 ]
 ```
+
+`channel` is one of `slack`, `discord`, `widget`, or `portal`; it defaults to
+`portal` for backwards compatibility. The value is stored on the thread and
+each customer message.
 
 Authors use the `fd-{orgId}-{normalized-name}` metaId namespace (distinct from in-browser Devtools).
 
@@ -68,6 +82,7 @@ Stdout is JSON:
   "created": [
     {
       "id": "...",
+      "channel": "slack",
       "title": "...",
       "shortId": 42,
       "url": "http://localhost:3000/support/acme/threads/42-payment-failed"
@@ -81,6 +96,19 @@ Stdout is JSON:
 - Exit `1` when any thread fails (partial batch results still printed)
 - `--fail-fast` stops after the first failure
 - `--verbose` logs progress to stderr
+
+## Customer-side flow
+
+`thread read` returns normalized, ordered messages with stable IDs, roles
+(`customer`, `frontdesk`, or `unknown`), channel, timestamps, and Markdown
+content. Save the returned `cursor` and pass it to `--after` on the next read;
+an empty `messages` array means nothing new arrived. The calling agent owns
+polling cadence, scheduling, and deciding whether a reply matters.
+
+`thread reply` always uses the thread's original customer author. It accepts
+exactly one of `--message` and `--message-file`. Replies inherit the thread's
+channel; `--channel` is only needed to identify a legacy thread with no origin.
+Changing a known thread origin is rejected.
 
 ## Safety
 
