@@ -1,0 +1,32 @@
+CONTEXT.md
+  s_25fe5e9ed07b07::t_a405a06609826e 63
+apps/worker/src/lib/action-availability.ts
+  s_25fe5e9ed07b07::t_0a864f0d419030 15-16,19-28,35-44,47,53
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_25fe5e9ed07b07::t_5668dc7665f834 7
+  s_25fe5e9ed07b07::t_ecf18b000884fa 105-107
+  s_25fe5e9ed07b07::t_9d956c897de4e5 189-194
+packages/schemas/src/signals.ts
+  s_25fe5e9ed07b07::t_346ee1146524a8 493-498
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1ebd18f6dcd3d22091bdb29231b7b7cbae272957",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_25fe5e9ed07b07": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2b835132-1c17-4dc7-98dc-7ad5ee74f615",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
