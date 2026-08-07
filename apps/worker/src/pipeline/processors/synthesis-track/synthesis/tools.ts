@@ -179,15 +179,23 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         limit: z.number().int().min(1).max(10).optional(),
       }),
       execute: async ({ query, limit }) => {
-        const vector = await generateSimilarityEmbedding(query);
-        if (!vector) {
+        // Degrade to no hits rather than throwing. Unlike the `related_issues`
+        // hint — which must distinguish "no matches" from a backend failure so
+        // it never clears a valid lead — this is one probe inside a tool loop,
+        // and failing it would abort the whole synthesis run.
+        let results: Awaited<ReturnType<typeof searchSimilarIssues>>;
+        try {
+          const vector = await generateSimilarityEmbedding(query);
+          if (!vector) {
+            return { hits: [] };
+          }
+          results = await searchSimilarIssues(vector, {
+            limit: limit ?? 5,
+            organizationId,
+          });
+        } catch {
           return { hits: [] };
         }
-
-        const results = await searchSimilarIssues(vector, {
-          limit: limit ?? 5,
-          organizationId,
-        });
 
         return {
           hits: results.map((result) => ({

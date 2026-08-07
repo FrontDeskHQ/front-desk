@@ -248,7 +248,14 @@ export const enqueueIssueIndex = async (
   // Latest mirror state wins — same reasoning as `enqueuePrIndex`: BullMQ
   // ignores `add` for an existing jobId across all states, so drop the stale
   // job first, in every state except `active` where removal is unsafe.
-  const jobId = `issue-index:${data.externalKey}`;
+  //
+  // The id is scoped by organization because `externalKey` is not: two orgs
+  // mirroring the same upstream repo would otherwise coalesce onto one job and
+  // one of them would silently miss its vector update — the vector points are
+  // keyed `(organizationId, externalKey)`, so they are genuinely distinct work.
+  // Colons in `externalKey` are replaced because BullMQ rejects a custom job id
+  // unless it has either no colon or exactly three colon-separated segments.
+  const jobId = `issue-index:${data.organizationId}:${data.externalKey.replaceAll(":", "_")}`;
   const existing = await q.getJob(jobId);
   if (existing) {
     const state = await existing.getState();

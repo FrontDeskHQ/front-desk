@@ -55,9 +55,12 @@ export type LinkIssueAction = z.infer<typeof linkIssueActionSchema>;
  * only path back to the customer.
  */
 export const createIssueActionSchema = z.object({
-  body: z.string(),
+  // Non-empty at the schema level, not just in `normalize`: filing is
+  // non-reversible, so an empty-titled issue cannot be withdrawn once created.
+  // `reply` gets the equivalent guard from `REPLY_DRAFT_EMPTY` at execution.
+  body: z.string().trim().min(1),
   kind: z.literal("create_issue"),
-  title: z.string(),
+  title: z.string().trim().min(1),
 });
 export type CreateIssueAction = z.infer<typeof createIssueActionSchema>;
 

@@ -1,6 +1,7 @@
 import type { LinkIssueAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
+import { runRecordActivity } from "../../update-mutations";
 import {
   clearCompensateSnapshot,
   getCompensateSnapshot,
@@ -60,8 +61,26 @@ export const linkIssueHandler: ActionHandler<LinkIssueAction> = {
       });
     }
 
+    const oldIssueId = thread.externalIssueId ?? null;
     await ctx.db.thread.update(ctx.threadId, {
       externalIssueId: entity.externalKey,
+    });
+
+    // Record the same `issue_changed` entry the human `thread.linkIssue` and
+    // the `link_pr` handler write, so the timeline doesn't depend on who did
+    // the linking.
+    await runRecordActivity(ctx.db, {
+      metadata: {
+        newIssueId: entity.externalKey,
+        newIssueLabel: `${entity.repoFullName}#${entity.number}`,
+        oldIssueId,
+        oldIssueLabel: null,
+      },
+      organizationId: ctx.organizationId,
+      threadId: ctx.threadId,
+      type: "issue_changed",
+      userId: ctx.actorUserId,
+      userName: ctx.actorUserName,
     });
   },
 

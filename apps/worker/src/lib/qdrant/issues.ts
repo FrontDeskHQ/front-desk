@@ -292,9 +292,23 @@ export const searchSimilarIssues = async (
     with_payload: true,
   });
 
-  return results.map((result) => ({
-    externalKey: (result.payload as unknown as IssuePayload).externalKey,
-    payload: result.payload as unknown as IssuePayload,
-    score: result.score,
-  }));
+  // Qdrant types the payload as nullable, and this function propagates errors
+  // by design — a point with a missing payload would otherwise surface as a
+  // TypeError that the hint processor reads as "search failed" and retries.
+  // Drop such points instead; they are unusable as evidence either way.
+  return results.flatMap((result) => {
+    const payload = result.payload as unknown as IssuePayload | null;
+    if (!payload?.externalKey) {
+      log.warn({
+        action: "worker.qdrant",
+        operation: "issue_vector.search",
+        collection: ISSUES_COLLECTION,
+        organizationId,
+        pointId: String(result.id),
+        outcome: "skipped_missing_payload",
+      });
+      return [];
+    }
+    return [{ externalKey: payload.externalKey, payload, score: result.score }];
+  });
 };

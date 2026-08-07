@@ -219,7 +219,14 @@ function DefaultIssueTargetField({
     }
     mutate.organization.setDefaultIssueTarget({
       organizationId,
-      target: { label: option.label, target: option.target },
+      target: {
+        // Pin the integration the repo list came from; without it, routing
+        // falls back to the capability primary, which may be a different
+        // tracker that has never heard of this repo.
+        integrationId: option.integrationId,
+        label: option.label,
+        target: option.target,
+      },
     });
   };
 
@@ -232,7 +239,10 @@ function DefaultIssueTargetField({
         redirect an individual issue when you accept a suggestion.
       </span>
       <div className="pt-2">
-        {options.length === 0 ? (
+        {/* Still render the control when there are no options but a target is
+            saved — otherwise a target pointing at a removed repo becomes
+            unclearable while `create_issue` stays available against it. */}
+        {options.length === 0 && !current ? (
           <span className="text-sm text-muted-foreground">
             Connect an issue tracker to choose a target.
           </span>
@@ -242,11 +252,16 @@ function DefaultIssueTargetField({
             onValueChange={(value) => handleChange(value as string)}
             disabled={!isUserOwner}
           >
-            <SelectTrigger className="w-72">
+            <SelectTrigger aria-label="Default issue target" className="w-72">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value={NO_TARGET}>No target</SelectItem>
+              {current && !options.some((o) => o.label === current.label) ? (
+                <SelectItem value={current.label}>
+                  {current.label} (no longer connected)
+                </SelectItem>
+              ) : null}
               {options.map((option) => (
                 <SelectItem key={option.label} value={option.label}>
                   {option.label}

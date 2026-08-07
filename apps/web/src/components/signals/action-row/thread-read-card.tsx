@@ -466,13 +466,24 @@ function IssueTargetPicker({
         onValueChange={(next) => {
           const option = options.find((o) => o.label === next);
           if (option) {
-            onChange({ label: option.label, target: option.target });
+            onChange({
+              integrationId: option.integrationId,
+              label: option.label,
+              target: option.target,
+            });
           }
         }}
         disabled={disabled}
       >
-        <SelectTrigger size="xs" className="w-56">
-          <SelectValue />
+        <SelectTrigger
+          aria-label="Issue destination"
+          size="xs"
+          className="w-56"
+        >
+          {/* Placeholder matters here: with no org default configured the
+              value is empty, and a blank trigger gives the reviewer no hint
+              that accepting would fail on a missing destination. */}
+          <SelectValue placeholder="Choose a destination" />
         </SelectTrigger>
         <SelectContent>
           {options.map((option) => (
@@ -576,9 +587,14 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   );
   const selectionIncludesReply =
     replyIndex !== -1 && selectedIndices.has(replyIndex);
-  const selectionFilesIssue = orderedSelected.some(
-    ({ action }) => action.kind === "create_issue"
-  );
+  // Alternatives count too: `handleAcceptAlternative` forwards `issueTarget`,
+  // so a standalone create_issue alternative files an issue and must be
+  // redirectable the same way the primary bundle is.
+  const selectionFilesIssue =
+    orderedSelected.some(({ action }) => action.kind === "create_issue") ||
+    (read.alternatives ?? []).some(
+      (alternative) => alternative.kind === "create_issue"
+    );
 
   // When the primary bundle is a lone reply, a reply-only alternative is
   // redundant — it offers the same "just reply" as the primary — so drop it.

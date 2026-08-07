@@ -550,7 +550,7 @@ const handleShutdown = async () => {
     ]);
     await closeThreadReadQueue();
     await connection.quit();
-    requestLog.set({ outcome: { status: "stopped", workersClosed: 4 } });
+    requestLog.set({ outcome: { status: "stopped", workersClosed: 5 } });
   } catch (error) {
     status = 500;
     requestLog.error(error instanceof Error ? error : String(error), {

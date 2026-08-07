@@ -193,6 +193,29 @@ These are leads, not confirmed links. Read a candidate with read_pr and confirm 
         ]),
   ].join("\n");
 
+  const bundlingKinds = input.availability.create_issue
+    ? "mark_duplicate, link_pr, link_issue, create_issue, or close"
+    : "mark_duplicate, link_pr, link_issue, or close";
+  const bundlingExamples = input.availability.create_issue
+    ? "`[mark_duplicate, reply]`, `[link_pr, reply]`, `[link_issue, reply]`, `[create_issue, reply]`, or `[close, reply]`"
+    : "`[mark_duplicate, reply]`, `[link_pr, reply]`, `[link_issue, reply]`, or `[close, reply]`";
+
+  const createIssueRecommendationRule = input.availability.create_issue
+    ? '- create_issue: a file imperative naming the defect, e.g. "File an issue for the failing OAuth token refresh and reply to acknowledge the report." Never cite an issue number or URL here — the issue does not exist yet.\n'
+    : "";
+
+  // Entirely about create_issue, so it is dropped with the verb rather than
+  // left behind to describe a bundle the model cannot produce.
+  const replyCitationRule = input.availability.create_issue
+    ? `## The reply draft may never cite an issue number or URL
+
+A reply draft must NEVER contain an issue number, issue URL, or issue key — not in \`[create_issue, reply]\`, not anywhere.
+
+In \`[create_issue, reply]\` the draft is authored now and the issue does not exist until execution, so any number you write would be invented. Do not write a placeholder token either: the feed card previews the draft to a human before they accept it, and a raw token is visible there. Substituting the real id after creation would require passing data from one executed action into the next, which the executor deliberately cannot do (ADR 0003) — so do not "fix" this by writing a placeholder.
+
+Say that engineering has been made aware and that you will follow up. Nothing more specific.`
+    : "";
+
   // Kept in step with the parse schema above: the create_issue variant appears
   // in the documented shape only when the org can actually file one.
   const actionUnionDoc = [
@@ -250,8 +273,8 @@ hasTeamReply: ${input.hasTeamReply}
 
 When hasTeamReply is false, the customer has written but no teammate has replied on this thread yet.
 
-- **Primary:** If you include mark_duplicate, link_pr, link_issue, create_issue, or close, you must also include a reply in the same primary array. Order the other action first: \`[mark_duplicate, reply]\`, \`[link_pr, reply]\`, \`[link_issue, reply]\`, \`[create_issue, reply]\`, or \`[close, reply]\`. Never leave a customer without a first response.
-- **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone mark_duplicate, link_pr, link_issue, create_issue, or close in alternatives — the human would execute those without replying.
+- **Primary:** If you include ${bundlingKinds}, you must also include a reply in the same primary array. Order the other action first: ${bundlingExamples}. Never leave a customer without a first response.
+- **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone ${bundlingKinds} in alternatives — the human would execute those without replying.
 - **Reply-only primary** is fine when that is the best move (no bundling required).
 - **Empty primary** is still allowed when no substantive move is justified.
 
@@ -266,13 +289,7 @@ Customer display name (use only in the greeting): ${JSON.stringify(customerName)
 
 When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close, mark_duplicate, link_pr, or link_issue).
 
-## The reply draft may never cite an issue number or URL
-
-A reply draft must NEVER contain an issue number, issue URL, or issue key — not in \`[create_issue, reply]\`, not anywhere.
-
-In \`[create_issue, reply]\` the draft is authored now and the issue does not exist until execution, so any number you write would be invented. Do not write a placeholder token either: the feed card previews the draft to a human before they accept it, and a raw token is visible there. Substituting the real id after creation would require passing data from one executed action into the next, which the executor deliberately cannot do (ADR 0003) — so do not "fix" this by writing a placeholder.
-
-Say that engineering has been made aware and that you will follow up. Nothing more specific.
+${replyCitationRule}
 
 ## summary, recommendation, and reasoning (critical)
 
@@ -286,8 +303,7 @@ Say that engineering has been made aware and that you will follow up. Nothing mo
 - reply: a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
 - link_pr: a link imperative containing the exact verified PR URL as a Markdown link so it renders as a PR chip, e.g. "Link [PR #<number>](<exact verified PR URL>) to the thread and tell the customer that engineering is working on the fix."
 - link_issue: a link imperative containing the exact verified issue URL as a Markdown link, e.g. "Link [issue #<number>](<exact verified issue URL>) — it already tracks this problem." Mention when the issue is closed, since that changes what the human should tell the customer.
-- create_issue: a file imperative naming the defect, e.g. "File an issue for the failing OAuth token refresh and reply to acknowledge the report." Never cite an issue number or URL here — the issue does not exist yet.
-- close: a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
+${createIssueRecommendationRule}- close: a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
 - empty primary: state that no substantive move is justified, e.g. "No reply, duplicate link, or close is justified yet."
 
 Thread mentions in \`recommendation\` must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.

@@ -111,6 +111,11 @@ export const router = createRouter({
       actionAvailability: query(
         z.object({ organizationId: z.string() })
       ).handler(async ({ db, req }) => {
+        // Reading this exposes whether the org has a configured issue tracker
+        // and target, so it is scoped to the org — the worker reaches it with
+        // the internal key, org members with their session.
+        authorize(req, { organizationId: req.input.organizationId });
+
         const org = await db.organization.one(req.input.organizationId).get();
         const defaultIssueTarget = readDefaultIssueTarget(org?.settings);
         if (!defaultIssueTarget) {

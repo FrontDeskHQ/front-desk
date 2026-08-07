@@ -7,7 +7,7 @@ import {
   buildIssueEmbedText,
   generateIssueEmbedding,
 } from "../lib/issue-embedding";
-import { createWorkerJobLogger } from "../lib/logging";
+import { createWorkerJobLogger, isRetryableError } from "../lib/logging";
 import {
   deleteIssueVector,
   getIssuePoint,
@@ -129,7 +129,7 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
     status = 500;
     requestLog.error(error instanceof Error ? error : String(error), {
       step: "issue.index",
-      retryable: true,
+      retryable: isRetryableError(error),
     });
     throw error;
   } finally {
