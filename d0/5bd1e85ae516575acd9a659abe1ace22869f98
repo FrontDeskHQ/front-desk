@@ -1,0 +1,54 @@
+apps/api/src/live-state/migrations/types.ts
+  s_43041ac0d715ef::t_80b166d6109c37 9
+apps/api/src/live-state/schema.ts
+  s_43041ac0d715ef::t_80b166d6109c37 69,82
+apps/api/src/live-state/migrations/files/004_backfill_message_insertion_sequence.ts
+  s_43041ac0d715ef::t_80b166d6109c37 6,8-9,11-30,32-36
+apps/api/src/live-state/router/message.ts
+  s_43041ac0d715ef::t_64155097dc4dde 237-238
+  s_43041ac0d715ef::t_67e02b5ac3cc40 13-16,158-161,199-222,224,226-236,239-243,245-246
+apps/api/src/lib/signals/handlers/reply.ts
+  s_43041ac0d715ef::t_6a955161dcea2e 13-14,32,42,44
+  s_43041ac0d715ef::t_8a46f2edfb4a2f 28-31,33-41,43,45-60
+apps/api/src/lib/message-sequence.ts
+  s_43041ac0d715ef::t_c94029f122875e 14
+  s_43041ac0d715ef::t_64155097dc4dde 39-40,42
+  s_43041ac0d715ef::t_80b166d6109c37 1,3-13,15-28,31-35,37-38,41,43-46
+apps/cli/src/lib/thread.ts
+  s_43041ac0d715ef::t_6375a28496dc9c 59-62,159,162,167-169,171,176,183-198
+  s_43041ac0d715ef::t_1746c3312be202 160
+  s_43041ac0d715ef::t_c94029f122875e 199-200
+apps/api/src/live-state/router/agent-chat.ts
+  s_43041ac0d715ef::t_9790afa4a03dfa 90-93
+apps/api/src/live-state/router/ingest.ts
+  s_43041ac0d715ef::t_9790afa4a03dfa 97-100,144
+apps/cli/src/lib/thread.test.ts
+  s_43041ac0d715ef::t_91f0cb8ab3c5c7 23,41,77
+  s_43041ac0d715ef::t_8ba53a6da4142d 111
+  s_43041ac0d715ef::t_e7edf1fb711d1f 104-110,112-136
+apps/worker/src/evals/thread-similarity.dataset.ts
+  s_43041ac0d715ef::t_a027848eb3dbdb 1248
+apps/api/src/live-state/migrations/index.ts
+  s_43041ac0d715ef::t_80b166d6109c37 17-25
+apps/api/src/live-state/router/threads.ts
+  s_43041ac0d715ef::t_9790afa4a03dfa 214
+apps/api/src/live-state/router/message.test.ts
+  s_43041ac0d715ef::t_84915ad513d8f7 121-124,146-149
+  s_43041ac0d715ef::t_91f0cb8ab3c5c7 28,31,53,129
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d05bd1e85ae516575acd9a659abe1ace22869f98",
+  "prompts": {},
+  "sessions": {
+    "s_43041ac0d715ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd98a-c552-7703-ab4a-3b3001c3eb33",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
