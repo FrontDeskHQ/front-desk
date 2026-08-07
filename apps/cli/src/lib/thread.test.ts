@@ -20,7 +20,7 @@ const resolvedThread = {
         createdAt: new Date("2026-08-06T12:00:00.000Z"),
         externalMessageId: null,
         id: "01-message-customer",
-        insertionSequence: "01-sequence-customer",
+        insertionSequence: 1,
         isBackfill: false,
         markedAsAnswer: false,
         origin: "slack",
@@ -38,7 +38,7 @@ const resolvedThread = {
         createdAt: new Date("2026-08-06T12:01:00.000Z"),
         externalMessageId: null,
         id: "02-message-agent",
-        insertionSequence: "02-sequence-agent",
+        insertionSequence: 2,
         isBackfill: false,
         markedAsAnswer: false,
         origin: null,
@@ -74,7 +74,7 @@ describe("thread transcript helpers", () => {
       ...resolvedThread.thread.messages[0],
       createdAt: new Date("2026-08-06T11:59:00.000Z"),
       id: "00-message-late",
-      insertionSequence: "03-sequence-late",
+      insertionSequence: 3,
     };
     const importedThread = {
       ...resolvedThread,
@@ -99,6 +99,39 @@ describe("thread transcript helpers", () => {
     expect(
       readThread(importedThread, "00-message-late").messages
     ).toStrictEqual([]);
+  });
+
+  it("falls back to transcript positions for mixed legacy sequences", () => {
+    const mixedThread = {
+      ...resolvedThread,
+      thread: {
+        ...resolvedThread.thread,
+        messages: [
+          resolvedThread.thread.messages[0],
+          resolvedThread.thread.messages[1],
+          {
+            ...resolvedThread.thread.messages[1],
+            createdAt: new Date("2026-08-06T12:02:00.000Z"),
+            id: "legacy-message",
+            insertionSequence: null,
+          },
+          {
+            ...resolvedThread.thread.messages[1],
+            createdAt: new Date("2026-08-06T12:03:00.000Z"),
+            id: "new-message",
+            insertionSequence: 3,
+          },
+        ],
+      },
+    } as ResolvedThread;
+
+    const incremental = readThread(mixedThread, "01-message-customer");
+    expect(incremental.messages.map((message) => message.id)).toStrictEqual([
+      "02-message-agent",
+      "legacy-message",
+      "new-message",
+    ]);
+    expect(incremental.cursor).toBe("new-message");
   });
 
   it("rejects a cursor from another thread", () => {

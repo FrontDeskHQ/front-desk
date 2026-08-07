@@ -25,8 +25,10 @@ const createAsThreadAuthor = (
 
 const thread = (externalOrigin: string | null) => ({
   authorId: "author-1",
+  createdAt: new Date("2026-01-01T00:00:00.000Z"),
   externalOrigin,
   id: "thread-1",
+  messageSequence: 0,
   organizationId: "org-1",
 });
 
@@ -48,7 +50,7 @@ const createDb = (
     createdAt: new Date(),
     externalMessageId: "fd:message-1",
     id: "message-1",
-    insertionSequence: "sequence-1",
+    insertionSequence: 1,
     isBackfill: false,
     markedAsAnswer: false,
     origin: "slack",
@@ -116,12 +118,15 @@ describe("message.createAsThreadAuthor", () => {
     });
 
     expect(result).toBe(returnedMessage);
-    expect(update).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ messageSequence: 1 })
+    );
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({
         authorId: "author-1",
         externalMessageId: expect.stringMatching(/^fd:/),
-        insertionSequence: expect.any(String),
+        insertionSequence: expect.any(Number),
         isBackfill: false,
         origin: "slack",
         threadId: "thread-1",
@@ -138,7 +143,10 @@ describe("message.createAsThreadAuthor", () => {
         req: { context: { internalApiKey: "dev-key" }, input: input("widget") },
       })
     ).rejects.toThrow("THREAD_ORIGIN_MISMATCH");
-    expect(update).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith(
+      "thread-1",
+      expect.objectContaining({ createdAt: expect.any(Date) })
+    );
     expect(insert).not.toHaveBeenCalled();
   });
 

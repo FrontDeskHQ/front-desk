@@ -94,7 +94,10 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
               createdAt: message.createdAt,
               externalMessageId: message.externalMessageId,
               id: ulid().toLowerCase(),
-              insertionSequence: nextMessageInsertionSequence(),
+              insertionSequence: await nextMessageInsertionSequence(
+                trx,
+                existingThread.id
+              ),
               isBackfill,
               origin: provider,
               threadId: existingThread.id,
@@ -138,7 +141,7 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
           createdAt: message.createdAt,
           externalMessageId: message.externalMessageId,
           id: ulid().toLowerCase(),
-          insertionSequence: nextMessageInsertionSequence(),
+          insertionSequence: await nextMessageInsertionSequence(trx, threadId),
           isBackfill,
           origin: provider,
           threadId,

@@ -1245,6 +1245,7 @@ export const convertToThread = (data: FakeThreadData): Thread => {
       insertionSequence: null,
       markedAsAnswer: false,
     })),
+    messageSequence: 0,
     name: data.name,
     organizationId: TEST_ORGANIZATION_ID,
     priority: 1,

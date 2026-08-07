@@ -211,7 +211,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         createdAt: firstMessage?.createdAt ?? new Date(),
         externalMessageId: firstMessage?.externalMessageId ?? null,
         id: firstMessage?.id ?? ulid().toLowerCase(),
-        insertionSequence: nextMessageInsertionSequence(),
+        insertionSequence: await nextMessageInsertionSequence(trx, threadId),
         isBackfill: firstMessage?.isBackfill ?? false,
         origin: firstMessage?.origin ?? null,
         threadId,

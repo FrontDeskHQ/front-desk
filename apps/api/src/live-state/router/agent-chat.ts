@@ -87,7 +87,10 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
         createdAt: new Date(),
         origin: null,
         externalMessageId: null,
-        insertionSequence: nextMessageInsertionSequence(),
+        insertionSequence: await nextMessageInsertionSequence(
+          trx,
+          chat.threadId
+        ),
       });
 
       // Clear the draft

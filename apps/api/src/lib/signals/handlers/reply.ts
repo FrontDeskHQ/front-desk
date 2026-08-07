@@ -10,6 +10,8 @@ export const replyHandler: ActionHandler<ReplyAction> = {
     if (!ctx.actorUserId || !ctx.actorUserName) {
       throw new Error("REPLY_REQUIRES_ACTOR");
     }
+    const actorUserId = ctx.actorUserId;
+    const actorUserName = ctx.actorUserName;
 
     const thread = await ctx.db.thread.one(ctx.threadId).get();
     if (!thread || thread.organizationId !== ctx.organizationId) {
@@ -21,36 +23,41 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       throw new Error("REPLY_DRAFT_EMPTY");
     }
 
-    const existingAuthor = await ctx.db.author
-      .first({
-        organizationId: ctx.organizationId,
-        userId: ctx.actorUserId,
-      })
-      .get();
-
-    let authorId = existingAuthor?.id;
-    if (!authorId) {
-      authorId = ulid().toLowerCase();
-      await ctx.db.author.insert({
-        id: authorId,
-        metaId: null,
-        name: ctx.actorUserName,
-        organizationId: ctx.organizationId,
-        userId: ctx.actorUserId,
-      });
-    }
-
     const content = JSON.stringify(parse(draft));
 
-    await ctx.db.message.insert({
-      authorId,
-      content,
-      createdAt: new Date(),
-      externalMessageId: null,
-      id: ulid().toLowerCase(),
-      insertionSequence: nextMessageInsertionSequence(),
-      origin: "agent_read",
-      threadId: ctx.threadId,
+    await ctx.db.transaction(async ({ trx }) => {
+      const existingAuthor = await trx.author
+        .first({
+          organizationId: ctx.organizationId,
+          userId: actorUserId,
+        })
+        .get();
+
+      let authorId = existingAuthor?.id;
+      if (!authorId) {
+        authorId = ulid().toLowerCase();
+        await trx.author.insert({
+          id: authorId,
+          metaId: null,
+          name: actorUserName,
+          organizationId: ctx.organizationId,
+          userId: actorUserId,
+        });
+      }
+
+      await trx.message.insert({
+        authorId,
+        content,
+        createdAt: new Date(),
+        externalMessageId: null,
+        id: ulid().toLowerCase(),
+        insertionSequence: await nextMessageInsertionSequence(
+          trx,
+          ctx.threadId
+        ),
+        origin: "agent_read",
+        threadId: ctx.threadId,
+      });
     });
   },
 };

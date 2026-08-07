@@ -10,7 +10,10 @@ import {
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
-import { nextMessageInsertionSequence } from "../../lib/message-sequence";
+import {
+  lockThread,
+  nextMessageInsertionSequence,
+} from "../../lib/message-sequence";
 import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
@@ -48,36 +51,6 @@ const createAsThreadAuthorInputSchema = z.object({
   origin: customerChannelSchema,
   threadId: z.string(),
 });
-
-const threadOriginLocks = new Map<string, Promise<void>>();
-
-/**
- * The customer-side mutation is local-only, so serialize origin inference for
- * a thread within this API process. The transaction still re-reads the row so
- * a queued request validates the origin committed by the request before it.
- */
-const withThreadOriginLock = async <T>(
-  threadId: string,
-  operation: () => Promise<T>
-): Promise<T> => {
-  const previous = threadOriginLocks.get(threadId) ?? Promise.resolve();
-  let release!: () => void;
-  const current = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const queued = previous.then(() => current);
-  threadOriginLocks.set(threadId, queued);
-
-  await previous;
-  try {
-    return await operation();
-  } finally {
-    release();
-    if (threadOriginLocks.get(threadId) === queued) {
-      threadOriginLocks.delete(threadId);
-    }
-  }
-};
 
 export default publicRoute.withProcedures(({ mutation, query }) => ({
   /**
@@ -182,7 +155,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         createdAt: req.input.createdAt ?? new Date(),
         externalMessageId: req.input.externalMessageId ?? null,
         id: messageId,
-        insertionSequence: nextMessageInsertionSequence(),
+        insertionSequence: await nextMessageInsertionSequence(
+          trx,
+          req.input.threadId
+        ),
         isBackfill: req.input.isBackfill ?? false,
         origin: req.input.origin ?? null,
         threadId: req.input.threadId,
@@ -220,54 +196,54 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         throw new Error("THREAD_ORIGIN_MISMATCH");
       }
 
-      return withThreadOriginLock(thread.id, async () => {
-        const content = serializeMessageContent(req.input.content);
-        const messageId = ulid().toLowerCase();
+      const content = serializeMessageContent(req.input.content);
+      const messageId = ulid().toLowerCase();
 
-        await db.transaction(async ({ trx }) => {
-          // Re-read in the transaction so origin validation observes the row
-          // after any earlier request for this thread has committed.
-          const currentThread = await trx.thread.one(thread.id).get();
-          if (
-            !currentThread ||
-            currentThread.organizationId !== req.input.organizationId
-          ) {
-            throw new Error("THREAD_NOT_FOUND");
-          }
+      await db.transaction(async ({ trx }) => {
+        // Lock and re-read in the transaction so origin validation observes
+        // the row after any concurrent request commits, even across API
+        // processes.
+        const currentThread = await lockThread(trx, thread.id);
+        if (currentThread.organizationId !== req.input.organizationId) {
+          throw new Error("THREAD_NOT_FOUND");
+        }
 
-          if (
-            currentThread.externalOrigin !== null &&
-            currentThread.externalOrigin !== req.input.origin
-          ) {
-            throw new Error("THREAD_ORIGIN_MISMATCH");
-          }
+        if (
+          currentThread.externalOrigin !== null &&
+          currentThread.externalOrigin !== req.input.origin
+        ) {
+          throw new Error("THREAD_ORIGIN_MISMATCH");
+        }
 
-          // Legacy portal threads predate externalOrigin. Once the CLI
-          // continues one, make the inferred origin durable for later calls.
-          if (currentThread.externalOrigin === null) {
-            await trx.thread.update(currentThread.id, {
-              externalOrigin: req.input.origin,
-            });
-          }
-
-          await trx.message.insert({
-            authorId: currentThread.authorId,
-            content,
-            createdAt: new Date(),
-            // A synthetic external id marks this as an inbound simulation. The
-            // outbound Slack/Discord replicators only watch rows with a null
-            // external id, so this can never be sent back to a live connector.
-            externalMessageId: `fd:${messageId}`,
-            id: messageId,
-            insertionSequence: nextMessageInsertionSequence(),
-            isBackfill: false,
-            origin: req.input.origin,
-            threadId: currentThread.id,
+        // Legacy portal threads predate externalOrigin. Once the CLI
+        // continues one, make the inferred origin durable for later calls.
+        if (currentThread.externalOrigin === null) {
+          await trx.thread.update(currentThread.id, {
+            externalOrigin: req.input.origin,
           });
-        });
+        }
 
-        return db.message.one(messageId).include({ author: true }).get();
+        await trx.message.insert({
+          authorId: currentThread.authorId,
+          content,
+          createdAt: new Date(),
+          // A synthetic external id marks this as an inbound simulation. The
+          // outbound Slack/Discord replicators only watch rows with a null
+          // external id, so this can never be sent back to a live connector.
+          externalMessageId: `fd:${messageId}`,
+          id: messageId,
+          insertionSequence: await nextMessageInsertionSequence(
+            trx,
+            currentThread.id,
+            currentThread
+          ),
+          isBackfill: false,
+          origin: req.input.origin,
+          threadId: currentThread.id,
+        });
       });
+
+      return db.message.one(messageId).include({ author: true }).get();
     }
   ),
   markAsAnswer: mutation(
