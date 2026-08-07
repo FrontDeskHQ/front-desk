@@ -10,6 +10,7 @@ import {
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
+import { nextMessageInsertionSequence } from "../../lib/message-sequence";
 import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
@@ -181,6 +182,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         createdAt: req.input.createdAt ?? new Date(),
         externalMessageId: req.input.externalMessageId ?? null,
         id: messageId,
+        insertionSequence: nextMessageInsertionSequence(),
         isBackfill: req.input.isBackfill ?? false,
         origin: req.input.origin ?? null,
         threadId: req.input.threadId,
@@ -257,6 +259,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
             // external id, so this can never be sent back to a live connector.
             externalMessageId: `fd:${messageId}`,
             id: messageId,
+            insertionSequence: nextMessageInsertionSequence(),
             isBackfill: false,
             origin: req.input.origin,
             threadId: currentThread.id,

@@ -17,6 +17,7 @@ import {
   connectorInvokeSecret,
   connectorRegistry,
 } from "../../lib/connector-registry";
+import { nextMessageInsertionSequence } from "../../lib/message-sequence";
 import {
   acceptInlineSuggestionInputSchema,
   acceptReadInputSchema,
@@ -210,6 +211,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         createdAt: firstMessage?.createdAt ?? new Date(),
         externalMessageId: firstMessage?.externalMessageId ?? null,
         id: firstMessage?.id ?? ulid().toLowerCase(),
+        insertionSequence: nextMessageInsertionSequence(),
         isBackfill: firstMessage?.isBackfill ?? false,
         origin: firstMessage?.origin ?? null,
         threadId,

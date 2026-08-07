@@ -48,6 +48,7 @@ const createDb = (
     createdAt: new Date(),
     externalMessageId: "fd:message-1",
     id: "message-1",
+    insertionSequence: "sequence-1",
     isBackfill: false,
     markedAsAnswer: false,
     origin: "slack",
@@ -120,6 +121,7 @@ describe("message.createAsThreadAuthor", () => {
       expect.objectContaining({
         authorId: "author-1",
         externalMessageId: expect.stringMatching(/^fd:/),
+        insertionSequence: expect.any(String),
         isBackfill: false,
         origin: "slack",
         threadId: "thread-1",

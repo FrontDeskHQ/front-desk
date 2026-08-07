@@ -54,6 +54,10 @@ const threadChannel = (externalOrigin: string | null | undefined): string =>
 const compareMessageIds = (left: string, right: string): number =>
   left < right ? -1 : left > right ? 1 : 0;
 
+const messageInsertionSequence = (
+  message: ResolvedThread["thread"]["messages"][number]
+): string | null => message.insertionSequence ?? null;
+
 const compareMessages = (
   left: ResolvedThread["thread"]["messages"][number],
   right: ResolvedThread["thread"]["messages"][number]
@@ -139,23 +143,53 @@ export const readThread = (
 ): ThreadReadOutput => {
   const messages = [...resolved.thread.messages].sort(compareMessages);
 
-  if (after && !messages.some((message) => message.id === after)) {
+  const afterMessage = after
+    ? messages.find((message) => message.id === after)
+    : undefined;
+  if (after && !afterMessage) {
     throw new Error(`Message cursor not found in thread: ${after}`);
   }
 
-  // Message IDs are insertion cursors. Filtering by ID, instead of the
-  // presentation order, keeps a late-arriving imported message visible even
-  // when its provider timestamp places it earlier in the transcript.
-  const visibleMessages = after
-    ? messages.filter((message) => compareMessageIds(message.id, after) > 0)
-    : messages;
-  const cursor = resolved.thread.messages.reduce<string | null>(
-    (latest, message) =>
-      latest === null || compareMessageIds(message.id, latest) > 0
-        ? message.id
-        : latest,
-    null
+  const afterSequence = afterMessage
+    ? messageInsertionSequence(afterMessage)
+    : null;
+  const hasInsertionSequences = messages.some(
+    (message) => messageInsertionSequence(message) !== null
   );
+
+  // Message IDs are caller-controlled, so incremental reads use the
+  // server-assigned insertion sequence. This keeps a late-arriving imported
+  // message visible even when its provider timestamp places it earlier in the
+  // transcript or its ID sorts before the cursor.
+  const visibleMessages = after
+    ? hasInsertionSequences
+      ? messages.filter((message) => {
+          const sequence = messageInsertionSequence(message);
+          return (
+            sequence !== null &&
+            (afterSequence === null ||
+              compareMessageIds(sequence, afterSequence) > 0)
+          );
+        })
+      : messages.slice(
+          messages.findIndex((message) => message.id === after) + 1
+        )
+    : messages;
+  const latestSequencedMessage = messages.reduce<
+    ResolvedThread["thread"]["messages"][number] | null
+  >((latest, message) => {
+    const sequence = messageInsertionSequence(message);
+    if (
+      sequence === null ||
+      (latest !== null &&
+        compareMessageIds(sequence, messageInsertionSequence(latest) ?? "") <=
+          0)
+    ) {
+      return latest;
+    }
+    return message;
+  }, null);
+  const cursor = latestSequencedMessage?.id ?? messages.at(-1)?.id ?? null;
   const channel = threadChannel(resolved.thread.externalOrigin);
   const webUrl = getWebUrl();
 

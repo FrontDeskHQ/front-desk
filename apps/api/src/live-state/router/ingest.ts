@@ -3,6 +3,7 @@ import { supportEntryPointIngestSchema } from "@connectors/framework";
 import { ulid } from "ulid";
 
 import { requireInternalApiKey } from "../../lib/authorize";
+import { nextMessageInsertionSequence } from "../../lib/message-sequence";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
@@ -93,6 +94,7 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
               createdAt: message.createdAt,
               externalMessageId: message.externalMessageId,
               id: ulid().toLowerCase(),
+              insertionSequence: nextMessageInsertionSequence(),
               isBackfill,
               origin: provider,
               threadId: existingThread.id,
@@ -136,6 +138,7 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
           createdAt: message.createdAt,
           externalMessageId: message.externalMessageId,
           id: ulid().toLowerCase(),
+          insertionSequence: nextMessageInsertionSequence(),
           isBackfill,
           origin: provider,
           threadId,

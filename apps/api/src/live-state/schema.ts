@@ -78,6 +78,7 @@ const message = object("message", {
   createdAt: timestamp(),
   externalMessageId: string().nullable(),
   id: id(),
+  insertionSequence: string().nullable(),
   isBackfill: boolean().default(false),
   markedAsAnswer: boolean().default(false),
   origin: string().nullable(),

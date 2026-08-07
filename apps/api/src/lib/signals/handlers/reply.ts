@@ -2,6 +2,7 @@ import type { ReplyAction } from "@workspace/schemas/signals";
 import { parse } from "@workspace/utils/md-tiptap";
 import { ulid } from "ulid";
 
+import { nextMessageInsertionSequence } from "../../message-sequence";
 import type { ActionHandler } from "../types";
 
 export const replyHandler: ActionHandler<ReplyAction> = {
@@ -47,6 +48,7 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       createdAt: new Date(),
       externalMessageId: null,
       id: ulid().toLowerCase(),
+      insertionSequence: nextMessageInsertionSequence(),
       origin: "agent_read",
       threadId: ctx.threadId,
     });

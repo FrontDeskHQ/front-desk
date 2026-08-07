@@ -10,6 +10,7 @@ import {
   authorizeOwnedAgentChat,
   authorizeWorkspaceOrgMember,
 } from "../../lib/authorize";
+import { nextMessageInsertionSequence } from "../../lib/message-sequence";
 import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
@@ -86,6 +87,7 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
         createdAt: new Date(),
         origin: null,
         externalMessageId: null,
+        insertionSequence: nextMessageInsertionSequence(),
       });
 
       // Clear the draft

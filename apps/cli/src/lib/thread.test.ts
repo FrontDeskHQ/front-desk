@@ -20,6 +20,7 @@ const resolvedThread = {
         createdAt: new Date("2026-08-06T12:00:00.000Z"),
         externalMessageId: null,
         id: "01-message-customer",
+        insertionSequence: "01-sequence-customer",
         isBackfill: false,
         markedAsAnswer: false,
         origin: "slack",
@@ -37,6 +38,7 @@ const resolvedThread = {
         createdAt: new Date("2026-08-06T12:01:00.000Z"),
         externalMessageId: null,
         id: "02-message-agent",
+        insertionSequence: "02-sequence-agent",
         isBackfill: false,
         markedAsAnswer: false,
         origin: null,
@@ -67,11 +69,12 @@ describe("thread transcript helpers", () => {
     expect(incremental.messages[0]?.role).toBe("frontdesk");
   });
 
-  it("orders by provider time while using insertion IDs as cursors", () => {
+  it("orders by provider time while using server sequences as cursors", () => {
     const lateHistoricalMessage = {
       ...resolvedThread.thread.messages[0],
       createdAt: new Date("2026-08-06T11:59:00.000Z"),
-      id: "03-message-late",
+      id: "00-message-late",
+      insertionSequence: "03-sequence-late",
     };
     const importedThread = {
       ...resolvedThread,
@@ -83,18 +86,18 @@ describe("thread transcript helpers", () => {
 
     const initial = readThread(importedThread);
     expect(initial.messages.map((message) => message.id)).toStrictEqual([
-      "03-message-late",
+      "00-message-late",
       "01-message-customer",
       "02-message-agent",
     ]);
-    expect(initial.cursor).toBe("03-message-late");
+    expect(initial.cursor).toBe("00-message-late");
 
     const incremental = readThread(importedThread, "02-message-agent");
     expect(incremental.messages.map((message) => message.id)).toStrictEqual([
-      "03-message-late",
+      "00-message-late",
     ]);
     expect(
-      readThread(importedThread, "03-message-late").messages
+      readThread(importedThread, "00-message-late").messages
     ).toStrictEqual([]);
   });
 

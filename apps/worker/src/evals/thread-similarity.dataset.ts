@@ -1242,6 +1242,7 @@ export const convertToThread = (data: FakeThreadData): Thread => {
       origin: null,
       isBackfill: false,
       externalMessageId: null,
+      insertionSequence: null,
       markedAsAnswer: false,
     })),
     name: data.name,
