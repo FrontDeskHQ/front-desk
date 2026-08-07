@@ -1,6 +1,7 @@
 import type { LinkIssueAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
+import { resolveExternalEntityLabel } from "../../thread-mutations";
 import { runRecordActivity } from "../../update-mutations";
 import {
   clearCompensateSnapshot,
@@ -66,15 +67,23 @@ export const linkIssueHandler: ActionHandler<LinkIssueAction> = {
       externalIssueId: entity.externalKey,
     });
 
-    // Record the same `issue_changed` entry the human `thread.linkIssue` and
-    // the `link_pr` handler write, so the timeline doesn't depend on who did
-    // the linking.
+    // Record the same `issue_changed` entry the human `thread.linkIssue`
+    // writes, so the timeline doesn't depend on who did the linking. That
+    // includes resolving the previous label on a redirect — hardcoding null
+    // would leave the Agent's entry thinner than the identical manual one.
+    const oldIssueLabel = await resolveExternalEntityLabel(
+      ctx.db,
+      ctx.organizationId,
+      oldIssueId,
+      "issue"
+    );
+
     await runRecordActivity(ctx.db, {
       metadata: {
         newIssueId: entity.externalKey,
         newIssueLabel: `${entity.repoFullName}#${entity.number}`,
         oldIssueId,
-        oldIssueLabel: null,
+        oldIssueLabel,
       },
       organizationId: ctx.organizationId,
       threadId: ctx.threadId,

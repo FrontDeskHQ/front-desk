@@ -21,11 +21,21 @@ export interface IssueTargetOption {
 const githubConfigSchema = z.object({
   repos: z
     .array(
-      z.object({
-        fullName: z.string().min(1),
-        name: z.string().min(1),
-        owner: z.string().min(1),
-      })
+      z
+        .object({
+          fullName: z.string().min(1),
+          name: z.string().regex(/^[^/]+$/),
+          owner: z.string().regex(/^[^/]+$/),
+        })
+        // `fullName` is the label a human picks by; `owner`/`name` is what the
+        // connector files into. If they disagree, the picker would show one
+        // repository and the issue would land in another.
+        .refine(
+          ({ fullName, name, owner }) => fullName === `${owner}/${name}`,
+          {
+            message: "fullName must match owner/name",
+          }
+        )
     )
     .default([]),
 });

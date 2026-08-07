@@ -253,9 +253,11 @@ export const enqueueIssueIndex = async (
   // mirroring the same upstream repo would otherwise coalesce onto one job and
   // one of them would silently miss its vector update — the vector points are
   // keyed `(organizationId, externalKey)`, so they are genuinely distinct work.
-  // Colons in `externalKey` are replaced because BullMQ rejects a custom job id
-  // unless it has either no colon or exactly three colon-separated segments.
-  const jobId = `issue-index:${data.organizationId}:${data.externalKey.replaceAll(":", "_")}`;
+  // The key is percent-encoded rather than colon-stripped: BullMQ rejects a
+  // custom job id unless it is colon-free or exactly three colon-separated
+  // segments, and a lossy substitution could map two distinct keys onto one id,
+  // letting one issue's enqueue delete another's pending job.
+  const jobId = `issue-index:${data.organizationId}:${encodeURIComponent(data.externalKey)}`;
   const existing = await q.getJob(jobId);
   if (existing) {
     const state = await existing.getState();

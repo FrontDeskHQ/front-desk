@@ -343,7 +343,7 @@ export const runAssignThreadUser = async (
   };
 };
 
-const resolveExternalEntityLabel = async (
+export const resolveExternalEntityLabel = async (
   db: Pick<ServerDB<typeof schema>, "find">,
   organizationId: string,
   externalKey: string | null,

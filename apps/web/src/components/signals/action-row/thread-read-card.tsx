@@ -486,6 +486,14 @@ function IssueTargetPicker({
           <SelectValue placeholder="Choose a destination" />
         </SelectTrigger>
         <SelectContent>
+          {/* A saved target whose repo or integration has since dropped out of
+              the options would otherwise fall back to the placeholder, reading
+              as "unset" even though it is set and would still be filed into. */}
+          {value && !options.some((option) => option.label === value.label) ? (
+            <SelectItem value={value.label}>
+              {value.label} (no longer connected)
+            </SelectItem>
+          ) : null}
           {options.map((option) => (
             <SelectItem key={option.label} value={option.label}>
               {option.label}
