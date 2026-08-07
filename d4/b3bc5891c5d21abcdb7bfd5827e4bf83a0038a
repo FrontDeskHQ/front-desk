@@ -1,0 +1,46 @@
+apps/api/src/live-state/router/message.test.ts
+  s_43041ac0d715ef::t_d6432b57bc2cd1 51,124
+apps/api/src/live-state/router/message.ts
+  s_43041ac0d715ef::t_4a4ab69b95ba90 13,185,262
+apps/cli/src/lib/thread.ts
+  s_43041ac0d715ef::t_604b34a00e0f20 156-158,165-173
+  s_43041ac0d715ef::t_39b9bfeb22a099 57-60,146-149,153-155,160-163,178-192
+  s_43041ac0d715ef::t_794392728a51cd 174-176
+apps/worker/src/evals/thread-similarity.dataset.ts
+  s_43041ac0d715ef::t_c84ebb77ed6410 1245
+apps/api/src/lib/signals/handlers/reply.ts
+  s_43041ac0d715ef::t_4a4ab69b95ba90 5,51
+apps/api/src/live-state/schema.ts
+  s_43041ac0d715ef::t_4a4ab69b95ba90 81
+apps/api/src/live-state/migrations/files/index.ts
+  s_43041ac0d715ef::t_63b0e40f7ba707 5,7
+apps/api/src/live-state/router/agent-chat.ts
+  s_43041ac0d715ef::t_4a4ab69b95ba90 13,90
+apps/api/src/lib/message-sequence.ts
+  s_43041ac0d715ef::t_4a4ab69b95ba90 1-11
+apps/api/src/live-state/router/threads.ts
+  s_43041ac0d715ef::t_067ee77635faa7 20
+  s_43041ac0d715ef::t_63b0e40f7ba707 214
+apps/api/src/live-state/router/ingest.ts
+  s_43041ac0d715ef::t_4a4ab69b95ba90 6,97,141
+apps/api/src/live-state/migrations/files/004_backfill_message_insertion_sequence.ts
+  s_43041ac0d715ef::t_63b0e40f7ba707 1-21
+apps/cli/src/lib/thread.test.ts
+  s_43041ac0d715ef::t_d6432b57bc2cd1 23,41,72,76-77,89,93,97,100
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d4b3bc5891c5d21abcdb7bfd5827e4bf83a0038a",
+  "prompts": {},
+  "sessions": {
+    "s_43041ac0d715ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd98a-c552-7703-ab4a-3b3001c3eb33",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
