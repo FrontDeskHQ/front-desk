@@ -1,0 +1,157 @@
+packages/schemas/src/organization.ts
+  s_3db157928accd3::t_393e21fb175097 39-43
+  s_3db157928accd3::t_fee88c739a2328 127
+  s_3db157928accd3::t_a0e3311aefb781 24-38,44-48,70,109-126
+apps/api/src/lib/signals/types.ts
+  s_3db157928accd3::t_f2edcce293d962 2,18-19,30-36
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/normalize.ts
+  s_3db157928accd3::t_70da2702962d15 54-72
+  s_3db157928accd3::t_bf97fb56c340a4 145-171
+  s_3db157928accd3::t_8b7edc561b439a 3
+  s_3db157928accd3::t_a826aff84250ad 10-17
+apps/api/src/live-state/router/autonomous-action.ts
+  s_3db157928accd3::t_7e114ca160f8d8 170-185
+apps/api/src/lib/signals/handlers/link-issue.ts
+  s_3db157928accd3::t_c744b64a34a9d3 1-82
+apps/web/src/components/signals/leverage-report.tsx
+  s_3db157928accd3::t_0a6bcf636ba655 28-34,37-38
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_3db157928accd3::t_63cfa526fc6203 29-54,112-115,118,120,1009
+apps/api/src/lib/signals/execute-bundle.ts
+  s_3db157928accd3::t_1dce04b43fec91 1
+  s_3db157928accd3::t_f0c6352fddc591 99-109
+apps/api/src/lib/signals/autonomous-receipts.ts
+  s_3db157928accd3::t_92e4aba8dde8bc 56-68
+apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx
+  s_3db157928accd3::t_2a9c19b6dded2d 5-8,26-32,44
+  s_3db157928accd3::t_ce27f33283fb2d 181-182,230-232
+  s_3db157928accd3::t_840c8ed4a66653 335-338,340,343-351
+  s_3db157928accd3::t_92563d94b40d61 171-172,179-180
+  s_3db157928accd3::t_673d231d76d4a0 399-403
+  s_3db157928accd3::t_571a08da6a68f3 185-229,233-262
+  s_3db157928accd3::t_7407315911cb4e 9
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts
+  s_3db157928accd3::t_7e93298ed6bfbf 31,40-41,48,52,78-87,113-122
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_3db157928accd3::t_434c4813efe3d9 329-330
+  s_3db157928accd3::t_8c14c9095b27b9 2-6,9-10
+  s_3db157928accd3::t_da0d3ecd7c9132 344
+  s_3db157928accd3::t_db2502c938b859 196-208
+  s_3db157928accd3::t_ab73c93108a6a9 96,104
+  s_3db157928accd3::t_57f11c7a206ec4 288-289
+  s_3db157928accd3::t_22006deb690dd3 87-91
+  s_3db157928accd3::t_b48a6a7b922b7f 253-254
+  s_3db157928accd3::t_f84768778b1d4c 182-194
+  s_3db157928accd3::t_51cc6a56914ab1 174-181,195,209-221,228,235-236,241-242,245
+  s_3db157928accd3::t_3e0319ea6a5a19 28,32,34-60,62-64
+  s_3db157928accd3::t_770ecd2026336b 267-275
+packages/schemas/src/signals.ts
+  s_3db157928accd3::t_10baf4bb2a6e19 126-127
+  s_3db157928accd3::t_4b4e3ad9f3c6b2 159-173
+  s_3db157928accd3::t_c4641c3c2a164f 401,404-409
+  s_3db157928accd3::t_d68cd431351f87 86-87,98-99
+  s_3db157928accd3::t_50952454bf260f 427-429
+  s_3db157928accd3::t_79d8e1c049a731 110-111
+  s_3db157928accd3::t_2ea7c7a0511f10 442-459,461,464-496
+  s_3db157928accd3::t_9cb5fdd53a0d5d 358-390
+  s_3db157928accd3::t_1491b13265fbec 140-142,151-152
+  s_3db157928accd3::t_b04b69e6117f45 510-515
+  s_3db157928accd3::t_c8b5d78f1d4e44 727-781
+  s_3db157928accd3::t_42a5e038f53bdf 38-63
+apps/worker/src/handlers/index-issue.ts
+  s_3db157928accd3::t_152caae5d95b2d 1-5,10-138
+  s_3db157928accd3::t_ce27f33283fb2d 6-9
+apps/worker/src/lib/entity-embedding.ts
+  s_3db157928accd3::t_ec5baeeb7333c5 1-39
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/tools.ts
+  s_3db157928accd3::t_3f2a624882d86e 5,9-10
+  s_3db157928accd3::t_a7ecae4f7a5211 95-129
+  s_3db157928accd3::t_98bf40f03d5ecf 170-204
+apps/api/src/lib/signals/thread-procedures.ts
+  s_3db157928accd3::t_85f2e4479c9fcd 2,8,48-53,98,104,196,363-366
+apps/worker/src/lib/pr-embedding.ts
+  s_3db157928accd3::t_f4694967f99a3f 1,27,31
+apps/worker/src/lib/issue-embedding.ts
+  s_3db157928accd3::t_de3200fbbcb329 1-25
+apps/worker/src/pipeline/processors/registration.ts
+  s_3db157928accd3::t_c28f570b0ec2e4 9,25,33
+apps/api/src/live-state/router/threads.ts
+  s_3db157928accd3::t_156e766bb41d37 13,453-461,463,465
+apps/api/src/lib/issue-tracker.ts
+  s_3db157928accd3::t_00023fc496c0a3 1-14,16-171
+  s_3db157928accd3::t_e377079c4daad8 15
+apps/web/src/components/signals/action-row/thread-read-card.tsx
+  s_3db157928accd3::t_2b455774f2cee0 438-488
+  s_3db157928accd3::t_5bd5294716dd2a 30-35,51,555-564,570,579-581,608,676,801-807
+  s_3db157928accd3::t_ce27f33283fb2d 4-5
+CONTEXT.md
+  s_b07beb4ba9d3a1::t_fc5c6f0898c19b 127-134
+  s_b07beb4ba9d3a1::t_78809a2d5029c3 41
+  s_b07beb4ba9d3a1::t_2dfcb509a8c1ac 61-64
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/find.ts
+  s_3db157928accd3::t_6cba6946a0b28f 1-41
+apps/api/src/lib/signals/handlers/create-issue.ts
+  s_3db157928accd3::t_a4d9df693e9206 1-72
+apps/worker/src/lib/read-hints.ts
+  s_3db157928accd3::t_6fa3a269f36e33 7,17,66-73
+apps/api/src/lib/signals/handlers/registry.ts
+  s_3db157928accd3::t_f2edcce293d962 4-5,15-16
+apps/api/src/live-state/router.ts
+  s_3db157928accd3::t_3775c8cff92de8 355-357
+  s_3db157928accd3::t_b6fc53fdb2a443 6-10,15,19-22,36,99-128,274,308-354
+apps/worker/src/lib/qdrant/issues.ts
+  s_3db157928accd3::t_e065a1ddf8c258 1-300
+apps/web/src/components/signals/action-row/handlers.ts
+  s_3db157928accd3::t_948f956530b845 1
+  s_3db157928accd3::t_6fc28d53f9f66f 86-87,91
+apps/worker/src/worker.ts
+  s_3db157928accd3::t_ca63466752528b 9,25,35,46,349-378,418,433-445,453,457-463,493,511,534,549
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_3db157928accd3::t_c28f570b0ec2e4 26,96-100,112,121-127
+  s_3db157928accd3::t_480a513899c47d 7,184-189,211,239
+apps/worker/src/lib/database/client.ts
+  s_3db157928accd3::t_6cd0feb13c380c 76-107
+apps/web/src/lib/issue-targets.ts
+  s_3db157928accd3::t_a8cfe8173d9ab6 1-44
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/processor.ts
+  s_3db157928accd3::t_36328c65d43ab3 1-189
+apps/api/src/lib/queue.ts
+  s_3db157928accd3::t_c5543c80ead9ee 206-268
+  s_3db157928accd3::t_a59b45b0a1c48b 12
+  s_3db157928accd3::t_dc5bee2f6bbd5a 32-33
+apps/api/src/live-state/router/external-entity.ts
+  s_3db157928accd3::t_b6fc53fdb2a443 2-5,12,233-258,309-320,460-479
+  s_3db157928accd3::t_5bf1ec9bba2ea8 480-482
+  s_3db157928accd3::t_7e69f01811dd79 321-325
+apps/worker/src/lib/action-availability.ts
+  s_3db157928accd3::t_570d7ad723f6f3 1-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "54a80777d636ea924077e70965f4892e64e7e152",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_3db157928accd3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d2e264b5-5d36-4f08-b903-7e1d9a507e3f",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_b07beb4ba9d3a1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "34738447-593f-4522-94d4-8a249865d494",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
