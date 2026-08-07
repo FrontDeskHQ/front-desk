@@ -1,0 +1,97 @@
+apps/api/src/lib/queue.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 12,32-33,206-269
+apps/web/src/components/signals/action-row/thread-read-card.tsx
+  s_43041ac0d715ef::t_56f7d116a20f68 4-5,29-35,51,438-507,541-542,545-559,590-599,605,614-621,648,716,841-847
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 29-54,112-115,118,120,1009
+apps/api/src/lib/signals/execute-bundle.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1,99-108
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/processor.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-189
+apps/web/src/lib/issue-targets.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-89
+apps/api/src/live-state/router/external-entity.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 2-5,12,233-258,309-325,460-479
+apps/worker/src/lib/qdrant/issues.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-314
+apps/web/src/components/signals/leverage-report.tsx
+  s_43041ac0d715ef::t_56f7d116a20f68 28-34,37-38
+apps/worker/src/lib/pr-embedding.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1,27,31
+apps/worker/src/lib/read-hints.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 7,17,66-73
+packages/schemas/src/signals.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 38-66,89-90,101-102,113-114,129-130,143-145,154-155,162-176,361-393,404,407-412,430-432,445-462,464-494,497-500,513-518,730-783
+apps/api/src/lib/thread-mutations.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 346
+apps/api/src/lib/signals/handlers/registry.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 4-5,15-16
+packages/schemas/src/organization.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 24-48,70,109-126
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/find.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-41
+apps/web/src/components/signals/action-row/handlers.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1,86-87,91
+apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx
+  s_43041ac0d715ef::t_56f7d116a20f68 5-9,26-32,44,171-172,179-277,350-353,355,358-366,414-418
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 7,26,96-100,112,121-127,184-189,211,239
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 2-6,9-10,21-24,32,36,38-64,66-68,91-95,100,108,178-248,255,262-263,268-269,272,280-281,294-296,309-310,349-350,364,370,375-386
+apps/api/src/lib/signals/handlers/link-issue.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-110
+apps/api/src/lib/signals/types.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 2,18-19,30-36
+apps/api/src/live-state/router.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 6-10,15,19-22,36,99-133,279,313-359
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/tools.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 5,9-10,95-129,170-208
+CONTEXT.md
+  s_43041ac0d715ef::t_56f7d116a20f68 41,61-64,127-133
+apps/api/src/lib/signals/thread-procedures.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 2,8,48-53,98,104,196,363-366
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/normalize.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 3,10-17,21-22,55-78,97,108-112,127-139,141-143,151-153,174-199
+apps/api/src/lib/signals/autonomous-receipts.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 56-68
+apps/api/src/lib/signals/handlers/create-issue.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-72
+apps/api/src/lib/issue-tracker.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-171
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 31,40-41,48,52,78-87,113-122
+apps/worker/src/worker.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 9,25,35,46,349-378,418,433-445,453,457-463,493,511,534,549,553
+apps/worker/src/lib/entity-embedding.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-39
+apps/worker/src/handlers/index-issue.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-138
+apps/worker/src/lib/action-availability.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-42
+apps/worker/src/pipeline/processors/registration.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 9,25,33
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/link-issue-verification.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-99
+apps/api/src/live-state/router/autonomous-action.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 170-185
+apps/worker/src/lib/issue-embedding.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 1-25
+apps/worker/src/lib/database/client.ts
+  s_43041ac0d715ef::t_56f7d116a20f68 76-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7a8f55132faf1201d963065e7ab228a75fd52fa3",
+  "prompts": {},
+  "sessions": {
+    "s_43041ac0d715ef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fd98a-c552-7703-ab4a-3b3001c3eb33",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
