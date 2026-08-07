@@ -19,6 +19,10 @@ import z from "zod";
 import type { WorkerLogger } from "../../../../lib/logging";
 import type { ParsedSummary } from "../../../../types";
 import {
+  collectVerifiedIssueUrlsFromToolSteps,
+  filterActionSetToVerifiedLinkIssue,
+} from "./link-issue-verification";
+import {
   collectVerifiedPrDetailsFromToolSteps,
   ensureVerifiedPrRecommendationLink,
   filterActionSetToVerifiedLinkPr,
@@ -363,11 +367,23 @@ Return a single valid JSON object with exactly this shape:
   // loses a link_pr, discard the set so recommendation stays consistent.
   const verifiedPrDetails = collectVerifiedPrDetailsFromToolSteps(steps);
   const verifiedPrUrls = new Set(verifiedPrDetails.keys());
-  const filtered = filterActionSetToVerifiedLinkPr(
+  const prFiltered = filterActionSetToVerifiedLinkPr(
     raw.primary,
     raw.alternatives,
     verifiedPrUrls
   );
+
+  // Same trust boundary for link_issue: the model may only link an issue URL a
+  // successful read_issue returned. This pipeline feeds it untrusted external
+  // issue text (related_issues evidence, read_issue bodies, search_issues
+  // hits), so an injected instruction must not be able to authorize a link.
+  const verifiedIssueUrls = collectVerifiedIssueUrlsFromToolSteps(steps);
+  const filtered = filterActionSetToVerifiedLinkIssue(
+    prFiltered.primary,
+    prFiltered.alternatives,
+    verifiedIssueUrls
+  );
+
   const recommendation = ensureVerifiedPrRecommendationLink(
     raw.recommendation,
     filtered.primary,

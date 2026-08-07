@@ -18,7 +18,8 @@ const allowedKinds = new Set([
 
 const normalizeAction = (
   action: Action,
-  verifiedPrUrls?: Set<string>
+  verifiedPrUrls?: Set<string>,
+  verifiedIssueUrls?: Set<string>
 ): Action | null => {
   if (!allowedKinds.has(action.kind)) {
     return null;
@@ -56,6 +57,11 @@ const normalizeAction = (
     if (issueUrl.length === 0) {
       return null;
     }
+    // When verified URLs are provided, reject link_issue that bypassed
+    // read_issue (defense in depth vs synthesize).
+    if (verifiedIssueUrls && !verifiedIssueUrls.has(issueUrl)) {
+      return null;
+    }
     return { issueUrl, kind: "link_issue" };
   }
 
@@ -88,6 +94,7 @@ export const normalizeSynthesisRawActionSet = ({
   fallbackSourceInputMessageId,
   hasTeamReply,
   verifiedPrUrls,
+  verifiedIssueUrls,
 }: {
   output: SynthesisRawActionSet;
   messageIds: Set<string>;
@@ -98,6 +105,11 @@ export const normalizeSynthesisRawActionSet = ({
    * whose URL is not in this set is dropped (defense in depth vs synthesize).
    */
   verifiedPrUrls?: Set<string>;
+  /**
+   * Issue URLs returned by successful `read_issue` calls. Same trust boundary
+   * as `verifiedPrUrls`, applied to `link_issue`.
+   */
+  verifiedIssueUrls?: Set<string>;
 }): ThreadRead | null => {
   // If verified-link filtering would drop a primary link_pr, treat as no action
   // — recommendation (and often the reply draft) assume that link and would be stale.
@@ -112,8 +124,23 @@ export const normalizeSynthesisRawActionSet = ({
     return null;
   }
 
+  // Same for a primary link_issue that bypassed read_issue: dropping just the
+  // action would leave a recommendation written around a link that is gone.
+  if (
+    verifiedIssueUrls &&
+    output.primary.some(
+      (action) =>
+        action.kind === "link_issue" &&
+        !verifiedIssueUrls.has((action.issueUrl ?? "").trim())
+    )
+  ) {
+    return null;
+  }
+
   let primary = output.primary
-    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
+    .map((action) =>
+      normalizeAction(action as Action, verifiedPrUrls, verifiedIssueUrls)
+    )
     .filter((action): action is Action => action !== null);
 
   if (primary.length === 0) {
@@ -121,7 +148,9 @@ export const normalizeSynthesisRawActionSet = ({
   }
 
   let alternatives = (output.alternatives ?? [])
-    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
+    .map((action) =>
+      normalizeAction(action as Action, verifiedPrUrls, verifiedIssueUrls)
+    )
     .filter((action): action is Action => action !== null);
 
   // At most one link_pr across the whole action set (design lock, FRO-204): a

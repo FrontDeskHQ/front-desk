@@ -530,8 +530,24 @@ function AgentReadReasoningTrigger({ reasoning }: { reasoning: string }) {
 }
 
 function formatErrorMessage(error: unknown): string {
-  if (error instanceof Error && error.message.includes("STALE_AGENT_READ")) {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("STALE_AGENT_READ")) {
     return "This signal changed in the background. Refresh and try again.";
+  }
+  // A read can outlive the configuration it was built against: the org may have
+  // cleared its default issue target (or disabled the tracker) after synthesis
+  // proposed create_issue. Retrying will never work, so say what to change
+  // instead of offering the generic try-again.
+  if (message.includes("DEFAULT_ISSUE_TARGET_NOT_CONFIGURED")) {
+    return "No default issue target is configured. Set one in Support Intelligence settings.";
+  }
+  if (message.includes("ISSUE_TRACKER_NOT_CONFIGURED")) {
+    return "This organization has no configured issue tracker.";
+  }
+  // Raised by the connector, which owns target validation — core treats the
+  // integration config as opaque and cannot check the target up front.
+  if (message.includes("REPOSITORY_NOT_CONNECTED")) {
+    return "The configured issue target is no longer connected. Pick another in Support Intelligence settings.";
   }
   return "Could not apply this signal. Please try again.";
 }
