@@ -1,12 +1,20 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
 import {
+  isIssueAction,
   sanitizeAgentReadReasoning,
   threadReadSchema,
 } from "@workspace/schemas/signals";
 
 import type { SynthesisRawActionSet } from "./synthesize";
 
-const allowedKinds = new Set(["reply", "mark_duplicate", "link_pr", "close"]);
+const allowedKinds = new Set([
+  "reply",
+  "mark_duplicate",
+  "link_pr",
+  "link_issue",
+  "create_issue",
+  "close",
+]);
 
 const normalizeAction = (
   action: Action,
@@ -41,6 +49,25 @@ const normalizeAction = (
       return null;
     }
     return { kind: "link_pr", prUrl };
+  }
+
+  if (action.kind === "link_issue") {
+    const issueUrl = action.issueUrl.trim();
+    if (issueUrl.length === 0) {
+      return null;
+    }
+    return { issueUrl, kind: "link_issue" };
+  }
+
+  if (action.kind === "create_issue") {
+    const title = action.title.trim();
+    const body = action.body.trim();
+    // A title-less or body-less create would file an unactionable issue that
+    // cannot be undone; drop it rather than send it upstream.
+    if (title.length === 0 || body.length === 0) {
+      return null;
+    }
+    return { body, kind: "create_issue", title };
   }
 
   return { kind: "close" };
@@ -114,6 +141,33 @@ export const normalizeSynthesisRawActionSet = ({
     });
   primary = dedupeLinkPr(primary);
   alternatives = dedupeLinkPr(alternatives);
+
+  // Reject a primary that bundles create_issue with link_issue (or with a
+  // second create) outright rather than trimming it: create_issue already links
+  // what it files, so the pairing is incoherent — the recommendation and reply
+  // draft were written for a bundle that can never execute, and silently
+  // dropping one half would leave both stale. Rejecting at validation is what
+  // keeps ADR 0003's executor free of inter-step data flow.
+  if (primary.filter(isIssueAction).length > 1) {
+    return null;
+  }
+
+  // At most one issue action across the whole set — a thread links a single
+  // issue. Primary takes precedence; later entries are dropped.
+  let issueActionSeen = false;
+  const dedupeIssueAction = (actions: Action[]): Action[] =>
+    actions.filter((action) => {
+      if (!isIssueAction(action)) {
+        return true;
+      }
+      if (issueActionSeen) {
+        return false;
+      }
+      issueActionSeen = true;
+      return true;
+    });
+  primary = dedupeIssueAction(primary);
+  alternatives = dedupeIssueAction(alternatives);
 
   if (!hasTeamReply) {
     alternatives = alternatives.filter((action) => action.kind === "reply");

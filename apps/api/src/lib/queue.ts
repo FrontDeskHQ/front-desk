@@ -9,6 +9,7 @@ import type {
   ThreadReadJobPriority,
 } from "@workspace/queue/thread-read";
 import type {
+  IssueIndexJobData,
   PrIndexJobData,
   PrMatchCandidate,
   ThreadReadKind,
@@ -28,6 +29,8 @@ export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
 const PR_INDEX_JOB_NAME = "index-pr";
+const ISSUE_INDEX_QUEUE = "issue-index";
+const ISSUE_INDEX_JOB_NAME = "index-issue";
 
 export type {
   EnqueueThreadReadOptions,
@@ -192,6 +195,69 @@ export const enqueuePrIndex = async (
   }
 
   const job = await q.add(PR_INDEX_JOB_NAME, data, {
+    jobId,
+    removeOnComplete: { age: 24 * 3600, count: 100 },
+    removeOnFail: { count: 500 },
+  });
+
+  return job.id ?? null;
+};
+
+// Issue embedding index queue (FRO-217)
+//
+// The issue-index counterpart to `pr-index`, with the same ownership split: the
+// worker owns the vector index, the API is the single mirror choke point
+// (`externalEntity.upsert`) and enqueues after every issue mirror write. One
+// pending job per issue (`issue-index:{externalKey}`) coalesces a burst of
+// mirror events into a single re-embed.
+
+let issueIndexQueue: Queue<IssueIndexJobData> | null = null;
+
+const getIssueIndexQueue = (): Queue<IssueIndexJobData> | null => {
+  if (issueIndexQueue) {
+    return issueIndexQueue;
+  }
+
+  connection ??= createApiRedisConnection();
+  if (!connection) {
+    return null;
+  }
+
+  issueIndexQueue = new Queue<IssueIndexJobData>(ISSUE_INDEX_QUEUE, {
+    connection,
+    defaultJobOptions: {
+      attempts: 3,
+      backoff: { delay: 5000, type: "exponential" },
+    },
+  });
+  return issueIndexQueue;
+};
+
+export const enqueueIssueIndex = async (
+  data: IssueIndexJobData
+): Promise<string | null> => {
+  if (WORKER_JOBS_DISABLED) {
+    return null;
+  }
+
+  const q = getIssueIndexQueue();
+  if (!q) {
+    return null;
+  }
+
+  // Latest mirror state wins — same reasoning as `enqueuePrIndex`: BullMQ
+  // ignores `add` for an existing jobId across all states, so drop the stale
+  // job first, in every state except `active` where removal is unsafe.
+  const jobId = `issue-index:${data.externalKey}`;
+  const existing = await q.getJob(jobId);
+  if (existing) {
+    const state = await existing.getState();
+    if (state !== "active") {
+      await existing.remove();
+    }
+  }
+
+  const job = await q.add(ISSUE_INDEX_JOB_NAME, data, {
     jobId,
     removeOnComplete: { age: 24 * 3600, count: 100 },
     removeOnFail: { count: 500 },

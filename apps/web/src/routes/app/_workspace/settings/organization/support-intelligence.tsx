@@ -1,10 +1,13 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
-import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
+  readDefaultIssueTarget,
+  safeParseOrgSettings,
+} from "@workspace/schemas/organization";
+import {
+  AUTO_CAPABLE_ACTIONS,
   getDefaultActionAutonomy,
-  REVERSIBLE_ACTIONS,
 } from "@workspace/schemas/signals";
 import type { ActionKind, AutonomyLevel } from "@workspace/schemas/signals";
 import { Button } from "@workspace/ui/components/button";
@@ -20,6 +23,13 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@workspace/ui/components/segmented-control";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import {
   Tooltip,
@@ -31,6 +41,7 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
+import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
@@ -157,11 +168,97 @@ const AUTONOMY_LEVELS: AutonomyLevel[] = ["off", "suggest", "auto"];
 const AUTONOMY_ACTION_LABEL: Record<ActionKind, string> = {
   apply_label: "Thread labeling",
   close: "Closing threads",
+  create_issue: "Filing issues",
+  link_issue: "Issue linking",
   link_pr: "PR linking",
   mark_duplicate: "Duplicate threads",
   reply: "Reply drafting",
   set_status: "Status changes",
 };
+
+/** Extra caveats shown under a row whose consequences aren't self-evident. */
+const AUTONOMY_ACTION_HELP: Partial<Record<ActionKind, string>> = {
+  create_issue:
+    "Filing an issue can't be undone, and the issue may be visible to anyone who can see the repository. Requires a default issue target below.",
+};
+
+const NO_TARGET = "__none__";
+
+/**
+ * Where Agent-initiated issue creation lands. Saves immediately rather than
+ * joining the card's pending-autonomy batch: it is a single choice, and issue
+ * filing stays unavailable to the Agent until it is set, so deferring it behind
+ * the shared Save button would silently keep the feature dark.
+ */
+function DefaultIssueTargetField({
+  organizationId,
+  settings,
+  isUserOwner,
+}: {
+  organizationId: string | undefined;
+  settings: unknown;
+  isUserOwner: boolean;
+}) {
+  const options = useIssueTargetOptions(organizationId);
+  const current = readDefaultIssueTarget(settings);
+
+  const handleChange = (label: string) => {
+    if (!organizationId) {
+      return;
+    }
+    if (label === NO_TARGET) {
+      mutate.organization.setDefaultIssueTarget({
+        organizationId,
+        target: null,
+      });
+      return;
+    }
+    const option = options.find((o) => o.label === label);
+    if (!option) {
+      return;
+    }
+    mutate.organization.setDefaultIssueTarget({
+      organizationId,
+      target: { label: option.label, target: option.target },
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-1 border-t border-border pt-4">
+      <span className="text-sm font-medium">Default issue target</span>
+      <span className="text-sm text-muted-foreground">
+        Where the Agent files issues. It never picks a destination itself —
+        while this is unset, issue filing is unavailable to it. You can still
+        redirect an individual issue when you accept a suggestion.
+      </span>
+      <div className="pt-2">
+        {options.length === 0 ? (
+          <span className="text-sm text-muted-foreground">
+            Connect an issue tracker to choose a target.
+          </span>
+        ) : (
+          <Select
+            value={current?.label ?? NO_TARGET}
+            onValueChange={(value) => handleChange(value as string)}
+            disabled={!isUserOwner}
+          >
+            <SelectTrigger className="w-72">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_TARGET}>No target</SelectItem>
+              {options.map((option) => (
+                <SelectItem key={option.label} value={option.label}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function AutomationCard({
   organizationId,
@@ -235,12 +332,23 @@ function AutomationCard({
             style={{ gridTemplateColumns: "1fr auto" }}
           >
             {visibleTypes.map((t) => {
-              const locked = !REVERSIBLE_ACTIONS.has(t);
+              // Not `!REVERSIBLE_ACTIONS.has(t)`: create_issue is
+              // non-reversible but still offers the full ladder (auto mode has
+              // a deterministic destination in the default issue target).
+              const locked = !AUTO_CAPABLE_ACTIONS.has(t);
               const current = valueFor(t);
+              const help = AUTONOMY_ACTION_HELP[t];
               return (
                 <div key={t} className="contents">
-                  <div className="text-foreground">
-                    {AUTONOMY_ACTION_LABEL[t]}
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-foreground">
+                      {AUTONOMY_ACTION_LABEL[t]}
+                    </span>
+                    {help ? (
+                      <span className="text-xs text-muted-foreground">
+                        {help}
+                      </span>
+                    ) : null}
                   </div>
                   <SegmentedControl
                     value={current}
@@ -288,6 +396,11 @@ function AutomationCard({
               );
             })}
           </div>
+          <DefaultIssueTargetField
+            organizationId={organizationId}
+            settings={settings}
+            isUserOwner={isUserOwner}
+          />
         </CardContent>
       </Card>
       {isUserOwner && (

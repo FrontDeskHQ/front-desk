@@ -2,9 +2,12 @@ import { tool } from "ai";
 import z from "zod";
 
 import {
+  fetchMirroredIssueByUrl,
   fetchMirroredPrByUrl,
   fetchThreadWithRelations,
 } from "../../../../lib/database/client";
+import { generateSimilarityEmbedding } from "../../../../lib/entity-embedding";
+import { searchSimilarIssues } from "../../../../lib/qdrant/issues";
 import {
   readDocumentationPage,
   searchDocumentation,
@@ -89,6 +92,41 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
       },
     }),
 
+    read_issue: tool({
+      description:
+        "Read a mirrored issue by its URL (same organization only) to verify a " +
+        "candidate link before emitting link_issue, or to confirm an existing " +
+        "issue already covers this report. Returns the issue title, body, " +
+        "state, author, and labels. A closed issue is a valid link target.",
+      inputSchema: z.object({
+        issueUrl: z.string(),
+      }),
+      execute: async ({ issueUrl }) => {
+        const issue = await fetchMirroredIssueByUrl(organizationId, issueUrl);
+
+        if (!issue) {
+          return {
+            found: false,
+            reason: "not_mirrored",
+          };
+        }
+
+        return {
+          found: true,
+          issue: {
+            url: issue.url,
+            repoFullName: issue.repoFullName,
+            number: issue.number,
+            title: issue.title,
+            body: issue.body,
+            state: issue.state,
+            authorLogin: issue.authorLogin,
+            labels: issue.labels,
+          },
+        };
+      },
+    }),
+
     read_thread: tool({
       description:
         "Read a full support thread by id (same organization only), including all messages in chronological order.",
@@ -125,6 +163,41 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
             createdAt: thread.createdAt,
             messages: toOrderedMessages(thread),
           },
+        };
+      },
+    }),
+
+    search_issues: tool({
+      description:
+        "Search mirrored issues in this organization by a refined query. " +
+        "Complements the `related_issues` hint, which is scored against the " +
+        "whole thread — use this to probe a specific symptom or phrase. " +
+        "Returns open and closed issues alike; a closed issue is often the " +
+        "best link and the strongest reason not to file a new one.",
+      inputSchema: z.object({
+        query: z.string(),
+        limit: z.number().int().min(1).max(10).optional(),
+      }),
+      execute: async ({ query, limit }) => {
+        const vector = await generateSimilarityEmbedding(query);
+        if (!vector) {
+          return { hits: [] };
+        }
+
+        const results = await searchSimilarIssues(vector, {
+          limit: limit ?? 5,
+          organizationId,
+        });
+
+        return {
+          hits: results.map((result) => ({
+            number: result.payload.number,
+            repoFullName: result.payload.repoFullName,
+            score: result.score,
+            state: result.payload.state,
+            title: result.payload.title,
+            url: result.payload.url,
+          })),
         };
       },
     }),

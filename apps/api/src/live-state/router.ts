@@ -3,16 +3,23 @@ import { isCapability } from "@connectors/framework";
 import { router as createRouter } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
 import { earlyAccessRequestSchema } from "@workspace/schemas/early-access";
-import { organizationSettingsSchema } from "@workspace/schemas/organization";
+import {
+  defaultIssueTargetSchema,
+  organizationSettingsSchema,
+  readDefaultIssueTarget,
+} from "@workspace/schemas/organization";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
   actionAutonomyMapSchema,
   actionKindSchema,
+  AUTO_CAPABLE_ACTIONS,
   autonomyLevelSchema,
   getDefaultActionAutonomy,
-  REVERSIBLE_ACTIONS,
 } from "@workspace/schemas/signals";
-import type { ActionAutonomyMap } from "@workspace/schemas/signals";
+import type {
+  ActionAutonomyMap,
+  ActionAvailability,
+} from "@workspace/schemas/signals";
 import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
@@ -26,6 +33,7 @@ import {
   requireInternalApiKey,
 } from "../lib/authorize";
 import { connectorRegistry } from "../lib/connector-registry";
+import { resolveIssueTrackerTarget } from "../lib/issue-tracker";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { notifyWaitlistSignup } from "../lib/waitlist-discord";
@@ -88,6 +96,36 @@ export const router = createRouter({
       byId: query(z.object({ id: z.string() })).handler(async ({ db, req }) =>
         db.organization.one(req.input.id).get()
       ),
+      /**
+       * [Action availability](../../CONTEXT.md) for the org: what it is *able*
+       * to do, as opposed to what it has permitted the Agent to do. The worker
+       * resolves this before synthesis runs so the prompt and output schema
+       * never offer a move that cannot execute.
+       *
+       * Only `create_issue` needs a rule — every other action self-gates on
+       * evidence. It is available exactly when the org has a default issue
+       * target *and* a usable issue-tracker integration to send it to; the
+       * connector-registry check lives here rather than in the worker so
+       * capability knowledge stays on the API side.
+       */
+      actionAvailability: query(
+        z.object({ organizationId: z.string() })
+      ).handler(async ({ db, req }) => {
+        const org = await db.organization.one(req.input.organizationId).get();
+        const defaultIssueTarget = readDefaultIssueTarget(org?.settings);
+        if (!defaultIssueTarget) {
+          return { create_issue: false } satisfies ActionAvailability;
+        }
+
+        const target = await resolveIssueTrackerTarget(
+          db,
+          req.input.organizationId,
+          defaultIssueTarget.integrationId
+        );
+        return {
+          create_issue: target !== null,
+        } satisfies ActionAvailability;
+      }),
       /** All organizations — cli listing and public sitemap generation. */
       list: query().handler(async ({ db }) =>
         Object.values(await db.find(schema.organization, {}))
@@ -233,7 +271,7 @@ export const router = createRouter({
 
         if (
           req.input.level === "auto" &&
-          !REVERSIBLE_ACTIONS.has(req.input.actionKind)
+          !AUTO_CAPABLE_ACTIONS.has(req.input.actionKind)
         ) {
           throw new Error("ACTION_KIND_LOCKED_FROM_AUTO");
         }
@@ -264,6 +302,56 @@ export const router = createRouter({
           settings: {
             ...rawSettings,
             actionAutonomy: nextAutonomy,
+          } as OrganizationSettings,
+        });
+      }),
+      /**
+       * Set (or clear, with `target: null`) the org's [default issue
+       * target](../../CONTEXT.md) — where Agent-initiated issue creation lands.
+       * Distinct from `setCapabilityPrimary`, which pins *which* external
+       * system; this pins where inside it. While unset, `create_issue` is
+       * unavailable to synthesis rather than merely switched off.
+       */
+      setDefaultIssueTarget: mutation(
+        z.object({
+          organizationId: z.string(),
+          target: defaultIssueTargetSchema.nullable(),
+        })
+      ).handler(async ({ req, db }) => {
+        authorize(req, {
+          organizationId: req.input.organizationId,
+          role: "owner",
+        });
+
+        // A target pointing at an integration that can't receive a create would
+        // make `create_issue` look available and then fail at dispatch.
+        if (req.input.target) {
+          const resolved = await resolveIssueTrackerTarget(
+            db,
+            req.input.organizationId,
+            req.input.target.integrationId
+          );
+          if (!resolved) {
+            throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
+          }
+        }
+
+        const org = await db.organization.one(req.input.organizationId).get();
+        if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+
+        // Preserve raw settings — only touch defaultIssueTarget (see
+        // `setActionAutonomy` for why `safeParseOrgSettings` is avoided here).
+        const rawSettings =
+          org.settings &&
+          typeof org.settings === "object" &&
+          !Array.isArray(org.settings)
+            ? (org.settings as Record<string, unknown>)
+            : {};
+
+        return db.organization.update(org.id, {
+          settings: {
+            ...rawSettings,
+            defaultIssueTarget: req.input.target,
           } as OrganizationSettings,
         });
       }),

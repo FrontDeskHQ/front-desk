@@ -6,6 +6,7 @@ import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
 import { duplicateProcessor } from "./synthesis-track/duplicate/processor";
 import { relatedDocsProcessor } from "./synthesis-track/related_docs/processor";
+import { relatedIssuesProcessor } from "./synthesis-track/related_issues/processor";
 import { relatedPrsProcessor } from "./synthesis-track/related_prs/processor";
 import { synthesisProcessor } from "./synthesis-track/synthesis/processor";
 
@@ -21,7 +22,7 @@ export const registerDefaultProcessors = (): string[] => {
   processorRegistry.register(statusInfererProcessor);
 
   // --- Synthesis-track hint processors + synthesis agent --------------------
-  // Hint processors (duplicate, related_docs, related_prs) emit evidence to
+  // Hint processors (duplicate, related_docs, related_prs, related_issues) emit evidence to
   // thread.hints. Synthesis reads the hint bag + thread state and emits a raw
   // action set. Each processor handles its own idempotency; no manual override
   // is required. Ordering is resolved by `resolveExecutionOrder()` from each
@@ -29,6 +30,7 @@ export const registerDefaultProcessors = (): string[] => {
   processorRegistry.register(duplicateProcessor);
   processorRegistry.register(relatedDocsProcessor);
   processorRegistry.register(relatedPrsProcessor);
+  processorRegistry.register(relatedIssuesProcessor);
   processorRegistry.register(synthesisProcessor);
 
   return processorRegistry.getNames();

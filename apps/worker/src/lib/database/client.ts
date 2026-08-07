@@ -73,6 +73,39 @@ export const fetchMirroredPrByUrl = async (
 };
 
 /**
+ * A mirrored external issue as returned by the API's `issueByUrl` query — the
+ * depth-verification payload for synthesis' `read_issue` tool.
+ */
+export type MirroredIssue = NonNullable<
+  Awaited<ReturnType<typeof fetchClient.query.externalEntity.issueByUrl>>
+>;
+
+/**
+ * Fetch a single mirrored issue by its canonical URL, scoped to the org.
+ * Returns null when the issue was never mirrored (or has been soft-deleted).
+ */
+export const fetchMirroredIssueByUrl = async (
+  organizationId: string,
+  url: string
+): Promise<MirroredIssue | null> => {
+  try {
+    return await fetchClient.query.externalEntity.issueByUrl({
+      organizationId,
+      url,
+    });
+  } catch (error) {
+    log.error({
+      action: "worker.database",
+      operation: "issue.fetch",
+      organizationId,
+      url: sanitizeUrl(url),
+      error: errorFields(error),
+    });
+    return null;
+  }
+};
+
+/**
  * Fetch multiple threads with their messages and labels
  */
 export const fetchThreadsWithRelations = async (

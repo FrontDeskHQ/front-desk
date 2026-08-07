@@ -1,3 +1,4 @@
+import type { DefaultIssueTarget } from "@workspace/schemas/organization";
 import {
   ACTION_KIND_LABEL,
   fingerprintAgentRead,
@@ -82,9 +83,12 @@ export async function acceptThreadRead(input: {
   selection: ReadSelection;
   ctx: ActorContext;
   replyDraft?: string;
+  /** Redirects a `create_issue` away from the org's default issue target. */
+  issueTarget?: DefaultIssueTarget;
 }) {
   const readFingerprint = fingerprintAgentRead(input.read);
   await mutate.thread.acceptRead({
+    issueTarget: input.issueTarget,
     organizationId: input.ctx.organizationId,
     readFingerprint,
     replyDraft: input.replyDraft,

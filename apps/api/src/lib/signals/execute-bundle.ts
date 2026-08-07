@@ -1,4 +1,4 @@
-import { isReversible } from "@workspace/schemas/signals";
+import { isIssueAction, isReversible } from "@workspace/schemas/signals";
 import type { Action } from "@workspace/schemas/signals";
 
 import type {
@@ -95,6 +95,17 @@ const assertBundleApplicable = (bundle: Action[]): void => {
     if (action.kind === "reply" && action.draftMarkdown.trim().length === 0) {
       throw new Error("REPLY_DRAFT_EMPTY");
     }
+  }
+
+  // A thread links a single issue, and `create_issue` already links what it
+  // files. Pairing it with `link_issue` (or with a second create) would need the
+  // created issue's id to flow from one executed step into the next — the
+  // inter-step data flow ADR 0003's executor deliberately does not have.
+  // Synthesis rejects these at validation; this is the last line of defense on
+  // the accept path, where a human composes the bundle from the card.
+  const issueActions = bundle.filter(isIssueAction);
+  if (issueActions.length > 1) {
+    throw new Error("MULTIPLE_ISSUE_ACTIONS");
   }
 };
 

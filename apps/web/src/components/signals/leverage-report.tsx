@@ -25,9 +25,17 @@ const SINCE_VISIT_MAX_MS = 7 * 24 * 60 * 60 * 1000;
 // Tile caption per autonomous-action kind. Mirrors the discriminator on
 // `autonomousActionMetadataSchema` (the receipt metadata kind), not the legacy
 // SIGNAL_TYPES string.
-type ReceiptKind = "apply_label" | "set_status" | "mark_duplicate" | "link_pr";
+type ReceiptKind =
+  | "apply_label"
+  | "set_status"
+  | "mark_duplicate"
+  | "link_pr"
+  | "link_issue"
+  | "create_issue";
 const TILE_CAPTION: Record<ReceiptKind, string> = {
   apply_label: "Threads labeled",
+  create_issue: "Issues filed",
+  link_issue: "Issues linked",
   link_pr: "PRs linked",
   mark_duplicate: "Duplicates linked",
   set_status: "Status updates",
