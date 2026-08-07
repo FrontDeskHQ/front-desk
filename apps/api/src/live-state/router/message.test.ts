@@ -30,9 +30,17 @@ const thread = (externalOrigin: string | null) => ({
   organizationId: "org-1",
 });
 
-const createDb = (threadRow: ReturnType<typeof thread>) => {
+const createDb = (
+  threadRow: ReturnType<typeof thread>,
+  transactionThreadRow = threadRow
+) => {
   const insert = vi.fn<() => unknown>();
   const update = vi.fn<() => unknown>();
+  const transactionThread = vi.fn<() => unknown>(() => ({
+    get: vi.fn<() => Promise<ReturnType<typeof thread>>>(
+      async () => transactionThreadRow
+    ),
+  }));
   const returnedMessage = {
     author: { id: "author-1", name: "Casey", userId: null },
     authorId: "author-1",
@@ -66,13 +74,16 @@ const createDb = (threadRow: ReturnType<typeof thread>) => {
       callback({
         trx: {
           message: { insert },
-          thread: { update },
+          thread: {
+            one: vi.fn<() => unknown>(() => transactionThread()),
+            update,
+          },
         },
       })
     ),
   };
 
-  return { db, insert, update, returnedMessage };
+  return { db, insert, transactionThread, update, returnedMessage };
 };
 
 const input = (origin: CustomerChannel = "slack") => ({
@@ -114,6 +125,19 @@ describe("message.createAsThreadAuthor", () => {
         threadId: "thread-1",
       })
     );
+  });
+
+  it("revalidates the origin inside the transaction", async () => {
+    const { db, insert, update } = createDb(thread(null), thread("slack"));
+
+    await expect(
+      createAsThreadAuthor({
+        db,
+        req: { context: { internalApiKey: "dev-key" }, input: input("widget") },
+      })
+    ).rejects.toThrow("THREAD_ORIGIN_MISMATCH");
+    expect(update).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
   });
 
   it("persists an origin for a legacy originless thread", async () => {

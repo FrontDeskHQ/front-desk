@@ -51,6 +51,21 @@ const messageContentToMarkdown = (content: string): string =>
 const threadChannel = (externalOrigin: string | null | undefined): string =>
   externalOrigin ?? "portal";
 
+const compareMessageIds = (left: string, right: string): number =>
+  left < right ? -1 : left > right ? 1 : 0;
+
+const compareMessages = (
+  left: ResolvedThread["thread"]["messages"][number],
+  right: ResolvedThread["thread"]["messages"][number]
+): number => {
+  const createdAtDifference =
+    new Date(left.createdAt).getTime() - new Date(right.createdAt).getTime();
+
+  return createdAtDifference !== 0
+    ? createdAtDifference
+    : compareMessageIds(left.id, right.id);
+};
+
 export const resolveThread = async (
   ref: string,
   orgRef?: string
@@ -122,23 +137,30 @@ export const readThread = (
   resolved: ResolvedThread,
   after?: string
 ): ThreadReadOutput => {
-  const messages = [...resolved.thread.messages].sort((a, b) =>
-    a.id.localeCompare(b.id)
-  );
+  const messages = [...resolved.thread.messages].sort(compareMessages);
 
-  const afterIndex = after
-    ? messages.findIndex((message) => message.id === after)
-    : -1;
-  if (after && afterIndex === -1) {
+  if (after && !messages.some((message) => message.id === after)) {
     throw new Error(`Message cursor not found in thread: ${after}`);
   }
 
-  const visibleMessages = messages.slice(after ? afterIndex + 1 : 0);
+  // Message IDs are insertion cursors. Filtering by ID, instead of the
+  // presentation order, keeps a late-arriving imported message visible even
+  // when its provider timestamp places it earlier in the transcript.
+  const visibleMessages = after
+    ? messages.filter((message) => compareMessageIds(message.id, after) > 0)
+    : messages;
+  const cursor = resolved.thread.messages.reduce<string | null>(
+    (latest, message) =>
+      latest === null || compareMessageIds(message.id, latest) > 0
+        ? message.id
+        : latest,
+    null
+  );
   const channel = threadChannel(resolved.thread.externalOrigin);
   const webUrl = getWebUrl();
 
   return {
-    cursor: messages.at(-1)?.id ?? null,
+    cursor,
     messages: visibleMessages.map((message) =>
       normalizeMessage(resolved.thread, message)
     ),

@@ -13,8 +13,8 @@ import {
 
 export interface ThreadReplyOptions {
   channel?: CustomerChannel;
-  message?: string;
-  messageFile?: string;
+  message?: string | number;
+  messageFile?: string | number;
   org?: string;
   ref: string;
 }
@@ -35,9 +35,9 @@ export const readReplyContent = async (
   }
 
   const content = hasInlineMessage
-    ? options.message
-    : await readFile(options.messageFile as string, "utf-8");
-  const trimmed = content?.trim() ?? "";
+    ? String(options.message)
+    : await readFile(String(options.messageFile), "utf-8");
+  const trimmed = content.trim();
   if (!trimmed) {
     throw new Error("Reply message must not be empty");
   }

@@ -21,4 +21,10 @@ describe("customer reply input", () => {
       readReplyContent({ message: "  Follow-up  ", ref: "thread-1" })
     ).resolves.toBe("Follow-up");
   });
+
+  it("preserves numeric-only inline content", async () => {
+    await expect(
+      readReplyContent({ message: 123, ref: "thread-1" })
+    ).resolves.toBe("123");
+  });
 });

@@ -67,6 +67,37 @@ describe("thread transcript helpers", () => {
     expect(incremental.messages[0]?.role).toBe("frontdesk");
   });
 
+  it("orders by provider time while using insertion IDs as cursors", () => {
+    const lateHistoricalMessage = {
+      ...resolvedThread.thread.messages[0],
+      createdAt: new Date("2026-08-06T11:59:00.000Z"),
+      id: "03-message-late",
+    };
+    const importedThread = {
+      ...resolvedThread,
+      thread: {
+        ...resolvedThread.thread,
+        messages: [...resolvedThread.thread.messages, lateHistoricalMessage],
+      },
+    } as ResolvedThread;
+
+    const initial = readThread(importedThread);
+    expect(initial.messages.map((message) => message.id)).toStrictEqual([
+      "03-message-late",
+      "01-message-customer",
+      "02-message-agent",
+    ]);
+    expect(initial.cursor).toBe("03-message-late");
+
+    const incremental = readThread(importedThread, "02-message-agent");
+    expect(incremental.messages.map((message) => message.id)).toStrictEqual([
+      "03-message-late",
+    ]);
+    expect(
+      readThread(importedThread, "03-message-late").messages
+    ).toStrictEqual([]);
+  });
+
   it("rejects a cursor from another thread", () => {
     expect(() => readThread(resolvedThread, "missing")).toThrow(
       "Message cursor not found"

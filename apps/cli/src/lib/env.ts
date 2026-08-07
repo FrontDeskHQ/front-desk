@@ -1,4 +1,4 @@
-const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1"]);
+const LOCALHOST_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export const getApiUrl = (): string =>
   process.env.FD_API_URL ?? "http://localhost:3333/api/ls";
