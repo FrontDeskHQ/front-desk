@@ -6,7 +6,6 @@ import { earlyAccessRequestSchema } from "@workspace/schemas/early-access";
 import {
   defaultIssueTargetSchema,
   organizationSettingsSchema,
-  readDefaultIssueTarget,
 } from "@workspace/schemas/organization";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
@@ -33,7 +32,10 @@ import {
   requireInternalApiKey,
 } from "../lib/authorize";
 import { connectorRegistry } from "../lib/connector-registry";
-import { resolveIssueTrackerTarget } from "../lib/issue-tracker";
+import {
+  resolveEffectiveDefaultIssueTarget,
+  resolveIssueTrackerTarget,
+} from "../lib/issue-tracker";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { notifyWaitlistSignup } from "../lib/waitlist-discord";
@@ -103,8 +105,9 @@ export const router = createRouter({
        * never offer a move that cannot execute.
        *
        * Only `create_issue` needs a rule — every other action self-gates on
-       * evidence. It is available exactly when the org has a default issue
-       * target *and* a usable issue-tracker integration to send it to; the
+       * evidence. It is available exactly when the org has a usable default
+       * issue target (explicit, or the first target on the primary tracker)
+       * *and* a usable issue-tracker integration to send it to; the
        * connector-registry check lives here rather than in the worker so
        * capability knowledge stays on the API side.
        */
@@ -117,7 +120,11 @@ export const router = createRouter({
         authorize(req, { organizationId: req.input.organizationId });
 
         const org = await db.organization.one(req.input.organizationId).get();
-        const defaultIssueTarget = readDefaultIssueTarget(org?.settings);
+        const defaultIssueTarget = await resolveEffectiveDefaultIssueTarget(
+          db,
+          req.input.organizationId,
+          org?.settings
+        );
         if (!defaultIssueTarget) {
           return { create_issue: false } satisfies ActionAvailability;
         }
@@ -314,8 +321,8 @@ export const router = createRouter({
        * Set (or clear, with `target: null`) the org's [default issue
        * target](../../CONTEXT.md) — where Agent-initiated issue creation lands.
        * Distinct from `setCapabilityPrimary`, which pins *which* external
-       * system; this pins where inside it. While unset, `create_issue` is
-       * unavailable to synthesis rather than merely switched off.
+       * system; this pins where inside it. While unset, synthesis falls back
+       * to the first available target on the primary tracker.
        */
       setDefaultIssueTarget: mutation(
         z.object({

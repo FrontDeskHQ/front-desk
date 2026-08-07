@@ -130,7 +130,7 @@ The vector index of mirrored [external issues](#external-issue), the counterpart
 
 ### Default issue target
 
-The [organization](#organization)-designated sub-resource (e.g. a repository) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default issue target is set, issue creation is simply not available to [synthesis](#synthesis). Humans remain free to pick any target, including when accepting an Agent proposal.
+The [organization](#organization)-designated sub-resource (e.g. a repository) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default is set, it falls back to the first available target on the primary tracker (same "first when unset" rule as the primary itself). Issue creation is unavailable to [synthesis](#synthesis) only when no usable target exists. Humans remain free to pick any target, including when accepting an Agent proposal.
 
 ### Flagged ambiguities
 

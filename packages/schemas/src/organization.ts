@@ -29,8 +29,9 @@ export const digestSettingsSchema = z.object({
  * a GitHub `{ owner, repo }`) — core forwards it untouched. `label` is the
  * human-readable rendering shown in settings and on the accept card.
  *
- * The Agent never picks a target itself: when this is unset, `create_issue` is
- * simply not available to synthesis.
+ * The Agent never picks a target itself: when this is unset, synthesis falls
+ * back to the first available target on the primary issue tracker (same rule
+ * as `capabilityPrimary`).
  */
 export const defaultIssueTargetSchema = z.object({
   /** Pins the issue-tracker integration; falls back to the capability primary. */
@@ -111,8 +112,9 @@ export const readCapabilityPrimary = (
  * Reads the default issue target directly from raw settings, without validating
  * the rest of the object — same reasoning as `readCapabilityPrimary`: an
  * unrelated bad field must not silently drop a validly configured target.
- * Returns null when unset or malformed, which reads as "issue creation is not
- * available to the Agent".
+ * Returns null when unset or malformed. Callers that need the Agent-effective
+ * destination should fall back to the first available target (see
+ * `resolveEffectiveDefaultIssueTarget` on the API).
  */
 export const readDefaultIssueTarget = (
   settings: unknown

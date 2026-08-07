@@ -2,7 +2,12 @@ import { invokeCapability } from "@connectors/framework";
 import type { NormalizedIssue } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
-import { readCapabilityPrimary } from "@workspace/schemas/organization";
+import type { DefaultIssueTarget } from "@workspace/schemas/organization";
+import {
+  readCapabilityPrimary,
+  readDefaultIssueTarget,
+} from "@workspace/schemas/organization";
+import { z } from "zod";
 
 import { schema } from "../live-state/schema";
 import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
@@ -22,6 +27,28 @@ export interface ResolvedIssueTracker {
 }
 
 /**
+ * GitHub connector config shape used only to pick a first-repo fallback for the
+ * default issue target. Core still treats `target` as opaque at dispatch —
+ * this is the same provider-aware boundary the web settings picker uses.
+ */
+const githubIssueTargetConfigSchema = z.object({
+  repos: z
+    .array(
+      z
+        .object({
+          fullName: z.string().min(1),
+          name: z.string().regex(/^[^/]+$/),
+          owner: z.string().regex(/^[^/]+$/),
+        })
+        .refine(
+          ({ fullName, name, owner }) => fullName === `${owner}/${name}`,
+          { message: "fullName must match owner/name" }
+        )
+    )
+    .default([]),
+});
+
+/**
  * Resolve the enabled, configured integration that should receive an
  * issue-tracker `create`. Unlike `resolveEntityCapabilityTarget` there is no
  * mirrored entity to route by — nothing has been created yet — so selection
@@ -29,7 +56,7 @@ export interface ResolvedIssueTracker {
  * primary for the capability, then the first enabled provider.
  *
  * Returns null when the org has no usable issue tracker, which is also what
- * makes `create_issue` unavailable to the Agent.
+ * makes `create_issue` unavailable to the Agent when no targets exist either.
  */
 export const resolveIssueTrackerTarget = async (
   db: IssueTrackerDb,
@@ -51,6 +78,13 @@ export const resolveIssueTrackerTarget = async (
       .map((entry) => entry.manifest.type)
   );
 
+  // Prefer configured trackers when falling back to "first" — an enabled but
+  // empty install can't receive creates, and the settings UI only lists ones
+  // with config.
+  const configuredTrackers = enabledIntegrations.filter(
+    (i) => providerTypes.has(i.type) && i.configStr
+  );
+
   const primaryIssueTrackerId = readCapabilityPrimary(
     enabledIntegrations[0]?.organization?.settings,
     "issue-tracker"
@@ -61,11 +95,8 @@ export const resolveIssueTrackerTarget = async (
         (i) => i.id === integrationId && providerTypes.has(i.type)
       )
     : ((primaryIssueTrackerId
-        ? enabledIntegrations.find(
-            (i) => i.id === primaryIssueTrackerId && providerTypes.has(i.type)
-          )
-        : undefined) ??
-      enabledIntegrations.find((i) => providerTypes.has(i.type)));
+        ? configuredTrackers.find((i) => i.id === primaryIssueTrackerId)
+        : undefined) ?? configuredTrackers[0]);
 
   // An integration can be enabled before it's configured (`configStr` is
   // nullable); treat that as unresolved rather than forwarding a null config.
@@ -91,6 +122,53 @@ export const resolveIssueTrackerTarget = async (
     },
     invokeUrl: entry.invokeUrl,
     organization,
+  };
+};
+
+/**
+ * Where Agent-initiated issue creation should land: the org's saved default,
+ * or — when unset — the first sub-resource on the resolved issue tracker
+ * (same "first when unset" rule as capability primary). Returns null only when
+ * nothing usable exists, which keeps `create_issue` unavailable.
+ */
+export const resolveEffectiveDefaultIssueTarget = async (
+  db: IssueTrackerDb,
+  organizationId: string,
+  settings: unknown
+): Promise<DefaultIssueTarget | null> => {
+  const saved = readDefaultIssueTarget(settings);
+  if (saved) {
+    return saved;
+  }
+
+  const resolved = await resolveIssueTrackerTarget(db, organizationId);
+  if (!resolved) {
+    return null;
+  }
+
+  // Only GitHub exposes listable targets today; other trackers must set an
+  // explicit default until they grow a config surface we can read.
+  if (resolved.integration.type !== "github") {
+    return null;
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(resolved.integration.configStr);
+  } catch {
+    return null;
+  }
+
+  const config = githubIssueTargetConfigSchema.safeParse(parsed);
+  const first = config.success ? config.data.repos[0] : undefined;
+  if (!first) {
+    return null;
+  }
+
+  return {
+    integrationId: resolved.integration.id,
+    label: first.fullName,
+    target: { owner: first.owner, repo: first.name },
   };
 };
 

@@ -177,8 +177,8 @@ These are leads, not confirmed links. Read a candidate with read_pr and confirm 
 
   // Action availability (see CONTEXT.md) shapes the vocabulary itself.
   // `create_issue` needs no evidence, so unlike link_pr it cannot self-gate on
-  // an empty hint — if the org has no default issue target, the verb simply
-  // isn't offered.
+  // an empty hint — if the org has no usable issue target (explicit default or
+  // first-available fallback), the verb simply isn't offered.
   const createIssueVocabulary = input.availability.create_issue
     ? "\n- create_issue (requires title and body) — file a NEW issue on the organization's default issue target and link it to this thread"
     : "";
