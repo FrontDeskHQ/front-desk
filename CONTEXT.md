@@ -38,7 +38,7 @@ Evidence about a thread, computed eagerly by a [hint processor](#hint-processor)
 
 ### Hint processor
 
-A [processor](#processor) that produces zero or one [read hint](#read-hint) for a thread. The hints today are _duplicate_ and _related-docs_; _related-PRs_ is the pull-side counterpart to the `pr_matched` [trigger](#trigger) (thread → similar [external pull requests](#external-pull-request)). A hint processor only gathers and scores evidence; it never proposes a concrete action. Each owns its own input dependencies and skips when its prior hint is still valid.
+A [processor](#processor) that produces zero or one [read hint](#read-hint) for a thread. The hints today are _duplicate_ and _related-docs_; _related-PRs_ is the pull-side counterpart to the `pr_matched` [trigger](#trigger) (thread → similar [external pull requests](#external-pull-request)); _related-issues_ is its [external issue](#external-issue) counterpart and has no push-side trigger. A hint processor only gathers and scores evidence; it never proposes a concrete action. Each owns its own input dependencies and skips when its prior hint is still valid.
 
 ### Processor
 
@@ -57,6 +57,10 @@ The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](
 ### Autonomy stage
 
 A deterministic, no-LLM helper (not a pipeline processor) that action-emitting processors call immediately after their LLM step. Per action kind it applies the org's setting (`off` → drop, `suggest` → leave for human, `auto` → execute now + write an [autonomous-action](#autonomous-action) receipt), then persists the surface (`thread.agentRead` or `thread.inlineSuggestions`). [Synthesis](#synthesis) calls it over the raw action set; [inline track](#inline-suggestion) processors call it over label/status proposals. Auto-mode fires the synthesis primary only; alternatives are never auto-executed.
+
+### Action availability
+
+Whether an [organization](#organization) is _able_ to perform an action at all, given its [integrations](#integration) and configuration — as opposed to whether it has _permitted_ the Agent to, which is the [autonomy stage](#autonomy-stage)'s job. Availability is resolved before [synthesis](#synthesis) runs and shapes what synthesis is even offered, so the Agent never proposes a move that cannot execute. Most actions self-gate on evidence (no mirrored pull requests, no PR to link); actions that need no evidence, such as issue creation, need an explicit availability rule. _Avoid_: describing an unavailable action as "off" — `off` is a deliberate org choice.
 
 ### Autonomous action
 
@@ -119,6 +123,14 @@ FrontDesk's local, read-only replica of authoritative external data ([external i
 ### PR index
 
 The vector index of mirrored [external pull requests](#external-pull-request), kept in step with the [mirror](#mirror) so PR↔thread similarity can be searched. Each indexed PR carries an **`eligible`** flag — true only while the PR is _open and non-draft_ — and search filters to eligible PRs. Every mirror write (webhook, backfill, drift reconciliation) refreshes the index; close / convert-to-draft flips `eligible` false, reopen / ready_for_review / content edits refresh it. Indexing is **index-only**: it never enqueues a `pr_matched` [trigger](#trigger). This PR only _maintains_ the index — it implements neither discovery flow. The index is intended to feed two future consumers: the push-side match (PR → similar threads) and the pull-side `related_prs` [hint](#read-hint) (thread → similar PRs). A PR is embedded from its _title + body + head ref_.
+
+### Issue index
+
+The vector index of mirrored [external issues](#external-issue), the counterpart to the [PR index](#pr-index). Its **eligibility** rule is deliberately _not_ the PR one: every non-deleted issue is eligible regardless of open/closed state, because a closed issue is often the most useful thing a [thread](#thread) can link to ("this was fixed in #412") and the strongest reason _not_ to file a new one. State travels in the evidence so [synthesis](#synthesis) decides what it means, rather than the index deciding for it.
+
+### Default issue target
+
+The [organization](#organization)-designated sub-resource (e.g. a repository) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default issue target is set, issue creation is simply not available to [synthesis](#synthesis). Humans remain free to pick any target, including when accepting an Agent proposal.
 
 ### Flagged ambiguities
 

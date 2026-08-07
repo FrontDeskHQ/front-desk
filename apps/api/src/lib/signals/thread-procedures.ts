@@ -1,9 +1,11 @@
 import type { ServerDB } from "@live-state/sync/server";
+import { defaultIssueTargetSchema } from "@workspace/schemas/organization";
 import {
   actionSchema,
   duplicateHintSlotSchema,
   inlineSuggestionSchema,
   relatedDocsHintSlotSchema,
+  relatedIssuesHintSlotSchema,
   relatedPrsHintSlotSchema,
 } from "@workspace/schemas/signals";
 import type { InlineSuggestion, ThreadRead } from "@workspace/schemas/signals";
@@ -43,6 +45,12 @@ export const executeAutonomousBundleInputSchema = z.object({
 });
 
 export const acceptReadInputSchema = z.object({
+  /**
+   * Where a `create_issue` in this selection should file, overriding the org's
+   * default issue target. The accept card prefills the default with a picker so
+   * a reviewer can redirect before accepting; omitted, the default is used.
+   */
+  issueTarget: defaultIssueTargetSchema.optional(),
   organizationId: z.string(),
   readFingerprint: z.string(),
   replyDraft: z.string().optional(),
@@ -87,11 +95,13 @@ const buildExecutionContext = (
     organizationId: string;
     actorUserId: string | null;
     actorUserName: string | null;
+    issueTarget?: ExecutionContext["issueTarget"];
   }
 ): ExecutionContext => ({
   actorUserId: args.actorUserId,
   actorUserName: args.actorUserName,
   db,
+  issueTarget: args.issueTarget,
   organizationId: args.organizationId,
   threadId: args.threadId,
 });
@@ -183,6 +193,7 @@ export const runAcceptRead = async (
   const ctx = buildExecutionContext(db, {
     actorUserId,
     actorUserName,
+    issueTarget: input.issueTarget,
     organizationId: input.organizationId,
     threadId: input.threadId,
   });
@@ -347,6 +358,12 @@ export const writeHintSlotInputSchema = z.discriminatedUnion("kind", [
     kind: z.literal("related_prs"),
     organizationId: z.string(),
     slot: relatedPrsHintSlotSchema,
+    threadId: z.string(),
+  }),
+  z.object({
+    kind: z.literal("related_issues"),
+    organizationId: z.string(),
+    slot: relatedIssuesHintSlotSchema,
     threadId: z.string(),
   }),
 ]);

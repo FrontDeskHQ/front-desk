@@ -26,6 +26,32 @@ export interface SynthesisAgentEvalCase {
     >;
     docsSearchHitsByQuery?: Record<string, DocumentationSearchHit[]>;
     docsPageChunksByUrl?: Record<string, DocumentationPageChunk[]>;
+    /** Mirrored issues keyed by URL, served by the mocked `read_issue` tool. */
+    issuesByUrl?: Record<
+      string,
+      {
+        url: string;
+        repoFullName: string;
+        number: number;
+        title: string;
+        body: string | null;
+        state: string;
+        authorLogin: string | null;
+        labels: string[];
+      }
+    >;
+    /** Issue hits keyed by query, served by the mocked `search_issues` tool. */
+    issueSearchHitsByQuery?: Record<
+      string,
+      {
+        url: string;
+        repoFullName: string;
+        number: number;
+        title: string;
+        state: string;
+        score: number;
+      }[]
+    >;
     /** Mirrored PRs keyed by URL, served by the mocked `read_pr` tool. */
     prsByUrl?: Record<
       string,
@@ -83,10 +109,15 @@ const mkThread = (id: string, name: string) => ({
   status: 0,
 });
 
+// Cases declare only what they exercise; the dataset fills in the rest below.
+// `availability` defaults to create_issue being unavailable so existing cases
+// keep the vocabulary they were written against — a case that wants to exercise
+// issue filing opts in explicitly.
 type SynthesisAgentEvalCaseInput = Omit<
   SynthesizeThreadReadInput,
-  "hasTeamReply"
+  "availability" | "hasTeamReply"
 > & {
+  availability?: SynthesizeThreadReadInput["availability"];
   hasTeamReply?: boolean;
 };
 
@@ -975,6 +1006,7 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] =
     ...testCase,
     input: {
       ...testCase.input,
+      availability: testCase.input.availability ?? { create_issue: false },
       hasTeamReply: testCase.input.hasTeamReply ?? false,
     },
   }));

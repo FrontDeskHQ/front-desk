@@ -4,6 +4,7 @@ import { sortThreadReadTriggers } from "@workspace/schemas/signals";
 import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 
+import { getOrgActionAvailability } from "../../../../lib/action-availability";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
 import { isRetryableError } from "../../../../lib/logging";
@@ -22,6 +23,7 @@ import type {
 import type { SummarizeOutput } from "../../summarize";
 import type { DuplicateProcessorOutput } from "../duplicate/processor";
 import type { RelatedDocsProcessorOutput } from "../related_docs/processor";
+import type { RelatedIssuesProcessorOutput } from "../related_issues/processor";
 import type { RelatedPrsProcessorOutput } from "../related_prs/processor";
 import { normalizeSynthesisRawActionSet } from "./normalize";
 import { synthesizeThreadRead } from "./synthesize";
@@ -91,6 +93,11 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           "related_prs",
           threadId
         );
+      const relatedIssues =
+        jobContext.getProcessorOutput<RelatedIssuesProcessorOutput>(
+          "related_issues",
+          threadId
+        );
 
       const hashInput = [
         thread.id,
@@ -102,6 +109,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         JSON.stringify(duplicate?.evidence ?? null),
         JSON.stringify(relatedDocs?.evidence ?? null),
         JSON.stringify(relatedPrs?.evidence ?? null),
+        JSON.stringify(relatedIssues?.evidence ?? null),
         // Trigger channel (ADR 0006): a pushed PR candidate must re-run
         // synthesis even when thread content is unchanged.
         JSON.stringify(sortThreadReadTriggers(jobContext.input.triggers ?? [])),
@@ -110,7 +118,13 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
       return computeSha256(hashInput);
     },
 
-    dependencies: ["summarize", "duplicate", "related_docs", "related_prs"],
+    dependencies: [
+      "summarize",
+      "duplicate",
+      "related_docs",
+      "related_prs",
+      "related_issues",
+    ],
 
     runsOnTrigger(context: ProcessorExecuteContext): boolean {
       return hasSynthesisTrigger(context.context.input.triggers);
@@ -167,6 +181,12 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           ? (resolvedAuthors.names.get(thread.authorId) ?? null)
           : null;
 
+        // Availability is resolved *before* synthesis so it can shape the
+        // prompt and the output schema (see CONTEXT.md, "Action availability").
+        const availability = await getOrgActionAvailability(
+          thread.organizationId
+        );
+
         const tools = createSynthesisTools({
           organizationId: thread.organizationId,
           currentThreadId: threadId,
@@ -188,6 +208,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
                   ? message.createdAt.toISOString()
                   : String(message.createdAt),
             })),
+            availability,
             summary: summarize?.summary ?? null,
             hints,
             triggers: jobContext.input.triggers ?? [],
@@ -215,6 +236,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           synthesis: {
             messageCount: messages.length,
             hintCount: Object.keys(hints).length,
+            createIssueAvailable: availability.create_issue,
             primaryActionCount: rawActionSet?.primary.length ?? 0,
             alternativeActionCount: rawActionSet?.alternatives?.length ?? 0,
             teamReplyPresent: hasTeamReply,

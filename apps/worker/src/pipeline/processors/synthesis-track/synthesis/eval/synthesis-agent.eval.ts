@@ -28,6 +28,7 @@ type SynthesisTools = ReturnType<typeof createSynthesisTools>;
 type ToolOutput<T> = T extends Tool<infer _I, infer O> ? O : never;
 type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
 type ReadPrOutput = ToolOutput<SynthesisTools["read_pr"]>;
+type ReadIssueOutput = ToolOutput<SynthesisTools["read_issue"]>;
 
 const createMockTools = (
   fixtures: SynthesisAgentEvalInput["toolFixtures"]
@@ -36,15 +37,19 @@ const createMockTools = (
   counters: {
     read_thread: number;
     read_pr: number;
+    read_issue: number;
+    search_issues: number;
     search_documentation: number;
     read_documentation_page: number;
   };
 } => {
   const counters = {
     read_documentation_page: 0,
+    read_issue: 0,
     read_pr: 0,
     read_thread: 0,
     search_documentation: 0,
+    search_issues: 0,
   };
 
   const tools: SynthesisTools = {
@@ -70,6 +75,16 @@ const createMockTools = (
         return { found: true, pr };
       },
     }),
+    read_issue: tool({
+      description: "Read a mirrored issue from mocked fixtures.",
+      inputSchema: z.object({ issueUrl: z.string() }),
+      execute: async ({ issueUrl }): Promise<ReadIssueOutput> => {
+        counters.read_issue++;
+        const issue = fixtures.issuesByUrl?.[issueUrl];
+        if (!issue) return { found: false, reason: "not_mirrored" };
+        return { found: true, issue };
+      },
+    }),
     read_thread: tool({
       description: "Read a thread from mocked fixtures.",
       inputSchema: z.object({ threadId: z.string() }),
@@ -93,6 +108,18 @@ const createMockTools = (
             })),
           },
         };
+      },
+    }),
+    search_issues: tool({
+      description: "Search mirrored issues from mocked fixtures.",
+      inputSchema: z.object({
+        query: z.string(),
+        limit: z.number().int().min(1).max(10).optional(),
+      }),
+      execute: async ({ query }) => {
+        counters.search_issues++;
+        const hits = fixtures.issueSearchHitsByQuery?.[query] ?? [];
+        return { hits };
       },
     }),
     search_documentation: tool({

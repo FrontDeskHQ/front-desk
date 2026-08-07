@@ -1,7 +1,4 @@
 // TODO refactor with new live-state mental model
-import { invokeCapability } from "@connectors/framework";
-import type { NormalizedIssue } from "@connectors/framework";
-import { readCapabilityPrimary } from "@workspace/schemas/organization";
 import { ulid } from "ulid";
 import z from "zod";
 
@@ -13,10 +10,7 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
-import {
-  connectorInvokeSecret,
-  connectorRegistry,
-} from "../../lib/connector-registry";
+import { runCreateIssue } from "../../lib/issue-tracker";
 import { nextMessageInsertionSequence } from "../../lib/message-sequence";
 import {
   acceptInlineSuggestionInputSchema,
@@ -60,7 +54,6 @@ import {
 } from "../../lib/thread-mutations";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 import { serializeMessageContent } from "../../lib/tiptap-content";
-import { runRecordActivity } from "../../lib/update-mutations";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -453,109 +446,25 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     const actor = req.context?.internalApiKey ? null : getWorkspaceActor(req);
 
-    // Resolve the target integration providing the issue-tracker capability
-    // from the org's enabled integrations, via the registry.
-    interface EnabledIntegration {
-      id: string;
-      type: string;
-      configStr?: string | null;
-      organization?: {
-        settings: unknown;
-        slug: string;
-      };
-    }
-
-    const enabledIntegrations = Object.values(
-      await db.find(schema.integration, {
-        include: { organization: true },
-        where: { enabled: true, organizationId },
-      })
-    ) as EnabledIntegration[];
-
-    const providerTypes = new Set(
-      connectorRegistry
-        .providersOf("issue-tracker")
-        .map((entry) => entry.manifest.type)
-    );
-
-    // When no target is implied (agent-initiated create, humans pin nothing),
-    // fall back to the org's primary issue-tracker before the first provider.
-    // Humans can still pin any target freely via `integrationId`.
-    const primaryIssueTrackerId = readCapabilityPrimary(
-      enabledIntegrations[0]?.organization?.settings,
-      "issue-tracker"
-    );
-
-    const integration = req.input.integrationId
-      ? enabledIntegrations.find(
-          (i) => i.id === req.input.integrationId && providerTypes.has(i.type)
-        )
-      : ((primaryIssueTrackerId
-          ? enabledIntegrations.find(
-              (i) => i.id === primaryIssueTrackerId && providerTypes.has(i.type)
-            )
-          : undefined) ??
-        enabledIntegrations.find((i) => providerTypes.has(i.type)));
-
-    if (!integration) {
-      throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
-    }
-
-    const entry = connectorRegistry.getByType(integration.type);
-    if (!entry) {
-      throw new Error("CONNECTOR_NOT_REGISTERED");
-    }
-
-    // An integration can be enabled before it's configured (`configStr` is
-    // nullable); fail with a clear error rather than forwarding a null config.
-    if (!integration.configStr) {
-      throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
-    }
-
     // Verify thread exists and belongs to the organization
     const thread = await db.findOne(schema.thread, req.input.threadId);
     if (!thread || thread.organizationId !== organizationId) {
       throw new Error("THREAD_NOT_FOUND");
     }
 
-    // Append FrontDesk footer to issue body
-    const orgSlug = integration.organization?.slug;
-    if (!orgSlug) {
-      throw new Error("ORGANIZATION_NOT_FOUND");
-    }
-    const threadPortalUrl = `https://${orgSlug}.tryfrontdesk.app/threads/${thread.id}`;
-    const footer = `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${threadPortalUrl}).`;
-    const body = (req.input.body ?? "") + footer;
-
-    // Dispatch generically: the connector interprets its own opaque config
-    // (`configStr`, forwarded untouched) and the target sub-resource.
-    const { entity } = await invokeCapability<{ entity: NormalizedIssue }>(
-      entry.invokeUrl,
-      {
-        capability: "issue-tracker",
-        config: integration.configStr,
-        method: "create",
-        payload: {
-          body,
-          target: req.input.target,
-          title: req.input.title,
-        },
-      },
-      { secret: connectorInvokeSecret }
-    );
-
-    await runRecordActivity(db, {
-      metadata: {
-        issueId: entity.id,
-        issueLabel: entity.label,
-        issueShortId: entity.shortId,
-      },
+    // Client-orchestrated: this returns the created entity and the browser then
+    // calls `thread.linkIssue`. The Agent cannot do that — it has no browser on
+    // either the `auto` (worker) or accept (API) path — so its `create_issue`
+    // handler creates *and* links in one server-side step instead.
+    const entity = await runCreateIssue(db, {
+      actorUserId: actor?.userId ?? null,
+      actorUserName: actor?.userName ?? null,
+      body: req.input.body,
+      integrationId: req.input.integrationId,
       organizationId,
-      replicatedStr: null,
+      target: req.input.target,
       threadId: req.input.threadId,
-      type: "issue_created",
-      userId: actor?.userId ?? null,
-      userName: actor?.userName ?? null,
+      title: req.input.title,
     });
 
     // The created issue propagates into the `externalEntity` mirror via the

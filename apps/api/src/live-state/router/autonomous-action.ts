@@ -167,6 +167,22 @@ export default privateRoute.withProcedures(({ mutation }) => ({
         newPrLabel: null,
         source: "autonomous_undo",
       };
+    } else if (metadata?.kind === "link_issue") {
+      const threads = await db.thread.where({ id: threadId }).get();
+      const oldIssueId = threads[0]?.externalIssueId ?? null;
+      // Restore the link the thread carried before, not null: the Agent may
+      // have redirected an existing link rather than created the first one.
+      await db.thread.update(threadId, {
+        externalIssueId: metadata.previousIssueId,
+      });
+      activityType = "issue_changed";
+      activityMetadata = {
+        oldIssueId,
+        newIssueId: metadata.previousIssueId,
+        oldIssueLabel: oldIssueId ? "linked issue" : null,
+        newIssueLabel: metadata.previousIssueId ? "linked issue" : null,
+        source: "autonomous_undo",
+      };
     } else if (metadata?.kind === "mark_duplicate") {
       await db.thread.update(threadId, { status: metadata.previousStatus });
       activityType = "marked_duplicate";
