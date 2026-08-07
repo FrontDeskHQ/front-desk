@@ -129,6 +129,16 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
       "related_issues",
     ],
 
+    // Linking/unlinking sets `externalIssueId` without changing summarize or
+    // related_* outputs, so those deps can all skip. Without this opt-out the
+    // orchestrator would fast-path synthesis on idempotency-key existence alone
+    // and never consult the hash that now includes `externalIssueId` — leaving
+    // a stale create_issue offer (or hiding a newly available one). Same shape
+    // as related_issues / related_prs.
+    runsWhenDependenciesSkipped(context: ProcessorExecuteContext): boolean {
+      return Boolean(context.thread.externalIssueId);
+    },
+
     runsOnTrigger(context: ProcessorExecuteContext): boolean {
       return hasSynthesisTrigger(context.context.input.triggers);
     },
