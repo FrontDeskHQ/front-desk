@@ -35,6 +35,35 @@ export const linkPrActionSchema = z.object({
 });
 export type LinkPrAction = z.infer<typeof linkPrActionSchema>;
 
+/**
+ * Point a thread at an already-mirrored [external issue](../../CONTEXT.md).
+ * Local-only and reversible: it writes `thread.externalIssueId` and posts
+ * nothing upstream — deliberately *not* mirroring `link_pr`, which invokes
+ * `pr-tracker/link` to leave a back-reference comment.
+ */
+export const linkIssueActionSchema = z.object({
+  /** Canonical URL of the mirrored issue; the handler routes by it. */
+  issueUrl: z.string(),
+  kind: z.literal("link_issue"),
+});
+export type LinkIssueAction = z.infer<typeof linkIssueActionSchema>;
+
+/**
+ * File a new external issue and link it to the thread in one atomic handler.
+ * Non-reversible. The body must reproduce the *problem*, never the reporter:
+ * issues can land in a public repo, and the authed thread-link footer is the
+ * only path back to the customer.
+ */
+export const createIssueActionSchema = z.object({
+  // Non-empty at the schema level, not just in `normalize`: filing is
+  // non-reversible, so an empty-titled issue cannot be withdrawn once created.
+  // `reply` gets the equivalent guard from `REPLY_DRAFT_EMPTY` at execution.
+  body: z.string().trim().min(1),
+  kind: z.literal("create_issue"),
+  title: z.string().trim().min(1),
+});
+export type CreateIssueAction = z.infer<typeof createIssueActionSchema>;
+
 export const closeActionSchema = z.object({
   kind: z.literal("close"),
 });
@@ -57,6 +86,8 @@ export const actionSchema = z.discriminatedUnion("kind", [
   replyActionSchema,
   markDuplicateActionSchema,
   linkPrActionSchema,
+  linkIssueActionSchema,
+  createIssueActionSchema,
   closeActionSchema,
   applyLabelActionSchema,
   setStatusActionSchema,
@@ -67,6 +98,8 @@ export const ACTION_KINDS = [
   "reply",
   "mark_duplicate",
   "link_pr",
+  "link_issue",
+  "create_issue",
   "close",
   "apply_label",
   "set_status",
@@ -77,6 +110,8 @@ export type ActionKind = z.infer<typeof actionKindSchema>;
 export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
   apply_label: "Apply label",
   close: "Close thread",
+  create_issue: "File issue",
+  link_issue: "Link issue",
   link_pr: "Link pull request",
   mark_duplicate: "Mark duplicate",
   reply: "Just reply",
@@ -91,6 +126,8 @@ export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
 export const ACTION_KIND_VERB: Record<ActionKind, string> = {
   apply_label: "apply label",
   close: "close",
+  create_issue: "file issue",
+  link_issue: "link issue",
   link_pr: "link PR",
   mark_duplicate: "mark duplicate",
   reply: "reply",
@@ -103,6 +140,9 @@ export const REVERSIBLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
   "apply_label",
   "set_status",
   "mark_duplicate",
+  // Local-only: `link_issue` writes `thread.externalIssueId` and posts nothing
+  // upstream, so restoring the previous id fully undoes it.
+  "link_issue",
 ]);
 export const isReversible = (action: Action): boolean =>
   REVERSIBLE_ACTIONS.has(action.kind);
@@ -111,12 +151,29 @@ export const SYNTHESIS_ACTION_KINDS: ReadonlySet<ActionKind> = new Set([
   "reply",
   "mark_duplicate",
   "link_pr",
+  "link_issue",
+  "create_issue",
   "close",
 ]);
 export const INLINE_ACTION_KINDS: ReadonlySet<ActionKind> = new Set([
   "apply_label",
   "set_status",
 ]);
+/**
+ * Actions that settle a thread's single issue link. At most one may appear
+ * across primary and alternatives — a thread links one issue — and the two may
+ * never be bundled together: `create_issue` already links what it files, so
+ * pairing it with `link_issue` would need the created issue's id to flow from
+ * one executed step into the next, which ADR 0003's executor deliberately
+ * cannot do.
+ */
+export const ISSUE_ACTION_KINDS: ReadonlySet<ActionKind> = new Set([
+  "link_issue",
+  "create_issue",
+]);
+export const isIssueAction = (action: Action): boolean =>
+  ISSUE_ACTION_KINDS.has(action.kind);
+
 export const isSynthesisAction = (action: Action): boolean =>
   SYNTHESIS_ACTION_KINDS.has(action.kind);
 export const isInlineAction = (action: Action): boolean =>
@@ -301,6 +358,39 @@ export const relatedPrsEvidenceSchema = z.object({
 });
 export type RelatedPrsEvidence = z.infer<typeof relatedPrsEvidenceSchema>;
 
+/**
+ * A single [external issue](../../CONTEXT.md) the pull-side `related_issues`
+ * hint found similar to the thread. There is no push-side counterpart: issues
+ * are filed constantly and most have no waiting customer, so an `issue_matched`
+ * trigger's noise profile would be far worse than `pr_matched`'s.
+ *
+ * `state` travels with the evidence on purpose. Unlike PRs, a *closed* issue is
+ * eligible — often it is the most useful thing to link ("this was fixed in
+ * #412") and the strongest reason not to file a new one — so synthesis decides
+ * what the state means rather than the index deciding for it.
+ */
+export const relatedIssueEvidenceItemSchema = z.object({
+  /** Provider-agnostic key `provider:owner/repo#number`. */
+  externalKey: z.string(),
+  /** Mirror row id (`externalEntity.id`). */
+  issueId: z.string(),
+  number: z.number(),
+  repoFullName: z.string(),
+  score: z.number().min(0).max(1),
+  /** Upstream issue state ("open" | "closed"); never an eligibility filter. */
+  state: z.string(),
+  title: z.string(),
+  url: z.string(),
+});
+export type RelatedIssueEvidenceItem = z.infer<
+  typeof relatedIssueEvidenceItemSchema
+>;
+
+export const relatedIssuesEvidenceSchema = z.object({
+  issues: z.array(relatedIssueEvidenceItemSchema),
+});
+export type RelatedIssuesEvidence = z.infer<typeof relatedIssuesEvidenceSchema>;
+
 export interface HintSlot<E> {
   evidence: E | null;
   hash: string;
@@ -311,9 +401,15 @@ export interface Hints {
   duplicate?: HintSlot<DuplicateEvidence>;
   related_docs?: HintSlot<RelatedDocsEvidence>;
   related_prs?: HintSlot<RelatedPrsEvidence>;
+  related_issues?: HintSlot<RelatedIssuesEvidence>;
 }
 
-export const HINT_KINDS = ["duplicate", "related_docs", "related_prs"] as const;
+export const HINT_KINDS = [
+  "duplicate",
+  "related_docs",
+  "related_prs",
+  "related_issues",
+] as const;
 export type HintKind = (typeof HINT_KINDS)[number];
 export const hintKindSchema = z.enum(HINT_KINDS);
 
@@ -331,6 +427,9 @@ export const relatedDocsHintSlotSchema = hintSlotSchema(
 export const relatedPrsHintSlotSchema = hintSlotSchema(
   relatedPrsEvidenceSchema
 );
+export const relatedIssuesHintSlotSchema = hintSlotSchema(
+  relatedIssuesEvidenceSchema
+);
 
 // --- Autonomy -------------------------------------------------------------
 
@@ -343,13 +442,61 @@ export const actionAutonomyMapSchema = z.partialRecord(
 );
 export type ActionAutonomyMap = z.infer<typeof actionAutonomyMapSchema>;
 
+/**
+ * Per-kind starting autonomy. Explicit rather than derived: the old
+ * `reversible ? "suggest" : "off"` rule broke on `create_issue`, which is
+ * non-reversible yet ships at `suggest` — filing an issue is the whole point of
+ * offering the action, and a human reviews every one under the default. Every
+ * pre-existing kind keeps the value the derivation gave it.
+ */
+export const DEFAULT_ACTION_AUTONOMY: Record<ActionKind, AutonomyLevel> = {
+  apply_label: "suggest",
+  close: "off",
+  create_issue: "suggest",
+  link_issue: "suggest",
+  link_pr: "off",
+  mark_duplicate: "suggest",
+  reply: "off",
+  set_status: "suggest",
+};
+
 export function getDefaultActionAutonomy(): Record<ActionKind, AutonomyLevel> {
-  const out = {} as Record<ActionKind, AutonomyLevel>;
-  for (const k of ACTION_KINDS) {
-    out[k] = REVERSIBLE_ACTIONS.has(k) ? "suggest" : "off";
-  }
-  return out;
+  return { ...DEFAULT_ACTION_AUTONOMY };
 }
+
+/**
+ * Kinds an org may raise all the way to `auto`. Reversible actions qualify by
+ * construction (undo is a receipt away); `create_issue` is the one
+ * non-reversible exception — `auto` mode has a deterministic destination in the
+ * org's default issue target, and the setting's help text carries the warning.
+ * Everything else is capped at `suggest` because it is destructive or
+ * customer-facing.
+ */
+export const AUTO_CAPABLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
+  ...REVERSIBLE_ACTIONS,
+  "create_issue",
+]);
+
+/**
+ * [Action availability](../../CONTEXT.md): whether the org *can* perform an
+ * action at all, resolved before synthesis runs so the prompt and the output
+ * schema never offer a move that cannot execute. Distinct from autonomy, which
+ * is whether the org has *permitted* the Agent — an unavailable action is not
+ * "off", and folding the two together would both lose that distinction and
+ * waste the read when the whole set is discarded.
+ *
+ * Only kinds that need an explicit rule appear here. The rest self-gate on
+ * evidence: with no mirrored PRs there is no candidate, so `link_pr` is never
+ * proposed. `create_issue` needs no evidence, so it needs this.
+ */
+export interface ActionAvailability {
+  /** True when the org has a usable [default issue target](../../CONTEXT.md). */
+  create_issue: boolean;
+}
+
+export const actionAvailabilitySchema = z.object({
+  create_issue: z.boolean(),
+});
 
 // --- Autonomous-action receipt metadata (undo path; unchanged) ------------
 
@@ -363,6 +510,12 @@ export const autonomousActionMetadataSchema = z.discriminatedUnion("kind", [
     score: z.number().nullable(),
   }),
   z.object({ kind: z.literal("link_pr"), prId: z.string() }),
+  z.object({
+    kind: z.literal("link_issue"),
+    /** The link the thread carried before, restored verbatim on undo (null
+     * when the thread had no issue linked). */
+    previousIssueId: z.string().nullable(),
+  }),
 ]);
 export type AutonomousActionMetadata = z.infer<
   typeof autonomousActionMetadataSchema
@@ -573,6 +726,61 @@ export const prIndexJobDataSchema = z.union([
 export type PrIndexJobData = z.infer<typeof prIndexJobDataSchema>;
 /** The upsert (embed-and-index) variant, narrowed from a non-`deleted` job. */
 export type PrIndexUpsertJobData = z.infer<typeof prIndexUpsertSchema>;
+
+// --- Issue embedding index (FRO-217) --------------------------------------
+
+/**
+ * Contract for an `issue-index` job, the [issue index](../../CONTEXT.md)'s
+ * counterpart to `pr-index`: the API enqueues one after every mirror write that
+ * touches an external issue, and the worker embeds it (title + body) into the
+ * issue vector collection.
+ *
+ * **There is no eligibility flag.** Every non-deleted issue is indexed and
+ * searchable regardless of open/closed state — a closed issue is frequently the
+ * best link a thread can have. `state` rides along in the payload so synthesis
+ * can weigh it; the index never filters on it.
+ *
+ * A `deleted` job signals the mirror row was soft-deleted (issue removed or
+ * transferred out) and the vector should be dropped; it carries only the
+ * identity fields, since no embed content is meaningful for a delete.
+ */
+const issueIndexIdentity = {
+  /** Mirror row id (`externalEntity.id`), stored on the vector so a hit can be
+   * resolved back to a `RelatedIssueEvidenceItem.issueId`. */
+  externalEntityId: z.string(),
+  /** Provider-agnostic key `provider:owner/repo#number`; the vector's identity. */
+  externalKey: z.string(),
+  organizationId: z.string(),
+};
+
+/** Upsert variant: embed the issue and (re)index it. */
+export const issueIndexUpsertSchema = z.object({
+  ...issueIndexIdentity,
+  body: z.string().nullable(),
+  deleted: z.literal(false).optional(),
+  number: z.number(),
+  provider: z.string(),
+  repoFullName: z.string(),
+  /** Upstream issue state ("open" | "closed"); carried, never filtered on. */
+  state: z.string(),
+  title: z.string(),
+  url: z.string(),
+});
+
+/** Delete variant: drop the vector. Identity only — strict so a payload with
+ * stray embed keys fails instead of silently parsing as a delete. */
+export const issueIndexDeleteSchema = z.strictObject({
+  ...issueIndexIdentity,
+  deleted: z.literal(true),
+});
+
+export const issueIndexJobDataSchema = z.union([
+  issueIndexUpsertSchema,
+  issueIndexDeleteSchema,
+]);
+export type IssueIndexJobData = z.infer<typeof issueIndexJobDataSchema>;
+/** The upsert (embed-and-index) variant, narrowed from a non-`deleted` job. */
+export type IssueIndexUpsertJobData = z.infer<typeof issueIndexUpsertSchema>;
 
 // --- PR push-side match (FRO-205) -----------------------------------------
 

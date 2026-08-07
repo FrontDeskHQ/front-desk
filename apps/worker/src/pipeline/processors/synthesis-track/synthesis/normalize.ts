@@ -1,16 +1,25 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
 import {
+  isIssueAction,
   sanitizeAgentReadReasoning,
   threadReadSchema,
 } from "@workspace/schemas/signals";
 
 import type { SynthesisRawActionSet } from "./synthesize";
 
-const allowedKinds = new Set(["reply", "mark_duplicate", "link_pr", "close"]);
+const allowedKinds = new Set([
+  "reply",
+  "mark_duplicate",
+  "link_pr",
+  "link_issue",
+  "create_issue",
+  "close",
+]);
 
 const normalizeAction = (
   action: Action,
-  verifiedPrUrls?: Set<string>
+  verifiedPrUrls?: Set<string>,
+  verifiedIssueUrls?: Set<string>
 ): Action | null => {
   if (!allowedKinds.has(action.kind)) {
     return null;
@@ -43,6 +52,30 @@ const normalizeAction = (
     return { kind: "link_pr", prUrl };
   }
 
+  if (action.kind === "link_issue") {
+    const issueUrl = action.issueUrl.trim();
+    if (issueUrl.length === 0) {
+      return null;
+    }
+    // When verified URLs are provided, reject link_issue that bypassed
+    // read_issue (defense in depth vs synthesize).
+    if (verifiedIssueUrls && !verifiedIssueUrls.has(issueUrl)) {
+      return null;
+    }
+    return { issueUrl, kind: "link_issue" };
+  }
+
+  if (action.kind === "create_issue") {
+    const title = action.title.trim();
+    const body = action.body.trim();
+    // A title-less or body-less create would file an unactionable issue that
+    // cannot be undone; drop it rather than send it upstream.
+    if (title.length === 0 || body.length === 0) {
+      return null;
+    }
+    return { body, kind: "create_issue", title };
+  }
+
   return { kind: "close" };
 };
 
@@ -61,6 +94,7 @@ export const normalizeSynthesisRawActionSet = ({
   fallbackSourceInputMessageId,
   hasTeamReply,
   verifiedPrUrls,
+  verifiedIssueUrls,
 }: {
   output: SynthesisRawActionSet;
   messageIds: Set<string>;
@@ -71,6 +105,11 @@ export const normalizeSynthesisRawActionSet = ({
    * whose URL is not in this set is dropped (defense in depth vs synthesize).
    */
   verifiedPrUrls?: Set<string>;
+  /**
+   * Issue URLs returned by successful `read_issue` calls. Same trust boundary
+   * as `verifiedPrUrls`, applied to `link_issue`.
+   */
+  verifiedIssueUrls?: Set<string>;
 }): ThreadRead | null => {
   // If verified-link filtering would drop a primary link_pr, treat as no action
   // — recommendation (and often the reply draft) assume that link and would be stale.
@@ -85,8 +124,23 @@ export const normalizeSynthesisRawActionSet = ({
     return null;
   }
 
+  // Same for a primary link_issue that bypassed read_issue: dropping just the
+  // action would leave a recommendation written around a link that is gone.
+  if (
+    verifiedIssueUrls &&
+    output.primary.some(
+      (action) =>
+        action.kind === "link_issue" &&
+        !verifiedIssueUrls.has((action.issueUrl ?? "").trim())
+    )
+  ) {
+    return null;
+  }
+
   let primary = output.primary
-    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
+    .map((action) =>
+      normalizeAction(action as Action, verifiedPrUrls, verifiedIssueUrls)
+    )
     .filter((action): action is Action => action !== null);
 
   if (primary.length === 0) {
@@ -94,7 +148,9 @@ export const normalizeSynthesisRawActionSet = ({
   }
 
   let alternatives = (output.alternatives ?? [])
-    .map((action) => normalizeAction(action as Action, verifiedPrUrls))
+    .map((action) =>
+      normalizeAction(action as Action, verifiedPrUrls, verifiedIssueUrls)
+    )
     .filter((action): action is Action => action !== null);
 
   // At most one link_pr across the whole action set (design lock, FRO-204): a
@@ -114,6 +170,33 @@ export const normalizeSynthesisRawActionSet = ({
     });
   primary = dedupeLinkPr(primary);
   alternatives = dedupeLinkPr(alternatives);
+
+  // Reject a primary that bundles create_issue with link_issue (or with a
+  // second create) outright rather than trimming it: create_issue already links
+  // what it files, so the pairing is incoherent — the recommendation and reply
+  // draft were written for a bundle that can never execute, and silently
+  // dropping one half would leave both stale. Rejecting at validation is what
+  // keeps ADR 0003's executor free of inter-step data flow.
+  if (primary.filter(isIssueAction).length > 1) {
+    return null;
+  }
+
+  // At most one issue action across the whole set — a thread links a single
+  // issue. Primary takes precedence; later entries are dropped.
+  let issueActionSeen = false;
+  const dedupeIssueAction = (actions: Action[]): Action[] =>
+    actions.filter((action) => {
+      if (!isIssueAction(action)) {
+        return true;
+      }
+      if (issueActionSeen) {
+        return false;
+      }
+      issueActionSeen = true;
+      return true;
+    });
+  primary = dedupeIssueAction(primary);
+  alternatives = dedupeIssueAction(alternatives);
 
   if (!hasTeamReply) {
     alternatives = alternatives.filter((action) => action.kind === "reply");

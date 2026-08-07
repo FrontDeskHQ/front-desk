@@ -53,6 +53,19 @@ const buildMetadata = (
     };
   }
 
+  if (action.kind === "link_issue") {
+    // No snapshot means the handler short-circuited on an already-linked
+    // thread; undoing that would unlink an issue the Agent didn't attach.
+    const snapshot = getCompensateSnapshot<{ previousIssueId: string | null }>(
+      ctx,
+      `link_issue:${action.issueUrl}`
+    );
+    if (!snapshot) {
+      return null;
+    }
+    return { kind: "link_issue", previousIssueId: snapshot.previousIssueId };
+  }
+
   return null;
 };
 

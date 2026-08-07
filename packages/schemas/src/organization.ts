@@ -21,6 +21,31 @@ export const digestSettingsSchema = z.object({
     .default("09:00"),
 });
 
+/**
+ * Where Agent-initiated issue creation lands. Distinct from
+ * `capabilityPrimary["issue-tracker"]`, which answers *which external system*;
+ * this answers *where inside it*. `target` is the same opaque,
+ * connector-interpreted sub-resource selector `thread.createIssue` takes (e.g.
+ * a GitHub `{ owner, repo }`) — core forwards it untouched. `label` is the
+ * human-readable rendering shown in settings and on the accept card.
+ *
+ * The Agent never picks a target itself: when this is unset, `create_issue` is
+ * simply not available to synthesis.
+ */
+export const defaultIssueTargetSchema = z.object({
+  /** Pins the issue-tracker integration; falls back to the capability primary. */
+  integrationId: z.string().optional(),
+  label: z.string().min(1),
+  // `z.json()`, not `z.unknown()`: this lands in the `settings` JSON column, and
+  // an `unknown` value breaks Live-State's serializable-type inference for
+  // everything that reads an organization. `thread.createIssue` still takes the
+  // looser `z.unknown()` — it forwards the target straight to a connector
+  // without ever storing it.
+  target: z.record(z.string(), z.json()),
+});
+
+export type DefaultIssueTarget = z.infer<typeof defaultIssueTargetSchema>;
+
 export const organizationSettingsSchema = z.object({
   timezone: z.string().default("UTC"),
   digest: digestSettingsSchema.default(digestSettingsDefaults),
@@ -42,6 +67,7 @@ export const organizationSettingsSchema = z.object({
   // …); kept as an open string map so schemas stays free of a framework
   // dependency. The API validates the capability and integration on write.
   capabilityPrimary: z.record(z.string(), z.string()).optional(),
+  defaultIssueTarget: defaultIssueTargetSchema.nullish(),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;
@@ -79,4 +105,23 @@ export const readCapabilityPrimary = (
   }
   const value = (primary as Record<string, unknown>)[capability];
   return typeof value === "string" ? value : undefined;
+};
+
+/**
+ * Reads the default issue target directly from raw settings, without validating
+ * the rest of the object — same reasoning as `readCapabilityPrimary`: an
+ * unrelated bad field must not silently drop a validly configured target.
+ * Returns null when unset or malformed, which reads as "issue creation is not
+ * available to the Agent".
+ */
+export const readDefaultIssueTarget = (
+  settings: unknown
+): DefaultIssueTarget | null => {
+  if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+    return null;
+  }
+  const parsed = defaultIssueTargetSchema.safeParse(
+    (settings as Record<string, unknown>).defaultIssueTarget
+  );
+  return parsed.success ? parsed.data : null;
 };

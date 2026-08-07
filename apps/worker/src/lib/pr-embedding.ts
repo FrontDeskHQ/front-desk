@@ -1,10 +1,5 @@
-import { google } from "@ai-sdk/google";
-import { embed } from "ai";
-
+import { generateSimilarityEmbedding } from "./entity-embedding";
 import type { WorkerLogger } from "./logging";
-
-const EMBEDDING_MODEL = "gemini-embedding-001";
-const embeddingModel = google.embedding(EMBEDDING_MODEL);
 
 /** The subset of a PR needed to build its embed text. */
 export interface PrEmbedInput {
@@ -29,34 +24,8 @@ export const buildPrEmbedText = (data: PrEmbedInput): string =>
     .join("\n")
     .trim();
 
-/**
- * Generate a normalized embedding vector. Uses SEMANTIC_SIMILARITY (matching the
- * thread index) so PR and thread vectors live in a comparable space for
- * cross-searches.
- */
+/** Embed a PR in the shared similarity space (see `entity-embedding`). */
 export const generatePrEmbedding = async (
   text: string,
   requestLog?: WorkerLogger
-): Promise<number[] | null> => {
-  if (!text || text.trim().length === 0) {
-    return null;
-  }
-
-  const { embedding } = await embed({
-    model: embeddingModel,
-    providerOptions: {
-      google: { taskType: "SEMANTIC_SIMILARITY" },
-    },
-    value: text,
-  });
-
-  const norm = Math.hypot(...embedding);
-  if (!Number.isFinite(norm) || norm === 0) {
-    requestLog?.warn("PR embedding normalization produced an invalid norm", {
-      embedding: { dimensions: embedding.length, norm },
-      step: "normalize_embedding",
-    });
-    return embedding;
-  }
-  return embedding.map((value) => value / norm);
-};
+): Promise<number[] | null> => generateSimilarityEmbedding(text, requestLog);

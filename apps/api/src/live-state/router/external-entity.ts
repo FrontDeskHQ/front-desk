@@ -1,11 +1,15 @@
 // TODO refactor with new live-state mental model
-import type { PrIndexJobData } from "@workspace/schemas/signals";
+import type {
+  IssueIndexJobData,
+  PrIndexJobData,
+} from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
 
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import {
   enqueueGithubBackfill,
+  enqueueIssueIndex,
   enqueuePrIndex,
   enqueueThreadRead,
 } from "../../lib/queue";
@@ -227,6 +231,32 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   }),
 
   /**
+   * A single non-deleted mirrored issue by canonical URL — the synthesis
+   * `read_issue` tool's depth-verification lookup, and the same key
+   * `link_issue` routes by. Internal (worker) use only.
+   */
+  issueByUrl: query(
+    z.object({
+      organizationId: z.string(),
+      url: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+    return (
+      Object.values(
+        await db.find(schema.externalEntity, {
+          where: {
+            organizationId: req.input.organizationId,
+            url: req.input.url,
+            type: "issue",
+            deletedAt: null,
+          },
+        })
+      )[0] ?? null
+    );
+  }),
+
+  /**
    * Soft-delete the mirror row (issue deletion / transfer-out). No-op when the
    * entity was never mirrored.
    */
@@ -271,6 +301,23 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       enqueuePrIndex(jobData).catch((error) => {
         console.error(
           `Failed to enqueue PR index delete for ${externalKey}:`,
+          error
+        );
+      });
+    }
+
+    // Same for the issue vector. Deletion is the *only* mirror event that drops
+    // an issue from the index — a closed issue stays searchable by design.
+    if (deleted && deleted.type === "issue") {
+      const jobData: IssueIndexJobData = {
+        organizationId,
+        externalEntityId: deleted.id,
+        externalKey,
+        deleted: true,
+      };
+      enqueueIssueIndex(jobData).catch((error) => {
+        console.error(
+          `Failed to enqueue issue index delete for ${externalKey}:`,
           error
         );
       });
@@ -407,6 +454,29 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       };
       enqueuePrIndex(jobData).catch((error) => {
         console.error(`Failed to enqueue PR index for ${externalKey}:`, error);
+      });
+    }
+
+    // Keep the issue vector index current on every mirror write. Index-only:
+    // there is no `issue_matched` push trigger, so this never fans out reads.
+    if (req.input.type === "issue") {
+      const jobData: IssueIndexJobData = {
+        organizationId,
+        externalEntityId: id,
+        externalKey,
+        provider: req.input.provider,
+        repoFullName: req.input.repoFullName,
+        number: req.input.number,
+        url: req.input.url,
+        title: req.input.title,
+        body: req.input.body,
+        state: req.input.state,
+      };
+      enqueueIssueIndex(jobData).catch((error) => {
+        console.error(
+          `Failed to enqueue issue index for ${externalKey}:`,
+          error
+        );
       });
     }
 

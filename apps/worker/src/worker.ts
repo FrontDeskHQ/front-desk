@@ -6,6 +6,7 @@ import {
   recoverPendingThreadReads,
 } from "@workspace/queue/thread-read";
 import type {
+  IssueIndexJobData,
   PrIndexJobData,
   PrMatchJobData,
   ThreadReadJobData,
@@ -21,6 +22,7 @@ import { Worker } from "bullmq";
 import type { Job } from "bullmq";
 
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
+import { handleIndexIssue } from "./handlers/index-issue";
 import { handleIndexPr } from "./handlers/index-pr";
 import { handleMatchPr } from "./handlers/match-pr";
 import { clearThreadAgentRead } from "./lib/database/client";
@@ -30,6 +32,7 @@ import {
   createWorkerJobLogger,
 } from "./lib/logging";
 import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
+import { ensureIssuesCollection } from "./lib/qdrant/issues";
 import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
 import { ensureThreadsCollection } from "./lib/qdrant/threads";
@@ -40,6 +43,7 @@ const THREAD_PIPELINE_QUEUE = "thread-pipeline";
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
 const PR_MATCH_QUEUE = "pr-match";
+const ISSUE_INDEX_QUEUE = "issue-index";
 const THREAD_READ_RECOVERY_INTERVAL_MS = 30_000;
 const TERMINAL_DRAIN_RETRY_DELAYS_MS = [100, 250, 500];
 let threadReadRecoveryRunning = false;
@@ -342,6 +346,36 @@ prIndexWorker.on("error", (err) => {
   });
 });
 
+// Create issue embedding index worker (FRO-217). Index-only, like `pr-index`:
+// keeps the issue vector index in step with the mirror. There is no push-side
+// issue match, so nothing here ever fans out a thread read.
+const issueIndexWorker = new Worker<IssueIndexJobData>(
+  ISSUE_INDEX_QUEUE,
+  handleIndexIssue,
+  {
+    autorun: false,
+    concurrency: 3,
+    connection,
+    removeOnComplete: {
+      age: 24 * 3600,
+      count: 100,
+    },
+    removeOnFail: {
+      count: 500,
+    },
+  }
+);
+
+issueIndexWorker.on("error", (err) => {
+  emitQueueLifecycle({
+    error: err,
+    event: "error",
+    operation: "issue.index.worker",
+    queue: ISSUE_INDEX_QUEUE,
+    status: 500,
+  });
+});
+
 // Create PR push-side match worker (FRO-205). Embeds an eligible PR, searches
 // for similar Open / In-progress threads, and fans out `pr_matched` reads for
 // the unlinked ones.
@@ -381,6 +415,7 @@ const initialize = async () => {
       CRAWL_DOCUMENTATION_QUEUE,
       PR_INDEX_QUEUE,
       PR_MATCH_QUEUE,
+      ISSUE_INDEX_QUEUE,
     ],
   });
   let status = 200;
@@ -395,13 +430,19 @@ const initialize = async () => {
     });
 
     // Ensure Qdrant collections exist
-    const [threadsReady, messagesReady, documentationReady, prsReady] =
-      await Promise.all([
-        ensureThreadsCollection(),
-        ensureMessagesCollection(),
-        ensureDocumentationCollection(),
-        ensurePrsCollection(),
-      ]);
+    const [
+      threadsReady,
+      messagesReady,
+      documentationReady,
+      prsReady,
+      issuesReady,
+    ] = await Promise.all([
+      ensureThreadsCollection(),
+      ensureMessagesCollection(),
+      ensureDocumentationCollection(),
+      ensurePrsCollection(),
+      ensureIssuesCollection(),
+    ]);
     requestLog.set({
       qdrant: {
         collections: {
@@ -409,10 +450,17 @@ const initialize = async () => {
           messages: messagesReady,
           documentation: documentationReady,
           pullRequests: prsReady,
+          issues: issuesReady,
         },
       },
     });
-    if (!threadsReady || !messagesReady || !documentationReady || !prsReady) {
+    if (
+      !threadsReady ||
+      !messagesReady ||
+      !documentationReady ||
+      !prsReady ||
+      !issuesReady
+    ) {
       throw new Error(
         "Qdrant collections are not ready; refusing to start workers"
       );
@@ -442,6 +490,7 @@ const initialize = async () => {
     crawlDocWorker.run();
     prIndexWorker.run();
     prMatchWorker.run();
+    issueIndexWorker.run();
 
     threadReadRecoveryTimer = setInterval(() => {
       void recoverThreadReadFollowUps().catch((error) => {
@@ -459,7 +508,7 @@ const initialize = async () => {
     requestLog.set({
       outcome: {
         status: "listening",
-        workersStarted: 4,
+        workersStarted: 5,
       },
     });
   } catch (error) {
@@ -482,6 +531,7 @@ const handleShutdown = async () => {
       CRAWL_DOCUMENTATION_QUEUE,
       PR_INDEX_QUEUE,
       PR_MATCH_QUEUE,
+      ISSUE_INDEX_QUEUE,
     ],
   });
   let status = 200;
@@ -496,10 +546,11 @@ const handleShutdown = async () => {
       crawlDocWorker.close(),
       prIndexWorker.close(),
       prMatchWorker.close(),
+      issueIndexWorker.close(),
     ]);
     await closeThreadReadQueue();
     await connection.quit();
-    requestLog.set({ outcome: { status: "stopped", workersClosed: 4 } });
+    requestLog.set({ outcome: { status: "stopped", workersClosed: 5 } });
   } catch (error) {
     status = 500;
     requestLog.error(error instanceof Error ? error : String(error), {
