@@ -1,8 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
 import { Link } from "@tanstack/react-router";
-import { readDefaultIssueTarget } from "@workspace/schemas/organization";
-import type { DefaultIssueTarget } from "@workspace/schemas/organization";
 import {
   ACTION_KIND_LABEL,
   ACTION_KIND_VERB,
@@ -27,13 +25,6 @@ import {
 } from "@workspace/ui/components/hover-card";
 import { StatusIndicator } from "@workspace/ui/components/indicator";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
-import {
   treeContentClassName,
   TreeJoin,
   treeRowClassName,
@@ -48,7 +39,6 @@ import { toast } from "sonner";
 
 import { ThreadSummaryHoverCard } from "~/components/chips";
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
-import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
@@ -435,76 +425,6 @@ function InlineSuggestionsRow({
   );
 }
 
-/**
- * Destination row shown whenever the selected bundle would file an issue. The
- * Agent never chose this — it always files into the org's default issue target
- * — so the picker exists purely to let a reviewer redirect one issue before
- * accepting. Hidden entirely when nothing in the selection creates an issue.
- */
-function IssueTargetPicker({
-  organizationId,
-  value,
-  onChange,
-  disabled,
-}: {
-  organizationId: string;
-  value: DefaultIssueTarget | null;
-  onChange: (target: DefaultIssueTarget) => void;
-  disabled: boolean;
-}) {
-  const options = useIssueTargetOptions(organizationId);
-
-  if (options.length === 0) {
-    return null;
-  }
-
-  return (
-    <div className="flex items-center gap-2 py-1 pl-5 text-sm">
-      <span className="text-foreground-secondary">File in</span>
-      <Select
-        value={value?.label ?? ""}
-        onValueChange={(next) => {
-          const option = options.find((o) => o.label === next);
-          if (option) {
-            onChange({
-              integrationId: option.integrationId,
-              label: option.label,
-              target: option.target,
-            });
-          }
-        }}
-        disabled={disabled}
-      >
-        <SelectTrigger
-          aria-label="Issue destination"
-          size="xs"
-          className="w-56"
-        >
-          {/* Placeholder matters here: with no org default configured the
-              value is empty, and a blank trigger gives the reviewer no hint
-              that accepting would fail on a missing destination. */}
-          <SelectValue placeholder="Choose a destination" />
-        </SelectTrigger>
-        <SelectContent>
-          {/* A saved target whose repo or integration has since dropped out of
-              the options would otherwise fall back to the placeholder, reading
-              as "unset" even though it is set and would still be filed into. */}
-          {value && !options.some((option) => option.label === value.label) ? (
-            <SelectItem value={value.label}>
-              {value.label} (no longer connected)
-            </SelectItem>
-          ) : null}
-          {options.map((option) => (
-            <SelectItem key={option.label} value={option.label}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
-  );
-}
-
 function AgentReadReasoningTrigger({ reasoning }: { reasoning: string }) {
   const trimmed = sanitizeAgentReadReasoning(reasoning);
   if (!trimmed) {
@@ -587,22 +507,11 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     (suggestion) => !suggestion.dismissedAt
   );
 
-  // The accept card prefills the org's default issue target; a reviewer can
-  // redirect this one issue without changing the org setting.
-  const organization = useLiveQuery(
-    query.organization.first({ id: ctx.organizationId })
-  );
-  const defaultIssueTarget = readDefaultIssueTarget(organization?.settings);
-  const [issueTargetOverride, setIssueTargetOverride] =
-    useState<DefaultIssueTarget | null>(null);
-  const issueTarget = issueTargetOverride ?? defaultIssueTarget;
-
   useEffect(() => {
     setReplyTarget(null);
     setSelectedIndices(new Set(read.primary.map((_, index) => index)));
     setReplyDraft(primaryReplyDraftMarkdown(read.primary));
     setReplyEditorRevision((revision) => revision + 1);
-    setIssueTargetOverride(null);
   }, [readFingerprint, read.primary]);
 
   const orderedSelected = useMemo(
@@ -611,14 +520,6 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   );
   const selectionIncludesReply =
     replyIndex !== -1 && selectedIndices.has(replyIndex);
-  // Alternatives count too: `handleAcceptAlternative` forwards `issueTarget`,
-  // so a standalone create_issue alternative files an issue and must be
-  // redirectable the same way the primary bundle is.
-  const selectionFilesIssue =
-    orderedSelected.some(({ action }) => action.kind === "create_issue") ||
-    (read.alternatives ?? []).some(
-      (alternative) => alternative.kind === "create_issue"
-    );
 
   // When the primary bundle is a lone reply, a reply-only alternative is
   // redundant — it offers the same "just reply" as the primary — so drop it.
@@ -645,7 +546,6 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     try {
       await acceptThreadRead({
         ctx,
-        issueTarget: issueTarget ?? undefined,
         read,
         replyDraft: replyDraftValue,
         selection: { primaryActionIndices: indices },
@@ -713,7 +613,6 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     try {
       await acceptThreadRead({
         ctx,
-        issueTarget: issueTarget ?? undefined,
         read,
         replyDraft: replyDraftValue,
         selection: { alternativeIndex },
@@ -837,14 +736,6 @@ export function ThreadReadCard({ thread, ctx }: Props) {
                 />
               </div>
             </div>
-          ) : null}
-          {selectionFilesIssue ? (
-            <IssueTargetPicker
-              organizationId={ctx.organizationId}
-              value={issueTarget}
-              onChange={setIssueTargetOverride}
-              disabled={busyKey !== null}
-            />
           ) : null}
           {inlineSuggestions.length > 0 ? (
             <div className="py-1 pl-5">
