@@ -240,8 +240,7 @@ function DefaultIssueTargetField({
       <div className="text-sm">Default issue target</div>
       <div className="text-muted-foreground text-sm">
         Where Support Intelligence files issues. Defaults to the first available
-        target when unset. You can still redirect an individual issue when you
-        accept a suggestion.
+        target when unset.
       </div>
       {options.length === 0 && !current ? (
         <span className="text-sm text-muted-foreground mt-1">
