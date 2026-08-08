@@ -1,17 +1,20 @@
-import type { Thread } from "../../types";
+import type { RunState } from "./run-state";
 import type { PipelineJobInput, PipelineJobOptions } from "./types";
 
 /**
  * JobContext implementation
  *
- * Stores processor outputs by name + threadId and provides
- * access to job input, options, and thread data.
+ * Bookkeeping for one job: processor outputs by name + threadId, which
+ * processor+thread pairs were skipped, and the job's input and options. The
+ * domain state each thread carries lives on its {@link RunState}, which this
+ * holds rather than absorbs — outputs and skips are a different concern from
+ * hints, policy and reads.
  */
 export class JobContext {
   readonly jobId: string;
   readonly input: PipelineJobInput;
   readonly options: PipelineJobOptions;
-  readonly threads: Map<string, Thread>;
+  readonly runStates: Map<string, RunState>;
 
   /**
    * Storage for processor outputs
@@ -29,12 +32,17 @@ export class JobContext {
     jobId: string,
     input: PipelineJobInput,
     options: PipelineJobOptions,
-    threads: Map<string, Thread>
+    runStates: Map<string, RunState>
   ) {
     this.jobId = jobId;
     this.input = input;
     this.options = options;
-    this.threads = threads;
+    this.runStates = runStates;
+  }
+
+  /** The run state for a thread, or undefined when it wasn't hydrated. */
+  runState(threadId: string): RunState | undefined {
+    return this.runStates.get(threadId);
   }
 
   /**

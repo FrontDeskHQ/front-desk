@@ -5,7 +5,6 @@ import { createLogger } from "@workspace/utils/logging";
 
 import { isRetryableError } from "../../../../lib/logging";
 import { searchSimilarThreads } from "../../../../lib/qdrant/threads";
-import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -47,7 +46,7 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<DuplicateProcessorOutput>> {
-      const { context: jobContext, thread, threadId } = context;
+      const { context: jobContext, run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.duplicate",
         processor: "duplicate",
@@ -93,13 +92,7 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           threshold: DUPLICATE_THRESHOLD,
         });
 
-        await writeHintSlot(
-          threadId,
-          thread.organizationId,
-          "duplicate",
-          evidence,
-          hash
-        );
+        await run.writeHint("duplicate", evidence, hash);
 
         requestLog.set({
           search: {

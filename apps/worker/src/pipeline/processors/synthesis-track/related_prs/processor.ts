@@ -8,7 +8,6 @@ import {
   PR_MATCH_THRESHOLD,
   searchSimilarPrs,
 } from "../../../../lib/qdrant/pull-requests";
-import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -80,7 +79,7 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<RelatedPrsProcessorOutput>> {
-      const { context: jobContext, thread, threadId } = context;
+      const { context: jobContext, run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.related_prs",
         jobId: jobContext.jobId,
@@ -93,13 +92,7 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
       try {
         // Already linked to a PR — nothing to suggest. Clear any stale hint.
         if (thread.externalPrId) {
-          await writeHintSlot(
-            threadId,
-            thread.organizationId,
-            "related_prs",
-            null,
-            computeSha256("linked")
-          );
+          await run.writeHint("related_prs", null, computeSha256("linked"));
           requestLog.set({
             outcome: { status: "skipped", reason: "already_linked" },
           });
@@ -146,13 +139,7 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
 
         const evidence = toRelatedPrsEvidence(hits);
 
-        await writeHintSlot(
-          threadId,
-          thread.organizationId,
-          "related_prs",
-          evidence,
-          hash
-        );
+        await run.writeHint("related_prs", evidence, hash);
 
         requestLog.set({
           search: {

@@ -4,10 +4,7 @@ import { STATUS_LABELS } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 
 import { AI_PRICING } from "../../../../lib/ai-pricing";
-import { getStatusAutonomyMode } from "../../../../lib/autonomy";
-import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
 import { isRetryableError } from "../../../../lib/logging";
-import { resolveMessageRoles } from "../../../../lib/message-roles";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -71,7 +68,7 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<StatusInfererOutput>> {
-      const { thread, threadId } = context;
+      const { run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.status_inferer",
         jobId: context.context.jobId,
@@ -83,7 +80,7 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
       let status = 200;
 
       try {
-        const autonomy = await getStatusAutonomyMode(thread.organizationId);
+        const autonomy = (await run.autonomy()).set_status;
         if (autonomy === "off") {
           requestLog.set({
             outcome: { status: "skipped", reason: "autonomy_off" },
@@ -109,10 +106,7 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
 
         const latestMessage = ordered.at(-1);
         const windowed = ordered.slice(-RECENT_MESSAGE_WINDOW);
-        const roleByAuthorId = await resolveMessageRoles(
-          windowed.map((m) => m.authorId),
-          thread.authorId
-        );
+        const { roles: roleByAuthorId } = await run.authors();
         const recentMessages = windowed.map((m) => ({
           content: m.content,
           role: roleByAuthorId.get(m.authorId) ?? "unknown",
@@ -163,7 +157,7 @@ export const statusInfererProcessor: ProcessorDefinition<StatusInfererOutput> =
         //     → executeBundle([{kind:"set_status", status: inferred}], handlers, ctx)
         //       and write the autonomousAction receipt; do not emit a suggestion.
         // Until then, both "suggest" and "auto" emit an inline suggestion.
-        await appendOrReplaceInlineSuggestion(threadId, thread.organizationId, {
+        await run.suggest({
           action: { kind: "set_status", status: inferred },
           confidence,
           createdAt: new Date().toISOString(),

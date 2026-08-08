@@ -1,7 +1,5 @@
 import z from "zod";
 
-import { fetchClient } from "./database/client";
-
 export type MessageRole = "customer" | "agent" | "unknown";
 
 const authorRowSchema = z.object({
@@ -16,17 +14,20 @@ export interface ResolvedMessageAuthors {
 }
 
 /**
- * Resolves author names and message roles in one lookup so synthesis can use
- * the customer's display name without adding a second author query.
+ * Resolves each author's display name and role from raw author rows:
+ * - customer = thread author
+ * - agent = author linked to a teammate (author.userId is set)
+ * - unknown = anything else
+ *
+ * Pure: the fetch lives on `RunState.authors()`. Rows that don't parse are
+ * dropped rather than failing the run — an unrecognised author degrades to an
+ * absent name and an `unknown` role, which is what the caller would infer for
+ * it anyway.
  */
-export const resolveMessageAuthors = async (
-  authorIds: string[],
+export const resolveAuthorsFromRows = (
+  rawRows: unknown,
   threadAuthorId: string | null | undefined
-): Promise<ResolvedMessageAuthors> => {
-  const unique = [...new Set(authorIds.filter(Boolean))];
-  const rawRows = await fetchClient.query.author.byIds({
-    ids: unique,
-  });
+): ResolvedMessageAuthors => {
   const parsedRows = z.array(z.unknown()).safeParse(rawRows);
   const rows = parsedRows.success
     ? parsedRows.data.flatMap((row) => {
@@ -51,20 +52,6 @@ export const resolveMessageAuthors = async (
   }
 
   return { names, roles };
-};
-
-/**
- * Resolves each message author's role:
- * - customer = thread author
- * - agent = author linked to a teammate (author.userId is set)
- * - unknown = anything else
- */
-export const resolveMessageRoles = async (
-  authorIds: string[],
-  threadAuthorId: string | null | undefined
-): Promise<Map<string, MessageRole>> => {
-  const { roles } = await resolveMessageAuthors(authorIds, threadAuthorId);
-  return roles;
 };
 
 export const threadHasTeamReply = (

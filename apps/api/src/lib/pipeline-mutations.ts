@@ -38,10 +38,6 @@ export const upsertIdempotencyKeyInputSchema = z.object({
   key: z.string(),
 });
 
-export const invalidateIdempotencyKeyInputSchema = z.object({
-  key: z.string(),
-});
-
 export const batchUpsertIdempotencyKeysInputSchema = z.object({
   entries: z.array(
     z.object({
@@ -117,28 +113,6 @@ export const runUpsertIdempotencyKey = async (
       hash: input.hash,
     });
   }
-};
-
-export const runInvalidateIdempotencyKey = async (
-  db: IdempotencyDb,
-  input: z.infer<typeof invalidateIdempotencyKeyInputSchema>
-) => {
-  const existing = Object.values(
-    await db.find(schema.pipelineIdempotencyKey, {
-      where: { key: input.key },
-    })
-  )[0];
-
-  if (!existing) {
-    return { ok: true as const };
-  }
-
-  await db.update(schema.pipelineIdempotencyKey, existing.id, {
-    createdAt: new Date(),
-    hash: "",
-  });
-
-  return { ok: true as const };
 };
 
 export const runBatchUpsertIdempotencyKeys = async (

@@ -3,9 +3,6 @@ import { createHash } from "node:crypto";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 
 import { AI_PRICING } from "../../../../lib/ai-pricing";
-import { getLabelAutonomyMode } from "../../../../lib/autonomy";
-import { fetchClient } from "../../../../lib/database/client";
-import { appendOrReplaceInlineSuggestion } from "../../../../lib/inline-suggestions";
 import { isRetryableError } from "../../../../lib/logging";
 import type {
   ProcessorDefinition,
@@ -20,12 +17,6 @@ const SUGGEST_THRESHOLD = 0.5;
 // Reserved for auto-mode silent-apply (gated by issue 04). Currently unused;
 // auto behaves like suggest until the action executor lands.
 const _AUTO_THRESHOLD = 0.85;
-
-interface LabelRow {
-  id: string;
-  name: string;
-  organizationId: string;
-}
 
 export interface LabelClassifierOutput {
   skipped?:
@@ -59,7 +50,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<LabelClassifierOutput>> {
-      const { thread, threadId } = context;
+      const { run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.label_classifier",
         jobId: context.context.jobId,
@@ -71,7 +62,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
       let status = 200;
 
       try {
-        const autonomy = await getLabelAutonomyMode(thread.organizationId);
+        const autonomy = (await run.autonomy()).apply_label;
         if (autonomy === "off") {
           requestLog.set({
             outcome: { status: "skipped", reason: "autonomy_off" },
@@ -83,10 +74,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
           };
         }
 
-        const orgLabels = (await fetchClient.query.label.forOrg({
-          enabled: true,
-          organizationId: thread.organizationId,
-        })) as LabelRow[];
+        const orgLabels = await run.labels();
 
         if (orgLabels.length === 0) {
           requestLog.set({
@@ -163,7 +151,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         //     → executeBundle([{kind:"apply_label", labelId}], handlers, ctx)
         //       and write the autonomousAction receipt; do not emit a suggestion.
         // Until then, both "suggest" and "auto" emit an inline suggestion.
-        await appendOrReplaceInlineSuggestion(threadId, thread.organizationId, {
+        await run.suggest({
           action: { kind: "apply_label", labelId },
           confidence,
           createdAt: new Date().toISOString(),

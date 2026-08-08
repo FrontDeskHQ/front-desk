@@ -1,8 +1,6 @@
 import { createLogger } from "@workspace/utils/logging";
 
-import { fetchThreadsWithRelations } from "../../lib/database/client";
 import type { WorkerLogger } from "../../lib/logging";
-import type { Thread } from "../../types";
 import { processorRegistry } from "../processors/registry";
 import { JobContext } from "./context";
 import {
@@ -17,6 +15,8 @@ import {
   failPipelineJob,
   updatePipelineJobStatus,
 } from "./persistence";
+import { RunHydrationError, hydrateRunStates } from "./run-state";
+import type { RunState } from "./run-state";
 import type {
   PipelineExecutionResult,
   PipelineJobInput,
@@ -67,8 +67,8 @@ const executeProcessor = async (
   const threadsToCheckNormally: string[] = [];
 
   for (const threadId of threadIds) {
-    const thread = context.threads.get(threadId);
-    if (!thread) {
+    const run = context.runState(threadId);
+    if (!run) {
       requestLog.warn("Requested thread was not returned by the database", {
         processor: processor.name,
         threadId,
@@ -82,11 +82,18 @@ const executeProcessor = async (
       continue;
     }
 
+    const execContext: ProcessorExecuteContext = {
+      context,
+      run,
+      thread: run.thread,
+      threadId,
+    };
+
     if (
       dependencies.length > 0 &&
       context.wereAllProcessorsSkipped(dependencies, threadId) &&
-      !processor.runsWhenDependenciesSkipped?.({ context, thread, threadId }) &&
-      !processor.runsOnTrigger?.({ context, thread, threadId })
+      !processor.runsWhenDependenciesSkipped?.(execContext) &&
+      !processor.runsOnTrigger?.(execContext)
     ) {
       threadsWithAllDepsSkipped.push(threadId);
     } else {
@@ -132,24 +139,24 @@ const executeProcessor = async (
     threadId: string;
     key: string;
     hash: string;
-    thread: Thread;
+    run: RunState;
   }[] = [];
 
   for (const threadId of threadsToCheckNormally) {
-    const thread = context.threads.get(threadId);
-    if (!thread) {
+    const run = context.runState(threadId);
+    if (!run) {
       continue;
     }
 
     const key = buildIdempotencyKey(processor.name, threadId);
-    const execContext: ProcessorExecuteContext = {
+    const hash = processor.computeHash({
       context,
-      thread,
+      run,
+      thread: run.thread,
       threadId,
-    };
-    const hash = processor.computeHash(execContext);
+    });
 
-    threadsToCheck.push({ hash, key, thread, threadId });
+    threadsToCheck.push({ hash, key, run, threadId });
   }
 
   if (threadsToCheck.length === 0) {
@@ -164,13 +171,14 @@ const executeProcessor = async (
     threadId: string;
     key: string;
     hash: string;
-    thread: Thread;
+    run: RunState;
   }[] = [];
 
   for (const item of threadsToCheck) {
     const execContext: ProcessorExecuteContext = {
       context,
-      thread: item.thread,
+      run: item.run,
+      thread: item.run.thread,
       threadId: item.threadId,
     };
     if (processor.runsOnTrigger?.(execContext)) {
@@ -200,7 +208,8 @@ const executeProcessor = async (
     async (item) => {
       const execContext: ProcessorExecuteContext = {
         context,
-        thread: item.thread,
+        run: item.run,
+        thread: item.run.thread,
         threadId: item.threadId,
       };
 
@@ -291,18 +300,18 @@ export const executePipeline = async (
     requestLog.set({ persistence: { markedRunning } });
 
     const fetchStartTime = performance.now();
-    const threads = await fetchThreadsWithRelations(input.threadIds);
+    const runStates = await hydrateRunStates(input.threadIds);
     const fetchTime = performance.now() - fetchStartTime;
     requestLog.set({
       fetch: {
         requestedCount: input.threadIds.length,
-        fetchedCount: threads.size,
-        missingCount: input.threadIds.length - threads.size,
+        fetchedCount: runStates.size,
+        missingCount: input.threadIds.length - runStates.size,
         durationMs: fetchTime,
       },
     });
 
-    if (threads.size === 0) {
+    if (runStates.size === 0) {
       status = 404;
       const result: PipelineExecutionResult = {
         duration: performance.now() - startTime,
@@ -326,7 +335,7 @@ export const executePipeline = async (
       return result;
     }
 
-    const context = new JobContext(pipelineJobId, input, options, threads);
+    const context = new JobContext(pipelineJobId, input, options, runStates);
 
     const executionOrder = processorRegistry.resolveExecutionOrder();
     const totalProcessors = executionOrder.flat().length;
@@ -518,9 +527,17 @@ export const executePipeline = async (
       outcome: {
         status: "failed",
         durationMs: performance.now() - startTime,
-        reason: "exception",
+        reason: error instanceof RunHydrationError ? "hydration" : "exception",
       },
     });
+
+    // A run that couldn't be hydrated never started, so it must reject rather
+    // than resolve as a failed result — only a thrown error reaches BullMQ's
+    // retry. Every other failure here is a real run that already recorded what
+    // it did, and keeps returning a result so partial work isn't replayed.
+    if (error instanceof RunHydrationError) {
+      throw error;
+    }
 
     const totalDuration = performance.now() - startTime;
 

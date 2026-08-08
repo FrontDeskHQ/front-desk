@@ -40,6 +40,10 @@ Evidence about a thread, computed eagerly by a [hint processor](#hint-processor)
 
 A [processor](#processor) that produces zero or one [read hint](#read-hint) for a thread. The hints today are _duplicate_ and _related-docs_; _related-PRs_ is the pull-side counterpart to the `pr_matched` [trigger](#trigger) (thread → similar [external pull requests](#external-pull-request)); _related-issues_ is its [external issue](#external-issue) counterpart and has no push-side trigger. A hint processor only gathers and scores evidence; it never proposes a concrete action. Each owns its own input dependencies and skips when its prior hint is still valid.
 
+### Run
+
+One execution of the pipeline over a single [thread](#thread). A run is the scope [processors](#processor) execute within, and the scope [read hints](#read-hint), [action availability](#action-availability) and the [autonomy stage](#autonomy-stage) share: a hint written by a [hint processor](#hint-processor) early in a run is visible to [synthesis](#synthesis) later in the same run, and availability is resolved once for the whole run. Several [triggers](#trigger) may coalesce into one run, so a run has _causes_ rather than a cause. _Avoid_: "batch" — a run covers exactly one thread, never several.
+
 ### Processor
 
 A unit of work in the pipeline with declared dependencies, run in dependency order. "Entry", "hint", and "synthesis" are _conceptual categories_ of processor, not different code shapes — they all share one definition. The [inline track](#inline-suggestion) classifiers (label, status) are also processors but are a self-contained fast path: cheap, no LLM gate, calling the [autonomy helper](#autonomy-stage) after their LLM step before writing chips.

@@ -4,11 +4,9 @@ import { requireInternalApiKey } from "../../lib/authorize";
 import {
   batchUpsertIdempotencyKeysInputSchema,
   createPipelineJobInputSchema,
-  invalidateIdempotencyKeyInputSchema,
   patchPipelineJobInputSchema,
   runBatchUpsertIdempotencyKeys,
   runCreatePipelineJob,
-  runInvalidateIdempotencyKey,
   runPatchPipelineJob,
   runUpsertIdempotencyKey,
   upsertIdempotencyKeyInputSchema,
@@ -34,12 +32,6 @@ export const pipelineRoutes = {
             where: { key: { $in: req.input.keys } },
           })
         );
-      }
-    ),
-    invalidate: mutation(invalidateIdempotencyKeyInputSchema).handler(
-      async ({ req, db }) => {
-        requireInternalApiKey(req.context);
-        return runInvalidateIdempotencyKey(db, req.input);
       }
     ),
     upsert: mutation(upsertIdempotencyKeyInputSchema).handler(

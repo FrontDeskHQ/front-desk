@@ -2,6 +2,7 @@ import type { ThreadReadTrigger } from "@workspace/schemas/signals";
 
 import type { Thread } from "../../types";
 import type { JobContext } from "./context";
+import type { RunState } from "./run-state";
 
 export interface ProcessorSuccessResult<T = unknown> {
   threadId: string;
@@ -51,6 +52,12 @@ export interface PipelineJobInput {
 
 export interface ProcessorExecuteContext {
   context: JobContext;
+  /**
+   * Everything this run knows and writes about its thread — hints, org policy,
+   * authors, and the reads and suggestions it publishes. Processors go through
+   * this rather than reaching for the API themselves.
+   */
+  run: RunState;
   thread: Thread;
   threadId: string;
 }
