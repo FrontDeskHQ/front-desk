@@ -141,14 +141,21 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       threadId
     );
 
+    // The collection name is part of the hash so that rolling the index to a new
+    // version invalidates every thread's idempotency key. Without it, a thread
+    // whose summary has not changed would skip `embed` forever and never be
+    // written to the new collection — the idempotency record lives in Postgres
+    // and survives the roll. This does not repopulate dormant threads, which
+    // receive no pipeline run at all; that needs a backfill.
+    const collection = threadIndex.name;
+
     if (!summarizeOutput) {
-      return computeSha256("");
+      return computeSha256(collection);
     }
 
     const { summary } = summarizeOutput;
 
-    const hashInput = createSummaryText(summary);
-    return computeSha256(hashInput);
+    return computeSha256(`${collection}|${createSummaryText(summary)}`);
   },
 
   dependencies: ["summarize"],

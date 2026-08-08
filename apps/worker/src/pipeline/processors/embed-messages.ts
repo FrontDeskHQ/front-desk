@@ -93,7 +93,12 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
     computeHash(context: ProcessorExecuteContext): string {
       const messages = context.thread.messages ?? [];
       const sorted = [...messages].toSorted((a, b) => a.id.localeCompare(b.id));
-      const hashInput = sorted.map((m) => `${m.id}:${m.content}`).join("|");
+      // Collection name included for the same reason as `embed` — rolling the
+      // index must invalidate idempotency keys that outlive the collection.
+      const hashInput = [
+        messageIndex.name,
+        ...sorted.map((m) => `${m.id}:${m.content}`),
+      ].join("|");
       return computeSha256(hashInput);
     },
 

@@ -2,16 +2,17 @@ import { defineIndex, uuidFromParts } from "./define-index";
 import type { SearchHit } from "./define-index";
 
 /**
- * v2: FRO-2xx gave thread points a deterministic identity. v1 derived its point
- * id from `crypto.randomUUID()` on every pipeline run, so a re-embedded thread
+ * v2 gave thread points a deterministic identity. v1 derived its point id from
+ * `crypto.randomUUID()` on every pipeline run, so a re-embedded thread
  * accumulated a new point instead of overwriting its old one and similarity
  * search ranked stale copies of the same thread against each other. Rolling the
- * collection leaves those orphaned points behind rather than reaping them; v1
- * can be dropped manually once no worker references it.
+ * collection leaves those orphaned points behind rather than reaping them.
  *
- * Threads re-enter the index on their next natural pipeline run, so duplicate
- * detection and the `related_prs` / `related_issues` hints are cold for a thread
- * until it runs again.
+ * A thread re-enters the index on its next pipeline run — the collection name is
+ * part of `embed`'s idempotency hash, so the roll invalidates every thread's
+ * key. That does **not** cover dormant threads, which receive no pipeline run at
+ * all and so are never repopulated. Until the index-only backfill (FRO-221) has
+ * run, do not drop `threads-v1`: it is the cheapest source to copy from.
  */
 export const THREADS_COLLECTION = "threads-v2";
 
