@@ -1,0 +1,16 @@
+apps/web/src/components/landing-page/keep-caring-section/index.tsx
+  h_79bcdd5201702b 32
+apps/web/src/components/landing-page/one-liner-section/index.tsx
+  h_79bcdd5201702b 183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bd1214a24c6210fccc7df08d82d4f4b089afae4b",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
