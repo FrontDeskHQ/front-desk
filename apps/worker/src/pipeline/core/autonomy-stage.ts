@@ -16,9 +16,9 @@ const keepForRead = (
 ) => autonomy[action.kind] !== "off";
 
 /**
- * The [autonomy stage](../../../../CONTEXT.md) for synthesis: applies the org's
+ * The [autonomy stage](../../../../../CONTEXT.md) for synthesis: applies the org's
  * per-kind policy to a raw action set, auto-executes the primary actions set to
- * `auto`, then persists the resulting [thread read](../../../../CONTEXT.md) (or
+ * `auto`, then persists the resulting [thread read](../../../../../CONTEXT.md) (or
  * null when no substantive move remains).
  *
  * A free function over {@link RunState} rather than a method on it: this is
