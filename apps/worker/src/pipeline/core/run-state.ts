@@ -31,7 +31,11 @@ export interface OrgLabel {
   organizationId: string;
 }
 
-interface SlotEvidenceMap {
+/**
+ * Which evidence shape belongs in which hint slot. Exported so hint processors
+ * can be typed against the same correspondence this class enforces.
+ */
+export interface SlotEvidenceMap {
   duplicate: DuplicateEvidence;
   related_docs: RelatedDocsEvidence;
   related_prs: RelatedPrsEvidence;

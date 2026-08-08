@@ -1,175 +1,61 @@
-import { createHash } from "node:crypto";
-
-import type { RelatedPrsEvidence } from "@workspace/schemas/signals";
-import { createLogger } from "@workspace/utils/logging";
-
-import { isRetryableError } from "../../../../lib/logging";
 import {
   PR_MATCH_THRESHOLD,
   prIndex,
 } from "../../../../lib/qdrant/pull-requests";
-import type { EmbedOutput, ParsedSummary } from "../../../../types";
-import type {
-  ProcessorDefinition,
-  ProcessorExecuteContext,
-  ProcessorResult,
-} from "../../../core/types";
-import type { SummarizeOutput } from "../../summarize";
-import { RELATED_PRS_LIMIT, toRelatedPrsEvidence } from "./find";
-
-export interface RelatedPrsProcessorOutput {
-  evidence: RelatedPrsEvidence | null;
-}
-
-const summaryHashInput = (summary: ParsedSummary): string =>
-  Object.entries(summary)
-    .map(([key, value]) => `${key}: ${value}`)
-    .join("\n")
-    .trim();
-
-const computeSha256 = (data: string): string =>
-  createHash("sha256").update(data).digest("hex");
+import type { PrHit } from "../../../../lib/qdrant/pull-requests";
+import { defineRetrievalHint } from "../define-retrieval-hint";
+import type { RetrievalHintSpec } from "../define-retrieval-hint";
 
 /**
- * Pull-side PR↔thread discovery (FRO-206). Searches the PR index for eligible
- * PRs similar to the thread embedding and writes a ranked `related_prs` hint;
- * synthesis can turn a strong lead into a `link_pr` read (after read_pr) without
- * a push-side `pr_matched` event. Mirrors the push-side match (FRO-205) — same
- * embedding space, same `PR_MATCH_THRESHOLD` — but runs on the thread pipeline.
+ * Pull-side PR↔thread discovery (FRO-206). Searches the [PR
+ * index](../../../../../../CONTEXT.md) for eligible PRs similar to the thread
+ * embedding; synthesis can turn a strong lead into a `link_pr` read (after
+ * read_pr) without a push-side `pr_matched` event. Mirrors the push-side match
+ * (FRO-205) — same embedding space, same threshold — but runs on the thread
+ * pipeline.
  *
- * Skips once the thread already links a PR (`externalPrId`): there is nothing
- * left to suggest, so the hint is cleared rather than re-computed.
+ * Retires once the thread links a PR: there is nothing left to suggest.
  */
-export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput> =
-  {
-    name: "related_prs",
+export const relatedPrsHintSpec: RetrievalHintSpec<"related_prs", PrHit> = {
+  count: (evidence) => evidence.prs.length,
 
-    dependencies: ["embed"],
+  kind: "related_prs",
 
-    getIdempotencyKey(threadId: string): string {
-      return `related_prs:${threadId}`;
-    },
+  requiresEmbedding: true,
 
-    // Linking a PR sets `externalPrId` without changing the thread embedding, so
-    // `embed` skips and the deps-skip fast path would otherwise never re-run us
-    // to clear a stale hint. Force the normal hash-based check for linked
-    // threads: `computeHash` returns the "linked" hash, which differs from the
-    // last summary-based hash and re-runs `execute` to clear the slot.
-    runsWhenDependenciesSkipped(context: ProcessorExecuteContext): boolean {
-      return Boolean(context.thread.externalPrId);
-    },
+  retiredBy: "externalPrId",
 
-    computeHash(context: ProcessorExecuteContext): string {
-      const { context: jobContext, thread, threadId } = context;
-      // A thread that already links a PR never produces evidence; keep its hash
-      // stable so the skip is idempotent regardless of summary churn.
-      if (thread.externalPrId) {
-        return computeSha256("linked");
-      }
-      const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
-        "summarize",
-        threadId
-      );
-      if (!summarize) {
-        return computeSha256("");
-      }
-      return computeSha256(summaryHashInput(summarize.summary));
-    },
+  retrieve({ embedding, organizationId, tuning }) {
+    return prIndex.search(embedding as number[], {
+      limit: tuning.limit,
+      organizationId,
+      scoreThreshold: tuning.scoreThreshold,
+      where: { eligible: true },
+    });
+  },
 
-    async execute(
-      context: ProcessorExecuteContext
-    ): Promise<ProcessorResult<RelatedPrsProcessorOutput>> {
-      const { context: jobContext, run, thread, threadId } = context;
-      const requestLog = createLogger({
-        action: "pipeline.related_prs",
-        jobId: jobContext.jobId,
-        organizationId: thread.organizationId,
-        processor: "related_prs",
-        threadId,
-      });
-      let status = 200;
+  /**
+   * The index already filtered to eligible PRs above the threshold and ranked
+   * them; keep the top N and drop to the fields synthesis needs (`url` for
+   * read_pr / link_pr, `prId` to resolve the mirror row).
+   */
+  select(hits, tuning) {
+    const prs = hits
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, tuning.limit)
+      .map((hit) => ({
+        externalKey: hit.payload.externalKey,
+        number: hit.payload.number,
+        prId: hit.payload.externalEntityId,
+        repoFullName: hit.payload.repoFullName,
+        score: hit.score,
+        title: hit.payload.title,
+        url: hit.payload.url,
+      }));
+    return prs.length > 0 ? { prs } : null;
+  },
 
-      try {
-        // Already linked to a PR — nothing to suggest. Clear any stale hint.
-        if (thread.externalPrId) {
-          await run.writeHint("related_prs", null, computeSha256("linked"));
-          requestLog.set({
-            outcome: { status: "skipped", reason: "already_linked" },
-          });
-          return {
-            data: { evidence: null },
-            success: true,
-            threadId,
-          };
-        }
+  tuning: { limit: 5, scoreThreshold: PR_MATCH_THRESHOLD },
+};
 
-        const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
-          "summarize",
-          threadId
-        );
-        const hash = computeSha256(
-          summarize ? summaryHashInput(summarize.summary) : ""
-        );
-
-        const embedOutput = jobContext.getProcessorOutput<EmbedOutput>(
-          "embed",
-          threadId
-        );
-        if (!embedOutput?.embedding) {
-          status = 500;
-          requestLog.set({
-            outcome: { status: "failed", reason: "embedding_missing" },
-          });
-          return {
-            error: "No embedding available from embed processor",
-            success: false,
-            threadId,
-          };
-        }
-
-        // Same vector space as the push side: thread embedding against eligible
-        // PRs above the shared match threshold, ranked, top N. A backend failure
-        // throws (see `defineIndex`) so we fall through to the catch and
-        // leave the prior hint untouched instead of clearing a valid lead.
-        const hits = await prIndex.search(embedOutput.embedding, {
-          limit: RELATED_PRS_LIMIT,
-          organizationId: thread.organizationId,
-          scoreThreshold: PR_MATCH_THRESHOLD,
-          where: { eligible: true },
-        });
-
-        const evidence = toRelatedPrsEvidence(hits);
-
-        await run.writeHint("related_prs", evidence, hash);
-
-        requestLog.set({
-          search: {
-            candidateCount: hits.length,
-            limit: RELATED_PRS_LIMIT,
-            scoreThreshold: PR_MATCH_THRESHOLD,
-          },
-          outcome: {
-            status: "completed",
-            evidenceCount: evidence?.prs.length ?? 0,
-          },
-        });
-
-        return {
-          data: { evidence },
-          success: true,
-          threadId,
-        };
-      } catch (error) {
-        status = 500;
-        const message = error instanceof Error ? error.message : String(error);
-        requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: isRetryableError(error),
-          step: "related_prs",
-        });
-        requestLog.set({ outcome: { status: "failed" } });
-        return { error: message, success: false, threadId };
-      } finally {
-        requestLog.emit({ status });
-      }
-    },
-  };
+export const relatedPrsProcessor = defineRetrievalHint(relatedPrsHintSpec);

@@ -16,10 +16,7 @@ import type {
   ProcessorResult,
 } from "../../../core/types";
 import type { SummarizeOutput } from "../../summarize";
-import type { DuplicateProcessorOutput } from "../duplicate/processor";
-import type { RelatedDocsProcessorOutput } from "../related_docs/processor";
-import type { RelatedIssuesProcessorOutput } from "../related_issues/processor";
-import type { RelatedPrsProcessorOutput } from "../related_prs/processor";
+import type { RetrievalHintOutput } from "../define-retrieval-hint";
 import { normalizeSynthesisRawActionSet } from "./normalize";
 import { synthesizeThreadRead } from "./synthesize";
 import { createSynthesisTools } from "./tools";
@@ -74,22 +71,22 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         "summarize",
         threadId
       );
-      const duplicate = jobContext.getProcessorOutput<DuplicateProcessorOutput>(
+      const duplicate = jobContext.getProcessorOutput<RetrievalHintOutput<"duplicate">>(
         "duplicate",
         threadId
       );
       const relatedDocs =
-        jobContext.getProcessorOutput<RelatedDocsProcessorOutput>(
+        jobContext.getProcessorOutput<RetrievalHintOutput<"related_docs">>(
           "related_docs",
           threadId
         );
       const relatedPrs =
-        jobContext.getProcessorOutput<RelatedPrsProcessorOutput>(
+        jobContext.getProcessorOutput<RetrievalHintOutput<"related_prs">>(
           "related_prs",
           threadId
         );
       const relatedIssues =
-        jobContext.getProcessorOutput<RelatedIssuesProcessorOutput>(
+        jobContext.getProcessorOutput<RetrievalHintOutput<"related_issues">>(
           "related_issues",
           threadId
         );
