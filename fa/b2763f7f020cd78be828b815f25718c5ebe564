@@ -1,0 +1,103 @@
+apps/worker/src/lib/documentation-embedding.ts
+  s_b3c44ba7913c78::t_8a3af06c93006f 1-47
+apps/worker/src/pipeline/processors/embed-messages.ts
+  s_b3c44ba7913c78::t_d2fbfbba991b66 10,171-172,191-194,205-206,233,235-241
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/eval/scorers.ts
+  s_b3c44ba7913c78::t_b2e908ad5a2454 44-46
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/find.ts
+  s_b3c44ba7913c78::t_f4dec35ea36e3d 3,10,19
+apps/worker/src/types.ts
+  s_b3c44ba7913c78::t_2e1c6d8790a722 4,80
+apps/worker/src/lib/pr-match-reranker.ts
+  s_b3c44ba7913c78::t_eccd3dac933c7a 8,65,72,85,97,112,119,133,140
+apps/worker/src/handlers/index-issue.ts
+  s_b3c44ba7913c78::t_aae3d93af8f0bf 49,54
+  s_b3c44ba7913c78::t_73ab2262750b5c 99
+  s_b3c44ba7913c78::t_2c9bb7da4b6c79 11
+  s_b3c44ba7913c78::t_7f1df905eaf2e5 63-66
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/eval/dataset.ts
+  s_b3c44ba7913c78::t_fc71255bc29e72 2,6,28,35
+apps/worker/src/lib/qdrant/threads.ts
+  s_b3c44ba7913c78::t_edb3e37606c30a 1-16,35-54
+apps/worker/src/worker.ts
+  s_b3c44ba7913c78::t_ec71767d6fef53 440-449,451,453
+  s_b3c44ba7913c78::t_e55642b4ed9ff3 33-37
+apps/worker/src/handlers/crawl-documentation.ts
+  s_b3c44ba7913c78::t_52cf4e190af717 16,378-381,423-424,440-442,453-454,466
+apps/worker/src/lib/qdrant/messages.ts
+  s_b3c44ba7913c78::t_5bd8127e6c4abe 1,3,17-21,23-34
+docs/adr/0012-qdrant-normalizes-cosine-vectors.md
+  s_b3c44ba7913c78::t_5188bc3540fef0 1-27
+apps/worker/src/lib/qdrant/issues.ts
+  s_b3c44ba7913c78::t_c1d3e54eed566b 1-2,6-7,20,23,45-60
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/processor.ts
+  s_b3c44ba7913c78::t_f4dec35ea36e3d 7,84,86
+apps/worker/src/lib/qdrant/documentation.ts
+  s_b3c44ba7913c78::t_05217ddce73bcc 1-2,16-42
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/tools.ts
+  s_b3c44ba7913c78::t_ddef9b94af73fd 9,11,13-15
+  s_b3c44ba7913c78::t_942240654207c2 18-39
+  s_b3c44ba7913c78::t_baee210ee61eb0 224,230,233
+  s_b3c44ba7913c78::t_75c8eff6af5577 260-282
+  s_b3c44ba7913c78::t_ccf75d4a70d784 68-91
+apps/worker/src/evals/thread-similarity.prepare.ts
+  s_b3c44ba7913c78::t_3307f3dc32d42b 8,123,169-171,174
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/find.ts
+  s_b3c44ba7913c78::t_f4dec35ea36e3d 3,11,14,26,31,36-38,48
+apps/worker/src/lib/qdrant/pull-requests.ts
+  s_b3c44ba7913c78::t_68f297ae51b863 1-2,19-20,34,42-55,57-59
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/processor.ts
+  s_b3c44ba7913c78::t_7dc46b88201a9f 7-8
+  s_b3c44ba7913c78::t_db2cd4d9e43bc2 77-90
+apps/worker/src/handlers/index-pr.ts
+  s_b3c44ba7913c78::t_a593270e03c56b 131
+  s_b3c44ba7913c78::t_b47592a2f3ab3f 77-80
+  s_b3c44ba7913c78::t_f19af047a12c98 8
+  s_b3c44ba7913c78::t_8c9583121f81eb 46,52
+  s_b3c44ba7913c78::t_57b1b3fd2a5268 114
+  s_b3c44ba7913c78::t_a9b441a78b0b21 6
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/find.ts
+  s_b3c44ba7913c78::t_8c0f779eb1f9f4 3,8,12,15,17,25,27-28,33
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/eval/dataset.ts
+  s_b3c44ba7913c78::t_fc71255bc29e72 1,5,13-22
+CONTEXT.md
+  s_b3c44ba7913c78::t_747cdbc90ac9b1 129-138,141,145
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/processor.ts
+  s_b3c44ba7913c78::t_f4dec35ea36e3d 9,134,136
+apps/worker/src/handlers/match-pr.ts
+  s_b3c44ba7913c78::t_f12f29f08fb706 15
+  s_b3c44ba7913c78::t_843bbf8f752ea1 69,73,81
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_b3c44ba7913c78::t_fc71255bc29e72 2-4,27-28
+apps/worker/src/lib/qdrant/define-index.ts
+  s_b3c44ba7913c78::t_ff0add89a0213b 1-473
+apps/worker/src/lib/pr-match-reranker.test.ts
+  s_b3c44ba7913c78::t_2e1c6d8790a722 8,15
+  s_b3c44ba7913c78::t_3307f3dc32d42b 127
+apps/worker/src/pipeline/processors/synthesis-track/related_prs/processor.ts
+  s_b3c44ba7913c78::t_f4dec35ea36e3d 9,132,134,138
+apps/worker/src/pipeline/processors/embed.ts
+  s_b3c44ba7913c78::t_b98347b9ec763e 10,216-227
+apps/worker/src/pipeline/processors/synthesis-track/related_prs/find.ts
+  s_b3c44ba7913c78::t_f4dec35ea36e3d 3,10,15
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/eval/duplicate.eval.ts
+  s_b3c44ba7913c78::t_b2e908ad5a2454 35
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/eval/related-docs.eval.ts
+  s_b3c44ba7913c78::t_b2e908ad5a2454 25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fab2763f7f020cd78be828b815f25718c5ebe564",
+  "prompts": {},
+  "sessions": {
+    "s_b3c44ba7913c78": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "256a8f01-10b0-43b2-9086-161587e28b8a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
