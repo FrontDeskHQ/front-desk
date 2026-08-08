@@ -1,20 +1,20 @@
 import type { RelatedDocEvidenceItem } from "@workspace/schemas/signals";
 
-import type { DocumentationSearchHit } from "../../../../lib/qdrant/search-documentation";
+import type { DocumentationHit } from "../../../../lib/qdrant/documentation";
 
 export const RELATED_DOCS_LIMIT = 5;
 
 export function pickRelatedDocs(
-  hits: DocumentationSearchHit[],
+  hits: DocumentationHit[],
   opts: { limit?: number } = {}
 ): RelatedDocEvidenceItem[] {
   const limit = opts.limit ?? RELATED_DOCS_LIMIT;
-  const byPage = new Map<string, DocumentationSearchHit>();
+  const byPage = new Map<string, DocumentationHit>();
 
   for (const hit of hits) {
-    const existing = byPage.get(hit.pageUrl);
+    const existing = byPage.get(hit.payload.pageUrl);
     if (!existing || hit.score > existing.score) {
-      byPage.set(hit.pageUrl, hit);
+      byPage.set(hit.payload.pageUrl, hit);
     }
   }
 
@@ -22,15 +22,15 @@ export function pickRelatedDocs(
     .toSorted((a, b) => b.score - a.score)
     .slice(0, limit)
     .map((hit) => ({
-      docId: hit.pageUrl,
+      docId: hit.payload.pageUrl,
       score: hit.score,
-      title: hit.pageTitle,
-      url: hit.pageUrl,
+      title: hit.payload.pageTitle,
+      url: hit.payload.pageUrl,
     }));
 }
 
 export function toRelatedDocsEvidence(
-  hits: DocumentationSearchHit[],
+  hits: DocumentationHit[],
   opts?: { limit?: number }
 ): { docs: RelatedDocEvidenceItem[] } | null {
   const docs = pickRelatedDocs(hits, opts);

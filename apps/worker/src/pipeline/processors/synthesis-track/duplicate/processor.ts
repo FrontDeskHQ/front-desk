@@ -4,7 +4,7 @@ import type { DuplicateEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
 import { isRetryableError } from "../../../../lib/logging";
-import { searchSimilarThreads } from "../../../../lib/qdrant/threads";
+import { threadIndex } from "../../../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -81,9 +81,9 @@ export const duplicateProcessor: ProcessorDefinition<DuplicateProcessorOutput> =
           summarize ? summaryHashInput(summarize.summary) : ""
         );
 
-        const results = await searchSimilarThreads(embedOutput.embedding, {
+        const results = await threadIndex.search(embedOutput.embedding, {
           organizationId: thread.organizationId,
-          excludeThreadIds: [threadId],
+          exclude: { threadId: [threadId] },
           scoreThreshold: DUPLICATE_THRESHOLD,
           limit: 5,
         });

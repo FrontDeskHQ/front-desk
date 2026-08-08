@@ -32,7 +32,7 @@ evalite("Duplicate Hint", {
         {
           role: "user",
           content: `threshold=${input.threshold}\nresults=${input.results
-            .map((r) => `${r.threadId}@${r.score}`)
+            .map((r) => `${r.payload.threadId}@${r.score}`)
             .join(", ")}`,
         },
       ],

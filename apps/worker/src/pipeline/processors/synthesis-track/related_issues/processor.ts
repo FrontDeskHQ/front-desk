@@ -6,7 +6,7 @@ import { createLogger } from "@workspace/utils/logging";
 import { isRetryableError } from "../../../../lib/logging";
 import {
   ISSUE_MATCH_THRESHOLD,
-  searchSimilarIssues,
+  issueIndex,
 } from "../../../../lib/qdrant/issues";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
@@ -131,9 +131,9 @@ export const relatedIssuesProcessor: ProcessorDefinition<RelatedIssuesProcessorO
 
         // Thread embedding against every indexed issue above the match
         // threshold, ranked, top N. A backend failure throws (see
-        // `searchSimilarIssues`) so we fall through to the catch and leave the
+        // `defineIndex`) so we fall through to the catch and leave the
         // prior hint untouched instead of clearing a valid lead.
-        const hits = await searchSimilarIssues(embedOutput.embedding, {
+        const hits = await issueIndex.search(embedOutput.embedding, {
           limit: RELATED_ISSUES_LIMIT,
           organizationId: thread.organizationId,
           scoreThreshold: ISSUE_MATCH_THRESHOLD,

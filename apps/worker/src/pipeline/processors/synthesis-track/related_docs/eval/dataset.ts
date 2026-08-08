@@ -1,8 +1,8 @@
-import type { DocumentationSearchHit } from "../../../../../lib/qdrant/search-documentation";
+import type { DocumentationHit } from "../../../../../lib/qdrant/documentation";
 
 export interface RelatedDocsTestCase {
   name: string;
-  input: { hits: DocumentationSearchHit[]; limit?: number };
+  input: { hits: DocumentationHit[]; limit?: number };
   expected: { docIds: string[] };
 }
 
@@ -10,11 +10,16 @@ const hit = (
   pageUrl: string,
   pageTitle: string,
   score: number
-): DocumentationSearchHit => ({
-  chunkText: `Chunk for ${pageTitle}`,
-  headingHierarchy: [],
-  pageTitle,
-  pageUrl,
+): DocumentationHit => ({
+  payload: {
+    chunkIndex: 0,
+    chunkText: `Chunk for ${pageTitle}`,
+    documentationSourceId: "src_test",
+    headingHierarchy: [],
+    organizationId: "org_test",
+    pageTitle,
+    pageUrl,
+  },
   score,
 });
 

@@ -126,13 +126,23 @@ A pull request in an external developer system that FrontDesk mirrors under the 
 
 FrontDesk's local, read-only replica of authoritative external data ([external issues](#external-issue) and [external pull requests](#external-pull-request)). The external system is the source of truth; the mirror is only ever updated _from_ it (webhooks + backfill + drift reconciliation), never written canonically from our side. Actions taken in FrontDesk go out to the external system and round-trip back into the mirror. Used as a verb ("we mirror the repo's issues") and a noun ("the mirror"). _Avoid_: "cache" (implies disposable/expiry; the mirror is durable and queried as primary), "sync copy".
 
+### Index
+
+A vector index over exactly one kind of entity — threads, messages, documentation chunks, [external pull requests](#external-pull-request), [external issues](#external-issue). Every index answers the same three questions the same way, so they are instantiations of one thing rather than five separate mechanisms:
+
+- **Identity** — which fields name a point, so re-indexing an entity overwrites it in place instead of accumulating a second copy. Never random.
+- **Eligibility** — which stored points similarity search may return. Deliberately per-index (see [PR index](#pr-index) against [issue index](#issue-index)); an index that filters nothing still has an eligibility rule, it is just "everything".
+- **Freshness** — what keeps the index in step with its source, and which updates are cheap (a payload edit) against which force a re-embed (a content change).
+
+An index is always scoped by [organization](#organization); no caller supplies that filter. An empty search result means _nothing matched_ — a backend failure raises instead, so a caller persisting a [read hint](#read-hint) never mistakes an outage for "no evidence" and clears a valid lead. _Avoid_: "collection" when the concept is meant (that is the storage-level name for one index's backing store).
+
 ### PR index
 
-The vector index of mirrored [external pull requests](#external-pull-request), kept in step with the [mirror](#mirror) so PR↔thread similarity can be searched. Each indexed PR carries an **`eligible`** flag — true only while the PR is _open and non-draft_ — and search filters to eligible PRs. Every mirror write (webhook, backfill, drift reconciliation) refreshes the index; close / convert-to-draft flips `eligible` false, reopen / ready_for_review / content edits refresh it. Indexing is **index-only**: it never enqueues a `pr_matched` [trigger](#trigger). This PR only _maintains_ the index — it implements neither discovery flow. The index is intended to feed two future consumers: the push-side match (PR → similar threads) and the pull-side `related_prs` [hint](#read-hint) (thread → similar PRs). A PR is embedded from its _title + body + head ref_.
+The [index](#index) of mirrored [external pull requests](#external-pull-request), kept in step with the [mirror](#mirror) so PR↔thread similarity can be searched. Its eligibility rule is the strict one: each indexed PR carries an **`eligible`** flag — true only while the PR is _open and non-draft_ — and search filters to eligible PRs. Every mirror write (webhook, backfill, drift reconciliation) refreshes the index; close / convert-to-draft flips `eligible` false, reopen / ready_for_review / content edits refresh it. Indexing is **index-only**: it never enqueues a `pr_matched` [trigger](#trigger). The index feeds two consumers: the push-side match (PR → similar threads) and the pull-side `related_prs` [hint](#read-hint) (thread → similar PRs). A PR is embedded from its _title + body + head ref_.
 
 ### Issue index
 
-The vector index of mirrored [external issues](#external-issue), the counterpart to the [PR index](#pr-index). Its **eligibility** rule is deliberately _not_ the PR one: every non-deleted issue is eligible regardless of open/closed state, because a closed issue is often the most useful thing a [thread](#thread) can link to ("this was fixed in #412") and the strongest reason _not_ to file a new one. State travels in the evidence so [synthesis](#synthesis) decides what it means, rather than the index deciding for it.
+The [index](#index) of mirrored [external issues](#external-issue), the counterpart to the [PR index](#pr-index). Its **eligibility** rule is deliberately _not_ the PR one: every non-deleted issue is eligible regardless of open/closed state, because a closed issue is often the most useful thing a [thread](#thread) can link to ("this was fixed in #412") and the strongest reason _not_ to file a new one. State travels in the evidence so [synthesis](#synthesis) decides what it means, rather than the index deciding for it.
 
 ### Default issue target
 

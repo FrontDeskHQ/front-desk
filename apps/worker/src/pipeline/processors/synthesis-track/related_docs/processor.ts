@@ -4,7 +4,8 @@ import type { RelatedDocsEvidence } from "@workspace/schemas/signals";
 import { createLogger } from "@workspace/utils/logging";
 
 import { isRetryableError } from "../../../../lib/logging";
-import { searchDocumentation } from "../../../../lib/qdrant/search-documentation";
+import { generateDocumentationQueryEmbedding } from "../../../../lib/documentation-embedding";
+import { documentationIndex } from "../../../../lib/qdrant/documentation";
 import type { ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -73,13 +74,20 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
         );
 
         const query = summarize ? buildSearchQuery(summarize.summary) : "";
-        const hits =
-          query.length > 0
-            ? await searchDocumentation({
-                query,
-                organizationId: thread.organizationId,
-              })
-            : [];
+        // An absent query legitimately means "no evidence" and clears the hint.
+        // A query that fails to embed does not — throw so the catch leaves the
+        // prior hint untouched rather than clearing a valid lead.
+        let hits: Awaited<ReturnType<typeof documentationIndex.hybrid>> = [];
+        if (query.length > 0) {
+          const vector = await generateDocumentationQueryEmbedding(query);
+          if (!vector) {
+            throw new Error("Failed to embed documentation search query");
+          }
+          hits = await documentationIndex.hybrid(
+            { text: query, vector },
+            { organizationId: thread.organizationId }
+          );
+        }
 
         const evidence: RelatedDocsEvidence | null =
           toRelatedDocsEvidence(hits);

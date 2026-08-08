@@ -6,7 +6,7 @@ import { createLogger } from "@workspace/utils/logging";
 import { isRetryableError } from "../../../../lib/logging";
 import {
   PR_MATCH_THRESHOLD,
-  searchSimilarPrs,
+  prIndex,
 } from "../../../../lib/qdrant/pull-requests";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
@@ -129,12 +129,13 @@ export const relatedPrsProcessor: ProcessorDefinition<RelatedPrsProcessorOutput>
 
         // Same vector space as the push side: thread embedding against eligible
         // PRs above the shared match threshold, ranked, top N. A backend failure
-        // throws (see `searchSimilarPrs`) so we fall through to the catch and
+        // throws (see `defineIndex`) so we fall through to the catch and
         // leave the prior hint untouched instead of clearing a valid lead.
-        const hits = await searchSimilarPrs(embedOutput.embedding, {
+        const hits = await prIndex.search(embedOutput.embedding, {
           limit: RELATED_PRS_LIMIT,
           organizationId: thread.organizationId,
           scoreThreshold: PR_MATCH_THRESHOLD,
+          where: { eligible: true },
         });
 
         const evidence = toRelatedPrsEvidence(hits);

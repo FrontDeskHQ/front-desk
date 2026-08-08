@@ -7,7 +7,7 @@ import { embed } from "ai";
 import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
-import { upsertThreadVector } from "../../lib/qdrant/threads";
+import { threadIndex } from "../../lib/qdrant/threads";
 import type { ThreadPayload } from "../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
 import type {
@@ -212,13 +212,19 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       }
 
       const payload = buildThreadPayload(thread, summary);
-      const pointId = crypto.randomUUID();
 
-      const storedInQdrant = await upsertThreadVector(
-        pointId,
-        embedding,
-        payload
-      );
+      // Point identity is derived from (organizationId, threadId) by the index,
+      // so a re-embed overwrites the thread's point instead of adding another.
+      let storedInQdrant = true;
+      try {
+        await threadIndex.upsert({ payload, vector: embedding });
+      } catch (storeError) {
+        storedInQdrant = false;
+        requestLog.warn("Thread vector upsert failed", {
+          error: String(storeError),
+          step: "store_thread_vector",
+        });
+      }
 
       if (!storedInQdrant) {
         status = 500;

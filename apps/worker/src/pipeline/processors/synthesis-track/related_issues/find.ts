@@ -1,13 +1,13 @@
 import type { RelatedIssueEvidenceItem } from "@workspace/schemas/signals";
 
-import type { SimilarIssueResult } from "../../../../lib/qdrant/issues";
+import type { IssueHit } from "../../../../lib/qdrant/issues";
 
 /** How many ranked issues the hint carries at most. */
 export const RELATED_ISSUES_LIMIT = 5;
 
 /**
  * Shape a ranked list of issue similarity hits into `related_issues` evidence.
- * `searchSimilarIssues` already filters to the org above the score threshold and
+ * `issueIndex.search` already filters to the org above the score threshold and
  * returns them ranked; we keep the top N and drop to the fields synthesis needs
  * (`url` for read_issue / link_issue, `issueId` to resolve the row).
  *
@@ -16,7 +16,7 @@ export const RELATED_ISSUES_LIMIT = 5;
  * filing a new one, so synthesis — not this function — decides what it means.
  */
 export function toRelatedIssuesEvidence(
-  hits: SimilarIssueResult[],
+  hits: IssueHit[],
   opts: { limit?: number } = {}
 ): { issues: RelatedIssueEvidenceItem[] } | null {
   const limit = opts.limit ?? RELATED_ISSUES_LIMIT;

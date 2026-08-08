@@ -5,10 +5,7 @@ import {
 } from "@workspace/utils/logging";
 
 import { errorFields } from "../lib/logging";
-import {
-  ensureThreadsCollection,
-  upsertThreadVector,
-} from "../lib/qdrant/threads";
+import { threadIndex } from "../lib/qdrant/threads";
 import { batchEmbedThread } from "../pipeline/processors/embed";
 import {
   buildThreadSimilarityDataset,
@@ -123,7 +120,7 @@ const main = async (): Promise<void> => {
     });
 
     const collectionStartTime = performance.now();
-    const collectionReady = await ensureThreadsCollection();
+    const collectionReady = await threadIndex.ensure();
     if (!collectionReady) {
       throw new Error("Failed to ensure Qdrant collection");
     }
@@ -169,16 +166,12 @@ const main = async (): Promise<void> => {
       }
 
       const payload = buildPayload(thread, result.summary);
-      const pointId = crypto.randomUUID();
-      const upserted = await upsertThreadVector(
-        pointId,
-        result.embedding,
-        payload
-      );
-
-      if (!upserted) {
+      try {
+        await threadIndex.upsert({ payload, vector: result.embedding });
+      } catch (upsertError) {
         errorCount += 1;
         requestLog.warn("Failed to upsert embedded thread", {
+          error: String(upsertError),
           threadId: result.threadId,
           step: "upsert_thread_vector",
         });

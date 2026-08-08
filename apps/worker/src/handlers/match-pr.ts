@@ -12,7 +12,7 @@ import {
   PR_MATCH_RERANK_THRESHOLD,
 } from "../lib/pr-match-config";
 import { rerankPrMatches } from "../lib/pr-match-reranker";
-import { searchSimilarThreads } from "../lib/qdrant/threads";
+import { threadIndex } from "../lib/qdrant/threads";
 
 /** Open (0) and In progress (1) — the only threads a PR match may light up. */
 const ACTIVE_STATUSES = [0, 1];
@@ -66,11 +66,11 @@ export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
       throw new Error(`Failed to embed PR ${externalKey}`);
     }
 
-    const matches = await searchSimilarThreads(embedding, {
+    const matches = await threadIndex.search(embedding, {
       limit: PR_MATCH_CANDIDATE_LIMIT,
       organizationId,
       scoreThreshold: PR_MATCH_RETRIEVAL_FLOOR,
-      statusFilter: ACTIVE_STATUSES,
+      where: { status: ACTIVE_STATUSES },
     });
     requestLog.set({
       matching: {
@@ -78,7 +78,7 @@ export const handleMatchPr = async (job: Job<PrMatchJobData>) => {
         candidateCount: matches.length,
         retrievalCount: matches.length,
         topScore: matches[0]?.score ?? null,
-        candidateThreadIds: matches.map((match) => match.threadId),
+        candidateThreadIds: matches.map((match) => match.payload.threadId),
       },
     });
 

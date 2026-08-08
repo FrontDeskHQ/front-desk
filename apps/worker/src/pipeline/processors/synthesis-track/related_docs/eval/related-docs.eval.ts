@@ -22,7 +22,7 @@ evalite("Related Docs Hint", {
         {
           role: "user",
           content: `hits=${input.hits
-            .map((h) => `${h.pageUrl}@${h.score}`)
+            .map((h) => `${h.payload.pageUrl}@${h.score}`)
             .join(", ")}`,
         },
       ],

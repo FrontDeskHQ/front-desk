@@ -1,6 +1,6 @@
 import type { DuplicateEvidence } from "@workspace/schemas/signals";
 
-import type { SimilarThreadResult } from "../../../../lib/qdrant/threads";
+import type { ThreadHit } from "../../../../lib/qdrant/threads";
 
 export type DuplicateCandidate = {
   targetThreadId: string;
@@ -8,10 +8,10 @@ export type DuplicateCandidate = {
 } | null;
 
 export function findDuplicateCandidate(
-  results: SimilarThreadResult[],
+  results: ThreadHit[],
   opts: { threshold: number }
 ): DuplicateCandidate {
-  let best: SimilarThreadResult | null = null;
+  let best: ThreadHit | null = null;
   for (const r of results) {
     if (r.score < opts.threshold) {
       continue;
@@ -23,17 +23,19 @@ export function findDuplicateCandidate(
   if (!best) {
     return null;
   }
-  return { score: best.score, targetThreadId: best.threadId };
+  return { score: best.score, targetThreadId: best.payload.threadId };
 }
 
 export function toDuplicateEvidence(
   candidate: DuplicateCandidate,
-  results: SimilarThreadResult[]
+  results: ThreadHit[]
 ): DuplicateEvidence | null {
   if (!candidate) {
     return null;
   }
-  const match = results.find((r) => r.threadId === candidate.targetThreadId);
+  const match = results.find(
+    (r) => r.payload.threadId === candidate.targetThreadId
+  );
   return {
     score: candidate.score,
     shortDescription: match?.payload.shortDescription,
@@ -43,7 +45,7 @@ export function toDuplicateEvidence(
 }
 
 export function pickDuplicateEvidence(
-  results: SimilarThreadResult[],
+  results: ThreadHit[],
   opts: { threshold: number }
 ): DuplicateEvidence | null {
   return toDuplicateEvidence(findDuplicateCandidate(results, opts), results);

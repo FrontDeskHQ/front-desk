@@ -8,12 +8,7 @@ import {
   generateIssueEmbedding,
 } from "../lib/issue-embedding";
 import { createWorkerJobLogger, isRetryableError } from "../lib/logging";
-import {
-  deleteIssueVector,
-  getIssuePoint,
-  setIssueState,
-  upsertIssueVector,
-} from "../lib/qdrant/issues";
+import { issueIndex } from "../lib/qdrant/issues";
 import type { IssuePayload } from "../lib/qdrant/issues";
 
 const computeSha256 = (data: string): string =>
@@ -51,15 +46,12 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
   try {
     // Mirror row removed: drop the vector and stop.
     if (data.deleted) {
-      const deleted = await deleteIssueVector(organizationId, externalKey);
-      if (!deleted) {
-        throw new Error(`Failed to delete issue vector ${externalKey}`);
-      }
+      await issueIndex.remove({ externalKey, organizationId });
       requestLog.set({ outcome: { action: "deleted", vectorDeleted: true } });
       return { action: "deleted" as const, externalKey };
     }
 
-    const existing = await getIssuePoint(organizationId, externalKey);
+    const existing = await issueIndex.get({ externalKey, organizationId });
     requestLog.set({ issue: { existingIndex: Boolean(existing) } });
 
     const embedText = buildIssueEmbedText(data);
@@ -68,16 +60,11 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
 
     // Content unchanged since the last index: no re-embed needed. Refresh the
     // stored state (and updatedAt) on the existing point in place.
-    if (existing && existing.payload.contentHash === contentHash) {
-      const updated = await setIssueState(
-        organizationId,
-        externalKey,
-        data.state,
-        now
+    if (existing && existing.contentHash === contentHash) {
+      await issueIndex.patch(
+        { externalKey, organizationId },
+        { state: data.state, updatedAt: now }
       );
-      if (!updated) {
-        throw new Error(`Failed to update issue state ${externalKey}`);
-      }
       requestLog.set({
         outcome: {
           action: "state",
@@ -109,10 +96,7 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
       url: data.url,
     };
 
-    const stored = await upsertIssueVector(embedding, payload);
-    if (!stored) {
-      throw new Error(`Failed to store issue vector ${externalKey}`);
-    }
+    await issueIndex.upsert({ payload, vector: embedding });
 
     requestLog.set({
       outcome: {

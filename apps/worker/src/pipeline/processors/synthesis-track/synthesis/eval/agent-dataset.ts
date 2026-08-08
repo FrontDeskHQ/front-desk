@@ -1,7 +1,7 @@
 import type {
-  DocumentationPageChunk,
-  DocumentationSearchHit,
-} from "../../../../../lib/qdrant/search-documentation";
+  DocumentationPageChunkResult,
+  DocumentationSearchResult,
+} from "../tools";
 import type { SynthesizeThreadReadInput } from "../synthesize";
 
 export interface SynthesisAgentEvalCase {
@@ -24,8 +24,8 @@ export interface SynthesisAgentEvalCase {
         }[];
       }
     >;
-    docsSearchHitsByQuery?: Record<string, DocumentationSearchHit[]>;
-    docsPageChunksByUrl?: Record<string, DocumentationPageChunk[]>;
+    docsSearchHitsByQuery?: Record<string, DocumentationSearchResult[]>;
+    docsPageChunksByUrl?: Record<string, DocumentationPageChunkResult[]>;
     /** Mirrored issues keyed by URL, served by the mocked `read_issue` tool. */
     issuesByUrl?: Record<
       string,
