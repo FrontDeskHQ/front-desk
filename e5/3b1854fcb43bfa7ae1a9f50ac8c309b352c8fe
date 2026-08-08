@@ -1,0 +1,21 @@
+apps/worker/src/pipeline/processors/embed.ts
+  s_b3c44ba7913c78::t_04b786499ca6f0 144-151,153,158
+apps/worker/src/pipeline/processors/embed-messages.ts
+  s_b3c44ba7913c78::t_e869d70ad1ce9c 96-101
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e53b1854fcb43bfa7ae1a9f50ac8c309b352c8fe",
+  "prompts": {},
+  "sessions": {
+    "s_b3c44ba7913c78": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "256a8f01-10b0-43b2-9086-161587e28b8a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
