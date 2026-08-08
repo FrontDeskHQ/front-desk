@@ -1,0 +1,38 @@
+apps/worker/src/pipeline/core/run-state.ts
+  s_b3c44ba7913c78::t_28b2ececaac216 34-38
+apps/worker/src/pipeline/processors/synthesis-track/related_prs/processor.ts
+  s_b3c44ba7913c78::t_ea7cc3dff09b93 5-7,10-15,17,19-61
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/processor.ts
+  s_b3c44ba7913c78::t_4cf7a63421fbe2 5-7,10-12,15-18,20,22-69
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/eval/related-docs.eval.ts
+  s_b3c44ba7913c78::t_16ebf2c8de8537 4,17-21
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/processor.ts
+  s_b3c44ba7913c78::t_dca86099a278c7 2-4,8-38,40-58
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_b3c44ba7913c78::t_64ce2f2d8f90c9 19,74,79,84,89
+apps/worker/src/pipeline/processors/synthesis-track/define-retrieval-hint.test.ts
+  s_b3c44ba7913c78::t_aeaa701651781b 30-32
+  s_b3c44ba7913c78::t_ec1864199b9e66 1-29,33-223
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/processor.ts
+  s_b3c44ba7913c78::t_56cd944a9be23f 3,5-6,8-10,14-59,61-79,81
+apps/worker/src/pipeline/processors/synthesis-track/define-retrieval-hint.ts
+  s_b3c44ba7913c78::t_59645f041d70b8 1-217
+apps/worker/src/pipeline/processors/synthesis-track/duplicate/eval/duplicate.eval.ts
+  s_b3c44ba7913c78::t_16ebf2c8de8537 4,25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3d1701ee25607c55421347084cfb4ec669930db7",
+  "prompts": {},
+  "sessions": {
+    "s_b3c44ba7913c78": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "256a8f01-10b0-43b2-9086-161587e28b8a",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
