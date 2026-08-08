@@ -1,32 +1,40 @@
-import type { Action, ThreadRead } from "@workspace/schemas/signals";
+import { nextAgentReadAfterExecution } from "@workspace/schemas/signals";
+import type {
+  Action,
+  ActionKind,
+  AutonomyLevel,
+  ThreadRead,
+} from "@workspace/schemas/signals";
 import { log } from "@workspace/utils/logging";
 
-import { nextAgentReadAfterExecution, persistAgentRead } from "./agent-read";
-import { getOrgActionAutonomy } from "./autonomy";
-import { fetchClient } from "./database/client";
-import { errorFields } from "./logging";
+import { errorFields } from "../../lib/logging";
+import type { RunState } from "./run-state";
 
 const keepForRead = (
   action: Action,
-  autonomy: Awaited<ReturnType<typeof getOrgActionAutonomy>>
+  autonomy: Record<ActionKind, AutonomyLevel>
 ) => autonomy[action.kind] !== "off";
 
 /**
- * Applies org action-autonomy policy to a synthesis raw action set, optionally
- * auto-executes primary actions configured as `auto`, then persists
- * `thread.agentRead` (or null when no substantive move remains).
+ * The [autonomy stage](../../../../CONTEXT.md) for synthesis: applies the org's
+ * per-kind policy to a raw action set, auto-executes the primary actions set to
+ * `auto`, then persists the resulting [thread read](../../../../CONTEXT.md) (or
+ * null when no substantive move remains).
+ *
+ * A free function over {@link RunState} rather than a method on it: this is
+ * policy, not state. Keeping it outside the handle is also what lets it move
+ * behind the API seam later without dragging the rest of the run's state along.
  */
 export const applySynthesisAutonomy = async (
-  threadId: string,
-  organizationId: string,
+  run: RunState,
   rawActionSet: ThreadRead | null
 ): Promise<ThreadRead | null> => {
   if (!rawActionSet) {
-    await persistAgentRead(threadId, organizationId, null);
+    await run.publishRead(null);
     return null;
   }
 
-  const autonomy = await getOrgActionAutonomy(organizationId);
+  const autonomy = await run.autonomy();
 
   const primary = rawActionSet.primary.filter((action) =>
     keepForRead(action, autonomy)
@@ -36,7 +44,7 @@ export const applySynthesisAutonomy = async (
   );
 
   if (primary.length === 0) {
-    await persistAgentRead(threadId, organizationId, null);
+    await run.publishRead(null);
     return null;
   }
 
@@ -57,11 +65,7 @@ export const applySynthesisAutonomy = async (
 
   if (autoActions.length > 0) {
     try {
-      const result = await fetchClient.mutate.thread.executeAutonomousBundle({
-        actions: autoActions,
-        organizationId,
-        threadId,
-      });
+      const result = await run.executeBundle(autoActions);
 
       const afterAuto = nextAgentReadAfterExecution(
         { ...filteredRead, primary: autoActions },
@@ -80,8 +84,8 @@ export const applySynthesisAutonomy = async (
       log.error({
         action: "worker.synthesis_autonomy",
         event: "autonomous_bundle_failed",
-        organizationId,
-        threadId,
+        organizationId: run.organizationId,
+        threadId: run.threadId,
         autoActionCount: autoActions.length,
         error: errorFields(error),
         outcome: "auto_actions_retained_for_review",
@@ -91,7 +95,7 @@ export const applySynthesisAutonomy = async (
   }
 
   if (finalPrimary.length === 0) {
-    await persistAgentRead(threadId, organizationId, null);
+    await run.publishRead(null);
     return null;
   }
 
@@ -100,6 +104,6 @@ export const applySynthesisAutonomy = async (
     primary: finalPrimary,
   };
 
-  await persistAgentRead(threadId, organizationId, agentRead);
+  await run.publishRead(agentRead);
   return agentRead;
 };

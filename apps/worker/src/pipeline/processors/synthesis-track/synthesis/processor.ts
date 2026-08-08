@@ -4,16 +4,11 @@ import { sortThreadReadTriggers } from "@workspace/schemas/signals";
 import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 
-import { resolveActionAvailability } from "../../../../lib/action-availability";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
-import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
 import { isRetryableError } from "../../../../lib/logging";
-import {
-  resolveMessageAuthors,
-  threadHasTeamReply,
-} from "../../../../lib/message-roles";
-import { readHintBag } from "../../../../lib/read-hints";
+import { threadHasTeamReply } from "../../../../lib/message-roles";
 import type { ParsedSummary } from "../../../../types";
+import { applySynthesisAutonomy } from "../../../core/autonomy-stage";
 import { hasSynthesisTrigger } from "../../../core/trigger-policy";
 import type {
   ProcessorDefinition,
@@ -147,7 +142,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<SynthesisProcessorOutput>> {
-      const { context: jobContext, thread, threadId } = context;
+      const { context: jobContext, run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.synthesis",
         processor: "synthesis",
@@ -163,7 +158,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         const latestMessage = messages.at(-1);
 
         if (!latestMessage) {
-          await applySynthesisAutonomy(threadId, thread.organizationId, null);
+          await applySynthesisAutonomy(run, null);
           requestLog.set({
             outcome: { status: "completed", reason: "no_messages" },
           });
@@ -174,19 +169,15 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           };
         }
 
-        const hints: Hints = await readHintBag(threadId);
+        // Slots persisted by earlier runs, merged with the ones this run's hint
+        // processors wrote in the previous turn — no re-fetch needed.
+        const hints: Hints = run.hints();
         const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
           "summarize",
           threadId
         );
 
-        const resolvedAuthors = await resolveMessageAuthors(
-          [
-            ...messages.map((message) => message.authorId),
-            ...(thread.authorId ? [thread.authorId] : []),
-          ],
-          thread.authorId
-        );
+        const resolvedAuthors = await run.authors();
         const hasTeamReply = threadHasTeamReply(
           messages,
           resolvedAuthors.roles
@@ -197,12 +188,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
 
         // Availability is resolved *before* synthesis so it can shape the
         // prompt and the output schema (see CONTEXT.md, "Action availability").
-        // Thread state narrows it: a thread already linking an issue cannot
-        // file another one.
-        const availability = await resolveActionAvailability({
-          organizationId: thread.organizationId,
-          threadHasLinkedIssue: Boolean(thread.externalIssueId),
-        });
+        const availability = await run.availability();
 
         const tools = createSynthesisTools({
           organizationId: thread.organizationId,
@@ -243,11 +229,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           hasTeamReply,
         });
 
-        const agentRead = await applySynthesisAutonomy(
-          threadId,
-          thread.organizationId,
-          rawActionSet
-        );
+        const agentRead = await applySynthesisAutonomy(run, rawActionSet);
 
         requestLog.set({
           synthesis: {

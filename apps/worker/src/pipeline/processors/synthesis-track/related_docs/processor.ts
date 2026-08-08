@@ -5,7 +5,6 @@ import { createLogger } from "@workspace/utils/logging";
 
 import { isRetryableError } from "../../../../lib/logging";
 import { searchDocumentation } from "../../../../lib/qdrant/search-documentation";
-import { writeHintSlot } from "../../../../lib/read-hints";
 import type { ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -54,7 +53,7 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<RelatedDocsProcessorOutput>> {
-      const { context: jobContext, thread, threadId } = context;
+      const { context: jobContext, run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.related_docs",
         processor: "related_docs",
@@ -85,13 +84,7 @@ export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutpu
         const evidence: RelatedDocsEvidence | null =
           toRelatedDocsEvidence(hits);
 
-        await writeHintSlot(
-          threadId,
-          thread.organizationId,
-          "related_docs",
-          evidence,
-          hash
-        );
+        await run.writeHint("related_docs", evidence, hash);
 
         requestLog.set({
           search: {

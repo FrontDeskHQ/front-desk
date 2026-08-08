@@ -1,5 +1,4 @@
 import { log } from "@workspace/utils/logging";
-import { ulid } from "ulid";
 
 import { fetchClient } from "../../lib/database/client";
 import { errorFields } from "../../lib/logging";
@@ -12,86 +11,6 @@ export const buildIdempotencyKey = (
   processorName: string,
   threadId: string
 ): string => `${processorName}:${threadId}`;
-
-/**
- * Check if a processor should run based on idempotency key and hash
- *
- * @returns true if the processor should be skipped (already processed with same hash)
- * @returns false if the processor should run (new or hash changed)
- */
-export const checkIdempotency = async (
-  key: string,
-  hash: string
-): Promise<boolean> => {
-  try {
-    const existing = (
-      await fetchClient.query.pipelineIdempotencyKey.byKeys({ keys: [key] })
-    )[0];
-
-    if (!existing) {
-      return false;
-    }
-
-    return existing.hash === hash;
-  } catch (error) {
-    log.error({
-      action: "worker.idempotency",
-      operation: "check",
-      key,
-      error: errorFields(error),
-    });
-    return false;
-  }
-};
-
-/**
- * Store or update an idempotency key after successful execution
- */
-export const storeIdempotencyKey = async (
-  key: string,
-  hash: string
-): Promise<boolean> => {
-  try {
-    await fetchClient.mutate.pipelineIdempotencyKey.upsert({
-      createdAt: new Date(),
-      hash,
-      id: ulid().toLowerCase(),
-      key,
-    });
-
-    return true;
-  } catch (error) {
-    log.error({
-      action: "worker.idempotency",
-      operation: "store",
-      key,
-      error: errorFields(error),
-    });
-    return false;
-  }
-};
-
-/**
- * Invalidate an idempotency key by setting an empty hash
- * This forces the processor to run again on the next execution.
- */
-export const invalidateIdempotencyKey = async (
-  key: string
-): Promise<boolean> => {
-  try {
-    await fetchClient.mutate.pipelineIdempotencyKey.invalidate({ key });
-
-    return true;
-  } catch (error) {
-    log.error({
-      action: "worker.idempotency",
-      operation: "invalidate",
-      key,
-      error: errorFields(error),
-    });
-    return false;
-  }
-};
 
 /**
  * Batch check idempotency for multiple keys

@@ -25,7 +25,6 @@ import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleIndexIssue } from "./handlers/index-issue";
 import { handleIndexPr } from "./handlers/index-pr";
 import { handleMatchPr } from "./handlers/match-pr";
-import { clearThreadAgentRead } from "./lib/database/client";
 import {
   emitQueueLifecycle,
   errorFields,
@@ -37,6 +36,7 @@ import { ensureMessagesCollection } from "./lib/qdrant/messages";
 import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
 import { ensureThreadsCollection } from "./lib/qdrant/threads";
 import { executePipeline } from "./pipeline/core/orchestrator";
+import { hydrateRunStates } from "./pipeline/core/run-state";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
@@ -129,8 +129,15 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     const synthesisTriggers = triggers.filter(
       (trigger) => trigger.kind !== "supersede"
     );
+    // A supersede clears the current read without invoking synthesis. Hydration
+    // throws on transport failure so the job retries; a thread that is simply
+    // gone yields no run state and reports as skipped.
     const supersedeCleared = hasSupersede
-      ? await clearThreadAgentRead(threadId)
+      ? await (async () => {
+          const run = (await hydrateRunStates([threadId])).get(threadId);
+          await run?.publishRead(null);
+          return Boolean(run);
+        })()
       : undefined;
 
     if (synthesisTriggers.length === 0) {

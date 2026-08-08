@@ -8,7 +8,6 @@ import {
   ISSUE_MATCH_THRESHOLD,
   searchSimilarIssues,
 } from "../../../../lib/qdrant/issues";
-import { writeHintSlot } from "../../../../lib/read-hints";
 import type { EmbedOutput, ParsedSummary } from "../../../../types";
 import type {
   ProcessorDefinition,
@@ -82,7 +81,7 @@ export const relatedIssuesProcessor: ProcessorDefinition<RelatedIssuesProcessorO
     async execute(
       context: ProcessorExecuteContext
     ): Promise<ProcessorResult<RelatedIssuesProcessorOutput>> {
-      const { context: jobContext, thread, threadId } = context;
+      const { context: jobContext, run, thread, threadId } = context;
       const requestLog = createLogger({
         action: "pipeline.related_issues",
         jobId: jobContext.jobId,
@@ -95,13 +94,7 @@ export const relatedIssuesProcessor: ProcessorDefinition<RelatedIssuesProcessorO
       try {
         // Already linked to an issue — nothing to suggest. Clear any stale hint.
         if (thread.externalIssueId) {
-          await writeHintSlot(
-            threadId,
-            thread.organizationId,
-            "related_issues",
-            null,
-            computeSha256("linked")
-          );
+          await run.writeHint("related_issues", null, computeSha256("linked"));
           requestLog.set({
             outcome: { status: "skipped", reason: "already_linked" },
           });
@@ -148,13 +141,7 @@ export const relatedIssuesProcessor: ProcessorDefinition<RelatedIssuesProcessorO
 
         const evidence = toRelatedIssuesEvidence(hits);
 
-        await writeHintSlot(
-          threadId,
-          thread.organizationId,
-          "related_issues",
-          evidence,
-          hash
-        );
+        await run.writeHint("related_issues", evidence, hash);
 
         requestLog.set({
           search: {
