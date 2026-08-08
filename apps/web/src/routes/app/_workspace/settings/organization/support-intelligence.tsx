@@ -1,10 +1,7 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useForm, useStore } from "@tanstack/react-form";
 import { createFileRoute } from "@tanstack/react-router";
-import {
-  readDefaultIssueTarget,
-  safeParseOrgSettings,
-} from "@workspace/schemas/organization";
+import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
   AUTO_CAPABLE_ACTIONS,
   getDefaultActionAutonomy,
@@ -23,13 +20,6 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@workspace/ui/components/segmented-control";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import {
   Tooltip,
@@ -41,7 +31,6 @@ import { useMemo, useState } from "react";
 import { z } from "zod";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
@@ -179,102 +168,12 @@ const AUTONOMY_ACTION_LABEL: Record<ActionKind, string> = {
 /** Extra caveats shown under a row whose consequences aren't self-evident. */
 const AUTONOMY_ACTION_HELP: Partial<Record<ActionKind, string>> = {
   create_issue:
-    "Filing an issue can't be undone, and the issue may be visible to anyone who can see the repository. Requires a default issue target below.",
+    "Filing an issue can't be undone, and the issue may be visible to anyone who can see the repository. Requires a connected issue tracker (and defaults to the first target when none is pinned).",
 };
 
-const NO_TARGET = "__none__";
-
 /**
- * Where Agent-initiated issue creation lands. Saves immediately rather than
- * joining the card's pending-autonomy batch: it is a single choice, and issue
- * filing stays unavailable to the Agent until it is set, so deferring it behind
- * the shared Save button would silently keep the feature dark.
+ * Mode-neutral autonomy settings for Support Intelligence signals.
  */
-function DefaultIssueTargetField({
-  organizationId,
-  settings,
-  isUserOwner,
-}: {
-  organizationId: string | undefined;
-  settings: unknown;
-  isUserOwner: boolean;
-}) {
-  const options = useIssueTargetOptions(organizationId);
-  const current = readDefaultIssueTarget(settings);
-
-  const handleChange = (label: string) => {
-    if (!organizationId) {
-      return;
-    }
-    if (label === NO_TARGET) {
-      mutate.organization.setDefaultIssueTarget({
-        organizationId,
-        target: null,
-      });
-      return;
-    }
-    const option = options.find((o) => o.label === label);
-    if (!option) {
-      return;
-    }
-    mutate.organization.setDefaultIssueTarget({
-      organizationId,
-      target: {
-        // Pin the integration the repo list came from; without it, routing
-        // falls back to the capability primary, which may be a different
-        // tracker that has never heard of this repo.
-        integrationId: option.integrationId,
-        label: option.label,
-        target: option.target,
-      },
-    });
-  };
-
-  return (
-    <div className="flex flex-col gap-1 border-t border-border pt-4">
-      <span className="text-sm font-medium">Default issue target</span>
-      <span className="text-sm text-muted-foreground">
-        Where the Agent files issues. It never picks a destination itself —
-        while this is unset, issue filing is unavailable to it. You can still
-        redirect an individual issue when you accept a suggestion.
-      </span>
-      <div className="pt-2">
-        {/* Still render the control when there are no options but a target is
-            saved — otherwise a target pointing at a removed repo becomes
-            unclearable while `create_issue` stays available against it. */}
-        {options.length === 0 && !current ? (
-          <span className="text-sm text-muted-foreground">
-            Connect an issue tracker to choose a target.
-          </span>
-        ) : (
-          <Select
-            value={current?.label ?? NO_TARGET}
-            onValueChange={(value) => handleChange(value as string)}
-            disabled={!isUserOwner}
-          >
-            <SelectTrigger aria-label="Default issue target" className="w-72">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={NO_TARGET}>No target</SelectItem>
-              {current && !options.some((o) => o.label === current.label) ? (
-                <SelectItem value={current.label}>
-                  {current.label} (no longer connected)
-                </SelectItem>
-              ) : null}
-              {options.map((option) => (
-                <SelectItem key={option.label} value={option.label}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function AutomationCard({
   organizationId,
   settings,
@@ -411,11 +310,6 @@ function AutomationCard({
               );
             })}
           </div>
-          <DefaultIssueTargetField
-            organizationId={organizationId}
-            settings={settings}
-            isUserOwner={isUserOwner}
-          />
         </CardContent>
       </Card>
       {isUserOwner && (

@@ -1,7 +1,10 @@
 import { typesProvidingCapability } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { safeParseOrgSettings } from "@workspace/schemas/organization";
+import {
+  readDefaultIssueTarget,
+  safeParseOrgSettings,
+} from "@workspace/schemas/organization";
 import { Badge } from "@workspace/ui/components/badge";
 import {
   Select,
@@ -10,12 +13,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
 import { cn } from "@workspace/ui/lib/utils";
 
 import { LimitCallout } from "~/components/integration-settings/limit-callout";
 import { useIntegrationWarnings } from "~/lib/hooks/query/use-integration-warnings";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 import { usePlanLimits } from "~/lib/hooks/query/use-plan-limits";
+import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 
@@ -139,11 +148,145 @@ const integrationLabel = (type: string): string =>
   integrationOptions.find((option) => option.id === type)?.label ?? type;
 
 /**
- * Picks the org's primary issue-tracker — the target used when none is implied
- * (e.g. an agent-initiated issue create). Gated on the capability, not a named
- * provider, so it lists whichever enabled integrations provide `issue-tracker`.
+ * Where Agent-initiated issue creation lands. Saves immediately on change.
+ * When unset, the Agent (and this control) fall back to the first target —
+ * same rule as the primary issue tracker.
  */
-function PrimaryIssueTrackerSection({
+function DefaultIssueTargetField({
+  organizationId,
+  settings,
+  isUserOwner,
+}: {
+  organizationId: string;
+  settings: unknown;
+  isUserOwner: boolean;
+}) {
+  const options = useIssueTargetOptions(organizationId);
+  const current = readDefaultIssueTarget(settings);
+
+  // Still render the control when there are no options but a target is saved —
+  // otherwise a target pointing at a removed repo becomes unclearable while
+  // `create_issue` stays available against it.
+  const orphanCurrent =
+    current && !options.some((o) => o.label === current.label)
+      ? current
+      : null;
+
+  // Sentinel for clearing a stale orphan; never collides with a repo fullName.
+  const clearValue = "__clear_default_issue_target__";
+
+  // Base UI Select.Value shows the raw value unless `items` maps value → label.
+  // Orphans get a clear path so owners can disconnect a removed repo without
+  // waiting to reconnect a tracker.
+  const targetItems = [
+    ...(orphanCurrent
+      ? [
+          {
+            value: orphanCurrent.label,
+            label: `${orphanCurrent.label} (no longer connected)`,
+          },
+          { value: clearValue, label: "No target" },
+        ]
+      : []),
+    ...options.map((option) => ({
+      value: option.label,
+      label: option.label,
+    })),
+  ];
+
+  // No "none" option when a real target is available — when nothing is saved,
+  // surface the first target so the control matches what the Agent will use.
+  // Orphans already resolve via current.label.
+  const selected =
+    current?.label ?? (options.length > 0 ? options[0].label : null) ?? null;
+
+  const handleChange = (label: string) => {
+    if (label === clearValue) {
+      mutate.organization.setDefaultIssueTarget({
+        organizationId,
+        target: null,
+      });
+      return;
+    }
+    const option = options.find((o) => o.label === label);
+    if (!option) {
+      return;
+    }
+    mutate.organization.setDefaultIssueTarget({
+      organizationId,
+      target: {
+        // Pin the integration the repo list came from; without it, routing
+        // falls back to the capability primary, which may be a different
+        // tracker that has never heard of this repo.
+        integrationId: option.integrationId,
+        label: option.label,
+        target: option.target,
+      },
+    });
+  };
+
+  // Only real options count as a settled single choice; an orphan entry is
+  // display-only and must leave the control interactive so it stays clearable.
+  const soleOption = options.length === 1 && !orphanCurrent;
+  const select = (
+    <Select
+      value={selected}
+      items={targetItems}
+      onValueChange={(value) => handleChange(value as string)}
+      disabled={!isUserOwner || soleOption}
+    >
+      <SelectTrigger aria-label="Default issue target" className="w-72">
+        <SelectValue placeholder="Select a target" />
+      </SelectTrigger>
+      <SelectContent>
+        {targetItems.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="text-sm">Default issue target</div>
+      <div className="text-muted-foreground text-sm">
+        Where Support Intelligence files issues. Defaults to the first available
+        target when unset.
+      </div>
+      {options.length === 0 && !current ? (
+        <span className="text-sm text-muted-foreground mt-1">
+          Connect an issue tracker to choose a target.
+        </span>
+      ) : (
+        <div className="mt-1 w-fit">
+          {soleOption ? (
+            <Tooltip>
+              {/* Span wrapper: disabled selects don't fire pointer events, so
+                  the tooltip trigger has to sit outside the control. */}
+              <TooltipTrigger render={<span className="inline-flex" />}>
+                {select}
+              </TooltipTrigger>
+              <TooltipContent>
+                Only one repository is connected.
+              </TooltipContent>
+            </Tooltip>
+          ) : (
+            select
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Primary issue-tracker + default sub-resource target for Agent-initiated
+ * creates. Gated on the capability for the tracker list; the default target
+ * answers where inside that system issues land.
+ */
+function IssueTrackingSection({
   organizationId,
   integrations,
   isUserOwner,
@@ -169,8 +312,9 @@ function PrimaryIssueTrackerSection({
       providerTypes.has(integration.type)
   );
 
-  // Nothing to route through, or nobody's allowed to change it — hide the control.
-  if (!isUserOwner || trackers.length === 0) {
+  // Nobody's allowed to change these — hide the section. Owners still see the
+  // default-target control even with zero trackers (connect prompt).
+  if (!isUserOwner) {
     return null;
   }
 
@@ -179,38 +323,80 @@ function PrimaryIssueTrackerSection({
   ];
   // Default the selection to the first tracker when none is pinned yet.
   const selected =
-    trackers.find((tracker) => tracker.id === primaryId)?.id ?? trackers[0].id;
+    trackers.length > 0
+      ? (trackers.find((tracker) => tracker.id === primaryId)?.id ??
+        trackers[0].id)
+      : null;
+
+  // Base UI Select.Value shows the raw value unless `items` maps value → label.
+  const trackerItems = trackers.map((tracker) => ({
+    value: tracker.id,
+    label: integrationLabel(tracker.type),
+  }));
+  const soleTracker = trackerItems.length === 1;
+
+  const primarySelect = selected ? (
+    <Select
+      value={selected}
+      items={trackerItems}
+      disabled={soleTracker}
+      onValueChange={(value) =>
+        mutate.organization.setCapabilityPrimary({
+          capability: "issue-tracker",
+          integrationId: value as string,
+          organizationId,
+        })
+      }
+    >
+      <SelectTrigger className="w-64">
+        <SelectValue />
+      </SelectTrigger>
+      <SelectContent>
+        {trackerItems.map((item) => (
+          <SelectItem key={item.value} value={item.value}>
+            {item.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  ) : null;
 
   return (
     <div className="p-4 flex flex-col gap-4 w-full">
       <h2 className="text-base">Issue tracking</h2>
-      <div className="flex flex-col gap-2 rounded-md border bg-muted/30 p-4">
-        <div className="text-sm">Primary issue tracker</div>
-        <div className="text-muted-foreground text-sm">
-          Where the Agent opens issues when a thread doesn't already point at a
-          specific target. You can still pick any target by hand.
-        </div>
-        <Select
-          value={selected}
-          onValueChange={(value) =>
-            mutate.organization.setCapabilityPrimary({
-              capability: "issue-tracker",
-              integrationId: value as string,
-              organizationId,
-            })
-          }
-        >
-          <SelectTrigger className="w-64 mt-1">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {trackers.map((tracker) => (
-              <SelectItem key={tracker.id} value={tracker.id}>
-                {integrationLabel(tracker.type)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+      <div className="flex flex-col gap-6 rounded-md border bg-muted/30 p-4">
+        {primarySelect ? (
+          <div className="flex flex-col gap-2">
+            <div className="text-sm">Primary issue tracker</div>
+            <div className="text-muted-foreground text-sm">
+              Which external system the Agent opens issues in when a thread
+              doesn't already point at a specific target. Defaults to the first
+              connected tracker when unset. You can still pick any target by
+              hand.
+            </div>
+            <div className="mt-1 w-fit">
+              {soleTracker ? (
+                <Tooltip>
+                  {/* Span wrapper: disabled selects don't fire pointer events,
+                      so the tooltip trigger sits outside the control. */}
+                  <TooltipTrigger render={<span className="inline-flex" />}>
+                    {primarySelect}
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Only one issue tracker is connected.
+                  </TooltipContent>
+                </Tooltip>
+              ) : (
+                primarySelect
+              )}
+            </div>
+          </div>
+        ) : null}
+        <DefaultIssueTargetField
+          organizationId={organizationId}
+          settings={org?.settings}
+          isUserOwner={isUserOwner}
+        />
       </div>
     </div>
   );
@@ -322,7 +508,7 @@ function RouteComponent() {
       {renderIntegrationGroup("Active integrations", activeIntegrations)}
       {renderIntegrationGroup("Available integrations", availableIntegrations)}
       {activeOrganization?.id && (
-        <PrimaryIssueTrackerSection
+        <IssueTrackingSection
           organizationId={activeOrganization.id}
           integrations={allIntegrations ?? []}
           isUserOwner={isUserOwner}

@@ -1,8 +1,10 @@
-import { readDefaultIssueTarget } from "@workspace/schemas/organization";
 import type { CreateIssueAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
-import { runCreateIssue } from "../../issue-tracker";
+import {
+  resolveEffectiveDefaultIssueTarget,
+  runCreateIssue,
+} from "../../issue-tracker";
 import type { ActionHandler } from "../types";
 
 /**
@@ -42,10 +44,15 @@ export const createIssueHandler: ActionHandler<CreateIssueAction> = {
     }
 
     // The Agent never picks a destination. `auto` mode gets the org's default
-    // issue target; on the accept path a human may redirect it from the card,
-    // which arrives as the override.
+    // issue target (or the first available target when unset); on the accept
+    // path a human may redirect it from the card, which arrives as the override.
     const target =
-      ctx.issueTarget ?? readDefaultIssueTarget(organization.settings);
+      ctx.issueTarget ??
+      (await resolveEffectiveDefaultIssueTarget(
+        ctx.db,
+        ctx.organizationId,
+        organization.settings
+      ));
     if (!target) {
       throw new Error("DEFAULT_ISSUE_TARGET_NOT_CONFIGURED");
     }

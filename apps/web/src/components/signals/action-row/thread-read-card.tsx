@@ -467,7 +467,7 @@ function formatErrorMessage(error: unknown): string {
   // proposed create_issue. Retrying will never work, so say what to change
   // instead of offering the generic try-again.
   if (message.includes("DEFAULT_ISSUE_TARGET_NOT_CONFIGURED")) {
-    return "No default issue target is configured. Set one in Support Intelligence settings.";
+    return "No issue target is available. Connect a repository in Integrations settings.";
   }
   if (message.includes("ISSUE_TRACKER_NOT_CONFIGURED")) {
     return "This organization has no configured issue tracker.";
@@ -475,7 +475,7 @@ function formatErrorMessage(error: unknown): string {
   // Raised by the connector, which owns target validation — core treats the
   // integration config as opaque and cannot check the target up front.
   if (message.includes("REPOSITORY_NOT_CONNECTED")) {
-    return "The configured issue target is no longer connected. Pick another in Support Intelligence settings.";
+    return "The configured issue target is no longer connected. Pick another in Integrations settings.";
   }
   return "Could not apply this signal. Please try again.";
 }
