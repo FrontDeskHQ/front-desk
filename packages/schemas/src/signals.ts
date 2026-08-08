@@ -490,7 +490,12 @@ export const AUTO_CAPABLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
  * proposed. `create_issue` needs no evidence, so it needs this.
  */
 export interface ActionAvailability {
-  /** True when the org has a usable [default issue target](../../CONTEXT.md) (explicit or first-available fallback). */
+  /**
+   * True when the org has a usable [default issue target](../../CONTEXT.md)
+   * (explicit or first-available fallback) *and* the thread does not already
+   * link an issue — a thread links a single issue, so filing a second one can
+   * only fail at execution.
+   */
   create_issue: boolean;
 }
 

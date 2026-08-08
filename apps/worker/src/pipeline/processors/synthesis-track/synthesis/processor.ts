@@ -4,7 +4,7 @@ import { sortThreadReadTriggers } from "@workspace/schemas/signals";
 import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 
-import { getOrgActionAvailability } from "../../../../lib/action-availability";
+import { resolveActionAvailability } from "../../../../lib/action-availability";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { applySynthesisAutonomy } from "../../../../lib/apply-synthesis-autonomy";
 import { isRetryableError } from "../../../../lib/logging";
@@ -102,6 +102,9 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
       const hashInput = [
         thread.id,
         thread.name ?? "",
+        // Shapes availability (an already-linked thread cannot file an issue),
+        // so it is a real synthesis input.
+        thread.externalIssueId ?? "",
         latestMessage?.id ?? "",
         latestMessage?.content ?? "",
         appliedLabels.join(","),
@@ -125,6 +128,17 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
       "related_prs",
       "related_issues",
     ],
+
+    // Linking/unlinking sets `externalIssueId` without changing summarize or
+    // related_* outputs, so those deps can all skip. Without this opt-out the
+    // orchestrator would fast-path synthesis on idempotency-key existence alone
+    // and never consult the hash that now includes `externalIssueId` — leaving
+    // a stale create_issue offer (or hiding a newly available one). Always
+    // return true so both directions (link and unlink) hit the hash check;
+    // related_issues / related_prs only care about the linked state.
+    runsWhenDependenciesSkipped(_context: ProcessorExecuteContext): boolean {
+      return true;
+    },
 
     runsOnTrigger(context: ProcessorExecuteContext): boolean {
       return hasSynthesisTrigger(context.context.input.triggers);
@@ -183,9 +197,12 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
 
         // Availability is resolved *before* synthesis so it can shape the
         // prompt and the output schema (see CONTEXT.md, "Action availability").
-        const availability = await getOrgActionAvailability(
-          thread.organizationId
-        );
+        // Thread state narrows it: a thread already linking an issue cannot
+        // file another one.
+        const availability = await resolveActionAvailability({
+          organizationId: thread.organizationId,
+          threadHasLinkedIssue: Boolean(thread.externalIssueId),
+        });
 
         const tools = createSynthesisTools({
           organizationId: thread.organizationId,
