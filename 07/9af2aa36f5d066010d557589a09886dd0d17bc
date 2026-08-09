@@ -1,0 +1,30 @@
+apps/worker/src/pipeline/processors/synthesis-track/define-retrieval-hint.ts
+  s_955779d20075aa::t_b53c0ede08d229 119-126
+apps/worker/src/pipeline/processors/embed.ts
+  s_955779d20075aa::t_fd77cd62fb1917 232
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/processor.ts
+  s_955779d20075aa::t_a337b8049ff1e4 50-52,55
+  s_955779d20075aa::t_2ed3169f123a9e 8-14
+apps/worker/src/lib/qdrant/define-index.ts
+  s_955779d20075aa::t_48c68e7e42f52c 188-200
+  s_955779d20075aa::t_18dc29a2be00ba 119-123,126
+  s_955779d20075aa::t_9c046580191bf3 313-340,343-346,348-357
+  s_955779d20075aa::t_b86d3e3e419c2d 148-153
+  s_955779d20075aa::t_ae62c1d40f0e47 293-297
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "079af2aa36f5d066010d557589a09886dd0d17bc",
+  "prompts": {},
+  "sessions": {
+    "s_955779d20075aa": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1172bb29-ed39-4fca-833d-9039cc3374a3",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
