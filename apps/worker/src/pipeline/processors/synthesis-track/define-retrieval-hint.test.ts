@@ -110,14 +110,24 @@ describe("retrieval hint retirement", () => {
     expect(first).toBe(second);
   });
 
-  it("opts out of the dependencies-skipped fast path only when retired", () => {
+  it("opts a retiring hint out of the dependencies-skipped fast path in both directions", () => {
     const processor = defineRetrievalHint(spec());
 
+    // Linked: the hint must re-run to clear itself.
     expect(
       processor.runsWhenDependenciesSkipped?.(
         context({ thread: { externalPrId: "ext_1" } })
       )
     ).toBe(true);
+    // Unlinked: it must re-run to restore the hint the link cleared. Linking
+    // does not change the embedding, so the fast path would otherwise leave the
+    // slot empty forever.
+    expect(processor.runsWhenDependenciesSkipped?.(context({}))).toBe(true);
+  });
+
+  it("leaves a hint with no retiring column on the dependencies-skipped fast path", () => {
+    const processor = defineRetrievalHint(spec({ retiredBy: undefined }));
+
     expect(processor.runsWhenDependenciesSkipped?.(context({}))).toBe(false);
   });
 
