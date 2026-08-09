@@ -5,14 +5,14 @@ import {
   buildPrMatchRerankPrompt,
   buildPrMatchRerankSystemPrompt,
 } from "./pr-match-reranker";
-import type { SimilarThreadResult } from "./qdrant/threads";
+import type { ThreadHit } from "./qdrant/threads";
 
 const candidate = (
   threadId: string,
   title: string,
   shortDescription: string,
   score: number
-): SimilarThreadResult => ({
+): ThreadHit => ({
   payload: {
     assignedUserId: null,
     authorId: "author",
@@ -30,7 +30,6 @@ const candidate = (
     updatedAt: 0,
   },
   score,
-  threadId,
 });
 
 describe("PR match reranking", () => {
@@ -125,7 +124,7 @@ describe("PR match reranking", () => {
       "A support thread with many extracted summary values.",
       0.9
     );
-    const largeCandidate: SimilarThreadResult = {
+    const largeCandidate: ThreadHit = {
       ...baseCandidate,
       payload: {
         ...baseCandidate.payload,

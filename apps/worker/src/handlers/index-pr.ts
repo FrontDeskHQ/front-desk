@@ -3,14 +3,9 @@ import { createHash } from "node:crypto";
 import type { PrIndexJobData } from "@workspace/schemas/signals";
 import type { Job } from "bullmq";
 
-import { createWorkerJobLogger } from "../lib/logging";
+import { createWorkerJobLogger, isRetryableError } from "../lib/logging";
 import { buildPrEmbedText, generatePrEmbedding } from "../lib/pr-embedding";
-import {
-  deletePrVector,
-  getPrPoint,
-  setPrEligibility,
-  upsertPrVector,
-} from "../lib/qdrant/pull-requests";
+import { prIndex } from "../lib/qdrant/pull-requests";
 import type { PrPayload } from "../lib/qdrant/pull-requests";
 
 const computeSha256 = (data: string): string =>
@@ -48,16 +43,13 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
   try {
     // Mirror row removed: drop the vector and stop.
     if (data.deleted) {
-      const deleted = await deletePrVector(organizationId, externalKey);
-      if (!deleted) {
-        throw new Error(`Failed to delete PR vector ${externalKey}`);
-      }
+      await prIndex.remove({ externalKey, organizationId });
       requestLog.set({ outcome: { action: "deleted", vectorDeleted: true } });
       return { action: "deleted" as const, externalKey };
     }
 
     const eligible = data.state === "open" && data.draft !== true;
-    const existing = await getPrPoint(organizationId, externalKey);
+    const existing = await prIndex.get({ externalKey, organizationId });
     requestLog.set({
       pr: {
         eligible,
@@ -82,16 +74,11 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
 
     // Content unchanged since the last index: no re-embed needed. Flip the
     // eligibility flag (and refresh updatedAt) on the existing point in place.
-    if (existing && existing.payload.contentHash === contentHash) {
-      const updated = await setPrEligibility(
-        organizationId,
-        externalKey,
-        eligible,
-        now
+    if (existing && existing.contentHash === contentHash) {
+      await prIndex.patch(
+        { externalKey, organizationId },
+        { eligible, updatedAt: now }
       );
-      if (!updated) {
-        throw new Error(`Failed to update PR eligibility ${externalKey}`);
-      }
       requestLog.set({
         outcome: {
           action: "eligibility",
@@ -124,10 +111,7 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
       url: data.url,
     };
 
-    const stored = await upsertPrVector(embedding, payload);
-    if (!stored) {
-      throw new Error(`Failed to store PR vector ${externalKey}`);
-    }
+    await prIndex.upsert({ payload, vector: embedding });
 
     requestLog.set({
       outcome: {
@@ -144,7 +128,7 @@ export const handleIndexPr = async (job: Job<PrIndexJobData>) => {
     status = 500;
     requestLog.error(error instanceof Error ? error : String(error), {
       step: "pr.index",
-      retryable: true,
+      retryable: isRetryableError(error),
     });
     throw error;
   } finally {

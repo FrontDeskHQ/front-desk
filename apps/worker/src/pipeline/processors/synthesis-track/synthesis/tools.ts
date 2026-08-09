@@ -6,13 +6,36 @@ import {
   fetchMirroredPrByUrl,
   fetchThreadWithRelations,
 } from "../../../../lib/database/client";
+import { generateDocumentationQueryEmbedding } from "../../../../lib/documentation-embedding";
 import { generateSimilarityEmbedding } from "../../../../lib/entity-embedding";
-import { searchSimilarIssues } from "../../../../lib/qdrant/issues";
+import { documentationIndex } from "../../../../lib/qdrant/documentation";
 import {
-  readDocumentationPage,
-  searchDocumentation,
-} from "../../../../lib/qdrant/search-documentation";
+  ISSUE_MATCH_THRESHOLD,
+  issueIndex,
+} from "../../../../lib/qdrant/issues";
 import type { Thread } from "../../../../types";
+
+/**
+ * What `search_documentation` hands the synthesis agent. Flat and id-free by
+ * design: the agent should see page text and provenance, not the index's
+ * internal payload with its organization and source ids.
+ */
+export interface DocumentationSearchResult {
+  pageUrl: string;
+  pageTitle: string;
+  chunkText: string;
+  headingHierarchy: string[];
+  score: number;
+}
+
+/** What `read_documentation_page` hands the synthesis agent, in page order. */
+export interface DocumentationPageChunkResult {
+  pageUrl: string;
+  pageTitle: string;
+  chunkText: string;
+  headingHierarchy: string[];
+  chunkIndex: number;
+}
 
 interface CreateSynthesisToolsOptions {
   organizationId: string;
@@ -42,15 +65,30 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         limit: z.number().int().min(1).max(200).optional(),
       }),
       execute: async ({ pageUrl, limit }) => {
-        const chunks = await readDocumentationPage({
-          pageUrl,
-          organizationId,
-          limit,
-        });
-        return {
-          pageUrl,
-          chunks,
-        };
+        if (!pageUrl.trim()) {
+          return { pageUrl, chunks: [] };
+        }
+        // Degrade to no chunks rather than throwing: this is one probe inside a
+        // tool loop, and failing it would abort the whole synthesis run.
+        try {
+          const stored = await documentationIndex.scroll({
+            limit: limit ?? 50,
+            organizationId,
+            where: { pageUrl },
+          });
+          const chunks = stored
+            .toSorted((a, b) => a.chunkIndex - b.chunkIndex)
+            .map((chunk) => ({
+              chunkIndex: chunk.chunkIndex,
+              chunkText: chunk.chunkText,
+              headingHierarchy: chunk.headingHierarchy,
+              pageTitle: chunk.pageTitle,
+              pageUrl: chunk.pageUrl,
+            }));
+          return { pageUrl, chunks };
+        } catch {
+          return { pageUrl, chunks: [] };
+        }
       },
     }),
 
@@ -183,15 +221,16 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         // hint — which must distinguish "no matches" from a backend failure so
         // it never clears a valid lead — this is one probe inside a tool loop,
         // and failing it would abort the whole synthesis run.
-        let results: Awaited<ReturnType<typeof searchSimilarIssues>>;
+        let results: Awaited<ReturnType<typeof issueIndex.search>>;
         try {
           const vector = await generateSimilarityEmbedding(query);
           if (!vector) {
             return { hits: [] };
           }
-          results = await searchSimilarIssues(vector, {
+          results = await issueIndex.search(vector, {
             limit: limit ?? 5,
             organizationId,
+            scoreThreshold: ISSUE_MATCH_THRESHOLD,
           });
         } catch {
           return { hits: [] };
@@ -218,12 +257,29 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         limit: z.number().int().min(1).max(10).optional(),
       }),
       execute: async ({ query, limit }) => {
-        const hits = await searchDocumentation({
-          query,
-          organizationId,
-          limit,
-        });
-        return { hits };
+        // Same reasoning as `search_issues`: degrade to no hits rather than
+        // aborting the synthesis run on a backend failure.
+        try {
+          const vector = await generateDocumentationQueryEmbedding(query);
+          if (!vector) {
+            return { hits: [] };
+          }
+          const results = await documentationIndex.hybrid(
+            { text: query, vector },
+            { limit: limit ?? 5, organizationId }
+          );
+          return {
+            hits: results.map((result) => ({
+              chunkText: result.payload.chunkText,
+              headingHierarchy: result.payload.headingHierarchy,
+              pageTitle: result.payload.pageTitle,
+              pageUrl: result.payload.pageUrl,
+              score: result.score,
+            })),
+          };
+        } catch {
+          return { hits: [] };
+        }
       },
     }),
   };

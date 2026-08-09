@@ -4,15 +4,10 @@ import { google } from "@ai-sdk/google";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
-import { ULIDtoUUID } from "ulid-uuid-converter";
-
 import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
-import {
-  deleteStaleMessageVectors,
-  upsertMessageVectorsBatch,
-} from "../../lib/qdrant/messages";
+import { messageIndex } from "../../lib/qdrant/messages";
 import type { MessagePayload } from "../../lib/qdrant/messages";
 import type {
   ProcessorDefinition,
@@ -98,7 +93,12 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
     computeHash(context: ProcessorExecuteContext): string {
       const messages = context.thread.messages ?? [];
       const sorted = [...messages].toSorted((a, b) => a.id.localeCompare(b.id));
-      const hashInput = sorted.map((m) => `${m.id}:${m.content}`).join("|");
+      // Collection name included for the same reason as `embed` — rolling the
+      // index must invalidate idempotency keys that outlive the collection.
+      const hashInput = [
+        messageIndex.name,
+        ...sorted.map((m) => `${m.id}:${m.content}`),
+      ].join("|");
       return computeSha256(hashInput);
     },
 
@@ -173,11 +173,8 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
 
         // Generate embeddings in batches
         const points: {
-          id: string;
-          vector: {
-            dense: number[];
-            bm25: { text: string; model: "qdrant/bm25" };
-          };
+          vector: number[];
+          text: string;
           payload: MessagePayload;
         }[] = [];
 
@@ -196,8 +193,10 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
                 requestLog
               );
               if (!embedding) return null;
-              const qdrantPointId = ULIDtoUUID(message.id.toUpperCase(), {
-                nullOnInvalidInput: true,
+              // Message ids are ULIDs and the index derives its point id from
+              // them; a malformed one is skipped rather than failing the batch.
+              const qdrantPointId = messageIndex.pointIdFor({
+                messageId: message.id,
               });
               if (!qdrantPointId) {
                 requestLog.warn("Message has an invalid ULID and was skipped", {
@@ -208,14 +207,8 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
               }
 
               return {
-                id: qdrantPointId,
-                vector: {
-                  dense: embedding,
-                  bm25: {
-                    text: plainText,
-                    model: "qdrant/bm25" as const,
-                  },
-                },
+                text: plainText,
+                vector: embedding,
                 payload: {
                   messageId: message.id,
                   threadId,
@@ -242,47 +235,15 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
         }
 
         if (points.length > 0) {
-          const stored = await upsertMessageVectorsBatch(points);
+          await messageIndex.upsertBatch(points);
 
-          if (!stored) {
-            status = 500;
-            requestLog.set({
-              outcome: {
-                status: "failed",
-                reason: "message_vector_upsert_failed",
-                embeddedCount: points.length,
-                skippedCount,
-              },
-            });
-            return {
-              threadId,
-              success: false,
-              error: "Failed to store message vectors in Qdrant",
-            };
-          }
-
-          const keptMessageIds = points.map((p) => p.payload.messageId);
-          staleVectorsDeleted = await deleteStaleMessageVectors(
-            threadId,
-            keptMessageIds
-          );
-          if (!staleVectorsDeleted) {
-            status = 500;
-            requestLog.set({
-              outcome: {
-                status: "failed",
-                reason: "stale_message_vector_delete_failed",
-                embeddedCount: points.length,
-                skippedCount,
-                staleVectorsDeleted,
-              },
-            });
-            return {
-              threadId,
-              success: false,
-              error: "Failed to delete stale message vectors in Qdrant",
-            };
-          }
+          // Drop vectors for messages that no longer exist on the thread.
+          await messageIndex.removeWhere({
+            exclude: { messageId: points.map((p) => p.payload.messageId) },
+            organizationId: thread.organizationId,
+            where: { threadId },
+          });
+          staleVectorsDeleted = true;
         }
 
         requestLog.set({

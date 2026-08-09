@@ -5,7 +5,7 @@ import { generateText, Output } from "ai";
 import z from "zod";
 
 import { PR_MATCH_RERANK_THRESHOLD } from "./pr-match-config";
-import type { SimilarThreadResult } from "./qdrant/threads";
+import type { ThreadHit } from "./qdrant/threads";
 
 const RERANK_MODEL = "gemini-2.5-flash-lite";
 const RERANK_TIMEOUT_MS = 30_000;
@@ -62,14 +62,14 @@ Return exactly one decision for every listed candidate, using its exact Thread I
  */
 export const buildPrMatchRerankPrompt = (
   pr: Pick<PrMatchJobData, "body" | "headRef" | "title">,
-  candidates: SimilarThreadResult[]
+  candidates: ThreadHit[]
 ): string => {
   const pullRequest = {
     body: pr.body ? truncate(pr.body) : null,
     headRef: pr.headRef ? truncate(pr.headRef, 500) : null,
     title: truncate(pr.title),
   };
-  const threadCandidates = candidates.map(({ payload, score, threadId }) => ({
+  const threadCandidates = candidates.map(({ payload, score }) => ({
     initialVectorScore: Number(score.toFixed(3)),
     summary: {
       entities: payload.entities
@@ -82,7 +82,7 @@ export const buildPrMatchRerankPrompt = (
       shortDescription: truncate(payload.shortDescription),
       title: truncate(payload.title),
     },
-    threadId,
+    threadId: payload.threadId,
   }));
 
   return `<pull_request_data>\n${encodePromptData(pullRequest)}\n</pull_request_data>\n\n<thread_candidates_data>\n${encodePromptData({ candidates: threadCandidates })}\n</thread_candidates_data>`;
@@ -94,7 +94,7 @@ export const buildPrMatchRerankPrompt = (
  * `accepted` field from bypassing the acceptance gate.
  */
 export const applyPrMatchRerankDecisions = (
-  candidates: SimilarThreadResult[],
+  candidates: ThreadHit[],
   decisions: z.infer<typeof rerankDecisionSchema>[],
   threshold = PR_MATCH_RERANK_THRESHOLD
 ): PrRerankDecision[] => {
@@ -109,14 +109,14 @@ export const applyPrMatchRerankDecisions = (
   }
 
   return candidates.map((candidate) => {
-    const decision = decisionsByThread.get(candidate.threadId);
+    const decision = decisionsByThread.get(candidate.payload.threadId);
     if (!decision) {
       return {
         accepted: false,
         reason: "reranker_missing_decision",
         rerankScore: 0,
         retrievalScore: candidate.score,
-        threadId: candidate.threadId,
+        threadId: candidate.payload.threadId,
       };
     }
 
@@ -130,14 +130,14 @@ export const applyPrMatchRerankDecisions = (
           : decision.reason,
       rerankScore: decision.score,
       retrievalScore: candidate.score,
-      threadId: candidate.threadId,
+      threadId: candidate.payload.threadId,
     };
   });
 };
 
 export const rerankPrMatches = async (
   pr: Pick<PrMatchJobData, "body" | "headRef" | "title">,
-  candidates: SimilarThreadResult[],
+  candidates: ThreadHit[],
   ai?: ReturnType<typeof createAILogger>
 ): Promise<PrRerankDecision[]> => {
   if (candidates.length === 0) {

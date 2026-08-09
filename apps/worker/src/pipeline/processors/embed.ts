@@ -7,7 +7,7 @@ import { embed } from "ai";
 import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
-import { upsertThreadVector } from "../../lib/qdrant/threads";
+import { threadIndex } from "../../lib/qdrant/threads";
 import type { ThreadPayload } from "../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
 import type {
@@ -141,14 +141,21 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       threadId
     );
 
+    // The collection name is part of the hash so that rolling the index to a new
+    // version invalidates every thread's idempotency key. Without it, a thread
+    // whose summary has not changed would skip `embed` forever and never be
+    // written to the new collection — the idempotency record lives in Postgres
+    // and survives the roll. This does not repopulate dormant threads, which
+    // receive no pipeline run at all; that needs a backfill.
+    const collection = threadIndex.name;
+
     if (!summarizeOutput) {
-      return computeSha256("");
+      return computeSha256(collection);
     }
 
     const { summary } = summarizeOutput;
 
-    const hashInput = createSummaryText(summary);
-    return computeSha256(hashInput);
+    return computeSha256(`${collection}|${createSummaryText(summary)}`);
   },
 
   dependencies: ["summarize"],
@@ -212,13 +219,20 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
       }
 
       const payload = buildThreadPayload(thread, summary);
-      const pointId = crypto.randomUUID();
 
-      const storedInQdrant = await upsertThreadVector(
-        pointId,
-        embedding,
-        payload
-      );
+      // Point identity is derived from (organizationId, threadId) by the index,
+      // so a re-embed overwrites the thread's point instead of adding another.
+      let storedInQdrant = true;
+      try {
+        await threadIndex.upsert({ payload, vector: embedding });
+      } catch (storeError) {
+        storedInQdrant = false;
+        requestLog.warn("Thread vector upsert failed", {
+          error: String(storeError),
+          retryable: isRetryableError(storeError),
+          step: "store_thread_vector",
+        });
+      }
 
       if (!storedInQdrant) {
         status = 500;

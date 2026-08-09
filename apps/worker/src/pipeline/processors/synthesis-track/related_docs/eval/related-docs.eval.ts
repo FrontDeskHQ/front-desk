@@ -1,7 +1,7 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
 
-import { pickRelatedDocs } from "../find";
+import { relatedDocsHintSpec } from "../processor";
 import { relatedDocsDataset } from "./dataset";
 import { relatedDocsRanking } from "./scorers";
 
@@ -14,7 +14,11 @@ evalite("Related Docs Hint", {
   scorers: [relatedDocsRanking],
   task: async (input) => {
     const start = Date.now();
-    const result = pickRelatedDocs(input.hits, { limit: input.limit });
+    const result =
+      relatedDocsHintSpec.select(input.hits, {
+        limit: input.limit ?? relatedDocsHintSpec.tuning.limit,
+        scoreThreshold: relatedDocsHintSpec.tuning.scoreThreshold,
+      })?.docs ?? [];
     reportTrace({
       start,
       end: Date.now(),
@@ -22,7 +26,7 @@ evalite("Related Docs Hint", {
         {
           role: "user",
           content: `hits=${input.hits
-            .map((h) => `${h.pageUrl}@${h.score}`)
+            .map((h) => `${h.payload.pageUrl}@${h.score}`)
             .join(", ")}`,
         },
       ],

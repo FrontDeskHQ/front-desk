@@ -1,9 +1,9 @@
 import type {
-  SimilarThreadResult,
+  ThreadHit,
   ThreadPayload,
 } from "../../../../../lib/qdrant/threads";
 
-// NOTE: `searchSimilarThreads` already excludes the current thread and applies
+// NOTE: `threadIndex.search` already excludes the current thread and applies
 // score_threshold at the Qdrant layer. These fixtures represent the *post-
 // filter* result list — the picker's job is only to choose the single top
 // hit above its own threshold (a defense-in-depth check) and shape evidence.
@@ -25,15 +25,14 @@ const payload = (id: string): ThreadPayload => ({
   updatedAt: 0,
 });
 
-const r = (threadId: string, score: number): SimilarThreadResult => ({
+const r = (threadId: string, score: number): ThreadHit => ({
   payload: payload(threadId),
   score,
-  threadId,
 });
 
 export interface DuplicateTestCase {
   name: string;
-  input: { results: SimilarThreadResult[]; threshold: number };
+  input: { results: ThreadHit[]; threshold: number };
   expected: { expectedThreadId: string | null };
 }
 

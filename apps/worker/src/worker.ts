@@ -30,11 +30,11 @@ import {
   errorFields,
   createWorkerJobLogger,
 } from "./lib/logging";
-import { ensureDocumentationCollection } from "./lib/qdrant/documentation";
-import { ensureIssuesCollection } from "./lib/qdrant/issues";
-import { ensureMessagesCollection } from "./lib/qdrant/messages";
-import { ensurePrsCollection } from "./lib/qdrant/pull-requests";
-import { ensureThreadsCollection } from "./lib/qdrant/threads";
+import { documentationIndex } from "./lib/qdrant/documentation";
+import { issueIndex } from "./lib/qdrant/issues";
+import { messageIndex } from "./lib/qdrant/messages";
+import { prIndex } from "./lib/qdrant/pull-requests";
+import { threadIndex } from "./lib/qdrant/threads";
 import { executePipeline } from "./pipeline/core/orchestrator";
 import { hydrateRunStates } from "./pipeline/core/run-state";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
@@ -437,37 +437,20 @@ const initialize = async () => {
     });
 
     // Ensure Qdrant collections exist
-    const [
-      threadsReady,
-      messagesReady,
-      documentationReady,
-      prsReady,
-      issuesReady,
-    ] = await Promise.all([
-      ensureThreadsCollection(),
-      ensureMessagesCollection(),
-      ensureDocumentationCollection(),
-      ensurePrsCollection(),
-      ensureIssuesCollection(),
-    ]);
+    const indexes = [
+      threadIndex,
+      messageIndex,
+      documentationIndex,
+      prIndex,
+      issueIndex,
+    ];
+    const readiness = await Promise.all(
+      indexes.map(async (index) => [index.name, await index.ensure()] as const)
+    );
     requestLog.set({
-      qdrant: {
-        collections: {
-          threads: threadsReady,
-          messages: messagesReady,
-          documentation: documentationReady,
-          pullRequests: prsReady,
-          issues: issuesReady,
-        },
-      },
+      qdrant: { collections: Object.fromEntries(readiness) },
     });
-    if (
-      !threadsReady ||
-      !messagesReady ||
-      !documentationReady ||
-      !prsReady ||
-      !issuesReady
-    ) {
+    if (readiness.some(([, ready]) => !ready)) {
       throw new Error(
         "Qdrant collections are not ready; refusing to start workers"
       );

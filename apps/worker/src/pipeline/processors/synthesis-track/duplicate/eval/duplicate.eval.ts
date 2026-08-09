@@ -1,7 +1,7 @@
 import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
 
-import { pickDuplicateEvidence } from "../find";
+import { duplicateHintSpec } from "../processor";
 import { duplicateDataset } from "./dataset";
 import {
   duplicateEvidenceRetrieval,
@@ -22,8 +22,9 @@ evalite("Duplicate Hint", {
   ],
   task: async (input) => {
     const start = Date.now();
-    const result = pickDuplicateEvidence(input.results, {
-      threshold: input.threshold,
+    const result = duplicateHintSpec.select(input.results, {
+      limit: duplicateHintSpec.tuning.limit,
+      scoreThreshold: input.threshold,
     });
     reportTrace({
       start,
@@ -32,7 +33,7 @@ evalite("Duplicate Hint", {
         {
           role: "user",
           content: `threshold=${input.threshold}\nresults=${input.results
-            .map((r) => `${r.threadId}@${r.score}`)
+            .map((r) => `${r.payload.threadId}@${r.score}`)
             .join(", ")}`,
         },
       ],

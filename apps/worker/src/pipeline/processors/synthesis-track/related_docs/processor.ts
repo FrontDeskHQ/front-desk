@@ -1,124 +1,91 @@
-import { createHash } from "node:crypto";
-
-import type { RelatedDocsEvidence } from "@workspace/schemas/signals";
-import { createLogger } from "@workspace/utils/logging";
-
-import { isRetryableError } from "../../../../lib/logging";
-import { searchDocumentation } from "../../../../lib/qdrant/search-documentation";
+import { generateDocumentationQueryEmbedding } from "../../../../lib/documentation-embedding";
+import { documentationIndex } from "../../../../lib/qdrant/documentation";
+import type { DocumentationHit } from "../../../../lib/qdrant/documentation";
 import type { ParsedSummary } from "../../../../types";
-import type {
-  ProcessorDefinition,
-  ProcessorExecuteContext,
-  ProcessorResult,
-} from "../../../core/types";
-import type { SummarizeOutput } from "../../summarize";
-import { toRelatedDocsEvidence } from "./find";
+import { defineRetrievalHint } from "../define-retrieval-hint";
+import type { RetrievalHintSpec } from "../define-retrieval-hint";
 
-export interface RelatedDocsProcessorOutput {
-  evidence: RelatedDocsEvidence | null;
-}
+/**
+ * How many chunks to retrieve per page of evidence wanted. Deep enough that a
+ * long page's chunks cannot crowd every other page out of the candidate set,
+ * shallow enough that the fusion tail stays relevant.
+ */
+const CHUNKS_PER_PAGE_ALLOWANCE = 5;
 
-const summaryHashInput = (summary: ParsedSummary): string =>
-  Object.entries(summary)
-    .map(([key, value]) => `${key}: ${value}`)
+const buildSearchQuery = (summary: ParsedSummary): string =>
+  [summary.title, summary.shortDescription, ...(summary.keywords ?? [])]
+    .filter((part) => typeof part === "string" && part.trim().length > 0)
     .join("\n")
     .trim();
 
-const buildSearchQuery = (summary: ParsedSummary): string => {
-  const parts = [
-    summary.title,
-    summary.shortDescription,
-    ...(summary.keywords ?? []),
-  ].filter((part) => typeof part === "string" && part.trim().length > 0);
-  return parts.join("\n").trim();
+/**
+ * Documentation evidence for a thread. The odd one out among the hints: it
+ * searches by *text* rather than by the thread embedding, because the
+ * documentation index is hybrid and its sparse leg matches terms. The thread
+ * embedding is therefore not required.
+ *
+ * Never retires — docs stay relevant however the thread is resolved.
+ */
+export const relatedDocsHintSpec: RetrievalHintSpec<
+  "related_docs",
+  DocumentationHit
+> = {
+  count: (evidence) => evidence.docs.length,
+
+  kind: "related_docs",
+
+  requiresEmbedding: false,
+
+  async retrieve({ organizationId, summary, tuning }) {
+    const query = summary ? buildSearchQuery(summary) : "";
+    // An absent query legitimately means "no evidence" and clears the hint. A
+    // query that fails to embed does not — throw, so the prior hint survives.
+    if (query.length === 0) {
+      return [];
+    }
+    const vector = await generateDocumentationQueryEmbedding(query);
+    if (!vector) {
+      throw new Error("Failed to embed documentation search query");
+    }
+    // Overfetch: hits are chunks and `select` collapses them to pages, so
+    // asking for exactly `limit` chunks can yield a single page when one
+    // well-matching page owns every top chunk.
+    return documentationIndex.hybrid(
+      { text: query, vector },
+      { limit: tuning.limit * CHUNKS_PER_PAGE_ALLOWANCE, organizationId }
+    );
+  },
+
+  /**
+   * Chunks are indexed per page, so several hits can share a page. Keep each
+   * page's best-scoring chunk before ranking, or one long page crowds out
+   * everything else.
+   */
+  select(hits, tuning) {
+    const byPage = new Map<string, DocumentationHit>();
+    for (const hit of hits) {
+      const existing = byPage.get(hit.payload.pageUrl);
+      if (!existing || hit.score > existing.score) {
+        byPage.set(hit.payload.pageUrl, hit);
+      }
+    }
+
+    const docs = [...byPage.values()]
+      .toSorted((a, b) => b.score - a.score)
+      .slice(0, tuning.limit)
+      .map((hit) => ({
+        docId: hit.payload.pageUrl,
+        score: hit.score,
+        title: hit.payload.pageTitle,
+        url: hit.payload.pageUrl,
+      }));
+
+    return docs.length > 0 ? { docs } : null;
+  },
+
+  // The hybrid search has no score floor; the threshold is carried only so
+  // evals and logs read the same shape as the other hints.
+  tuning: { limit: 5, scoreThreshold: 0 },
 };
 
-const computeSha256 = (data: string): string =>
-  createHash("sha256").update(data).digest("hex");
-
-export const relatedDocsProcessor: ProcessorDefinition<RelatedDocsProcessorOutput> =
-  {
-    computeHash(context: ProcessorExecuteContext): string {
-      const { context: jobContext, threadId } = context;
-      const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
-        "summarize",
-        threadId
-      );
-      if (!summarize) return computeSha256("");
-      return computeSha256(summaryHashInput(summarize.summary));
-    },
-
-    dependencies: ["embed"],
-
-    async execute(
-      context: ProcessorExecuteContext
-    ): Promise<ProcessorResult<RelatedDocsProcessorOutput>> {
-      const { context: jobContext, run, thread, threadId } = context;
-      const requestLog = createLogger({
-        action: "pipeline.related_docs",
-        processor: "related_docs",
-        threadId,
-        organizationId: thread.organizationId,
-        jobId: jobContext.jobId,
-      });
-      let status = 200;
-
-      try {
-        const summarize = jobContext.getProcessorOutput<SummarizeOutput>(
-          "summarize",
-          threadId
-        );
-        const hash = computeSha256(
-          summarize ? summaryHashInput(summarize.summary) : ""
-        );
-
-        const query = summarize ? buildSearchQuery(summarize.summary) : "";
-        const hits =
-          query.length > 0
-            ? await searchDocumentation({
-                query,
-                organizationId: thread.organizationId,
-              })
-            : [];
-
-        const evidence: RelatedDocsEvidence | null =
-          toRelatedDocsEvidence(hits);
-
-        await run.writeHint("related_docs", evidence, hash);
-
-        requestLog.set({
-          search: {
-            queryPresent: query.length > 0,
-            hitCount: hits.length,
-          },
-          outcome: {
-            status: "completed",
-            evidenceCount: evidence?.docs.length ?? 0,
-          },
-        });
-
-        return {
-          threadId,
-          success: true,
-          data: { evidence },
-        };
-      } catch (error) {
-        status = 500;
-        const message = error instanceof Error ? error.message : String(error);
-        requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: isRetryableError(error),
-          step: "related_docs",
-        });
-        requestLog.set({ outcome: { status: "failed" } });
-        return { threadId, success: false, error: message };
-      } finally {
-        requestLog.emit({ status });
-      }
-    },
-
-    getIdempotencyKey(threadId: string): string {
-      return `related_docs:${threadId}`;
-    },
-
-    name: "related_docs",
-  };
+export const relatedDocsProcessor = defineRetrievalHint(relatedDocsHintSpec);

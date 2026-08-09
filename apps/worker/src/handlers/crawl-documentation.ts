@@ -13,10 +13,7 @@ import {
   sanitizeUrl,
 } from "../lib/logging";
 import type { WorkerLogger } from "../lib/logging";
-import {
-  deleteDocumentationVectorsBySource,
-  upsertDocumentationChunksBatch,
-} from "../lib/qdrant/documentation";
+import { documentationIndex } from "../lib/qdrant/documentation";
 import type { DocumentationChunkPayload } from "../lib/qdrant/documentation";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
@@ -292,18 +289,6 @@ const chunkMarkdown = (markdown: string, pageUrl: string): MarkdownChunk[] => {
 /**
  * Generate a deterministic UUID from a string using SHA256
  */
-const deterministicUuid = (input: string): string => {
-  const hash = createHash("sha256").update(input).digest("hex");
-  // Format as UUID v4-like
-  return [
-    hash.slice(0, 8),
-    hash.slice(8, 12),
-    hash.slice(12, 16),
-    hash.slice(16, 20),
-    hash.slice(20, 32),
-  ].join("-");
-};
-
 /**
  * Main handler for crawl-documentation jobs
  */
@@ -390,14 +375,10 @@ export const handleCrawlDocumentation = async (
     }
 
     // 2. Delete existing vectors for this source (for re-crawl)
-    const deleteOk = await deleteDocumentationVectorsBySource(
-      documentationSourceId
-    );
-    if (!deleteOk) {
-      throw new Error(
-        `Failed to delete documentation vectors for source ${documentationSourceId}`
-      );
-    }
+    await documentationIndex.removeWhere({
+      organizationId,
+      where: { documentationSourceId },
+    });
 
     // 3. Process pages and collect chunks
     for (
@@ -439,11 +420,8 @@ export const handleCrawlDocumentation = async (
           const chunkBatch = chunks.slice(i, i + BATCH_CONCURRENCY);
 
           const points: {
-            id: string;
-            vector: {
-              dense: number[];
-              bm25: { text: string; model: "qdrant/bm25" };
-            };
+            vector: number[];
+            text: string;
             payload: DocumentationChunkPayload;
           }[] = [];
 
@@ -459,12 +437,10 @@ export const handleCrawlDocumentation = async (
                 return null;
               }
 
-              const pointId = deterministicUuid(
-                `${documentationSourceId}:${pageUrl}:${chunkIndex}`
-              );
-
+              // The index derives the point id from
+              // (documentationSourceId, pageUrl, chunkIndex), so a re-crawl
+              // overwrites this chunk in place.
               return {
-                id: pointId,
                 payload: {
                   chunkIndex,
                   chunkText: chunk.text,
@@ -474,13 +450,8 @@ export const handleCrawlDocumentation = async (
                   pageTitle: chunk.title,
                   pageUrl,
                 },
-                vector: {
-                  bm25: {
-                    model: "qdrant/bm25" as const,
-                    text: chunk.text,
-                  },
-                  dense: embedding,
-                },
+                text: chunk.text,
+                vector: embedding,
               };
             })
           );
@@ -492,12 +463,7 @@ export const handleCrawlDocumentation = async (
           }
 
           if (points.length > 0) {
-            const upsertOk = await upsertDocumentationChunksBatch(points);
-            if (!upsertOk) {
-              throw new Error(
-                `Failed to upsert documentation chunks batch for source ${documentationSourceId} (page: ${pageUrl}, ${points.length} chunks)`
-              );
-            }
+            await documentationIndex.upsertBatch(points);
             totalChunks += points.length;
           }
         }

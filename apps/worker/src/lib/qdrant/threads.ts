@@ -1,10 +1,20 @@
-import { log } from "@workspace/utils/logging";
+import { defineIndex, uuidFromParts } from "./define-index";
+import type { SearchHit } from "./define-index";
 
-import { errorFields } from "../logging";
-import { qdrantClient } from "./client";
-
-export const THREADS_COLLECTION = "threads-v1";
-export const EMBEDDING_DIMENSIONS = 3072;
+/**
+ * v2 gave thread points a deterministic identity. v1 derived its point id from
+ * `crypto.randomUUID()` on every pipeline run, so a re-embedded thread
+ * accumulated a new point instead of overwriting its old one and similarity
+ * search ranked stale copies of the same thread against each other. Rolling the
+ * collection leaves those orphaned points behind rather than reaping them.
+ *
+ * A thread re-enters the index on its next pipeline run — the collection name is
+ * part of `embed`'s idempotency hash, so the roll invalidates every thread's
+ * key. That does **not** cover dormant threads, which receive no pipeline run at
+ * all and so are never repopulated. Until the index-only backfill (FRO-221) has
+ * run, do not drop `threads-v1`: it is the cheapest source to copy from.
+ */
+export const THREADS_COLLECTION = "threads-v2";
 
 export interface ThreadPayload {
   threadId: string;
@@ -23,252 +33,23 @@ export interface ThreadPayload {
   updatedAt: number;
 }
 
-export const ensureThreadsCollection = async (): Promise<boolean> => {
-  try {
-    const collections = await qdrantClient.getCollections();
-    const collectionExists = collections.collections.some(
-      (c) => c.name === THREADS_COLLECTION
-    );
+export type ThreadHit = SearchHit<ThreadPayload>;
 
-    if (collectionExists) {
-      return true;
-    }
-
-    await qdrantClient.createCollection(THREADS_COLLECTION, {
-      optimizers_config: {
-        indexing_threshold: 0,
-      },
-      vectors: {
-        distance: "Cosine",
-        size: EMBEDDING_DIMENSIONS,
-      },
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "organizationId",
-      field_schema: "keyword",
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "status",
-      field_schema: "integer",
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "priority",
-      field_schema: "integer",
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "keywords",
-      field_schema: "keyword",
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "labels",
-      field_schema: "keyword",
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "createdAt",
-      field_schema: "integer",
-    });
-
-    await qdrantClient.createPayloadIndex(THREADS_COLLECTION, {
-      field_name: "threadId",
-      field_schema: "keyword",
-    });
-
-    log.info({
-      action: "worker.qdrant",
-      operation: "collection.create",
-      collection: THREADS_COLLECTION,
-      embeddingDimensions: EMBEDDING_DIMENSIONS,
-    });
-    return true;
-  } catch (error) {
-    log.error({
-      action: "worker.qdrant",
-      operation: "collection.ensure",
-      collection: THREADS_COLLECTION,
-      error: errorFields(error),
-    });
-    return false;
-  }
-};
-
-export const upsertThreadVector = async (
-  pointId: string,
-  vector: number[],
-  payload: ThreadPayload
-): Promise<boolean> => {
-  try {
-    await qdrantClient.upsert(THREADS_COLLECTION, {
-      points: [
-        {
-          id: pointId,
-          vector,
-          payload: payload as unknown as Record<string, unknown>,
-        },
-      ],
-      wait: true,
-    });
-    return true;
-  } catch (error) {
-    log.error({
-      action: "worker.qdrant",
-      operation: "thread_vector.upsert",
-      collection: THREADS_COLLECTION,
-      pointId,
-      threadId: payload.threadId,
-      organizationId: payload.organizationId,
-      error: errorFields(error),
-    });
-    return false;
-  }
-};
-
-export const deleteThreadVector = async (
-  threadId: string
-): Promise<boolean> => {
-  try {
-    const result = await getThreadVector(threadId);
-    if (!result) {
-      log.warn({
-        action: "worker.qdrant",
-        operation: "thread_vector.delete",
-        collection: THREADS_COLLECTION,
-        threadId,
-        outcome: "not_found",
-      });
-      return false;
-    }
-
-    await qdrantClient.delete(THREADS_COLLECTION, {
-      points: [result.pointId],
-      wait: true,
-    });
-    return true;
-  } catch (error) {
-    log.error({
-      action: "worker.qdrant",
-      operation: "thread_vector.delete",
-      collection: THREADS_COLLECTION,
-      threadId,
-      error: errorFields(error),
-    });
-    return false;
-  }
-};
-
-export interface SimilarThreadSearchOptions {
-  organizationId: string;
-  limit?: number;
-  scoreThreshold?: number;
-  excludeThreadIds?: string[];
-  statusFilter?: number[];
-}
-
-export interface SimilarThreadResult {
-  threadId: string;
-  score: number;
-  payload: ThreadPayload;
-}
-
-export const searchSimilarThreads = async (
-  vector: number[],
-  options: SimilarThreadSearchOptions
-): Promise<SimilarThreadResult[]> => {
-  const {
-    organizationId,
-    limit = 10,
-    scoreThreshold = 0.7,
-    excludeThreadIds = [],
-    statusFilter,
-  } = options;
-
-  try {
-    const mustConditions: {
-      key: string;
-      match?: { value: string | number } | { any: (string | number)[] };
-      range?: { gte?: number; lte?: number };
-    }[] = [{ key: "organizationId", match: { value: organizationId } }];
-
-    if (statusFilter && statusFilter.length > 0) {
-      mustConditions.push({ key: "status", match: { any: statusFilter } });
-    }
-
-    const mustNotConditions = excludeThreadIds.map((id) => ({
-      key: "threadId",
-      match: { value: id },
-    }));
-
-    const results = await qdrantClient.search(THREADS_COLLECTION, {
-      filter: {
-        must: mustConditions,
-        must_not: mustNotConditions.length > 0 ? mustNotConditions : undefined,
-      },
-      limit,
-      score_threshold: scoreThreshold,
-      vector,
-      with_payload: true,
-    });
-
-    return results.map((result) => ({
-      payload: result.payload as unknown as ThreadPayload,
-      score: result.score,
-      threadId: (result.payload as unknown as ThreadPayload).threadId,
-    }));
-  } catch (error) {
-    log.error({
-      action: "worker.qdrant",
-      operation: "thread_vector.search",
-      collection: THREADS_COLLECTION,
-      organizationId,
-      limit,
-      scoreThreshold,
-      statusFilter,
-      error: errorFields(error),
-    });
-    return [];
-  }
-};
-
-export const getThreadVector = async (
-  threadId: string
-): Promise<{
-  vector: number[];
-  payload: ThreadPayload;
-  pointId: string;
-} | null> => {
-  try {
-    const results = await qdrantClient.scroll(THREADS_COLLECTION, {
-      filter: {
-        must: [{ key: "threadId", match: { value: threadId } }],
-      },
-      limit: 1,
-      with_payload: true,
-      with_vector: true,
-    });
-
-    const point = results.points[0];
-    if (!point) {
-      return null;
-    }
-
-    return {
-      payload: point.payload as unknown as ThreadPayload,
-      pointId: typeof point.id === "string" ? point.id : String(point.id),
-      vector: point.vector as number[],
-    };
-  } catch (error) {
-    log.error({
-      action: "worker.qdrant",
-      operation: "thread_vector.retrieve",
-      collection: THREADS_COLLECTION,
-      threadId,
-      error: errorFields(error),
-    });
-    return null;
-  }
-};
+export const threadIndex = defineIndex<
+  ThreadPayload,
+  "organizationId" | "threadId"
+>({
+  dimensions: 3072,
+  key: ({ organizationId, threadId }) =>
+    uuidFromParts(organizationId, threadId),
+  name: THREADS_COLLECTION,
+  payloadIndexes: [
+    { field: "organizationId", schema: "keyword" },
+    { field: "status", schema: "integer" },
+    { field: "priority", schema: "integer" },
+    { field: "keywords", schema: "keyword" },
+    { field: "labels", schema: "keyword" },
+    { field: "createdAt", schema: "integer" },
+    { field: "threadId", schema: "keyword" },
+  ],
+});

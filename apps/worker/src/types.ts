@@ -1,7 +1,7 @@
 import type { InferLiveCollection } from "@live-state/sync";
 import type { schema } from "api/schema";
 
-import type { SimilarThreadResult } from "./lib/qdrant/threads";
+import type { ThreadHit } from "./lib/qdrant/threads";
 
 /**
  * Thread type with messages and labels included
@@ -77,7 +77,7 @@ export interface PostProcessorInput {
 }
 
 export interface SimilarThreadsOutput {
-  similarThreads: SimilarThreadResult[];
+  similarThreads: ThreadHit[];
   storedInSuggestions: boolean;
 }
 

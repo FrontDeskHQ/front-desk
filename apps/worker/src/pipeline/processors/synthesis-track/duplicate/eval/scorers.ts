@@ -41,7 +41,9 @@ export const duplicateEvidenceScore = createScorer<
     if (!output) {
       return { score: 0, metadata: { kind: "missing_evidence" } };
     }
-    const hit = input.results.find((r) => r.threadId === output.threadId);
+    const hit = input.results.find(
+    (r) => r.payload.threadId === output.threadId
+  );
     const scoreOk =
       output.score >= input.threshold &&
       hit !== undefined &&
