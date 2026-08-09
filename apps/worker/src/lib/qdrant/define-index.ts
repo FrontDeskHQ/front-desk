@@ -116,10 +116,14 @@ export interface VectorIndex<
   upsert(point: UpsertPoint<TPayload, TSparse>): Promise<void>;
   upsertBatch(points: UpsertPoint<TPayload, TSparse>[]): Promise<void>;
 
-  /** Update payload fields in place, without re-embedding. */
+  /**
+   * Update payload fields in place, without re-embedding. Identity fields and
+   * `organizationId` are not patchable: rewriting them would move the point out
+   * from under its own id, or hand it to another organization's filter.
+   */
   patch(
     fields: Pick<TPayload, TKeyFields>,
-    values: Partial<TPayload>
+    values: Partial<Omit<TPayload, TKeyFields | "organizationId">>
   ): Promise<void>;
 
   remove(fields: Pick<TPayload, TKeyFields>): Promise<void>;
@@ -141,7 +145,12 @@ export interface VectorIndex<
     options: SearchOptions<TPayload>
   ): Promise<SearchHit<TPayload>[]>;
 
-  /** Every payload matching a filter, unranked. */
+  /**
+   * One page of payloads matching a filter, unranked — at most `limit` of them
+   * (50 by default), with no way to tell a full page from a truncated one.
+   * Callers read a bounded set (a page's chunks); nothing here needs to walk a
+   * whole collection, so there is no cursor to expose.
+   */
   scroll(options: ScrollOptions<TPayload>): Promise<TPayload[]>;
 }
 
@@ -175,6 +184,19 @@ export class VectorIndexError extends Error {
     this.cause = cause;
   }
 }
+
+/**
+ * Qdrant answers "this already exists" with a 409, and its client surfaces the
+ * status inconsistently across transports — so fall back to the message.
+ */
+const isAlreadyExists = (error: unknown): boolean => {
+  const status = (error as { status?: unknown } | null)?.status;
+  if (status === 409) {
+    return true;
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return message.toLowerCase().includes("already exists");
+};
 
 type QdrantCondition =
   | { key: string; match: { value: MatchValue } }
@@ -268,6 +290,11 @@ export const defineIndex = <
       return [{ payload, score: point.score }];
     });
 
+  const collectionExists = async (): Promise<boolean> => {
+    const collections = await client.getCollections();
+    return collections.collections.some((c) => c.name === name);
+  };
+
   const toVector = (point: UpsertPoint<TPayload, TSparse>) => {
     const dense = point.vector;
     if (!sparse) {
@@ -283,34 +310,53 @@ export const defineIndex = <
 
     async ensure(): Promise<boolean> {
       try {
-        const collections = await client.getCollections();
-        if (collections.collections.some((c) => c.name === name)) {
-          return true;
+        if (!(await collectionExists())) {
+          try {
+            await client.createCollection(name, {
+              optimizers_config: { indexing_threshold: 0 },
+              ...(sparse
+                ? {
+                    sparse_vectors: { bm25: { modifier: "idf" as const } },
+                    vectors: {
+                      dense: { distance: "Cosine" as const, size: dimensions },
+                    },
+                  }
+                : { vectors: { distance: "Cosine" as const, size: dimensions } }),
+            });
+
+            log.info({
+              action: "worker.qdrant",
+              operation: "collection.create",
+              collection: name,
+              embeddingDimensions: dimensions,
+            });
+          } catch (createError) {
+            // Workers boot concurrently and all race to create the same
+            // collection. Losing that race is success, not a failed ensure — but
+            // only if the collection is actually there now.
+            if (!(await collectionExists())) {
+              throw createError;
+            }
+          }
         }
 
-        await client.createCollection(name, {
-          optimizers_config: { indexing_threshold: 0 },
-          ...(sparse
-            ? {
-                sparse_vectors: { bm25: { modifier: "idf" as const } },
-                vectors: { dense: { distance: "Cosine" as const, size: dimensions } },
-              }
-            : { vectors: { distance: "Cosine" as const, size: dimensions } }),
-        });
-
+        // Reconciled on every boot, not only on creation: a descriptor can gain
+        // a payload index, and a create that died mid-loop leaves the rest
+        // missing. Qdrant reports an index that already exists as a conflict
+        // rather than skipping it, so treat that as done.
         for (const index of descriptor.payloadIndexes) {
-          await client.createPayloadIndex(name, {
-            field_name: index.field,
-            field_schema: index.schema,
-          });
+          try {
+            await client.createPayloadIndex(name, {
+              field_name: index.field,
+              field_schema: index.schema,
+            });
+          } catch (indexError) {
+            if (!isAlreadyExists(indexError)) {
+              throw indexError;
+            }
+          }
         }
 
-        log.info({
-          action: "worker.qdrant",
-          operation: "collection.create",
-          collection: name,
-          embeddingDimensions: dimensions,
-        });
         return true;
       } catch (error) {
         log.error({

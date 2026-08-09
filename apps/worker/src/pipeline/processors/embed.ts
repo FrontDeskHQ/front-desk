@@ -229,6 +229,7 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
         storedInQdrant = false;
         requestLog.warn("Thread vector upsert failed", {
           error: String(storeError),
+          retryable: isRetryableError(storeError),
           step: "store_thread_vector",
         });
       }

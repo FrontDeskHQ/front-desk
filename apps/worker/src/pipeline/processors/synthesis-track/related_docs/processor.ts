@@ -5,6 +5,13 @@ import type { ParsedSummary } from "../../../../types";
 import { defineRetrievalHint } from "../define-retrieval-hint";
 import type { RetrievalHintSpec } from "../define-retrieval-hint";
 
+/**
+ * How many chunks to retrieve per page of evidence wanted. Deep enough that a
+ * long page's chunks cannot crowd every other page out of the candidate set,
+ * shallow enough that the fusion tail stays relevant.
+ */
+const CHUNKS_PER_PAGE_ALLOWANCE = 5;
+
 const buildSearchQuery = (summary: ParsedSummary): string =>
   [summary.title, summary.shortDescription, ...(summary.keywords ?? [])]
     .filter((part) => typeof part === "string" && part.trim().length > 0)
@@ -40,9 +47,12 @@ export const relatedDocsHintSpec: RetrievalHintSpec<
     if (!vector) {
       throw new Error("Failed to embed documentation search query");
     }
+    // Overfetch: hits are chunks and `select` collapses them to pages, so
+    // asking for exactly `limit` chunks can yield a single page when one
+    // well-matching page owns every top chunk.
     return documentationIndex.hybrid(
       { text: query, vector },
-      { limit: tuning.limit, organizationId }
+      { limit: tuning.limit * CHUNKS_PER_PAGE_ALLOWANCE, organizationId }
     );
   },
 

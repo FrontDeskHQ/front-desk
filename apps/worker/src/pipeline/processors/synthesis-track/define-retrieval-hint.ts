@@ -116,11 +116,14 @@ export const defineRetrievalHint = <K extends HintKind, THit>(
       return `${kind}:${threadId}`;
     },
 
-    // Linking sets the retiring column without changing the thread embedding, so
-    // `embed` skips and the deps-skip fast path would never re-run us to clear a
-    // stale hint. Force the normal hash-based check for retired threads.
-    runsWhenDependenciesSkipped(context: ProcessorExecuteContext): boolean {
-      return isRetired(context.thread);
+    // Linking *and* unlinking move the retiring column without changing the
+    // thread embedding, so `embed` skips and the deps-skip fast path would never
+    // re-run us — leaving a stale hint after a link, or a permanently cleared
+    // one after an unlink. Opt every retiring hint out of the fast path and let
+    // the hash comparison decide; in steady state the hashes match and it skips
+    // anyway.
+    runsWhenDependenciesSkipped(): boolean {
+      return Boolean(retiredBy);
     },
 
     computeHash(context: ProcessorExecuteContext): string {
