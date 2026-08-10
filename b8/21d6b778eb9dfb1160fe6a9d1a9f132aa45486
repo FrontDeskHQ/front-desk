@@ -1,0 +1,19 @@
+apps/web/src/components/signals/action-row/thread-read-card.tsx
+  s_8f189be9028f35::t_cf5f2e65f3f6ce 479-484
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b821d6b778eb9dfb1160fe6a9d1a9f132aa45486",
+  "prompts": {},
+  "sessions": {
+    "s_8f189be9028f35": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b23bd84-01f5-4030-a0c3-7c79af26c2bf",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
