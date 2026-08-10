@@ -1,0 +1,76 @@
+apps/api/src/lib/api-credential.test.ts
+  s_407d53ee52d9db::t_962534bb3f240b 2-6
+  s_407d53ee52d9db::t_523adb157d9012 12,121-158
+  s_407d53ee52d9db::t_958c07f7d0057e 1,7-11,13-104,108-109,113-116,119-120,159-160
+  s_407d53ee52d9db::t_91d363c9efb170 105-107,110-112,117-118
+apps/api/src/lib/api-key.ts
+  s_407d53ee52d9db::t_bf52b17f4634a5 88-92
+apps/api/src/live-state/router/threads.ts
+  s_407d53ee52d9db::t_243c522e9ce648 91-93
+apps/api/src/lib/feature-flag.ts
+  s_407d53ee52d9db::t_c1df94ce8a1eb4 7-13
+connectors/framework/src/runtime/live-state.ts
+  s_407d53ee52d9db::t_91d363c9efb170 31
+  s_407d53ee52d9db::t_33142cdcda13f4 12,34-57,60,86
+apps/api/src/index.ts
+  s_407d53ee52d9db::t_295ecfabb7fa8a 13-15,17,53-58,124-125,148-150,204-224,229
+  s_407d53ee52d9db::t_651a5b73d2d213 16,123
+  s_407d53ee52d9db::t_50a79d4625d7ab 11,200-203,227-228
+  s_407d53ee52d9db::t_3b09a05bdd1ed7 225-226
+apps/api/src/live-state/router.ts
+  s_407d53ee52d9db::t_c1df94ce8a1eb4 26,39,546-560,568-583,610-633,643-647
+  s_407d53ee52d9db::t_a44570f2065ff5 28-30,561-567,648
+apps/api/src/lib/connection-token.test.ts
+  s_407d53ee52d9db::t_3b09a05bdd1ed7 45,64,67,71
+  s_407d53ee52d9db::t_91d363c9efb170 46-49
+  s_407d53ee52d9db::t_958c07f7d0057e 1-44,50-63,65-66,68-70,72-73
+apps/api/src/live-state/schema.ts
+  s_407d53ee52d9db::t_bf52b17f4634a5 405-417,443
+apps/api/src/lib/authorize.test.ts
+  s_407d53ee52d9db::t_c199b197664331 5,7,181-186,190-200,204-213,217-219
+  s_407d53ee52d9db::t_91d363c9efb170 187-189,201-203,214-216
+apps/api/src/lib/api-key-lifecycle.ts
+  s_407d53ee52d9db::t_75276e130ca113 19-23
+  s_407d53ee52d9db::t_7bf879531f8a78 2
+  s_407d53ee52d9db::t_a44570f2065ff5 1,3-18,24-51
+apps/api/src/lib/authorize.ts
+  s_407d53ee52d9db::t_7a3a3c976344a4 24,205
+  s_407d53ee52d9db::t_243c522e9ce648 166,302,310,318-323,337-342,355-361,452-455,482-485
+apps/api/src/lib/connection-token.ts
+  s_407d53ee52d9db::t_7fc1c676972fff 1-12,14-61,64-114
+  s_407d53ee52d9db::t_89482327c459c9 13
+  s_407d53ee52d9db::t_91d363c9efb170 62-63
+docs/adr/0016-one-time-websocket-credential-exchange.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 1-3
+apps/api/src/lib/api-key-lifecycle.test.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1-66
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_407d53ee52d9db::t_91d363c9efb170 1,65,82
+  s_407d53ee52d9db::t_15ecad11f34131 15,30-33,43,60,67-69,88-96,116-119,121-127,133-134,152-158,171-201,216-228,239-244,302,317-319,338,348-352,392-394
+  s_407d53ee52d9db::t_d533db272585ff 120
+apps/api/.env.local.example
+  s_407d53ee52d9db::t_bf52b17f4634a5 7-8
+apps/api/src/lib/api-credential.ts
+  s_407d53ee52d9db::t_89482327c459c9 6,149-156,161
+  s_407d53ee52d9db::t_651a5b73d2d213 108-123,126-140
+  s_407d53ee52d9db::t_91d363c9efb170 4,124-125
+  s_407d53ee52d9db::t_60a8a8b901464a 1-3,5,7-107,141-148,157-160,162-194
+CONTEXT.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 115-122
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2572294d60ebea9cf94bb567916ab849fb61dd79",
+  "prompts": {},
+  "sessions": {
+    "s_407d53ee52d9db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fed07-38e3-78b2-acd3-7e56c78b8652",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
