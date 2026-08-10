@@ -98,71 +98,73 @@ function RouteComponent() {
           </Link>
         </nav>
       </div>
-      <Outlet />
-      <HorizontalLine variant="full" lineStyle="solid" />
-      <footer className="col-span-full grid grid-cols-12 border-x max-w-[90rem] w-full">
-        <div className="col-span-full grid grid-cols-6 px-4 py-12">
-          <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
-            <div className="flex gap-2">
-              <Logo>
-                <Logo.Icon className="size-6" />
-              </Logo>
-              <span className="text-base font-medium">FrontDesk</span>
+      <div className="mx-auto w-full max-w-[90rem]">
+        <Outlet />
+        <HorizontalLine variant="full" lineStyle="solid" />
+        <footer className="grid w-full grid-cols-12 border-x">
+          <div className="col-span-full grid grid-cols-6 px-4 py-12">
+            <div className="p-4 gap-4 col-span-full md:col-span-2 lg:pr-30 items-center flex flex-col md:items-start text-center md:text-start">
+              <div className="flex gap-2">
+                <Logo>
+                  <Logo.Icon className="size-6" />
+                </Logo>
+                <span className="text-base font-medium">FrontDesk</span>
+              </div>
+              <div className="text-sm text-muted-foreground">
+                Care for every customer. Even when you&apos;re busy.
+              </div>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Care for every customer. Even when you&apos;re busy.
+            <div className="p-4 space-y-4 col-span-3 md:col-start-4 md:col-span-1">
+              <div className="text-base font-medium">Resources</div>
+              <div className="flex flex-col gap-2">
+                <a href="https://support.tryfrontdesk.app">Support</a>
+                <a href="/docs">Docs</a>
+                <a href="/updates">Updates</a>
+              </div>
+            </div>
+            <div className="p-4 space-y-4 col-span-3 md:col-start-5 md:col-span-1">
+              <div className="text-base font-medium">Connect</div>
+              <div className="flex flex-col gap-2">
+                <a
+                  href="https://github.com/frontdeskhq/front-desk"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  GitHub
+                </a>
+                <a
+                  href="https://x.com/frontdeskhq"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  X (Twitter)
+                </a>
+                <a
+                  href="https://discord.gg/5MDHqKHrHr"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Discord
+                </a>
+              </div>
+            </div>
+            <div className="p-4 space-y-4 col-span-3 md:col-start-6 md:col-span-1">
+              <div className="text-base font-medium">Legal</div>
+              <div className="flex flex-col gap-2">
+                <Link to="/legal/privacy-policy" preload={false}>
+                  Privacy Policy
+                </Link>
+                <Link to="/legal/terms-of-service" preload={false}>
+                  Terms of Service
+                </Link>
+              </div>
             </div>
           </div>
-          <div className="p-4 space-y-4 col-span-3 md:col-start-4 md:col-span-1">
-            <div className="text-base font-medium">Resources</div>
-            <div className="flex flex-col gap-2">
-              <a href="https://support.tryfrontdesk.app">Support</a>
-              <a href="/docs">Docs</a>
-              <a href="/updates">Updates</a>
-            </div>
+          <div className="col-span-full select-none px-8 md:px-16">
+            <FooterWordmark />
           </div>
-          <div className="p-4 space-y-4 col-span-3 md:col-start-5 md:col-span-1">
-            <div className="text-base font-medium">Connect</div>
-            <div className="flex flex-col gap-2">
-              <a
-                href="https://github.com/frontdeskhq/front-desk"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                GitHub
-              </a>
-              <a
-                href="https://x.com/frontdeskhq"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                X (Twitter)
-              </a>
-              <a
-                href="https://discord.gg/5MDHqKHrHr"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Discord
-              </a>
-            </div>
-          </div>
-          <div className="p-4 space-y-4 col-span-3 md:col-start-6 md:col-span-1">
-            <div className="text-base font-medium">Legal</div>
-            <div className="flex flex-col gap-2">
-              <Link to="/legal/privacy-policy" preload={false}>
-                Privacy Policy
-              </Link>
-              <Link to="/legal/terms-of-service" preload={false}>
-                Terms of Service
-              </Link>
-            </div>
-          </div>
-        </div>
-        <div className="col-span-full select-none px-8 md:px-16">
-          <FooterWordmark />
-        </div>
-      </footer>
+        </footer>
+      </div>
     </div>
   );
 }

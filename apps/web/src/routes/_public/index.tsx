@@ -67,7 +67,7 @@ function SectionLabel({ n, name }: { n: string; name: string }) {
 
 function RouteComponent() {
   return (
-    <main className="mx-auto grid w-full max-w-[90rem] grid-cols-24">
+    <main className="grid w-full grid-cols-24">
       <LandingMotionStyles />
 
       {/* 0. Hero — sits above the bordered slab */}

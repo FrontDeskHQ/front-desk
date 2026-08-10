@@ -16,7 +16,7 @@ export const Route = createFileRoute("/_public/legal/privacy-policy")({
 
 function RouteComponent() {
   return (
-    <div className="w-full max-w-6xl mx-auto p-4 space-y-4 py-12 border-x">
+    <div className="w-full p-4 space-y-4 py-12 border-x">
       <div className="max-w-2xl mx-auto p-4 space-y-4">
         <h1 className="text-2xl font-bold mb-4">Privacy Policy</h1>
         <p>Last updated: 2025-10-24</p>

@@ -56,7 +56,7 @@ function RouteComponent() {
   const data = Route.useLoaderData();
 
   return (
-    <div className="max-w-5xl flex flex-col mx-auto w-full gap-8 border-x">
+    <div className="flex w-full flex-col gap-8 border-x">
       <div className="col-span-full font-medium pt-12 pb-6 px-4 border-b text-2xl">
         What&apos;s new?
       </div>
