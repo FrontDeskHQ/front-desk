@@ -22,7 +22,6 @@ export interface StoredConnectionToken {
 }
 
 export interface ConnectionTokenStore {
-  cleanup(now: Date, limit: number): Promise<number>;
   consume(tokenHash: string, now: Date): Promise<StoredConnectionToken | null>;
   insert(token: StoredConnectionToken): Promise<void>;
 }
@@ -31,25 +30,6 @@ const hashToken = (token: string): string =>
   createHash("sha256").update(token).digest("hex");
 
 export const databaseConnectionTokenStore: ConnectionTokenStore = {
-  async cleanup(now, limit) {
-    const expired = await storage.internalDB
-      .selectFrom("connectionToken")
-      .select("id")
-      .where("expiresAt", "<=", now)
-      .limit(limit)
-      .execute();
-
-    const ids = expired.map(({ id }) => id as string);
-    if (ids.length === 0) {
-      return 0;
-    }
-
-    await storage.internalDB
-      .deleteFrom("connectionToken")
-      .where("id", "in", ids)
-      .execute();
-    return ids.length;
-  },
   async consume(tokenHash, now) {
     const row = await storage.internalDB
       .updateTable("connectionToken")
@@ -73,24 +53,14 @@ export const databaseConnectionTokenStore: ConnectionTokenStore = {
 export const createConnectionTokenService = (
   store: ConnectionTokenStore,
   options: {
-    cleanupBatchSize?: number;
-    cleanupEvery?: number;
     now?: () => Date;
-    onCleanupError?: (error: unknown) => void;
     randomToken?: () => string;
   } = {}
 ) => {
   const now = options.now ?? (() => new Date());
-  const cleanupBatchSize = options.cleanupBatchSize ?? 1000;
-  const cleanupEvery = options.cleanupEvery ?? 100;
-  const onCleanupError =
-    options.onCleanupError ??
-    ((error: unknown) =>
-      console.error("connection_token.cleanup_failed", error));
   const randomToken =
     options.randomToken ??
     (() => `fd_ct_${randomBytes(32).toString("base64url")}`);
-  let mintsSinceCleanup = 0;
 
   return {
     async consume(token: string): Promise<ConnectionPrincipal | null> {
@@ -133,12 +103,6 @@ export const createConnectionTokenService = (
         principalType: principal.type,
         tokenHash: hashToken(token),
       });
-
-      mintsSinceCleanup += 1;
-      if (mintsSinceCleanup >= cleanupEvery) {
-        mintsSinceCleanup = 0;
-        await store.cleanup(createdAt, cleanupBatchSize).catch(onCleanupError);
-      }
 
       return { expiresAt: expiresAt.toISOString(), token };
     },
