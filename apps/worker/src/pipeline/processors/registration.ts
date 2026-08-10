@@ -15,9 +15,9 @@ export const registerDefaultProcessors = (): string[] => {
   processorRegistry.register(embedMessagesProcessor);
 
   // --- Inline suggestions --------------------------------------------------
-  // One producer, one kind (ADR 0014). Status inference moved into synthesis,
-  // which already gathers the evidence that finishes a thread; what is left
-  // here is genuine classification over the thread's opening content.
+  // One producer, one kind (ADR 0014): synthesis owns status, since it already
+  // gathers the evidence that finishes a thread. What is left here is genuine
+  // classification over the thread's opening content.
   processorRegistry.register(labelClassifierProcessor);
 
   // --- Synthesis-track hint processors + synthesis agent --------------------

@@ -37,7 +37,7 @@ const ungroundedReply: Action = {
 const gate = (action: Action, autoSiblings: Action[] = []) =>
   statusWitnessGate(action, { autoSiblings, run });
 
-describe("statusWitnessGate", () => {
+describe(statusWitnessGate, () => {
   it("passes live-status moves without a witness", async () => {
     await expect(gate(setStatus(STATUS_OPEN))).resolves.toMatchObject({
       allowed: true,

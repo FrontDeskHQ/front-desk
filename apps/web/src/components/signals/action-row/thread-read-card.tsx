@@ -254,16 +254,14 @@ function CompoundActionButton({
   );
 }
 
-// One kind since ADR 0014: status left the chip surface for the thread read.
 interface ResolvedInlineSuggestion {
   suggestion: InlineSuggestion;
-  kind: "label";
   name: string;
   color: string;
 }
 
 /**
- * Inline-track suggestions (apply label / set status) rendered as dashed chips,
+ * Label suggestions rendered as dashed chips,
  * mirroring the thread toolbar's quick-actions style: click a chip to apply,
  * hover for detail, and reveal apply-all / ignore-all on row hover.
  */
@@ -292,7 +290,6 @@ function InlineSuggestionsRow({
         // disabled, or hasn't loaded yet — otherwise it becomes a stuck row.
         result.push({
           color: "var(--muted-foreground)",
-          kind: "label",
           name: "Unknown label",
           suggestion,
         });
@@ -300,7 +297,6 @@ function InlineSuggestionsRow({
       }
       result.push({
         color: label.color,
-        kind: "label",
         name: label.name,
         suggestion,
       });

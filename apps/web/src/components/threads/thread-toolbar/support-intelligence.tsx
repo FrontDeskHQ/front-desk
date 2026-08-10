@@ -110,11 +110,9 @@ interface UsePendingStatusSuggestionsProps {
  */
 export const usePendingStatusSuggestions = (
   _props: UsePendingStatusSuggestionsProps
-) => {
-  const statusSuggestion = useMemo<StatusSuggestionData>(() => null, []);
-
-  return { statusSuggestion };
-};
+): { statusSuggestion: StatusSuggestionData } => ({
+  statusSuggestion: null,
+});
 
 interface UsePendingDuplicateSuggestionsProps {
   threadId: string;

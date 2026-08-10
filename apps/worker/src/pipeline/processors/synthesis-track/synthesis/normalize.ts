@@ -7,7 +7,6 @@ import {
   STATUS_DUPLICATED,
   STATUS_LABELS,
   threadReadSchema,
-  WITNESS_JUSTIFIES,
 } from "@workspace/schemas/signals";
 
 import type { SynthesisRawActionSet } from "./synthesize";
@@ -104,14 +103,10 @@ const normalizeAction = (
     // A finished move keeps its witness even when the class cannot justify the
     // destination: the gate denies it and a human reviews the suggestion, which
     // is more useful with the Agent's reasoning attached than without.
-    const witness = action.witness;
-    if (witness && !WITNESS_JUSTIFIES[witness.class]) {
-      return { kind: "set_status", status: action.status };
-    }
     return {
       kind: "set_status",
       status: action.status,
-      ...(witness ? { witness } : {}),
+      ...(action.witness ? { witness: action.witness } : {}),
     };
   }
 

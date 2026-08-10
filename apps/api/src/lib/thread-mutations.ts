@@ -211,8 +211,8 @@ export const runSetThreadStatus = async (
   //
   // Set membership, not `>=` (ADR 0015): `duplicated` is finished but does NOT
   // sync, because the customer's need moved to another thread rather than being
-  // settled. The old ordinal test also disagreed with `runMarkDuplicate`, which
-  // reaches the same status without syncing at all.
+  // settled — matching `runMarkDuplicate`, which reaches that status directly
+  // and syncs nothing.
   //
   // One-way. Un-finishing a thread never reopens the issue: a customer writing
   // back is not evidence the engineering work regressed, and the external system

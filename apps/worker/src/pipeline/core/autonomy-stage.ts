@@ -144,11 +144,10 @@ export const applySynthesisAutonomy = async (
  *
  * Gates see only siblings *confirmed* to execute — ungated kinds, plus gated
  * ones already admitted — and are evaluated in `GATE_ORDER` so a gate asking
- * about a sibling asks after that sibling's verdict is known. The previous
- * pass fed every gate the whole `permitted` set, which was truthful only while
- * `reply` was the sole gated kind; `set_status` asks whether its reply is
- * really sending, and an optimistic answer there resolves a thread whose reply
- * was then held back — exactly the silent finish ADR 0015 exists to prevent.
+ * about a sibling asks after that sibling's verdict is known. Feeding a gate
+ * the whole proposed set instead would let `set_status` read a reply as
+ * sending that the reply's own gate then held back, resolving a thread whose
+ * customer hears nothing (ADR 0015).
  */
 const applyActionGates = async (
   run: RunState,
@@ -161,18 +160,17 @@ const applyActionGates = async (
   const gated: Action[] = [];
   const fingerprints = new Map<ActionKind, string>();
 
-  const ungated = permitted.filter((action) => !gateFor(action.kind));
-  const confirmed: Action[] = [...ungated];
+  const confirmed: Action[] = permitted.filter(
+    (action) => !gateFor(action.kind)
+  );
   const toEvaluate = permitted
-    .filter((action) => gateFor(action.kind))
-    .toSorted((a, b) => gateRank(a.kind) - gateRank(b.kind));
+    .flatMap((action) => {
+      const gate = gateFor(action.kind);
+      return gate ? [{ action, gate }] : [];
+    })
+    .toSorted((a, b) => gateRank(a.action.kind) - gateRank(b.action.kind));
 
-  for (const action of toEvaluate) {
-    const gate = gateFor(action.kind);
-    if (!gate) {
-      continue;
-    }
-
+  for (const { action, gate } of toEvaluate) {
     const siblings = confirmed.filter((other) => other !== action);
     let result: ActionGateResult;
     try {

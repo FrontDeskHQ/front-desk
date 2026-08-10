@@ -149,12 +149,13 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
           };
         }
 
+        const action = { kind: "apply_label", labelId } as const;
+
         // `apply_label` has no action gate: it is local, reversible, and posts
         // nothing outside FrontDesk, so the threshold is the whole guard.
         // Deliberately stricter than the suggest floor — a wrong auto-applied
         // label is silent, where a wrong suggestion is merely declined.
         if (autonomy === "auto" && confidence >= AUTO_THRESHOLD) {
-          const action = { kind: "apply_label", labelId } as const;
           try {
             await run.executeBundle([action]);
             requestLog.set({
@@ -187,7 +188,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         }
 
         await run.suggest({
-          action: { kind: "apply_label", labelId },
+          action,
           confidence,
           createdAt: new Date().toISOString(),
           generator: "label_classifier",

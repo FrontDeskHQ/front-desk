@@ -33,10 +33,8 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
       ctx.db,
       {
         organizationId: ctx.organizationId,
-        // `set_status` is a synthesis action since ADR 0014 and reaches here
-        // from a thread read, an accepted suggestion, or an autonomous bundle.
-        // The old hardcoded "inline_suggestion" is a false provenance in two of
-        // those three; branch on the actor the way mark_duplicate does.
+        // Reached from a thread read a human acted on, or from an autonomous
+        // bundle — so provenance follows the actor, as `mark_duplicate` does.
         source: ctx.actorUserId ? "agent_read" : "autonomous",
         status: action.status,
         threadId: ctx.threadId,
