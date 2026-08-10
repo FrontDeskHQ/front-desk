@@ -1,0 +1,103 @@
+apps/web/src/components/landing-page/pulls-you-in-section/signals-data.ts
+  s_793cca4ca0c386::t_7a7eb00c2e23a7 44,62,64
+apps/worker/src/pipeline/processors/inline-track/label/processor.ts
+  s_793cca4ca0c386::t_664cb0e08e1fe3 152-188
+  s_793cca4ca0c386::t_cc7ab1ae26d98c 17-20,23-24
+apps/api/src/live-state/migrations/files/index.ts
+  s_793cca4ca0c386::t_15115df4ff9066 5,7
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/normalize.ts
+  s_793cca4ca0c386::t_e2a444246e6335 94-98
+  s_793cca4ca0c386::t_6293f785d08500 4,8,10,21,90-93,99-118
+  s_793cca4ca0c386::t_b1b344f9448e4f 7
+apps/worker/src/pipeline/core/gates/status-witness.test.ts
+  s_793cca4ca0c386::t_49308405ab65b4 1-121
+docs/adr/0015-witness-gated-thread-finishing.md
+  s_793cca4ca0c386::t_bb062dadcc7b5d 1-42
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_793cca4ca0c386::t_7ee926f7d665a2 42,206-207,209-210,238,261,299,349
+  s_793cca4ca0c386::t_770e5f9a602e05 335
+  s_793cca4ca0c386::t_92b196cd68894a 276,350
+  s_793cca4ca0c386::t_f8cb71fcf83969 313-334,336
+  s_793cca4ca0c386::t_0864bbe5e21d7b 14
+  s_793cca4ca0c386::t_7d6adace572f08 285
+CONTEXT.md
+  s_793cca4ca0c386::t_77274eda046989 33,86-96
+  s_793cca4ca0c386::t_beb323e535f716 150
+  s_793cca4ca0c386::t_849763b9ee6481 146-149,151-153,159
+  s_793cca4ca0c386::t_e079abee359e44 15,19,49,59,63,73-75,85
+  s_793cca4ca0c386::t_198dc93a5f3200 154-158
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/link-pr-verification.test.ts
+  s_793cca4ca0c386::t_93dfddc6b84a74 146-159,161-162,165
+  s_793cca4ca0c386::t_c0d7ee8dbca839 2
+  s_793cca4ca0c386::t_0864bbe5e21d7b 166
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/link-pr-verification.ts
+  s_793cca4ca0c386::t_3038d31ea1f58c 103-116
+apps/api/src/live-state/router/autonomous-action.ts
+  s_793cca4ca0c386::t_85de966458cc5d 233-234,236-251
+  s_793cca4ca0c386::t_83488d997ec111 5
+  s_793cca4ca0c386::t_7c32fe6d1d7d03 23
+docs/adr/0014-status-is-a-synthesis-action.md
+  s_793cca4ca0c386::t_890be8bb7d76e2 1-39
+apps/api/src/live-state/migrations/files/004_drop_close_autonomy.ts
+  s_793cca4ca0c386::t_b7e1d42c19d9f5 1-54
+apps/worker/src/pipeline/core/autonomy-stage.ts
+  s_793cca4ca0c386::t_b0b3f573cd052b 14
+  s_793cca4ca0c386::t_53e93ec86288d8 142-143,145-151,164-170,176
+  s_793cca4ca0c386::t_57608078b0718f 197
+  s_793cca4ca0c386::t_522a4aa2936332 213-218
+apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx
+  s_793cca4ca0c386::t_7a7eb00c2e23a7 155-157,181-184
+apps/api/src/lib/thread-mutations.ts
+  s_793cca4ca0c386::t_1c01ca60fbeb1b 209,211-218,221-223,225
+  s_793cca4ca0c386::t_a269dd8cf67fd9 219-220
+  s_793cca4ca0c386::t_1b44a2e7170545 3-8,76-78
+apps/worker/src/pipeline/core/gates/status-witness.ts
+  s_793cca4ca0c386::t_9417e3e1ce59d1 2-58,60,62
+apps/worker/src/pipeline/processors/registration.ts
+  s_793cca4ca0c386::t_26bdc926e4b31f 17-20
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/dataset.ts
+  s_793cca4ca0c386::t_9b9b3c02769586 17-18,79,89-95,141-147,170-176,199-205,222,227,243-247
+  s_793cca4ca0c386::t_431b5428be8fd9 1-2,39,258
+apps/worker/src/pipeline/core/action-gates.ts
+  s_793cca4ca0c386::t_dc971b32712ce7 4,9-14
+  s_793cca4ca0c386::t_07264bab119ec1 38-42,46,49-59,62-67
+apps/api/src/lib/signals/handlers/set-status.ts
+  s_793cca4ca0c386::t_7df6aa1940d44e 36-40
+docs/adr/0002-two-track-candidate-pipeline.md
+  s_793cca4ca0c386::t_4e69f92aeaf3a6 3,5-7
+packages/schemas/src/signals.ts
+  s_793cca4ca0c386::t_14b84a8fa9f08b 138-208,213,216-225
+  s_793cca4ca0c386::t_14969373c9c6c6 244-251,256
+  s_793cca4ca0c386::t_bb11d21088b65f 209-212,214
+  s_793cca4ca0c386::t_58226b394185c7 308-338
+  s_793cca4ca0c386::t_779d21901d48c1 516-520
+  s_793cca4ca0c386::t_b0d79308e47509 351-374,381
+  s_793cca4ca0c386::t_f488a0d84838bd 702-706
+  s_793cca4ca0c386::t_8ff3d11dc37e16 227-228,235-243,252
+  s_793cca4ca0c386::t_2ba79231ba5503 1066-1070
+apps/web/src/components/signals/action-row/thread-read-card.tsx
+  s_793cca4ca0c386::t_7062856aa08cc3 257,259-262,289-292,294,296,299,301-306
+  s_793cca4ca0c386::t_89ba6daf784e59 258,263
+  s_793cca4ca0c386::t_7a42df76c4119a 317-320,349
+apps/web/src/components/threads/thread-toolbar/support-intelligence.tsx
+  s_793cca4ca0c386::t_1c2b14b3fb4132 102-114
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_793cca4ca0c386::t_957433689d17f6 106-110,146,300,332,397,604,633,710
+  s_793cca4ca0c386::t_6fef0907e30617 670-678,680-681
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e063ab104230910dce15bb6de4debaef37f607c8",
+  "prompts": {},
+  "sessions": {
+    "s_793cca4ca0c386": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0d1847f7-8d0c-4a77-b4b2-0afb1aed9da9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
