@@ -51,8 +51,8 @@ export const createLiveStateClient = (
       );
     }
 
-    const { token } = (await response.json()) as { token?: string };
-    if (!token) {
+    const { token } = (await response.json()) as { token?: unknown };
+    if (typeof token !== "string" || token.length === 0) {
       throw new Error(`${prefix}Live State token exchange returned no token`);
     }
 

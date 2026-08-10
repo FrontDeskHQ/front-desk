@@ -73,7 +73,13 @@ export const createConnectionTokens = (
         return { type: "internal" };
       }
 
-      if (!row.apiKeyId || !row.organizationId) {
+      // principalType is a plain string column, so an unrecognized value must
+      // fail closed rather than fall through to the private branch.
+      if (
+        row.principalType !== "private" ||
+        !row.apiKeyId ||
+        !row.organizationId
+      ) {
         return null;
       }
 
