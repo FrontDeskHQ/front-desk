@@ -46,27 +46,33 @@ export const inferredGrounding = (): ReplyGrounding => ({
 });
 
 /**
- * Digest of what a reply reported, compared across runs so the Agent cannot
- * send two replies in a row saying the same thing. `entityState` is what makes
- * a PR going open → merged worth speaking about again.
+ * Canonical form of what a reply reported, compared across runs so the Agent
+ * cannot send two replies in a row saying the same thing. `entityState` is what
+ * makes a PR going open → merged worth speaking about again.
  *
- * Hashed over JSON rather than a joined string: sources and `entityUrl` are
- * URLs, where `,` is a legal sub-delimiter, so `["a,b"]` and `["a", "b"]` would
- * flatten to the same segment. This digest decides whether a reply may auto-
- * send, so equivalent replies must be its only collisions.
+ * Canonical JSON rather than a digest, on purpose. This value decides whether a
+ * reply may auto-send, and it is only ever compared for equality and stored on
+ * the receipt — so hashing buys nothing and costs collisions, where two
+ * genuinely different states would read as "nothing new to say" and silently
+ * hold a reply the customer should have received. A digest small enough to be
+ * tidy is a digest big enough to collide; the exact value cannot. It also
+ * leaves the receipt readable, which is what anyone debugging a held reply
+ * wants to see.
+ *
+ * JSON rather than a joined string because sources and `entityUrl` are URLs,
+ * where `,` is a legal sub-delimiter: `["a,b"]` and `["a", "b"]` would flatten
+ * to the same segment.
  */
 export const replyStateFingerprint = (
   grounding: ReplyGrounding,
   entityState?: string | null
 ): string =>
-  stableHash(
-    JSON.stringify([
-      grounding.class,
-      [...grounding.sources].sort(),
-      grounding.entityUrl?.trim() ?? "",
-      entityState ?? "",
-    ])
-  );
+  JSON.stringify([
+    grounding.class,
+    [...grounding.sources].sort(),
+    grounding.entityUrl?.trim() ?? "",
+    entityState ?? "",
+  ]);
 
 // --- Action vocabulary ----------------------------------------------------
 
@@ -79,8 +85,11 @@ export const replyActionSchema = z.object({
    * `inferred` here rather than failing the parse: the action set is parsed as
    * a unit, so throwing would discard a whole synthesis run over a field whose
    * only power is to *grant* autonomy.
+   *
+   * The callback form matters: a bare value would hand every malformed reply
+   * the same object, and its `sources` array with it.
    */
-  grounding: replyGroundingSchema.optional().catch(inferredGrounding()),
+  grounding: replyGroundingSchema.optional().catch(() => inferredGrounding()),
   kind: z.literal("reply"),
 });
 export type ReplyAction = z.infer<typeof replyActionSchema>;
