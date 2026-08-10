@@ -1,0 +1,23 @@
+apps/api/src/routes/connection-token.ts
+  s_e6e415b5841774::t_fe73283c24ecbd 1-51
+apps/api/src/index.ts
+  s_e6e415b5841774::t_3d3bae2a82e4a1 11,14,27,128,159,215
+apps/api/src/lib/api-credential.ts
+  s_e6e415b5841774::t_3f47a7ded23646 21-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cc3a4b21ae88159ab31517e3cdd40fa31e8d653f",
+  "prompts": {},
+  "sessions": {
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
