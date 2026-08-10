@@ -62,6 +62,9 @@ export const createLiveStateClient = (
   };
 
   const { client, store } = createClient<Router>({
+    connection: {
+      autoConnect: process.env.NODE_ENV !== "test",
+    },
     credentials: async () => ({ token: await exchangeConnectionToken() }),
     schema,
     storage: false,
