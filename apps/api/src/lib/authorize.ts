@@ -298,29 +298,18 @@ export const authorizeThreadCreate = (
   input: ThreadCreateAuthInput
 ): ThreadCreateAuthFlow => {
   const ctx = req.context ?? {};
-  const hasInternalKey = !!ctx.internalApiKey;
   const hasPrivateKey = !!ctx.privateApiKey;
   const hasPublicKey = !!ctx.publicApiKey;
+  const hasApiKey = !!ctx.internalApiKey || hasPrivateKey || hasPublicKey;
   const portalUserId = getPortalUserId(ctx);
   const hasPortalSession = portalUserId !== undefined;
   const hasWorkspaceSession = getWorkspaceUserId(ctx) !== undefined;
 
-  if (
-    !hasInternalKey &&
-    !hasPrivateKey &&
-    !hasPublicKey &&
-    !hasPortalSession &&
-    !hasWorkspaceSession
-  ) {
+  if (!hasApiKey && !hasPortalSession && !hasWorkspaceSession) {
     throw new Error("UNAUTHORIZED");
   }
 
-  if (
-    !hasInternalKey &&
-    !hasPrivateKey &&
-    !hasPublicKey &&
-    input.hasIntegrationOnlyFields
-  ) {
+  if (!hasApiKey && input.hasIntegrationOnlyFields) {
     throw new Error("UNAUTHORIZED");
   }
 
@@ -334,12 +323,7 @@ export const authorizeThreadCreate = (
     return "portal";
   }
 
-  if (
-    hasWorkspaceSession &&
-    !hasInternalKey &&
-    !hasPrivateKey &&
-    !hasPublicKey
-  ) {
+  if (hasWorkspaceSession && !hasApiKey) {
     authorize(req, { organizationId: input.organizationId });
     return "workspace";
   }
@@ -479,8 +463,8 @@ export const isAuthorized = (
     );
   }
 
-  // Private API keys are opt-in per procedure. They never inherit the global
-  // internal-key bypass or ordinary workspace membership authorization.
+  // A private key never passes the generic check. The only route that accepts
+  // one is thread creation, which checks the key's organization itself.
   if (ctx.privateApiKey) {
     return false;
   }

@@ -6,7 +6,6 @@ vi.hoisted(() => {
 });
 
 import {
-  isApiKeyRecordUsable,
   resolveConnectionPrincipal,
   resolveHttpApiCredential,
   resolveWebSocketApiCredential,
@@ -101,21 +100,18 @@ describe("connection principal reconstruction", () => {
   });
 
   it("invalidates connection principals when the private key is revoked or expired", async () => {
-    expect(
-      isApiKeyRecordUsable(
-        record("key", "org", { revokedAt: new Date().toISOString() })
-      )
-    ).toBeFalsy();
-    expect(
-      isApiKeyRecordUsable(
-        record("key", "org", { expiresAt: "2020-01-01T00:00:00.000Z" })
-      )
-    ).toBeFalsy();
     await expect(
       resolveConnectionPrincipal(
         { apiKeyId: "key", organizationId: "org", type: "private" },
         async () =>
           record("key", "org", { revokedAt: "2026-01-01T00:00:00.000Z" })
+      )
+    ).resolves.toBeNull();
+    await expect(
+      resolveConnectionPrincipal(
+        { apiKeyId: "key", organizationId: "org", type: "private" },
+        async () =>
+          record("key", "org", { expiresAt: "2020-01-01T00:00:00.000Z" })
       )
     ).resolves.toBeNull();
   });
@@ -137,7 +133,7 @@ describe("WebSocket API credential resolution", () => {
     });
   });
 
-  it("preserves public-key compatibility and rejects the legacy internal query key", async () => {
+  it("accepts a public key by query param but never a bare internal key", async () => {
     await expect(
       resolveWebSocketApiCredential(
         { publicApiKey: "public-secret" },

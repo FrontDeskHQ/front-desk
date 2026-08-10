@@ -29,7 +29,7 @@ export interface ConnectionTokenStore {
 const hashToken = (token: string): string =>
   createHash("sha256").update(token).digest("hex");
 
-export const databaseConnectionTokenStore: ConnectionTokenStore = {
+const databaseTokenStore: ConnectionTokenStore = {
   async consume(tokenHash, now) {
     const row = await storage.internalDB
       .updateTable("connectionToken")
@@ -50,7 +50,7 @@ export const databaseConnectionTokenStore: ConnectionTokenStore = {
   },
 };
 
-export const createConnectionTokenService = (
+export const createConnectionTokens = (
   store: ConnectionTokenStore,
   options: {
     now?: () => Date;
@@ -69,19 +69,19 @@ export const createConnectionTokenService = (
         return null;
       }
 
-      if (
-        row.principalType === "private" &&
-        row.apiKeyId &&
-        row.organizationId
-      ) {
-        return {
-          apiKeyId: row.apiKeyId,
-          organizationId: row.organizationId,
-          type: "private",
-        };
+      if (row.principalType === "internal") {
+        return { type: "internal" };
       }
 
-      return row.principalType === "internal" ? { type: "internal" } : null;
+      if (!row.apiKeyId || !row.organizationId) {
+        return null;
+      }
+
+      return {
+        apiKeyId: row.apiKeyId,
+        organizationId: row.organizationId,
+        type: "private",
+      };
     },
 
     async mint(principal: ConnectionPrincipal): Promise<{
@@ -109,6 +109,4 @@ export const createConnectionTokenService = (
   };
 };
 
-export const connectionTokens = createConnectionTokenService(
-  databaseConnectionTokenStore
-);
+export const connectionTokens = createConnectionTokens(databaseTokenStore);

@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   CONNECTION_TOKEN_TTL_MS,
-  createConnectionTokenService,
+  createConnectionTokens,
 } from "./connection-token";
 import type {
   ConnectionTokenStore,
@@ -29,7 +29,7 @@ describe("connection tokens", () => {
   it("stores a hash and reconstructs the principal with a 60-second expiry", async () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
     const { rows, store } = createMemoryStore();
-    const service = createConnectionTokenService(store, {
+    const service = createConnectionTokens(store, {
       now: () => now,
       randomToken: () => "fd_ct_secret",
     });
@@ -53,7 +53,7 @@ describe("connection tokens", () => {
     let now = new Date("2026-01-01T00:00:00.000Z");
     const { store } = createMemoryStore();
     let sequence = 0;
-    const service = createConnectionTokenService(store, {
+    const service = createConnectionTokens(store, {
       now: () => now,
       randomToken: () => `token-${sequence++}`,
     });

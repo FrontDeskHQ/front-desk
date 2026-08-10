@@ -113,18 +113,17 @@ function RouteComponent() {
     }
 
     try {
-      const shouldCreatePrivate =
-        privateApiKeysEnabled && apiKeyType === "private";
-      const result = shouldCreatePrivate
-        ? await fetchClient.mutate.organization.createPrivateApiKey({
-            expiresAt: new Date(`${expiresAt}T00:00:00.000Z`).toISOString(),
-            name: apiKeyName.trim(),
-            organizationId: currentOrg.id,
-          })
-        : await fetchClient.mutate.organization.createPublicApiKey({
-            name: apiKeyName.trim(),
-            organizationId: currentOrg.id,
-          });
+      const result =
+        apiKeyType === "private"
+          ? await fetchClient.mutate.organization.createPrivateApiKey({
+              expiresAt: `${expiresAt}T00:00:00.000Z`,
+              name: apiKeyName.trim(),
+              organizationId: currentOrg.id,
+            })
+          : await fetchClient.mutate.organization.createPublicApiKey({
+              name: apiKeyName.trim(),
+              organizationId: currentOrg.id,
+            });
 
       setCreatedApiKey(result.key);
       setIsCreateDialogOpen(false);
@@ -149,13 +148,7 @@ function RouteComponent() {
     <div className="p-4 flex flex-col gap-4 w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-base">API keys</h2>
-        <Dialog
-          open={isCreateDialogOpen}
-          onOpenChange={(open) => {
-            setIsCreateDialogOpen(open);
-            if (open) setApiKeyType("public");
-          }}
-        >
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
           <DialogTrigger render={<Button />}>
             <Plus />
             New API key
@@ -213,7 +206,7 @@ function RouteComponent() {
                   }}
                 />
               </div>
-              {privateApiKeysEnabled && apiKeyType === "private" ? (
+              {apiKeyType === "private" ? (
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="api-key-expiration">Expiration</Label>
                   <Input
@@ -237,10 +230,7 @@ function RouteComponent() {
               <Button
                 onClick={handleCreateApiKey}
                 disabled={
-                  !apiKeyName.trim() ||
-                  (privateApiKeysEnabled &&
-                    apiKeyType === "private" &&
-                    !expiresAt)
+                  !apiKeyName.trim() || (apiKeyType === "private" && !expiresAt)
                 }
               >
                 Create

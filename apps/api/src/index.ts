@@ -67,6 +67,9 @@ const CREDENTIAL_ERROR_STATUS: Record<string, number> = {
   UNAUTHORIZED: 401,
 };
 
+const reason = (error: unknown): string =>
+  error instanceof Error ? error.message : "UNKNOWN_ERROR";
+
 app.use(cors(corsOptions));
 
 // Ensure live-state has synced the schema (creating any new tables/columns)
@@ -130,10 +133,7 @@ const lsServer = server({
       try {
         apiCredential = await resolveWebSocketApiCredential(queryParams);
       } catch (error) {
-        console.warn(
-          "[auth] WebSocket API credential rejected",
-          error instanceof Error ? error.message : "UNKNOWN_ERROR"
-        );
+        console.warn("[auth] WebSocket API credential rejected", reason(error));
         return;
       }
       if (apiCredential) {
@@ -164,10 +164,7 @@ const lsServer = server({
     try {
       apiCredential = await resolveHttpApiCredential(headers);
     } catch (error) {
-      console.warn(
-        "[auth] HTTP API credential rejected",
-        error instanceof Error ? error.message : "UNKNOWN_ERROR"
-      );
+      console.warn("[auth] HTTP API credential rejected", reason(error));
       // An invalid explicit credential fails closed and never falls through to
       // an otherwise valid passive cookie session.
       return {};
@@ -229,9 +226,10 @@ const handleConnectionTokenExchange = async (
 ): Promise<void> => {
   try {
     const headers = Object.fromEntries(
-      Object.entries(req.headers).flatMap(([name, value]) =>
-        typeof value === "string" ? [[name, value]] : []
-      )
+      Object.entries(req.headers).map(([name, value]) => [
+        name,
+        Array.isArray(value) ? value[0] : value,
+      ])
     );
     const credential = await resolveHttpApiCredential(headers);
 
@@ -243,7 +241,7 @@ const handleConnectionTokenExchange = async (
     const result = await mintApiConnectionToken(credential);
     res.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "";
+    const message = reason(error);
     const status = CREDENTIAL_ERROR_STATUS[message];
 
     if (status === undefined) {

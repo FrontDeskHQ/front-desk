@@ -15,17 +15,17 @@ Exchange private and internal API keys for an opaque, one-time WebSocket connect
 - expires after 60 seconds;
 - is stored only as a hash;
 - is atomically consumed when opening one connection; and
-- records the originating principal kind and authorization scope.
+- records which kind of principal it stands for.
 
-Private-key tokens identify the organization and source key. Internal-key tokens retain the distinct global internal principal. The server reconstructs that typed principal when consuming the token and revalidates private-key revocation and expiration before accepting the connection.
+A private-key token names its organization and source key; an internal-key token stays internal. On consumption the server rebuilds that principal and re-reads the private key, so one revoked or expired between minting and connecting is refused.
 
-Better Auth session tokens continue through their existing exchange and storage. API-key connection tokens use separate server-only storage because they represent organization and internal principals rather than user sessions.
+Better Auth session tokens keep their own exchange and storage. API-key tokens get separate server-only storage because they stand for organizations and internal services, not users.
 
-Internal WebSocket clients move to this exchange at a single hard cutoff; durable query-credential compatibility is not retained.
+Internal WebSocket clients cut over in one step; the old query-param key is dropped rather than kept alongside.
 
 ## Consequences
 
-- Connectors perform an HTTP exchange on every connection and reconnection attempt.
-- Revoking or expiring a private key invalidates its unconsumed connection tokens. Already-established sockets are not closed.
-- Independently deployed API and connector clients can temporarily fail during the hard-cutoff rollout.
-- Connection-token rows are retained; this decision introduces no expired-row cleanup mechanism.
+- Connectors run an HTTP exchange on every connect and reconnect.
+- Revoking or expiring a private key kills its unconsumed tokens, but not sockets already open.
+- API and connectors deploy separately, so connectors can fail for the length of the cutover.
+- Nothing prunes spent or expired token rows yet.
