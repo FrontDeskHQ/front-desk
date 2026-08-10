@@ -1,8 +1,10 @@
+import type { GroundingClass } from "@workspace/schemas/signals";
+
+import type { SynthesizeThreadReadInput } from "../synthesize";
 import type {
   DocumentationPageChunkResult,
   DocumentationSearchResult,
 } from "../tools";
-import type { SynthesizeThreadReadInput } from "../synthesize";
 
 export interface SynthesisAgentEvalCase {
   name: string;
@@ -88,6 +90,10 @@ export interface SynthesisAgentEvalCase {
     /** When set, every emitted link_pr.prUrl must equal this exact URL. */
     expectedLinkPrUrl?: string;
     forbiddenReplyPhrases?: string[];
+    /** The grounding class every primary reply must declare. */
+    expectedGroundingClass?: GroundingClass;
+    /** Page URLs a `documented` reply must cite exactly (order-insensitive). */
+    expectedGroundingSources?: string[];
   };
 }
 
@@ -997,6 +1003,226 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         },
       },
       threads: { t19: mkThread("t19", "How do I change my billing email?") },
+    },
+  },
+  // --- Grounding calibration (ADR 0013) ------------------------------------
+  // Three threads that all look answerable and must land on three different
+  // classes. What is being scored is not "did it reply" but "did it tell the
+  // truth about what the reply rests on".
+  {
+    expected: {
+      expectedGroundingClass: "documented",
+      expectedGroundingSources: ["https://docs.example/webhooks/retries"],
+      minToolCalls: { search_documentation: 1 },
+      mustIncludePrimaryKinds: ["reply"],
+      requiresReplyDraft: true,
+    },
+    input: {
+      hints: {
+        related_docs: {
+          computedAt: now,
+          evidence: {
+            docs: [
+              {
+                docId: "https://docs.example/webhooks/retries",
+                score: 0.94,
+                title: "Webhook retry behaviour",
+                url: "https://docs.example/webhooks/retries",
+              },
+            ],
+          },
+          hash: "hg1",
+        },
+      },
+      sourceInputMessageId: "tg1m1",
+      summary: {
+        entities: ["webhooks"],
+        expectedAction: "documentation guidance",
+        keywords: ["webhook", "retry", "failed delivery"],
+        shortDescription:
+          "Customer asks how many times a failed webhook is retried.",
+        title: "How many times are failed webhooks retried?",
+      },
+      threadId: "tg1",
+      threadMessages: [
+        {
+          id: "tg1m1",
+          authorId: "cg1",
+          createdAt: now,
+          content:
+            "If our endpoint is down, how many times will you retry a webhook before giving up?",
+        },
+      ],
+      threadName: "Webhook retry count",
+    },
+    name: "grounding: doc directly answers the question -> documented",
+    toolFixtures: {
+      docsPageChunksByUrl: {
+        "https://docs.example/webhooks/retries": [
+          {
+            chunkIndex: 0,
+            chunkText:
+              "Failed webhook deliveries are retried 6 times with exponential backoff over roughly 24 hours. After the sixth failure the event is dropped and the endpoint is marked unhealthy.",
+            headingHierarchy: ["Webhooks", "Retries"],
+            pageTitle: "Webhook retry behaviour",
+            pageUrl: "https://docs.example/webhooks/retries",
+          },
+        ],
+      },
+      docsSearchHitsByQuery: {
+        "How many times are failed webhooks retried?": [
+          {
+            chunkText:
+              "Failed webhook deliveries are retried 6 times with exponential backoff over roughly 24 hours.",
+            headingHierarchy: ["Webhooks", "Retries"],
+            pageTitle: "Webhook retry behaviour",
+            pageUrl: "https://docs.example/webhooks/retries",
+            score: 0.94,
+          },
+        ],
+      },
+      threads: { tg1: mkThread("tg1", "Webhook retry count") },
+    },
+  },
+  {
+    // The trap: a real, well-scoring, adjacent page that answers a *different*
+    // question. Citation checking cannot catch this — the URL is genuine — so
+    // only an honest class keeps the reply away from the customer.
+    expected: {
+      expectedGroundingClass: "inferred",
+      mustIncludePrimaryKinds: ["reply"],
+      requiresReplyDraft: true,
+    },
+    input: {
+      hints: {
+        related_docs: {
+          computedAt: now,
+          evidence: {
+            docs: [
+              {
+                docId: "https://docs.example/webhooks/signatures",
+                score: 0.88,
+                title: "Verifying webhook signatures",
+                url: "https://docs.example/webhooks/signatures",
+              },
+            ],
+          },
+          hash: "hg2",
+        },
+      },
+      sourceInputMessageId: "tg2m1",
+      summary: {
+        entities: ["webhooks"],
+        expectedAction: "answer configuration question",
+        keywords: ["webhook", "ip", "allowlist", "firewall"],
+        shortDescription:
+          "Customer asks which IP ranges webhooks are delivered from.",
+        title: "Webhook source IP ranges for firewall allowlist",
+      },
+      threadId: "tg2",
+      threadMessages: [
+        {
+          id: "tg2m1",
+          authorId: "cg2",
+          createdAt: now,
+          content:
+            "Our firewall needs an allowlist. Which IP ranges do your webhooks come from?",
+        },
+      ],
+      threadName: "Webhook source IPs",
+    },
+    name: "grounding: adjacent doc that does not answer the question -> inferred",
+    toolFixtures: {
+      docsPageChunksByUrl: {
+        "https://docs.example/webhooks/signatures": [
+          {
+            chunkIndex: 0,
+            chunkText:
+              "Every webhook carries an X-Signature header. Verify it by computing an HMAC-SHA256 of the raw body with your signing secret. This is the recommended way to confirm a request came from us.",
+            headingHierarchy: ["Webhooks", "Security"],
+            pageTitle: "Verifying webhook signatures",
+            pageUrl: "https://docs.example/webhooks/signatures",
+          },
+        ],
+      },
+      docsSearchHitsByQuery: {
+        "Webhook source IP ranges for firewall allowlist": [
+          {
+            chunkText:
+              "Every webhook carries an X-Signature header. Verify it by computing an HMAC-SHA256 of the raw body with your signing secret.",
+            headingHierarchy: ["Webhooks", "Security"],
+            pageTitle: "Verifying webhook signatures",
+            pageUrl: "https://docs.example/webhooks/signatures",
+            score: 0.88,
+          },
+        ],
+      },
+      threads: { tg2: mkThread("tg2", "Webhook source IPs") },
+    },
+  },
+  {
+    // Asserts nothing about product behaviour, so it is `state_report` and must
+    // name the PR it reports on — not `documented` (no docs) and not `inferred`
+    // (not a guess).
+    expected: {
+      expectedGroundingClass: "state_report",
+      minToolCalls: { read_pr: 1 },
+      mustIncludePrimaryKinds: ["link_pr", "reply"],
+      requiresReplyDraft: true,
+    },
+    input: {
+      hints: {},
+      sourceInputMessageId: "tg3m1",
+      summary: {
+        entities: ["csv_export"],
+        expectedAction: "bug acknowledgement",
+        keywords: ["csv", "export", "timeout"],
+        shortDescription:
+          "Customer reports CSV exports timing out on large date ranges.",
+        title: "CSV export times out for large date ranges",
+      },
+      threadId: "tg3",
+      threadMessages: [
+        {
+          id: "tg3m1",
+          authorId: "cg3",
+          createdAt: now,
+          content:
+            "Exporting a CSV for the full quarter just spins and then fails. Smaller ranges work fine.",
+        },
+      ],
+      threadName: "CSV export timeout",
+      triggers: [
+        {
+          kind: "pr_matched",
+          prMatched: {
+            prId: "pr-tg3",
+            score: 0.91,
+            title: "Stream CSV export rows instead of buffering",
+            url: "https://github.com/acme/api/pull/901",
+          },
+        },
+      ],
+    },
+    name: "grounding: status update on a verified PR -> state_report",
+    toolFixtures: {
+      prsByUrl: {
+        "https://github.com/acme/api/pull/901": {
+          authorLogin: "dev-dana",
+          baseRef: "main",
+          body: "Large CSV exports buffered the whole result set in memory and timed out past ~200k rows. Streams rows instead.",
+          draft: false,
+          headRef: "fix/csv-export-streaming",
+          labels: ["bug"],
+          merged: false,
+          number: 901,
+          repoFullName: "acme/api",
+          state: "open",
+          title: "Stream CSV export rows instead of buffering",
+          url: "https://github.com/acme/api/pull/901",
+        },
+      },
+      threads: { tg3: mkThread("tg3", "CSV export timeout") },
     },
   },
 ];

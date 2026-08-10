@@ -12,6 +12,8 @@ import {
   atMostOneLinkPr,
   expectedLinkPrUrl,
   forbiddenPrimaryKinds,
+  groundingCalibration,
+  groundingSources,
   minimumToolCalls,
   nonEmptyPrimaryWhenExpected,
   recommendationPrLink,
@@ -161,6 +163,8 @@ evalite("Synthesis Agent (Model In Loop)", {
     atMostOneLinkPr,
     expectedLinkPrUrl,
     recommendationPrLink,
+    groundingCalibration,
+    groundingSources,
   ],
   task: async (input) => {
     const start = Date.now();

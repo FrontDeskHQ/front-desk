@@ -66,6 +66,22 @@ A deterministic, no-LLM helper (not a pipeline processor) that action-emitting p
 
 Whether an action is _able_ to execute at all on this run, given the [organization](#organization)'s [integrations](#integration) and configuration **and** the state of the [thread](#thread) itself — as opposed to whether the org has _permitted_ the Agent to, which is the [autonomy stage](#autonomy-stage)'s job. Availability is resolved before [synthesis](#synthesis) runs and shapes what synthesis is even offered, so the Agent never proposes a move that cannot execute. Most actions self-gate on evidence (no mirrored pull requests, no PR to link); actions that need no evidence, such as issue creation, need an explicit availability rule. Issue creation carries both halves: the org needs a usable default issue target, and the thread must not already link an issue — a thread links a single issue, so a second file can only be refused at execution. Linking an issue stays available on an already-linked thread, since re-linking to a different issue is legal. _Avoid_: describing an unavailable action as "off" — `off` is a deliberate org choice; and treating availability as purely org-scoped.
 
+### Action gate
+
+A per-kind predicate the [autonomy stage](#autonomy-stage) consults before promoting an action to `auto`, asking whether _this particular instance_ has earned autonomous execution. Distinct from [action availability](#action-availability) (_can_ it run) and from autonomy (_is the Agent permitted_ to run it): both of those are properties of the org and the thread, while a gate judges the action's own content. Kinds without a registered gate are promoted unconditionally. A gate runs _after_ per-kind autonomy partitioning, so it can see which sibling actions are actually executing. A failed gate downgrades that one action to `suggest`; it never vetoes its siblings.
+
+Today the only gate is on [reply](#grounding).
+
+### Grounding
+
+A [reply](#action-gate) action's claim about what backs it, and the input to reply's [action gate](#action-gate). One of three classes, each carrying the evidence that justifies it:
+
+- **`documented`** — the cited sources answer the customer's question _as asked_. A source that is merely related, or that answers an adjacent question, is not `documented`; it is `inferred`. Citable sources are those actually retrieved in this [run](#run): the `related_docs` [hint](#read-hint) bag plus anything pulled via the agent's documentation tools.
+- **`state_report`** — the reply asserts nothing about the product, only reports thread state the Agent can already see ("we're aware, tracked in #412"). Requires the cited [external issue](#external-issue) / [external pull request](#external-pull-request) to be linked to the thread, or to be linked by a sibling action that is itself executing autonomously.
+- **`inferred`** — everything else. Never auto-sends.
+
+Grounding is a _named class_, not a score, and is deliberately not called "confidence": `inlineSuggestion.confidence` is an unrelated 0–1 scalar from the [inline-track](#inline-suggestion) classifiers, and agent reasoning is scrubbed of confidence language before humans read it. Grounding's sources _are_ shown to humans, as citations on the draft. _Avoid_: "confidence" for this concept, "reply score".
+
 ### Autonomous action
 
 A receipt of work the Agent performed without human approval. Stored in `autonomousAction`. Carries an undo affordance when the action is reversible by construction.

@@ -172,6 +172,17 @@ const AUTONOMY_ACTION_HELP: Partial<Record<ActionKind, string>> = {
 };
 
 /**
+ * Shown only while a row sits at `auto`, for kinds where "auto" is narrower
+ * than it sounds. Reply is gated, so the honest place to say so is next to the
+ * choice at the moment it's made — not in permanent help text under a control
+ * that's switched off.
+ */
+const AUTONOMY_AUTO_NOTICE: Partial<Record<ActionKind, string>> = {
+  reply:
+    "The Agent sends a reply on its own only when it's confident in the draft. Anything else still comes to you for review.",
+};
+
+/**
  * Mode-neutral autonomy settings for Support Intelligence signals.
  */
 function AutomationCard({
@@ -252,6 +263,8 @@ function AutomationCard({
               const locked = !AUTO_CAPABLE_ACTIONS.has(t);
               const current = valueFor(t);
               const help = AUTONOMY_ACTION_HELP[t];
+              const autoNotice =
+                current === "auto" ? AUTONOMY_AUTO_NOTICE[t] : undefined;
               return (
                 <div key={t} className="contents">
                   <div className="flex flex-col gap-0.5">
@@ -306,6 +319,11 @@ function AutomationCard({
                       return item;
                     })}
                   </SegmentedControl>
+                  {autoNotice ? (
+                    <span className="col-span-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
+                      {autoNotice}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

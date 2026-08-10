@@ -407,3 +407,73 @@ export const reasoningUserSafe = createScorer<In, Out, Expected>({
     };
   },
 });
+
+/**
+ * The reply's declared [grounding](../../../../../../CONTEXT.md) class matches
+ * what the case's evidence supports.
+ *
+ * Scored asymmetrically on purpose. Under-claiming costs a suggestion a human
+ * still sees; over-claiming sends a wrong answer with nobody in the loop. Only
+ * the second is a product failure, so it scores 0 and the first scores 0.5 —
+ * the metric must not chase the cheap mistake into the expensive one.
+ */
+export const groundingCalibration = createScorer<In, Out, Expected>({
+  description: "Reply grounding class matches the evidence the case supplies.",
+  name: "Grounding Calibration",
+  scorer: ({ output, expected }) => {
+    const expectedClass = expected?.expectedGroundingClass;
+    if (!expectedClass) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+
+    const reply = output.raw.primary.find((action) => action.kind === "reply");
+    if (!reply || reply.kind !== "reply") {
+      return { score: 0, metadata: { reason: "no_primary_reply" } };
+    }
+
+    const actualClass = reply.grounding?.class ?? "inferred";
+    const overClaimed =
+      expectedClass === "inferred" && actualClass !== "inferred";
+
+    const score = actualClass === expectedClass ? 1 : overClaimed ? 0 : 0.5;
+
+    return {
+      score,
+      metadata: {
+        actualClass,
+        expectedClass,
+        overClaimed,
+        sources: reply.grounding?.sources ?? [],
+      },
+    };
+  },
+});
+
+/**
+ * A `documented` reply cites exactly the pages the case expects — the half of
+ * grounding that is mechanically checkable. A right label with scattergun
+ * citations would otherwise pass the scorer above.
+ */
+export const groundingSources = createScorer<In, Out, Expected>({
+  description: "Documented replies cite exactly the expected page URLs.",
+  name: "Grounding Sources",
+  scorer: ({ output, expected }) => {
+    const expectedSources = expected?.expectedGroundingSources;
+    if (!expectedSources) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+
+    const reply = output.raw.primary.find((action) => action.kind === "reply");
+    const actual = (
+      reply?.kind === "reply" ? (reply.grounding?.sources ?? []) : []
+    )
+      .map((source) => source.trim())
+      .sort();
+    const wanted = [...expectedSources].sort();
+
+    return {
+      score: JSON.stringify(actual) === JSON.stringify(wanted) ? 1 : 0,
+      metadata: { actual, expected: wanted },
+    };
+  },
+});
