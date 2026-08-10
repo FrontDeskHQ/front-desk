@@ -157,7 +157,16 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         // label is silent, where a wrong suggestion is merely declined.
         if (autonomy === "auto" && confidence >= AUTO_THRESHOLD) {
           try {
-            await run.executeBundle([action]);
+            // `executeBundle` reports a handler failure in its return value
+            // rather than throwing (ADR 0003), so an unchecked call would
+            // report `applied` for a label the API never wrote and skip the
+            // suggestion fallback below.
+            const result = await run.executeBundle([action]);
+            if (result.failed) {
+              throw result.failed.error instanceof Error
+                ? result.failed.error
+                : new Error(String(result.failed.error));
+            }
             requestLog.set({
               classification: {
                 confidence,

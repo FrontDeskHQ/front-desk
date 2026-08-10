@@ -20,10 +20,23 @@ const allowedKinds = new Set([
   "set_status",
 ]);
 
+interface NormalizeActionOptions {
+  verifiedPrUrls?: Set<string>;
+  verifiedIssueUrls?: Set<string>;
+  /**
+   * Ids of messages the customer wrote. When set, a `customer_confirmed`
+   * witness must cite one of them.
+   */
+  customerMessageIds?: Set<string>;
+}
+
 const normalizeAction = (
   action: Action,
-  verifiedPrUrls?: Set<string>,
-  verifiedIssueUrls?: Set<string>
+  {
+    verifiedPrUrls,
+    verifiedIssueUrls,
+    customerMessageIds,
+  }: NormalizeActionOptions = {}
 ): Action | null => {
   if (!allowedKinds.has(action.kind)) {
     return null;
@@ -100,13 +113,27 @@ const normalizeAction = (
       // rather than persist a claim nothing ever reads.
       return { kind: "set_status", status: action.status };
     }
+    // `customer_confirmed` is a claim about *who* spoke, and it is the one
+    // witness that resolves a thread on the strength of a message id alone. The
+    // transcript labels each author, but a label in a prompt is guidance, not a
+    // constraint — a teammate's "all set" can still be cited. Verified here
+    // instead: a witness that cites nothing the customer wrote degrades to
+    // `inferred`, which justifies no finish, so the gate denies it and a human
+    // reviews it with the Agent's reasoning attached.
+    const witness =
+      action.witness?.class === "customer_confirmed" &&
+      customerMessageIds &&
+      !action.witness.sources.some((source) => customerMessageIds.has(source))
+        ? { class: "inferred" as const, sources: action.witness.sources }
+        : action.witness;
+
     // A finished move keeps its witness even when the class cannot justify the
     // destination: the gate denies it and a human reviews the suggestion, which
     // is more useful with the Agent's reasoning attached than without.
     return {
       kind: "set_status",
       status: action.status,
-      ...(action.witness ? { witness: action.witness } : {}),
+      ...(witness ? { witness } : {}),
     };
   }
 
@@ -129,11 +156,18 @@ export const normalizeSynthesisRawActionSet = ({
   hasTeamReply,
   verifiedPrUrls,
   verifiedIssueUrls,
+  customerMessageIds,
 }: {
   output: SynthesisRawActionSet;
   messageIds: Set<string>;
   fallbackSourceInputMessageId: string;
   hasTeamReply: boolean;
+  /**
+   * Ids of the messages the customer wrote. When set, a `customer_confirmed`
+   * witness citing none of them is downgraded to `inferred` — a teammate's
+   * "all set" is not the customer's.
+   */
+  customerMessageIds?: Set<string>;
   /**
    * PR URLs returned by successful `read_pr` calls. When set, any `link_pr`
    * whose URL is not in this set is dropped (defense in depth vs synthesize).
@@ -173,7 +207,11 @@ export const normalizeSynthesisRawActionSet = ({
 
   let primary = output.primary
     .map((action) =>
-      normalizeAction(action as Action, verifiedPrUrls, verifiedIssueUrls)
+      normalizeAction(action as Action, {
+        customerMessageIds,
+        verifiedIssueUrls,
+        verifiedPrUrls,
+      })
     )
     .filter((action): action is Action => action !== null);
 
@@ -183,7 +221,11 @@ export const normalizeSynthesisRawActionSet = ({
 
   let alternatives = (output.alternatives ?? [])
     .map((action) =>
-      normalizeAction(action as Action, verifiedPrUrls, verifiedIssueUrls)
+      normalizeAction(action as Action, {
+        customerMessageIds,
+        verifiedIssueUrls,
+        verifiedPrUrls,
+      })
     )
     .filter((action): action is Action => action !== null);
 

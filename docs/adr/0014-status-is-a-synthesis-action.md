@@ -33,7 +33,7 @@ Split on **consequence**, not cost.
 ## Consequences
 
 - What remains of the "inline track" is one label classifier. The folder name outlives the concept; CONTEXT.md describes the surface, not a track.
-- `set_status` is now reachable from a compound bundle and from a chip, but only ever produced by one of them per kind — synthesis writes reads, the classifier writes chips.
+- `set_status` has exactly one producer, synthesis, and one surface, `thread.agentRead` — standalone or inside a compound bundle. The chip surface is label-only: the classifier writes chips, synthesis writes reads, and no kind is reachable from both.
 - Adding a metadata enrichment is no longer automatically an inline generator. The question is whether it has consequences outside FrontDesk, not whether it is cheap.
 - Auto-labelling means one label, at thread creation, never revisited — a direct consequence of the once-per-thread hash 0002 chose and this ADR keeps. Making labels track a thread as it evolves is a separate change to `computeHash`.
 - `mark_duplicate` writes a finished status through `runMarkDuplicate`, bypassing `runSetThreadStatus` entirely. It is therefore untouched by this ADR and by [ADR 0015](./0015-witness-gated-thread-finishing.md)'s gate — a known, accepted gap.

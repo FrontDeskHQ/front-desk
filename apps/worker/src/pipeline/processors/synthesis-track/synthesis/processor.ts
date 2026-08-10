@@ -192,6 +192,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
               id: message.id,
               content: message.content,
               authorId: message.authorId,
+              role: resolvedAuthors.roles.get(message.authorId) ?? "unknown",
               createdAt:
                 message.createdAt instanceof Date
                   ? message.createdAt.toISOString()
@@ -211,6 +212,14 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         const rawActionSet = normalizeSynthesisRawActionSet({
           output,
           messageIds: new Set(messages.map((message) => message.id)),
+          customerMessageIds: new Set(
+            messages
+              .filter(
+                (message) =>
+                  resolvedAuthors.roles.get(message.authorId) === "customer"
+              )
+              .map((message) => message.id)
+          ),
           fallbackSourceInputMessageId: latestMessage.id,
           hasTeamReply,
         });

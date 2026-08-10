@@ -181,7 +181,7 @@ const AUTONOMY_AUTO_NOTICE: Partial<Record<ActionKind, string>> = {
   apply_label:
     "The Agent applies a label on its own only when the classification is a confident one; anything less still comes to you. Labelling happens once, when the thread arrives.",
   set_status:
-    "The Agent moves a thread between open and in progress on its own. It only resolves a thread when the customer has confirmed it or a linked pull request or issue settled it — and always alongside a reply, so nobody's conversation ends silently. Closing an unanswered thread and anything less certain still comes to you for review.",
+    "The Agent moves a thread between open and in progress on its own. It only resolves a thread when the customer has confirmed it or a linked pull request or issue settled it — and always alongside a reply, so nobody's conversation ends silently. It only closes a thread that has gone quiet after your team replied. Anything less certain still comes to you for review.",
   reply:
     "The Agent sends a reply on its own only when the draft is backed by your documentation, or reports the state of work already linked to the thread. Anything else still comes to you for review — with no documentation connected, that means only status updates send on their own.",
 };

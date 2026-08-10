@@ -195,7 +195,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         source: "autonomous_undo",
       };
     } else if (metadata?.kind === "link_pr") {
-      const threads = await db.thread.where({ id: threadId }).get();
+      const threads = await db.thread
+        .where({ id: threadId, organizationId: req.input.organizationId })
+        .get();
       const oldPrId = threads[0]?.externalPrId ?? null;
       await db.thread.update(threadId, { externalPrId: null });
       activityType = "pr_changed";
@@ -207,7 +209,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         source: "autonomous_undo",
       };
     } else if (metadata?.kind === "link_issue") {
-      const threads = await db.thread.where({ id: threadId }).get();
+      const threads = await db.thread
+        .where({ id: threadId, organizationId: req.input.organizationId })
+        .get();
       const oldIssueId = threads[0]?.externalIssueId ?? null;
       // Restore the link the thread carried before, not null: the Agent may
       // have redirected an existing link rather than created the first one.
@@ -230,7 +234,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         source: "autonomous_undo",
       };
     } else if (metadata?.kind === "set_status") {
-      const threads = await db.thread.where({ id: threadId }).get();
+      const threads = await db.thread
+        .where({ id: threadId, organizationId: req.input.organizationId })
+        .get();
       const current = threads[0];
       await db.thread.update(threadId, { status: metadata.previousStatus });
 

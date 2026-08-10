@@ -18,6 +18,7 @@ import { generateText, stepCountIs } from "ai";
 import z from "zod";
 
 import type { WorkerLogger } from "../../../../lib/logging";
+import type { MessageRole } from "../../../../lib/message-roles";
 import type { ParsedSummary } from "../../../../types";
 import {
   collectRetrievedDocUrls,
@@ -81,6 +82,12 @@ export interface SynthesizeThreadReadInput {
     id: string;
     content: string;
     authorId: string;
+    /**
+     * Who wrote it. Rendered into the transcript because `customer_confirmed`
+     * is a claim about authorship: without it the Agent cannot tell a
+     * teammate's "all set" from the customer's.
+     */
+    role: MessageRole;
     createdAt: string;
   }[];
   /** True when a teammate has already posted on this thread. */
@@ -137,7 +144,7 @@ export const synthesizeThreadRead = async (
       ? input.threadMessages
           .map(
             (message, index) =>
-              `${index + 1}. [messageId=${message.id}] ${message.content}`
+              `${index + 1}. [messageId=${message.id}] [author=${message.role}] ${message.content}`
           )
           .join("\n")
       : "(none)";
@@ -323,7 +330,7 @@ Two of these are **live** and two are **finished**. A finished thread has left t
 
 When you set status \`2\` or \`3\` you must attach a \`witness\` — what makes finishing true. Same honesty rule as grounding: it is evidence, not a feeling, and it is checked.
 
-- **\`customer_confirmed\`** — the customer said so in this thread ("that worked", "all set", "you can close this"). \`sources\` = the message ids you are relying on. Justifies **Resolved**.
+- **\`customer_confirmed\`** — the customer said so in this thread ("that worked", "all set", "you can close this"). \`sources\` = the message ids you are relying on, and every one of them must be a message tagged \`[author=customer]\`. A teammate declaring the thread done is not this class; it is \`inferred\`. Cited ids are checked against the customer's own messages, and a witness that cites none of them is downgraded. Justifies **Resolved**.
 - **\`entity_settled\`** — a pull request linked to this thread merged, or a linked issue closed, and that settles what the customer asked about. \`sources\` = the entity URL. Justifies **Resolved**.
 - **\`abandoned\`** — the thread has gone quiet: the team replied and the customer never came back. \`sources\` = \`[]\`; the trigger is the evidence. Justifies **Closed**.
 - **\`inferred\`** — you believe it is finished but nothing above holds. Say so honestly. A human will decide.
@@ -373,7 +380,7 @@ Thread id: ${input.threadId}
 Thread name: ${input.threadName ?? "(none)"}
 Default sourceInputMessageId: ${input.sourceInputMessageId}
 
-Thread messages (oldest -> newest):
+Thread messages (oldest -> newest). Each line carries an \`[author=...]\` tag: \`customer\` is the person who opened the thread, \`agent\` is a teammate on your side, \`unknown\` is neither established:
 ${transcript}
 
 ${summaryJson ? `Thread digest (preprocessor context only — do not copy into summary or recommendation):\n${summaryJson}\n` : ""}

@@ -60,7 +60,7 @@ The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](
 
 ### Autonomy stage
 
-A deterministic, no-LLM helper (not a pipeline processor) that action-emitting processors call immediately after their LLM step. Per action kind it applies the org's setting (`off` → drop, `suggest` → leave for human, `auto` → execute now + write an [autonomous-action](#autonomous-action) receipt), then persists the surface (`thread.agentRead` or `thread.inlineSuggestions`). [Synthesis](#synthesis) calls it over the raw action set; the label classifier calls it over its single proposal. Auto-mode fires the synthesis primary only; alternatives are never auto-executed.
+A deterministic, no-LLM helper (not a pipeline processor) that action-emitting processors call immediately after their LLM step. Per action kind it applies the org's setting (`off` → drop, `suggest` → leave for human, `auto` → execute now + write an [autonomous-action](#autonomous-action) receipt), then persists the surface (`thread.agentRead` or `thread.inlineSuggestions`). [Synthesis](#synthesis) calls it over the raw action set. The label classifier does not: it evaluates the org's `apply_label` setting against its own confidence locally, then calls `run.executeBundle()` or `run.suggest()` directly — the same policy, applied inline to a single proposal. Auto-mode fires the synthesis primary only; alternatives are never auto-executed.
 
 ### Action availability
 

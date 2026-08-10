@@ -142,7 +142,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
           {
             kind: "set_status",
             status: STATUS_RESOLVED,
-            witness: { class: "customer_confirmed", sources: ["m8"] },
+            witness: { class: "customer_confirmed", sources: ["m1"] },
           },
         ],
         primary: [{ kind: "mark_duplicate", targetThreadId: "   " }],
@@ -171,7 +171,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
           {
             kind: "set_status",
             status: STATUS_RESOLVED,
-            witness: { class: "customer_confirmed", sources: ["m8"] },
+            witness: { class: "customer_confirmed", sources: ["m1"] },
           },
         ],
         primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
@@ -200,7 +200,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
           {
             kind: "set_status",
             status: STATUS_RESOLVED,
-            witness: { class: "customer_confirmed", sources: ["m8"] },
+            witness: { class: "customer_confirmed", sources: ["m1"] },
           },
         ],
         primary: [
