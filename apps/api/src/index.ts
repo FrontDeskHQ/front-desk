@@ -8,10 +8,10 @@ import type { OrganizationSettings } from "@workspace/schemas/organization";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
-import type { Express, Request, RequestHandler, Response } from "express";
+import type { Express, RequestHandler } from "express";
 
 import {
-  mintApiConnectionToken,
+  credentialErrorMessage,
   resolveHttpApiCredential,
   resolveWebSocketApiCredential,
 } from "./lib/api-credential";
@@ -24,6 +24,7 @@ import { runMigrations } from "./live-state/migrations";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
+import { exchangeConnectionToken } from "./routes/connection-token";
 
 const { app } = expressWs(express() as unknown as Express);
 
@@ -60,15 +61,6 @@ const corsOptions = {
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
   origin: "*",
 };
-
-const CREDENTIAL_ERROR_STATUS: Record<string, number> = {
-  CONFLICTING_API_CREDENTIALS: 400,
-  INVALID_API_CREDENTIAL: 401,
-  UNAUTHORIZED: 401,
-};
-
-const reason = (error: unknown): string =>
-  error instanceof Error ? error.message : "UNKNOWN_ERROR";
 
 app.use(cors(corsOptions));
 
@@ -133,7 +125,7 @@ const lsServer = server({
       try {
         apiCredential = await resolveWebSocketApiCredential(queryParams);
       } catch (error) {
-        console.warn("[auth] WebSocket API credential rejected", reason(error));
+        console.warn("[auth] WebSocket API credential rejected", credentialErrorMessage(error));
         return;
       }
       if (apiCredential) {
@@ -164,7 +156,7 @@ const lsServer = server({
     try {
       apiCredential = await resolveHttpApiCredential(headers);
     } catch (error) {
-      console.warn("[auth] HTTP API credential rejected", reason(error));
+      console.warn("[auth] HTTP API credential rejected", credentialErrorMessage(error));
       // An invalid explicit credential fails closed and never falls through to
       // an otherwise valid passive cookie session.
       return {};
@@ -220,43 +212,7 @@ app.all("/api/portal-auth/*", toNodeHandler(portalAuth));
 
 app.use(express.json());
 
-const handleConnectionTokenExchange = async (
-  req: Request,
-  res: Response
-): Promise<void> => {
-  try {
-    const headers = Object.fromEntries(
-      Object.entries(req.headers).map(([name, value]) => [
-        name,
-        Array.isArray(value) ? value[0] : value,
-      ])
-    );
-    const credential = await resolveHttpApiCredential(headers);
-
-    if (!credential) {
-      res.status(401).json({ error: "UNAUTHORIZED" });
-      return;
-    }
-
-    const result = await mintApiConnectionToken(credential);
-    res.json(result);
-  } catch (error) {
-    const message = reason(error);
-    const status = CREDENTIAL_ERROR_STATUS[message];
-
-    if (status === undefined) {
-      console.error("connection_token.mint_failed", error);
-      res.status(500).json({ error: "INTERNAL_ERROR" });
-      return;
-    }
-
-    res.status(status).json({ error: message });
-  }
-};
-
-app.post("/api/ls/connection-token", (req, res) => {
-  void handleConnectionTokenExchange(req, res);
-});
+app.post("/api/ls/connection-token", exchangeConnectionToken);
 
 process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(

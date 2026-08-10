@@ -18,6 +18,10 @@ interface CredentialDependencies {
   verifyPublic: (key: string) => Promise<ApiKeyRecord | null>;
 }
 
+/** Name of the credential failure, for logging and HTTP status mapping. */
+export const credentialErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : "UNKNOWN_ERROR";
+
 /** Resolve at most one explicit HTTP API credential. Cookies are passive. */
 export const resolveHttpApiCredential = async (
   headers: Record<string, string | undefined>,
