@@ -1,0 +1,19 @@
+apps/api/src/live-state/migrations/files/index.ts
+  s_8f189be9028f35::t_560e23e62e5267 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b024d04ed20c9dee63537315cc5ead88891fce79",
+  "prompts": {},
+  "sessions": {
+    "s_8f189be9028f35": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b23bd84-01f5-4030-a0c3-7c79af26c2bf",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
