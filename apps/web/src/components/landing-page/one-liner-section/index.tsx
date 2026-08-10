@@ -180,7 +180,7 @@ export function OneLinerSection() {
                 trigger={
                   <Button
                     size="xl"
-                    className="bg-primary text-primary-foreground dark:bg-primary-foreground dark:text-primary hover:bg-primary/90 dark:hover:bg-primary/90"
+                    className="bg-foreground-primary text-background-primary dark:bg-foreground-primary dark:text-background-primary hover:bg-foreground-primary/90 dark:hover:bg-foreground-primary/90 active:bg-foreground-primary/70 dark:active:bg-foreground-primary/70"
                     aria-label="Request early access"
                   >
                     Request early access
