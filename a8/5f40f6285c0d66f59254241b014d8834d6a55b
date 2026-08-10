@@ -1,0 +1,19 @@
+apps/worker/src/pipeline/core/autonomy-stage.ts
+  s_274179a47544df::t_67f62f3406057c 146-151
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a85f40f6285c0d66f59254241b014d8834d6a55b",
+  "prompts": {},
+  "sessions": {
+    "s_274179a47544df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc9fa5ef-7867-4aae-9f48-794f76aa46ed",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
