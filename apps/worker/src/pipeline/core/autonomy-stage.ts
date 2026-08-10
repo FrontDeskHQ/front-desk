@@ -11,7 +11,7 @@ import type {
 import { log } from "@workspace/utils/logging";
 
 import { errorFields } from "../../lib/logging";
-import { gateFor } from "./action-gates";
+import { gateFor, gateRank } from "./action-gates";
 import type { ActionGateResult } from "./action-gates";
 import type { RunState } from "./run-state";
 
@@ -139,16 +139,15 @@ export const applySynthesisAutonomy = async (
 
 /**
  * Splits the permitted actions into what still executes and what an
- * [action gate](./action-gates.ts) held back. Gates see `permitted` as their
- * sibling set, so "is my sibling actually going to happen?" has a truthful
- * answer. A gate that throws denies: an unreachable gate must fail towards the
- * human, not past them.
+ * [action gate](./action-gates.ts) held back. A gate that throws denies: an
+ * unreachable gate must fail towards the human, not past them.
  *
- * TODO(sibling-truthfulness): `permitted` is everything *proposed* for auto,
- * not the subset already confirmed to execute, so that answer is truthful only
- * because `reply` is the sole gated kind and comes last. Register a second
- * gated kind ahead of it and a denied sibling would still read as executing.
- * Feed each gate the actions already admitted plus the ungated remainder.
+ * Gates see only siblings *confirmed* to execute — ungated kinds, plus gated
+ * ones already admitted — and are evaluated in `GATE_ORDER` so a gate asking
+ * about a sibling asks after that sibling's verdict is known. Feeding a gate
+ * the whole proposed set instead would let `set_status` read a reply as
+ * sending that the reply's own gate then held back, resolving a thread whose
+ * customer hears nothing (ADR 0015).
  */
 const applyActionGates = async (
   run: RunState,
@@ -158,18 +157,21 @@ const applyActionGates = async (
   gated: Action[];
   fingerprints: Map<ActionKind, string>;
 }> => {
-  const autoActions: Action[] = [];
   const gated: Action[] = [];
   const fingerprints = new Map<ActionKind, string>();
 
-  for (const action of permitted) {
-    const gate = gateFor(action.kind);
-    if (!gate) {
-      autoActions.push(action);
-      continue;
-    }
+  const confirmed: Action[] = permitted.filter(
+    (action) => !gateFor(action.kind)
+  );
+  const toEvaluate = permitted
+    .flatMap((action) => {
+      const gate = gateFor(action.kind);
+      return gate ? [{ action, gate }] : [];
+    })
+    .toSorted((a, b) => gateRank(a.action.kind) - gateRank(b.action.kind));
 
-    const siblings = permitted.filter((other) => other !== action);
+  for (const { action, gate } of toEvaluate) {
+    const siblings = confirmed.filter((other) => other !== action);
     let result: ActionGateResult;
     try {
       result = await gate(action, { autoSiblings: siblings, run });
@@ -190,7 +192,7 @@ const applyActionGates = async (
       if (result.stateFingerprint) {
         fingerprints.set(action.kind, result.stateFingerprint);
       }
-      autoActions.push(action);
+      confirmed.push(action);
       continue;
     }
 
@@ -205,6 +207,12 @@ const applyActionGates = async (
     });
     gated.push(action);
   }
+
+  // Rebuilt in `permitted` order rather than in the order gates admitted them:
+  // ADR 0003 executes a bundle in emitted order with reply terminal, and
+  // `GATE_ORDER` is an evaluation order, not an execution one.
+  const admitted = new Set(confirmed);
+  const autoActions = permitted.filter((action) => admitted.has(action));
 
   return { autoActions, fingerprints, gated };
 };

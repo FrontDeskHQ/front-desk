@@ -2,6 +2,7 @@ import {
   parseAutonomousActionMetadata,
   REVERSIBLE_ACTIONS,
   STATUS_LABELS,
+  syncsUpstream,
 } from "@workspace/schemas/signals";
 import type {
   ActionKind,
@@ -19,6 +20,7 @@ import {
   recordAutonomousActionInputSchema,
   runRecordAutonomousAction,
 } from "../../lib/autonomous-action-mutations";
+import { syncLinkedIssueState } from "../../lib/capability-dispatch";
 import { runRecordActivity } from "../../lib/update-mutations";
 import { privateRoute } from "../factories";
 
@@ -193,7 +195,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         source: "autonomous_undo",
       };
     } else if (metadata?.kind === "link_pr") {
-      const threads = await db.thread.where({ id: threadId }).get();
+      const threads = await db.thread
+        .where({ id: threadId, organizationId: req.input.organizationId })
+        .get();
       const oldPrId = threads[0]?.externalPrId ?? null;
       await db.thread.update(threadId, { externalPrId: null });
       activityType = "pr_changed";
@@ -205,7 +209,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         source: "autonomous_undo",
       };
     } else if (metadata?.kind === "link_issue") {
-      const threads = await db.thread.where({ id: threadId }).get();
+      const threads = await db.thread
+        .where({ id: threadId, organizationId: req.input.organizationId })
+        .get();
       const oldIssueId = threads[0]?.externalIssueId ?? null;
       // Restore the link the thread carried before, not null: the Agent may
       // have redirected an existing link rather than created the first one.
@@ -228,7 +234,27 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         source: "autonomous_undo",
       };
     } else if (metadata?.kind === "set_status") {
+      const threads = await db.thread
+        .where({ id: threadId, organizationId: req.input.organizationId })
+        .get();
+      const current = threads[0];
       await db.thread.update(threadId, { status: metadata.previousStatus });
+
+      // The one place un-finishing reaches upstream (ADR 0015). Ordinary
+      // un-finishing never reopens an issue — a customer writing back is not
+      // evidence the work regressed — but undo is FrontDesk retracting a write
+      // it made, so it has to put the other system back as it found it.
+      const undoingAFinish =
+        syncsUpstream(current?.status ?? metadata.previousStatus) &&
+        !syncsUpstream(metadata.previousStatus);
+      if (current?.externalIssueId && undoingAFinish) {
+        await syncLinkedIssueState(db, {
+          closed: false,
+          externalIssueId: current.externalIssueId,
+          organizationId: req.input.organizationId,
+        });
+      }
+
       activityType = "status_changed";
       activityMetadata = {
         newStatus: metadata.previousStatus,

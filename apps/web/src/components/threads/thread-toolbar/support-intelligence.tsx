@@ -6,8 +6,6 @@
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
-import { STATUS_LABELS } from "@workspace/schemas/signals";
-import { statusValues } from "@workspace/ui/components/indicator";
 import type { schema } from "api/schema";
 import { useMemo } from "react";
 
@@ -101,35 +99,20 @@ interface UsePendingStatusSuggestionsProps {
   currentStatus: number;
 }
 
-const statusLabel = (status: number): string =>
-  statusValues[status]?.label ?? STATUS_LABELS[status] ?? `Status ${status}`;
-
-export const usePendingStatusSuggestions = ({
-  threadId,
-  currentStatus,
-}: UsePendingStatusSuggestionsProps) => {
-  const suggestions = useInlineSuggestions(threadId);
-
-  const statusSuggestion = useMemo<StatusSuggestionData>(() => {
-    for (const suggestion of suggestions) {
-      if (suggestion.action.kind !== "set_status") {
-        continue;
-      }
-      const suggestedStatus = suggestion.action.status;
-      if (suggestedStatus === currentStatus) {
-        continue;
-      }
-      return {
-        label: statusLabel(suggestedStatus),
-        suggestedStatus,
-        suggestionId: suggestion.id,
-      };
-    }
-    return null;
-  }, [suggestions, currentStatus]);
-
-  return { statusSuggestion };
-};
+/**
+ * Always null since ADR 0014: `set_status` left the inline-suggestion surface
+ * for the thread read, so nothing writes a status chip any more.
+ *
+ * TODO(status-in-toolbar): the toolbar's status affordance is intentionally
+ * kept wired but inert rather than deleted — repointing it at
+ * `thread.agentRead`'s primary `set_status` is a UI change of its own, and
+ * doing it here would bury it inside the vocabulary cut-over.
+ */
+export const usePendingStatusSuggestions = (
+  _props: UsePendingStatusSuggestionsProps
+): { statusSuggestion: StatusSuggestionData } => ({
+  statusSuggestion: null,
+});
 
 interface UsePendingDuplicateSuggestionsProps {
   threadId: string;

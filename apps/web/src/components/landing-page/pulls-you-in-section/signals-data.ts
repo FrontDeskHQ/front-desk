@@ -41,7 +41,7 @@ export const SIGNALS: MockSignalCardData[] = [
     urgencyScore: 92,
   },
   {
-    alternativeKinds: ["close"],
+    alternativeKinds: ["set_status"],
     authorName: "Sam Okonkwo",
     createdAtLabel: "18 minutes ago",
     id: "sig-duplicate",
@@ -59,9 +59,9 @@ export const SIGNALS: MockSignalCardData[] = [
     authorName: "Priya Patel",
     createdAtLabel: "55 minutes ago",
     id: "sig-close",
-    primaryKinds: ["close"],
+    primaryKinds: ["set_status"],
     recommendation:
-      "Close the thread — the customer confirmed the issue is resolved.",
+      "Resolve the thread — the customer confirmed the issue is resolved.",
     shortId: 1756,
     summary:
       "Customer confirmed that SSO sign-in is working after following the setup guide.",

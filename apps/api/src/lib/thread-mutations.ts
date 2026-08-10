@@ -1,6 +1,11 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
-import { PRIORITY_LABELS, threadReadSchema } from "@workspace/schemas/signals";
+import {
+  PRIORITY_LABELS,
+  STATUS_DUPLICATED,
+  syncsUpstream,
+  threadReadSchema,
+} from "@workspace/schemas/signals";
 import { addDays } from "date-fns";
 import { z } from "zod";
 
@@ -68,8 +73,9 @@ export const unlinkPullRequestInputSchema = z.object({
   userName: z.string().optional(),
 });
 
-export const STATUS_CLOSED = 3;
-export const STATUS_DUPLICATED = 4;
+// Re-exported for existing importers; the taxonomy itself lives in
+// @workspace/schemas/signals alongside the membership sets (ADR 0015).
+export { STATUS_CLOSED, STATUS_DUPLICATED } from "@workspace/schemas/signals";
 
 export const markDuplicateInputSchema = z.object({
   duplicateOfThreadId: z.string().min(1),
@@ -200,15 +206,23 @@ export const runSetThreadStatus = async (
 
   await db.thread.update(input.threadId, { status: input.status });
 
-  // Keep a linked external issue in sync with the thread's closed state. Only
-  // fires when the thread crosses the closed boundary; routed by the linked
+  // Finish a linked external issue alongside the thread. Routed by the linked
   // issue's owning integration (best-effort, never blocks the status change).
-  // Statuses at or beyond `closed` (e.g. `duplicated`) count as closed.
-  const wasClosed = oldStatus >= STATUS_CLOSED;
-  const isClosed = input.status >= STATUS_CLOSED;
-  if (thread.externalIssueId && wasClosed !== isClosed) {
+  //
+  // Set membership, not `>=` (ADR 0015): `duplicated` is finished but does NOT
+  // sync, because the customer's need moved to another thread rather than being
+  // settled — matching `runMarkDuplicate`, which reaches that status directly
+  // and syncs nothing.
+  //
+  // One-way. Un-finishing a thread never reopens the issue: a customer writing
+  // back is not evidence the engineering work regressed, and the external system
+  // is authoritative for issue state. Undo is the sole exception and reopens
+  // explicitly from the `autonomousAction.undo` handler.
+  const wasSyncing = syncsUpstream(oldStatus);
+  const isSyncing = syncsUpstream(input.status);
+  if (thread.externalIssueId && isSyncing && !wasSyncing) {
     await syncLinkedIssueState(db, {
-      closed: isClosed,
+      closed: true,
       externalIssueId: thread.externalIssueId,
       organizationId: input.organizationId,
     });

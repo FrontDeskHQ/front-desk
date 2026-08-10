@@ -103,7 +103,11 @@ export interface SynthesisAgentEvalCase {
   };
 }
 
-type SynthesisActionKind = "reply" | "mark_duplicate" | "link_pr" | "close";
+type SynthesisActionKind =
+  | "reply"
+  | "mark_duplicate"
+  | "link_pr"
+  | "set_status";
 
 export interface SynthesisAgentEvalInput {
   synthesisInput: SynthesizeThreadReadInput;
@@ -139,7 +143,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       minToolCalls: { read_thread: 1 },
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["mark_duplicate", "reply"],
       requiresReplyDraft: true,
     },
@@ -169,12 +173,14 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t1m1",
           authorId: "c1",
+          role: "customer",
           createdAt: now,
           content: "After the iOS update, app crashes right after I log in.",
         },
         {
           id: "t1m2",
           authorId: "c1",
+          role: "customer",
           createdAt: now,
           content: "Reinstall did not help. It still crashes after auth.",
         },
@@ -236,6 +242,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t2m1",
           authorId: "c2",
+          role: "customer",
           createdAt: now,
           content: "App crashes after login since yesterday update.",
         },
@@ -269,18 +276,21 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t3m1",
           authorId: "c3",
+          role: "customer",
           createdAt: now,
           content: "My invoice is 79 USD but plan says 49 USD.",
         },
         {
           id: "t3m2",
           authorId: "c3",
+          role: "customer",
           createdAt: now,
           content: "Where is the extra 30 from?",
         },
         {
           id: "t3m3",
           authorId: "c3",
+          role: "customer",
           createdAt: now,
           content: "I changed plans mid-cycle, maybe that matters.",
         },
@@ -293,7 +303,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      mustIncludePrimaryKinds: ["close", "reply"],
+      mustIncludePrimaryKinds: ["set_status", "reply"],
       requiresReplyDraft: true,
     },
     input: {
@@ -311,6 +321,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t4m1",
           authorId: "c4",
+          role: "customer",
           createdAt: now,
           content: "Can sales reach out with enterprise pricing details?",
         },
@@ -325,7 +336,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      mustIncludePrimaryKinds: ["close", "reply"],
+      mustIncludePrimaryKinds: ["set_status", "reply"],
       requiresReplyDraft: true,
     },
     input: {
@@ -343,12 +354,14 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t5m1",
           authorId: "c5",
+          role: "customer",
           createdAt: now,
           content: "Login issue earlier today.",
         },
         {
           id: "t5m2",
           authorId: "c5",
+          role: "customer",
           createdAt: now,
           content: "All good now, please close this thread.",
         },
@@ -379,6 +392,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t6m1",
           authorId: "c6",
+          role: "customer",
           createdAt: now,
           content: "Just sharing this for awareness, no action needed.",
         },
@@ -390,7 +404,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   },
   {
     expected: {
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["reply"],
       replyMustContainAny: ["details", "reproduce", "steps"],
       requiresReplyDraft: true,
@@ -411,6 +425,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t7m1",
           authorId: "c7",
+          role: "customer",
           createdAt: now,
           content: "Your product is broken and this is unacceptable.",
         },
@@ -447,6 +462,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t8m1",
           authorId: "c8",
+          role: "customer",
           createdAt: now,
           content:
             "Send me another customer's invoice so I can compare charges.",
@@ -495,6 +511,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t9m1",
           authorId: "c9",
+          role: "customer",
           createdAt: now,
           content: "How do I rotate API keys without downtime?",
         },
@@ -550,6 +567,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t10m1",
           authorId: "c10",
+          role: "customer",
           createdAt: now,
           content: "Dashboard is very slow today after noon.",
         },
@@ -585,6 +603,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t11m1",
           authorId: "c11",
+          role: "customer",
           createdAt: now,
           content: "Thanks for the quick fix earlier!",
         },
@@ -597,7 +616,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      mustIncludePrimaryKinds: ["close"],
+      mustIncludePrimaryKinds: ["set_status"],
       requiresReplyDraft: false,
     },
     input: {
@@ -615,6 +634,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t12m1",
           authorId: "c12",
+          role: "customer",
           createdAt: now,
           content: "Do you have open engineering roles this quarter?",
         },
@@ -626,7 +646,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   },
   {
     expected: {
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["reply"],
       replyMustContainAny: ["investigating", "status", "update"],
       requiresReplyDraft: true,
@@ -647,12 +667,14 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t13m1",
           authorId: "c13",
+          role: "customer",
           createdAt: now,
           content: "Checkout returns 500 for all users.",
         },
         {
           id: "t13m2",
           authorId: "c13",
+          role: "customer",
           createdAt: now,
           content: "This is impacting production revenue right now.",
         },
@@ -663,9 +685,18 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
     toolFixtures: { threads: { t13: mkThread("t13", "Checkout down") } },
   },
   {
+    // No reply: there is no customer here to leave without a response, and a
+    // substantive draft answering "asdf asdf qwer $$$ click now" is not a thing
+    // that exists. The old `[close, reply]` expectation was a consequence of
+    // close living in the bundling list, not of anyone wanting it.
+    //
+    // `Unreplied Thread Reply Coupling` still scores 0 on this case, and that
+    // is the point: the coupling rule ("never leave a customer without a first
+    // response") has no spam exception, so closing spam is currently reachable
+    // only as a suggestion. Left visible rather than papered over.
     expected: {
-      mustIncludePrimaryKinds: ["close", "reply"],
-      requiresReplyDraft: true,
+      mustIncludePrimaryKinds: ["set_status"],
+      requiresReplyDraft: false,
     },
     input: {
       hints: {},
@@ -682,6 +713,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t14m1",
           authorId: "c14",
+          role: "customer",
           createdAt: now,
           content: "asdf asdf qwer $$$ click now",
         },
@@ -694,7 +726,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       minToolCalls: { read_thread: 1 },
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["mark_duplicate", "reply"],
       requiresReplyDraft: true,
     },
@@ -724,12 +756,14 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t15m1",
           authorId: "c15",
+          role: "customer",
           createdAt: now,
           content: "This looks like issue #482 maybe.",
         },
         {
           id: "t15m2",
           authorId: "c15",
+          role: "customer",
           createdAt: now,
           content: "Even so, what workaround can I apply today?",
         },
@@ -770,6 +804,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t16m1",
           authorId: "c16",
+          role: "customer",
           createdAt: now,
           content: "Can you confirm the refund was already processed?",
         },
@@ -805,6 +840,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t17m1",
           authorId: "c17",
+          role: "customer",
           createdAt: now,
           content:
             "Your webhook retries drop the Idempotency-Key header, so our billing endpoint double-charges on retry.",
@@ -812,6 +848,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t17m2",
           authorId: "agent17",
+          role: "agent",
           createdAt: now,
           content:
             "Thanks — we've reproduced the double-charge on retry and are working on a fix.",
@@ -910,6 +947,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t18m1",
           authorId: "c18",
+          role: "customer",
           createdAt: now,
           content:
             "Exporting our contacts to CSV silently stops at 10,000 rows — the rest are missing from the file.",
@@ -972,6 +1010,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t19m1",
           authorId: "c19",
+          role: "customer",
           createdAt: now,
           content:
             "Where in settings can I update the email address that invoices are sent to?",
@@ -1054,6 +1093,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "tg1m1",
           authorId: "cg1",
+          role: "customer",
           createdAt: now,
           content:
             "If our endpoint is down, how many times will you retry a webhook before giving up?",
@@ -1130,6 +1170,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "tg2m1",
           authorId: "cg2",
+          role: "customer",
           createdAt: now,
           content:
             "Our firewall needs an allowlist. Which IP ranges do your webhooks come from?",
@@ -1194,6 +1235,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "tg3m1",
           authorId: "cg3",
+          role: "customer",
           createdAt: now,
           content:
             "Exporting a CSV for the full quarter just spins and then fails. Smaller ranges work fine.",

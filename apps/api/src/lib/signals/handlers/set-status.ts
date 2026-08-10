@@ -33,7 +33,9 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
       ctx.db,
       {
         organizationId: ctx.organizationId,
-        source: "inline_suggestion",
+        // Reached from a thread read a human acted on, or from an autonomous
+        // bundle — so provenance follows the actor, as `mark_duplicate` does.
+        source: ctx.actorUserId ? "agent_read" : "autonomous",
         status: action.status,
         threadId: ctx.threadId,
       },

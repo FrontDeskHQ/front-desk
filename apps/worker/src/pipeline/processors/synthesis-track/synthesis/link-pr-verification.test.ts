@@ -1,4 +1,5 @@
 import type { Action } from "@workspace/schemas/signals";
+import { STATUS_RESOLVED } from "@workspace/schemas/signals";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -142,11 +143,27 @@ describe("verified PR recommendation links", () => {
     );
   });
 
-  it("discards a primary action set the fallback cannot describe", () => {
+  // Since ADR 0014 `[link_pr, set_status, reply]` is a normal bundle, so a
+  // third action is not by itself grounds to discard: the recommendation the
+  // model wrote already names the verified PR, and nothing is being hidden.
+  it("keeps a bundled set whose recommendation already names the verified PR", () => {
+    const recommendation = `Link [PR #482](${prUrl}) and resolve the thread.`;
     expect(
       ensureVerifiedPrRecommendationLink(
-        `Link [PR #482](${prUrl}) and close the thread.`,
-        [...linkPrPrimary, { kind: "close" }],
+        recommendation,
+        [...linkPrPrimary, { kind: "set_status", status: STATUS_RESOLVED }],
+        verifiedPrs
+      )
+    ).toBe(recommendation);
+  });
+
+  it("discards a primary action set the fallback cannot describe", () => {
+    // No usable link, so a fallback is required — and the fallback sentence can
+    // only mention link_pr and reply, which would hide the status change.
+    expect(
+      ensureVerifiedPrRecommendationLink(
+        "Link the pull request and close the thread.",
+        [...linkPrPrimary, { kind: "set_status", status: STATUS_RESOLVED }],
         verifiedPrs
       )
     ).toBeNull();

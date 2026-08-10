@@ -4,7 +4,6 @@ import { Link } from "@tanstack/react-router";
 import {
   ACTION_KIND_LABEL,
   ACTION_KIND_VERB,
-  STATUS_LABELS,
   fingerprintAgentRead,
   sanitizeAgentReadReasoning,
   urgencyTierFromScore,
@@ -23,7 +22,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@workspace/ui/components/hover-card";
-import { StatusIndicator } from "@workspace/ui/components/indicator";
 import {
   treeContentClassName,
   TreeJoin,
@@ -256,22 +254,14 @@ function CompoundActionButton({
   );
 }
 
-type ResolvedInlineSuggestion =
-  | {
-      suggestion: InlineSuggestion;
-      kind: "status";
-      name: string;
-      status: number;
-    }
-  | {
-      suggestion: InlineSuggestion;
-      kind: "label";
-      name: string;
-      color: string;
-    };
+interface ResolvedInlineSuggestion {
+  suggestion: InlineSuggestion;
+  name: string;
+  color: string;
+}
 
 /**
- * Inline-track suggestions (apply label / set status) rendered as dashed chips,
+ * Label suggestions rendered as dashed chips,
  * mirroring the thread toolbar's quick-actions style: click a chip to apply,
  * hover for detail, and reveal apply-all / ignore-all on row hover.
  */
@@ -294,34 +284,22 @@ function InlineSuggestionsRow({
     const labelById = new Map((labels ?? []).map((label) => [label.id, label]));
     const result: ResolvedInlineSuggestion[] = [];
     for (const suggestion of suggestions) {
-      if (suggestion.action.kind === "set_status") {
-        const { status } = suggestion.action;
+      const label = labelById.get(suggestion.action.labelId);
+      if (!label) {
+        // Keep the suggestion dismissible even when its label was deleted,
+        // disabled, or hasn't loaded yet — otherwise it becomes a stuck row.
         result.push({
-          kind: "status",
-          name: STATUS_LABELS[status] ?? `Status ${status}`,
-          status,
+          color: "var(--muted-foreground)",
+          name: "Unknown label",
           suggestion,
         });
-      } else {
-        const label = labelById.get(suggestion.action.labelId);
-        if (!label) {
-          // Keep the suggestion dismissible even when its label was deleted,
-          // disabled, or hasn't loaded yet — otherwise it becomes a stuck row.
-          result.push({
-            color: "var(--muted-foreground)",
-            kind: "label",
-            name: "Unknown label",
-            suggestion,
-          });
-          continue;
-        }
-        result.push({
-          color: label.color,
-          kind: "label",
-          name: label.name,
-          suggestion,
-        });
+        continue;
       }
+      result.push({
+        color: label.color,
+        name: label.name,
+        suggestion,
+      });
     }
     return result;
   }, [labels, suggestions]);
@@ -332,14 +310,10 @@ function InlineSuggestionsRow({
 
   const chipContent = (item: ResolvedInlineSuggestion) => (
     <>
-      {item.kind === "status" ? (
-        <StatusIndicator status={item.status} />
-      ) : (
-        <div
-          className="size-2 rounded-full"
-          style={{ backgroundColor: item.color }}
-        />
-      )}
+      <div
+        className="size-2 rounded-full"
+        style={{ backgroundColor: item.color }}
+      />
       {item.name}
     </>
   );
@@ -368,9 +342,7 @@ function InlineSuggestionsRow({
             <HoverCardContent className="min-w-72 w-full max-w-96 flex flex-col gap-3">
               <div className="text-xs flex flex-col gap-1">
                 <div className="text-foreground-secondary">
-                  {item.kind === "status"
-                    ? "Suggested status"
-                    : "Suggested label"}
+                  Suggested label
                 </div>
                 <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15">
                   {chipContent(item)}
@@ -504,7 +476,12 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   );
   const [replyEditorRevision, setReplyEditorRevision] = useState(0);
   const inlineSuggestions = (thread.inlineSuggestions ?? []).filter(
-    (suggestion) => !suggestion.dismissedAt
+    (suggestion) =>
+      !suggestion.dismissedAt &&
+      // `apply_label` is the only kind the inline track writes (ADR 0014), and
+      // the row below reads `action.labelId`. Rows persisted by the retired
+      // status track would otherwise render as an "Unknown label" chip.
+      suggestion.action.kind === "apply_label"
   );
 
   useEffect(() => {

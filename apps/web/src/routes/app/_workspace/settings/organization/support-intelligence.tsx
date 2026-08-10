@@ -152,11 +152,11 @@ const HIDDEN_ACTION_KINDS: ReadonlySet<ActionKind> = new Set();
 
 const AUTONOMY_LEVELS: AutonomyLevel[] = ["off", "suggest", "auto"];
 
-// Mode-neutral labels for the autonomy settings, keyed on the new Action
-// vocabulary (synthesis-track + inline-track).
+// Mode-neutral labels for the autonomy settings, keyed on the Action
+// vocabulary. "Closing threads" folded into "Status changes" with ADR 0014 —
+// closing was always a status write, and it is one row now.
 const AUTONOMY_ACTION_LABEL: Record<ActionKind, string> = {
   apply_label: "Thread labeling",
-  close: "Closing threads",
   create_issue: "Filing issues",
   link_issue: "Issue linking",
   link_pr: "PR linking",
@@ -178,6 +178,10 @@ const AUTONOMY_ACTION_HELP: Partial<Record<ActionKind, string>> = {
  * that's switched off.
  */
 const AUTONOMY_AUTO_NOTICE: Partial<Record<ActionKind, string>> = {
+  apply_label:
+    "The Agent applies a label on its own only when the classification is a confident one; anything less still comes to you. Labelling happens once, when the thread arrives.",
+  set_status:
+    "The Agent moves a thread between open and in progress on its own. It only resolves a thread when the customer has confirmed it or a linked pull request or issue settled it — and always alongside a reply, so nobody's conversation ends silently. It only closes a thread that has gone quiet after your team replied. Anything less certain still comes to you for review.",
   reply:
     "The Agent sends a reply on its own only when the draft is backed by your documentation, or reports the state of work already linked to the thread. Anything else still comes to you for review — with no documentation connected, that means only status updates send on their own.",
 };
