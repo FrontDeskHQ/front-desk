@@ -1,0 +1,22 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_8f189be9028f35::t_60fbe6989f2047 142-146,150-155
+  s_8f189be9028f35::t_305203b93ec7dc 391
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_8f189be9028f35::t_9fc181f3c7170c 89-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7f0b31b6f7c8dbf92f64d73e823dcbd05098a46f",
+  "prompts": {},
+  "sessions": {
+    "s_8f189be9028f35": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "1b23bd84-01f5-4030-a0c3-7c79af26c2bf",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
