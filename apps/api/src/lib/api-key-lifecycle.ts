@@ -1,15 +1,18 @@
 import { addYears } from "date-fns";
 import type { ApiKeyRecord } from "keypal";
 
-export const resolvePrivateApiKeyExpiration = (input: {
-  expiresAt?: string;
-  featureEnabled: boolean;
-  now?: Date;
-}): Date => {
-  if (!input.featureEnabled) {
+export const assertPrivateApiKeyCreationEnabled = (
+  featureEnabled: boolean
+): void => {
+  if (!featureEnabled) {
     throw new Error("FEATURE_NOT_AVAILABLE");
   }
+};
 
+export const resolvePrivateApiKeyExpiration = (input: {
+  expiresAt?: string;
+  now?: Date;
+}): Date => {
   const now = input.now ?? new Date();
   const maximumExpiration = addYears(now, 1);
   const expiration = input.expiresAt

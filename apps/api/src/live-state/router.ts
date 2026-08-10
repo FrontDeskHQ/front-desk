@@ -25,6 +25,7 @@ import { z } from "zod";
 
 import { privateKeys, publicKeys } from "../lib/api-key";
 import {
+  assertPrivateApiKeyCreationEnabled,
   listUnrevokedApiKeys,
   resolvePrivateApiKeyExpiration,
 } from "../lib/api-key-lifecycle";
@@ -558,12 +559,12 @@ export const router = createRouter({
           role: "owner",
         });
 
+        assertPrivateApiKeyCreationEnabled(
+          isOrganizationFeatureEnabled(organizationId, "private-api-keys")
+        );
+
         const expiration = resolvePrivateApiKeyExpiration({
           expiresAt: req.input.expiresAt,
-          featureEnabled: isOrganizationFeatureEnabled(
-            organizationId,
-            "private-api-keys"
-          ),
         });
 
         const privateApiKey = await privateKeys.create({

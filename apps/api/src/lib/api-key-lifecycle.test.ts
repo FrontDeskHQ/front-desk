@@ -2,6 +2,7 @@ import type { ApiKeyRecord } from "keypal";
 import { describe, expect, it } from "vitest";
 
 import {
+  assertPrivateApiKeyCreationEnabled,
   listUnrevokedApiKeys,
   resolvePrivateApiKeyExpiration,
 } from "./api-key-lifecycle";
@@ -18,30 +19,25 @@ const record = (
 
 describe("private API key lifecycle", () => {
   it("enforces the creation flag", () => {
-    expect(() =>
-      resolvePrivateApiKeyExpiration({
-        featureEnabled: false,
-        now: new Date("2026-01-01T00:00:00.000Z"),
-      })
-    ).toThrow("FEATURE_NOT_AVAILABLE");
+    expect(() => assertPrivateApiKeyCreationEnabled(false)).toThrow(
+      "FEATURE_NOT_AVAILABLE"
+    );
   });
 
   it("defaults to one year and permits only shorter future expirations", () => {
     const now = new Date("2026-01-01T00:00:00.000Z");
-    expect(
-      resolvePrivateApiKeyExpiration({ featureEnabled: true, now })
-    ).toStrictEqual(new Date("2027-01-01T00:00:00.000Z"));
+    expect(resolvePrivateApiKeyExpiration({ now })).toStrictEqual(
+      new Date("2027-01-01T00:00:00.000Z")
+    );
     expect(
       resolvePrivateApiKeyExpiration({
         expiresAt: "2026-06-01T00:00:00.000Z",
-        featureEnabled: true,
         now,
       })
     ).toStrictEqual(new Date("2026-06-01T00:00:00.000Z"));
     expect(() =>
       resolvePrivateApiKeyExpiration({
         expiresAt: "2028-01-01T00:00:00.000Z",
-        featureEnabled: true,
         now,
       })
     ).toThrow("INVALID_PRIVATE_API_KEY_EXPIRATION");
@@ -51,7 +47,6 @@ describe("private API key lifecycle", () => {
     expect(
       resolvePrivateApiKeyExpiration({
         expiresAt: "2027-01-01T00:00:00.000Z",
-        featureEnabled: true,
         now: new Date("2026-01-01T23:00:00.000Z"),
       })
     ).toStrictEqual(new Date("2027-01-01T00:00:00.000Z"));
