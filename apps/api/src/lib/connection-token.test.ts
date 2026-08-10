@@ -12,6 +12,13 @@ import type {
 const createMemoryStore = () => {
   const rows = new Map<string, StoredConnectionToken>();
   const store: ConnectionTokenStore = {
+    async cleanup(now, limit) {
+      const expired = [...rows.entries()]
+        .filter(([, row]) => row.expiresAt <= now)
+        .slice(0, limit);
+      for (const [tokenHash] of expired) rows.delete(tokenHash);
+      return expired.length;
+    },
     async consume(tokenHash, now) {
       const row = rows.get(tokenHash);
       if (!row || row.consumedAt || row.expiresAt <= now) return null;
@@ -26,8 +33,8 @@ const createMemoryStore = () => {
 };
 
 describe("connection tokens", () => {
-  it("stores a hash, expires after 60 seconds, and reconstructs the principal", async () => {
-    let now = new Date("2026-01-01T00:00:00.000Z");
+  it("stores a hash and reconstructs the principal with a 60-second expiry", async () => {
+    const now = new Date("2026-01-01T00:00:00.000Z");
     const { rows, store } = createMemoryStore();
     const service = createConnectionTokenService(store, {
       now: () => now,
@@ -47,8 +54,6 @@ describe("connection tokens", () => {
       organizationId: "org-a",
       type: "private",
     });
-
-    now = new Date(now.getTime() + CONNECTION_TOKEN_TTL_MS);
   });
 
   it("atomically consumes a token only once and rejects expired tokens", async () => {
@@ -69,5 +74,23 @@ describe("connection tokens", () => {
     const expired = await service.mint({ type: "internal" });
     now = new Date(now.getTime() + CONNECTION_TOKEN_TTL_MS);
     await expect(service.consume(expired.token)).resolves.toBeNull();
+  });
+
+  it("periodically removes expired rows in bounded batches", async () => {
+    let now = new Date("2026-01-01T00:00:00.000Z");
+    const { rows, store } = createMemoryStore();
+    let sequence = 0;
+    const service = createConnectionTokenService(store, {
+      cleanupBatchSize: 1,
+      cleanupEvery: 2,
+      now: () => now,
+      randomToken: () => `token-${sequence++}`,
+    });
+
+    await service.mint({ type: "internal" });
+    now = new Date(now.getTime() + CONNECTION_TOKEN_TTL_MS);
+    await service.mint({ type: "internal" });
+
+    expect(rows.size).toBe(1);
   });
 });

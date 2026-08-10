@@ -2,7 +2,7 @@ import type { ApiKeyRecord } from "keypal";
 import { describe, expect, it } from "vitest";
 
 import {
-  listActiveApiKeys,
+  listUnrevokedApiKeys,
   resolvePrivateApiKeyExpiration,
 } from "./api-key-lifecycle";
 
@@ -47,9 +47,19 @@ describe("private API key lifecycle", () => {
     ).toThrow("INVALID_PRIVATE_API_KEY_EXPIRATION");
   });
 
+  it("accepts the one-year calendar date independent of the exact instant", () => {
+    expect(
+      resolvePrivateApiKeyExpiration({
+        expiresAt: "2027-01-01T00:00:00.000Z",
+        featureEnabled: true,
+        now: new Date("2026-01-01T23:00:00.000Z"),
+      })
+    ).toStrictEqual(new Date("2027-01-01T00:00:00.000Z"));
+  });
+
   it("lists public and private records with a discriminator and hides revoked rows", () => {
     expect(
-      listActiveApiKeys(
+      listUnrevokedApiKeys(
         [record("public-a", "org-a", { name: "Public" })],
         [
           record("private-a", "org-a", { name: "Private" }),
@@ -61,6 +71,21 @@ describe("private API key lifecycle", () => {
     ).toStrictEqual([
       expect.objectContaining({ id: "public-a", type: "public" }),
       expect.objectContaining({ id: "private-a", type: "private" }),
+    ]);
+  });
+
+  it("keeps expired records visible for owner management", () => {
+    expect(
+      listUnrevokedApiKeys(
+        [],
+        [
+          record("expired", "org-a", {
+            expiresAt: "2020-01-01T00:00:00.000Z",
+          }),
+        ]
+      )
+    ).toStrictEqual([
+      expect.objectContaining({ id: "expired", type: "private" }),
     ]);
   });
 });

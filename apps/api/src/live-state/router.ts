@@ -25,7 +25,7 @@ import { z } from "zod";
 
 import { privateKeys, publicKeys } from "../lib/api-key";
 import {
-  listActiveApiKeys,
+  listUnrevokedApiKeys,
   resolvePrivateApiKeyExpiration,
 } from "../lib/api-key-lifecycle";
 import {
@@ -645,7 +645,7 @@ export const router = createRouter({
           privateKeys.list(organizationId),
         ]);
 
-        return listActiveApiKeys(publicApiKeys, privateApiKeys);
+        return listUnrevokedApiKeys(publicApiKeys, privateApiKeys);
       }),
     })),
     organizationUser: privateRoute.withProcedures(({ mutation, query }) => ({

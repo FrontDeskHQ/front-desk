@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import type { ApiKeyRecord } from "keypal";
 
 import { privateKeys, publicKeys } from "./api-key";
@@ -41,6 +43,12 @@ const defaultDependencies: CredentialDependencies = {
   verifyPublic: (key) => verifiedRecord(publicKeys, key),
 };
 
+const secretsMatch = (provided: string, expected: string): boolean => {
+  const providedDigest = createHash("sha256").update(provided).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(providedDigest, expectedDigest);
+};
+
 export const isApiKeyRecordUsable = (
   record: ApiKeyRecord,
   now = new Date()
@@ -70,7 +78,10 @@ export const resolveHttpApiCredential = async (
   }
 
   if (internalKey !== undefined) {
-    if (!dependencies.internalKey || internalKey !== dependencies.internalKey) {
+    if (
+      !dependencies.internalKey ||
+      !secretsMatch(internalKey, dependencies.internalKey)
+    ) {
       throw new Error("INVALID_API_CREDENTIAL");
     }
     return { internalApiKey: true };

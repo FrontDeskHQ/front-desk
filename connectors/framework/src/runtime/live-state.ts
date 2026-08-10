@@ -2,6 +2,11 @@ import { createClient } from "@live-state/sync/client";
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import type { Router } from "api/router";
 import { schema } from "api/schema";
+import { z } from "zod";
+
+const connectionTokenResponseSchema = z.object({
+  token: z.string().min(1),
+});
 
 export interface CreateLiveStateClientOptions {
   /**
@@ -48,12 +53,12 @@ export const createLiveStateClient = (
       );
     }
 
-    const body = (await response.json()) as { token?: string };
-    if (!body.token) {
+    const body = connectionTokenResponseSchema.safeParse(await response.json());
+    if (!body.success) {
       throw new Error(`${prefix}Live State token exchange returned no token`);
     }
 
-    return body.token;
+    return body.data.token;
   };
 
   const { client, store } = createClient<Router>({

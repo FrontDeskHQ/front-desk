@@ -15,11 +15,13 @@ export const resolvePrivateApiKeyExpiration = (input: {
   const expiration = input.expiresAt
     ? new Date(input.expiresAt)
     : maximumExpiration;
+  const expirationTime = expiration.getTime();
 
   if (
-    Number.isNaN(expiration.getTime()) ||
+    Number.isNaN(expirationTime) ||
     expiration <= now ||
-    expiration > maximumExpiration
+    expiration.toISOString().slice(0, 10) >
+      maximumExpiration.toISOString().slice(0, 10)
   ) {
     throw new Error("INVALID_PRIVATE_API_KEY_EXPIRATION");
   }
@@ -27,7 +29,9 @@ export const resolvePrivateApiKeyExpiration = (input: {
   return expiration;
 };
 
-export const listActiveApiKeys = (
+// Expired keys remain visible so owners can audit and revoke them. Only revoked
+// rows are hidden from the normal management list.
+export const listUnrevokedApiKeys = (
   publicApiKeys: ApiKeyRecord[],
   privateApiKeys: ApiKeyRecord[]
 ) =>

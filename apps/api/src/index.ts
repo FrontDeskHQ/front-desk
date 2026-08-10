@@ -61,6 +61,12 @@ const corsOptions = {
   origin: "*",
 };
 
+const CREDENTIAL_ERROR_STATUS: Record<string, number> = {
+  CONFLICTING_API_CREDENTIALS: 400,
+  INVALID_API_CREDENTIAL: 401,
+  UNAUTHORIZED: 401,
+};
+
 app.use(cors(corsOptions));
 
 // Ensure live-state has synced the schema (creating any new tables/columns)
@@ -120,7 +126,16 @@ const lsServer = server({
     queryParams: Record<string, string>;
   }) => {
     if (transport === "WEBSOCKET") {
-      const apiCredential = await resolveWebSocketApiCredential(queryParams);
+      let apiCredential;
+      try {
+        apiCredential = await resolveWebSocketApiCredential(queryParams);
+      } catch (error) {
+        console.warn(
+          "[auth] WebSocket API credential rejected",
+          error instanceof Error ? error.message : "UNKNOWN_ERROR"
+        );
+        return;
+      }
       if (apiCredential) {
         return apiCredential;
       }
@@ -145,7 +160,18 @@ const lsServer = server({
       return { ...session };
     }
 
-    const apiCredential = await resolveHttpApiCredential(headers);
+    let apiCredential;
+    try {
+      apiCredential = await resolveHttpApiCredential(headers);
+    } catch (error) {
+      console.warn(
+        "[auth] HTTP API credential rejected",
+        error instanceof Error ? error.message : "UNKNOWN_ERROR"
+      );
+      // An invalid explicit credential fails closed and never falls through to
+      // an otherwise valid passive cookie session.
+      return {};
+    }
     if (apiCredential) {
       return apiCredential;
     }
@@ -217,10 +243,16 @@ const handleConnectionTokenExchange = async (
     const result = await mintApiConnectionToken(credential);
     res.json(result);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "UNAUTHORIZED";
-    res
-      .status(message === "CONFLICTING_API_CREDENTIALS" ? 400 : 401)
-      .json({ error: message });
+    const message = error instanceof Error ? error.message : "";
+    const status = CREDENTIAL_ERROR_STATUS[message];
+
+    if (status === undefined) {
+      console.error("connection_token.mint_failed", error);
+      res.status(500).json({ error: "INTERNAL_ERROR" });
+      return;
+    }
+
+    res.status(status).json({ error: message });
   }
 };
 
