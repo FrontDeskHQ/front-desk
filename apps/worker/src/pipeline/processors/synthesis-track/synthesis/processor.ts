@@ -6,6 +6,7 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { isRetryableError } from "../../../../lib/logging";
+import { sortMessagesByTime } from "../../../../lib/message-order";
 import { threadHasTeamReply } from "../../../../lib/message-roles";
 import type { ParsedSummary } from "../../../../types";
 import { applySynthesisAutonomy } from "../../../core/autonomy-stage";
@@ -24,22 +25,10 @@ import { createSynthesisTools } from "./tools";
 const computeSha256 = (data: string): string =>
   createHash("sha256").update(data).digest("hex");
 
-const messageTimestamp = (createdAt: unknown): number => {
-  const time = new Date(createdAt as string | number | Date).getTime();
-  return Number.isNaN(time) ? 0 : time;
-};
-
-// Order by `createdAt` (with `id` as a stable tie-breaker) so the last element
-// is the true newest message. Sorting by `id` alone is wrong for Slack/Discord
-// backfills, where ids are ULIDs at insert time but `createdAt` reflects the
-// original external timestamp.
 const sortedMessages = (
   messages: ProcessorExecuteContext["thread"]["messages"]
 ): NonNullable<ProcessorExecuteContext["thread"]["messages"]> =>
-  [...(messages ?? [])].toSorted((a, b) => {
-    const delta = messageTimestamp(a.createdAt) - messageTimestamp(b.createdAt);
-    return delta === 0 ? a.id.localeCompare(b.id) : delta;
-  });
+  sortMessagesByTime(messages);
 
 const sortedAppliedLabelIds = (
   thread: ProcessorExecuteContext["thread"]

@@ -49,25 +49,38 @@ export const inferredGrounding = (): ReplyGrounding => ({
  * Digest of what a reply reported, compared across runs so the Agent cannot
  * send two replies in a row saying the same thing. `entityState` is what makes
  * a PR going open → merged worth speaking about again.
+ *
+ * Hashed over JSON rather than a joined string: sources and `entityUrl` are
+ * URLs, where `,` is a legal sub-delimiter, so `["a,b"]` and `["a", "b"]` would
+ * flatten to the same segment. This digest decides whether a reply may auto-
+ * send, so equivalent replies must be its only collisions.
  */
 export const replyStateFingerprint = (
   grounding: ReplyGrounding,
   entityState?: string | null
 ): string =>
-  [
-    grounding.class,
-    [...grounding.sources].sort().join(","),
-    grounding.entityUrl?.trim() ?? "",
-    entityState ?? "",
-  ].join("|");
+  stableHash(
+    JSON.stringify([
+      grounding.class,
+      [...grounding.sources].sort(),
+      grounding.entityUrl?.trim() ?? "",
+      entityState ?? "",
+    ])
+  );
 
 // --- Action vocabulary ----------------------------------------------------
 
 // Synthesis-track actions: composed by the synthesis LLM into a ThreadRead.
 export const replyActionSchema = z.object({
   draftMarkdown: z.string(),
-  /** Absent on a human-composed draft, and read as `inferred`. */
-  grounding: replyGroundingSchema.optional(),
+  /**
+   * Absent on a human-composed draft, and read as `inferred`. A malformed
+   * emission (`class: "confident"`, `sources` as a string) degrades to
+   * `inferred` here rather than failing the parse: the action set is parsed as
+   * a unit, so throwing would discard a whole synthesis run over a field whose
+   * only power is to *grant* autonomy.
+   */
+  grounding: replyGroundingSchema.optional().catch(inferredGrounding()),
   kind: z.literal("reply"),
 });
 export type ReplyAction = z.infer<typeof replyActionSchema>;

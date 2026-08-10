@@ -92,6 +92,12 @@ export interface SynthesisAgentEvalCase {
     forbiddenReplyPhrases?: string[];
     /** The grounding class every primary reply must declare. */
     expectedGroundingClass?: GroundingClass;
+    /**
+     * Issue / PR URL every `state_report` reply must name. The class alone only
+     * says the reply claims to report linked work; this says it reports the
+     * right work — the thing the gate resolves against the mirror.
+     */
+    expectedGroundingEntityUrl?: string;
     /** Page URLs a `documented` reply must cite exactly (order-insensitive). */
     expectedGroundingSources?: string[];
   };
@@ -1166,6 +1172,8 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
     // (not a guess).
     expected: {
       expectedGroundingClass: "state_report",
+      expectedGroundingEntityUrl: "https://github.com/acme/api/pull/901",
+      expectedLinkPrUrl: "https://github.com/acme/api/pull/901",
       minToolCalls: { read_pr: 1 },
       mustIncludePrimaryKinds: ["link_pr", "reply"],
       requiresReplyDraft: true,

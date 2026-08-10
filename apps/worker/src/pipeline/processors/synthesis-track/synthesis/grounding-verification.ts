@@ -81,6 +81,12 @@ export const collectRetrievedDocUrls = (
  *
  * `state_report` is checked later instead, by the gate: it needs the
  * post-policy action set, which does not exist yet here.
+ *
+ * Either way the returned grounding is canonical for its class — fields the
+ * class does not use are cleared rather than passed through. `state_report`
+ * with a stray `sources` array (or `documented` with a stray `entityUrl`) would
+ * otherwise vary `replyStateFingerprint` without the reported state moving,
+ * which is exactly the signal the consecutive-reply guard reads.
  */
 export const verifyReplyGrounding = (
   grounding: ReplyGrounding | undefined,
@@ -91,7 +97,11 @@ export const verifyReplyGrounding = (
   }
 
   if (grounding.class === "state_report") {
-    return grounding;
+    return {
+      class: "state_report",
+      entityUrl: grounding.entityUrl?.trim() || null,
+      sources: [],
+    };
   }
 
   const sources = grounding.sources
@@ -105,5 +115,5 @@ export const verifyReplyGrounding = (
     return inferredGrounding();
   }
 
-  return { ...grounding, sources };
+  return { class: "documented", entityUrl: null, sources };
 };

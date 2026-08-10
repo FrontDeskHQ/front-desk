@@ -13,6 +13,7 @@ import {
   expectedLinkPrUrl,
   forbiddenPrimaryKinds,
   groundingCalibration,
+  groundingEntity,
   groundingSources,
   minimumToolCalls,
   nonEmptyPrimaryWhenExpected,
@@ -164,6 +165,7 @@ evalite("Synthesis Agent (Model In Loop)", {
     expectedLinkPrUrl,
     recommendationPrLink,
     groundingCalibration,
+    groundingEntity,
     groundingSources,
   ],
   task: async (input) => {

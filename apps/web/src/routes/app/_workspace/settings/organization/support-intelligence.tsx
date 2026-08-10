@@ -179,7 +179,7 @@ const AUTONOMY_ACTION_HELP: Partial<Record<ActionKind, string>> = {
  */
 const AUTONOMY_AUTO_NOTICE: Partial<Record<ActionKind, string>> = {
   reply:
-    "The Agent sends a reply on its own only when it's confident in the draft. Anything else still comes to you for review.",
+    "The Agent sends a reply on its own only when the draft is backed by your documentation, or reports the state of work already linked to the thread. Anything else still comes to you for review — with no documentation connected, that means only status updates send on their own.",
 };
 
 /**

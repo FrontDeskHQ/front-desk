@@ -98,8 +98,12 @@ const resolveReportedEntity = async (
     return { denied: "state_report_entity_not_mirrored" };
   }
 
+  // `externalKey`, not `id`: the link handlers write the provider's key into
+  // `thread.externalPrId` / `externalIssueId`, so comparing mirror row ids here
+  // would never match and would downgrade every already-linked state report.
   const alreadyLinked =
-    thread.externalPrId === entity.id || thread.externalIssueId === entity.id;
+    thread.externalPrId === entity.externalKey ||
+    thread.externalIssueId === entity.externalKey;
 
   if (!alreadyLinked && !siblingLinksUrl(autoSiblings, entityUrl)) {
     return { denied: "state_report_entity_not_linked" };

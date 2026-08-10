@@ -1,5 +1,8 @@
 import z from "zod";
 
+import type { OrderableMessage } from "./message-order";
+import { newestMessage } from "./message-order";
+
 export type MessageRole = "customer" | "agent" | "unknown";
 
 const authorRowSchema = z.object({
@@ -60,26 +63,11 @@ export const threadHasTeamReply = (
 ): boolean =>
   messages.some((message) => roles.get(message.authorId) === "agent");
 
-const sentAt = (createdAt: unknown): number => {
-  const time = new Date(createdAt as string | number | Date).getTime();
-  return Number.isNaN(time) ? 0 : time;
-};
-
-/**
- * Who spoke last, or "unknown" on an empty thread. Ordered by `createdAt` with
- * `id` as the tie-breaker: ids are assigned at insert time, so a Slack/Discord
- * backfill would put the wrong message last if sorted by id alone.
- */
+/** Who spoke last, or "unknown" on an empty thread. */
 export const lastMessageRole = (
-  messages: { authorId: string; id: string; createdAt: unknown }[],
+  messages: (OrderableMessage & { authorId: string })[],
   roles: Map<string, MessageRole>
 ): MessageRole => {
-  const last = [...messages]
-    .toSorted((a, b) => {
-      const delta = sentAt(a.createdAt) - sentAt(b.createdAt);
-      return delta === 0 ? a.id.localeCompare(b.id) : delta;
-    })
-    .at(-1);
-
+  const last = newestMessage(messages);
   return last ? (roles.get(last.authorId) ?? "unknown") : "unknown";
 };

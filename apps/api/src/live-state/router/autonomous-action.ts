@@ -54,6 +54,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   ).handler(async ({ req, db }) => {
     requireInternalApiKey(req.context);
 
+    // Ordered and limited in the query, not in memory: a long-running thread
+    // accumulates a receipt per auto-reply, and every gate evaluation would
+    // otherwise load and sort all of them to read one row.
     const rows = await db.autonomousAction
       .where({
         entityId: req.input.threadId,
@@ -61,15 +64,11 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         signalType: "reply",
         undoneAt: null,
       })
+      .orderBy("appliedAt", "desc")
+      .limit(1)
       .get();
 
-    return (
-      [...rows].sort(
-        (left, right) =>
-          new Date(right.appliedAt).getTime() -
-          new Date(left.appliedAt).getTime()
-      )[0] ?? null
-    );
+    return rows[0] ?? null;
   }),
   record: mutation(recordAutonomousActionInputSchema).handler(
     async ({ req, db }) => {

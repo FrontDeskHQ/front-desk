@@ -10,6 +10,10 @@ import type {
 
 type In = SynthesisAgentEvalInput;
 type Expected = SynthesisAgentEvalCase["expected"];
+type PrimaryReply = Extract<
+  SynthesisRawActionSet["primary"][number],
+  { kind: "reply" }
+>;
 interface Out {
   raw: SynthesisRawActionSet;
   toolCalls: {
@@ -409,13 +413,26 @@ export const reasoningUserSafe = createScorer<In, Out, Expected>({
 });
 
 /**
- * The reply's declared [grounding](../../../../../../CONTEXT.md) class matches
- * what the case's evidence supports.
+ * Every primary reply, not just the first. Each one is separately auto-capable,
+ * so scoring only the first would let a correctly grounded reply cover for an
+ * over-claiming one in the same bundle.
+ */
+const primaryReplies = (output: Out): PrimaryReply[] =>
+  output.raw.primary.filter(
+    (action): action is PrimaryReply => action.kind === "reply"
+  );
+
+/**
+ * The reply's declared [grounding](../../../../../../../../CONTEXT.md) class
+ * matches what the case's evidence supports.
  *
  * Scored asymmetrically on purpose. Under-claiming costs a suggestion a human
  * still sees; over-claiming sends a wrong answer with nobody in the loop. Only
  * the second is a product failure, so it scores 0 and the first scores 0.5 —
  * the metric must not chase the cheap mistake into the expensive one.
+ *
+ * A bundle scores as its worst reply: one ungrounded send is the failure,
+ * whatever else shipped alongside it.
  */
 export const groundingCalibration = createScorer<In, Out, Expected>({
   description: "Reply grounding class matches the evidence the case supplies.",
@@ -426,25 +443,56 @@ export const groundingCalibration = createScorer<In, Out, Expected>({
       return { score: 1, metadata: { skipped: true } };
     }
 
-    const reply = output.raw.primary.find((action) => action.kind === "reply");
-    if (!reply || reply.kind !== "reply") {
+    const replies = primaryReplies(output);
+    if (replies.length === 0) {
       return { score: 0, metadata: { reason: "no_primary_reply" } };
     }
 
-    const actualClass = reply.grounding?.class ?? "inferred";
-    const overClaimed =
-      expectedClass === "inferred" && actualClass !== "inferred";
-
-    const score = actualClass === expectedClass ? 1 : overClaimed ? 0 : 0.5;
+    const scored = replies.map((reply) => {
+      const actualClass = reply.grounding?.class ?? "inferred";
+      const overClaimed =
+        expectedClass === "inferred" && actualClass !== "inferred";
+      return {
+        actualClass,
+        overClaimed,
+        score: actualClass === expectedClass ? 1 : overClaimed ? 0 : 0.5,
+        sources: reply.grounding?.sources ?? [],
+      };
+    });
 
     return {
-      score,
-      metadata: {
-        actualClass,
-        expectedClass,
-        overClaimed,
-        sources: reply.grounding?.sources ?? [],
-      },
+      score: Math.min(...scored.map((entry) => entry.score)),
+      metadata: { expectedClass, replies: scored },
+    };
+  },
+});
+
+/**
+ * The `state_report` names the entity the case verified. The class alone says
+ * the reply claims to report linked work; only the URL says it reports the
+ * *right* work, which is what the gate resolves against the mirror.
+ */
+export const groundingEntity = createScorer<In, Out, Expected>({
+  description: "State reports name the expected issue / PR URL.",
+  name: "Grounding Entity",
+  scorer: ({ output, expected }) => {
+    const wanted = expected?.expectedGroundingEntityUrl;
+    if (!wanted) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+
+    const replies = primaryReplies(output);
+    if (replies.length === 0) {
+      return { score: 0, metadata: { reason: "no_primary_reply" } };
+    }
+
+    const actual = replies.map(
+      (reply) => reply.grounding?.entityUrl?.trim() ?? ""
+    );
+
+    return {
+      score: actual.every((url) => url === wanted) ? 1 : 0,
+      metadata: { actual, expected: wanted },
     };
   },
 });
@@ -463,16 +511,22 @@ export const groundingSources = createScorer<In, Out, Expected>({
       return { score: 1, metadata: { skipped: true } };
     }
 
-    const reply = output.raw.primary.find((action) => action.kind === "reply");
-    const actual = (
-      reply?.kind === "reply" ? (reply.grounding?.sources ?? []) : []
-    )
-      .map((source) => source.trim())
-      .sort();
+    const replies = primaryReplies(output);
+    if (replies.length === 0) {
+      return { score: 0, metadata: { reason: "no_primary_reply" } };
+    }
+
     const wanted = [...expectedSources].sort();
+    const actual = replies.map((reply) =>
+      (reply.grounding?.sources ?? []).map((source) => source.trim()).sort()
+    );
 
     return {
-      score: JSON.stringify(actual) === JSON.stringify(wanted) ? 1 : 0,
+      score: actual.every(
+        (sources) => JSON.stringify(sources) === JSON.stringify(wanted)
+      )
+        ? 1
+        : 0,
       metadata: { actual, expected: wanted },
     };
   },
