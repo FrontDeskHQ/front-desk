@@ -1,0 +1,46 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts
+  s_274179a47544df::t_df5368a24eb519 16,168
+apps/worker/src/pipeline/core/gates/reply-grounding.ts
+  s_274179a47544df::t_e8661b9ce42469 101-103,105-106
+apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx
+  s_274179a47544df::t_599ac4c43df054 182
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-scorers.ts
+  s_274179a47544df::t_91ee1d01e91a4b 420-422
+  s_274179a47544df::t_e264461812915e 13-16
+  s_274179a47544df::t_edd2e1b254078c 416-419,423-427,433-435,446-447,451-455,458,460-495,514-518,520-522,525-529
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_274179a47544df::t_ee2ffd9ee17451 9
+  s_274179a47544df::t_b91ba8ac4dbf4d 31
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/grounding-verification.ts
+  s_274179a47544df::t_aa2c6780ff23eb 100-104,118
+  s_274179a47544df::t_9f09e07e6d6ac7 84-89
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_274179a47544df::t_bcd178388abe36 1175-1176
+  s_274179a47544df::t_d6cfb5932c63ac 95-100
+packages/schemas/src/signals.ts
+  s_274179a47544df::t_b2658891a24bb3 76-83
+  s_274179a47544df::t_80ca8bb8ea03b5 52-56,62-69
+apps/worker/src/lib/message-order.ts
+  s_274179a47544df::t_0f3ad8bb9ee8d1 1-36
+apps/worker/src/lib/message-roles.ts
+  s_274179a47544df::t_00df2bf365a61f 66,68,71
+  s_274179a47544df::t_76604f5a369629 3-5
+apps/api/src/live-state/router/autonomous-action.ts
+  s_274179a47544df::t_0e7491b70659b7 57-59,67-68,71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "90d95ea61ee6ecd4e9984a158f32a114263a32d6",
+  "prompts": {},
+  "sessions": {
+    "s_274179a47544df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc9fa5ef-7867-4aae-9f48-794f76aa46ed",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
