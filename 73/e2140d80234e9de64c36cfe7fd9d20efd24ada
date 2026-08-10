@@ -1,0 +1,29 @@
+apps/web/src/routes/_public/route.tsx
+  s_6e1eb4115cd469::t_4d6e2c078850a8 167
+  s_6e1eb4115cd469::t_cf345fba624a79 101-104
+  s_6e1eb4115cd469::t_3ee678df9c19a3 105-115,117-123,125-149,151-160,163-164,166
+apps/web/src/routes/_public/updates/index.tsx
+  s_6e1eb4115cd469::t_fdb82681583a8a 59
+apps/web/src/routes/_public/index.tsx
+  s_6e1eb4115cd469::t_7b0c081e0be44a 70
+apps/web/src/routes/_public/legal/privacy-policy.tsx
+  s_6e1eb4115cd469::t_be82813dbb48ee 19
+apps/web/src/routes/_public/legal/terms-of-service.tsx
+  s_6e1eb4115cd469::t_9ebcd6c53d36bf 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "73e2140d80234e9de64c36cfe7fd9d20efd24ada",
+  "prompts": {},
+  "sessions": {
+    "s_6e1eb4115cd469": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "44959259-b792-46b0-b126-8be331e6a418",
+        "model": "composer-2.5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
