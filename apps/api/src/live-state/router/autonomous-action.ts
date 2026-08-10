@@ -1,5 +1,6 @@
 import {
   parseAutonomousActionMetadata,
+  REVERSIBLE_ACTIONS,
   STATUS_LABELS,
 } from "@workspace/schemas/signals";
 import type {
@@ -21,7 +22,7 @@ import {
 import { runRecordActivity } from "../../lib/update-mutations";
 import { privateRoute } from "../factories";
 
-export default privateRoute.withProcedures(({ mutation }) => ({
+export default privateRoute.withProcedures(({ mutation, query }) => ({
   clearFake: mutation(z.object({ organizationId: z.string() })).handler(
     async ({ req, db }) => {
       if (process.env.NODE_ENV === "production") {
@@ -39,6 +40,36 @@ export default privateRoute.withProcedures(({ mutation }) => ({
       return { cleared: rows.length };
     }
   ),
+  /**
+   * The newest autonomous-reply receipt on a thread, or null. Feeds the reply
+   * [action gate](../../../../worker/src/pipeline/core/action-gates.ts)'s
+   * consecutive-reply invariant, which needs to know what state the Agent last
+   * reported here. Internal (worker) use only.
+   */
+  latestReplyForThread: query(
+    z.object({
+      organizationId: z.string(),
+      threadId: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+
+    // Ordered and limited in the query, not in memory: a long-running thread
+    // accumulates a receipt per auto-reply, and every gate evaluation would
+    // otherwise load and sort all of them to read one row.
+    const rows = await db.autonomousAction
+      .where({
+        entityId: req.input.threadId,
+        organizationId: req.input.organizationId,
+        signalType: "reply",
+        undoneAt: null,
+      })
+      .orderBy("appliedAt", "desc")
+      .limit(1)
+      .get();
+
+    return rows[0] ?? null;
+  }),
   record: mutation(recordAutonomousActionInputSchema).handler(
     async ({ req, db }) => {
       // Receipts are written by the worker only — never by user sessions or
@@ -131,6 +162,12 @@ export default privateRoute.withProcedures(({ mutation }) => ({
 
     const metadata = parseAutonomousActionMetadata(row.metadataStr);
     if (!metadata) throw new Error("AUTONOMOUS_ACTION_METADATA_INVALID");
+    // A reply receipt would otherwise fall through every branch below and still
+    // be stamped `undoneAt`, claiming a retraction that never happened — and
+    // taking the gate's record of what we last told this customer with it.
+    if (!REVERSIBLE_ACTIONS.has(metadata.kind)) {
+      throw new Error("AUTONOMOUS_ACTION_NOT_UNDOABLE");
+    }
     const threadId = row.entityId;
     const now = new Date();
 

@@ -1,5 +1,8 @@
 import z from "zod";
 
+import type { OrderableMessage } from "./message-order";
+import { newestMessage } from "./message-order";
+
 export type MessageRole = "customer" | "agent" | "unknown";
 
 const authorRowSchema = z.object({
@@ -59,3 +62,12 @@ export const threadHasTeamReply = (
   roles: Map<string, MessageRole>
 ): boolean =>
   messages.some((message) => roles.get(message.authorId) === "agent");
+
+/** Who spoke last, or "unknown" on an empty thread. */
+export const lastMessageRole = (
+  messages: (OrderableMessage & { authorId: string })[],
+  roles: Map<string, MessageRole>
+): MessageRole => {
+  const last = newestMessage(messages);
+  return last ? (roles.get(last.authorId) ?? "unknown") : "unknown";
+};

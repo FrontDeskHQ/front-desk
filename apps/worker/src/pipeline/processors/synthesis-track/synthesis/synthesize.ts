@@ -2,6 +2,7 @@ import { google } from "@ai-sdk/google";
 import type {
   ActionAvailability,
   Hints,
+  ReplyGrounding,
   ThreadReadTrigger,
 } from "@workspace/schemas/signals";
 import {
@@ -18,6 +19,10 @@ import z from "zod";
 
 import type { WorkerLogger } from "../../../../lib/logging";
 import type { ParsedSummary } from "../../../../types";
+import {
+  collectRetrievedDocUrls,
+  verifyReplyGrounding,
+} from "./grounding-verification";
 import {
   collectVerifiedIssueUrlsFromToolSteps,
   filterActionSetToVerifiedLinkIssue,
@@ -223,7 +228,7 @@ Say that engineering has been made aware and that you will follow up. Nothing mo
   // Kept in step with the parse schema above: the create_issue variant appears
   // in the documented shape only when the org can actually file one.
   const actionUnionDoc = [
-    '{ "kind": "reply", "draftMarkdown": string }',
+    '{ "kind": "reply", "draftMarkdown": string, "grounding": { "class": "documented" | "state_report" | "inferred", "sources": string[], "entityUrl": string | null } }',
     '{ "kind": "mark_duplicate", "targetThreadId": string }',
     '{ "kind": "link_pr", "prUrl": string }',
     '{ "kind": "link_issue", "issueUrl": string }',
@@ -294,6 +299,16 @@ Customer display name (use only in the greeting): ${JSON.stringify(customerName)
 When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close, mark_duplicate, link_pr, or link_issue).
 
 ${replyCitationRule}
+
+## Every reply must declare its grounding (critical)
+
+Each \`reply\` action carries a \`grounding\` object saying what backs the draft. Be honest here — this is not a confidence score to talk yourself into, it is a claim about evidence, and it is checked.
+
+- **\`documented\`** — the draft answers the customer using documentation you retrieved this run. \`sources\` must list the exact \`pageUrl\` values of the pages you used, as returned by search_documentation, read_documentation_page, or the \`related_docs\` hint (its \`docId\` is the page URL). Only claim this when the cited pages answer **the question the customer actually asked**. A page about the same feature that does not resolve their problem is \`inferred\`, not \`documented\` — if you have to stretch to connect the page to the question, it is \`inferred\`.
+- **\`state_report\`** — the draft asserts nothing about how the product behaves; it only tells the customer the state of work already tracked on this thread ("we're aware, it's being worked on", "the fix has merged"). Set \`entityUrl\` to the exact URL of the issue or pull request whose state you are reporting. That entity must already be linked to this thread, or be linked by a link_pr / link_issue in the same primary array.
+- **\`inferred\`** — anything else: a reasonable answer from general knowledge, a guess, a clarifying question, a greeting. This is the correct and expected class for most replies. Choosing it is not a failure.
+
+\`sources\` must be \`[]\` unless the class is \`documented\`. \`entityUrl\` must be \`null\` unless the class is \`state_report\`. Never invent a page URL: a citation that was not returned by a tool or hint this run invalidates the claim.
 
 ## summary, recommendation, and reasoning (critical)
 
@@ -384,9 +399,32 @@ Return a single valid JSON object with exactly this shape:
     verifiedIssueUrls
   );
 
+  // Trust boundary for `documented`: a cited page must have been retrieved on
+  // this run. Unlike link_pr / link_issue this does not discard the action —
+  // an unverifiable citation costs the reply its autonomy, not its existence.
+  const retrievedDocUrls = collectRetrievedDocUrls(steps, input.hints ?? {});
+  const groundReplies = <
+    T extends { kind: string; grounding?: ReplyGrounding },
+  >(
+    actions: T[]
+  ): T[] =>
+    actions.map((action) =>
+      action.kind === "reply"
+        ? {
+            ...action,
+            grounding: verifyReplyGrounding(action.grounding, retrievedDocUrls),
+          }
+        : action
+    );
+
+  const grounded = {
+    alternatives: groundReplies(filtered.alternatives),
+    primary: groundReplies(filtered.primary),
+  };
+
   const recommendation = ensureVerifiedPrRecommendationLink(
     raw.recommendation,
-    filtered.primary,
+    grounded.primary,
     verifiedPrDetails
   );
 
@@ -403,8 +441,8 @@ Return a single valid JSON object with exactly this shape:
 
   return {
     ...raw,
-    alternatives: filtered.alternatives,
-    primary: filtered.primary,
+    alternatives: grounded.alternatives,
+    primary: grounded.primary,
     recommendation,
   };
 };

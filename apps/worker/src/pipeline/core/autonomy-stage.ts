@@ -1,4 +1,7 @@
-import { nextAgentReadAfterExecution } from "@workspace/schemas/signals";
+import {
+  inferredGrounding,
+  nextAgentReadAfterExecution,
+} from "@workspace/schemas/signals";
 import type {
   Action,
   ActionKind,
@@ -8,6 +11,8 @@ import type {
 import { log } from "@workspace/utils/logging";
 
 import { errorFields } from "../../lib/logging";
+import { gateFor } from "./action-gates";
+import type { ActionGateResult } from "./action-gates";
 import type { RunState } from "./run-state";
 
 const keepForRead = (
@@ -54,18 +59,38 @@ export const applySynthesisAutonomy = async (
     primary,
   };
 
-  const autoActions = primary.filter(
+  const permitted = primary.filter(
     (action) => autonomy[action.kind] === "auto"
   );
   const suggestPrimary = primary.filter(
     (action) => autonomy[action.kind] === "suggest"
   );
 
-  let finalPrimary = suggestPrimary;
+  // Gates run *after* per-kind partitioning, never before: reply's gate has to
+  // see which siblings are genuinely executing, or it would clear a reply that
+  // cites a `link_pr` autonomy had already dropped.
+  const { autoActions, gated, fingerprints } = await applyActionGates(
+    run,
+    permitted
+  );
+
+  // A gated action is not lost and does not veto its siblings — it joins the
+  // `suggest` pile a human already reviews. Rebuilt by filtering `primary`
+  // rather than concatenating the piles, because non-reversibles execute in
+  // emitted order (ADR 0003) with reply terminal, and concatenating would
+  // reverse that whenever a gate holds a reply back.
+  const keepInReadOrder = (...piles: Action[][]): Action[] => {
+    const keep = new Set<Action>(piles.flat());
+    return primary.filter((action) => keep.has(action));
+  };
+
+  let finalPrimary = keepInReadOrder(gated, suggestPrimary);
 
   if (autoActions.length > 0) {
     try {
       const result = await run.executeBundle(autoActions);
+
+      await writeReplyReceipt(run, result.succeeded, fingerprints);
 
       const afterAuto = nextAgentReadAfterExecution(
         { ...filteredRead, primary: autoActions },
@@ -73,7 +98,11 @@ export const applySynthesisAutonomy = async (
       );
 
       if (afterAuto?.primary.length) {
-        finalPrimary = [...afterAuto.primary, ...suggestPrimary];
+        finalPrimary = keepInReadOrder(
+          afterAuto.primary,
+          gated,
+          suggestPrimary
+        );
       }
     } catch (error) {
       // TODO(idempotency): On an RPC/transport error we don't know whether the
@@ -90,7 +119,7 @@ export const applySynthesisAutonomy = async (
         error: errorFields(error),
         outcome: "auto_actions_retained_for_review",
       });
-      finalPrimary = [...autoActions, ...suggestPrimary];
+      finalPrimary = keepInReadOrder(autoActions, gated, suggestPrimary);
     }
   }
 
@@ -106,4 +135,110 @@ export const applySynthesisAutonomy = async (
 
   await run.publishRead(agentRead);
   return agentRead;
+};
+
+/**
+ * Splits the permitted actions into what still executes and what an
+ * [action gate](./action-gates.ts) held back. Gates see `permitted` as their
+ * sibling set, so "is my sibling actually going to happen?" has a truthful
+ * answer. A gate that throws denies: an unreachable gate must fail towards the
+ * human, not past them.
+ *
+ * TODO(sibling-truthfulness): `permitted` is everything *proposed* for auto,
+ * not the subset already confirmed to execute, so that answer is truthful only
+ * because `reply` is the sole gated kind and comes last. Register a second
+ * gated kind ahead of it and a denied sibling would still read as executing.
+ * Feed each gate the actions already admitted plus the ungated remainder.
+ */
+const applyActionGates = async (
+  run: RunState,
+  permitted: Action[]
+): Promise<{
+  autoActions: Action[];
+  gated: Action[];
+  fingerprints: Map<ActionKind, string>;
+}> => {
+  const autoActions: Action[] = [];
+  const gated: Action[] = [];
+  const fingerprints = new Map<ActionKind, string>();
+
+  for (const action of permitted) {
+    const gate = gateFor(action.kind);
+    if (!gate) {
+      autoActions.push(action);
+      continue;
+    }
+
+    const siblings = permitted.filter((other) => other !== action);
+    let result: ActionGateResult;
+    try {
+      result = await gate(action, { autoSiblings: siblings, run });
+    } catch (error) {
+      result = { allowed: false, reason: "gate_failed" };
+      log.error({
+        action: "worker.action_gate",
+        event: "gate_threw",
+        organizationId: run.organizationId,
+        threadId: run.threadId,
+        actionKind: action.kind,
+        error: errorFields(error),
+        outcome: "downgraded_to_suggest",
+      });
+    }
+
+    if (result.allowed) {
+      if (result.stateFingerprint) {
+        fingerprints.set(action.kind, result.stateFingerprint);
+      }
+      autoActions.push(action);
+      continue;
+    }
+
+    log.info({
+      action: "worker.action_gate",
+      event: "denied",
+      organizationId: run.organizationId,
+      threadId: run.threadId,
+      actionKind: action.kind,
+      reason: result.reason,
+      outcome: "downgraded_to_suggest",
+    });
+    gated.push(action);
+  }
+
+  return { autoActions, fingerprints, gated };
+};
+
+/**
+ * Writes the receipt for a sent reply — the audit trail, and the record the
+ * next run's gate compares against. A failed write must not fail the run: the
+ * message has already gone out, and losing the receipt costs a conservative
+ * denial next time, not a duplicate send.
+ */
+const writeReplyReceipt = async (
+  run: RunState,
+  succeeded: Action[],
+  fingerprints: Map<ActionKind, string>
+): Promise<void> => {
+  const reply = succeeded.find((action) => action.kind === "reply");
+  const fingerprint = fingerprints.get("reply");
+  if (!reply || reply.kind !== "reply" || !fingerprint) {
+    return;
+  }
+
+  try {
+    await run.recordReplyReceipt(
+      reply.grounding ?? inferredGrounding(),
+      fingerprint
+    );
+  } catch (error) {
+    log.error({
+      action: "worker.synthesis_autonomy",
+      event: "reply_receipt_failed",
+      organizationId: run.organizationId,
+      threadId: run.threadId,
+      error: errorFields(error),
+      outcome: "reply_sent_without_receipt",
+    });
+  }
 };

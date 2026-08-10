@@ -1,5 +1,8 @@
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
-import { getDefaultActionAutonomy } from "@workspace/schemas/signals";
+import {
+  getDefaultActionAutonomy,
+  parseAutonomousActionMetadata,
+} from "@workspace/schemas/signals";
 import type {
   Action,
   ActionAvailability,
@@ -14,6 +17,7 @@ import type {
   RelatedDocsEvidence,
   RelatedIssuesEvidence,
   RelatedPrsEvidence,
+  ReplyGrounding,
   ThreadRead,
 } from "@workspace/schemas/signals";
 import { log } from "@workspace/utils/logging";
@@ -102,6 +106,7 @@ export class RunState {
   #availability?: Promise<ActionAvailability>;
   #authors?: Promise<ResolvedMessageAuthors>;
   #labels?: Promise<OrgLabel[]>;
+  #lastAutonomousReply?: Promise<{ stateFingerprint: string } | null>;
 
   constructor(thread: Thread) {
     this.thread = thread;
@@ -260,6 +265,44 @@ export class RunState {
     }) as Promise<OrgLabel[]>;
 
     return this.#labels;
+  }
+
+  /**
+   * What the Agent last auto-replied here, or null if it never has. Read lazily:
+   * only a run that gets as far as gating a reply pays for it.
+   */
+  lastAutonomousReply(): Promise<{ stateFingerprint: string } | null> {
+    this.#lastAutonomousReply ??= (async () => {
+      const row = await fetchClient.query.autonomousAction.latestReplyForThread(
+        {
+          organizationId: this.organizationId,
+          threadId: this.threadId,
+        }
+      );
+      const metadata = parseAutonomousActionMetadata(row?.metadataStr ?? null);
+      return metadata?.kind === "reply"
+        ? { stateFingerprint: metadata.stateFingerprint }
+        : null;
+    })();
+
+    return this.#lastAutonomousReply;
+  }
+
+  /**
+   * Written from the worker, unlike every other receipt: the fingerprint comes
+   * from the [action gate](./action-gates.ts), the only place that knows what
+   * the reply claimed to report.
+   */
+  async recordReplyReceipt(
+    grounding: ReplyGrounding,
+    stateFingerprint: string
+  ): Promise<void> {
+    await fetchClient.mutate.autonomousAction.record({
+      actionKind: "reply",
+      entityId: this.threadId,
+      metadata: { grounding, kind: "reply", stateFingerprint },
+      organizationId: this.organizationId,
+    });
   }
 
   /** Executes an approved action bundle and writes its autonomous receipts. */

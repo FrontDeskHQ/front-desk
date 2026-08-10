@@ -1,5 +1,6 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
 import {
+  inferredGrounding,
   isIssueAction,
   sanitizeAgentReadReasoning,
   threadReadSchema,
@@ -30,7 +31,13 @@ const normalizeAction = (
     if (draftMarkdown.length === 0) {
       return null;
     }
-    return { draftMarkdown, kind: "reply" };
+    // Kept: the gate reads it, and a human reviewing a held-back draft sees
+    // its citations.
+    return {
+      draftMarkdown,
+      grounding: action.grounding ?? inferredGrounding(),
+      kind: "reply",
+    };
   }
 
   if (action.kind === "mark_duplicate") {

@@ -14,11 +14,82 @@ const stableHash = (value: string): string => {
   return (hash % 4_294_967_296).toString(16).padStart(8, "0");
 };
 
+// --- Grounding (reply's action-gate input) --------------------------------
+
+/**
+ * A reply's [grounding](../../CONTEXT.md): its claim about what backs the draft
+ * (see ADR 0013). Named a class rather than a score because a class can name
+ * evidence and a number cannot — and because "confidence" already means
+ * {@link InlineSuggestion.confidence}, an unrelated 0–1 classifier output.
+ *
+ * Flat rather than a union on `class`: a malformed emission must degrade to
+ * `inferred`, never throw and take the whole synthesis run with it.
+ */
+export const replyGroundingSchema = z.object({
+  class: z.enum(["documented", "state_report", "inferred"]),
+  /** `state_report` only: URL of the issue / PR whose state the draft reports. */
+  entityUrl: z.string().nullish(),
+  /**
+   * `documented` only: pages the draft was written from. The documentation
+   * index keys pages by URL, so these are also `docId`s in `related_docs`.
+   */
+  sources: z.array(z.string()).default([]),
+});
+export type ReplyGrounding = z.infer<typeof replyGroundingSchema>;
+export type GroundingClass = ReplyGrounding["class"];
+
+/** A claim to nothing, which never auto-sends. */
+export const inferredGrounding = (): ReplyGrounding => ({
+  class: "inferred",
+  entityUrl: null,
+  sources: [],
+});
+
+/**
+ * Canonical form of what a reply reported, compared across runs so the Agent
+ * cannot send two replies in a row saying the same thing. `entityState` is what
+ * makes a PR going open → merged worth speaking about again.
+ *
+ * Canonical JSON rather than a digest, on purpose. This value decides whether a
+ * reply may auto-send, and it is only ever compared for equality and stored on
+ * the receipt — so hashing buys nothing and costs collisions, where two
+ * genuinely different states would read as "nothing new to say" and silently
+ * hold a reply the customer should have received. A digest small enough to be
+ * tidy is a digest big enough to collide; the exact value cannot. It also
+ * leaves the receipt readable, which is what anyone debugging a held reply
+ * wants to see.
+ *
+ * JSON rather than a joined string because sources and `entityUrl` are URLs,
+ * where `,` is a legal sub-delimiter: `["a,b"]` and `["a", "b"]` would flatten
+ * to the same segment.
+ */
+export const replyStateFingerprint = (
+  grounding: ReplyGrounding,
+  entityState?: string | null
+): string =>
+  JSON.stringify([
+    grounding.class,
+    [...grounding.sources].sort(),
+    grounding.entityUrl?.trim() ?? "",
+    entityState ?? "",
+  ]);
+
 // --- Action vocabulary ----------------------------------------------------
 
 // Synthesis-track actions: composed by the synthesis LLM into a ThreadRead.
 export const replyActionSchema = z.object({
   draftMarkdown: z.string(),
+  /**
+   * Absent on a human-composed draft, and read as `inferred`. A malformed
+   * emission (`class: "confident"`, `sources` as a string) degrades to
+   * `inferred` here rather than failing the parse: the action set is parsed as
+   * a unit, so throwing would discard a whole synthesis run over a field whose
+   * only power is to *grant* autonomy.
+   *
+   * The callback form matters: a bare value would hand every malformed reply
+   * the same object, and its `sources` array with it.
+   */
+  grounding: replyGroundingSchema.optional().catch(() => inferredGrounding()),
   kind: z.literal("reply"),
 });
 export type ReplyAction = z.infer<typeof replyActionSchema>;
@@ -466,15 +537,18 @@ export function getDefaultActionAutonomy(): Record<ActionKind, AutonomyLevel> {
 
 /**
  * Kinds an org may raise all the way to `auto`. Reversible actions qualify by
- * construction (undo is a receipt away); `create_issue` is the one
- * non-reversible exception — `auto` mode has a deterministic destination in the
- * org's default issue target, and the setting's help text carries the warning.
- * Everything else is capped at `suggest` because it is destructive or
- * customer-facing.
+ * construction (undo is a receipt away). Two non-reversible kinds also qualify:
+ * `create_issue`, whose `auto` has a deterministic destination in the org's
+ * default issue target, and `reply`, which earns it only through its
+ * [action gate](../../CONTEXT.md) — `auto` on reply means "auto when grounded"
+ * (ADR 0013, which reverses the earlier cap on customer-facing actions).
+ *
+ * Everything else stays at `suggest`: destructive, with no gate to get past.
  */
 export const AUTO_CAPABLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
   ...REVERSIBLE_ACTIONS,
   "create_issue",
+  "reply",
 ]);
 
 /**
@@ -520,6 +594,16 @@ export const autonomousActionMetadataSchema = z.discriminatedUnion("kind", [
     /** The link the thread carried before, restored verbatim on undo (null
      * when the thread had no issue linked). */
     previousIssueId: z.string().nullable(),
+  }),
+  /**
+   * The one receipt nothing can undo — a sent message cannot be recalled. It
+   * carries the fingerprint of what the Agent last told this customer, which is
+   * what the next run's reply gate compares against.
+   */
+  z.object({
+    grounding: replyGroundingSchema,
+    kind: z.literal("reply"),
+    stateFingerprint: z.string(),
   }),
 ]);
 export type AutonomousActionMetadata = z.infer<
