@@ -1,15 +1,13 @@
 import { readFile } from "node:fs/promises";
 
 import { fdAuthorMetaId } from "../../lib/author.js";
+import { loadProfile } from "../../lib/config.js";
 import {
-  assertLocalhostApiUrl,
-  getApiUrl,
-  getDefaultOrg,
-  getWebUrl,
-} from "../../lib/env.js";
-import { fetchClient } from "../../lib/live-state.js";
-import { resolveOrganization } from "../../lib/org.js";
-import { buildThreadUrl } from "../../lib/thread-url.js";
+  CredentialError,
+  isCredentialError,
+} from "../../lib/credential-error.js";
+import { createClient } from "../../lib/live-state.js";
+import type { FdClient } from "../../lib/live-state.js";
 import { threadFixtureSchema } from "../../schema/thread-fixture.js";
 import type { ThreadFixture } from "../../schema/thread-fixture.js";
 
@@ -17,7 +15,6 @@ export interface CreatedThreadResult {
   id: string;
   title: string;
   shortId: number | null;
-  url: string;
 }
 
 export interface FailedThreadResult {
@@ -32,7 +29,7 @@ export interface ThreadCreateOutput {
 }
 
 export interface ThreadCreateOptions {
-  org?: string;
+  profile?: string;
   fixture?: string;
   title?: string;
   author?: string;
@@ -84,24 +81,21 @@ const formatError = (error: unknown): string => {
   return String(error);
 };
 
+// The organization is implied by the profile's private API key, so the author
+// namespace is keyed on the thread the server actually created.
 const createOneThread = async ({
-  organizationId,
-  orgSlug,
-  webUrl,
+  client,
   fixture,
 }: {
-  organizationId: string;
-  orgSlug: string;
-  webUrl: string;
+  client: FdClient;
   fixture: ThreadFixture;
 }): Promise<CreatedThreadResult> => {
-  const thread = await fetchClient.mutate.thread.create({
+  const thread = await client.mutate.thread.create({
     author: {
-      id: fdAuthorMetaId(organizationId, fixture.author),
+      id: fdAuthorMetaId(fixture.author),
       name: fixture.author,
     },
     message: fixture.message,
-    organizationId,
     title: fixture.title,
   });
 
@@ -109,36 +103,20 @@ const createOneThread = async ({
     id: thread.id,
     shortId: thread.shortId ?? null,
     title: thread.name,
-    url: buildThreadUrl({
-      webUrl,
-      orgSlug,
-      threadId: thread.id,
-      shortId: thread.shortId ?? null,
-      title: thread.name,
-    }),
   };
 };
 
 export const runThreadCreate = async (
   options: ThreadCreateOptions
 ): Promise<{ output: ThreadCreateOutput; exitCode: number }> => {
-  assertLocalhostApiUrl(getApiUrl());
-
-  const orgRef = options.org ?? getDefaultOrg();
-  if (!orgRef) {
-    throw new Error(
-      "Organization is required (--org or FD_DEV_ORG environment variable)"
-    );
-  }
+  const profile = loadProfile(options.profile);
+  const client = createClient(profile);
 
   const rawFixtures = await loadRawFixtures(options);
-  const { id: organizationId, slug: orgSlug } =
-    await resolveOrganization(orgRef);
-  const webUrl = getWebUrl();
 
   logVerbose(
     options.verbose ?? false,
-    `Seeding ${rawFixtures.length} thread(s) into org ${orgSlug} (${organizationId})`
+    `Seeding ${rawFixtures.length} thread(s) via profile ${profile.name} (${profile.apiUrl})`
   );
 
   const output: ThreadCreateOutput = { created: [], failed: [] };
@@ -165,18 +143,17 @@ export const runThreadCreate = async (
 
     const fixture = parsed.data;
     try {
-      const created = await createOneThread({
-        fixture,
-        orgSlug,
-        organizationId,
-        webUrl,
-      });
+      const created = await createOneThread({ client, fixture });
       output.created.push(created);
       logVerbose(
         options.verbose ?? false,
         `Created thread ${created.id}: ${created.title}`
       );
     } catch (error) {
+      if (isCredentialError(error)) {
+        throw new CredentialError(profile.name, error);
+      }
+
       const failure: FailedThreadResult = {
         error: formatError(error),
         index,

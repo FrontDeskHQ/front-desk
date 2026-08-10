@@ -109,7 +109,9 @@ export const isInternalDeveloperEmail = (email?: string): boolean => {
   );
 };
 
-const isLocalDevelopment = (environment = process.env.NODE_ENV): boolean =>
+export const isLocalDevelopment = (
+  environment = process.env.NODE_ENV
+): boolean =>
   environment !== undefined &&
   LOCAL_DEVELOPMENT_ENVIRONMENTS.has(environment.toLowerCase());
 

@@ -2,34 +2,16 @@
 import { cac } from "cac";
 
 import "./env.js";
-import { runOrgList } from "./commands/org/list.js";
 import { runThreadCreate } from "./commands/thread/create.js";
 
 const cli = cac("fd");
 
 cli
-  .command("org <action>", "Organization operations")
-  .action(async (action) => {
-    if (action !== "list") {
-      console.error(`Unknown org action: ${action}`);
-      process.exitCode = 1;
-      return;
-    }
-
-    try {
-      const { output, exitCode } = await runOrgList();
-      console.log(JSON.stringify(output, null, 2));
-      process.exitCode = exitCode;
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(message);
-      process.exitCode = 1;
-    }
-  });
-
-cli
   .command("thread <action>", "Thread operations")
-  .option("--org <slug>", "Organization slug or ULID (defaults to FD_DEV_ORG)")
+  .option(
+    "--profile <name>",
+    "Config profile to use (defaults to FD_PROFILE, then 'local')"
+  )
   .option("--fixture <path>", "Path to a JSON fixture file (object or array)")
   .option("--title <title>", "Thread title (inline mode)")
   .option("--author <name>", "Author display name (inline mode)")
@@ -49,7 +31,7 @@ cli
         failFast: options.failFast,
         fixture: options.fixture,
         message: options.message,
-        org: options.org,
+        profile: options.profile,
         title: options.title,
         verbose: options.verbose,
       });
