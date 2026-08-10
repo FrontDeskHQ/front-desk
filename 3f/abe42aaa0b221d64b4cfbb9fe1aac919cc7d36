@@ -1,0 +1,20 @@
+apps/web/src/lib/live-state.ts
+  s_274179a47544df::t_34ad9057fc29a5 11
+  s_274179a47544df::t_2f31e245306af3 577-580
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3fabe42aaa0b221d64b4cfbb9fe1aac919cc7d36",
+  "prompts": {},
+  "sessions": {
+    "s_274179a47544df": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "bc9fa5ef-7867-4aae-9f48-794f76aa46ed",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
