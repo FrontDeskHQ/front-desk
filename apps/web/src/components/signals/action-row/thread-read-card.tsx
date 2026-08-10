@@ -476,7 +476,12 @@ export function ThreadReadCard({ thread, ctx }: Props) {
   );
   const [replyEditorRevision, setReplyEditorRevision] = useState(0);
   const inlineSuggestions = (thread.inlineSuggestions ?? []).filter(
-    (suggestion) => !suggestion.dismissedAt
+    (suggestion) =>
+      !suggestion.dismissedAt &&
+      // `apply_label` is the only kind the inline track writes (ADR 0014), and
+      // the row below reads `action.labelId`. Rows persisted by the retired
+      // status track would otherwise render as an "Unknown label" chip.
+      suggestion.action.kind === "apply_label"
   );
 
   useEffect(() => {
