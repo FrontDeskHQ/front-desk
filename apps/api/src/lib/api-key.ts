@@ -85,5 +85,10 @@ export const privateKeys = createKeys({
       typeof KyselyStore
     >[0]["db"],
     table: "private_api_keys",
+    schema: {
+      apiKeyColumns: {
+        keyHash: "key_hash",
+      },
+    },
   }),
 });

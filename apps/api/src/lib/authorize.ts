@@ -21,6 +21,7 @@ export interface PortalSession {
 /** Context injected by live-state (sessions, API keys). */
 export interface AuthorizationContext {
   internalApiKey?: unknown;
+  privateApiKey?: { id: string; ownerId: string };
   publicApiKey?: { ownerId: string };
   orgUsers?: { organizationId: string; role: string }[];
   session?: { userId?: string } | null;
@@ -162,6 +163,7 @@ export const authorizeDeveloperAction = (
   if (
     !actorUserId ||
     context.internalApiKey ||
+    context.privateApiKey ||
     context.publicApiKey ||
     getPortalUserId(context) !== undefined
   ) {
@@ -200,6 +202,7 @@ export interface ThreadCreateAuthInput {
 
 export type ThreadCreateAuthFlow =
   | "integration"
+  | "private"
   | "public"
   | "portal"
   | "workspace";
@@ -296,6 +299,7 @@ export const authorizeThreadCreate = (
 ): ThreadCreateAuthFlow => {
   const ctx = req.context ?? {};
   const hasInternalKey = !!ctx.internalApiKey;
+  const hasPrivateKey = !!ctx.privateApiKey;
   const hasPublicKey = !!ctx.publicApiKey;
   const portalUserId = getPortalUserId(ctx);
   const hasPortalSession = portalUserId !== undefined;
@@ -303,6 +307,7 @@ export const authorizeThreadCreate = (
 
   if (
     !hasInternalKey &&
+    !hasPrivateKey &&
     !hasPublicKey &&
     !hasPortalSession &&
     !hasWorkspaceSession
@@ -310,7 +315,12 @@ export const authorizeThreadCreate = (
     throw new Error("UNAUTHORIZED");
   }
 
-  if (!hasInternalKey && !hasPublicKey && input.hasIntegrationOnlyFields) {
+  if (
+    !hasInternalKey &&
+    !hasPrivateKey &&
+    !hasPublicKey &&
+    input.hasIntegrationOnlyFields
+  ) {
     throw new Error("UNAUTHORIZED");
   }
 
@@ -324,7 +334,12 @@ export const authorizeThreadCreate = (
     return "portal";
   }
 
-  if (hasWorkspaceSession && !hasInternalKey && !hasPublicKey) {
+  if (
+    hasWorkspaceSession &&
+    !hasInternalKey &&
+    !hasPrivateKey &&
+    !hasPublicKey
+  ) {
     authorize(req, { organizationId: input.organizationId });
     return "workspace";
   }
@@ -335,6 +350,13 @@ export const authorizeThreadCreate = (
       organizationId: input.organizationId,
     });
     return "public";
+  }
+
+  if (hasPrivateKey) {
+    if (ctx.privateApiKey?.ownerId !== input.organizationId) {
+      throw new Error("UNAUTHORIZED");
+    }
+    return "private";
   }
 
   return "integration";
@@ -427,6 +449,10 @@ export const getAuthorizedOrganizationIds = (
     return [ctx.publicApiKey.ownerId];
   }
 
+  if (ctx.privateApiKey) {
+    return [];
+  }
+
   if (!ctx.orgUsers?.length) {
     return [];
   }
@@ -451,6 +477,12 @@ export const isAuthorized = (
       opts.allowPublicApiKey === true &&
       ctx.publicApiKey.ownerId === opts.organizationId
     );
+  }
+
+  // Private API keys are opt-in per procedure. They never inherit the global
+  // internal-key bypass or ordinary workspace membership authorization.
+  if (ctx.privateApiKey) {
+    return false;
   }
 
   if (opts.allowPortalUser && getPortalUserId(ctx) !== undefined) {

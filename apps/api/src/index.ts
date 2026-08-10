@@ -8,9 +8,13 @@ import type { OrganizationSettings } from "@workspace/schemas/organization";
 import { toNodeHandler } from "better-auth/node";
 import cors from "cors";
 import express from "express";
-import type { Express, RequestHandler } from "express";
+import type { Express, Request, RequestHandler, Response } from "express";
 
-import { publicKeys } from "./lib/api-key";
+import {
+  mintApiConnectionToken,
+  resolveHttpApiCredential,
+  resolveWebSocketApiCredential,
+} from "./lib/api-credential";
 import { auth } from "./lib/auth";
 import { parsePortalOrganizationSlug } from "./lib/authorize";
 import { reflagClient } from "./lib/feature-flag";
@@ -46,7 +50,12 @@ const resolvePortalOrganizationId = async (
 };
 
 const corsOptions = {
-  allowedHeaders: ["Content-Type", "Authorization", "x-public-api-key"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-discord-bot-key",
+    "x-public-api-key",
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
   origin: "*",
@@ -111,24 +120,9 @@ const lsServer = server({
     queryParams: Record<string, string>;
   }) => {
     if (transport === "WEBSOCKET") {
-      if (queryParams.discordBotKey) {
-        const botKey = queryParams.discordBotKey;
-
-        if (botKey !== process.env.DISCORD_BOT_KEY) return;
-
-        return {
-          internalApiKey: botKey,
-        };
-      }
-
-      if (queryParams.publicApiKey) {
-        const result = await publicKeys.verify(queryParams.publicApiKey);
-
-        if (!result.valid) throw new Error("Invalid public API key");
-
-        return {
-          publicApiKey: result.record?.metadata,
-        };
+      const apiCredential = await resolveWebSocketApiCredential(queryParams);
+      if (apiCredential) {
+        return apiCredential;
       }
 
       if (!queryParams.token) return;
@@ -151,24 +145,9 @@ const lsServer = server({
       return { ...session };
     }
 
-    if (headers["x-discord-bot-key"]) {
-      const botKey = headers["x-discord-bot-key"];
-
-      if (botKey !== process.env.DISCORD_BOT_KEY) return;
-
-      return {
-        internalApiKey: botKey,
-      };
-    }
-
-    if (headers["x-public-api-key"]) {
-      const result = await publicKeys.verify(headers["x-public-api-key"]);
-
-      if (!result.valid) throw new Error("Invalid public API key");
-
-      return {
-        publicApiKey: result.record?.metadata,
-      };
+    const apiCredential = await resolveHttpApiCredential(headers);
+    if (apiCredential) {
+      return apiCredential;
     }
 
     const headersParse = new Headers(headers);
@@ -217,6 +196,37 @@ app.all("/api/auth/*", toNodeHandler(auth));
 app.all("/api/portal-auth/*", toNodeHandler(portalAuth));
 
 app.use(express.json());
+
+const handleConnectionTokenExchange = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const headers = Object.fromEntries(
+      Object.entries(req.headers).flatMap(([name, value]) =>
+        typeof value === "string" ? [[name, value]] : []
+      )
+    );
+    const credential = await resolveHttpApiCredential(headers);
+
+    if (!credential) {
+      res.status(401).json({ error: "UNAUTHORIZED" });
+      return;
+    }
+
+    const result = await mintApiConnectionToken(credential);
+    res.json(result);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "UNAUTHORIZED";
+    res
+      .status(message === "CONFLICTING_API_CREDENTIALS" ? 400 : 401)
+      .json({ error: message });
+  }
+};
+
+app.post("/api/ls/connection-token", (req, res) => {
+  void handleConnectionTokenExchange(req, res);
+});
 
 process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(

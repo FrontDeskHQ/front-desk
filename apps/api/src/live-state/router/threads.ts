@@ -90,7 +90,9 @@ const threadCreateInputSchema = z.object({
 export default publicRoute.withProcedures(({ mutation, query }) => ({
   create: mutation(threadCreateInputSchema).handler(async ({ req, db }) => {
     const organizationId =
-      req.context?.publicApiKey?.ownerId ?? req.input.organizationId;
+      req.context?.privateApiKey?.ownerId ??
+      req.context?.publicApiKey?.ownerId ??
+      req.input.organizationId;
 
     if (!organizationId) {
       throw new Error("MISSING_ORGANIZATION_ID");

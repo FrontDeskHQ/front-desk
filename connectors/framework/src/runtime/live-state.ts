@@ -9,13 +9,7 @@ export interface CreateLiveStateClientOptions {
    * shared `DISCORD_BOT_KEY` today — pass `process.env.DISCORD_BOT_KEY ?? ""`).
    */
   botKey: string;
-  /**
-   * Credential field the WS client sends. The API only accepts `discordBotKey`
-   * today (see `apps/api/src/index.ts`); parameterized so a per-connector key
-   * can be introduced without touching this factory.
-   */
-  credentialName?: string;
-  /** HTTP header the fetch client sends. Mirrors {@link credentialName}. */
+  /** HTTP header used for ordinary fetches and the WS token exchange. */
   credentialHeader?: string;
   /** Override the WS url (defaults to `LIVE_STATE_WS_URL` / localhost). */
   wsUrl?: string;
@@ -34,17 +28,36 @@ export interface CreateLiveStateClientOptions {
 export const createLiveStateClient = (
   options: CreateLiveStateClientOptions
 ) => {
-  const {
-    botKey,
-    credentialName = "discordBotKey",
-    credentialHeader = "x-discord-bot-key",
-    label,
-  } = options;
+  const { botKey, credentialHeader = "x-discord-bot-key", label } = options;
 
   const prefix = label ? `[${label}] ` : "";
+  const apiUrl =
+    options.apiUrl ??
+    process.env.LIVE_STATE_API_URL ??
+    "http://localhost:3333/api/ls";
+
+  const exchangeConnectionToken = async (): Promise<string> => {
+    const response = await fetch(`${apiUrl}/connection-token`, {
+      headers: { [credentialHeader]: botKey },
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `${prefix}Failed to exchange Live State connection token (${response.status})`
+      );
+    }
+
+    const body = (await response.json()) as { token?: string };
+    if (!body.token) {
+      throw new Error(`${prefix}Live State token exchange returned no token`);
+    }
+
+    return body.token;
+  };
 
   const { client, store } = createClient<Router>({
-    credentials: async () => ({ [credentialName]: botKey }),
+    credentials: async () => ({ token: await exchangeConnectionToken() }),
     schema,
     storage: false,
     url:
@@ -70,10 +83,7 @@ export const createLiveStateClient = (
   const fetchClient = createFetchClient<Router>({
     credentials: async () => ({ [credentialHeader]: botKey }),
     schema,
-    url:
-      options.apiUrl ??
-      process.env.LIVE_STATE_API_URL ??
-      "http://localhost:3333/api/ls",
+    url: apiUrl,
   });
 
   return { client, fetchClient, store };

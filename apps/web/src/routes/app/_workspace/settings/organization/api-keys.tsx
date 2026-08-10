@@ -1,3 +1,4 @@
+import { useFlag } from "@reflag/react-sdk";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import {
@@ -11,6 +12,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@workspace/ui/components/alert-dialog";
+import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { CopyInput } from "@workspace/ui/components/copy-value";
@@ -25,6 +27,10 @@ import {
 } from "@workspace/ui/components/dialog";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
+import {
+  RadioGroup,
+  RadioGroupItem,
+} from "@workspace/ui/components/radio-group";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   Table,
@@ -34,7 +40,7 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import { format } from "date-fns";
+import { addDays, addYears, format } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -51,11 +57,16 @@ export const Route = createFileRoute(
 
 function RouteComponent() {
   const currentOrg = useAtomValue(activeOrganizationAtom);
+  const { isEnabled: privateApiKeysEnabled } = useFlag("private-api-keys");
   const queryClient = useQueryClient();
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [isKeyDisplayDialogOpen, setIsKeyDisplayDialogOpen] = useState(false);
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
+  const [apiKeyType, setApiKeyType] = useState<"private" | "public">("public");
   const [apiKeyName, setApiKeyName] = useState("");
+  const [expiresAt, setExpiresAt] = useState(() =>
+    format(addYears(new Date(), 1), "yyyy-MM-dd")
+  );
 
   const { data, isLoading } = useQuery({
     queryFn: () => {
@@ -68,15 +79,21 @@ function RouteComponent() {
     queryKey: ["organization", "api-keys", currentOrg?.id],
   });
 
-  const handleRevoke = async (apiKeyId: string) => {
+  const handleRevoke = async (apiKeyId: string, type: "private" | "public") => {
     if (!currentOrg) {
       return;
     }
 
     try {
-      await fetchClient.mutate.organization.revokePublicApiKey({
-        id: apiKeyId,
-      });
+      if (type === "private") {
+        await fetchClient.mutate.organization.revokePrivateApiKey({
+          id: apiKeyId,
+        });
+      } else {
+        await fetchClient.mutate.organization.revokePublicApiKey({
+          id: apiKeyId,
+        });
+      }
 
       await queryClient.invalidateQueries({
         queryKey: ["organization", "api-keys", currentOrg.id],
@@ -96,15 +113,25 @@ function RouteComponent() {
     }
 
     try {
-      const result = await fetchClient.mutate.organization.createPublicApiKey({
-        name: apiKeyName || undefined,
-        organizationId: currentOrg.id,
-      });
+      const shouldCreatePrivate =
+        privateApiKeysEnabled && apiKeyType === "private";
+      const result = shouldCreatePrivate
+        ? await fetchClient.mutate.organization.createPrivateApiKey({
+            expiresAt: new Date(`${expiresAt}T00:00:00.000Z`).toISOString(),
+            name: apiKeyName.trim(),
+            organizationId: currentOrg.id,
+          })
+        : await fetchClient.mutate.organization.createPublicApiKey({
+            name: apiKeyName.trim(),
+            organizationId: currentOrg.id,
+          });
 
       setCreatedApiKey(result.key);
       setIsCreateDialogOpen(false);
       setIsKeyDisplayDialogOpen(true);
       setApiKeyName("");
+      setApiKeyType("public");
+      setExpiresAt(format(addYears(new Date(), 1), "yyyy-MM-dd"));
 
       await queryClient.invalidateQueries({
         queryKey: ["organization", "api-keys", currentOrg.id],
@@ -122,7 +149,13 @@ function RouteComponent() {
     <div className="p-4 flex flex-col gap-4 w-full">
       <div className="flex items-center justify-between">
         <h2 className="text-base">API keys</h2>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <Dialog
+          open={isCreateDialogOpen}
+          onOpenChange={(open) => {
+            setIsCreateDialogOpen(open);
+            if (open) setApiKeyType("public");
+          }}
+        >
           <DialogTrigger render={<Button />}>
             <Plus />
             New API key
@@ -135,6 +168,37 @@ function RouteComponent() {
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-4 py-4">
+              {privateApiKeysEnabled ? (
+                <div className="flex flex-col gap-2">
+                  <Label>Type</Label>
+                  <RadioGroup
+                    value={apiKeyType}
+                    onValueChange={(value) =>
+                      setApiKeyType(value as "private" | "public")
+                    }
+                    className="grid grid-cols-2"
+                  >
+                    <Label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="public" />
+                      <span>
+                        <span className="block">Public</span>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          For public-facing integrations
+                        </span>
+                      </span>
+                    </Label>
+                    <Label className="flex cursor-pointer items-start gap-3 rounded-md border p-3">
+                      <RadioGroupItem value="private" />
+                      <span>
+                        <span className="block">Private</span>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          For trusted server requests
+                        </span>
+                      </span>
+                    </Label>
+                  </RadioGroup>
+                </div>
+              ) : null}
               <div className="flex flex-col gap-2">
                 <Label htmlFor="api-key-name">Name</Label>
                 <Input
@@ -149,6 +213,19 @@ function RouteComponent() {
                   }}
                 />
               </div>
+              {privateApiKeysEnabled && apiKeyType === "private" ? (
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="api-key-expiration">Expiration</Label>
+                  <Input
+                    id="api-key-expiration"
+                    type="date"
+                    min={format(addDays(new Date(), 1), "yyyy-MM-dd")}
+                    max={format(addYears(new Date(), 1), "yyyy-MM-dd")}
+                    value={expiresAt}
+                    onChange={(event) => setExpiresAt(event.target.value)}
+                  />
+                </div>
+              ) : null}
             </div>
             <DialogFooter>
               <Button
@@ -159,7 +236,12 @@ function RouteComponent() {
               </Button>
               <Button
                 onClick={handleCreateApiKey}
-                disabled={!apiKeyName.trim()}
+                disabled={
+                  !apiKeyName.trim() ||
+                  (privateApiKeysEnabled &&
+                    apiKeyType === "private" &&
+                    !expiresAt)
+                }
               >
                 Create
               </Button>
@@ -217,6 +299,7 @@ function RouteComponent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
                   <TableHead className="w-[50px]" />
@@ -230,6 +313,9 @@ function RouteComponent() {
                   >
                     <TableCell>
                       <Skeleton className="w-24 h-4" />
+                    </TableCell>
+                    <TableCell>
+                      <Skeleton className="w-16 h-4" />
                     </TableCell>
                     <TableCell>
                       <Skeleton className="w-24 h-4" />
@@ -249,6 +335,7 @@ function RouteComponent() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Type</TableHead>
                   <TableHead>Created</TableHead>
                   <TableHead>Expires</TableHead>
                   <TableHead className="w-[50px]" />
@@ -258,6 +345,11 @@ function RouteComponent() {
                 {data.map((apiKey) => (
                   <TableRow key={apiKey.id}>
                     <TableCell>{apiKey.name ?? "Unnamed"}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className="capitalize">
+                        {apiKey.type}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {apiKey.createdAt
                         ? format(new Date(apiKey.createdAt), "dd MMM. yyyy")
@@ -297,7 +389,9 @@ function RouteComponent() {
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
                             <AlertDialogAction
                               variant="destructive"
-                              onClick={() => handleRevoke(apiKey.id)}
+                              onClick={() =>
+                                handleRevoke(apiKey.id, apiKey.type)
+                              }
                             >
                               Revoke
                             </AlertDialogAction>
