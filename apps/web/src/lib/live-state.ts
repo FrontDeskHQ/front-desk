@@ -8,6 +8,7 @@ import { getRequestHeaders } from "@tanstack/react-start/server";
 import {
   parseAutonomousActionMetadata,
   PRIORITY_LABELS,
+  REVERSIBLE_ACTIONS,
   STATUS_LABELS,
 } from "@workspace/schemas/signals";
 import type { Router } from "api/router";
@@ -573,6 +574,10 @@ const { client, store } = createClient<Router>({
 
         const metadata = parseAutonomousActionMetadata(row.metadataStr);
         if (!metadata) return;
+        // Mirror the server's reversibility guard, which rejects anything
+        // outside REVERSIBLE_ACTIONS. Predicting a rollback the server will
+        // refuse just shows the thread changing and snapping back.
+        if (!REVERSIBLE_ACTIONS.has(metadata.kind)) return;
         const threadId = row.entityId;
         const now = new Date();
 
@@ -594,18 +599,6 @@ const { client, store } = createClient<Router>({
             action: "removed",
             labelId: metadata.labelId,
             labelName: label?.name ?? null,
-            source: "autonomous_undo",
-          };
-        } else if (metadata?.kind === "link_pr") {
-          const thread = storage.thread.where({ id: threadId }).get()[0];
-          const oldPrId = thread?.externalPrId ?? null;
-          storage.thread.update(threadId, { externalPrId: null });
-          activityType = "pr_changed";
-          activityMetadata = {
-            oldPrId,
-            newPrId: null,
-            oldPrLabel: oldPrId ? "linked PR" : null,
-            newPrLabel: null,
             source: "autonomous_undo",
           };
         } else if (metadata?.kind === "mark_duplicate") {
