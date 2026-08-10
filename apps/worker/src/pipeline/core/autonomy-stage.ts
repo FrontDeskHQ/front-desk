@@ -143,6 +143,12 @@ export const applySynthesisAutonomy = async (
  * sibling set, so "is my sibling actually going to happen?" has a truthful
  * answer. A gate that throws denies: an unreachable gate must fail towards the
  * human, not past them.
+ *
+ * TODO(sibling-truthfulness): `permitted` is everything *proposed* for auto,
+ * not the subset already confirmed to execute, so that answer is truthful only
+ * because `reply` is the sole gated kind and comes last. Register a second
+ * gated kind ahead of it and a denied sibling would still read as executing.
+ * Feed each gate the actions already admitted plus the ungated remainder.
  */
 const applyActionGates = async (
   run: RunState,
