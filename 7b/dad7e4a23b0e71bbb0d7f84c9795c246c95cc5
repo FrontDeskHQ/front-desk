@@ -1,0 +1,42 @@
+apps/web/src/components/threads/thread-toolbar/support-intelligence.tsx
+  s_793cca4ca0c386::t_452ee430270b4d 113-115
+packages/schemas/src/signals.ts
+  s_793cca4ca0c386::t_0fe5a690781073 230,232-234,237-241
+  s_793cca4ca0c386::t_b7700d6fd0e548 327,329
+  s_793cca4ca0c386::t_9553a84f173266 161-164
+  s_793cca4ca0c386::t_569658ab65f06d 473-475
+  s_793cca4ca0c386::t_4f612ff2aa571b 311-313,315-317
+apps/web/src/components/signals/action-row/thread-read-card.tsx
+  s_793cca4ca0c386::t_486ec261393c33 264
+apps/api/src/lib/thread-mutations.ts
+  s_793cca4ca0c386::t_0503d89038728e 214-215
+apps/worker/src/pipeline/core/autonomy-stage.ts
+  s_793cca4ca0c386::t_e94752444fee0c 163-165,167-171,173
+  s_793cca4ca0c386::t_ee864ce39b22b0 147-150
+apps/worker/src/pipeline/core/gates/status-witness.test.ts
+  s_793cca4ca0c386::t_917d9183e0de4e 40
+apps/api/src/lib/signals/handlers/set-status.ts
+  s_793cca4ca0c386::t_5682b7f39243d2 36-37
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/normalize.ts
+  s_793cca4ca0c386::t_d44725dd023976 109
+apps/worker/src/pipeline/processors/inline-track/label/processor.ts
+  s_793cca4ca0c386::t_5aecf3f0841b9b 152-153,191
+apps/worker/src/pipeline/processors/registration.ts
+  s_793cca4ca0c386::t_2d7ef543a8e369 18-20
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7bdad7e4a23b0e71bbb0d7f84c9795c246c95cc5",
+  "prompts": {},
+  "sessions": {
+    "s_793cca4ca0c386": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "0d1847f7-8d0c-4a77-b4b2-0afb1aed9da9",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
