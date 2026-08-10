@@ -1,0 +1,57 @@
+apps/api/src/index.ts
+  s_e6e415b5841774::t_6293b1c6da48ad 136
+  s_e6e415b5841774::t_25de04c8f263d2 229-232
+  s_e6e415b5841774::t_25ee80608dcead 167
+  s_e6e415b5841774::t_f02bb1ee85b44b 70-72
+  s_e6e415b5841774::t_12a63d674b91c8 244
+apps/api/src/lib/connection-token.test.ts
+  s_e6e415b5841774::t_b175f5bb2165bb 5,32,56
+apps/api/src/lib/connection-token.ts
+  s_e6e415b5841774::t_b175f5bb2165bb 32,53,72-73,76-84,112
+CONTEXT.md
+  s_e6e415b5841774::t_dc1e772b8bf5fe 115,117,119,121
+apps/api/src/lib/api-key-lifecycle.ts
+  s_e6e415b5841774::t_1cb5191712e42e 4,6,12-13,15-16,18,20,33-41
+apps/api/src/lib/api-credential.ts
+  s_e6e415b5841774::t_244270c6d34462 26-30,33,56-57,61,65,74-75,77,104-112,115-119,122-125,139,144,147-152,154-161,163-180
+  s_e6e415b5841774::t_a1ec2fb15a8c8a 76
+connectors/framework/src/runtime/live-state.ts
+  s_e6e415b5841774::t_f46b4f8917d965 31,41,51-52,56
+  s_e6e415b5841774::t_811babc990db8a 6
+  s_e6e415b5841774::t_156622a4128158 61-62
+  s_e6e415b5841774::t_43f15ff3afd889 89
+apps/api/src/live-state/router.ts
+  s_e6e415b5841774::t_f67f407749f36d 561-563
+apps/api/src/lib/authorize.ts
+  s_e6e415b5841774::t_b3aec01fe9e3f7 466-467
+  s_e6e415b5841774::t_33e58ce11e314e 326
+  s_e6e415b5841774::t_b4e37aa98a9376 303,308,312
+apps/api/src/lib/api-credential.test.ts
+  s_e6e415b5841774::t_58b0d0bc8a7316 136
+  s_e6e415b5841774::t_da1dc4e2b1cfcd 110-114
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_e6e415b5841774::t_9999aae0317565 151
+  s_e6e415b5841774::t_335ccefd75da21 116-119
+  s_e6e415b5841774::t_f79fd52951f4b8 209
+  s_e6e415b5841774::t_37f808bf2469a5 120-126
+  s_e6e415b5841774::t_325f5beef9ccd8 233
+docs/adr/0016-one-time-websocket-credential-exchange.md
+  s_e6e415b5841774::t_82adee8683a74b 18,20,22,24
+  s_e6e415b5841774::t_f1c377b06ec1c8 28-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cdfa589d41cb1add13cef170ffe01a264ed37281",
+  "prompts": {},
+  "sessions": {
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
