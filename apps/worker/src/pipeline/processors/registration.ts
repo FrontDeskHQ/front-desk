@@ -1,7 +1,6 @@
 import { embedProcessor } from "./embed";
 import { embedMessagesProcessor } from "./embed-messages";
 import { labelClassifierProcessor } from "./inline-track/label/processor";
-import { statusInfererProcessor } from "./inline-track/status/processor";
 import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
 import { duplicateProcessor } from "./synthesis-track/duplicate/processor";
@@ -15,11 +14,11 @@ export const registerDefaultProcessors = (): string[] => {
   processorRegistry.register(embedProcessor);
   processorRegistry.register(embedMessagesProcessor);
 
-  // --- Inline-track generators (issues 05B–05C) ---------------------------
-  // Each generator issue adds its own `processorRegistry.register(...)` call
-  // here for the inline-track processors: label, status.
+  // --- Inline suggestions --------------------------------------------------
+  // One producer, one kind (ADR 0014). Status inference moved into synthesis,
+  // which already gathers the evidence that finishes a thread; what is left
+  // here is genuine classification over the thread's opening content.
   processorRegistry.register(labelClassifierProcessor);
-  processorRegistry.register(statusInfererProcessor);
 
   // --- Synthesis-track hint processors + synthesis agent --------------------
   // Hint processors (duplicate, related_docs, related_prs, related_issues) emit evidence to

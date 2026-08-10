@@ -91,13 +91,6 @@ export const ensureVerifiedPrRecommendationLink = (
     return recommendation;
   }
 
-  const hasIncompatiblePrimaryAction = primary.some(
-    (action) => action.kind !== "link_pr" && action.kind !== "reply"
-  );
-  if (hasIncompatiblePrimaryAction) {
-    return null;
-  }
-
   const prUrl = linkPr.prUrl.trim();
   const verifiedPr = verifiedPrs.get(prUrl);
   if (
@@ -105,6 +98,22 @@ export const ensureVerifiedPrRecommendationLink = (
     containsOnlyCompleteMarkdownLinkToUrl(recommendation, prUrl)
   ) {
     return recommendation;
+  }
+
+  // Only now is a fallback actually needed, and the fallback sentence below can
+  // only describe link_pr and reply — so a third bundled action would be hidden
+  // by it, and the caller discards the set instead.
+  //
+  // This check has to come *after* the one above: since ADR 0014, `[link_pr,
+  // set_status, reply]` is a normal bundle (a linked PR is exactly what makes a
+  // thread In progress), and bailing before checking would discard every one of
+  // those sets — including the common case where the model already wrote the
+  // correct link and no fallback was required at all.
+  const hasIncompatiblePrimaryAction = primary.some(
+    (action) => action.kind !== "link_pr" && action.kind !== "reply"
+  );
+  if (hasIncompatiblePrimaryAction) {
+    return null;
   }
 
   const prLabel = verifiedPr.number

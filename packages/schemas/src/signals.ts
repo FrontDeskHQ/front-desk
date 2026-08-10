@@ -135,21 +135,125 @@ export const createIssueActionSchema = z.object({
 });
 export type CreateIssueAction = z.infer<typeof createIssueActionSchema>;
 
-export const closeActionSchema = z.object({
-  kind: z.literal("close"),
-});
-export type CloseAction = z.infer<typeof closeActionSchema>;
+// --- Thread status taxonomy -----------------------------------------------
 
-// Inline-track actions: emitted directly by inline generators.
+/**
+ * The five thread statuses. The numbering is a bare enumeration, **not** an
+ * ordering: "live", "finished" and "syncs upstream" are three different subsets
+ * of it and none of them is expressible as a `>=` comparison. Always test
+ * membership (see [ADR 0015](../../../docs/adr/0015-witness-gated-thread-finishing.md)).
+ */
+export const STATUS_OPEN = 0;
+export const STATUS_IN_PROGRESS = 1;
+export const STATUS_RESOLVED = 2;
+export const STATUS_CLOSED = 3;
+export const STATUS_DUPLICATED = 4;
+
+/** A thread nobody has finished with: still in the working set. */
+export const LIVE_STATUSES: ReadonlySet<number> = new Set([
+  STATUS_OPEN,
+  STATUS_IN_PROGRESS,
+]);
+
+/** A thread that has left the working set, whatever the outcome. */
+export const FINISHED_STATUSES: ReadonlySet<number> = new Set([
+  STATUS_RESOLVED,
+  STATUS_CLOSED,
+  STATUS_DUPLICATED,
+]);
+
+/**
+ * The finished statuses that also finish the thread's linked
+ * [external issue](../../../CONTEXT.md). `DUPLICATED` is deliberately absent:
+ * the customer's need moved to another thread rather than being settled, so the
+ * issue still tracks it. A strict subset of {@link FINISHED_STATUSES} — the two
+ * concepts coincided under the old `>= STATUS_CLOSED` test only by accident.
+ */
+export const UPSTREAM_SYNCING_STATUSES: ReadonlySet<number> = new Set([
+  STATUS_RESOLVED,
+  STATUS_CLOSED,
+]);
+
+export const isFinishedStatus = (status: number): boolean =>
+  FINISHED_STATUSES.has(status);
+export const syncsUpstream = (status: number): boolean =>
+  UPSTREAM_SYNCING_STATUSES.has(status);
+
+/**
+ * What justifies finishing a thread, and the input to `set_status`'s
+ * [action gate](../../../CONTEXT.md). A named class carrying its own evidence,
+ * not a self-reported score — the same reasoning that made
+ * [grounding](../../../docs/adr/0013-grounded-auto-reply.md) a class. Kept
+ * distinct from grounding (a property of a reply's prose) and from
+ * `inlineSuggestion.confidence` (a classifier scalar).
+ */
+export const STATUS_WITNESS_CLASSES = [
+  /** The customer said so in-thread. Justifies RESOLVED. */
+  "customer_confirmed",
+  /** A linked PR merged, or a linked issue closed. Justifies RESOLVED. */
+  "entity_settled",
+  /** An `sla` trigger fired with no customer response. Justifies CLOSED. */
+  "abandoned",
+  /** Everything else. Never auto-executes. */
+  "inferred",
+] as const;
+export const statusWitnessClassSchema = z.enum(STATUS_WITNESS_CLASSES);
+export type StatusWitnessClass = z.infer<typeof statusWitnessClassSchema>;
+
+export const statusWitnessSchema = z.object({
+  class: statusWitnessClassSchema,
+  /**
+   * What the class points at: message ids for `customer_confirmed`, the
+   * external entity id for `entity_settled`. Empty for `abandoned` (the trigger
+   * is the evidence) and for `inferred` (there is none).
+   *
+   * Required rather than defaulted: a `.default()` here diverges the schema's
+   * input and output types, and this schema sits inside the discriminated union
+   * the synthesis parse schema is built from.
+   */
+  sources: z.array(z.string()),
+});
+export type StatusWitness = z.infer<typeof statusWitnessSchema>;
+
+/** Which witness class may finish a thread into which status. */
+export const WITNESS_JUSTIFIES: Record<StatusWitnessClass, ReadonlySet<number>> =
+  {
+    abandoned: new Set([STATUS_CLOSED]),
+    customer_confirmed: new Set([STATUS_RESOLVED]),
+    entity_settled: new Set([STATUS_RESOLVED]),
+    inferred: new Set<number>(),
+  };
+
+// Emitted directly by the label classifier, the sole writer of
+// `thread.inlineSuggestions` (ADR 0014).
 export const applyLabelActionSchema = z.object({
   kind: z.literal("apply_label"),
   labelId: z.string(),
 });
 export type ApplyLabelAction = z.infer<typeof applyLabelActionSchema>;
 
+/**
+ * A synthesis action since [ADR 0014](../../../docs/adr/0014-status-is-a-synthesis-action.md),
+ * which deleted `close` rather than replacing it: `close` was already a status
+ * write hardcoded to one destination, so this generalizes it.
+ *
+ * `witness` is required only for a move into a [finished](#FINISHED_STATUSES)
+ * status and is the input to `set_status`'s action gate — see
+ * {@link StatusWitness}. A move between live statuses carries none, because
+ * nothing gates it.
+ *
+ * `nullish`, not `optional`: structured output emits an absent field as `null`,
+ * and a live-status move legitimately has no witness — so `null` is the common
+ * case, not a malformed one. The `catch` mirrors `grounding` on
+ * {@link replyActionSchema} for the same reason: the action set is parsed as a
+ * unit, and a witness can only ever *grant* autonomy, so a malformed one
+ * degrades to none (the gate then denies any finish) rather than discarding a
+ * whole synthesis run.
+ */
 export const setStatusActionSchema = z.object({
   kind: z.literal("set_status"),
   status: z.number().int(),
+  witness: statusWitnessSchema.nullish().catch(() => undefined),
 });
 export type SetStatusAction = z.infer<typeof setStatusActionSchema>;
 
@@ -159,7 +263,6 @@ export const actionSchema = z.discriminatedUnion("kind", [
   linkPrActionSchema,
   linkIssueActionSchema,
   createIssueActionSchema,
-  closeActionSchema,
   applyLabelActionSchema,
   setStatusActionSchema,
 ]);
@@ -171,7 +274,6 @@ export const ACTION_KINDS = [
   "link_pr",
   "link_issue",
   "create_issue",
-  "close",
   "apply_label",
   "set_status",
 ] as const;
@@ -180,7 +282,6 @@ export type ActionKind = z.infer<typeof actionKindSchema>;
 
 export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
   apply_label: "Apply label",
-  close: "Close thread",
   create_issue: "File issue",
   link_issue: "Link issue",
   link_pr: "Link pull request",
@@ -196,7 +297,6 @@ export const ACTION_KIND_LABEL: Record<ActionKind, string> = {
  */
 export const ACTION_KIND_VERB: Record<ActionKind, string> = {
   apply_label: "apply label",
-  close: "close",
   create_issue: "file issue",
   link_issue: "link issue",
   link_pr: "link PR",
@@ -204,6 +304,38 @@ export const ACTION_KIND_VERB: Record<ActionKind, string> = {
   reply: "reply",
   set_status: "set status",
 };
+
+/**
+ * Per-destination copy for `set_status`, so a bundle still reads "Reply and
+ * resolve" rather than the generic "Reply and set status" that the kind alone
+ * can produce. Callers holding the whole action should prefer
+ * {@link actionVerb} / {@link actionLabel} over the maps above.
+ */
+export const STATUS_VERB: Record<number, string> = {
+  [STATUS_OPEN]: "reopen",
+  [STATUS_IN_PROGRESS]: "mark in progress",
+  [STATUS_RESOLVED]: "resolve",
+  [STATUS_CLOSED]: "close",
+  [STATUS_DUPLICATED]: "mark duplicate",
+};
+
+export const STATUS_ACTION_LABEL: Record<number, string> = {
+  [STATUS_OPEN]: "Reopen thread",
+  [STATUS_IN_PROGRESS]: "Mark in progress",
+  [STATUS_RESOLVED]: "Resolve thread",
+  [STATUS_CLOSED]: "Close thread",
+  [STATUS_DUPLICATED]: "Mark duplicate",
+};
+
+export const actionVerb = (action: Action): string =>
+  action.kind === "set_status"
+    ? (STATUS_VERB[action.status] ?? ACTION_KIND_VERB.set_status)
+    : ACTION_KIND_VERB[action.kind];
+
+export const actionLabel = (action: Action): string =>
+  action.kind === "set_status"
+    ? (STATUS_ACTION_LABEL[action.status] ?? ACTION_KIND_LABEL.set_status)
+    : ACTION_KIND_LABEL[action.kind];
 
 // --- Reversibility + track partition --------------------------------------
 
@@ -215,20 +347,41 @@ export const REVERSIBLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
   // upstream, so restoring the previous id fully undoes it.
   "link_issue",
 ]);
-export const isReversible = (action: Action): boolean =>
-  REVERSIBLE_ACTIONS.has(action.kind);
 
+/**
+ * Reversibility is a property of the *action*, not only of its kind:
+ * `set_status` is local and fully reversible between live statuses, but a move
+ * into a status that {@link syncsUpstream} also finished someone's external
+ * issue, and `compensate` restores our column rather than theirs (ADR 0015).
+ *
+ * Undo remains offered for those: undo is FrontDesk retracting its own write,
+ * and it *does* reopen upstream — see `undoAutonomousAction`. What this
+ * predicate answers is the narrower "does rolling back a failed bundle restore
+ * the world", which for a finishing status is no.
+ */
+export const isReversible = (action: Action): boolean => {
+  if (action.kind === "set_status") {
+    return !syncsUpstream(action.status);
+  }
+  return REVERSIBLE_ACTIONS.has(action.kind);
+};
+
+/**
+ * ADR 0014: split by consequence, not cost. `set_status` sits here because
+ * finishing a thread ends a customer conversation and closes a linked issue
+ * upstream; `apply_label` is the one genuinely local enrichment left, and it is
+ * the sole writer of `thread.inlineSuggestions`.
+ */
 export const SYNTHESIS_ACTION_KINDS: ReadonlySet<ActionKind> = new Set([
   "reply",
   "mark_duplicate",
   "link_pr",
   "link_issue",
   "create_issue",
-  "close",
+  "set_status",
 ]);
 export const INLINE_ACTION_KINDS: ReadonlySet<ActionKind> = new Set([
   "apply_label",
-  "set_status",
 ]);
 /**
  * Actions that settle a thread's single issue link. At most one may appear
@@ -360,9 +513,13 @@ export const urgencyTierFromScore = (score: number): UrgencyTier => {
 
 // --- InlineSuggestion -----------------------------------------------------
 
+/**
+ * One kind, one producer (ADR 0014). `set_status` left for the thread read when
+ * it stopped being metadata, which is what keeps `confidence` below meaningful:
+ * only a classifier writes here, so only a classifier's score is stored.
+ */
 export const inlineSuggestionActionSchema = z.discriminatedUnion("kind", [
   applyLabelActionSchema,
-  setStatusActionSchema,
 ]);
 export type InlineSuggestionAction = z.infer<
   typeof inlineSuggestionActionSchema
@@ -522,7 +679,6 @@ export type ActionAutonomyMap = z.infer<typeof actionAutonomyMapSchema>;
  */
 export const DEFAULT_ACTION_AUTONOMY: Record<ActionKind, AutonomyLevel> = {
   apply_label: "suggest",
-  close: "off",
   create_issue: "suggest",
   link_issue: "suggest",
   link_pr: "off",
@@ -542,6 +698,11 @@ export function getDefaultActionAutonomy(): Record<ActionKind, AutonomyLevel> {
  * default issue target, and `reply`, which earns it only through its
  * [action gate](../../CONTEXT.md) — `auto` on reply means "auto when grounded"
  * (ADR 0013, which reverses the earlier cap on customer-facing actions).
+ *
+ * `set_status` qualifies through `REVERSIBLE_ACTIONS` but is only *locally*
+ * reversible; its gate is what earns it the finishing half, so `auto` on it
+ * means "auto between live statuses, auto into a finished one when witnessed"
+ * (ADR 0015).
  *
  * Everything else stays at `suggest`: destructive, with no gate to get past.
  */
@@ -902,11 +1063,11 @@ export type PrMatchJobData = z.infer<typeof prMatchJobDataSchema>;
 // --- Status labels (kept) -------------------------------------------------
 
 export const STATUS_LABELS: Record<number, string> = {
-  0: "Open",
-  1: "In progress",
-  2: "Resolved",
-  3: "Closed",
-  4: "Duplicated",
+  [STATUS_OPEN]: "Open",
+  [STATUS_IN_PROGRESS]: "In progress",
+  [STATUS_RESOLVED]: "Resolved",
+  [STATUS_CLOSED]: "Closed",
+  [STATUS_DUPLICATED]: "Duplicated",
 };
 
 export const PRIORITY_LABELS: Record<number, string> = {

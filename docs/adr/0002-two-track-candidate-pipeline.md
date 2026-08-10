@@ -1,8 +1,10 @@
 # 0002 — Two-track candidate pipeline
 
-**Status:** Accepted (synthesis-track internals amended by [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md)) **Date:** 2026-05-25
+**Status:** Superseded by [ADR 0014](./0014-status-is-a-synthesis-action.md) **Date:** 2026-05-25
 
-> **Amended (2026-05-28).** The inline/synthesis _track split_ below still holds. The synthesis track's internals do not: candidate generators that emit concrete `Action`s + a single composing LLM call are replaced by evidence-emitting hint processors + a tool-using synthesis agent. See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
+> **Superseded (2026-08-10).** The track split below no longer holds: status moves into synthesis, `close` is deleted, and inline suggestion becomes a surface with one producer. Kept unedited because the reasoning that failed is the argument for what replaced it — in particular the two consequences at the end of this file, which contradict each other once autonomy `auto` exists. See [ADR 0014](./0014-status-is-a-synthesis-action.md).
+>
+> **Amended (2026-05-28).** The synthesis track's internals were already replaced before that: candidate generators that emit concrete `Action`s + a single composing LLM call gave way to evidence-emitting hint processors + a tool-using synthesis agent. See [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md).
 
 ## Context
 

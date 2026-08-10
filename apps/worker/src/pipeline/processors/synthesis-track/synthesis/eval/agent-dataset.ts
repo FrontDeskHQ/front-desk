@@ -103,7 +103,11 @@ export interface SynthesisAgentEvalCase {
   };
 }
 
-type SynthesisActionKind = "reply" | "mark_duplicate" | "link_pr" | "close";
+type SynthesisActionKind =
+  | "reply"
+  | "mark_duplicate"
+  | "link_pr"
+  | "set_status";
 
 export interface SynthesisAgentEvalInput {
   synthesisInput: SynthesizeThreadReadInput;
@@ -139,7 +143,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       minToolCalls: { read_thread: 1 },
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["mark_duplicate", "reply"],
       requiresReplyDraft: true,
     },
@@ -293,7 +297,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      mustIncludePrimaryKinds: ["close", "reply"],
+      mustIncludePrimaryKinds: ["set_status", "reply"],
       requiresReplyDraft: true,
     },
     input: {
@@ -325,7 +329,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      mustIncludePrimaryKinds: ["close", "reply"],
+      mustIncludePrimaryKinds: ["set_status", "reply"],
       requiresReplyDraft: true,
     },
     input: {
@@ -390,7 +394,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   },
   {
     expected: {
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["reply"],
       replyMustContainAny: ["details", "reproduce", "steps"],
       requiresReplyDraft: true,
@@ -597,7 +601,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       mustExcludePrimaryKinds: ["mark_duplicate"],
-      mustIncludePrimaryKinds: ["close"],
+      mustIncludePrimaryKinds: ["set_status"],
       requiresReplyDraft: false,
     },
     input: {
@@ -626,7 +630,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   },
   {
     expected: {
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["reply"],
       replyMustContainAny: ["investigating", "status", "update"],
       requiresReplyDraft: true,
@@ -663,9 +667,18 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
     toolFixtures: { threads: { t13: mkThread("t13", "Checkout down") } },
   },
   {
+    // No reply: there is no customer here to leave without a response, and a
+    // substantive draft answering "asdf asdf qwer $$$ click now" is not a thing
+    // that exists. The old `[close, reply]` expectation was a consequence of
+    // close living in the bundling list, not of anyone wanting it.
+    //
+    // `Unreplied Thread Reply Coupling` still scores 0 on this case, and that
+    // is the point: the coupling rule ("never leave a customer without a first
+    // response") has no spam exception, so closing spam is currently reachable
+    // only as a suggestion. Left visible rather than papered over.
     expected: {
-      mustIncludePrimaryKinds: ["close", "reply"],
-      requiresReplyDraft: true,
+      mustIncludePrimaryKinds: ["set_status"],
+      requiresReplyDraft: false,
     },
     input: {
       hints: {},
@@ -694,7 +707,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   {
     expected: {
       minToolCalls: { read_thread: 1 },
-      mustExcludePrimaryKinds: ["close"],
+      mustExcludePrimaryKinds: ["set_status"],
       mustIncludePrimaryKinds: ["mark_duplicate", "reply"],
       requiresReplyDraft: true,
     },

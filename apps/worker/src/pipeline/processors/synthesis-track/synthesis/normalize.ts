@@ -1,9 +1,13 @@
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
 import {
   inferredGrounding,
+  isFinishedStatus,
   isIssueAction,
   sanitizeAgentReadReasoning,
+  STATUS_DUPLICATED,
+  STATUS_LABELS,
   threadReadSchema,
+  WITNESS_JUSTIFIES,
 } from "@workspace/schemas/signals";
 
 import type { SynthesisRawActionSet } from "./synthesize";
@@ -14,7 +18,7 @@ const allowedKinds = new Set([
   "link_pr",
   "link_issue",
   "create_issue",
-  "close",
+  "set_status",
 ]);
 
 const normalizeAction = (
@@ -83,7 +87,35 @@ const normalizeAction = (
     return { body, kind: "create_issue", title };
   }
 
-  return { kind: "close" };
+  if (action.kind === "set_status") {
+    if (!(action.status in STATUS_LABELS)) {
+      return null;
+    }
+    // Duplicated is a relational claim about another thread, so it stays
+    // exclusive to `mark_duplicate`, which verifies the target first.
+    if (action.status === STATUS_DUPLICATED) {
+      return null;
+    }
+    if (!isFinishedStatus(action.status)) {
+      // Live statuses are ungated, so a witness on one would be inert; drop it
+      // rather than persist a claim nothing ever reads.
+      return { kind: "set_status", status: action.status };
+    }
+    // A finished move keeps its witness even when the class cannot justify the
+    // destination: the gate denies it and a human reviews the suggestion, which
+    // is more useful with the Agent's reasoning attached than without.
+    const witness = action.witness;
+    if (witness && !WITNESS_JUSTIFIES[witness.class]) {
+      return { kind: "set_status", status: action.status };
+    }
+    return {
+      kind: "set_status",
+      status: action.status,
+      ...(witness ? { witness } : {}),
+    };
+  }
+
+  return null;
 };
 
 const orderPrimaryForExecution = (actions: Action[]): Action[] => {

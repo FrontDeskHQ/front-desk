@@ -14,11 +14,14 @@ import { classifyLabel } from "./classify";
 
 // Below this score the classifier emits nothing.
 const SUGGEST_THRESHOLD = 0.5;
-// Reserved for auto-mode silent-apply (gated by issue 04). Currently unused;
-// auto behaves like suggest until the action executor lands.
-const _AUTO_THRESHOLD = 0.85;
+// Auto-apply floor. Hardcoded rather than an org setting: nobody can calibrate
+// this number from the settings page, and a real complaint should justify
+// exposing it (ADR 0014).
+const AUTO_THRESHOLD = 0.85;
 
 export interface LabelClassifierOutput {
+  /** True when the label was applied autonomously rather than suggested. */
+  applied?: boolean;
   skipped?:
     | "autonomy_off"
     | "no_labels"
@@ -146,11 +149,43 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
           };
         }
 
-        // TODO(issue-04): When the action executor lands, branch on `autonomy`:
-        //   autonomy === "auto" && confidence >= AUTO_THRESHOLD
-        //     → executeBundle([{kind:"apply_label", labelId}], handlers, ctx)
-        //       and write the autonomousAction receipt; do not emit a suggestion.
-        // Until then, both "suggest" and "auto" emit an inline suggestion.
+        // `apply_label` has no action gate: it is local, reversible, and posts
+        // nothing outside FrontDesk, so the threshold is the whole guard.
+        // Deliberately stricter than the suggest floor — a wrong auto-applied
+        // label is silent, where a wrong suggestion is merely declined.
+        if (autonomy === "auto" && confidence >= AUTO_THRESHOLD) {
+          const action = { kind: "apply_label", labelId } as const;
+          try {
+            await run.executeBundle([action]);
+            requestLog.set({
+              classification: {
+                confidence,
+                labelId,
+                threshold: AUTO_THRESHOLD,
+              },
+              outcome: { status: "applied", action: "apply_label" },
+            });
+            return {
+              data: { applied: true, confidence, labelId },
+              success: true,
+              threadId,
+            };
+          } catch (error) {
+            // Same posture as the synthesis autonomy stage: a failed autonomous
+            // execution falls back to the human rather than vanishing.
+            requestLog.set({
+              outcome: {
+                status: "auto_failed",
+                reason: "retained_for_review",
+              },
+            });
+            requestLog.error(error instanceof Error ? error : String(error), {
+              retryable: isRetryableError(error),
+              step: "label_auto_apply",
+            });
+          }
+        }
+
         await run.suggest({
           action: { kind: "apply_label", labelId },
           confidence,

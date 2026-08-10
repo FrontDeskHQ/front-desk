@@ -1,3 +1,5 @@
+import { STATUS_RESOLVED } from "@workspace/schemas/signals";
+
 import type { SynthesisRawActionSet } from "../synthesize";
 
 export interface SynthesisEvalCase {
@@ -12,8 +14,8 @@ export interface SynthesisEvalCase {
   };
   expected: {
     shouldBeNull: boolean;
-    primaryKinds: ("reply" | "mark_duplicate" | "link_pr" | "close")[];
-    alternativesKinds: ("reply" | "mark_duplicate" | "link_pr" | "close")[];
+    primaryKinds: ("reply" | "mark_duplicate" | "link_pr" | "set_status")[];
+    alternativesKinds: ("reply" | "mark_duplicate" | "link_pr" | "set_status")[];
     sourceInputMessageId: string | null;
   };
 }
@@ -34,7 +36,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
         alternatives: [],
         primary: [],
         reasoning: "No substantive move is justified.",
-        recommendation: "No reply, duplicate link, or close is justified yet.",
+        recommendation: "No reply, duplicate link, or status change is justified yet.",
         sourceInputMessageId: "m2",
         summary: "No action needed",
         urgencyScore: 10,
@@ -74,7 +76,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
   },
   {
     expected: {
-      alternativesKinds: ["close"],
+      alternativesKinds: ["set_status"],
       primaryKinds: ["mark_duplicate"],
       shouldBeNull: false,
       sourceInputMessageId: "m8",
@@ -84,7 +86,13 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       hasTeamReply: true,
       messageIds: ["m7", "m8"],
       output: {
-        alternatives: [{ kind: "close" }],
+        alternatives: [
+          {
+            kind: "set_status",
+            status: STATUS_RESOLVED,
+            witness: { class: "customer_confirmed", sources: ["m8"] },
+          },
+        ],
         primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
         reasoning: "Hint points strongly to an existing thread.",
         recommendation: "This is a duplicate of an existing thread.",
@@ -130,7 +138,13 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       hasTeamReply: true,
       messageIds: ["m1"],
       output: {
-        alternatives: [{ kind: "close" }],
+        alternatives: [
+          {
+            kind: "set_status",
+            status: STATUS_RESOLVED,
+            witness: { class: "customer_confirmed", sources: ["m8"] },
+          },
+        ],
         primary: [{ kind: "mark_duplicate", targetThreadId: "   " }],
         reasoning: "Model attempted mark_duplicate without a real target id.",
         recommendation: "This is a duplicate of an existing thread.",
@@ -153,7 +167,13 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       hasTeamReply: false,
       messageIds: ["m1"],
       output: {
-        alternatives: [{ kind: "close" }],
+        alternatives: [
+          {
+            kind: "set_status",
+            status: STATUS_RESOLVED,
+            witness: { class: "customer_confirmed", sources: ["m8"] },
+          },
+        ],
         primary: [{ kind: "mark_duplicate", targetThreadId: "t-123" }],
         reasoning: "Should be rejected by normalize.",
         recommendation: "This is a duplicate of an existing thread.",
@@ -176,7 +196,13 @@ export const synthesisDataset: SynthesisEvalCase[] = [
       hasTeamReply: false,
       messageIds: ["m1"],
       output: {
-        alternatives: [{ kind: "close" }],
+        alternatives: [
+          {
+            kind: "set_status",
+            status: STATUS_RESOLVED,
+            witness: { class: "customer_confirmed", sources: ["m8"] },
+          },
+        ],
         primary: [
           { kind: "mark_duplicate", targetThreadId: "t-123" },
           {
@@ -193,12 +219,12 @@ export const synthesisDataset: SynthesisEvalCase[] = [
         urgencyScore: 60,
       },
     },
-    name: "unreplied mark_duplicate with reply strips close alternative",
+    name: "unreplied mark_duplicate with reply strips set_status alternative",
   },
   {
     expected: {
       alternativesKinds: ["reply"],
-      primaryKinds: ["close"],
+      primaryKinds: ["set_status"],
       shouldBeNull: false,
       sourceInputMessageId: "m5",
     },
@@ -214,7 +240,13 @@ export const synthesisDataset: SynthesisEvalCase[] = [
               "  Great, thanks for confirming. I will close this thread now.  ",
           },
         ],
-        primary: [{ kind: "close" }],
+        primary: [
+          {
+            kind: "set_status",
+            status: STATUS_RESOLVED,
+            witness: { class: "customer_confirmed", sources: ["m5"] },
+          },
+        ],
         reasoning: "Latest message says we can close the thread.",
         recommendation:
           "Close the thread — the customer confirmed the issue is resolved.",
@@ -223,7 +255,7 @@ export const synthesisDataset: SynthesisEvalCase[] = [
         urgencyScore: 12,
       },
     },
-    name: "close primary with trimmed reply alternative is preserved",
+    name: "set_status primary with trimmed reply alternative is preserved",
   },
   {
     expected: {

@@ -6,12 +6,12 @@ import type {
   ThreadReadTrigger,
 } from "@workspace/schemas/signals";
 import {
-  closeActionSchema,
   createIssueActionSchema,
   linkIssueActionSchema,
   linkPrActionSchema,
   markDuplicateActionSchema,
   replyActionSchema,
+  setStatusActionSchema,
 } from "@workspace/schemas/signals";
 import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, stepCountIs } from "ai";
@@ -39,7 +39,7 @@ const baseSynthesisActionSchemas = [
   markDuplicateActionSchema,
   linkPrActionSchema,
   linkIssueActionSchema,
-  closeActionSchema,
+  setStatusActionSchema,
 ] as const;
 
 /**
@@ -203,11 +203,11 @@ These are leads, not confirmed links. Read a candidate with read_pr and confirm 
   ].join("\n");
 
   const bundlingKinds = input.availability.create_issue
-    ? "mark_duplicate, link_pr, link_issue, create_issue, or close"
-    : "mark_duplicate, link_pr, link_issue, or close";
+    ? "mark_duplicate, link_pr, link_issue, create_issue, or set_status"
+    : "mark_duplicate, link_pr, link_issue, or set_status";
   const bundlingExamples = input.availability.create_issue
-    ? "`[mark_duplicate, reply]`, `[link_pr, reply]`, `[link_issue, reply]`, `[create_issue, reply]`, or `[close, reply]`"
-    : "`[mark_duplicate, reply]`, `[link_pr, reply]`, `[link_issue, reply]`, or `[close, reply]`";
+    ? "`[mark_duplicate, reply]`, `[link_pr, reply]`, `[link_issue, reply]`, `[create_issue, reply]`, or `[set_status, reply]`"
+    : "`[mark_duplicate, reply]`, `[link_pr, reply]`, `[link_issue, reply]`, or `[set_status, reply]`";
 
   const createIssueRecommendationRule = input.availability.create_issue
     ? '- create_issue: a file imperative naming the defect, e.g. "File an issue for the failing OAuth token refresh and reply to acknowledge the report." Never cite an issue number or URL here — the issue does not exist yet.\n'
@@ -235,7 +235,7 @@ Say that engineering has been made aware and that you will follow up. Nothing mo
     ...(input.availability.create_issue
       ? ['{ "kind": "create_issue", "title": string, "body": string }']
       : []),
-    '{ "kind": "close" }',
+    '{ "kind": "set_status", "status": number, "witness": { "class": "customer_confirmed" | "entity_settled" | "abandoned" | "inferred", "sources": string[] } | null }',
   ].join(" | ");
 
   const issueBodyRules = input.availability.create_issue
@@ -258,7 +258,7 @@ You must produce an unfiltered raw action set using only this vocabulary:
 - mark_duplicate (requires targetThreadId)
 - link_pr (requires prUrl) — link a mirrored pull request that resolves or addresses this thread
 - link_issue (requires issueUrl) — link an EXISTING mirrored issue that covers this thread's problem${createIssueVocabulary}
-- close
+- set_status (requires status; requires witness when finishing the thread)
 
 Use hints as evidence leads, not as final decisions. Investigate with tools before taking substantive actions.
 
@@ -273,7 +273,7 @@ Requirements:
 ${issueRules}
 - Prefer no action over weak/conflicting evidence. If no substantive move is justified, return an empty primary array. A weak or unrelated PR or issue lead is not grounds for link_pr or link_issue.
 - sourceInputMessageId must be one of the provided message ids and should usually be the latest inbound message.
-- Do not emit apply_label, set_status, or any fields outside schema.
+- Do not emit apply_label or any fields outside schema.
 ${issueBodyRules}
 
 ## Unreplied threads (support has not messaged yet)
@@ -282,7 +282,7 @@ hasTeamReply: ${input.hasTeamReply}
 
 When hasTeamReply is false, the customer has written but no teammate has replied on this thread yet.
 
-- **Primary:** If you include ${bundlingKinds}, you must also include a reply in the same primary array. Order the other action first: ${bundlingExamples}. Never leave a customer without a first response.
+- **Primary:** If you include ${bundlingKinds}, you must also include a reply in the same primary array. Order the non-reply actions first and put the reply last: ${bundlingExamples}. More than one non-reply action is fine when each is justified — \`[link_pr, set_status, reply]\` is a normal bundle. Never leave a customer without a first response.
 - **Alternatives:** Offer reply-only alternatives (e.g. a softer or more detailed draft). Do not put standalone ${bundlingKinds} in alternatives — the human would execute those without replying.
 - **Reply-only primary** is fine when that is the best move (no bundling required).
 - **Empty primary** is still allowed when no substantive move is justified.
@@ -296,7 +296,7 @@ First-reply tone:
 
 Customer display name (use only in the greeting): ${JSON.stringify(customerName)}
 
-When hasTeamReply is true, alternatives may be any allowed action kind (including standalone close, mark_duplicate, link_pr, or link_issue).
+When hasTeamReply is true, alternatives may be any allowed action kind (including standalone set_status, mark_duplicate, link_pr, or link_issue).
 
 ${replyCitationRule}
 
@@ -310,6 +310,30 @@ Each \`reply\` action carries a \`grounding\` object saying what backs the draft
 
 \`sources\` must be \`[]\` unless the class is \`documented\`. \`entityUrl\` must be \`null\` unless the class is \`state_report\`. Never invent a page URL: a citation that was not returned by a tool or hint this run invalidates the claim.
 
+## set_status: what the statuses mean, and what may finish a thread (critical)
+
+Statuses: \`0\` Open, \`1\` In progress, \`2\` Resolved, \`3\` Closed. (\`4\` Duplicated exists but is not yours — use mark_duplicate.)
+
+Two of these are **live** and two are **finished**. A finished thread has left the working set, and finishing one also finishes any issue linked to it in the customer's own tracker. That is a real write into someone else's system, so it is the one status move you must justify.
+
+- **Open (0)** — nobody has engaged with this yet. Also the right move when a thread that looked finished is not: the customer came back and the loop is open again.
+- **In progress (1)** — the loop is open **and known**: someone or something is on it, including engineering via a linked issue or PR. This is the correct pairing for a \`state_report\` reply — "we're aware, tracked in #412" means the thread is in progress, **not** resolved.
+- **Resolved (2)** — the conversation reached an answer and **no further update is owed to this customer**. Apply the forward-looking test: _will they need another update later?_ If yes, it is not resolved, however conclusive the last message reads. A thread waiting on an open issue is never resolved.
+- **Closed (3)** — the thread will **not** reach an answer and is not going to: abandoned, withdrawn, out of scope. Closed is not a stronger Resolved; they differ on outcome, not on degree.
+
+When you set status \`2\` or \`3\` you must attach a \`witness\` — what makes finishing true. Same honesty rule as grounding: it is evidence, not a feeling, and it is checked.
+
+- **\`customer_confirmed\`** — the customer said so in this thread ("that worked", "all set", "you can close this"). \`sources\` = the message ids you are relying on. Justifies **Resolved**.
+- **\`entity_settled\`** — a pull request linked to this thread merged, or a linked issue closed, and that settles what the customer asked about. \`sources\` = the entity URL. Justifies **Resolved**.
+- **\`abandoned\`** — the thread has gone quiet: the team replied and the customer never came back. \`sources\` = \`[]\`; the trigger is the evidence. Justifies **Closed**.
+- **\`inferred\`** — you believe it is finished but nothing above holds. Say so honestly. A human will decide.
+
+Rules:
+- Never claim \`customer_confirmed\` from your own reply. The customer must have spoken **after** the answer they are confirming.
+- A merged PR or closed issue that does not actually address this customer's problem is not \`entity_settled\`; it is \`inferred\`.
+- Resolving is something the customer should hear about. When you emit \`[set_status(2), reply]\`, write the reply as a natural close of the conversation ("glad that's sorted — reach out if it comes back"). Do not announce a status field; they do not see one.
+- Moves between live statuses (0, 1) need no witness. Send \`null\`.
+
 ## summary, recommendation, and reasoning (critical)
 
 \`summary\` and \`recommendation\` together are the **inbox headline**. They must match \`primary\`: the summary states what the customer needs, the recommendation states the next move in direct, imperative language.
@@ -322,8 +346,8 @@ Each \`reply\` action carries a \`grounding\` object saying what backs the draft
 - reply: a reply imperative, e.g. "Reply to acknowledge …" or "Reply with an explanation of …"
 - link_pr: a link imperative containing the exact verified PR URL as a Markdown link so it renders as a PR chip, e.g. "Link [PR #<number>](<exact verified PR URL>) to the thread and tell the customer that engineering is working on the fix."
 - link_issue: a link imperative containing the exact verified issue URL as a Markdown link, e.g. "Link [issue #<number>](<exact verified issue URL>) — it already tracks this problem." Mention when the issue is closed, since that changes what the human should tell the customer.
-${createIssueRecommendationRule}- close: a close imperative, e.g. "Close the thread — the customer confirmed the issue is resolved."
-- empty primary: state that no substantive move is justified, e.g. "No reply, duplicate link, or close is justified yet."
+${createIssueRecommendationRule}- set_status: a status imperative naming the destination, e.g. "Resolve the thread — the customer confirmed the fix worked." or "Mark in progress — engineering is tracking this in #412."
+- empty primary: state that no substantive move is justified, e.g. "No reply, duplicate link, or status change is justified yet."
 
 Thread mentions in \`recommendation\` must use markdown link syntax only: [Display name](thread:threadId). Never put raw thread ids as plain text.
 When primary includes link_pr, recommendation must contain exactly the verified PR URL in a Markdown link. Never refer to an unlinked "pull request".

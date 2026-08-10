@@ -12,11 +12,11 @@ Umbrella term for items the Agent puts in the feed for human attention. Today on
 
 The Agent's synthesis output for a single thread: a summary, reasoning, a ranked primary action (possibly compound), and optional pick-one alternatives. Composed by [synthesis](#synthesis) and persisted by the [autonomy helper](#autonomy-stage) after `off` actions are dropped and `auto` actions executed. At most one active per thread; re-reads replace. Stored on `thread.agentRead`.
 
-A thread read exists only when the Agent has a **substantive next move** (reply, mark duplicate, close, link PR, etc.). Pure metadata enrichments (label, status) are not thread reads — see [Inline suggestion](#inline-suggestion).
+A thread read exists only when the Agent has a **substantive next move** (reply, mark duplicate, set status, link PR, etc.) — substantive meaning it has consequences beyond FrontDesk's own metadata: it reaches the customer, another system, or the thread's place in the working set. Labelling is the one enrichment that does not qualify — see [Inline suggestion](#inline-suggestion).
 
 ### Inline suggestion
 
-A lightweight, per-candidate proposal that bypasses synthesis and renders on the thread view itself. The canonical (and currently only) examples are suggested labels and suggested status changes — _all_ label/status proposals live here, regardless of whether a [thread read](#thread-read) also exists on the thread. Written directly by candidate generators when autonomy mode is `suggest`. Multiple inline suggestions can coexist on one thread; each has its own accept / dismiss lifecycle. Stored on `thread.inlineSuggestions`.
+A lightweight proposal that bypasses [synthesis](#synthesis) and renders on the thread view itself. A **surface, not a pipeline half** — the label classifier is its only producer and a suggested label its only kind, so the `confidence` scalar stored beside it always means the same thing. Written when autonomy is `suggest`; under `auto` a confident classification is applied outright and leaves an [autonomous action](#autonomous-action) instead. Multiple can coexist on one thread, each with its own accept / dismiss lifecycle. Stored on `thread.inlineSuggestions`. _Avoid_: "inline track" — status inference left for synthesis, and one classifier is not a track.
 
 Inline suggestions never appear standalone in the feed. When a thread also has a thread read, its inline suggestions render alongside that read's card in the feed; otherwise they surface only on the thread view.
 
@@ -30,7 +30,7 @@ The page (formerly `/signals`) where thread reads and pattern signals surface fo
 
 ### Entry processor
 
-A [processor](#processor) that prepares raw thread data for everything downstream — summarisation, embedding, message extraction. Its output is _processor-facing_, never user-facing. Both the [inline track](#inline-suggestion) and the [synthesis track](#read-hint) consume entry-processor output.
+A [processor](#processor) that prepares raw thread data for everything downstream — summarisation, embedding, message extraction. Its output is _processor-facing_, never user-facing. Both the label classifier behind [inline suggestions](#inline-suggestion) and the [synthesis track](#read-hint) consume entry-processor output.
 
 ### Read hint
 
@@ -46,7 +46,7 @@ One execution of the pipeline over a single [thread](#thread). A run is the scop
 
 ### Processor
 
-A unit of work in the pipeline with declared dependencies, run in dependency order. "Entry", "hint", and "synthesis" are _conceptual categories_ of processor, not different code shapes — they all share one definition. The [inline track](#inline-suggestion) classifiers (label, status) are also processors but are a self-contained fast path: cheap, no LLM gate, calling the [autonomy helper](#autonomy-stage) after their LLM step before writing chips.
+A unit of work in the pipeline with declared dependencies, run in dependency order. "Entry", "hint", and "synthesis" are _conceptual categories_ of processor, not different code shapes — they all share one definition. The label classifier behind [inline suggestions](#inline-suggestion) is also a processor, on a self-contained fast path: one cheap LLM call, no [action gate](#action-gate), applying autonomy itself before writing a chip.
 
 ### Trigger
 
@@ -56,11 +56,11 @@ One cause of a pipeline run, and an _orthogonal_ input to [synthesis](#synthesis
 
 ### Synthesis
 
-The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](#trigger) context + thread state into a [thread read](#thread-read). It uses tools to investigate leads in depth, then emits a raw, unfiltered set of actions — one primary (possibly compound) and optional pick-one alternatives. Synthesis owns _all_ substantive action decisions; it does not see or emit [inline-suggestion](#inline-suggestion) actions (label, status). It does not persist the [thread read](#thread-read) itself — after the agent returns, the synthesis processor calls the [autonomy helper](#autonomy-stage) to apply policy and persist.
+The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](#trigger) context + thread state into a [thread read](#thread-read). It uses tools to investigate leads in depth, then emits a raw, unfiltered set of actions — one primary (possibly compound) and optional pick-one alternatives. Synthesis owns _all_ substantive action decisions, including thread [status](#thread-status); the one thing it neither sees nor emits is a label. It does not persist the [thread read](#thread-read) itself — after the agent returns, the synthesis processor calls the [autonomy helper](#autonomy-stage) to apply policy and persist.
 
 ### Autonomy stage
 
-A deterministic, no-LLM helper (not a pipeline processor) that action-emitting processors call immediately after their LLM step. Per action kind it applies the org's setting (`off` → drop, `suggest` → leave for human, `auto` → execute now + write an [autonomous-action](#autonomous-action) receipt), then persists the surface (`thread.agentRead` or `thread.inlineSuggestions`). [Synthesis](#synthesis) calls it over the raw action set; [inline track](#inline-suggestion) processors call it over label/status proposals. Auto-mode fires the synthesis primary only; alternatives are never auto-executed.
+A deterministic, no-LLM helper (not a pipeline processor) that action-emitting processors call immediately after their LLM step. Per action kind it applies the org's setting (`off` → drop, `suggest` → leave for human, `auto` → execute now + write an [autonomous-action](#autonomous-action) receipt), then persists the surface (`thread.agentRead` or `thread.inlineSuggestions`). [Synthesis](#synthesis) calls it over the raw action set; the label classifier calls it over its single proposal. Auto-mode fires the synthesis primary only; alternatives are never auto-executed.
 
 ### Action availability
 
@@ -70,7 +70,9 @@ Whether an action is _able_ to execute at all on this run, given the [organizati
 
 A per-kind predicate the [autonomy stage](#autonomy-stage) consults before promoting an action to `auto`, asking whether _this particular instance_ has earned autonomous execution. Distinct from [action availability](#action-availability) (_can_ it run) and from autonomy (_is the Agent permitted_ to run it): both of those are properties of the org and the thread, while a gate judges the action's own content. Kinds without a registered gate are promoted unconditionally. A gate runs _after_ per-kind autonomy partitioning, so it can see which sibling actions are actually executing. A failed gate downgrades that one action to `suggest`; it never vetoes its siblings.
 
-Today the only gate is on [reply](#grounding).
+Gates that ask about a sibling are evaluated after that sibling's own verdict, and see only siblings _confirmed_ to execute — an unevaluated gate is not a promise.
+
+Two kinds have one: [reply](#grounding), on its grounding, and status, on its [witness](#witness).
 
 ### Grounding
 
@@ -80,7 +82,18 @@ A [reply](#action-gate) action's claim about what backs it, and the input to rep
 - **`state_report`** — the reply asserts nothing about the product, only reports thread state the Agent can already see ("we're aware, tracked in #412"). Requires the cited [external issue](#external-issue) / [external pull request](#external-pull-request) to be linked to the thread, or to be linked by a sibling action that is itself executing autonomously.
 - **`inferred`** — everything else. Never auto-sends.
 
-Grounding is a _named class_, not a score, and is deliberately not called "confidence": `inlineSuggestion.confidence` is an unrelated 0–1 scalar from the [inline-track](#inline-suggestion) classifiers, and agent reasoning is scrubbed of confidence language before humans read it. Grounding's sources _are_ shown to humans, as citations on the draft. _Avoid_: "confidence" for this concept, "reply score".
+Grounding is a _named class_, not a score, and is deliberately not called "confidence": `inlineSuggestion.confidence` is an unrelated 0–1 scalar from the label classifier, and agent reasoning is scrubbed of confidence language before humans read it. Grounding's sources _are_ shown to humans, as citations on the draft. _Avoid_: "confidence" for this concept, "reply score".
+
+### Witness
+
+What justifies finishing a [thread](#thread), and the input to status's [action gate](#action-gate). One of four classes, each carrying its own evidence:
+
+- **`customer_confirmed`** — the customer said so in-thread. Justifies _Resolved_.
+- **`entity_settled`** — a linked [external pull request](#external-pull-request) merged, or a linked [external issue](#external-issue) closed, and that settles what was asked. Justifies _Resolved_.
+- **`abandoned`** — the thread went quiet: the team replied and the customer never returned. Justifies _Closed_.
+- **`inferred`** — everything else. Never finishes a thread on its own.
+
+Deliberately its own noun rather than an extension of [grounding](#grounding), which is a property of a _reply's prose_; a witness is a property of a _state change_. Both are named classes for the same reason: a self-reported score is uncheckable. Resolving additionally requires a reply that is itself sending, so a conversation never ends without the customer hearing about it. _Avoid_: "confidence" (see [grounding](#grounding)), "status score".
 
 ### Autonomous action
 
@@ -129,6 +142,20 @@ A FrontDesk tenant and membership boundary. It owns threads, integrations, and c
 ### Thread
 
 The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record _where it came from_ (Discord channel, Slack message, portal) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).
+
+### Thread status
+
+Where a [thread](#thread) sits in its lifecycle. Two of the five statuses are **live** — _Open_ (nobody has picked it up) and _In progress_ (someone is working it) — and three are **finished**:
+
+- **Resolved** — the conversation reached an answer and **no further update is owed to the customer**. The test is forward-looking, not backward-looking: _will this customer need another update later?_ If yes, the thread is not resolved, however satisfying the last message was. A thread whose answer was "we're aware, tracked in #412" is therefore _not_ resolved — the loop closes only when someone comes back to the customer after #412 is finished.
+- **Closed** — the thread did _not_ reach an answer and is not going to: abandoned, withdrawn, out of scope, effectively cancelled. Closed is not a "more final" Resolved; the two differ on _outcome_, not on degree.
+- **Duplicated** — the thread is finished because another thread carries it. Reached only by `mark_duplicate`, never chosen directly.
+
+"Finished" is the distinction the system acts on: a finished thread has left the working set.
+
+Finishing a thread is also the one status move that reaches outside FrontDesk: a thread that becomes _Resolved_ or _Closed_ finishes its linked [external issue](#external-issue) too, because both mean the customer's need has been settled one way or the other. _Duplicated_ does **not** — the need moved to another thread rather than being settled, and the issue still tracks it. The sync is **one-way**: un-finishing a thread never reopens the issue upstream, since a customer writing back is not evidence the engineering work regressed.
+
+_Avoid_: treating "closed" as the umbrella for all finished states (that is what "finished" is for); reading the status numbering as a severity or progress ordering (it is a bare enumeration, and "finished" and "syncs upstream" are different subsets of it); and assuming a thread is resolved because its last message reads conclusively — see the forward-looking test above.
 
 ### External issue
 
