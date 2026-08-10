@@ -1,0 +1,21 @@
+apps/api/src/lib/connection-token.ts
+  s_e6e415b5841774::t_02361c6df9f357 76-82
+connectors/framework/src/runtime/live-state.ts
+  s_e6e415b5841774::t_c46d14794a4455 54-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fa90d55d263ff62d9204db0d5a943d1911ecbbea",
+  "prompts": {},
+  "sessions": {
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
