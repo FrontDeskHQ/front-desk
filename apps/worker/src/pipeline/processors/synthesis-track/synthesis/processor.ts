@@ -86,6 +86,15 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         // Shapes availability (an already-linked thread cannot file an issue),
         // so it is a real synthesis input.
         thread.externalIssueId ?? "",
+        // Every message's role is derived from the thread author (customer) and
+        // from whether an author is linked to a teammate, so reassigning the
+        // thread author re-labels the transcript and can invalidate a
+        // `customer_confirmed` witness without changing a single message.
+        // TODO(role-revision): the other half of the derivation —
+        // `author.userId` being linked after the fact, which turns `unknown`
+        // into `agent` — is an async lookup this sync hash cannot do. It needs a
+        // role revision stamped on the thread to be hashable here.
+        thread.authorId ?? "",
         latestMessage?.id ?? "",
         latestMessage?.content ?? "",
         appliedLabels.join(","),
