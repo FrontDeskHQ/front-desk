@@ -10,7 +10,8 @@ export const resolvePrivateApiKeyExpiration = (input: {
 }): Date => {
   const now = input.now ?? new Date();
   const latest = addYears(now, 1);
-  const expiration = input.expiresAt ? new Date(input.expiresAt) : latest;
+  const expiration =
+    input.expiresAt === undefined ? latest : new Date(input.expiresAt);
 
   // The ceiling is a calendar day, not an instant: the UI sends a date-only
   // value, so a key created at noon may still expire a year out at midnight.

@@ -37,9 +37,12 @@ export const createLiveStateClient = (
     "http://localhost:3333/api/ls";
 
   const exchangeConnectionToken = async (): Promise<string> => {
+    // live-state awaits this callback before connecting, so a stalled API would
+    // otherwise hang the initial connection and every reconnect behind it.
     const response = await fetch(`${apiUrl}/connection-token`, {
       headers: { [BOT_KEY_HEADER]: botKey },
       method: "POST",
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!response.ok) {
