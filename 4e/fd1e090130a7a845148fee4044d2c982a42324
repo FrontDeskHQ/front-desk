@@ -1,0 +1,21 @@
+apps/api/src/lib/api-key-lifecycle.ts
+  s_e6e415b5841774::t_59bc17305fd1a0 13-14
+connectors/framework/src/runtime/live-state.ts
+  s_e6e415b5841774::t_af5c3b186d11fb 40-41,45
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4efd1e090130a7a845148fee4044d2c982a42324",
+  "prompts": {},
+  "sessions": {
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
