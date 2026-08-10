@@ -125,8 +125,11 @@ const lsServer = server({
       try {
         apiCredential = await resolveWebSocketApiCredential(queryParams);
       } catch (error) {
-        console.warn("[auth] WebSocket API credential rejected", credentialErrorMessage(error));
-        return;
+        console.warn(
+          "[auth] WebSocket API credential rejected",
+          credentialErrorMessage(error)
+        );
+        throw new Error("UNAUTHORIZED", { cause: error });
       }
       if (apiCredential) {
         return apiCredential;
@@ -156,10 +159,13 @@ const lsServer = server({
     try {
       apiCredential = await resolveHttpApiCredential(headers);
     } catch (error) {
-      console.warn("[auth] HTTP API credential rejected", credentialErrorMessage(error));
-      // An invalid explicit credential fails closed and never falls through to
-      // an otherwise valid passive cookie session.
-      return {};
+      console.warn(
+        "[auth] HTTP API credential rejected",
+        credentialErrorMessage(error)
+      );
+      // A bad explicit credential fails the request outright. It must not fall
+      // through to a passive cookie session, nor to anonymous public routing.
+      throw new Error("UNAUTHORIZED", { cause: error });
     }
     if (apiCredential) {
       return apiCredential;
