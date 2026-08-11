@@ -1,5 +1,6 @@
 import { createLogger } from "@workspace/utils/logging";
 
+import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import { processorRegistry } from "../processors/registry";
 import { JobContext } from "./context";
@@ -15,6 +16,10 @@ import {
   failPipelineJob,
   updatePipelineJobStatus,
 } from "./persistence";
+import {
+  collectRetryableProcessorFailures,
+  RetryablePipelineError,
+} from "./retry";
 import { RunHydrationError, hydrateRunStates } from "./run-state";
 import type { RunState } from "./run-state";
 import type {
@@ -226,10 +231,11 @@ const executeProcessor = async (
 
         return { hash: item.hash, key: item.key, result };
       } catch (error) {
+        const retryable = isRetryableError(error);
         requestLog.error(error instanceof Error ? error : String(error), {
           processor: processor.name,
           threadId: item.threadId,
-          retryable: true,
+          retryable,
           step: "processor.execute",
         });
         return {
@@ -237,6 +243,7 @@ const executeProcessor = async (
           key: item.key,
           result: {
             error: error instanceof Error ? error.message : String(error),
+            retryable,
             success: false as const,
             threadId: item.threadId,
           },
@@ -474,6 +481,13 @@ export const executePipeline = async (
       }
     }
 
+    // Retryable processor failures must reject the outer job. Returning a
+    // partial result would make BullMQ mark the job completed and skip retry.
+    const retryableFailures = collectRetryableProcessorFailures(turns);
+    if (retryableFailures.length > 0) {
+      throw new RetryablePipelineError(retryableFailures);
+    }
+
     const totalDuration = performance.now() - startTime;
 
     const result: PipelineExecutionResult = {
@@ -531,11 +545,15 @@ export const executePipeline = async (
       },
     });
 
-    // A run that couldn't be hydrated never started, so it must reject rather
-    // than resolve as a failed result — only a thrown error reaches BullMQ's
-    // retry. Every other failure here is a real run that already recorded what
-    // it did, and keeps returning a result so partial work isn't replayed.
-    if (error instanceof RunHydrationError) {
+    // A run that couldn't be hydrated never started, and a retryable processor
+    // failure needs BullMQ to run the job again. Both must reject rather than
+    // resolve as a failed result. Every other failure here is a real run that
+    // already recorded what it did, and keeps returning a result so partial
+    // work isn't replayed.
+    if (
+      error instanceof RunHydrationError ||
+      error instanceof RetryablePipelineError
+    ) {
       throw error;
     }
 

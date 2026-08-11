@@ -168,6 +168,7 @@ export const isRetryableError = (error: unknown): boolean => {
   return (
     errorName.includes("RetryError") ||
     errorName.includes("NoObjectGeneratedError") ||
+    errorName === "SynthesisOutputParseError" ||
     errorName.includes("APIError") ||
     message.includes("timeout") ||
     message.includes("network") ||

@@ -73,6 +73,18 @@ export type SynthesisRawActionSet = z.infer<
   ReturnType<typeof synthesisRawActionSetSchemaFor>
 >;
 
+export class SynthesisOutputParseError extends Error {
+  constructor(cause: unknown) {
+    super(
+      `Synthesis output parsing failed: ${
+        cause instanceof Error ? cause.message : String(cause)
+      }`,
+      { cause }
+    );
+    this.name = "SynthesisOutputParseError";
+  }
+}
+
 export interface SynthesizeThreadReadInput {
   threadId: string;
   threadName: string | null;
@@ -124,12 +136,7 @@ const parseRawActionSetFromText = (
       rawTextLength: text.length,
       step: "parse_synthesis_output",
     });
-    throw new Error(
-      `Synthesis output parsing failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-      { cause: error }
-    );
+    throw new SynthesisOutputParseError(error);
   }
 };
 

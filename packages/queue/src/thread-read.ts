@@ -104,6 +104,10 @@ const RELEASE_CLAIM_SCRIPT = `
 `;
 
 const DEFAULT_DEBOUNCE_MS = 2000;
+const THREAD_READ_DEFAULT_JOB_OPTIONS = {
+  attempts: 3,
+  backoff: { delay: 5000, type: "exponential" as const },
+};
 
 export type ThreadReadJobPriority = "high" | "normal" | "low";
 
@@ -762,6 +766,7 @@ export const configureThreadReadQueue = (options: {
     options.queue ??
     new Queue<ThreadReadJobData>(THREAD_PIPELINE_QUEUE, {
       connection: options.connection,
+      defaultJobOptions: THREAD_READ_DEFAULT_JOB_OPTIONS,
     });
   ownsQueue = options.queue === undefined;
   ownsRedisConnection = false;
@@ -844,6 +849,7 @@ const getManager = (): ThreadReadQueueManager | null => {
   if (!queue) {
     queue = new Queue<ThreadReadJobData>(THREAD_PIPELINE_QUEUE, {
       connection: redisConnection,
+      defaultJobOptions: THREAD_READ_DEFAULT_JOB_OPTIONS,
     });
     ownsQueue = true;
   }

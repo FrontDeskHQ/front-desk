@@ -257,12 +257,16 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         };
       } catch (error) {
         status = 500;
+        const retryable = isRetryableError(error);
         const message = error instanceof Error ? error.message : String(error);
         requestLog.error(error instanceof Error ? error : String(error), {
-          retryable: isRetryableError(error),
+          retryable,
           step: "synthesis",
         });
         requestLog.set({ outcome: { status: "failed" } });
+        if (retryable) {
+          throw error;
+        }
         return { threadId, success: false, error: message };
       } finally {
         requestLog.emit({ status });

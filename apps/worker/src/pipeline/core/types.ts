@@ -15,6 +15,7 @@ export interface ProcessorErrorResult {
   threadId: string;
   success: false;
   error: string;
+  retryable?: boolean;
   skipped?: false;
 }
 
