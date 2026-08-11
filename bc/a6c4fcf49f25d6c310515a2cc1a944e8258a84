@@ -1,0 +1,27 @@
+apps/web/src/components/devtools/developer-commands.tsx
+  s_b377e9f160acc5::t_cb63169e5a5023 36,223-229,245-251,539-542
+apps/web/src/components/devtools/devtools-menu/retrigger-thread-read-command.tsx
+  s_b377e9f160acc5::t_96263fc9e93651 1-9,14-32,39-86
+  s_b377e9f160acc5::t_8586dac00bb725 10-13
+  s_b377e9f160acc5::t_cbfeb3090fd12e 33-38
+apps/api/src/live-state/router/threads.ts
+  s_b377e9f160acc5::t_6b6da874a0b91f 8,15,663-683
+apps/web/src/components/devtools/devtools-menu/threads-submenu.tsx
+  s_b377e9f160acc5::t_137b5fcd898e9f 6,16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bca6c4fcf49f25d6c310515a2cc1a944e8258a84",
+  "prompts": {},
+  "sessions": {
+    "s_b377e9f160acc5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "2947e1cc-6449-4545-92e4-117d647eddd9",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
