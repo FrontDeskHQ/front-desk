@@ -103,8 +103,8 @@ async function validateDocumentationUrl(baseUrl: string): Promise<{
     };
   }
 
-  // 1. Check sitemap.xml exists
-  const sitemapUrl = new URL("/sitemap.xml", baseUrl).href;
+  // 1. Check sitemap.xml exists (relative to baseUrl path, matching the crawler)
+  const sitemapUrl = `${baseUrl.replace(/\/$/, "")}/sitemap.xml`;
   let sitemapText: string;
   try {
     const res = await fetch(sitemapUrl, {
