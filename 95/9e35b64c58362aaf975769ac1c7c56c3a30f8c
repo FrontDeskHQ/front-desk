@@ -1,0 +1,22 @@
+apps/api/src/lib/update-mutations.test.ts
+  s_c2ac42eda61a2e::t_917cd74057f38b 1-39
+apps/api/src/lib/update-mutations.ts
+  s_c2ac42eda61a2e::t_2b851d866b082a 48
+  s_c2ac42eda61a2e::t_8e6cefa90f80da 37-40,46-47,49,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "959e35b64c58362aaf975769ac1c7c56c3a30f8c",
+  "prompts": {},
+  "sessions": {
+    "s_c2ac42eda61a2e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "feaf1114-bd74-4007-acfe-adc59e3a9298",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
