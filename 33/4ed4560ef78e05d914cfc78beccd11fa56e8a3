@@ -1,0 +1,19 @@
+apps/api/src/live-state/router.ts
+  s_30a8b7ae38a12c::t_46ec5c43502fea 564,566
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "334ed4560ef78e05d914cfc78beccd11fa56e8a3",
+  "prompts": {},
+  "sessions": {
+    "s_30a8b7ae38a12c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "216a0e2e-ee1f-40bc-b298-33aa3859b7d7",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
