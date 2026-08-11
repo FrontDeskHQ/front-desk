@@ -34,18 +34,24 @@ export const markReplicatedInputSchema = z.object({
 });
 
 type RecordActivityDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
-type MarkReplicatedDb = Pick<ServerDB<typeof schema>, "update">;
+type MarkReplicatedDb = Pick<
+  ServerDB<typeof schema>,
+  "findOne" | "update"
+>;
 
 export const runMarkReplicated = async (
   db: MarkReplicatedDb,
   input: z.infer<typeof markReplicatedInputSchema>
 ) => {
-  const update = await db.update.one(input.updateId).get();
+  // `update` is both a collection name and a legacy ServerDB method, so the
+  // collection facade is shadowed at runtime. Use the legacy methods here.
+  // Upstream issue: https://github.com/pedroscosta/live-state/issues/211
+  const update = await db.findOne(schema.update, input.updateId);
   if (!update) {
     throw new Error("UPDATE_NOT_FOUND");
   }
 
-  await db.update.update(input.updateId, {
+  await db.update(schema.update, input.updateId, {
     replicatedStr: input.replicatedStr,
   });
 
