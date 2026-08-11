@@ -1,0 +1,19 @@
+apps/web/src/routes/app/_workspace/route.tsx
+  s_e058ebaeec9e39::t_1cb361b84bc912 168,170
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "46e87d92d940ae17be54e7f427f8faa7e321a5e1",
+  "prompts": {},
+  "sessions": {
+    "s_e058ebaeec9e39": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "902b4688-c495-4740-a0fa-f3441ed6d3eb",
+        "model": "grok-4.5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
