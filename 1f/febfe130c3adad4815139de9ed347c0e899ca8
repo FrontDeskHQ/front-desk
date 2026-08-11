@@ -1,0 +1,20 @@
+docs/adr/0016-one-time-websocket-credential-exchange.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 2
+  s_407d53ee52d9db::t_142061af046910 1,3-17,19,21,23,25-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1ffebfe130c3adad4815139de9ed347c0e899ca8",
+  "prompts": {},
+  "sessions": {
+    "s_407d53ee52d9db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fed07-38e3-78b2-acd3-7e56c78b8652",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}

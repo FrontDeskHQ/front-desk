@@ -1,0 +1,40 @@
+apps/api/src/lib/api-key-lifecycle.test.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1-4,7-20,27-28,33-43,55-56,58-68,86,53,84-85
+  s_407d53ee52d9db::t_b4a804413531f8 44-45,46,48-52
+  s_407d53ee52d9db::t_26cf5e05a7fad3 6,47,54,57,71-83
+  s_407d53ee52d9db::t_7483f2ca632705 24,29-31
+apps/api/src/lib/api-key-lifecycle.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1,3,12-16,22,29-34,38-39,53-58,9-10
+  s_407d53ee52d9db::t_7bf879531f8a78 2
+  s_407d53ee52d9db::t_75276e130ca113 23,25,28
+  s_407d53ee52d9db::t_26cf5e05a7fad3 35-37
+  s_e6e415b5841774::t_1cb5191712e42e 11
+apps/api/src/live-state/router.ts
+  s_407d53ee52d9db::t_c1df94ce8a1eb4 26,40,547-561,569-581,583-584,611-634,644-648,565
+  s_407d53ee52d9db::t_a44570f2065ff5 30-31,566-568
+  s_407d53ee52d9db::t_26cf5e05a7fad3 29,649
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "20cd73af3e9fd61a74ca3a38d7d904f68fce713c",
+  "prompts": {},
+  "sessions": {
+    "s_407d53ee52d9db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fed07-38e3-78b2-acd3-7e56c78b8652",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}

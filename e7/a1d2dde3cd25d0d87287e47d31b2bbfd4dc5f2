@@ -1,0 +1,109 @@
+apps/api/src/live-state/router.ts
+  s_407d53ee52d9db::t_c1df94ce8a1eb4 26,39,546-560,568-582,609-632,642-646,564,563
+  s_407d53ee52d9db::t_a44570f2065ff5 29-30,565-567
+  s_407d53ee52d9db::t_26cf5e05a7fad3 28,647
+  s_e6e415b5841774::t_f67f407749f36d 561-562
+connectors/framework/src/runtime/live-state.ts
+  s_407d53ee52d9db::t_cdd3e31b58d93c 7
+  s_407d53ee52d9db::t_33142cdcda13f4 34-38,40,42-45,47-50,53-54,65,91
+  s_f59a3c1134e3f7::t_31d3c631dcc004 55,5
+  s_407d53ee52d9db::t_cfb004d3fbbb85 60,63-64
+  s_e6e415b5841774::t_811babc990db8a 6
+  s_e6e415b5841774::t_f46b4f8917d965 31,41,56
+  s_e6e415b5841774::t_156622a4128158 61-62
+  s_e6e415b5841774::t_43f15ff3afd889 89
+apps/api/src/index.ts
+  s_407d53ee52d9db::t_295ecfabb7fa8a 13,15,17,53-58,139-140,172-173
+  s_407d53ee52d9db::t_651a5b73d2d213 16
+  s_407d53ee52d9db::t_7c95d82482ccb2 132-135,138,163-166,171,251
+apps/api/src/lib/authorize.ts
+  s_407d53ee52d9db::t_7a3a3c976344a4 24,205
+  s_407d53ee52d9db::t_243c522e9ce648 166,301,339-345,436-439,468-469
+  s_e6e415b5841774::t_b4e37aa98a9376 303,308,312
+  s_e6e415b5841774::t_33e58ce11e314e 326
+  s_e6e415b5841774::t_b3aec01fe9e3f7 466-467
+apps/api/src/lib/api-key-lifecycle.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1,3,7-11,14,22-27,31-32,42-47
+  s_407d53ee52d9db::t_7bf879531f8a78 2
+  s_407d53ee52d9db::t_75276e130ca113 17,19,21
+  s_407d53ee52d9db::t_26cf5e05a7fad3 28-30
+  s_e6e415b5841774::t_1cb5191712e42e 5-6,12,15-16,18,20,33-41
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_407d53ee52d9db::t_91d363c9efb170 1,65,82
+  s_407d53ee52d9db::t_15ecad11f34131 15,30-33,43,60,67-69,88-96,132-133,164-194,210-221,232,234,292,307-309,328,338-342,382-384
+  s_e6e415b5841774::t_335ccefd75da21 116-119
+  s_e6e415b5841774::t_37f808bf2469a5 120-126
+  s_e6e415b5841774::t_9999aae0317565 151
+  s_e6e415b5841774::t_f79fd52951f4b8 209
+  s_e6e415b5841774::t_325f5beef9ccd8 233
+apps/api/src/lib/api-key-lifecycle.test.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1-4,6-21,26-36,48-49,51-61,79,46,77-78
+  s_407d53ee52d9db::t_b4a804413531f8 37-38,39,41-45
+  s_407d53ee52d9db::t_26cf5e05a7fad3 5,40,47,50,64-76
+  s_407d53ee52d9db::t_7483f2ca632705 22-24
+apps/api/src/lib/connection-token.ts
+  s_407d53ee52d9db::t_7fc1c676972fff 1-12,14-31,33-52,54-61,64-71,85-111,79
+  s_407d53ee52d9db::t_89482327c459c9 13
+  s_407d53ee52d9db::t_91d363c9efb170 62-63
+  s_e6e415b5841774::t_b175f5bb2165bb 74-75,32,53,72-73,77-78,80-84,112
+apps/api/src/lib/api-credential.ts
+  s_407d53ee52d9db::t_60a8a8b901464a 3-5,7,9-19,21-25,31-32,34-37,42-55,58-60,62-64,66-70,103,131-134,136-138,140-143,146,181,117,152,161,169,175
+  s_407d53ee52d9db::t_91d363c9efb170 6
+  s_407d53ee52d9db::t_89482327c459c9 8,120-121,126-130,135
+  s_407d53ee52d9db::t_651a5b73d2d213 71-73,78-102
+  s_e6e415b5841774::t_244270c6d34462 113-114,145,153,162,2,26-30,33,56-57,61,65,74-75,77,104-112,115-116,118-119,122-125,139,144,147-151,154-160,163-168,170-174,176-180
+  s_407d53ee52d9db::t_e6644b956e516d 1,38-41
+  s_e6e415b5841774::t_a1ec2fb15a8c8a 76
+docs/adr/0016-one-time-websocket-credential-exchange.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 2
+  s_407d53ee52d9db::t_142061af046910 1,3-17,19,21,23,25-27
+  s_e6e415b5841774::t_82adee8683a74b 18,20,22,24
+  s_e6e415b5841774::t_f1c377b06ec1c8 28-31
+CONTEXT.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 129,131,133,135
+  s_e6e415b5841774::t_dc1e772b8bf5fe 128,130,132,134
+apps/api/src/lib/api-credential.test.ts
+  s_407d53ee52d9db::t_958c07f7d0057e 1,7-10,12-102,155-156
+  s_407d53ee52d9db::t_962534bb3f240b 2-6
+  s_407d53ee52d9db::t_523adb157d9012 11,117-135,137-154,110,115-116
+  s_e6e415b5841774::t_da1dc4e2b1cfcd 103-106,111-114
+  s_e6e415b5841774::t_58b0d0bc8a7316 136
+apps/api/src/lib/connection-token.test.ts
+  s_407d53ee52d9db::t_958c07f7d0057e 1-4,6-28,31,33-44,50-55,57-61,63-64,66-68,70-71
+  s_407d53ee52d9db::t_3b09a05bdd1ed7 45,62,65,69
+  s_407d53ee52d9db::t_91d363c9efb170 46-49
+  s_407d53ee52d9db::t_0f8043c7fa13d3 29-30
+  s_e6e415b5841774::t_b175f5bb2165bb 5,32,56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e7a1d2dde3cd25d0d87287e47d31b2bbfd4dc5f2",
+  "prompts": {},
+  "sessions": {
+    "s_407d53ee52d9db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fed07-38e3-78b2-acd3-7e56c78b8652",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_f59a3c1134e3f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2c81831e-de5f-4895-99e0-288657849432",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}

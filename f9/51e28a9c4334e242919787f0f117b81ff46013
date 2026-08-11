@@ -1,0 +1,96 @@
+apps/api/src/lib/api-credential.test.ts
+  s_407d53ee52d9db::t_958c07f7d0057e 1,7-8,10-11,13-103,107,159-160
+  s_407d53ee52d9db::t_962534bb3f240b 2-6
+  s_407d53ee52d9db::t_523adb157d9012 12,121-139,141-158
+  s_e6e415b5841774::t_da1dc4e2b1cfcd 114-117
+apps/api/src/lib/authorize.test.ts
+  s_407d53ee52d9db::t_c199b197664331 5,7,181-186,190-200,204-213,217-219
+  s_407d53ee52d9db::t_91d363c9efb170 187-189,201-203,214-216
+apps/api/src/lib/api-credential.ts
+  s_407d53ee52d9db::t_60a8a8b901464a 1-3,5,7-17,43,56-60,65-66,69-72,74-87,90-92,94-96,103-107,140,157-160,162-164,166-169,177,194
+  s_407d53ee52d9db::t_91d363c9efb170 4
+  s_407d53ee52d9db::t_89482327c459c9 6,150-156,161
+  s_e6e415b5841774::t_3f47a7ded23646 55
+  s_407d53ee52d9db::t_651a5b73d2d213 108-110,112-123,126-136,138-139
+  s_e6e415b5841774::t_244270c6d34462 147-148,176,188,192
+apps/api/src/lib/feature-flag.ts
+  s_407d53ee52d9db::t_c1df94ce8a1eb4 7-13
+apps/api/src/lib/connection-token.ts
+  s_407d53ee52d9db::t_7fc1c676972fff 1-12,14-31,33-52,54-61,64-71,85-111
+  s_407d53ee52d9db::t_89482327c459c9 13
+  s_407d53ee52d9db::t_91d363c9efb170 62-63
+  s_e6e415b5841774::t_02361c6df9f357 72,76
+  s_e6e415b5841774::t_b175f5bb2165bb 82-83
+apps/api/src/index.ts
+  s_407d53ee52d9db::t_295ecfabb7fa8a 13,15,17,53-58,124-125,149-150
+  s_407d53ee52d9db::t_651a5b73d2d213 16
+apps/api/src/lib/api-key-lifecycle.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1,3-5,7-8,13,18,24-29,31-32,46-51
+  s_407d53ee52d9db::t_7bf879531f8a78 2
+  s_407d53ee52d9db::t_75276e130ca113 19,21,23
+  s_e6e415b5841774::t_1cb5191712e42e 20
+connectors/framework/src/runtime/live-state.ts
+  s_407d53ee52d9db::t_cdd3e31b58d93c 5
+  s_407d53ee52d9db::t_33142cdcda13f4 34-38,40,42-45,47-50,53-54,60,86
+  s_f59a3c1134e3f7::t_31d3c631dcc004 55
+docs/adr/0016-one-time-websocket-credential-exchange.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 2
+CONTEXT.md
+  s_407d53ee52d9db::t_48c7375ebc1b19 129,131,133,135
+apps/api/.env.local.example
+  s_407d53ee52d9db::t_bf52b17f4634a5 7-8
+apps/api/src/lib/connection-token.test.ts
+  s_407d53ee52d9db::t_958c07f7d0057e 1-4,6-28,31,33-44,52-57,59-63,65-66,68-70,72-73
+  s_407d53ee52d9db::t_3b09a05bdd1ed7 45,64,67,71
+  s_407d53ee52d9db::t_91d363c9efb170 46-49
+apps/api/src/lib/api-key.ts
+  s_407d53ee52d9db::t_bf52b17f4634a5 88-92
+apps/api/src/live-state/router.ts
+  s_407d53ee52d9db::t_c1df94ce8a1eb4 26,39,546-560,568-580,582-583,610-633,643-647
+  s_407d53ee52d9db::t_a44570f2065ff5 29-30,561-562,567
+apps/api/src/lib/api-key-lifecycle.test.ts
+  s_407d53ee52d9db::t_a44570f2065ff5 1-4,6-19,29-31,35-36,38-43,45-47,50-51,53-63,66
+  s_407d53ee52d9db::t_b4a804413531f8 48-49
+apps/api/src/lib/authorize.ts
+  s_407d53ee52d9db::t_7a3a3c976344a4 24,205
+  s_407d53ee52d9db::t_243c522e9ce648 166,302,355-361,452-455,484-485
+apps/api/src/live-state/router/threads.ts
+  s_407d53ee52d9db::t_243c522e9ce648 93-95
+apps/api/src/live-state/schema.ts
+  s_407d53ee52d9db::t_bf52b17f4634a5 405-417,443
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_407d53ee52d9db::t_91d363c9efb170 1,65,82
+  s_407d53ee52d9db::t_15ecad11f34131 15,30-33,43,60,67-69,88-96,133-134,171-201,217-228,239,244,302,317-319,338,348-352,392-394
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f951e28a9c4334e242919787f0f117b81ff46013",
+  "prompts": {},
+  "sessions": {
+    "s_407d53ee52d9db": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019fed07-38e3-78b2-acd3-7e56c78b8652",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_e6e415b5841774": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "5d9d19f8-340d-41e1-8e28-cb8edc650c15",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_f59a3c1134e3f7": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "2c81831e-de5f-4895-99e0-288657849432",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
