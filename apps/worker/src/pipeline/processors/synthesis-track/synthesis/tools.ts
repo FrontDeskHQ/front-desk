@@ -184,6 +184,13 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
           };
         }
 
+        if (thread.deletedAt !== null && thread.deletedAt !== undefined) {
+          return {
+            found: false,
+            reason: "not_found",
+          };
+        }
+
         if (thread.organizationId !== organizationId) {
           return {
             found: false,

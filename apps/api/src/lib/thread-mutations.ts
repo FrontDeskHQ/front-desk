@@ -594,14 +594,23 @@ export const runMarkDuplicate = async (
   const thread =
     options?.preloadedThread ??
     (await db.thread
-      .first({ id: input.threadId, organizationId: input.organizationId })
+      .first({
+        deletedAt: null,
+        id: input.threadId,
+        organizationId: input.organizationId,
+      })
       .get());
-  if (!thread || thread.organizationId !== input.organizationId) {
+  if (
+    !thread ||
+    thread.organizationId !== input.organizationId ||
+    (thread.deletedAt !== null && thread.deletedAt !== undefined)
+  ) {
     throw new Error("THREAD_NOT_FOUND");
   }
 
   const target = await db.thread
     .first({
+      deletedAt: null,
       id: input.duplicateOfThreadId,
       organizationId: input.organizationId,
     })

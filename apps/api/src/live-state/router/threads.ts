@@ -376,7 +376,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         return [];
       }
       return db.thread
-        .where({ id: { $in: req.input.ids } })
+        .where({ deletedAt: null, id: { $in: req.input.ids } })
         .include({
           labels: { include: { label: true } },
           messages: true,
