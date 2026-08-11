@@ -1,0 +1,40 @@
+apps/worker/src/pipeline/core/retry.ts
+  s_136502dbe349da::t_c3f4197f2f590e 1-28
+apps/worker/src/pipeline/core/orchestrator.ts
+  s_136502dbe349da::t_cbfe3978ba234e 484-485,487-490,548-556
+  s_136502dbe349da::t_2b74f7024e531a 234,238,246
+  s_136502dbe349da::t_bd582c4a7c1a4b 19-22,486
+  s_136502dbe349da::t_4d5e0a12da625a 3
+apps/worker/src/lib/logging.ts
+  s_136502dbe349da::t_adf45b5747809f 171
+apps/worker/src/lib/logging.test.ts
+  s_136502dbe349da::t_1627f5522c51c9 1-2,4-7,9-12
+  s_136502dbe349da::t_118830619094b8 3,8
+packages/queue/src/thread-read.ts
+  s_136502dbe349da::t_d1996aa6479b2e 107-110,769,852
+apps/worker/src/pipeline/core/types.ts
+  s_136502dbe349da::t_2beb6f05c6b613 18
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_136502dbe349da::t_ae94769bedef93 76-87
+  s_136502dbe349da::t_012caaa0fc59e9 139
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_136502dbe349da::t_5ba8caa309fc8b 260,263,267-269
+apps/worker/src/pipeline/core/retry.test.ts
+  s_136502dbe349da::t_4e293b8482c647 1-38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "18878f5eae6ac7d619f8da55696cae5bad89f45e",
+  "prompts": {},
+  "sessions": {
+    "s_136502dbe349da": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "5a0aacb2-0b05-4b15-bc60-c8b5e24f6eef",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
