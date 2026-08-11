@@ -5,6 +5,20 @@ import { schema } from "api/schema";
 
 const BOT_KEY_HEADER = "x-discord-bot-key";
 
+const RETRY_INITIAL_DELAY_MS = 500;
+const RETRY_MAX_DELAY_MS = 10_000;
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A rejected credential will keep being rejected, so retrying it only delays a
+ * misconfiguration. Everything else (the API still booting, a transient 5xx, a
+ * dropped connection) is worth probing again.
+ */
+const isRetryableStatus = (status: number) =>
+  status === 408 || status === 429 || status >= 500;
+
 export interface CreateLiveStateClientOptions {
   /**
    * Value of the connector bot key (all connectors authenticate against the
@@ -36,7 +50,7 @@ export const createLiveStateClient = (
     process.env.LIVE_STATE_API_URL ??
     "http://localhost:3333/api/ls";
 
-  const exchangeConnectionToken = async (): Promise<string> => {
+  const requestConnectionToken = async (): Promise<string> => {
     // live-state awaits this callback before connecting, so a stalled API would
     // otherwise hang the initial connection and every reconnect behind it.
     const response = await fetch(`${apiUrl}/connection-token`, {
@@ -46,9 +60,13 @@ export const createLiveStateClient = (
     });
 
     if (!response.ok) {
-      throw new Error(
+      const error = new Error(
         `${prefix}Failed to exchange Live State connection token (${response.status})`
       );
+      if (!isRetryableStatus(response.status)) {
+        throw error;
+      }
+      throw Object.assign(error, { retryable: true });
     }
 
     const { token } = (await response.json()) as { token?: unknown };
@@ -57,6 +75,42 @@ export const createLiveStateClient = (
     }
 
     return token;
+  };
+
+  /**
+   * Connectors routinely boot before the API does on a deploy, so keep probing
+   * with a capped backoff instead of failing the connector's first connect. Each
+   * attempt stays bounded by its own timeout, so we never wedge on one request.
+   */
+  const exchangeConnectionToken = async (): Promise<string> => {
+    let delay = RETRY_INITIAL_DELAY_MS;
+
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await requestConnectionToken();
+      } catch (error) {
+        // Non-retryable responses (a rejected bot key, a malformed payload) are
+        // configuration problems — surface them rather than looping forever.
+        const retryable =
+          !(error instanceof Error) ||
+          "retryable" in error ||
+          error.name === "TimeoutError" ||
+          error.name === "AbortError" ||
+          error instanceof TypeError;
+
+        if (!retryable) {
+          throw error;
+        }
+
+        console.warn(
+          `${prefix}Live State token exchange failed (attempt ${attempt}), retrying in ${delay}ms:`,
+          error
+        );
+
+        await sleep(delay);
+        delay = Math.min(delay * 2, RETRY_MAX_DELAY_MS);
+      }
+    }
   };
 
   const { client, store } = createClient<Router>({
