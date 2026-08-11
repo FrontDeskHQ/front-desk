@@ -5,12 +5,14 @@ import z from "zod";
 import {
   assertInternalKeyForIntegrationFields,
   authorize,
+  authorizeDeveloperAction,
   authorizeThreadCreate,
   getPortalAuthor,
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
 import { runCreateIssue } from "../../lib/issue-tracker";
+import { enqueueThreadRead } from "../../lib/queue";
 import {
   acceptInlineSuggestionInputSchema,
   acceptReadInputSchema,
@@ -658,4 +660,25 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       return runSetAgentRead(db, req.input);
     }
   ),
+  retriggerRead: mutation(
+    z.object({
+      organizationId: z.string(),
+      threadId: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    authorizeDeveloperAction(req, req.input.organizationId, {
+      action: "thread_read_retrigger",
+    });
+
+    const thread = await db.findOne(schema.thread, req.input.threadId);
+    if (!thread || thread.organizationId !== req.input.organizationId) {
+      throw new Error("THREAD_NOT_FOUND");
+    }
+
+    return enqueueThreadRead(req.input.threadId, {
+      delayMs: 0,
+      kind: "manual",
+      priority: "high",
+    });
+  }),
 }));

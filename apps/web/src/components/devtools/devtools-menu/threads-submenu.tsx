@@ -3,6 +3,7 @@
 import { MenuItem } from "@workspace/ui/components/menu";
 
 import { DuplicateThreadMenuItem } from "./duplicate-thread-command";
+import { RetriggerThreadReadMenuItem } from "./retrigger-thread-read-command";
 
 interface ThreadsSubmenuProps {
   onOpenDialog: () => void;
@@ -12,5 +13,6 @@ export const ThreadsSubmenu = ({ onOpenDialog }: ThreadsSubmenuProps) => (
   <>
     <MenuItem onClick={onOpenDialog}>Create Thread</MenuItem>
     <DuplicateThreadMenuItem />
+    <RetriggerThreadReadMenuItem />
   </>
 );

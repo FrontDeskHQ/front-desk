@@ -33,6 +33,7 @@ import { buildThreadParam } from "~/utils/thread";
 import { CreateThreadDialog } from "./devtools-menu/create-thread-dialog";
 import { duplicateThreadFromParam } from "./devtools-menu/duplicate-thread-command";
 import type { DuplicatedThread } from "./devtools-menu/duplicate-thread-command";
+import { retriggerThreadReadFromParam } from "./devtools-menu/retrigger-thread-read-command";
 import { useThreadRouteRawParam } from "./devtools-menu/thread-route-for-devtools";
 import { useReactScanEnabled } from "./react-scan";
 
@@ -219,6 +220,13 @@ export const DeveloperToolsCommands = ({
     });
   }, [navigate, organizationId, rawThreadParam]);
 
+  const handleRetriggerThreadRead = useCallback(() => {
+    void retriggerThreadReadFromParam({
+      activeOrganizationId: organizationId,
+      rawParam: rawThreadParam,
+    });
+  }, [organizationId, rawThreadParam]);
+
   const threadsPage: CommandPage = {
     commands: [
       {
@@ -233,6 +241,13 @@ export const DeveloperToolsCommands = ({
         id: "developer-tools.duplicate-thread",
         label: "Duplicate current thread",
         onSelect: handleDuplicateThread,
+      },
+      {
+        disabled: !rawThreadParam,
+        icon: <RefreshCw />,
+        id: "developer-tools.retrigger-thread-read",
+        label: "Retrigger current thread read",
+        onSelect: handleRetriggerThreadRead,
       },
     ],
     icon: <Terminal />,
@@ -521,7 +536,10 @@ export const DeveloperToolsCommands = ({
     label: "Developer tools",
   };
 
-  useCommandPage(() => threadsPage, [handleDuplicateThread, rawThreadParam]);
+  useCommandPage(
+    () => threadsPage,
+    [handleDuplicateThread, handleRetriggerThreadRead, rawThreadParam]
+  );
   useCommandPage(
     () => githubPrPage,
     [eligiblePullRequests, invokeGithubAction]
