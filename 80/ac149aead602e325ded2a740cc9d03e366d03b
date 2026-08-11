@@ -1,0 +1,19 @@
+apps/api/src/live-state/router/documentation-sources.ts
+  s_14a201c4535e82::t_62343eb2c3bd11 106-107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "80ac149aead602e325ded2a740cc9d03e366d03b",
+  "prompts": {},
+  "sessions": {
+    "s_14a201c4535e82": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "822d1a4b-e6f3-4323-b698-366d1f195637",
+        "model": "grok-4.5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
