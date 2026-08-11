@@ -165,7 +165,9 @@ function RouteComponent() {
 
   // Only owners see the trial-expired upgrade dialog (they own billing).
   // Don't show it for beta-feedback plans.
+  // Skip in local/dev so long-lived local DBs aren't blocked by an expired trial.
   const showTrialExpiredDialog =
+    !import.meta.env.DEV &&
     isOwner &&
     plan === "trial" &&
     !isBetaFeedback &&
