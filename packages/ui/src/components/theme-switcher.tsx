@@ -8,6 +8,7 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { SidebarMenuButton } from "@workspace/ui/components/sidebar";
+import { useKeybind } from "@workspace/ui/hooks/use-keybind";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
@@ -18,13 +19,30 @@ const themes = [
   { icon: Monitor, label: "System", value: "system" },
 ] as const;
 
+const THEME_SWITCHER_KEYBIND = "l";
+
 export const ThemeSwitcher = () => {
   const { theme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  const currentThemeIndex = themes.findIndex(
+    (themeOption) => themeOption.value === theme
+  );
 
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useKeybind(
+    THEME_SWITCHER_KEYBIND,
+    (event) => {
+      event.preventDefault();
+      const nextTheme =
+        themes[(currentThemeIndex + 1) % themes.length] ?? themes[0];
+      setTheme(nextTheme.value);
+    },
+    [currentThemeIndex],
+    { enabled: mounted }
+  );
 
   if (!mounted) {
     return (
@@ -38,7 +56,7 @@ export const ThemeSwitcher = () => {
     );
   }
 
-  const currentTheme = themes.find((t) => t.value === theme) ?? themes[2];
+  const currentTheme = themes[currentThemeIndex] ?? themes[2];
   const CurrentIcon = currentTheme.icon;
 
   return (
