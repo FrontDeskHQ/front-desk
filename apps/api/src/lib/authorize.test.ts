@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import type { AuthorizeReq, DeveloperActionDeniedEvent } from "./authorize";
 import {
+  authorize,
   authorizeDeveloperAction,
+  authorizeThreadCreate,
   isInternalDeveloperEmail,
 } from "./authorize";
 
@@ -174,5 +176,46 @@ describe("developer-action authorization gate", () => {
       { environment: "development" }
     );
     expect(publicKey.reason).toBe("missing_session");
+  });
+});
+
+describe("private API key authorization", () => {
+  it("opts private keys into thread creation with the key organization", () => {
+    expect(
+      authorizeThreadCreate(
+        {
+          context: { privateApiKey: { id: "key-a", ownerId: organizationId } },
+        },
+        {
+          hasIntegrationOnlyFields: true,
+          organizationId,
+        }
+      )
+    ).toBe("private");
+  });
+
+  it("rejects cross-organization thread creation", () => {
+    expect(() =>
+      authorizeThreadCreate(
+        {
+          context: { privateApiKey: { id: "key-a", ownerId: organizationId } },
+        },
+        {
+          hasIntegrationOnlyFields: false,
+          organizationId: "org-b",
+        }
+      )
+    ).toThrow("UNAUTHORIZED");
+  });
+
+  it("does not grant private keys the internal-key bypass elsewhere", () => {
+    expect(() =>
+      authorize(
+        {
+          context: { privateApiKey: { id: "key-a", ownerId: organizationId } },
+        },
+        { organizationId }
+      )
+    ).toThrow("UNAUTHORIZED");
   });
 });

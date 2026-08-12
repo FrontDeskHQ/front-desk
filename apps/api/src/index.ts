@@ -10,7 +10,11 @@ import cors from "cors";
 import express from "express";
 import type { Express, RequestHandler } from "express";
 
-import { publicKeys } from "./lib/api-key";
+import {
+  credentialErrorMessage,
+  resolveHttpApiCredential,
+  resolveWebSocketApiCredential,
+} from "./lib/api-credential";
 import { auth } from "./lib/auth";
 import { parsePortalOrganizationSlug } from "./lib/authorize";
 import { reflagClient } from "./lib/feature-flag";
@@ -20,6 +24,7 @@ import { runMigrations } from "./live-state/migrations";
 import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
+import { exchangeConnectionToken } from "./routes/connection-token";
 
 const { app } = expressWs(express() as unknown as Express);
 
@@ -46,7 +51,12 @@ const resolvePortalOrganizationId = async (
 };
 
 const corsOptions = {
-  allowedHeaders: ["Content-Type", "Authorization", "x-public-api-key"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "x-discord-bot-key",
+    "x-public-api-key",
+  ],
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "HEAD"],
   origin: "*",
@@ -111,24 +121,18 @@ const lsServer = server({
     queryParams: Record<string, string>;
   }) => {
     if (transport === "WEBSOCKET") {
-      if (queryParams.discordBotKey) {
-        const botKey = queryParams.discordBotKey;
-
-        if (botKey !== process.env.DISCORD_BOT_KEY) return;
-
-        return {
-          internalApiKey: botKey,
-        };
+      let apiCredential;
+      try {
+        apiCredential = await resolveWebSocketApiCredential(queryParams);
+      } catch (error) {
+        console.warn(
+          "[auth] WebSocket API credential rejected",
+          credentialErrorMessage(error)
+        );
+        throw new Error("UNAUTHORIZED", { cause: error });
       }
-
-      if (queryParams.publicApiKey) {
-        const result = await publicKeys.verify(queryParams.publicApiKey);
-
-        if (!result.valid) throw new Error("Invalid public API key");
-
-        return {
-          publicApiKey: result.record?.metadata,
-        };
+      if (apiCredential) {
+        return apiCredential;
       }
 
       if (!queryParams.token) return;
@@ -151,24 +155,20 @@ const lsServer = server({
       return { ...session };
     }
 
-    if (headers["x-discord-bot-key"]) {
-      const botKey = headers["x-discord-bot-key"];
-
-      if (botKey !== process.env.DISCORD_BOT_KEY) return;
-
-      return {
-        internalApiKey: botKey,
-      };
+    let apiCredential;
+    try {
+      apiCredential = await resolveHttpApiCredential(headers);
+    } catch (error) {
+      console.warn(
+        "[auth] HTTP API credential rejected",
+        credentialErrorMessage(error)
+      );
+      // A bad explicit credential fails the request outright. It must not fall
+      // through to a passive cookie session, nor to anonymous public routing.
+      throw new Error("UNAUTHORIZED", { cause: error });
     }
-
-    if (headers["x-public-api-key"]) {
-      const result = await publicKeys.verify(headers["x-public-api-key"]);
-
-      if (!result.valid) throw new Error("Invalid public API key");
-
-      return {
-        publicApiKey: result.record?.metadata,
-      };
+    if (apiCredential) {
+      return apiCredential;
     }
 
     const headersParse = new Headers(headers);
@@ -217,6 +217,8 @@ app.all("/api/auth/*", toNodeHandler(auth));
 app.all("/api/portal-auth/*", toNodeHandler(portalAuth));
 
 app.use(express.json());
+
+app.post("/api/ls/connection-token", exchangeConnectionToken);
 
 process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(

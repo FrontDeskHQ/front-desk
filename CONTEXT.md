@@ -125,6 +125,14 @@ Whether an [integration](#integration)'s [external install](#external-install) s
 
 A FrontDesk tenant and membership boundary. It owns threads, integrations, and configuration; a user gets access through organization membership. _Avoid_: "account" when the tenant is meant.
 
+### Internal API key
+
+A FrontDesk-owned credential that is trusted everywhere, used by internal services and tooling. It never belongs to an [organization](#organization), even when a request made with it acts on one. _Avoid_: "private API key" or "connector key".
+
+### Private API key
+
+An [organization](#organization)'s own secret for authenticating server-to-server requests. It stands for the organization rather than the person who created it, and carries none of an [internal API key](#internal-api-key)'s reach.
+
 **Internal developer**: A workspace user with a verified `@tryfrontdesk.app` email address. An internal developer may use [developer tools](#developer-tool) for any [organization](#organization) they belong to; this does not make them an organization owner. _Avoid_: "admin" as a synonym — ownership and internal status are different concepts.
 
 **Developer tool**: An internal-only surface for inspecting or intentionally exercising FrontDesk behavior. Developer tools are available to internal developers in the organizations where they are members, regardless of deployment environment.

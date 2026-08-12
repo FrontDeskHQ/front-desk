@@ -402,6 +402,19 @@ const migration = object("migration", {
   id: id(),
 });
 
+// Opaque, one-time WebSocket credentials. This model is server-only: no route
+// exposes it and no client load/query includes it.
+const connectionToken = object("connectionToken", {
+  apiKeyId: string().nullable(),
+  consumedAt: timestamp().nullable(),
+  createdAt: timestamp(),
+  expiresAt: timestamp().index(),
+  id: id(),
+  organizationId: string().nullable(),
+  principalType: string(),
+  tokenHash: string().unique().index(),
+});
+
 export const schema = createSchema({
   // models
   organization,
@@ -427,6 +440,7 @@ export const schema = createSchema({
   agentChatMessage,
   externalEntity,
   migration,
+  connectionToken,
   // relations
   organizationUserRelations,
   organizationRelations,

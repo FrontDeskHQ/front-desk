@@ -3,20 +3,67 @@ import { createClient as createFetchClient } from "@live-state/sync/client/fetch
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 
+const BOT_KEY_HEADER = "x-discord-bot-key";
+
+const RETRY_INITIAL_DELAY_MS = 500;
+const RETRY_MAX_DELAY_MS = 10_000;
+
+const sleep = (ms: number) =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * A rejected credential will keep being rejected, so retrying it only delays a
+ * misconfiguration. Everything else (the API still booting, a transient 5xx, a
+ * dropped connection) is worth probing again.
+ */
+const isRetryableStatus = (status: number) =>
+  status === 408 || status === 429 || status >= 500;
+
+/** Bun/Node network failure codes from a refused / dropped connection-token fetch. */
+const RETRYABLE_NETWORK_CODES = new Set([
+  "ConnectionRefused",
+  "ConnectionReset",
+  "ConnectionClosed",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+]);
+
+/**
+ * Node's fetch wraps refused connections as TypeError; Bun throws a plain Error
+ * with `code: "ConnectionRefused"`. Both should keep probing while the API boots.
+ */
+const isRetryableTokenExchangeError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return true;
+  }
+  if ("retryable" in error) {
+    return true;
+  }
+  if (error.name === "TimeoutError" || error.name === "AbortError") {
+    return true;
+  }
+  if (error instanceof TypeError) {
+    return true;
+  }
+  if (
+    "code" in error &&
+    typeof error.code === "string" &&
+    RETRYABLE_NETWORK_CODES.has(error.code)
+  ) {
+    return true;
+  }
+  return false;
+};
+
 export interface CreateLiveStateClientOptions {
   /**
    * Value of the connector bot key (all connectors authenticate against the
    * shared `DISCORD_BOT_KEY` today — pass `process.env.DISCORD_BOT_KEY ?? ""`).
    */
   botKey: string;
-  /**
-   * Credential field the WS client sends. The API only accepts `discordBotKey`
-   * today (see `apps/api/src/index.ts`); parameterized so a per-connector key
-   * can be introduced without touching this factory.
-   */
-  credentialName?: string;
-  /** HTTP header the fetch client sends. Mirrors {@link credentialName}. */
-  credentialHeader?: string;
   /** Override the WS url (defaults to `LIVE_STATE_WS_URL` / localhost). */
   wsUrl?: string;
   /** Override the fetch url (defaults to `LIVE_STATE_API_URL` / localhost). */
@@ -34,17 +81,77 @@ export interface CreateLiveStateClientOptions {
 export const createLiveStateClient = (
   options: CreateLiveStateClientOptions
 ) => {
-  const {
-    botKey,
-    credentialName = "discordBotKey",
-    credentialHeader = "x-discord-bot-key",
-    label,
-  } = options;
+  const { botKey, label } = options;
 
   const prefix = label ? `[${label}] ` : "";
+  const apiUrl =
+    options.apiUrl ??
+    process.env.LIVE_STATE_API_URL ??
+    "http://localhost:3333/api/ls";
+
+  const requestConnectionToken = async (): Promise<string> => {
+    // live-state awaits this callback before connecting, so a stalled API would
+    // otherwise hang the initial connection and every reconnect behind it.
+    const response = await fetch(`${apiUrl}/connection-token`, {
+      headers: { [BOT_KEY_HEADER]: botKey },
+      method: "POST",
+      signal: AbortSignal.timeout(10_000),
+    });
+
+    if (!response.ok) {
+      const error = new Error(
+        `${prefix}Failed to exchange Live State connection token (${response.status})`
+      );
+      if (!isRetryableStatus(response.status)) {
+        throw error;
+      }
+      throw Object.assign(error, { retryable: true });
+    }
+
+    const { token } = (await response.json()) as { token?: unknown };
+    if (typeof token !== "string" || token.length === 0) {
+      throw new Error(`${prefix}Live State token exchange returned no token`);
+    }
+
+    return token;
+  };
+
+  /**
+   * Connectors routinely boot before the API does on a deploy, so keep probing
+   * with a capped backoff instead of failing the connector's first connect. Each
+   * attempt stays bounded by its own timeout, so we never wedge on one request.
+   */
+  const exchangeConnectionToken = async (): Promise<string> => {
+    let delay = RETRY_INITIAL_DELAY_MS;
+
+    for (let attempt = 1; ; attempt++) {
+      try {
+        return await requestConnectionToken();
+      } catch (error) {
+        // Non-retryable responses (a rejected bot key, a malformed payload) are
+        // configuration problems — surface them rather than looping forever.
+        if (!isRetryableTokenExchangeError(error)) {
+          throw error;
+        }
+
+        console.warn(
+          `${prefix}Live State token exchange failed (attempt ${attempt}), retrying in ${delay}ms:`,
+          error
+        );
+
+        await sleep(delay);
+        delay = Math.min(delay * 2, RETRY_MAX_DELAY_MS);
+      }
+    }
+  };
 
   const { client, store } = createClient<Router>({
-    credentials: async () => ({ [credentialName]: botKey }),
+    connection: {
+      // Connecting now would run the token exchange against a real API. Tests
+      // import this module for its types and store, never for a live socket.
+      autoConnect: process.env.NODE_ENV !== "test",
+    },
+    credentials: async () => ({ token: await exchangeConnectionToken() }),
     schema,
     storage: false,
     url:
@@ -68,12 +175,9 @@ export const createLiveStateClient = (
   client.load(store.query.organization.load().buildQueryRequest());
 
   const fetchClient = createFetchClient<Router>({
-    credentials: async () => ({ [credentialHeader]: botKey }),
+    credentials: async () => ({ [BOT_KEY_HEADER]: botKey }),
     schema,
-    url:
-      options.apiUrl ??
-      process.env.LIVE_STATE_API_URL ??
-      "http://localhost:3333/api/ls",
+    url: apiUrl,
   });
 
   return { client, fetchClient, store };

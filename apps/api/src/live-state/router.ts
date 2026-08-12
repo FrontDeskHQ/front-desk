@@ -23,7 +23,11 @@ import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
 import { z } from "zod";
 
-import { publicKeys } from "../lib/api-key";
+import { privateKeys, publicKeys } from "../lib/api-key";
+import {
+  listUnrevokedApiKeys,
+  resolvePrivateApiKeyExpiration,
+} from "../lib/api-key-lifecycle";
 import {
   assertInviteRecipient,
   authorize,
@@ -32,6 +36,7 @@ import {
   requireInternalApiKey,
 } from "../lib/authorize";
 import { connectorRegistry } from "../lib/connector-registry";
+import { isOrganizationFeatureEnabled } from "../lib/feature-flag";
 import {
   resolveEffectiveDefaultIssueTarget,
   resolveIssueTrackerTarget,
@@ -538,6 +543,43 @@ export const router = createRouter({
           name: publicApiKey.record.metadata.name,
         };
       }),
+      createPrivateApiKey: mutation(
+        z.object({
+          expiresAt: z.iso.datetime().optional(),
+          name: z.string().trim().min(1, "Name is required"),
+          organizationId: z.string(),
+        })
+      ).handler(async ({ req, db: _db }) => {
+        const { organizationId } = req.input;
+
+        authorize(req, {
+          allowInternalApiKey: false,
+          organizationId,
+          role: "owner",
+        });
+
+        if (!isOrganizationFeatureEnabled(organizationId, "private-api-keys")) {
+          throw new Error("FEATURE_NOT_AVAILABLE");
+        }
+
+        const expiration = resolvePrivateApiKeyExpiration({
+          expiresAt: req.input.expiresAt,
+        });
+
+        const privateApiKey = await privateKeys.create({
+          expiresAt: expiration.toISOString(),
+          name: req.input.name,
+          ownerId: organizationId,
+          tags: ["organization"],
+        });
+
+        return {
+          expiresAt: privateApiKey.record.metadata.expiresAt,
+          id: privateApiKey.record.id,
+          key: privateApiKey.key,
+          name: privateApiKey.record.metadata.name,
+        };
+      }),
       revokePublicApiKey: mutation(
         z.object({
           id: z.string(),
@@ -564,6 +606,30 @@ export const router = createRouter({
           success: true,
         };
       }),
+      revokePrivateApiKey: mutation(
+        z.object({
+          id: z.string(),
+        })
+      ).handler(async ({ req, db: _db }) => {
+        const privateApiKey = await privateKeys.findById(req.input.id);
+
+        if (!privateApiKey) {
+          throw new Error("PRIVATE_API_KEY_NOT_FOUND");
+        }
+
+        authorize(req, {
+          allowInternalApiKey: false,
+          organizationId: privateApiKey.metadata.ownerId,
+          role: "owner",
+        });
+
+        await privateKeys.revoke(privateApiKey.id).catch((error) => {
+          console.error("Error revoking private API key", error);
+          throw new Error("FAILED_TO_REVOKE_PRIVATE_API_KEY");
+        });
+
+        return { success: true };
+      }),
       listApiKeys: mutation(
         z.object({
           organizationId: z.string(),
@@ -573,17 +639,12 @@ export const router = createRouter({
 
         authorize(req, { organizationId, role: "owner" });
 
-        const apiKeys = await publicKeys.list(organizationId);
+        const [publicApiKeys, privateApiKeys] = await Promise.all([
+          publicKeys.list(organizationId),
+          privateKeys.list(organizationId),
+        ]);
 
-        return apiKeys
-          .filter((apiKey) => !apiKey.metadata.revokedAt)
-          .map((apiKey) => ({
-            createdAt: apiKey.metadata.createdAt,
-            expiresAt: apiKey.metadata.expiresAt,
-            id: apiKey.id,
-            name: apiKey.metadata.name,
-            type: "public",
-          }));
+        return listUnrevokedApiKeys(publicApiKeys, privateApiKeys);
       }),
     })),
     organizationUser: privateRoute.withProcedures(({ mutation, query }) => ({
