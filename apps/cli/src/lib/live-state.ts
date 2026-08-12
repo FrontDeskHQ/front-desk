@@ -2,12 +2,19 @@ import { createClient as createFetchClient } from "@live-state/sync/client/fetch
 import type { Router } from "api/router";
 import { schema } from "api/schema";
 
-import { getApiUrl, getDiscordBotKey } from "./env.js";
+import type { Profile } from "./config.js";
 
-export const fetchClient = createFetchClient<Router>({
-  credentials: async () => ({
-    "x-discord-bot-key": getDiscordBotKey(),
-  }),
-  schema,
-  url: getApiUrl(),
-});
+/**
+ * A client bound to one profile. The private API key it presents determines the
+ * organization every request acts on, so nothing here names an organization.
+ */
+export const createClient = (profile: Profile) =>
+  createFetchClient<Router>({
+    credentials: async () => ({
+      authorization: `Bearer ${profile.key}`,
+    }),
+    schema,
+    url: profile.apiUrl,
+  });
+
+export type FdClient = ReturnType<typeof createClient>;

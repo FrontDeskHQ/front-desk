@@ -33,6 +33,7 @@ import {
   authorize,
   authorizeSelfOrInternal,
   getWorkspaceActor,
+  isLocalDevelopment,
   requireInternalApiKey,
 } from "../lib/authorize";
 import { connectorRegistry } from "../lib/connector-registry";
@@ -558,7 +559,13 @@ export const router = createRouter({
           role: "owner",
         });
 
-        if (!isOrganizationFeatureEnabled(organizationId, "private-api-keys")) {
+        // Local development mints keys without the flag: the `fd` CLI needs one
+        // to talk to a local API at all, and Reflag has no local org to gate on.
+        // An unset NODE_ENV is not local — the flag stays enforced.
+        if (
+          !isLocalDevelopment() &&
+          !isOrganizationFeatureEnabled(organizationId, "private-api-keys")
+        ) {
           throw new Error("FEATURE_NOT_AVAILABLE");
         }
 
