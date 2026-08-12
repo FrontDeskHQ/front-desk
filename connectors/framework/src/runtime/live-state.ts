@@ -19,6 +19,45 @@ const sleep = (ms: number) =>
 const isRetryableStatus = (status: number) =>
   status === 408 || status === 429 || status >= 500;
 
+/** Bun/Node network failure codes from a refused / dropped connection-token fetch. */
+const RETRYABLE_NETWORK_CODES = new Set([
+  "ConnectionRefused",
+  "ConnectionReset",
+  "ConnectionClosed",
+  "ECONNREFUSED",
+  "ECONNRESET",
+  "ENOTFOUND",
+  "ETIMEDOUT",
+  "EAI_AGAIN",
+]);
+
+/**
+ * Node's fetch wraps refused connections as TypeError; Bun throws a plain Error
+ * with `code: "ConnectionRefused"`. Both should keep probing while the API boots.
+ */
+const isRetryableTokenExchangeError = (error: unknown) => {
+  if (!(error instanceof Error)) {
+    return true;
+  }
+  if ("retryable" in error) {
+    return true;
+  }
+  if (error.name === "TimeoutError" || error.name === "AbortError") {
+    return true;
+  }
+  if (error instanceof TypeError) {
+    return true;
+  }
+  if (
+    "code" in error &&
+    typeof error.code === "string" &&
+    RETRYABLE_NETWORK_CODES.has(error.code)
+  ) {
+    return true;
+  }
+  return false;
+};
+
 export interface CreateLiveStateClientOptions {
   /**
    * Value of the connector bot key (all connectors authenticate against the
@@ -91,14 +130,7 @@ export const createLiveStateClient = (
       } catch (error) {
         // Non-retryable responses (a rejected bot key, a malformed payload) are
         // configuration problems — surface them rather than looping forever.
-        const retryable =
-          !(error instanceof Error) ||
-          "retryable" in error ||
-          error.name === "TimeoutError" ||
-          error.name === "AbortError" ||
-          error instanceof TypeError;
-
-        if (!retryable) {
+        if (!isRetryableTokenExchangeError(error)) {
           throw error;
         }
 
