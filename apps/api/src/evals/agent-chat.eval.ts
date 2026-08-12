@@ -1,4 +1,3 @@
-import { google } from "@ai-sdk/google";
 import { generateText, stepCountIs } from "ai";
 
 import "../env";
@@ -8,19 +7,25 @@ import { reportTrace } from "evalite/traces";
 import { OpenAI } from "openai";
 
 import {
+  agentModel,
+  RESPAN_OPENAI_BASE_URL,
+} from "../lib/ai/respan";
+import {
   buildAgentChatTools,
   buildSystemPrompt,
   formatThreadMetadata,
 } from "../live-state/router/agent-chat-core";
 
-// Configure autoevals to use Gemini via Google's OpenAI-compatible endpoint.
+// Configure autoevals to judge via the Respan gateway. autoevals only speaks the
+// OpenAI protocol, so it uses that endpoint (and its prefixed model ids) rather
+// than the Google-native passthrough the Agent itself runs on.
 // Cast through `never` — autoevals may resolve a different openai package instance.
 init({
   client: new OpenAI({
-    apiKey: process.env.GOOGLE_GENERATIVE_AI_API_KEY,
-    baseURL: "https://generativelanguage.googleapis.com/v1beta/openai/",
+    apiKey: process.env.RESPAN_API_KEY,
+    baseURL: RESPAN_OPENAI_BASE_URL,
   }) as never,
-  defaultModel: "gemini-2.5-flash",
+  defaultModel: "gemini/gemini-2.5-flash",
 });
 import {
   toolSelectionDataset,
@@ -37,9 +42,9 @@ import {
   threadReferenceFormat,
 } from "./agent-chat.scorers";
 
-// Note: traceAISDKModel requires LanguageModelV2, but @ai-sdk/google exports V3.
+// Note: traceAISDKModel requires LanguageModelV2, but the provider exports V3.
 // Using reportTrace manually to capture LLM call metrics.
-const model = google("gemini-2.5-flash");
+const model = agentModel();
 
 const lowThinking = {
   providerOptions: {

@@ -1,8 +1,8 @@
-import { google } from "@ai-sdk/google";
 import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import z from "zod";
 
+import { generationModel } from "../../../../lib/respan";
 import type { SummarizeOutput } from "../../summarize";
 
 export interface ClassifyLabelInput {
@@ -72,7 +72,7 @@ ${
 
 Return the chosen label id (exactly as listed) or null. Confidence should reflect how confident you are; use values below 0.5 when uncertain, above 0.85 only when the match is unambiguous.`;
 
-  const baseModel = google("gemini-2.5-flash-lite");
+  const baseModel = generationModel("gemini-2.5-flash-lite");
   const { output } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
     output: Output.object({ schema: responseSchema }),

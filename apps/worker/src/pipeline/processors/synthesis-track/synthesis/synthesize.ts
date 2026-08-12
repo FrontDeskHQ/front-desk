@@ -1,4 +1,3 @@
-import { google } from "@ai-sdk/google";
 import type {
   ActionAvailability,
   Hints,
@@ -19,6 +18,7 @@ import z from "zod";
 
 import type { WorkerLogger } from "../../../../lib/logging";
 import type { MessageRole } from "../../../../lib/message-roles";
+import { generationModel } from "../../../../lib/respan";
 import type { ParsedSummary } from "../../../../types";
 import {
   collectRetrievedDocUrls,
@@ -414,7 +414,7 @@ Return a single valid JSON object with exactly this shape:
 }
 `;
 
-  const baseModel = google("gemini-2.5-flash");
+  const baseModel = generationModel();
   const { text, steps } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
     prompt,

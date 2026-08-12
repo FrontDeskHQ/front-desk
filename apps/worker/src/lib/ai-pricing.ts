@@ -1,4 +1,6 @@
-// USD per 1M tokens. Keep in sync with https://ai.google.dev/gemini-api/docs/pricing.
+// USD per 1M tokens. Gemini (embeddings) tracks
+// https://ai.google.dev/gemini-api/docs/pricing; generation runs through the
+// Respan gateway, so those rates track https://api.respan.ai/api/models/public/.
 // Embedding models are billed as input-only; we set output=0 so
 // estimatedCost still computes correctly through the same code path.
 // Tiered models (Pro) use the >200k-token tier as a conservative upper bound.
