@@ -1,0 +1,44 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-scorers.ts
+  s_1267f3099322d9::t_5d8a62224a6d74 941-947,950-954
+  s_1267f3099322d9::t_b987d555ee5791 905-918,922,930
+  s_1267f3099322d9::t_d0534fb78cd141 1086-1103,1112-1133
+  s_1267f3099322d9::t_9b6baa0fbf2b65 1-6
+  s_1267f3099322d9::t_4db5b1e01a79b2 621
+  s_1267f3099322d9::t_2f655029a05700 34-35
+  s_1267f3099322d9::t_3736aa3fcf88a3 1104-1111
+  s_1267f3099322d9::t_5f3b3cdc71aada 1152-1161
+  s_1267f3099322d9::t_4621083b6bf156 983-987,991-1000,1006
+  s_1267f3099322d9::t_8d530c1af6aca8 1001
+  s_1267f3099322d9::t_890af2a3db5c57 808-824
+  s_1267f3099322d9::t_0d3a8e71f35e63 652-659,661
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts
+  s_1267f3099322d9::t_91e467904e2843 67
+  s_1267f3099322d9::t_d3a6946a41c7aa 19
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-harness.ts
+  s_1267f3099322d9::t_a07253064db57a 167,169-172
+  s_1267f3099322d9::t_c72a5cf9b0d353 206-207,217-222
+  s_1267f3099322d9::t_62de6d4a56dc46 100,102-105,116,127
+  s_1267f3099322d9::t_97a47df2b9a272 182,184-187
+  s_1267f3099322d9::t_68fef9fcc87bc7 77-79
+  s_1267f3099322d9::t_487fb0dfa41e86 26-37,44
+  s_1267f3099322d9::t_59b053c535fa6f 146-156
+  s_1267f3099322d9::t_10ab986e5b5736 193
+  s_1267f3099322d9::t_54a51b660e5777 74-76,80,90-91
+  s_1267f3099322d9::t_3e7c9eaa8d5978 47-54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1f4cbb0207d61f2db9de39b2538bfe11b42c3094",
+  "prompts": {},
+  "sessions": {
+    "s_1267f3099322d9": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "c65e5b11-a214-4b8f-9cea-9fbff41d5018",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
