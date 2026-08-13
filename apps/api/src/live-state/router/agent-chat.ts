@@ -1,11 +1,11 @@
 // TODO refactor with new live-state mental model
-import { google } from "@ai-sdk/google";
 import { parse } from "@workspace/utils/md-tiptap";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { stepCountIs, streamText } from "ai";
 import { ulid } from "ulid";
 import { z } from "zod";
 
+import { agentModel } from "../../lib/ai/respan";
 import {
   authorizeOwnedAgentChat,
   authorizeWorkspaceOrgMember,
@@ -647,7 +647,7 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
         };
 
         const result = streamText({
-          model: google("gemini-2.5-flash"),
+          model: agentModel(),
           system: systemPrompt,
           messages: conversationHistory,
           tools: buildAgentChatTools(toolImplementations),

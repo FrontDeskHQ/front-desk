@@ -1,10 +1,10 @@
-import { google } from "@ai-sdk/google";
 import type { PrMatchJobData } from "@workspace/schemas/signals";
 import type { createAILogger } from "@workspace/utils/logging";
 import { generateText, Output } from "ai";
 import z from "zod";
 
 import { PR_MATCH_RERANK_THRESHOLD } from "./pr-match-config";
+import { generationModel } from "./respan";
 import type { ThreadHit } from "./qdrant/threads";
 
 const RERANK_MODEL = "gemini-2.5-flash-lite";
@@ -144,7 +144,7 @@ export const rerankPrMatches = async (
     return [];
   }
 
-  const baseModel = google(RERANK_MODEL);
+  const baseModel = generationModel(RERANK_MODEL);
   const threshold = PR_MATCH_RERANK_THRESHOLD;
   const { output } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,

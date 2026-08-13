@@ -36,7 +36,7 @@
     "eval:agent-chat": "evalite src/evals/agent-chat.eval.ts"
   },
   "dependencies": {
-    "@ai-sdk/google": "^3.0.7",
+    "@ai-sdk/google": "^4.0.42",
     "@connectors/framework": "workspace:*",
     "@dodopayments/express": "^0.2.1",
     "@keyv/redis": "^5.1.5",
@@ -49,7 +49,7 @@
     "@workspace/queue": "workspace:*",
     "@workspace/schemas": "workspace:*",
     "@workspace/utils": "workspace:*",
-    "ai": "^6.0.33",
+    "ai": "^7.0.62",
     "better-auth": "catalog:",
     "bullmq": "^5.0.0",
     "cors": "^2.8.5",
