@@ -6,7 +6,10 @@ import { safeParseJSON } from "@workspace/ui/lib/tiptap";
 import { formatRelativeTime } from "@workspace/ui/lib/utils";
 import type { schema } from "api/schema";
 
-type Message = InferLiveObject<typeof schema.message, { author: true }>;
+type Message = InferLiveObject<
+  typeof schema.message,
+  { author: { include: { user: true } } }
+>;
 
 export function ThreadHeader({
   title,
@@ -21,7 +24,12 @@ export function ThreadHeader({
       <TooltipProvider>
         <div className="group flex flex-col gap-3 rounded-md pt-0 py-1">
           <div className="flex items-start gap-3">
-            <Avatar variant="user" size="lg" fallback={message.author.name} />
+            <Avatar
+              variant="user"
+              size="lg"
+              fallback={message.author.name}
+              src={message.author.user?.image}
+            />
             <div className="flex flex-col gap-0.75">
               <p className="text-sm box-trim-both box-edge-[cap_alphabetic]">
                 {message.author.name}

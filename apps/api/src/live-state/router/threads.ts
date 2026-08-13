@@ -331,7 +331,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         assignedUser: true,
         author: true,
         labels: { include: { label: true } },
-        messages: { include: { author: true } },
+        messages: { include: { author: { include: { user: true } } } },
         organization: true,
         updates: { include: { user: true } },
       })

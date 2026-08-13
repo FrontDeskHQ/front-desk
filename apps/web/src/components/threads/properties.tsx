@@ -239,6 +239,7 @@ export function PropertiesSection({
                       variant="user"
                       size="md"
                       fallback={thread?.assignedUser.name}
+                      src={thread.assignedUser.image}
                     />
                   ) : (
                     <CircleUser className="size-4 text-foreground-secondary" />
@@ -256,7 +257,16 @@ export function PropertiesSection({
               {(item: BaseItem) => (
                 <ComboboxItem key={item.value} value={item.value}>
                   {item.value ? (
-                    <Avatar variant="user" size="md" fallback={item.label} />
+                    <Avatar
+                      variant="user"
+                      size="md"
+                      fallback={item.label}
+                      src={
+                        organizationUsers?.find(
+                          (orgUser) => orgUser.userId === item.value
+                        )?.user.image
+                      }
+                    />
                   ) : (
                     <CircleUser className="mx-0.5" />
                   )}

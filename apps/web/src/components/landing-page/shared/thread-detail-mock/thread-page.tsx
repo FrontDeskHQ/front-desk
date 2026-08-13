@@ -34,7 +34,10 @@ import { MockThreadToolbar } from "./mock-toolbar";
 import type { MockSiMessage } from "./mock-support-intelligence-chat";
 import type { MockMessage, MockThreadState } from "./types";
 
-type AppMessage = InferLiveObject<typeof schema.message, { author: true }>;
+type AppMessage = InferLiveObject<
+  typeof schema.message,
+  { author: { include: { user: true } } }
+>;
 
 function asAppMessage(message: MockMessage): AppMessage {
   return message as unknown as AppMessage;

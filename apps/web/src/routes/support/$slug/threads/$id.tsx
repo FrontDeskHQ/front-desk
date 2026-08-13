@@ -42,7 +42,7 @@ import { buildThreadParam, parseThreadParam } from "~/utils/thread";
 
 type SupportThreadMessage = InferLiveObject<
   typeof schema.message,
-  { author: true }
+  { author: { include: { user: true } } }
 >;
 type SupportThreadUpdate = InferLiveObject<
   typeof schema.update,

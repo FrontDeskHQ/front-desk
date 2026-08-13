@@ -9,7 +9,10 @@ import type { schema } from "api/schema";
 import { Check, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 
-type Message = InferLiveObject<typeof schema.message, { author: true }>;
+type Message = InferLiveObject<
+  typeof schema.message,
+  { author: { include: { user: true } } }
+>;
 
 export function ThreadReply({
   message,
@@ -63,7 +66,12 @@ export function ThreadReply({
           </TooltipProvider>
         </div>
       )}
-      <Avatar variant="user" size="lg" fallback={message.author.name} />
+      <Avatar
+        variant="user"
+        size="lg"
+        fallback={message.author.name}
+        src={message.author.user?.image}
+      />
       <div className="flex flex-1 flex-col gap-1 min-w-0">
         <div className="flex items-baseline gap-2">
           <p className="text-sm box-trim-both">{message.author.name}</p>

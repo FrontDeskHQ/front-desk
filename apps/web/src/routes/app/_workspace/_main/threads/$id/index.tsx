@@ -63,7 +63,10 @@ import {
   parseThreadParam,
 } from "~/utils/thread";
 
-type ThreadMessage = InferLiveObject<typeof schema.message, { author: true }>;
+type ThreadMessage = InferLiveObject<
+  typeof schema.message,
+  { author: { include: { user: true } } }
+>;
 type ThreadUpdate = InferLiveObject<typeof schema.update, { user: true }>;
 type TimelineMessageItem = ThreadMessage & { itemType: "message" };
 type TimelineUpdateItem = ThreadUpdate & { itemType: "update" };
@@ -137,7 +140,7 @@ function RouteComponent() {
     query.thread.where(where).include({
       assignedUser: true,
       author: true,
-      messages: { include: { author: true } },
+      messages: { include: { author: { include: { user: true } } } },
       organization: true,
       updates: { include: { user: true } },
     })
