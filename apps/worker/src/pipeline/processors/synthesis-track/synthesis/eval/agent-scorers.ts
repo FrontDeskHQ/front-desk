@@ -1,4 +1,5 @@
 import {
+  FINISHED_STATUSES,
   sanitizeAgentReadReasoning,
   WITNESS_JUSTIFIES,
 } from "@workspace/schemas/signals";
@@ -947,9 +948,7 @@ export const statusValueAlignment = createScorer<In, Out, Expected>({
 const justifiesFinishing = (witnessClass: StatusWitnessClass): boolean =>
   WITNESS_JUSTIFIES[witnessClass].size > 0;
 
-const WITNESS_REQUIRED_STATUSES = new Set(
-  Object.values(WITNESS_JUSTIFIES).flatMap((statuses) => [...statuses])
-);
+const WITNESS_REQUIRED_STATUSES = new Set(FINISHED_STATUSES);
 
 /**
  * The declared witness class matches what the case's evidence supports, scored
