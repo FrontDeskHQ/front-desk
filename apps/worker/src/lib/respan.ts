@@ -20,8 +20,14 @@ let provider: GoogleGenerativeAIProvider | undefined;
  * https://www.respan.ai/docs/integrations/gateway/vercel-ai-sdk
  */
 export const respan = (): GoogleGenerativeAIProvider => {
+  const apiKey = process.env.RESPAN_API_KEY;
+  if (!apiKey) {
+    // Without this guard the SDK falls back to GOOGLE_GENERATIVE_AI_API_KEY —
+    // our embeddings key — and quietly sends it to Respan.
+    throw new Error("RESPAN_API_KEY is required for text generation");
+  }
   provider ??= createGoogleGenerativeAI({
-    apiKey: process.env.RESPAN_API_KEY,
+    apiKey,
     baseURL: RESPAN_GOOGLE_BASE_URL,
   });
   return provider;
