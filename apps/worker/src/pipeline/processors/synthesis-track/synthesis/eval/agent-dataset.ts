@@ -1961,8 +1961,9 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
     expected: {
       expectedGroundingClass: "state_report",
       expectedGroundingEntityUrl: "https://github.com/acme/api/issues/455",
+      expectedLinkIssueUrl: "https://github.com/acme/api/issues/455",
       expectedStatus: 1,
-      mustIncludePrimaryKinds: ["set_status", "reply"],
+      mustIncludePrimaryKinds: ["link_issue", "set_status", "reply"],
       requiresReplyDraft: true,
     },
     input: {
@@ -2083,11 +2084,12 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
   },
   {
     expected: {
+      expectedLinkPrUrl: "https://github.com/acme/api/pull/733",
       expectedStatus: 2,
       expectedWitnessClass: "entity_settled",
       expectedWitnessSources: ["https://github.com/acme/api/pull/733"],
       minToolCalls: { read_pr: 1 },
-      mustIncludePrimaryKinds: ["set_status"],
+      mustIncludePrimaryKinds: ["link_pr", "set_status"],
       requiresReplyDraft: false,
     },
     input: {

@@ -810,16 +810,18 @@ export const issueBodyPrivacy = createScorer<In, Out, Expected>({
  * a blanket `i` flag the tracker-key branch `[A-Z]{2,}-\d+` also matches
  * lowercase, so ordinary prose (`UTF-8`, `ISO-8601`, `COVID-19`, `step-1`)
  * reads as an issue key and a correct draft scores 0. A tracker key is
- * uppercase by construction, so that branch stays case-sensitive.
+ * uppercase by construction, so that branch stays case-sensitive, and common
+ * standards/encodings are excluded from its otherwise-shared shape.
  */
 const ISSUE_REFERENCE_RE = new RegExp(
   [
     "#\\d+",
-    "\\b[A-Z]{2,}-\\d+\\b",
-    "https?://\\S*/issues/\\d+",
-    "\\b[Ii]ssue\\s+(?:number\\s+)?\\d+",
-    "<[Ii]ssue[_-]?(?:id|number|url)>",
-    "\\{\\{?\\s*[Ii]ssue",
+    // Standards and encodings share the tracker-key shape; exclude them.
+    "\\b(?!(?:UTF|ISO|SHA|RFC|HTTP|HTTPS|TLS|SSL|AES|RSA|IPV|COVID|WCAG|ES|UTC)-)[A-Z]{2,}-\\d+\\b",
+    "[Hh][Tt][Tt][Pp][Ss]?://\\S*/[Ii][Ss][Ss][Uu][Ee][Ss]/\\d+",
+    "\\b[Ii][Ss][Ss][Uu][Ee]\\s+(?:[Nn][Uu][Mm][Bb][Ee][Rr]\\s+)?\\d+",
+    "<[Ii][Ss][Ss][Uu][Ee][_-]?(?:[Ii][Dd]|[Nn][Uu][Mm][Bb][Ee][Rr]|[Uu][Rr][Ll])>",
+    "\\{\\{?\\s*[Ii][Ss][Ss][Uu][Ee]",
   ].join("|")
 );
 
@@ -945,6 +947,10 @@ export const statusValueAlignment = createScorer<In, Out, Expected>({
 const justifiesFinishing = (witnessClass: StatusWitnessClass): boolean =>
   WITNESS_JUSTIFIES[witnessClass].size > 0;
 
+const WITNESS_REQUIRED_STATUSES = new Set(
+  Object.values(WITNESS_JUSTIFIES).flatMap((statuses) => [...statuses])
+);
+
 /**
  * The declared witness class matches what the case's evidence supports, scored
  * asymmetrically for the same reason as grounding. A class that justifies
@@ -982,8 +988,13 @@ export const witnessCalibration = createScorer<In, Out, Expected>({
       }
       // Finishing a thread with no witness at all is a policy violation, not an
       // honest under-claim: there is nothing for the reviewer to check.
-      if (!actualClass) {
+      const status = action.kind === "set_status" ? action.status : -1;
+      if (!actualClass && WITNESS_REQUIRED_STATUSES.has(status)) {
         return { actualClass, forbidden: false, overClaimed: false, score: 0 };
+      }
+      // A non-terminal status auto-executes nothing, so it needs no witness.
+      if (!actualClass) {
+        return { actualClass, forbidden: false, overClaimed: false, score: 1 };
       }
       if (!expectedClass) {
         return { actualClass, forbidden: false, overClaimed: false, score: 1 };
