@@ -1,0 +1,22 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-scorers.ts
+  s_603c451ea0c44a::t_0d5d81db1a2ca8 813-814,819-824
+  s_603c451ea0c44a::t_712f2daf46f58a 950-953,991-992,995-997
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_603c451ea0c44a::t_3f9b9550cb7a2a 1964,1966,2087,2092
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "15cd010796b5351a7024e2aee78a125ac9fbd2c5",
+  "prompts": {},
+  "sessions": {
+    "s_603c451ea0c44a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019ffc14-e9e7-78f0-a673-3671c68f2d38",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
