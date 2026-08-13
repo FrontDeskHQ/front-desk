@@ -23,13 +23,34 @@ export interface ToolCallCounters {
   read_documentation_page: number;
 }
 
+/**
+ * The URLs the mirror actually handed back this run. Production's trust
+ * boundary is `read_pr` / `read_issue` returning `found: true`, so a scorer that
+ * only counts calls cannot tell a link built from a successful read apart from
+ * one the model recalled or was fed by injected text. Recording the hits makes
+ * that difference checkable.
+ */
+export interface VerifiedReadUrls {
+  issues: string[];
+  prs: string[];
+}
+
 /** What the scorers grade: one run's action set, tool usage, and fate. */
 export interface SynthesisAgentRunResult {
   /** Non-null when the run threw — unparseable model output, most often. */
   error: string | null;
   raw: SynthesisRawActionSet;
   toolCalls: ToolCallCounters;
+  verifiedReads: VerifiedReadUrls;
 }
+
+/**
+ * The caps the live tools apply when the model omits `limit` (see
+ * `createSynthesisTools`). A mock that returns every fixture would grade
+ * grounding and linkage against evidence production never exposes.
+ */
+const DEFAULT_PAGE_CHUNK_LIMIT = 50;
+const DEFAULT_SEARCH_LIMIT = 5;
 
 /** What a run that never produced parseable output is worth downstream. */
 const emptyActionSet: SynthesisRawActionSet = {
@@ -50,7 +71,13 @@ const emptyActionSet: SynthesisRawActionSet = {
  */
 export const createMockTools = (
   fixtures: SynthesisAgentEvalInput["toolFixtures"]
-): { tools: SynthesisTools; counters: ToolCallCounters } => {
+): {
+  tools: SynthesisTools;
+  counters: ToolCallCounters;
+  /** Populated as the run reads; snapshot after `synthesizeThreadRead` returns. */
+  verifiedIssueUrls: Set<string>;
+  verifiedPrUrls: Set<string>;
+} => {
   const counters: ToolCallCounters = {
     read_documentation_page: 0,
     read_issue: 0,
@@ -60,6 +87,9 @@ export const createMockTools = (
     search_issues: 0,
   };
 
+  const verifiedIssueUrls = new Set<string>();
+  const verifiedPrUrls = new Set<string>();
+
   const tools: SynthesisTools = {
     read_documentation_page: tool({
       description: "Read docs page chunks from mocked fixtures.",
@@ -67,9 +97,12 @@ export const createMockTools = (
         pageUrl: z.string(),
         limit: z.number().int().min(1).max(200).optional(),
       }),
-      execute: async ({ pageUrl }) => {
+      execute: async ({ pageUrl, limit }) => {
         counters.read_documentation_page++;
-        const chunks = fixtures.docsPageChunksByUrl?.[pageUrl] ?? [];
+        const chunks = (fixtures.docsPageChunksByUrl?.[pageUrl] ?? []).slice(
+          0,
+          limit ?? DEFAULT_PAGE_CHUNK_LIMIT
+        );
         return { pageUrl, chunks };
       },
     }),
@@ -80,6 +113,7 @@ export const createMockTools = (
         counters.read_issue++;
         const issue = fixtures.issuesByUrl?.[issueUrl];
         if (!issue) return { found: false, reason: "not_mirrored" };
+        verifiedIssueUrls.add(issue.url);
         return { found: true, issue };
       },
     }),
@@ -90,6 +124,7 @@ export const createMockTools = (
         counters.read_pr++;
         const pr = fixtures.prsByUrl?.[prUrl];
         if (!pr) return { found: false, reason: "not_mirrored" };
+        verifiedPrUrls.add(pr.url);
         return { found: true, pr };
       },
     }),
@@ -108,12 +143,17 @@ export const createMockTools = (
             status: thread.status,
             priority: thread.priority,
             createdAt: new Date(thread.createdAt),
-            messages: thread.messages.map((message) => ({
-              id: message.id,
-              authorId: message.authorId,
-              content: message.content,
-              createdAt: new Date(message.createdAt),
-            })),
+            // Same ordering the live tool applies (`toOrderedMessages`): a
+            // fixture that lists messages out of id order must not hand the
+            // model a transcript production would never produce.
+            messages: [...thread.messages]
+              .toSorted((a, b) => a.id.localeCompare(b.id))
+              .map((message) => ({
+                id: message.id,
+                authorId: message.authorId,
+                content: message.content,
+                createdAt: new Date(message.createdAt),
+              })),
           },
         };
       },
@@ -124,9 +164,12 @@ export const createMockTools = (
         query: z.string(),
         limit: z.number().int().min(1).max(10).optional(),
       }),
-      execute: async ({ query }) => {
+      execute: async ({ query, limit }) => {
         counters.search_documentation++;
-        const hits = fixtures.docsSearchHitsByQuery?.[query] ?? [];
+        const hits = (fixtures.docsSearchHitsByQuery?.[query] ?? []).slice(
+          0,
+          limit ?? DEFAULT_SEARCH_LIMIT
+        );
         return { hits };
       },
     }),
@@ -136,15 +179,18 @@ export const createMockTools = (
         query: z.string(),
         limit: z.number().int().min(1).max(10).optional(),
       }),
-      execute: async ({ query }) => {
+      execute: async ({ query, limit }) => {
         counters.search_issues++;
-        const hits = fixtures.issueSearchHitsByQuery?.[query] ?? [];
+        const hits = (fixtures.issueSearchHitsByQuery?.[query] ?? []).slice(
+          0,
+          limit ?? DEFAULT_SEARCH_LIMIT
+        );
         return { hits };
       },
     }),
   };
 
-  return { counters, tools };
+  return { counters, tools, verifiedIssueUrls, verifiedPrUrls };
 };
 
 /**
@@ -157,7 +203,8 @@ export const createMockTools = (
 export const runSynthesisAgentCase = async (
   input: SynthesisAgentEvalInput
 ): Promise<SynthesisAgentRunResult> => {
-  const { tools, counters } = createMockTools(input.toolFixtures);
+  const { tools, counters, verifiedIssueUrls, verifiedPrUrls } =
+    createMockTools(input.toolFixtures);
 
   let raw: SynthesisRawActionSet = emptyActionSet;
   let error: string | null = null;
@@ -167,5 +214,10 @@ export const runSynthesisAgentCase = async (
     error = cause instanceof Error ? cause.message : String(cause);
   }
 
-  return { error, raw, toolCalls: counters };
+  return {
+    error,
+    raw,
+    toolCalls: counters,
+    verifiedReads: { issues: [...verifiedIssueUrls], prs: [...verifiedPrUrls] },
+  };
 };
