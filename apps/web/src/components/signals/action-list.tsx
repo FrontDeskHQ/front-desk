@@ -1,4 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { useMemo } from "react";
 
 import {
@@ -20,7 +21,16 @@ interface Props {
   userName: string;
 }
 
+/** Enter/exit — user-initiated presence. */
+const EASE_OUT_CUBIC = [0.215, 0.61, 0.355, 1] as const;
+/** Remaining rows already on screen sliding to fill the gap. */
+const EASE_IN_OUT_CUBIC = [0.645, 0.045, 0.355, 1] as const;
+
+const ENTER_MS = 0.2;
+const EXIT_MS = 0.16;
+
 export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
+  const shouldReduceMotion = useReducedMotion();
   const threads = useLiveQuery(
     query.thread
       .where({
@@ -56,6 +66,16 @@ export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
     [threads]
   );
 
+  const enterTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: ENTER_MS, ease: EASE_OUT_CUBIC };
+  const exitTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: EXIT_MS, ease: EASE_OUT_CUBIC };
+  const layoutTransition = shouldReduceMotion
+    ? { duration: 0 }
+    : { duration: ENTER_MS, ease: EASE_IN_OUT_CUBIC };
+
   if (!threads) {
     return (
       <div className="mx-auto flex w-full max-w-4xl flex-col gap-2">
@@ -66,25 +86,66 @@ export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
     );
   }
 
-  if (feedThreads.length === 0) {
-    return isNewOrg ? <NewOrgEmpty /> : <CaughtUpEmpty />;
-  }
-
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-3">
-      <Greeting userName={userName} />
-      <div className="px-1 text-lg text-foreground-primary">
-        {feedThreads.length === 1 ? "Here's" : "Here are"} {feedThreads.length}{" "}
-        {feedThreads.length === 1
-          ? "thing that requires"
-          : "things that require"}{" "}
-        your attention
-      </div>
-      <div className="flex flex-col gap-4">
+    <div className="mx-auto flex w-full max-w-4xl flex-col gap-4">
+      <AnimatePresence initial={false} mode="popLayout">
+        {feedThreads.length > 0 ? (
+          <motion.div
+            key="feed-intro"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, transition: exitTransition }}
+            transition={enterTransition}
+            className="flex flex-col gap-3"
+          >
+            <Greeting userName={userName} />
+            <div className="px-1 text-lg text-foreground-primary">
+              {feedThreads.length === 1 ? "Here's" : "Here are"}{" "}
+              {feedThreads.length}{" "}
+              {feedThreads.length === 1
+                ? "thing that requires"
+                : "things that require"}{" "}
+              your attention
+            </div>
+          </motion.div>
+        ) : null}
         {feedThreads.map((thread) => (
-          <ThreadReadCard key={thread.id} thread={thread} ctx={ctx} />
+          <motion.div
+            key={thread.id}
+            layout={shouldReduceMotion ? false : "position"}
+            initial={{ opacity: 0, scale: 0.95, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              y: -6,
+              transition: exitTransition,
+            }}
+            transition={{
+              ...enterTransition,
+              layout: layoutTransition,
+            }}
+            style={{ transformOrigin: "top center" }}
+          >
+            <ThreadReadCard thread={thread} ctx={ctx} />
+          </motion.div>
         ))}
-      </div>
+        {feedThreads.length === 0 ? (
+          <motion.div
+            key="feed-empty"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              transition: exitTransition,
+            }}
+            transition={enterTransition}
+          >
+            {isNewOrg ? <NewOrgEmpty /> : <CaughtUpEmpty />}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
