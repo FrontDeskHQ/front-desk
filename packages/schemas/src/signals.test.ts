@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  fingerprintAgentRead,
   mergeThreadReadTriggers,
   normalizeThreadReadJobData,
   sortThreadReadTriggers,
 } from "./signals";
+import type { ThreadRead } from "./signals";
 
 const candidate = (prId: string, score: number, title = prId) => ({
   prId,
@@ -74,6 +76,52 @@ describe("thread-read trigger contracts", () => {
 
     expect(sortThreadReadTriggers(left)).toStrictEqual(
       sortThreadReadTriggers(right)
+    );
+  });
+});
+
+describe("fingerprintAgentRead", () => {
+  it("is stable when nested action keys are reshuffled (jsonb vs insertion order)", () => {
+    const insertionOrder: ThreadRead = {
+      alternatives: [{ draftMarkdown: "hi", kind: "reply" }],
+      createdAt: "2026-08-14T13:52:18.597Z",
+      primary: [
+        { kind: "set_status", status: 2 },
+        {
+          draftMarkdown: "hello",
+          grounding: { class: "inferred", entityUrl: null, sources: [] },
+          kind: "reply",
+        },
+      ],
+      reasoning: "because",
+      recommendation: "Reply and resolve",
+      sourceInputMessageId: "msg-1",
+      summary: "Customer asked",
+      urgencyScore: 40,
+    };
+    const jsonbOrder: ThreadRead = {
+      alternatives: [{ kind: "reply", draftMarkdown: "hi" }],
+      createdAt: "2026-08-14T13:52:18.597Z",
+      primary: [
+        { status: 2, kind: "set_status" },
+        {
+          kind: "reply",
+          grounding: { sources: [], class: "inferred", entityUrl: null },
+          draftMarkdown: "hello",
+        },
+      ],
+      reasoning: "because",
+      recommendation: "Reply and resolve",
+      sourceInputMessageId: "msg-1",
+      summary: "Customer asked",
+      urgencyScore: 40,
+    };
+
+    expect(JSON.stringify(jsonbOrder.primary[0])).not.toBe(
+      JSON.stringify(insertionOrder.primary[0])
+    );
+    expect(fingerprintAgentRead(jsonbOrder)).toBe(
+      fingerprintAgentRead(insertionOrder)
     );
   });
 });

@@ -377,6 +377,30 @@ export const threadReadSchema = z.object({
 });
 export type ThreadRead = z.infer<typeof threadReadSchema>;
 
+/**
+ * Key-sorted JSON so fingerprints survive jsonb / live-state key-order
+ * reshuffles. Array order is kept: primary action sequence is meaningful.
+ * `undefined` is dropped on objects and nullified in arrays, matching
+ * `JSON.stringify`.
+ */
+const canonicalStringify = (value: unknown): string => {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (value instanceof Date) {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((item) => (item === undefined ? "null" : canonicalStringify(item))).join(",")}]`;
+  }
+  const record = value as Record<string, unknown>;
+  return `{${Object.keys(record)
+    .sort()
+    .filter((key) => record[key] !== undefined)
+    .map((key) => `${JSON.stringify(key)}:${canonicalStringify(record[key])}`)
+    .join(",")}}`;
+};
+
 /** Stable fingerprint for stale-read guards (web + API). */
 export const fingerprintAgentRead = (read: ThreadRead): string => {
   const payload = {
@@ -388,7 +412,7 @@ export const fingerprintAgentRead = (read: ThreadRead): string => {
     summary: read.summary,
     urgencyScore: read.urgencyScore,
   };
-  return stableHash(JSON.stringify(payload));
+  return stableHash(canonicalStringify(payload));
 };
 
 export interface ActionExecutionResult {
