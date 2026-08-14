@@ -2,7 +2,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { GoogleGenerativeAIProvider } from "@ai-sdk/google";
 
 /** Default for pipeline generation; per-call overrides pass their own id. */
-export const GENERATION_MODEL = "gemini-2.5-flash";
+export const GENERATION_MODEL = "gemini-3-flash-preview";
 
 /**
  * Google-native passthrough. Unlike Respan's OpenAI-compatible endpoint, this

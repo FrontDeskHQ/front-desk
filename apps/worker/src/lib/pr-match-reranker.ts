@@ -7,7 +7,7 @@ import { PR_MATCH_RERANK_THRESHOLD } from "./pr-match-config";
 import { generationModel } from "./respan";
 import type { ThreadHit } from "./qdrant/threads";
 
-const RERANK_MODEL = "gemini-2.5-flash-lite";
+const RERANK_MODEL = "gemini-3.1-flash-lite";
 const RERANK_TIMEOUT_MS = 30_000;
 const MAX_PROMPT_FIELD_LENGTH = 4000;
 const MAX_PROMPT_SUMMARY_ITEMS = 20;

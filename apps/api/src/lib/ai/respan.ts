@@ -2,7 +2,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import type { GoogleGenerativeAIProvider } from "@ai-sdk/google";
 
 /** Same model the Agent has always used; ids stay unprefixed on this endpoint. */
-export const AGENT_MODEL = "gemini-2.5-flash";
+export const AGENT_MODEL = "gemini-3-flash-preview";
 
 /**
  * Google-native passthrough. Unlike Respan's OpenAI-compatible endpoint, this

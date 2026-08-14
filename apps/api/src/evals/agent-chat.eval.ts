@@ -25,7 +25,7 @@ init({
     apiKey: process.env.RESPAN_API_KEY,
     baseURL: RESPAN_OPENAI_BASE_URL,
   }) as never,
-  defaultModel: "gemini/gemini-2.5-flash",
+  defaultModel: "gemini/gemini-3-flash-preview",
 });
 import {
   toolSelectionDataset,
