@@ -360,7 +360,12 @@ export function Update({
               )}
             {update.type === "assigned_changed" &&
               (assignedUser ? (
-                <Avatar variant="user" size="sm" fallback={assignedUser.name} />
+                <Avatar
+                  variant="user"
+                  size="sm"
+                  fallback={assignedUser.name}
+                  src={assignedUser.image}
+                />
               ) : (
                 <CircleUserIcon className="size-3.5" />
               ))}
