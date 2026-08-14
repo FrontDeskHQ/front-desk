@@ -669,71 +669,103 @@ export function ThreadReadCard({ thread, ctx, variant = "feed" }: Props) {
     </ActionRow.Meta>
   ) : null;
 
+  const summary = (
+    <RichMarkdown
+      content={read.summary}
+      preset="inline"
+      className={
+        read.recommendation
+          ? "text-foreground-secondary"
+          : "text-foreground-primary"
+      }
+    />
+  );
+
+  const recommendation = read.recommendation ? (
+    <RichMarkdown
+      content={read.recommendation}
+      preset="inline"
+      className="text-foreground-primary"
+    />
+  ) : null;
+
+  const inlineSuggestionsRow =
+    inlineSuggestions.length > 0 ? (
+      <InlineSuggestionsRow
+        suggestions={inlineSuggestions}
+        organizationId={ctx.organizationId}
+        busy={busyKey !== null}
+        onAccept={handleInlineAccept}
+        onDismiss={handleInlineDismiss}
+      />
+    ) : null;
+
+  const headerActions = (
+    <>
+      <AgentReadReasoningTrigger reasoning={read.reasoning} />
+      <ActionRow.Dismiss onClick={handleDismissRead} label="Dismiss read" />
+    </>
+  );
+
   return (
     <ActionRow.Root tier={urgencyTierFromScore(read.urgencyScore)}>
       <ActionRow.Header>
-        <div className="flex flex-col">
-          <div className="flex min-h-8 w-full items-center gap-2 pr-16 text-sm text-foreground-primary">
-            {variant === "feed" ? <ThreadRef thread={thread} /> : null}
-            {readTime}
-          </div>
-          <div className={cn(treeRowClassName, "items-start")}>
-            {read.recommendation ? (
-              <TreeSkip
-                stretchStart={TREE_ROW_GAP_PX}
-                stretchEnd={TREE_ROW_GAP_PX}
-              />
-            ) : (
-              <TreeJoin
-                isLast
-                stretchStart={TREE_ROW_GAP_PX}
-                className="h-8 self-start"
-              />
-            )}
-            <div className={cn(treeContentClassName, "items-start")}>
-              <RichMarkdown
-                content={read.summary}
-                preset="inline"
-                className={
-                  read.recommendation
-                    ? "text-foreground-secondary"
-                    : "text-foreground-primary"
-                }
-              />
-            </div>
-          </div>
-          {read.recommendation ? (
-            <div className={cn(treeRowClassName, "items-start")}>
-              <TreeJoin
-                isLast
-                stretchStart={TREE_ROW_GAP_PX}
-                className="h-8 self-start"
-              />
-              <div className={cn(treeContentClassName, "items-start")}>
-                <RichMarkdown
-                  content={read.recommendation}
-                  preset="inline"
-                  className="text-foreground-primary"
-                />
+        {variant === "feed" ? (
+          <>
+            <div className="flex flex-col">
+              <div className="flex min-h-8 w-full items-center gap-2 pr-16 text-sm text-foreground-primary">
+                <ThreadRef thread={thread} />
+                {readTime}
               </div>
+              <div className={cn(treeRowClassName, "items-start")}>
+                {read.recommendation ? (
+                  <TreeSkip
+                    stretchStart={TREE_ROW_GAP_PX}
+                    stretchEnd={TREE_ROW_GAP_PX}
+                  />
+                ) : (
+                  <TreeJoin
+                    isLast
+                    stretchStart={TREE_ROW_GAP_PX}
+                    className="h-8 self-start"
+                  />
+                )}
+                <div className={cn(treeContentClassName, "items-start")}>
+                  {summary}
+                </div>
+              </div>
+              {recommendation ? (
+                <div className={cn(treeRowClassName, "items-start")}>
+                  <TreeJoin
+                    isLast
+                    stretchStart={TREE_ROW_GAP_PX}
+                    className="h-8 self-start"
+                  />
+                  <div className={cn(treeContentClassName, "items-start")}>
+                    {recommendation}
+                  </div>
+                </div>
+              ) : null}
+              {inlineSuggestionsRow ? (
+                <div className="py-1 pl-5">{inlineSuggestionsRow}</div>
+              ) : null}
             </div>
-          ) : null}
-          {inlineSuggestions.length > 0 ? (
-            <div className="py-1 pl-5">
-              <InlineSuggestionsRow
-                suggestions={inlineSuggestions}
-                organizationId={ctx.organizationId}
-                busy={busyKey !== null}
-                onAccept={handleInlineAccept}
-                onDismiss={handleInlineDismiss}
-              />
+            <ActionRow.TopActions>{headerActions}</ActionRow.TopActions>
+          </>
+        ) : (
+          <div className="flex items-start gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              {summary}
+              {recommendation}
+              {inlineSuggestionsRow ? (
+                <div className="py-1">{inlineSuggestionsRow}</div>
+              ) : null}
             </div>
-          ) : null}
-        </div>
-        <ActionRow.TopActions>
-          <AgentReadReasoningTrigger reasoning={read.reasoning} />
-          <ActionRow.Dismiss onClick={handleDismissRead} label="Dismiss read" />
-        </ActionRow.TopActions>
+            <div className="flex shrink-0 items-center gap-0.5">
+              {headerActions}
+            </div>
+          </div>
+        )}
       </ActionRow.Header>
       <SignalReplyDraftEditor
         open={replyEditorOpen}
@@ -742,6 +774,9 @@ export function ThreadReadCard({ thread, ctx, variant = "feed" }: Props) {
         onDraftChange={setReplyDraft}
       />
       <ActionRow.Actions>
+        {variant === "thread" && readTime ? (
+          <div className="mr-auto">{readTime}</div>
+        ) : null}
         {!replyEditorOpen &&
           visibleAlternatives.map(({ alternative, index }) => (
             <ActionButton

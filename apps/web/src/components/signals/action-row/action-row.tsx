@@ -77,7 +77,7 @@ function Title({ children }: { children: ReactNode }) {
 
 function Meta({ children }: { children: ReactNode }) {
   return (
-    <span className="text-foreground-secondary text-xs font-normal">
+    <span className="whitespace-nowrap text-foreground-secondary text-xs font-normal">
       {children}
     </span>
   );
