@@ -4,7 +4,7 @@ import { useMemo } from "react";
 
 import {
   ActionRowSkeleton,
-  ThreadReadCard,
+  FeedThreadRead,
 } from "~/components/signals/action-row";
 import type {
   ActorContext,
@@ -127,7 +127,7 @@ export function ActionList({ organizationId, ctx, isNewOrg, userName }: Props) {
             }}
             style={{ transformOrigin: "top center" }}
           >
-            <ThreadReadCard thread={thread} ctx={ctx} />
+            <FeedThreadRead thread={thread} ctx={ctx} />
           </motion.div>
         ))}
         {feedThreads.length === 0 ? (

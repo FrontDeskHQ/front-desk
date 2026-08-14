@@ -8,6 +8,7 @@ import type { schema } from "api/schema";
 import { AnimatePresence, motion } from "motion/react";
 import { usePostHog } from "posthog-js/react";
 import { useMemo, useState } from "react";
+import type { ReactNode } from "react";
 import { toast } from "sonner";
 
 import type { ActorContext } from "~/components/signals/action-row";
@@ -39,6 +40,39 @@ type ThreadRecord = InferLiveObject<
     assignedUser: { include: { user: true } };
   }
 >;
+
+function ToolbarPanel({
+  open,
+  width,
+  className,
+  children,
+}: {
+  open: boolean;
+  width: number;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          data-slot="thread-toolbar-panel"
+          initial={{ opacity: 0, scale: 0.9, width: 576 }}
+          animate={{
+            opacity: 1,
+            scale: 1,
+            width,
+          }}
+          exit={{ opacity: 0, scale: 0.9 }}
+          transition={{ duration: 0.15, ease: "easeInOut" }}
+          className={cn("origin-bottom overflow-hidden", className)}
+        >
+          {children}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+}
 
 export const ThreadToolbar = ({
   threadId,
@@ -159,57 +193,45 @@ export const ThreadToolbar = ({
       data-slot="thread-toolbar"
       className="w-full flex flex-col gap-2.5 items-center"
     >
-      <AnimatePresence>
-        {isPanelOpen && (
-          <motion.div
-            data-slot="thread-toolbar-panel"
-            initial={{ opacity: 0, scale: 0.9, width: 576 }}
-            animate={{
-              opacity: 1,
-              scale: 1,
-              width: panelWidth,
+      <ToolbarPanel
+        open={isPanelOpen}
+        width={panelWidth}
+        className={
+          readCardIsPanel
+            ? undefined
+            : "bg-background-tertiary rounded-md border border-input"
+        }
+      >
+        {mode === "support-intelligence" ? (
+          <SupportIntelligencePanel
+            thread={thread}
+            ctx={ctx}
+            hasLabelSuggestions={hasLabelSuggestions}
+            suggestionsData={suggestionsData}
+            threadId={threadId}
+            organizationId={organizationId}
+            threadLabels={threadLabels}
+            currentStatus={currentStatus}
+            user={user}
+            onClose={toggleSupportIntelligence}
+            captureThreadEvent={captureThreadEvent}
+          />
+        ) : null}
+        {mode === "reply" ? (
+          <ReplyEditor
+            organizationId={organizationId}
+            threadId={threadId}
+            user={user}
+            captureThreadEvent={captureThreadEvent}
+            value={replyDraft}
+            onValueChange={setReplyDraft}
+            onSubmitted={() => {
+              setReplyDraft([]);
+              exitReply();
             }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            transition={{ duration: 0.15, ease: "easeInOut" }}
-            className={cn(
-              "origin-bottom overflow-hidden",
-              readCardIsPanel
-                ? ""
-                : "bg-background-tertiary rounded-md border border-input"
-            )}
-          >
-            {mode === "support-intelligence" ? (
-              <SupportIntelligencePanel
-                thread={thread}
-                ctx={ctx}
-                hasLabelSuggestions={hasLabelSuggestions}
-                suggestionsData={suggestionsData}
-                threadId={threadId}
-                organizationId={organizationId}
-                threadLabels={threadLabels}
-                currentStatus={currentStatus}
-                user={user}
-                onClose={toggleSupportIntelligence}
-                captureThreadEvent={captureThreadEvent}
-              />
-            ) : null}
-            {mode === "reply" ? (
-              <ReplyEditor
-                organizationId={organizationId}
-                threadId={threadId}
-                user={user}
-                captureThreadEvent={captureThreadEvent}
-                value={replyDraft}
-                onValueChange={setReplyDraft}
-                onSubmitted={() => {
-                  setReplyDraft([]);
-                  exitReply();
-                }}
-              />
-            ) : null}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          />
+        ) : null}
+      </ToolbarPanel>
       <ToolbarActions
         mode={mode}
         isResolved={isResolved}

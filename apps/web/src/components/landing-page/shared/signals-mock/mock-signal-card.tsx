@@ -1,5 +1,5 @@
-/* mirror: thread-read signal card — apps/web/src/components/signals/action-row/thread-read-card.tsx
- * fork: apps/web/src/components/signals/action-row/thread-read-card.tsx @ d83ec749
+/* mirror: thread-read signal card — apps/web/src/components/signals/action-row/thread-read/feed.tsx
+ * fork: apps/web/src/components/signals/action-row/thread-read/feed.tsx @ 847d3036
  *   why: live-state, Link, handlers, mutate, reply draft editor
  * reuse: ActionRow, Avatar, TreeJoin, TreeSkip, treeRowClassName,
  *   treeContentClassName, TREE_ROW_GAP_PX, ActionButton, ThreadChip,

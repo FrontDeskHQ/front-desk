@@ -1,11 +1,11 @@
-import type { ThreadRead } from "@workspace/schemas/signals";
 import { SparklesIcon } from "lucide-react";
 
 import type {
   ActorContext,
+  ThreadWithAgentRead,
   ThreadWithRelations,
 } from "~/components/signals/action-row";
-import { ThreadReadCard } from "~/components/signals/action-row";
+import { ThreadSurfaceRead } from "~/components/signals/action-row";
 
 import type { QuickActionsSuggestionsData } from "./quick-actions";
 import { QuickActionsPanel } from "./quick-actions";
@@ -56,13 +56,8 @@ export function SupportIntelligencePanel({
 }: SupportIntelligencePanelProps) {
   if (thread?.agentRead && ctx) {
     return (
-      <ThreadReadCard
-        variant="thread"
-        thread={
-          thread as ThreadWithRelations & {
-            agentRead: ThreadRead;
-          }
-        }
+      <ThreadSurfaceRead
+        thread={thread as ThreadWithAgentRead}
         ctx={ctx}
         onClose={onClose}
       />
