@@ -189,6 +189,7 @@ export const ThreadToolbar = ({
                 threadLabels={threadLabels}
                 currentStatus={currentStatus}
                 user={user}
+                onClose={toggleSupportIntelligence}
                 captureThreadEvent={captureThreadEvent}
               />
             ) : null}

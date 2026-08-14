@@ -20,6 +20,7 @@ interface SupportIntelligencePanelProps {
   threadLabels: { id: string; label: { id: string } }[] | undefined;
   currentStatus: number;
   user: { id: string; name: string };
+  onClose: () => void;
   captureThreadEvent: (
     eventName: string,
     properties?: Record<string, unknown>
@@ -50,6 +51,7 @@ export function SupportIntelligencePanel({
   threadLabels,
   currentStatus,
   user,
+  onClose,
   captureThreadEvent,
 }: SupportIntelligencePanelProps) {
   if (thread?.agentRead && ctx) {
@@ -62,6 +64,7 @@ export function SupportIntelligencePanel({
           }
         }
         ctx={ctx}
+        onClose={onClose}
       />
     );
   }

@@ -58,12 +58,22 @@ export type ThreadWithRelations = InferLiveObject<
   }
 >;
 
-interface Props {
+interface ThreadReadCardBase {
   thread: ThreadWithRelations & { agentRead: ThreadRead };
   ctx: ActorContext;
-  /** `feed` includes thread identity chrome; `thread` drops it (already on the thread). */
-  variant?: "feed" | "thread";
 }
+
+type Props =
+  | (ThreadReadCardBase & {
+      /** Includes thread identity chrome and a dismiss X. */
+      variant?: "feed";
+      onClose?: never;
+    })
+  | (ThreadReadCardBase & {
+      /** Drops thread chrome (already on the thread). X closes the panel. */
+      variant: "thread";
+      onClose: () => void;
+    });
 
 function ThreadRef({ thread }: { thread: ThreadWithRelations }) {
   return (
@@ -452,7 +462,12 @@ function formatErrorMessage(error: unknown): string {
   return "Could not apply this signal. Please try again.";
 }
 
-export function ThreadReadCard({ thread, ctx, variant = "feed" }: Props) {
+export function ThreadReadCard({
+  thread,
+  ctx,
+  variant = "feed",
+  onClose,
+}: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   // Which reply is being previewed/edited: the primary bundle's reply, or a
   // specific alternative reply. Both open the same inline draft editor.
@@ -703,7 +718,10 @@ export function ThreadReadCard({ thread, ctx, variant = "feed" }: Props) {
   const headerActions = (
     <>
       <AgentReadReasoningTrigger reasoning={read.reasoning} />
-      <ActionRow.Dismiss onClick={handleDismissRead} label="Dismiss read" />
+      <ActionRow.Dismiss
+        onClick={onClose ?? handleDismissRead}
+        label={onClose ? "Close" : "Dismiss read"}
+      />
     </>
   );
 
@@ -776,6 +794,16 @@ export function ThreadReadCard({ thread, ctx, variant = "feed" }: Props) {
       <ActionRow.Actions>
         {variant === "thread" && readTime ? (
           <div className="mr-auto">{readTime}</div>
+        ) : null}
+        {variant === "thread" ? (
+          <ActionButton
+            size="sm"
+            variant="ghost"
+            onClick={handleDismissRead}
+            disabled={busyKey !== null}
+          >
+            Dismiss
+          </ActionButton>
         ) : null}
         {!replyEditorOpen &&
           visibleAlternatives.map(({ alternative, index }) => (

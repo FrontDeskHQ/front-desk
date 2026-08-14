@@ -51,10 +51,7 @@ export function MockThreadReadPanel({
               <ActionButton size="sm" variant="ghost" tabIndex={-1} aria-hidden>
                 <Brain className="size-3.5" />
               </ActionButton>
-              <ActionRow.Dismiss
-                onClick={() => undefined}
-                label="Dismiss read"
-              />
+              <ActionRow.Dismiss onClick={() => undefined} label="Close" />
             </div>
           </div>
         </ActionRow.Header>
@@ -71,6 +68,9 @@ export function MockThreadReadPanel({
           <div className="mr-auto">
             <ActionRow.Meta>just now</ActionRow.Meta>
           </div>
+          <ActionButton size="sm" variant="ghost" tabIndex={-1}>
+            Dismiss
+          </ActionButton>
           <ActionButton size="sm" variant="ghost" tabIndex={-1}>
             Cancel
           </ActionButton>
