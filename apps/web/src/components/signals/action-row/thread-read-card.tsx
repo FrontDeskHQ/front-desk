@@ -489,7 +489,9 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     setSelectedIndices(new Set(read.primary.map((_, index) => index)));
     setReplyDraft(primaryReplyDraftMarkdown(read.primary));
     setReplyEditorRevision((revision) => revision + 1);
-  }, [readFingerprint, read.primary]);
+    // Fingerprint already covers primary/alternatives content. Depending on
+    // `read.primary` resets every card on each live-query identity change.
+  }, [readFingerprint]);
 
   const orderedSelected = useMemo(
     () => orderReplyFirst(read.primary, selectedIndices),

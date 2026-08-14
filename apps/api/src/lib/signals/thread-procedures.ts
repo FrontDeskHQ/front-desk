@@ -189,6 +189,7 @@ export const runAcceptRead = async (
     input.replyDraft
   );
 
+  const originalRead = thread.agentRead;
   const registry = createActionHandlerRegistry();
   const ctx = buildExecutionContext(db, {
     actorUserId,
@@ -198,16 +199,34 @@ export const runAcceptRead = async (
     threadId: input.threadId,
   });
 
-  const result = await executeBundle(bundle, registry, ctx);
-  let nextRead = nextAgentReadAfterExecution(thread.agentRead, result);
+  // Persist the post-accept read *before* bundle side effects. executeBundle
+  // writes thread fields (status, links, …) that live-state broadcasts as the
+  // full row; if agentRead is still the pre-accept value, the feed card
+  // flickers back in, then disappears when this persist finally runs.
+  const deselectedUpFront = deselectedPrimaryActions(originalRead, selection);
+  const pendingRead =
+    deselectedUpFront.length > 0
+      ? { ...originalRead, primary: deselectedUpFront }
+      : null;
+  await persistAgentRead(db, input.threadId, pendingRead);
+
+  let result: ExecutionResult;
+  try {
+    result = await executeBundle(bundle, registry, ctx);
+  } catch (error) {
+    await persistAgentRead(db, input.threadId, originalRead);
+    throw error;
+  }
+
+  let nextRead = nextAgentReadAfterExecution(originalRead, result);
 
   // A successful subset selection only consumes the chosen primary actions;
   // preserve the ones the human deselected instead of clearing the read with
   // them. (Partial failures already retain the unconsumed primary entries.)
   if (!result.failed) {
-    const deselected = deselectedPrimaryActions(thread.agentRead, selection);
+    const deselected = deselectedPrimaryActions(originalRead, selection);
     if (deselected.length > 0) {
-      nextRead = { ...thread.agentRead, primary: deselected };
+      nextRead = { ...originalRead, primary: deselected };
     }
   }
 
