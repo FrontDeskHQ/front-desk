@@ -1,17 +1,24 @@
+import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";
 import { useNavigate } from "@tanstack/react-router";
+import { fingerprintAgentRead } from "@workspace/schemas/signals";
+import type { JSONContent } from "@workspace/ui/components/blocks/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
+import type { schema } from "api/schema";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { usePostHog } from "posthog-js/react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
+import type { ActorContext } from "~/components/signals/action-row";
 import { mutate, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
-import { QuickActionsPanel, useQuickActionsSuggestions } from "./quick-actions";
+import { useQuickActionsSuggestions } from "./quick-actions";
 import { ReplyEditor } from "./reply-editor";
-import { SupportIntelligenceChat } from "./support-intelligence-chat";
+import { SupportIntelligencePanel } from "./support-intelligence-panel";
 import { ToolbarActions } from "./toolbar-actions";
+import { useToolbarMode } from "./use-toolbar-mode";
 
 interface ThreadToolbarProps {
   threadId: string;
@@ -25,6 +32,14 @@ interface ThreadToolbarProps {
   ) => void;
 }
 
+type ThreadRecord = InferLiveObject<
+  typeof schema.thread,
+  {
+    author: { include: { user: true } };
+    assignedUser: { include: { user: true } };
+  }
+>;
+
 export const ThreadToolbar = ({
   threadId,
   organizationId,
@@ -34,9 +49,8 @@ export const ThreadToolbar = ({
   captureThreadEvent,
 }: ThreadToolbarProps) => {
   const navigate = useNavigate();
-  const [mode, setMode] = useState<"reply" | "support-intelligence" | null>(
-    null
-  );
+  const posthog = usePostHog();
+  const [replyDraft, setReplyDraft] = useState<JSONContent[]>([]);
 
   const suggestionsData = useQuickActionsSuggestions({
     currentStatus,
@@ -44,6 +58,46 @@ export const ThreadToolbar = ({
     threadId,
     threadLabels,
   });
+
+  const threadRows = useLiveQuery(
+    query.thread.where({ id: threadId }).include({
+      assignedUser: { include: { user: true } },
+      author: { include: { user: true } },
+    })
+  );
+  const thread = threadRows?.[0] as ThreadRecord | undefined;
+
+  const hasThreadRead = Boolean(thread?.agentRead);
+  const readFingerprint = thread?.agentRead
+    ? fingerprintAgentRead(thread.agentRead)
+    : null;
+  const labelKey = useMemo(
+    () =>
+      (suggestionsData.suggestedLabels ?? [])
+        .map((label) => label.suggestionId)
+        .toSorted()
+        .join(","),
+    [suggestionsData.suggestedLabels]
+  );
+  const hasLabelSuggestions = suggestionsData.hasLabelSuggestions;
+  const hasSomethingToShow = hasThreadRead || hasLabelSuggestions;
+
+  const { mode, toggleReply, toggleSupportIntelligence, exitReply } =
+    useToolbarMode({
+      hasSomethingToShow,
+      labelKey,
+      readFingerprint,
+      ready: threadRows !== undefined,
+    });
+
+  const ctx: ActorContext | null =
+    organizationId === undefined
+      ? null
+      : {
+          organizationId,
+          posthog: posthog ?? null,
+          user: { id: user.id, name: user.name },
+        };
 
   const threads = useLiveQuery(
     query.thread
@@ -53,20 +107,6 @@ export const ThreadToolbar = ({
       })
       .orderBy("createdAt", "desc")
   );
-
-  const handleToggleReply = () => {
-    setMode((prev) => (prev === "reply" ? null : "reply"));
-  };
-
-  const handleToggleSupportIntelligence = () => {
-    setMode((prev) =>
-      prev === "support-intelligence" ? null : "support-intelligence"
-    );
-  };
-
-  const handleClose = () => {
-    setMode(null);
-  };
 
   const isResolved = currentStatus === 2;
 
@@ -107,10 +147,12 @@ export const ThreadToolbar = ({
     }
   };
 
-  const isPanelOpen =
-    suggestionsData.hasSuggestions ||
-    mode === "reply" ||
-    mode === "support-intelligence";
+  const isPanelOpen = mode !== null;
+  const panelWidth =
+    mode === "reply" || (mode === "support-intelligence" && hasThreadRead)
+      ? 768
+      : 576;
+  const readCardIsPanel = mode === "support-intelligence" && hasThreadRead;
 
   return (
     <div
@@ -125,78 +167,53 @@ export const ThreadToolbar = ({
             animate={{
               opacity: 1,
               scale: 1,
-              width:
-                mode === "reply" || mode === "support-intelligence" ? 768 : 576,
+              width: panelWidth,
             }}
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.15, ease: "easeInOut" }}
-            className="origin-bottom bg-background-tertiary rounded-md border border-input overflow-hidden"
+            className={cn(
+              "origin-bottom overflow-hidden",
+              readCardIsPanel
+                ? ""
+                : "bg-background-tertiary rounded-md border border-input"
+            )}
           >
-            {mode !== "support-intelligence" &&
-              (!mode || suggestionsData.hasSuggestions) && (
-                <QuickActionsPanel
-                  threadId={threadId}
-                  organizationId={organizationId}
-                  threadLabels={threadLabels}
-                  currentStatus={currentStatus}
-                  user={user}
-                  captureThreadEvent={captureThreadEvent}
-                  showClose={mode === "reply"}
-                  onClose={handleClose}
-                  suggestionsData={suggestionsData}
-                />
-              )}
-            <AnimatePresence initial={false}>
-              {mode === "reply" && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.15, ease: "easeInOut" }}
-                  className={cn(
-                    "overflow-hidden bg-background-tertiary",
-                    suggestionsData.hasSuggestions &&
-                      "border-t border-input rounded-t-none"
-                  )}
-                >
-                  <ReplyEditor
-                    organizationId={organizationId}
-                    threadId={threadId}
-                    user={user}
-                    captureThreadEvent={captureThreadEvent}
-                    className={cn(
-                      suggestionsData.hasSuggestions && "rounded-t-none!"
-                    )}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
-            <AnimatePresence initial={false}>
-              {mode === "support-intelligence" && (
-                <motion.div
-                  initial={{ height: 0, opacity: 0 }}
-                  animate={{ height: "auto", opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }}
-                  transition={{ duration: 0.15, ease: "easeInOut" }}
-                  className="overflow-hidden bg-background-tertiary"
-                >
-                  <SupportIntelligenceChat
-                    threadId={threadId}
-                    organizationId={organizationId}
-                    user={user}
-                    captureThreadEvent={captureThreadEvent}
-                  />
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {mode === "support-intelligence" ? (
+              <SupportIntelligencePanel
+                thread={thread}
+                ctx={ctx}
+                hasLabelSuggestions={hasLabelSuggestions}
+                suggestionsData={suggestionsData}
+                threadId={threadId}
+                organizationId={organizationId}
+                threadLabels={threadLabels}
+                currentStatus={currentStatus}
+                user={user}
+                captureThreadEvent={captureThreadEvent}
+              />
+            ) : null}
+            {mode === "reply" ? (
+              <ReplyEditor
+                organizationId={organizationId}
+                threadId={threadId}
+                user={user}
+                captureThreadEvent={captureThreadEvent}
+                value={replyDraft}
+                onValueChange={setReplyDraft}
+                onSubmitted={() => {
+                  setReplyDraft([]);
+                  exitReply();
+                }}
+              />
+            ) : null}
           </motion.div>
         )}
       </AnimatePresence>
       <ToolbarActions
         mode={mode}
         isResolved={isResolved}
-        onToggleReply={handleToggleReply}
-        onToggleSupportIntelligence={handleToggleSupportIntelligence}
+        onToggleReply={toggleReply}
+        onToggleSupportIntelligence={toggleSupportIntelligence}
         onResolve={handleResolve}
         onNext={handleNext}
       />

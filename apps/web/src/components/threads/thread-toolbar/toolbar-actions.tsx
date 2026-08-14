@@ -52,7 +52,7 @@ export const ToolbarActions = ({
           )}
           onClick={onToggleSupportIntelligence}
           size="lg"
-          tooltip="Chat with Support Intelligence"
+          tooltip="Support Intelligence"
           keybind="b"
         >
           <SparklesIcon />

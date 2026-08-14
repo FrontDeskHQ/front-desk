@@ -415,6 +415,7 @@ function RouteComponent() {
                 </div>
                 <div className="sticky bottom-0 w-full max-w-5xl mx-auto px-8 pb-4">
                   <ThreadToolbar
+                    key={id}
                     threadId={id}
                     organizationId={thread?.organizationId}
                     threadLabels={threadLabels}

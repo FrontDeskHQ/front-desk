@@ -22,7 +22,11 @@ export function MockLabels({ labels }: MockLabelsProps) {
       <div className="flex flex-col gap-1.5">
         <div className="justify-start text-sm px-2 w-full py-1 max-w-none flex items-center gap-2 flex-wrap h-auto">
           {labels.map((label) => (
-            <LabelBadge key={label.name} name={label.name} color={label.color} />
+            <LabelBadge
+              key={label.name}
+              name={label.name}
+              color={label.color}
+            />
           ))}
           <div className="flex size-6 items-center justify-center">
             <PlusIcon className="size-4 text-foreground-secondary" />

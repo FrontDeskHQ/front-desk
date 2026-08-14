@@ -31,7 +31,6 @@ import { ThreadReply } from "~/components/threads/thread-reply";
 import { MockLabels } from "./mock-labels";
 import { MockProperties } from "./mock-properties";
 import { MockThreadToolbar } from "./mock-toolbar";
-import type { MockSiMessage } from "./mock-support-intelligence-chat";
 import type { MockMessage, MockThreadState } from "./types";
 
 type AppMessage = InferLiveObject<
@@ -57,11 +56,13 @@ interface MockThreadDetailPageProps {
   layout?: "scripted" | "static";
   headerVisible?: boolean;
   repliesHeadingVisible?: boolean;
-  /** Toolbar mode — defaults to null (actions only), or SI when a draft is given. */
+  /** Toolbar mode — defaults to null (actions only), or SI when a read is given. */
   toolbarMode?: "support-intelligence" | null;
-  /** Markdown draft for SI chat Draft Reply. */
-  siDraft?: string;
-  siMessages?: MockSiMessage[];
+  /** Thread-read summary shown in SI mode. */
+  readSummary?: string;
+  readRecommendation?: string;
+  /** Markdown draft for the in-card reply editor. */
+  readDraft?: string;
   className?: string;
 }
 
@@ -98,8 +99,9 @@ export function MockThreadDetailPage({
   headerVisible = true,
   repliesHeadingVisible = true,
   toolbarMode = null,
-  siDraft,
-  siMessages,
+  readSummary,
+  readRecommendation,
+  readDraft,
   className,
 }: MockThreadDetailPageProps) {
   const answerMessage = replies.find(
@@ -107,9 +109,7 @@ export function MockThreadDetailPage({
   )?.message;
   const visibleReplies = replies.filter((slot) => slot.visible);
   const showRepliesSection =
-    repliesHeadingVisible ||
-    visibleReplies.length > 0 ||
-    layout === "scripted";
+    repliesHeadingVisible || visibleReplies.length > 0 || layout === "scripted";
 
   return (
     <div className={cn("flex size-full", className)}>
@@ -190,8 +190,9 @@ export function MockThreadDetailPage({
               <div className="sticky bottom-0 mx-auto w-full max-w-5xl px-8 pb-4">
                 <MockThreadToolbar
                   mode={toolbarMode}
-                  siDraft={siDraft}
-                  siMessages={siMessages}
+                  summary={readSummary}
+                  recommendation={readRecommendation}
+                  draft={readDraft}
                   isResolved={thread.status === 2}
                 />
               </div>

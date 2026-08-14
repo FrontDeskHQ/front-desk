@@ -4,7 +4,6 @@
 
 import { NarrativeSection } from "../shared/narrative-section";
 import type { NarrativeTopic } from "../shared/narrative-section";
-
 import { ThreadDetailVisual } from "./thread-detail-visual";
 
 const TOPICS: readonly NarrativeTopic[] = [

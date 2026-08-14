@@ -1,3 +1,4 @@
+import type { JSONContent } from "@workspace/ui/components/blocks/tiptap";
 import {
   Editor,
   EditorInput,
@@ -16,6 +17,9 @@ interface ReplyEditorProps {
     properties?: Record<string, unknown>
   ) => void;
   className?: string;
+  value: JSONContent[];
+  onValueChange: (value: JSONContent[]) => void;
+  onSubmitted: () => void;
 }
 
 export const ReplyEditor = ({
@@ -24,21 +28,27 @@ export const ReplyEditor = ({
   user,
   captureThreadEvent,
   className,
+  value,
+  onValueChange,
+  onSubmitted,
 }: ReplyEditorProps) => (
   <div data-slot="reply-editor">
     <Editor
-      onSubmit={(value) => {
+      value={value}
+      onValueChange={onValueChange}
+      onSubmit={(nextValue) => {
         if (!organizationId) return;
 
         mutate.message.create({
           threadId,
-          content: value,
+          content: nextValue,
           userId: user.id,
           userName: user.name,
           organizationId,
         });
 
         captureThreadEvent("thread:message_send");
+        onSubmitted();
       }}
     >
       <EditorInput

@@ -61,6 +61,8 @@ export type ThreadWithRelations = InferLiveObject<
 interface Props {
   thread: ThreadWithRelations & { agentRead: ThreadRead };
   ctx: ActorContext;
+  /** `feed` includes thread identity chrome; `thread` drops it (already on the thread). */
+  variant?: "feed" | "thread";
 }
 
 function ThreadRef({ thread }: { thread: ThreadWithRelations }) {
@@ -341,9 +343,7 @@ function InlineSuggestionsRow({
             </HoverCardTrigger>
             <HoverCardContent className="min-w-72 w-full max-w-96 flex flex-col gap-3">
               <div className="text-xs flex flex-col gap-1">
-                <div className="text-foreground-secondary">
-                  Suggested label
-                </div>
+                <div className="text-foreground-secondary">Suggested label</div>
                 <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15">
                   {chipContent(item)}
                 </div>
@@ -452,7 +452,7 @@ function formatErrorMessage(error: unknown): string {
   return "Could not apply this signal. Please try again.";
 }
 
-export function ThreadReadCard({ thread, ctx }: Props) {
+export function ThreadReadCard({ thread, ctx, variant = "feed" }: Props) {
   const [busyKey, setBusyKey] = useState<string | null>(null);
   // Which reply is being previewed/edited: the primary bundle's reply, or a
   // specific alternative reply. Both open the same inline draft editor.
@@ -663,17 +663,19 @@ export function ThreadReadCard({ thread, ctx }: Props) {
     }
   };
 
+  const readTime = read.createdAt ? (
+    <ActionRow.Meta>
+      {formatRelativeTime(new Date(read.createdAt))}
+    </ActionRow.Meta>
+  ) : null;
+
   return (
     <ActionRow.Root tier={urgencyTierFromScore(read.urgencyScore)}>
       <ActionRow.Header>
         <div className="flex flex-col">
           <div className="flex min-h-8 w-full items-center gap-2 pr-16 text-sm text-foreground-primary">
-            <ThreadRef thread={thread} />
-            {read.createdAt ? (
-              <ActionRow.Meta>
-                {formatRelativeTime(new Date(read.createdAt))}
-              </ActionRow.Meta>
-            ) : null}
+            {variant === "feed" ? <ThreadRef thread={thread} /> : null}
+            {readTime}
           </div>
           <div className={cn(treeRowClassName, "items-start")}>
             {read.recommendation ? (
