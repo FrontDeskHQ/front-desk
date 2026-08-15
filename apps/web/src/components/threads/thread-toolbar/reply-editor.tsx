@@ -61,6 +61,10 @@ export const ReplyEditor = ({
       }}
     >
       <EditorInput
+        // EditorInput's own clear is synchronous and would wipe the draft
+        // before the mutation resolves. A successful send unmounts this editor
+        // via `onSubmitted`, so there is nothing left to clear on that path.
+        clearOnSubmit={false}
         className={cn("shadow-lg bg-[#1B1B1E] border-0 border-b-0", className)}
         placeholder="Write a reply..."
         autoFocus

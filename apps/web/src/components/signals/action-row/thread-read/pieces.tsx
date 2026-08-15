@@ -125,6 +125,8 @@ interface ResolvedInlineSuggestion {
   suggestion: InlineSuggestion;
   name: string;
   color: string;
+  /** A label that is gone or disabled can still be dismissed, never applied. */
+  applicable: boolean;
 }
 
 /**
@@ -145,9 +147,9 @@ function InlineSuggestionsRow({
   onAccept: (suggestion: InlineSuggestion) => void | Promise<void>;
   onDismiss: (suggestion: InlineSuggestion) => void | Promise<void>;
 }) {
-  const labels = useLiveQuery(
-    query.label.where({ enabled: true, organizationId })
-  );
+  // Disabled labels are queried too, so a suggestion for one keeps its real
+  // name instead of degrading to "Unknown label" — it just can't be applied.
+  const labels = useLiveQuery(query.label.where({ organizationId }));
 
   const resolved = useMemo<ResolvedInlineSuggestion[]>(() => {
     const labelById = new Map((labels ?? []).map((label) => [label.id, label]));
@@ -155,9 +157,10 @@ function InlineSuggestionsRow({
     for (const suggestion of suggestions) {
       const label = labelById.get(suggestion.action.labelId);
       if (!label) {
-        // Keep the suggestion dismissible even when its label was deleted,
-        // disabled, or hasn't loaded yet — otherwise it becomes a stuck row.
+        // Keep the suggestion dismissible even when its label was deleted or
+        // hasn't loaded yet — otherwise it becomes a stuck row.
         result.push({
+          applicable: false,
           color: "var(--muted-foreground)",
           name: "Unknown label",
           suggestion,
@@ -165,6 +168,7 @@ function InlineSuggestionsRow({
         continue;
       }
       result.push({
+        applicable: label.enabled,
         color: label.color,
         name: label.name,
         suggestion,
@@ -201,7 +205,11 @@ function InlineSuggestionsRow({
                   variant="ghost"
                   size="sm"
                   className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-                  onClick={() => onAccept(item.suggestion)}
+                  onClick={() =>
+                    item.applicable
+                      ? onAccept(item.suggestion)
+                      : onDismiss(item.suggestion)
+                  }
                   disabled={busy}
                 />
               }
@@ -210,7 +218,11 @@ function InlineSuggestionsRow({
             </HoverCardTrigger>
             <HoverCardContent className="min-w-72 w-full max-w-96 flex flex-col gap-3">
               <div className="text-xs flex flex-col gap-1">
-                <div className="text-foreground-secondary">Suggested label</div>
+                <div className="text-foreground-secondary">
+                  {item.applicable
+                    ? "Suggested label"
+                    : "Suggested label — no longer available"}
+                </div>
                 <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15">
                   {chipContent(item)}
                 </div>
@@ -219,10 +231,14 @@ function InlineSuggestionsRow({
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() => onAccept(item.suggestion)}
+                onClick={() =>
+                  item.applicable
+                    ? onAccept(item.suggestion)
+                    : onDismiss(item.suggestion)
+                }
                 disabled={busy}
               >
-                Apply suggestion
+                {item.applicable ? "Apply suggestion" : "Dismiss suggestion"}
               </ActionButton>
             </HoverCardContent>
           </HoverCard>
@@ -237,7 +253,9 @@ function InlineSuggestionsRow({
               // Run sequentially so a single busy state covers the whole batch
               // instead of concurrent requests racing to clear it.
               for (const item of resolved) {
-                await onAccept(item.suggestion);
+                await (item.applicable
+                  ? onAccept(item.suggestion)
+                  : onDismiss(item.suggestion));
               }
             }}
             disabled={busy}
