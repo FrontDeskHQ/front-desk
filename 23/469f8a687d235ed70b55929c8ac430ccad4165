@@ -1,0 +1,24 @@
+apps/web/src/components/threads/thread-toolbar/reply-editor.tsx
+  s_bd128729ba76a3::t_5e5c5b97e69b06 64-67
+apps/web/src/components/signals/action-row/thread-read/pieces.tsx
+  s_bd128729ba76a3::t_ca86f6535488e3 150-152,160-161,163,171
+  s_bd128729ba76a3::t_7187beff71cbf9 128-129
+  s_bd128729ba76a3::t_4f3b83ec751a7c 208-212,221-225,234-238,241
+  s_bd128729ba76a3::t_ae87d730bdfcdf 256-258
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "23469f8a687d235ed70b55929c8ac430ccad4165",
+  "prompts": {},
+  "sessions": {
+    "s_bd128729ba76a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "51c600d2-0a9a-4c34-9959-e87444d1adea",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
