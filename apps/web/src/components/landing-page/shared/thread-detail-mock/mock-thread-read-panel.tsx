@@ -65,7 +65,7 @@ export function MockThreadReadPanel({
         </ActionRow.Header>
         <ReplyDraftChrome>
           <div className="max-h-52 min-h-0 overflow-y-auto text-sm pb-2">
-            <RichMarkdown content={draft} preset="inline" />
+            <RichMarkdown content={draft} />
           </div>
         </ReplyDraftChrome>
         <ActionRow.Actions>

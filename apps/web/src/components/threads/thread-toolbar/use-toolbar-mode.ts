@@ -57,6 +57,12 @@ export function useToolbarMode({
       }
     }
 
+    // What triggered the pending open can be dismissed or superseded while the
+    // reply is still composing — don't land on an empty panel.
+    if (!hasSomethingToShow) {
+      openSiWhenReplyClosesRef.current = false;
+    }
+
     if (
       mode === "support-intelligence" &&
       hadShowableRef.current &&

@@ -390,7 +390,7 @@ export const QuickActionsPanel = ({
                 </HoverCardTrigger>
               ))}
 
-              <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto">
+              <div className="flex items-center gap-0 opacity-0 transition-opacity pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto focus-within:opacity-100 focus-within:pointer-events-auto">
                 <ActionButton
                   variant="ghost"
                   size="icon-sm"
@@ -546,7 +546,7 @@ export const QuickActionsPanel = ({
                   variant="ghost"
                   size="icon-sm"
                   tooltip="Accept"
-                  className="text-foreground-secondary opacity-0 group-hover:opacity-100 transition-opacity group-hover:duration-0"
+                  className="text-foreground-secondary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity group-hover:duration-0"
                   onClick={handleAcceptDuplicate}
                 >
                   <Check />
@@ -555,7 +555,7 @@ export const QuickActionsPanel = ({
                   variant="ghost"
                   size="icon-sm"
                   tooltip="Ignore"
-                  className="text-foreground-secondary opacity-0 group-hover:opacity-100 transition-opacity group-hover:duration-0"
+                  className="text-foreground-secondary opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity group-hover:duration-0"
                   onClick={handleDismissDuplicate}
                 >
                   <X />

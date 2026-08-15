@@ -101,10 +101,12 @@ export const ThreadToolbar = ({
   );
   const thread = threadRows?.[0] as ThreadRecord | undefined;
 
-  const hasThreadRead = Boolean(thread?.agentRead);
-  const readFingerprint = thread?.agentRead
-    ? fingerprintAgentRead(thread.agentRead)
-    : null;
+  const agentRead = thread?.agentRead;
+  const hasThreadRead = Boolean(agentRead);
+  const readFingerprint = useMemo(
+    () => (agentRead ? fingerprintAgentRead(agentRead) : null),
+    [agentRead]
+  );
   const labelKey = useMemo(
     () =>
       (suggestionsData.suggestedLabels ?? [])
@@ -182,11 +184,14 @@ export const ThreadToolbar = ({
   };
 
   const isPanelOpen = mode !== null;
+  // Mirror SupportIntelligencePanel's own condition: without `ctx` it falls back
+  // to quick actions or the empty state, which still need the panel chrome.
+  const showsThreadRead = hasThreadRead && ctx !== null;
   const panelWidth =
-    mode === "reply" || (mode === "support-intelligence" && hasThreadRead)
+    mode === "reply" || (mode === "support-intelligence" && showsThreadRead)
       ? 768
       : 576;
-  const readCardIsPanel = mode === "support-intelligence" && hasThreadRead;
+  const readCardIsPanel = mode === "support-intelligence" && showsThreadRead;
 
   return (
     <div

@@ -6,7 +6,7 @@ Glossary of domain terms. Implementation lives in code; decisions live in `docs/
 
 ### Support Intelligence
 
-Product name for the Agent's proposals to humans — [thread reads](#thread-read), [inline suggestions](#inline-suggestion), and the settings that govern them. The thread-toolbar control keeps this name; the thread-read card itself does not. Not an object. _Avoid_: using it as a synonym for [thread read](#thread-read), [feed](#feed), or the conversational agent chat.
+Product name for the Agent's proposals to humans — [thread reads](#thread-read), [inline suggestions](#inline-suggestion), and the settings that govern them. The thread-toolbar control keeps this name; the thread-read surfaces themselves — the feed card and the thread-surface panel — do not. Not an object. _Avoid_: using it as a synonym for [thread read](#thread-read), [feed](#feed), or the conversational agent chat.
 
 ### Signal
 
@@ -20,17 +20,17 @@ A thread read exists only when the Agent has a **substantive next move** (reply,
 
 ### Inline suggestion
 
-A lightweight proposal that bypasses [synthesis](#synthesis) and renders on the thread view itself. A **surface, not a pipeline half** — the label classifier is its only producer and a suggested label its only kind, so the `confidence` scalar stored beside it always means the same thing. Written when autonomy is `suggest`; under `auto` a confident classification is applied outright and leaves an [autonomous action](#autonomous-action) instead. Multiple can coexist on one thread, each with its own accept / dismiss lifecycle. Stored on `thread.inlineSuggestions`. _Avoid_: "inline track" — status inference left for synthesis, and one classifier is not a track.
+A lightweight proposal that bypasses [synthesis](#synthesis) and renders on the thread view — and, when the thread also has a [thread read](#thread-read), alongside that read on its feed card. A **surface, not a pipeline half** — the label classifier is its only producer and a suggested label its only kind, so the `confidence` scalar stored beside it always means the same thing. Written when autonomy is `suggest`; under `auto` a confident classification is applied outright and leaves an [autonomous action](#autonomous-action) instead. Multiple can coexist on one thread, each with its own accept / dismiss lifecycle. Stored on `thread.inlineSuggestions`. _Avoid_: "inline track" — status inference left for synthesis, and one classifier is not a track.
 
 Inline suggestions never appear standalone in the feed. When a thread also has a thread read, they render alongside that read on both the feed card and the thread. Otherwise they surface only on the thread.
 
 ### Pattern signal
 
-A cross-thread observation produced by a periodic cron scan. Three kinds today: `trending_issue`, `kb_gap`, `churn_risk`. Org-scoped, stackable (no replace-on-upsert), assignable. Stored in the `patternSignal` table.
+_Planned, not built._ A cross-thread observation produced by a periodic cron scan. Three kinds envisaged: `trending_issue`, `kb_gap`, `churn_risk`. Org-scoped, stackable (no replace-on-upsert), assignable. Would live in a `patternSignal` table.
 
 ### Feed
 
-The page (formerly `/signals`) where thread reads and pattern signals surface for human attention across threads. A [thread read](#thread-read) also appears on the thread it belongs to; the feed is the inbox, not the only window. Shows "you're all caught up" when empty. Inline suggestions never appear here as their own items.
+The page (formerly `/signals`) where thread reads — and, once built, [pattern signals](#pattern-signal) — surface for human attention across threads. A [thread read](#thread-read) also appears on the thread it belongs to; the feed is the inbox, not the only window. Shows "you're all caught up" when empty. Inline suggestions never appear here as their own items.
 
 ### Entry processor
 

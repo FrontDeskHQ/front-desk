@@ -145,7 +145,9 @@ function InlineSuggestionsRow({
   onAccept: (suggestion: InlineSuggestion) => void | Promise<void>;
   onDismiss: (suggestion: InlineSuggestion) => void | Promise<void>;
 }) {
-  const labels = useLiveQuery(query.label.where({ organizationId }));
+  const labels = useLiveQuery(
+    query.label.where({ enabled: true, organizationId })
+  );
 
   const resolved = useMemo<ResolvedInlineSuggestion[]>(() => {
     const labelById = new Map((labels ?? []).map((label) => [label.id, label]));

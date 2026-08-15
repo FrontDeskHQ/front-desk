@@ -5,6 +5,7 @@ import {
   EditorSubmit,
 } from "@workspace/ui/components/blocks/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
+import { toast } from "sonner";
 
 import { mutate } from "~/lib/live-state";
 
@@ -36,16 +37,24 @@ export const ReplyEditor = ({
     <Editor
       value={value}
       onValueChange={onValueChange}
-      onSubmit={(nextValue) => {
-        if (!organizationId) return;
+      onSubmit={async (nextValue) => {
+        if (!organizationId) {
+          toast.error("Could not send the reply — no organization loaded.");
+          return;
+        }
 
-        mutate.message.create({
-          threadId,
-          content: nextValue,
-          userId: user.id,
-          userName: user.name,
-          organizationId,
-        });
+        try {
+          await mutate.message.create({
+            threadId,
+            content: nextValue,
+            userId: user.id,
+            userName: user.name,
+            organizationId,
+          });
+        } catch {
+          toast.error("Could not send the reply. Try again.");
+          return;
+        }
 
         captureThreadEvent("thread:message_send");
         onSubmitted();
