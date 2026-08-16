@@ -1,4 +1,5 @@
 import type { InferLiveCollection } from "@live-state/sync";
+import { useNavigate } from "@tanstack/react-router";
 import { fingerprintAgentRead } from "@workspace/schemas/signals";
 import type {
   Action,
@@ -17,6 +18,8 @@ import {
 import type { ReactNode } from "react";
 import { toast } from "sonner";
 
+import { buildThreadParam } from "~/utils/thread";
+
 import {
   acceptInlineSuggestion,
   acceptThreadRead,
@@ -25,11 +28,21 @@ import {
 } from "../handlers";
 import type { ActorContext } from "../handlers";
 import {
+  acceptToastMessage,
   formatErrorMessage,
   orderReplyFirst,
   primaryReplyDraftMarkdown,
 } from "./helpers";
 import type { SelectedAction } from "./helpers";
+
+export type ThreadReadOrigin = "feed" | "thread";
+
+const TOAST_ACTION_BUTTON_STYLE = {
+  background: "transparent",
+  border: "none",
+  color: "hsl(var(--primary))",
+  textDecoration: "underline",
+} as const;
 
 export type ThreadWithRelations = InferLiveCollection<
   typeof schema.thread,
@@ -99,12 +112,15 @@ export function useThreadRead(): ThreadReadContextValue {
 export function ThreadReadProvider({
   thread,
   ctx,
+  origin = "thread",
   children,
 }: {
   thread: ThreadWithAgentRead;
   ctx: ActorContext;
+  origin?: ThreadReadOrigin;
   children: ReactNode;
 }) {
+  const navigate = useNavigate();
   const [busyKey, setBusyKey] = useState<string | null>(null);
   // Which reply is being previewed/edited: the primary bundle's reply, or a
   // specific alternative reply. Both open the same inline draft editor.
@@ -170,11 +186,32 @@ export function ThreadReadProvider({
     [read.alternatives, primaryIsJustReply]
   );
 
+  const showAcceptToast = (actions: Action[]) => {
+    const message = acceptToastMessage(actions);
+    if (origin === "feed") {
+      toast.success(message, {
+        duration: 10_000,
+        action: {
+          label: "See thread",
+          onClick: () =>
+            navigate({
+              params: { id: buildThreadParam(thread) },
+              to: "/app/threads/$id",
+            }),
+        },
+        actionButtonStyle: TOAST_ACTION_BUTTON_STYLE,
+      });
+      return;
+    }
+    toast.success(message);
+  };
+
   const handleAcceptSelected = async (replyDraftValue?: string) => {
     const indices = [...selectedIndices].toSorted((a, b) => a - b);
     if (indices.length === 0) {
       return;
     }
+    const accepted = orderedSelected.map(({ action }) => action);
     setBusyKey("primary");
     try {
       await acceptThreadRead({
@@ -185,6 +222,7 @@ export function ThreadReadProvider({
         threadId: thread.id,
       });
       setReplyTarget(null);
+      showAcceptToast(accepted);
     } catch (error) {
       toast.error(formatErrorMessage(error));
     } finally {
@@ -214,6 +252,7 @@ export function ThreadReadProvider({
     alternativeIndex: number,
     replyDraftValue?: string
   ) => {
+    const alternative = read.alternatives?.[alternativeIndex];
     setBusyKey(`alt:${alternativeIndex}`);
     try {
       await acceptThreadRead({
@@ -224,6 +263,7 @@ export function ThreadReadProvider({
         threadId: thread.id,
       });
       setReplyTarget(null);
+      showAcceptToast(alternative ? [alternative] : []);
     } catch (error) {
       toast.error(formatErrorMessage(error));
     } finally {

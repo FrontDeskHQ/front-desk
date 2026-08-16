@@ -1,4 +1,11 @@
-import { ACTION_KIND_VERB } from "@workspace/schemas/signals";
+import {
+  ACTION_KIND_VERB,
+  STATUS_CLOSED,
+  STATUS_DUPLICATED,
+  STATUS_IN_PROGRESS,
+  STATUS_OPEN,
+  STATUS_RESOLVED,
+} from "@workspace/schemas/signals";
 import type { Action, ReplyAction } from "@workspace/schemas/signals";
 
 export interface SelectedAction {
@@ -69,6 +76,60 @@ export function compoundButtonLabel(
     return `${first} and ${verbAt(ordered[1], 1)}`;
   }
   return `${first} and do ${ordered.length - 1} actions`;
+}
+
+function uncapitalize(value: string): string {
+  return value.charAt(0).toLowerCase() + value.slice(1);
+}
+
+function actionAppliedPhrase(action: Action): string {
+  switch (action.kind) {
+    case "reply":
+      return "Reply sent";
+    case "apply_label":
+      return "Label applied";
+    case "create_issue":
+      return "Issue filed";
+    case "link_issue":
+      return "Issue linked";
+    case "link_pr":
+      return "Pull request linked";
+    case "mark_duplicate":
+      return "Marked as duplicate";
+    case "set_status":
+      switch (action.status) {
+        case STATUS_RESOLVED:
+          return "Thread resolved";
+        case STATUS_CLOSED:
+          return "Thread closed";
+        case STATUS_DUPLICATED:
+          return "Marked as duplicate";
+        case STATUS_OPEN:
+          return "Thread reopened";
+        case STATUS_IN_PROGRESS:
+          return "Moved to in progress";
+        default:
+          return "Status updated";
+      }
+  }
+}
+
+/**
+ * Past-tense confirmation of the actions that just ran, e.g. "Reply sent",
+ * "Reply sent and thread resolved", or "Reply sent and 2 other actions applied".
+ */
+export function acceptToastMessage(actions: Action[]): string {
+  if (actions.length === 0) {
+    return "Actions applied";
+  }
+  const first = actionAppliedPhrase(actions[0]);
+  if (actions.length === 1) {
+    return first;
+  }
+  if (actions.length === 2) {
+    return `${first} and ${uncapitalize(actionAppliedPhrase(actions[1]))}`;
+  }
+  return `${first} and ${actions.length - 1} other actions applied`;
 }
 
 export function formatErrorMessage(error: unknown): string {

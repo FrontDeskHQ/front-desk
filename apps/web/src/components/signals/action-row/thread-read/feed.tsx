@@ -99,7 +99,7 @@ export function FeedThreadRead({
   ctx: ActorContext;
 }) {
   return (
-    <ThreadReadProvider thread={thread} ctx={ctx}>
+    <ThreadReadProvider thread={thread} ctx={ctx} origin="feed">
       <ThreadRead.Root>
         <ActionRow.Header>
           <FeedHeader />

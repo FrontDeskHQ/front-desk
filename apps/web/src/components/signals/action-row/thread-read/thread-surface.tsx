@@ -45,7 +45,7 @@ export function ThreadSurfaceRead({
   onClose: () => void;
 }) {
   return (
-    <ThreadReadProvider thread={thread} ctx={ctx}>
+    <ThreadReadProvider thread={thread} ctx={ctx} origin="thread">
       <ThreadRead.Root>
         <ActionRow.Header>
           <ThreadSurfaceHeader onClose={onClose} />
