@@ -121,12 +121,19 @@ function CompoundActionButton({
   );
 }
 
+/**
+ * `applicable` — the label exists and is enabled, so the chip applies it.
+ * `unavailable` — the label is deleted or disabled: dismiss-only, never applied.
+ * `pending` — no label rows are in the local store yet, so we can't tell the two
+ * apart. The chip stays inert rather than silently dismissing a valid suggestion.
+ */
+type InlineSuggestionStatus = "applicable" | "unavailable" | "pending";
+
 interface ResolvedInlineSuggestion {
   suggestion: InlineSuggestion;
   name: string;
   color: string;
-  /** A label that is gone or disabled can still be dismissed, never applied. */
-  applicable: boolean;
+  status: InlineSuggestionStatus;
 }
 
 /**
@@ -152,25 +159,27 @@ function InlineSuggestionsRow({
   const labels = useLiveQuery(query.label.where({ organizationId }));
 
   const resolved = useMemo<ResolvedInlineSuggestion[]>(() => {
-    const labelById = new Map((labels ?? []).map((label) => [label.id, label]));
+    const rows = labels ?? [];
+    // The hook has no loading flag, so an empty local store is our only signal
+    // that label rows haven't synced yet. "Ignore all" still clears the row.
+    const loaded = rows.length > 0;
+    const labelById = new Map(rows.map((label) => [label.id, label]));
     const result: ResolvedInlineSuggestion[] = [];
     for (const suggestion of suggestions) {
       const label = labelById.get(suggestion.action.labelId);
       if (!label) {
-        // Keep the suggestion dismissible even when its label was deleted or
-        // hasn't loaded yet — otherwise it becomes a stuck row.
         result.push({
-          applicable: false,
           color: "var(--muted-foreground)",
-          name: "Unknown label",
+          name: loaded ? "Unknown label" : "Loading label…",
+          status: loaded ? "unavailable" : "pending",
           suggestion,
         });
         continue;
       }
       result.push({
-        applicable: label.enabled,
         color: label.color,
         name: label.name,
+        status: label.enabled ? "applicable" : "unavailable",
         suggestion,
       });
     }
@@ -180,6 +189,17 @@ function InlineSuggestionsRow({
   if (resolved.length === 0) {
     return null;
   }
+
+  // A pending chip has no safe action: applying could target a disabled label,
+  // dismissing would throw away a suggestion that is probably still valid.
+  const runChipAction = (item: ResolvedInlineSuggestion) => {
+    if (item.status === "pending") {
+      return;
+    }
+    return item.status === "applicable"
+      ? onAccept(item.suggestion)
+      : onDismiss(item.suggestion);
+  };
 
   const chipContent = (item: ResolvedInlineSuggestion) => (
     <>
@@ -205,12 +225,8 @@ function InlineSuggestionsRow({
                   variant="ghost"
                   size="sm"
                   className="border border-dashed border-input dark:hover:bg-foreground-tertiary/15"
-                  onClick={() =>
-                    item.applicable
-                      ? onAccept(item.suggestion)
-                      : onDismiss(item.suggestion)
-                  }
-                  disabled={busy}
+                  onClick={() => runChipAction(item)}
+                  disabled={busy || item.status === "pending"}
                 />
               }
             >
@@ -219,9 +235,11 @@ function InlineSuggestionsRow({
             <HoverCardContent className="min-w-72 w-full max-w-96 flex flex-col gap-3">
               <div className="text-xs flex flex-col gap-1">
                 <div className="text-foreground-secondary">
-                  {item.applicable
-                    ? "Suggested label"
-                    : "Suggested label — no longer available"}
+                  {item.status === "applicable" && "Suggested label"}
+                  {item.status === "unavailable" &&
+                    "Suggested label — no longer available"}
+                  {item.status === "pending" &&
+                    "Suggested label — still loading"}
                 </div>
                 <div className="border border-dashed flex items-center w-fit h-6 rounded-sm gap-1.5 px-2 has-[>svg:first-child]:pl-1.5 text-xs bg-foreground-tertiary/15">
                   {chipContent(item)}
@@ -231,14 +249,12 @@ function InlineSuggestionsRow({
                 variant="outline"
                 size="sm"
                 className="w-full"
-                onClick={() =>
-                  item.applicable
-                    ? onAccept(item.suggestion)
-                    : onDismiss(item.suggestion)
-                }
-                disabled={busy}
+                onClick={() => runChipAction(item)}
+                disabled={busy || item.status === "pending"}
               >
-                {item.applicable ? "Apply suggestion" : "Dismiss suggestion"}
+                {item.status === "applicable"
+                  ? "Apply suggestion"
+                  : "Dismiss suggestion"}
               </ActionButton>
             </HoverCardContent>
           </HoverCard>
@@ -251,14 +267,13 @@ function InlineSuggestionsRow({
             className="text-foreground-secondary"
             onClick={async () => {
               // Run sequentially so a single busy state covers the whole batch
-              // instead of concurrent requests racing to clear it.
+              // instead of concurrent requests racing to clear it. Pending
+              // items are left alone so they aren't dismissed sight-unseen.
               for (const item of resolved) {
-                await (item.applicable
-                  ? onAccept(item.suggestion)
-                  : onDismiss(item.suggestion));
+                await runChipAction(item);
               }
             }}
-            disabled={busy}
+            disabled={busy || !resolved.some((item) => item.status !== "pending")}
           >
             <Check />
           </ActionButton>
