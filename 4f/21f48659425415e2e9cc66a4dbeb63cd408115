@@ -1,0 +1,23 @@
+apps/web/src/components/signals/action-row/thread-read/pieces.tsx
+  s_2c881dc4dcb2f1::t_b430c0c50d51f1 21
+  s_2c881dc4dcb2f1::t_3c5180fd74d058 160-164,168
+  s_2c881dc4dcb2f1::t_ae9ba62af17425 127-128
+  s_2c881dc4dcb2f1::t_9565b0f863486d 190
+  s_2c881dc4dcb2f1::t_8a462a3dc69406 1
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4f21f48659425415e2e9cc66a4dbeb63cd408115",
+  "prompts": {},
+  "sessions": {
+    "s_2c881dc4dcb2f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ee47614a-ef1f-4960-9d1c-698f9fda4c1b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
