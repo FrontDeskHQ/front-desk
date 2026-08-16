@@ -1,9 +1,11 @@
+import type { JSONContent } from "@workspace/ui/components/blocks/tiptap";
 import {
   Editor,
   EditorInput,
   EditorSubmit,
 } from "@workspace/ui/components/blocks/tiptap";
 import { cn } from "@workspace/ui/lib/utils";
+import { toast } from "sonner";
 
 import { mutate } from "~/lib/live-state";
 
@@ -16,6 +18,9 @@ interface ReplyEditorProps {
     properties?: Record<string, unknown>
   ) => void;
   className?: string;
+  value: JSONContent[];
+  onValueChange: (value: JSONContent[]) => void;
+  onSubmitted: () => void;
 }
 
 export const ReplyEditor = ({
@@ -24,24 +29,42 @@ export const ReplyEditor = ({
   user,
   captureThreadEvent,
   className,
+  value,
+  onValueChange,
+  onSubmitted,
 }: ReplyEditorProps) => (
   <div data-slot="reply-editor">
     <Editor
-      onSubmit={(value) => {
-        if (!organizationId) return;
+      value={value}
+      onValueChange={onValueChange}
+      onSubmit={async (nextValue) => {
+        if (!organizationId) {
+          toast.error("Could not send the reply — no organization loaded.");
+          return;
+        }
 
-        mutate.message.create({
-          threadId,
-          content: value,
-          userId: user.id,
-          userName: user.name,
-          organizationId,
-        });
+        try {
+          await mutate.message.create({
+            threadId,
+            content: nextValue,
+            userId: user.id,
+            userName: user.name,
+            organizationId,
+          });
+        } catch {
+          toast.error("Could not send the reply. Try again.");
+          return;
+        }
 
         captureThreadEvent("thread:message_send");
+        onSubmitted();
       }}
     >
       <EditorInput
+        // EditorInput's own clear is synchronous and would wipe the draft
+        // before the mutation resolves. A successful send unmounts this editor
+        // via `onSubmitted`, so there is nothing left to clear on that path.
+        clearOnSubmit={false}
         className={cn("shadow-lg bg-[#1B1B1E] border-0 border-b-0", className)}
         placeholder="Write a reply..."
         autoFocus

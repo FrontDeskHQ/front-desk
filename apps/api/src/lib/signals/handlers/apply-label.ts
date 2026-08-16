@@ -14,11 +14,17 @@ const snapshotKey = (action: ApplyLabelAction) =>
 
 export const applyLabelHandler: ActionHandler<ApplyLabelAction> = {
   async apply(action, ctx) {
-    const result = await runAttachLabelToThread(ctx.db, {
-      labelId: action.labelId,
-      organizationId: ctx.organizationId,
-      threadId: ctx.threadId,
-    });
+    // The client's `applicable` flag is a render-time snapshot, so the label
+    // is revalidated inside the attach transaction rather than trusted here.
+    const result = await runAttachLabelToThread(
+      ctx.db,
+      {
+        labelId: action.labelId,
+        organizationId: ctx.organizationId,
+        threadId: ctx.threadId,
+      },
+      { requireEnabledLabel: true }
+    );
 
     if (result.noOp) {
       return;

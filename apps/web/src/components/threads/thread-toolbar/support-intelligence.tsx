@@ -1,8 +1,5 @@
-// Reads the inline-track suggestions off `thread.inlineSuggestions` (the
-// suggestion table was dropped in the signals overhaul) and shapes them for the
-// quick-actions toolbar. Only the inline-track kinds surface here — `apply_label`
-// and `set_status`; synthesis-track reads (reply / duplicate / close) render in
-// the signals feed via ThreadReadCard.
+// Reads pending `apply_label` inline suggestions for the thread toolbar.
+// Status and duplicate proposals live on the thread read (synthesis), not here.
 
 import type { InferLiveObject } from "@live-state/sync";
 import { useLiveQuery } from "@live-state/sync/client";

@@ -26,6 +26,12 @@ export const runAttachLabelToThread = async (
   options?: {
     preloadedThread?: ThreadRow;
     preloadedLabel?: LabelRow;
+    /**
+     * Re-read the label inside the attach transaction and reject it when it is
+     * disabled. Callers acting on a client-side snapshot (inline suggestions)
+     * need this: the label can be disabled between render and the click.
+     */
+    requireEnabledLabel?: boolean;
   }
 ) => {
   const thread =
@@ -67,6 +73,23 @@ export const runAttachLabelToThread = async (
   const threadLabelId = input.threadLabelId ?? ulid().toLowerCase();
 
   const attachResult = await db.transaction(async ({ trx }) => {
+    if (options?.requireEnabledLabel) {
+      const current = await trx.label
+        .first({
+          id: input.labelId,
+          organizationId: input.organizationId,
+        })
+        .get();
+
+      if (!current) {
+        throw new Error("LABEL_NOT_FOUND");
+      }
+
+      if (!current.enabled) {
+        throw new Error("LABEL_DISABLED");
+      }
+    }
+
     const existing = await trx.threadLabel
       .first({
         labelId: input.labelId,

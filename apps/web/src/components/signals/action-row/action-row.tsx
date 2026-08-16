@@ -1,6 +1,7 @@
 import type { UrgencyTier } from "@workspace/schemas/signals";
 import { ActionButton } from "@workspace/ui/components/button";
 import { PriorityIndicator } from "@workspace/ui/components/indicator";
+import { cn } from "@workspace/ui/lib/utils";
 import { X } from "lucide-react";
 import { createContext, use } from "react";
 import type { ReactNode } from "react";
@@ -19,10 +20,23 @@ function useActionRow(): ActionRowContextValue {
   return ctx;
 }
 
-function Root({ tier, children }: { tier: UrgencyTier; children: ReactNode }) {
+function Root({
+  tier,
+  children,
+  className,
+}: {
+  tier: UrgencyTier;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <ActionRowContext.Provider value={{ tier }}>
-      <div className="bg-background-tertiary flex flex-col overflow-clip rounded-md border">
+      <div
+        className={cn(
+          "bg-background-tertiary flex flex-col overflow-clip rounded-md border",
+          className
+        )}
+      >
         {children}
       </div>
     </ActionRowContext.Provider>
@@ -63,7 +77,7 @@ function Title({ children }: { children: ReactNode }) {
 
 function Meta({ children }: { children: ReactNode }) {
   return (
-    <span className="text-foreground-secondary text-xs font-normal">
+    <span className="whitespace-nowrap text-foreground-secondary text-xs font-normal">
       {children}
     </span>
   );

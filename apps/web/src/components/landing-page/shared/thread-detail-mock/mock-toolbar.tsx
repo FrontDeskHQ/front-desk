@@ -1,34 +1,30 @@
 /* mirror: thread toolbar — apps/web/src/components/threads/thread-toolbar/index.tsx
- * fork: apps/web/src/components/threads/thread-toolbar/index.tsx @ 59006b69
- *   why: live-state suggestions + panel mode state, mutate resolve, navigate next
- * reuse: ToolbarActions, MockSupportIntelligenceChat
- * state: from props — SI chat panel, or actions only
+ * fork: apps/web/src/components/threads/thread-toolbar/index.tsx @ d2ef5f42
+ *   why: live-state thread read + panel mode state, mutate resolve, navigate next
+ * reuse: ToolbarActions, MockThreadReadPanel
+ * state: from props — SI mode shows the thread-read mirror, or actions only
  * marketing: none — no AnimatePresence; panel always open when content present.
- *   Only the real toolbar's SI mode is mirrored; the reply-composer and
- *   suggestion panels are omitted because no mock opens them.
  */
 
 import { ToolbarActions } from "~/components/threads/thread-toolbar/toolbar-actions";
 
-import {
-  MockSupportIntelligenceChat,
-  type MockSiMessage,
-} from "./mock-support-intelligence-chat";
+import { MockThreadReadPanel } from "./mock-thread-read-panel";
 
 const NOOP = () => {};
 
 interface MockThreadToolbarProps {
   mode?: "support-intelligence" | null;
-  /** Markdown draft for SI chat Draft Reply. */
-  siDraft?: string;
-  siMessages?: MockSiMessage[];
+  summary?: string;
+  recommendation?: string;
+  draft?: string;
   isResolved?: boolean;
 }
 
 export function MockThreadToolbar({
   mode = null,
-  siDraft,
-  siMessages,
+  summary,
+  recommendation,
+  draft,
   isResolved = false,
 }: MockThreadToolbarProps) {
   const hasSi = mode === "support-intelligence";
@@ -38,13 +34,17 @@ export function MockThreadToolbar({
       data-slot="thread-toolbar"
       className="w-full flex flex-col gap-2.5 items-center"
     >
-      {hasSi ? (
+      {hasSi && summary && draft ? (
         <div
           data-slot="thread-toolbar-panel"
-          className="origin-bottom bg-background-tertiary rounded-md border border-input overflow-hidden"
+          className="origin-bottom overflow-hidden"
           style={{ width: 768 }}
         >
-          <MockSupportIntelligenceChat draft={siDraft} messages={siMessages} />
+          <MockThreadReadPanel
+            summary={summary}
+            recommendation={recommendation}
+            draft={draft}
+          />
         </div>
       ) : null}
       <ToolbarActions
