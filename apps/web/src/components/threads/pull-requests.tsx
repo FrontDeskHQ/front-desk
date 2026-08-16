@@ -10,7 +10,7 @@ import {
   ComboboxTrigger,
 } from "@workspace/ui/components/combobox";
 import { useAtomValue } from "jotai/react";
-import { GitPullRequest, X } from "lucide-react";
+import { ArrowRight, GitPullRequest } from "lucide-react";
 import { useState } from "react";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -68,25 +68,25 @@ export function PullRequestsSection({
 
   const linkedPr = pullRequests.find((pr) => pr.externalKey === externalPrId);
 
-  const handleUnlinkPr = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!externalPrId || !linkedPr || !currentOrg) {
-      return;
-    }
+  // const handleUnlinkPr = (e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   if (!externalPrId || !linkedPr || !currentOrg) {
+  //     return;
+  //   }
 
-    mutate.thread.unlinkPullRequest({
-      organizationId: currentOrg.id,
-      threadId,
-      userId: user.id,
-      userName: user.name,
-    });
+  //   mutate.thread.unlinkPullRequest({
+  //     organizationId: currentOrg.id,
+  //     threadId,
+  //     userId: user.id,
+  //     userName: user.name,
+  //   });
 
-    captureThreadEvent("thread:pr_unlink", {
-      old_pr_id: externalPrId,
-      old_pr_number: linkedPr.number,
-      repository: linkedPr.repoFullName,
-    });
-  };
+  //   captureThreadEvent("thread:pr_unlink", {
+  //     old_pr_id: externalPrId,
+  //     old_pr_number: linkedPr.number,
+  //     repository: linkedPr.repoFullName,
+  //   });
+  // };
 
   if (!hasPrTracker) {
     return null;
@@ -199,7 +199,26 @@ export function PullRequestsSection({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {linkedPr && (
+          {linkedPr?.url && (
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip="View pull request"
+              className="hidden group-hover:flex shrink-0"
+              render={
+                // biome-ignore lint/a11y/useAnchorContent: Content is provided via children
+                <a
+                  href={linkedPr.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="View pull request"
+                />
+              }
+            >
+              <ArrowRight className="size-4" />
+            </ActionButton>
+          )}
+          {/* {linkedPr && (
             <ActionButton
               variant="ghost"
               size="icon"
@@ -209,7 +228,7 @@ export function PullRequestsSection({
             >
               <X className="size-4" />
             </ActionButton>
-          )}
+          )} */}
         </div>
         <LinkedPrSuggestionsSection
           threadId={threadId}

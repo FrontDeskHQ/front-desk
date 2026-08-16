@@ -44,7 +44,7 @@ import {
 } from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useAtomValue } from "jotai/react";
-import { Github, Loader2, Plus, X } from "lucide-react";
+import { ArrowRight, Github, Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -58,7 +58,7 @@ import type { MirrorEntity } from "./external-entities";
 /** The facets the link UI needs to display a linked issue (mirror row subset). */
 type LinkedIssue = Pick<
   MirrorEntity,
-  "externalKey" | "number" | "title" | "repoFullName"
+  "externalKey" | "number" | "title" | "repoFullName" | "url"
 >;
 
 interface IssuesSectionProps {
@@ -217,6 +217,7 @@ export function IssuesSection({
         number: Number(result.issue.shortId),
         title: result.issue.title || variables.title,
         repoFullName: repo.fullName,
+        url: result.issue.url,
       });
 
       // Link the thread to the newly created issue by its externalKey.
@@ -265,25 +266,25 @@ export function IssuesSection({
     });
   };
 
-  const handleUnlinkIssue = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!externalIssueId || !linkedIssue || !currentOrg) {
-      return;
-    }
+  // const handleUnlinkIssue = (e: React.MouseEvent) => {
+  //   e.stopPropagation();
+  //   if (!externalIssueId || !linkedIssue || !currentOrg) {
+  //     return;
+  //   }
 
-    mutate.thread.unlinkIssue({
-      organizationId: currentOrg.id,
-      threadId,
-      userId: user.id,
-      userName: user.name,
-    });
+  //   mutate.thread.unlinkIssue({
+  //     organizationId: currentOrg.id,
+  //     threadId,
+  //     userId: user.id,
+  //     userName: user.name,
+  //   });
 
-    captureThreadEvent("thread:issue_unlink", {
-      old_issue_id: externalIssueId,
-      old_issue_number: linkedIssue.number,
-      repository: linkedIssue.repoFullName,
-    });
-  };
+  //   captureThreadEvent("thread:issue_unlink", {
+  //     old_issue_id: externalIssueId,
+  //     old_issue_number: linkedIssue.number,
+  //     repository: linkedIssue.repoFullName,
+  //   });
+  // };
 
   if (!hasIssueTracker) {
     return null;
@@ -425,7 +426,26 @@ export function IssuesSection({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
-          {linkedIssue && (
+          {linkedIssue?.url && (
+            <ActionButton
+              variant="ghost"
+              size="icon"
+              tooltip="View issue"
+              className="hidden group-hover:flex shrink-0"
+              render={
+                // biome-ignore lint/a11y/useAnchorContent: Content is provided via children
+                <a
+                  href={linkedIssue.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="View issue"
+                />
+              }
+            >
+              <ArrowRight className="size-4" />
+            </ActionButton>
+          )}
+          {/* {linkedIssue && (
             <ActionButton
               variant="ghost"
               size="icon"
@@ -435,7 +455,7 @@ export function IssuesSection({
             >
               <X className="size-4" />
             </ActionButton>
-          )}
+          )} */}
         </div>
       </div>
 
