@@ -1,0 +1,30 @@
+apps/web/src/components/signals/action-row/thread-read/pieces.tsx
+  s_2c881dc4dcb2f1::t_cb21d2111f75e4 270-271,273,276
+  s_2c881dc4dcb2f1::t_d0895297253743 124-131,136
+  s_2c881dc4dcb2f1::t_c73fc67d34e71a 162-166,173-174,182
+  s_2c881dc4dcb2f1::t_6494670b7c48bd 193-203
+  s_2c881dc4dcb2f1::t_672c0564eef3dd 238-242
+  s_2c881dc4dcb2f1::t_fa7ddd42cd1022 252-253,255-257
+  s_2c881dc4dcb2f1::t_6b3166608e4eb9 228-229
+apps/api/src/lib/label-mutations.ts
+  s_2c881dc4dcb2f1::t_ad0a6102eb2ece 29-34
+  s_2c881dc4dcb2f1::t_7604dee869964a 76-92
+apps/api/src/lib/signals/handlers/apply-label.ts
+  s_2c881dc4dcb2f1::t_529fd28e654b3d 17-27
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "08cdfd9b3200fa73c564a364800cba2e247a2ea9",
+  "prompts": {},
+  "sessions": {
+    "s_2c881dc4dcb2f1": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "ee47614a-ef1f-4960-9d1c-698f9fda4c1b",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
