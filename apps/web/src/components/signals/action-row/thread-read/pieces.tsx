@@ -1,4 +1,4 @@
-import { useLiveQuery } from "@live-state/sync/client";
+import { useClientState, useLiveQuery } from "@live-state/sync/client";
 import {
   ACTION_KIND_LABEL,
   sanitizeAgentReadReasoning,
@@ -18,7 +18,7 @@ import { useId, useMemo } from "react";
 import type { ReactNode } from "react";
 
 import { RichMarkdown } from "~/components/markdown/rich-markdown";
-import { query } from "~/lib/live-state";
+import { client, query } from "~/lib/live-state";
 
 import { ActionRow } from "../action-row";
 import { SignalReplyDraftEditor } from "../signal-reply-draft-editor";
@@ -124,8 +124,8 @@ function CompoundActionButton({
 /**
  * `applicable` — the label exists and is enabled, so the chip applies it.
  * `unavailable` — the label is deleted or disabled: dismiss-only, never applied.
- * `pending` — no label rows are in the local store yet, so we can't tell the two
- * apart. The chip stays inert rather than silently dismissing a valid suggestion.
+ * `pending` — labels haven't synced yet, so we can't tell the two apart. The
+ * chip stays inert rather than silently dismissing a valid suggestion.
  */
 type InlineSuggestionStatus = "applicable" | "unavailable" | "pending";
 
@@ -157,12 +157,15 @@ function InlineSuggestionsRow({
   // Disabled labels are queried too, so a suggestion for one keeps its real
   // name instead of degrading to "Unknown label" — it just can't be applied.
   const labels = useLiveQuery(query.label.where({ organizationId }));
+  // `useLiveQuery` reads the local store synchronously and always yields an
+  // array, so an empty result can't tell "not synced yet" from "no labels".
+  // Bootstrap status is the readiness signal; rows already in the store cover
+  // the offline-hydrated case where the remote bootstrap hasn't landed.
+  const { bootstrapStatus } = useClientState(client);
 
   const resolved = useMemo<ResolvedInlineSuggestion[]>(() => {
     const rows = labels ?? [];
-    // The hook has no loading flag, so an empty local store is our only signal
-    // that label rows haven't synced yet. "Ignore all" still clears the row.
-    const loaded = rows.length > 0;
+    const loaded = bootstrapStatus === "remote" || rows.length > 0;
     const labelById = new Map(rows.map((label) => [label.id, label]));
     const result: ResolvedInlineSuggestion[] = [];
     for (const suggestion of suggestions) {
@@ -184,7 +187,7 @@ function InlineSuggestionsRow({
       });
     }
     return result;
-  }, [labels, suggestions]);
+  }, [bootstrapStatus, labels, suggestions]);
 
   if (resolved.length === 0) {
     return null;
