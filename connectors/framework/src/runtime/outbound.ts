@@ -7,6 +7,13 @@ import type { LiveStateFetchClient, LiveStateStore } from "./live-state";
 /** The per-provider replicated-marker map stored on `update.replicatedStr`. */
 const replicatedSchema = z.record(z.string(), z.unknown());
 
+/**
+ * TEMPORARY: Discord/Slack thread updates leak internal activity (assignee,
+ * status, labels, GitHub links) into customer-visible channels. Flip this
+ * back on once update privacy is reworked.
+ */
+const DELIVER_THREAD_UPDATES = false;
+
 /** Outbound message row, with the includes every connector needs to deliver it. */
 export type OutboundMessage = InferLiveObject<
   (typeof schema)["message"],
@@ -53,6 +60,9 @@ export interface OutboundReplicationOptions {
  * `update.markReplicated`) so connectors stop re-implementing the plumbing.
  *
  * Runs an initial `.get()` pass, then subscribes for live updates.
+ *
+ * Thread-update delivery is currently paused (`DELIVER_THREAD_UPDATES`) until
+ * Discord/Slack update privacy is reworked; replies still replicate.
  */
 export const startOutboundReplication = async ({
   store,
@@ -145,6 +155,17 @@ export const startOutboundReplication = async ({
   // https://github.com/pedroscosta/live-state/issues/82
   await handleMessages(await messageQuery.get());
   messageQuery.subscribe(handleMessages);
+
+  // TEMPORARY: Discord/Slack thread updates leak internal activity (assignee,
+  // status, labels, GitHub links) into customer-visible channels. Skip delivery
+  // until update privacy is reworked. Replies still replicate. Rows stay
+  // unreplicated, so flipping this back on will deliver the backlog.
+  if (!DELIVER_THREAD_UPDATES) {
+    console.log(
+      `[outbound] skipping thread-update delivery for ${provider} (privacy pause)`
+    );
+    return;
+  }
 
   const updateQuery = store.query.update
     .where({ thread: threadWhere })
