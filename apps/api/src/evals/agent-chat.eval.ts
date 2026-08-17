@@ -15,18 +15,6 @@ import {
   buildSystemPrompt,
   formatThreadMetadata,
 } from "../live-state/router/agent-chat-core";
-
-// Configure autoevals to judge via the Respan gateway. autoevals only speaks the
-// OpenAI protocol, so it uses that endpoint (and its prefixed model ids) rather
-// than the Google-native passthrough the Agent itself runs on.
-// Cast through `never` — autoevals may resolve a different openai package instance.
-init({
-  client: new OpenAI({
-    apiKey: process.env.RESPAN_API_KEY,
-    baseURL: RESPAN_OPENAI_BASE_URL,
-  }) as never,
-  defaultModel: "gemini/gemini-3-flash-preview",
-});
 import {
   toolSelectionDataset,
   proactiveToolDataset,
@@ -35,6 +23,7 @@ import {
 } from "./agent-chat.dataset";
 import { createMockToolImplementations } from "./agent-chat.fixtures";
 import {
+  JUDGE_MODEL,
   toolSelectionAccuracy,
   proactiveToolUsage,
   draftQualityScorer,
@@ -42,15 +31,21 @@ import {
   threadReferenceFormat,
 } from "./agent-chat.scorers";
 
+// Configure autoevals to judge via the Respan OpenAI-compatible gateway.
+// Judges stay on Gemini: ClosedQA uses tool_choice, which DeepSeek-V4-Flash
+// thinking mode rejects. The agent under test still uses agentModel().
+// Cast through `never` — autoevals may resolve a different openai package instance.
+init({
+  client: new OpenAI({
+    apiKey: process.env.RESPAN_API_KEY,
+    baseURL: RESPAN_OPENAI_BASE_URL,
+  }) as never,
+  defaultModel: JUDGE_MODEL,
+});
+
 // Note: traceAISDKModel requires LanguageModelV2, but the provider exports V3.
 // Using reportTrace manually to capture LLM call metrics.
 const model = agentModel();
-
-const lowThinking = {
-  providerOptions: {
-    google: { thinkingConfig: { thinkingBudget: 1024 } },
-  },
-} as const;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -154,7 +149,6 @@ evalite("Agent Chat — Tool Selection", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
-      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
@@ -183,7 +177,6 @@ evalite("Agent Chat — Proactive Tool Usage", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
-      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
@@ -217,7 +210,6 @@ evalite("Agent Chat — Draft Quality", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
-      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 
@@ -243,7 +235,6 @@ evalite("Agent Chat — Thread References", {
       messages: [{ role: "user", content: input.userMessage }],
       tools,
       stopWhen: stepCountIs(12),
-      ...lowThinking,
     });
     traceResult(result, start, systemPrompt, input.userMessage);
 

@@ -17,6 +17,7 @@
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.42",
+    "@ai-sdk/openai": "^4.0.42",
     "@live-state/sync": "catalog:",
     "@qdrant/js-client-rest": "^1.16.2",
     "@workspace/queue": "workspace:*",

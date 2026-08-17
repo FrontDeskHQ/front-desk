@@ -652,9 +652,6 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
           messages: conversationHistory,
           tools: buildAgentChatTools(toolImplementations),
           stopWhen: stepCountIs(12),
-          providerOptions: {
-            google: { thinkingConfig: { thinkingBudget: 1024 } },
-          },
         });
 
         console.log("[agent-chat] streamText() called, awaiting chunks...");

@@ -12,6 +12,13 @@ import type {
   ThreadReferenceTestCase,
 } from "./agent-chat.dataset";
 
+/**
+ * Autoevals ClosedQA/Factuality use tool_choice. DeepSeek-V4-Flash thinking
+ * mode rejects that (`Thinking mode does not support this tool_choice`), so
+ * judges stay on Gemini via Respan's OpenAI-compatible prefix.
+ */
+export const JUDGE_MODEL = "gemini/gemini-3-flash-preview";
+
 // ─── Tool Selection Accuracy ─────────────────────────────────────────────────
 
 /**
@@ -111,6 +118,7 @@ export const proactiveToolUsage = createScorer<
 // ─── Draft Quality (autoevals wrappers) ──────────────────────────────────────
 
 const closedQAScorer = ClosedQA.partial({
+  model: JUDGE_MODEL,
   criteria:
     "Evaluate this customer support draft reply. Score it based on: " +
     "(1) Professional and empathetic tone appropriate for customer support. " +
@@ -161,6 +169,7 @@ export const draftFactualityScorer = createScorer<
       .join("\n");
     const result = await Factuality({
       input: `Customer support thread:\n${context}\n\nExpected: ${expected}`,
+      model: JUDGE_MODEL,
       output,
       expected: expected ?? "",
     });

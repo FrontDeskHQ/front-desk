@@ -4,10 +4,9 @@ import { generateText, Output } from "ai";
 import z from "zod";
 
 import { PR_MATCH_RERANK_THRESHOLD } from "./pr-match-config";
-import { generationModel } from "./respan";
 import type { ThreadHit } from "./qdrant/threads";
+import { generationModel } from "./respan";
 
-const RERANK_MODEL = "gemini-3.1-flash-lite";
 const RERANK_TIMEOUT_MS = 30_000;
 const MAX_PROMPT_FIELD_LENGTH = 4000;
 const MAX_PROMPT_SUMMARY_ITEMS = 20;
@@ -144,7 +143,7 @@ export const rerankPrMatches = async (
     return [];
   }
 
-  const baseModel = generationModel(RERANK_MODEL);
+  const baseModel = generationModel();
   const threshold = PR_MATCH_RERANK_THRESHOLD;
   const { output } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,

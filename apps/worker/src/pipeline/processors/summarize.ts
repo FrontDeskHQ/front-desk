@@ -7,9 +7,9 @@ import type { schema } from "api/schema";
 import z from "zod";
 
 import { AI_PRICING } from "../../lib/ai-pricing";
-import { generationModel } from "../../lib/respan";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
+import { generationModel } from "../../lib/respan";
 import type { ParsedSummary } from "../../types";
 import { hasSynthesisTrigger } from "../core/trigger-policy";
 import type {
@@ -157,7 +157,7 @@ Think: "If another user has the exact same underlying problem with different wor
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
     try {
-      const baseModel = generationModel("gemini-3-flash-preview");
+      const baseModel = generationModel();
       const { output } = await generateText({
         model: ai ? ai.wrap(baseModel) : baseModel,
         output: Output.object({ schema: summarySchema }),

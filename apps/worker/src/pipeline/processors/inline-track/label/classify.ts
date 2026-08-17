@@ -72,7 +72,7 @@ ${
 
 Return the chosen label id (exactly as listed) or null. Confidence should reflect how confident you are; use values below 0.5 when uncertain, above 0.85 only when the match is unambiguous.`;
 
-  const baseModel = generationModel("gemini-3.1-flash-lite");
+  const baseModel = generationModel();
   const { output } = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
     output: Output.object({ schema: responseSchema }),

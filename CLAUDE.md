@@ -115,7 +115,7 @@ Live-State provides:
 
 Thread ingestion runs in 3 stages:
 
-1. **Pre-processor**: LLM summarization (Google Gemini) → extracts title, keywords, entities
+1. **Pre-processor**: LLM summarization → extracts title, keywords, entities
 2. **Processor**: Generate embeddings → store in Qdrant
 3. **Post-processor**: Similarity search → store related threads as suggestions
 
