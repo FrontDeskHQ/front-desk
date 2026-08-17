@@ -12,6 +12,7 @@ export type SignalExecutionDb = Pick<
   | "threadLabel"
   | "label"
   | "autonomousAction"
+  | "user"
   | "insert"
   | "transaction"
   // `find` backs capability dispatch: resolving a linked/mirrored external

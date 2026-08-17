@@ -42,6 +42,7 @@ import {
   resolveEffectiveDefaultIssueTarget,
   resolveIssueTrackerTarget,
 } from "../lib/issue-tracker";
+import { organizationMemberUserIds } from "../lib/organization-membership";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { notifyWaitlistSignup } from "../lib/waitlist-discord";
@@ -930,19 +931,36 @@ export const router = createRouter({
       }),
     })),
     author: publicRoute.withProcedures(({ query }) => ({
-      /** Authors by id (batch) — worker message-role resolution. */
-      byIds: query(z.object({ ids: z.array(z.string()) })).handler(
-        async ({ db, req }) => {
-          if (req.input.ids.length === 0) {
-            return [];
-          }
-          return Object.values(
-            await db.find(schema.author, {
-              where: { id: { $in: req.input.ids } },
-            })
-          );
+      /**
+       * Authors by id (batch) — worker message-role resolution. Each row
+       * carries `isOrganizationMember`, resolved here because that, not
+       * `userId`, is what makes an author one of ours (ADR 0017): portal
+       * customers and teammates share the `user` table.
+       */
+      byIds: query(
+        z.object({ ids: z.array(z.string()), organizationId: z.string() })
+      ).handler(async ({ db, req }) => {
+        if (req.input.ids.length === 0) {
+          return [];
         }
-      ),
+        const authors = Object.values(
+          await db.find(schema.author, {
+            where: { id: { $in: req.input.ids } },
+          })
+        );
+        const memberUserIds = await organizationMemberUserIds(
+          db,
+          req.input.organizationId,
+          authors.map((author) => author.userId)
+        );
+
+        return authors.map((author) => ({
+          ...author,
+          isOrganizationMember: Boolean(
+            author.userId && memberUserIds.has(author.userId)
+          ),
+        }));
+      }),
     })),
     invite: privateRoute.withProcedures(({ mutation, query }) => ({
       accept: mutation(z.object({ id: z.string() })).handler(

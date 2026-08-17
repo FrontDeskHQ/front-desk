@@ -2,14 +2,10 @@ import type { ReplyAction } from "@workspace/schemas/signals";
 import { parse } from "@workspace/utils/md-tiptap";
 import { ulid } from "ulid";
 
-import type { ActionHandler } from "../types";
+import type { ActionHandler, ExecutionContext } from "../types";
 
 export const replyHandler: ActionHandler<ReplyAction> = {
   async apply(action, ctx) {
-    if (!ctx.actorUserId || !ctx.actorUserName) {
-      throw new Error("REPLY_REQUIRES_ACTOR");
-    }
-
     const thread = await ctx.db.thread.one(ctx.threadId).get();
     if (!thread || thread.organizationId !== ctx.organizationId) {
       throw new Error("THREAD_NOT_FOUND");
@@ -20,10 +16,12 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       throw new Error("REPLY_DRAFT_EMPTY");
     }
 
+    const sender = await resolveSender(ctx, thread.assignedUserId);
+
     const existingAuthor = await ctx.db.author
       .first({
         organizationId: ctx.organizationId,
-        userId: ctx.actorUserId,
+        userId: sender.userId,
       })
       .get();
 
@@ -33,9 +31,9 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       await ctx.db.author.insert({
         id: authorId,
         metaId: null,
-        name: ctx.actorUserName,
+        name: sender.userName,
         organizationId: ctx.organizationId,
-        userId: ctx.actorUserId,
+        userId: sender.userId,
       });
     }
 
@@ -51,4 +49,32 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       threadId: ctx.threadId,
     });
   },
+};
+
+/**
+ * Who the reply goes out as. The Agent has no identity of its own and never
+ * authors a message (ADR 0017): an accepted reply is sent by whoever accepted
+ * it, an autonomous one by the thread's assignee.
+ *
+ * Reply's action gate already refuses an unassigned thread, so throwing here
+ * means the gate and this handler disagree — worth failing loudly over.
+ */
+const resolveSender = async (
+  ctx: ExecutionContext,
+  assignedUserId: string | null | undefined
+): Promise<{ userId: string; userName: string }> => {
+  if (ctx.actorUserId && ctx.actorUserName) {
+    return { userId: ctx.actorUserId, userName: ctx.actorUserName };
+  }
+
+  if (!assignedUserId) {
+    throw new Error("REPLY_REQUIRES_SENDER");
+  }
+
+  const assignee = await ctx.db.user.one(assignedUserId).get();
+  if (!assignee) {
+    throw new Error("REPLY_REQUIRES_SENDER");
+  }
+
+  return { userId: assignedUserId, userName: assignee.name };
 };

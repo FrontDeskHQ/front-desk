@@ -56,6 +56,8 @@ A unit of work in the pipeline with declared dependencies, run in dependency ord
 
 One cause of a pipeline run, and an _orthogonal_ input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes a candidate [external pull request](#external-pull-request)), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: _what detectors found_ (hints) and _why I am running, with what_ (triggers). A thread-read job carries a collection of triggers so causes and multiple matched pull requests survive coalescing. Trigger kinds also drive which hints are invalidated and recomputed.
 
+Only an **inbound** message causes a run (see [message direction](#message-direction)). An outbound one enqueues `supersede` instead: the Agent's own output, and the team's, never re-enter as a cause of the Agent running. See ADR 0017.
+
 `pr_matched` is **not** an authoritative link. It fires when a newly observed [external pull request](#external-pull-request) is found similar to one or more [threads](#thread) (e.g. embedding search); synthesis still decides whether to propose `link_pr`. Deterministic linking (e.g. a FrontDesk thread URL already present on the PR) is a separate path that does not produce a [thread read](#thread-read).
 
 ### Synthesis
@@ -85,6 +87,8 @@ A [reply](#action-gate) action's claim about what backs it, and the input to rep
 - **`documented`** — the cited sources answer the customer's question _as asked_. A source that is merely related, or that answers an adjacent question, is not `documented`; it is `inferred`. Citable sources are those actually retrieved in this [run](#run): the `related_docs` [hint](#read-hint) bag plus anything pulled via the agent's documentation tools.
 - **`state_report`** — the reply asserts nothing about the product, only reports thread state the Agent can already see ("we're aware, tracked in #412"). Requires the cited [external issue](#external-issue) / [external pull request](#external-pull-request) to be linked to the thread, or to be linked by a sibling action that is itself executing autonomously.
 - **`inferred`** — everything else. Never auto-sends.
+
+Grounding is necessary but not sufficient: an auto-sent reply also needs a **sender**. The Agent has no identity of its own and never authors a message, so an autonomous reply goes out as the thread's assignee — an unassigned thread has nobody to send as, and reply falls back to `suggest`. This is part of reply's gate, not [action availability](#action-availability): a human accepting the read supplies themselves as the sender, so the action remains perfectly executable on an unassigned thread.
 
 Grounding is a _named class_, not a score, and is deliberately not called "confidence": `inlineSuggestion.confidence` is an unrelated 0–1 scalar from the label classifier, and agent reasoning is scrubbed of confidence language before humans read it. Grounding's sources _are_ shown to humans, as citations on the draft. _Avoid_: "confidence" for this concept, "reply score".
 
@@ -168,6 +172,16 @@ Where a [thread](#thread) sits in its lifecycle. Two of the five statuses are **
 Finishing a thread is also the one status move that reaches outside FrontDesk: a thread that becomes _Resolved_ or _Closed_ finishes its linked [external issue](#external-issue) too, because both mean the customer's need has been settled one way or the other. _Duplicated_ does **not** — the need moved to another thread rather than being settled, and the issue still tracks it. The sync is **one-way**: un-finishing a thread never reopens the issue upstream, since a customer writing back is not evidence the engineering work regressed.
 
 _Avoid_: treating "closed" as the umbrella for all finished states (that is what "finished" is for); reading the status numbering as a severity or progress ordering (it is a bare enumeration, and "finished" and "syncs upstream" are different subsets of it); and assuming a thread is resolved because its last message reads conclusively — see the forward-looking test above.
+
+### Message direction
+
+Which side of a [thread](#thread) a message came from, derived from its author rather than stored on it. **Inbound** is the customer's side; **outbound** is the organization's. Direction is what decides whether a message is a [trigger](#trigger): only inbound messages cause a run.
+
+Outbound means the author is a **member of the thread's organization** — membership, not merely an authenticated account. A portal customer and a teammate are both rows in the same `user` table, so "has a user id" answers the wrong question and would silence the Agent for any portal participant who did not open the thread.
+
+An author FrontDesk cannot place — a connector-relayed identity, which arrives with an external id and no membership — is **unknown**, and unknown counts as inbound. The two errors are not symmetrical: counting unknown as outbound would silence a colleague of the customer adding real evidence to a thread, invisibly; counting it as inbound means a teammate answering in Discord produces one redundant [thread read](#thread-read), which is visible and self-limiting. The consequence to hold on to is that the causality rule is only enforced for replies sent **through FrontDesk**.
+
+Direction is a finer-grained thing than the three author roles used to tag a transcript for [synthesis](#synthesis) — _customer_ (the thread's opener), _teammate_, _unknown_ — but it is the same predicate underneath. _Avoid_: "agent" for the teammate role — the Agent is the AI, and this concept exists precisely to keep the two apart; "internal/external" (that word is already overloaded, see [flagged ambiguities](#flagged-ambiguities)).
 
 ### External issue
 
