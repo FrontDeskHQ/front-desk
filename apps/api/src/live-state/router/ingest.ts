@@ -3,6 +3,7 @@ import { supportEntryPointIngestSchema } from "@connectors/framework";
 import { ulid } from "ulid";
 
 import { requireInternalApiKey } from "../../lib/authorize";
+import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
@@ -109,9 +110,13 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
 
         const threadId = ulid().toLowerCase();
         const shortId = await nextThreadShortId(trx, organizationId);
+        const assignedUserId = await firstOrganizationAssigneeId(
+          trx,
+          organizationId
+        );
 
         await trx.thread.insert({
-          assignedUserId: null,
+          assignedUserId,
           authorId,
           createdAt: message.createdAt,
           deletedAt: null,

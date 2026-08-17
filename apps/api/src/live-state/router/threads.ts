@@ -11,6 +11,7 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
+import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { runCreateIssue } from "../../lib/issue-tracker";
 import { enqueueThreadRead } from "../../lib/queue";
 import {
@@ -180,10 +181,14 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       }
 
       const shortId = await nextThreadShortId(trx, organizationId);
+      const assignedUserId = await firstOrganizationAssigneeId(
+        trx,
+        organizationId
+      );
 
       // Create thread
       await trx.insert(schema.thread, {
-        assignedUserId: null,
+        assignedUserId,
         authorId,
         createdAt: req.input.createdAt ?? new Date(),
         deletedAt: null,

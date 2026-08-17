@@ -37,3 +37,24 @@ export const isOrganizationMember = async (
   userId: string | null | undefined
 ): Promise<boolean> =>
   (await organizationMemberUserIds(db, organizationId, [userId])).size > 0;
+
+/**
+ * Temporary default assignee until FRO-215 (assignment routing) lands.
+ *
+ * Picks the earliest enabled membership in the org (`organizationUser.id` is a
+ * ULID, so lexicographic order is insertion order). The org creator is
+ * typically that row. Returns null when the org has no enabled members.
+ */
+export const firstOrganizationAssigneeId = async (
+  db: MembershipDb,
+  organizationId: string
+): Promise<string | null> => {
+  const memberships = Object.values(
+    await db.find(schema.organizationUser, {
+      where: { enabled: true, organizationId },
+    })
+  );
+
+  const first = memberships.toSorted((a, b) => a.id.localeCompare(b.id))[0];
+  return first?.userId ?? null;
+};
