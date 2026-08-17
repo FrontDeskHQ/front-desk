@@ -33,11 +33,13 @@ export const liveStateHooks = defineHooks<typeof schema>({
             } else {
               // Not necessarily a missing thread: the ingest path inserts the
               // thread and its first message in one transaction, and this hook
-              // body is detached from it. Enqueue anyway — the worker skips a
-              // thread it cannot hydrate, which is cheaper than losing the
-              // first message of every new thread to a read that ran early.
-              console.warn(
-                `Thread ${value.threadId} not visible while classifying message ${value.id}; treating it as inbound`
+              // body is detached from it, so a new thread's own first message
+              // can land here. Enqueue anyway — the worker skips a thread it
+              // cannot hydrate, which is cheaper than losing that message's
+              // trigger. Logged at info because it is expected traffic, not a
+              // fault: only a sustained rate is worth reading anything into.
+              console.info(
+                `Thread ${value.threadId} not yet visible while classifying message ${value.id}; treating it as inbound`
               );
             }
           } catch (error) {
