@@ -1,0 +1,19 @@
+apps/api/src/live-state/hooks.ts
+  s_f641ee2b75f25c::t_b50fcc1aa2b294 36-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "339875532d0d8284c7e9d3fa50a499986d02cb02",
+  "prompts": {},
+  "sessions": {
+    "s_f641ee2b75f25c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d4fd1b89-1d72-4605-b3dd-dc9c24614c11",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
