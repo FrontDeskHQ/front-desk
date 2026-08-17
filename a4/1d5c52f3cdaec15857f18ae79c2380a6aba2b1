@@ -1,0 +1,30 @@
+apps/api/src/live-state/router.ts
+  s_f641ee2b75f25c::t_94cc85db5dcc3c 943-946,952-955
+apps/api/src/live-state/hooks.ts
+  s_f641ee2b75f25c::t_b8cca6ba310434 2
+  s_f641ee2b75f25c::t_e07aa962c74634 17-38,43
+packages/schemas/src/message-roles.ts
+  s_f641ee2b75f25c::t_ac4484e796596a 39-45,48-50
+docs/adr/0017-inbound-only-trigger-causality.md
+  s_f641ee2b75f25c::t_478cca3657fafa 7,25
+CONTEXT.md
+  s_f641ee2b75f25c::t_1b2fa92cfe8da2 184
+apps/api/src/lib/signals/handlers/reply.ts
+  s_f641ee2b75f25c::t_951ca49658f113 66-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a41d5c52f3cdaec15857f18ae79c2380a6aba2b1",
+  "prompts": {},
+  "sessions": {
+    "s_f641ee2b75f25c": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d4fd1b89-1d72-4605-b3dd-dc9c24614c11",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
