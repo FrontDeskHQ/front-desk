@@ -940,12 +940,19 @@ export const router = createRouter({
       byIds: query(
         z.object({ ids: z.array(z.string()), organizationId: z.string() })
       ).handler(async ({ db, req }) => {
+        // Membership is a relationship worth guarding: unauthorized, this
+        // answers "is this person one of yours?" for any pair of ids.
+        authorize(req, { organizationId: req.input.organizationId });
+
         if (req.input.ids.length === 0) {
           return [];
         }
         const authors = Object.values(
           await db.find(schema.author, {
-            where: { id: { $in: req.input.ids } },
+            where: {
+              id: { $in: req.input.ids },
+              organizationId: req.input.organizationId,
+            },
           })
         );
         const memberUserIds = await organizationMemberUserIds(

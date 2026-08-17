@@ -36,11 +36,18 @@ export const resolveAuthorRole = (
 };
 
 /**
- * Only a teammate speaks for the organization. `unknown` is inbound: silencing
- * a colleague of the customer who adds real evidence to a thread they did not
+ * Direction is membership, and only membership (ADR 0017) — deliberately not
+ * derived from `MessageRole`, which resolves the opener to `customer` before it
+ * looks at membership. A teammate who opened the thread is still speaking for
+ * the organization, and their reply must not trigger a run.
+ *
+ * An author with no membership is inbound, including `unknown`: silencing a
+ * colleague of the customer who adds real evidence to a thread they did not
  * open is the worse of the two errors, and the invisible one.
  */
-export const isOutbound = (role: MessageRole): boolean => role === "teammate";
+export const isOutbound = (author: {
+  isOrganizationMember: boolean;
+}): boolean => author.isOrganizationMember;
 
 /**
  * Resolves each author's display name and role from raw author rows.

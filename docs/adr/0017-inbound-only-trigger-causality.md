@@ -4,7 +4,7 @@
 
 ## Context
 
-The `message` [trigger](../CONTEXT.md#trigger) fired on every row inserted into `message`, with no regard for who wrote it. That is a feedback loop, and it closed in production: a human accepts a thread read whose primary action is a reply, `replyHandler` inserts the drafted message, the `afterInsert` hook enqueues `kind: "message"`, and synthesis runs again over a thread whose newest message the Agent itself composed. It then produces a second read reasoning about that message as evidence — "resolve the thread, the teammate already confirmed the trial and provided the pricing link".
+The `message` [trigger](../../CONTEXT.md#trigger) fired on every row inserted into `message`, with no regard for who wrote it. That is a feedback loop, and it closed in production: a human accepts a thread read whose primary action is a reply, `replyHandler` inserts the drafted message, the `afterInsert` hook enqueues `kind: "message"`, and synthesis runs again over a thread whose newest message the Agent itself composed. It then produces a second read reasoning about that message as evidence — "resolve the thread, the teammate already confirmed the trial and provided the pricing link".
 
 Nothing about that read is wrong on its face. That is what makes the loop dangerous rather than merely noisy: the Agent is grading its own homework and the output looks like judgement. The same loop runs one turn longer under [ADR 0013](./0013-grounded-auto-reply.md)'s autonomous reply, where no human is in the middle at all.
 
@@ -22,7 +22,7 @@ Membership was chosen over the two cheaper predicates. `author.userId != null` i
 
 **An unplaceable author is inbound.** A connector-relayed identity has an external id and no membership, so a teammate answering in Discord is indistinguishable from a second customer. Those are counted inbound.
 
-**An autonomous reply sends as the thread's assignee.** With no Agent identity, an unassigned thread has nobody to send as. This is a condition of reply's [action gate](../CONTEXT.md#action-gate), not of [action availability](../CONTEXT.md#action-availability): a human accepting the read supplies themselves as sender, so the action stays available and only autonomous execution falls back to `suggest`.
+**An autonomous reply sends as the thread's assignee.** With no Agent identity, an unassigned thread has nobody to send as. This is a condition of reply's [action gate](../../CONTEXT.md#action-gate), not of [action availability](../../CONTEXT.md#action-availability): a human accepting the read supplies themselves as sender, so the action stays available and only autonomous execution falls back to `suggest`.
 
 ## Consequences
 

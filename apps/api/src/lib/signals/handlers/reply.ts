@@ -63,8 +63,17 @@ const resolveSender = async (
   ctx: ExecutionContext,
   assignedUserId: string | null | undefined
 ): Promise<{ userId: string; userName: string }> => {
-  if (ctx.actorUserId && ctx.actorUserName) {
-    return { userId: ctx.actorUserId, userName: ctx.actorUserName };
+  // An actor id is what makes this an accept, so it decides on its own. Falling
+  // through on a missing name would send a human's reply as someone else.
+  if (ctx.actorUserId) {
+    const userName =
+      ctx.actorUserName ??
+      (await ctx.db.user.one(ctx.actorUserId).get())?.name ??
+      null;
+    if (!userName) {
+      throw new Error("REPLY_REQUIRES_SENDER");
+    }
+    return { userId: ctx.actorUserId, userName };
   }
 
   if (!assignedUserId) {
