@@ -21,16 +21,25 @@ export const liveStateHooks = defineHooks<typeof schema>({
           let outbound = false;
           try {
             const thread = await db.thread.one(value.threadId).get();
-            const author = await db.author.one(value.authorId).get();
-            outbound = isOutbound({
-              isOrganizationMember: thread
-                ? await isOrganizationMember(
-                    db,
-                    thread.organizationId,
-                    author?.userId
-                  )
-                : false,
-            });
+            if (thread) {
+              const author = await db.author.one(value.authorId).get();
+              outbound = isOutbound({
+                isOrganizationMember: await isOrganizationMember(
+                  db,
+                  thread.organizationId,
+                  author?.userId
+                ),
+              });
+            } else {
+              // Not necessarily a missing thread: the ingest path inserts the
+              // thread and its first message in one transaction, and this hook
+              // body is detached from it. Enqueue anyway — the worker skips a
+              // thread it cannot hydrate, which is cheaper than losing the
+              // first message of every new thread to a read that ran early.
+              console.warn(
+                `Thread ${value.threadId} not visible while classifying message ${value.id}; treating it as inbound`
+              );
+            }
           } catch (error) {
             console.error(
               `Failed to classify message ${value.id}; treating it as inbound`,
