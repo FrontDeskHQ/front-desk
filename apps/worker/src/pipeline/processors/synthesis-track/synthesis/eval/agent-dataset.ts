@@ -903,7 +903,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "t17m2",
           authorId: "agent17",
-          role: "agent",
+          role: "teammate",
           createdAt: now,
           content:
             "Thanks — we've reproduced the double-charge on retry and are working on a fix.",
@@ -1879,7 +1879,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "ts1m2",
           authorId: "as1",
-          role: "agent",
+          role: "teammate",
           createdAt: now,
           content:
             "That file uses semicolons as separators — set the delimiter to semicolon in the import dialog and re-upload.",
@@ -1935,14 +1935,14 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "ts2m2",
           authorId: "as2",
-          role: "agent",
+          role: "teammate",
           createdAt: now,
           content: "Provisioned the remaining 15 seats on your workspace just now.",
         },
         {
           id: "ts2m3",
           authorId: "as2",
-          role: "agent",
+          role: "teammate",
           createdAt: now,
           content: "All set on our side — closing this out.",
         },
@@ -2068,7 +2068,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "ts4m2",
           authorId: "as4",
-          role: "agent",
+          role: "teammate",
           createdAt: now,
           content:
             "Happy to dig in — can you send one failing request id and the raw signature header you computed?",
@@ -2135,7 +2135,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
         {
           id: "ts5m2",
           authorId: "as5",
-          role: "agent",
+          role: "teammate",
           createdAt: now,
           content: "Confirmed — engineering has a fix in review for this.",
         },

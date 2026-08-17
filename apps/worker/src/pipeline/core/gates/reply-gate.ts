@@ -1,3 +1,4 @@
+import type { MessageRole } from "@workspace/schemas/message-roles";
 import type { Action, ReplyGrounding } from "@workspace/schemas/signals";
 import {
   inferredGrounding,
@@ -8,21 +9,30 @@ import {
   fetchMirroredIssueByUrl,
   fetchMirroredPrByUrl,
 } from "../../../lib/database/client";
-import { lastMessageRole } from "../../../lib/message-roles";
+import { newestMessage } from "../../../lib/message-order";
 import type { ActionGate, ActionGateResult } from "../action-gates";
 
 /**
  * Reply's [action gate](../../../../../CONTEXT.md): the last thing between a
- * drafted reply and a customer's inbox.
+ * drafted reply and a customer's inbox. It asks two things — whether the draft
+ * is grounded, and whether there is anyone to send it as.
  *
  * It does not check that cited documentation URLs are real. That needs the
  * synthesis run's tool steps, so it happens at that trust boundary
  * (`grounding-verification.ts`), which degrades a fabricated citation to
  * `inferred` well before the action arrives here.
  */
-export const replyGroundingGate: ActionGate = async (action, ctx) => {
+export const replyGate: ActionGate = async (action, ctx) => {
   if (action.kind !== "reply") {
     return { allowed: true };
+  }
+
+  // An autonomous reply goes out as the thread's assignee, the Agent having no
+  // identity of its own (ADR 0017), so an unassigned thread has nobody to send
+  // as. A gate and not availability: a human accepting the read supplies
+  // themselves as the sender, so only the autonomous path is blocked.
+  if (!ctx.run.thread.assignedUserId) {
+    return deny("no_sender");
   }
 
   const grounding: ReplyGrounding = action.grounding ?? inferredGrounding();
@@ -77,6 +87,15 @@ export const replyGroundingGate: ActionGate = async (action, ctx) => {
 };
 
 const deny = (reason: string): ActionGateResult => ({ allowed: false, reason });
+
+/** Who spoke last, or "unknown" on an empty thread. */
+const lastMessageRole = (
+  messages: { authorId: string; createdAt: unknown; id: string }[],
+  roles: Map<string, MessageRole>
+): MessageRole => {
+  const last = newestMessage(messages);
+  return last ? (roles.get(last.authorId) ?? "unknown") : "unknown";
+};
 
 /**
  * Resolve the entity a `state_report` names and confirm the thread is attached

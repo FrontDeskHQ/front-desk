@@ -1,6 +1,6 @@
 import type { Action, ActionKind } from "@workspace/schemas/signals";
 
-import { replyGroundingGate } from "./gates/reply-grounding";
+import { replyGate } from "./gates/reply-gate";
 import { statusWitnessGate } from "./gates/status-witness";
 import type { RunState } from "./run-state";
 
@@ -42,7 +42,7 @@ export type ActionGate = (
  * self-gates on verified evidence.
  */
 const ACTION_GATES: Partial<Record<ActionKind, ActionGate>> = {
-  reply: replyGroundingGate,
+  reply: replyGate,
   set_status: statusWitnessGate,
 };
 

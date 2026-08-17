@@ -1,3 +1,5 @@
+import type { ResolvedMessageAuthors } from "@workspace/schemas/message-roles";
+import { resolveAuthorsFromRows } from "@workspace/schemas/message-roles";
 import { safeParseOrgSettings } from "@workspace/schemas/organization";
 import {
   getDefaultActionAutonomy,
@@ -24,8 +26,6 @@ import { log } from "@workspace/utils/logging";
 
 import { fetchClient } from "../../lib/database/client";
 import { errorFields } from "../../lib/logging";
-import type { ResolvedMessageAuthors } from "../../lib/message-roles";
-import { resolveAuthorsFromRows } from "../../lib/message-roles";
 import type { Thread } from "../../types";
 
 /** An organization label, as the label classifier consumes it. */
@@ -239,8 +239,8 @@ export class RunState {
   }
 
   /**
-   * Display names and [message roles](../../lib/message-roles.ts) for everyone
-   * who wrote on this thread. The author ids come from the thread itself, so
+   * Display names and message roles (`@workspace/schemas/message-roles`) for
+   * everyone who wrote on this thread. The author ids come from the thread itself, so
    * callers never assemble them.
    */
   authors(): Promise<ResolvedMessageAuthors> {
@@ -250,7 +250,10 @@ export class RunState {
         ...(this.thread.authorId ? [this.thread.authorId] : []),
       ];
       const unique = [...new Set(ids.filter(Boolean))];
-      const rows = await fetchClient.query.author.byIds({ ids: unique });
+      const rows = await fetchClient.query.author.byIds({
+        ids: unique,
+        organizationId: this.organizationId,
+      });
       return resolveAuthorsFromRows(rows, this.thread.authorId);
     })();
 

@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 
+import { threadHasTeamReply } from "@workspace/schemas/message-roles";
 import { sortThreadReadTriggers } from "@workspace/schemas/signals";
 import type { Hints, ThreadRead } from "@workspace/schemas/signals";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
@@ -7,7 +8,6 @@ import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { AI_PRICING } from "../../../../lib/ai-pricing";
 import { isRetryableError } from "../../../../lib/logging";
 import { sortMessagesByTime } from "../../../../lib/message-order";
-import { threadHasTeamReply } from "../../../../lib/message-roles";
 import type { ParsedSummary } from "../../../../types";
 import { applySynthesisAutonomy } from "../../../core/autonomy-stage";
 import { hasSynthesisTrigger } from "../../../core/trigger-policy";

@@ -1,19 +1,57 @@
 import { defineHooks } from "@live-state/sync/server";
+import { isOutbound } from "@workspace/schemas/message-roles";
 
+import { isOrganizationMember } from "../lib/organization-membership";
 import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
 import type { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
   message: {
-    afterInsert: ({ value }) => {
+    afterInsert: ({ db, value }) => {
       (async () => {
         try {
-          // TODO(issue-06): when the author is outbound (teammate or Agent),
-          // dispatch kind:"supersede" instead so the worker handler can null
-          // thread.agentRead without invoking synthesis.
+          // Only an inbound message causes a run (ADR 0017). A teammate's
+          // reply — typed, accepted from a thread read, or auto-sent — clears
+          // the standing read instead, so the Agent's own output never comes
+          // back to it as evidence.
+          //
+          // A lookup that fails counts as inbound, matching what ADR 0017 does
+          // with an author it cannot place: a redundant read is visible and
+          // self-limiting, a trigger dropped on a transient error is neither.
+          let outbound = false;
+          try {
+            const thread = await db.thread.one(value.threadId).get();
+            if (thread) {
+              const author = await db.author.one(value.authorId).get();
+              outbound = isOutbound({
+                isOrganizationMember: await isOrganizationMember(
+                  db,
+                  thread.organizationId,
+                  author?.userId
+                ),
+              });
+            } else {
+              // Not necessarily a missing thread: the ingest path inserts the
+              // thread and its first message in one transaction, and this hook
+              // body is detached from it, so a new thread's own first message
+              // can land here. Enqueue anyway — the worker skips a thread it
+              // cannot hydrate, which is cheaper than losing that message's
+              // trigger. Logged at info because it is expected traffic, not a
+              // fault: only a sustained rate is worth reading anything into.
+              console.info(
+                `Thread ${value.threadId} not yet visible while classifying message ${value.id}; treating it as inbound`
+              );
+            }
+          } catch (error) {
+            console.error(
+              `Failed to classify message ${value.id}; treating it as inbound`,
+              error
+            );
+          }
+
           const queuePriority = value.isBackfill ? "low" : "high";
           const result = await enqueueThreadRead(value.threadId, {
-            kind: "message",
+            kind: outbound ? "supersede" : "message",
             priority: queuePriority,
           });
 

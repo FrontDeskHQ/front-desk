@@ -6,6 +6,7 @@
   "exports": {
     "./integration/*": "./src/integration/*.ts",
     "./external-issue": "./src/external-issue.ts",
+    "./message-roles": "./src/message-roles.ts",
     "./organization": "./src/organization.ts",
     "./digest": "./src/digest.ts",
     "./early-access": "./src/early-access.ts",
