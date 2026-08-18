@@ -20,10 +20,7 @@ import z from "zod";
 import type { WorkerLogger } from "../../../../lib/logging";
 import { generationModel } from "../../../../lib/respan";
 import type { ParsedSummary } from "../../../../types";
-import type {
-  AgentRunAudit,
-  AgentRunEventMetadata,
-} from "../../../core/agent-run-audit";
+import type { AgentRunAudit } from "../../../core/agent-run-audit";
 import { serializeObservableModelStep } from "../../../core/model-audit";
 import {
   collectRetrievedDocUrls,
@@ -469,10 +466,7 @@ Return a single valid JSON object with exactly this shape:
   const toolDefinitions = Object.entries(tools).map(([name, definition]) =>
     describeTool(name, definition)
   );
-  const auditStepMetadata = (stepIndex?: number): AgentRunEventMetadata => ({
-    phase: "synthesis",
-    ...(stepIndex === undefined ? {} : { stepIndex }),
-  });
+  const inSynthesis = { phase: "synthesis" } as const;
 
   audit?.record(
     "model.requested",
@@ -486,92 +480,79 @@ Return a single valid JSON object with exactly this shape:
       stopWhen: "stepCountIs(8)",
       tools: toolDefinitions,
     },
-    auditStepMetadata()
+    inSynthesis
   );
 
   const modelStartedAt = performance.now();
-  const generationResult = await (async () => {
-    try {
-      return await generateText({
-        onToolExecutionEnd: (event) => {
-          audit?.record(
-            "tool.completed",
-            {
-              callId: event.callId,
-              durationMs: event.toolExecutionMs,
-              error:
-                event.toolOutput.type === "tool-error"
-                  ? event.toolOutput.error
-                  : null,
-              output:
-                event.toolOutput.type === "tool-result"
-                  ? event.toolOutput.output
-                  : null,
-              success: event.toolOutput.type === "tool-result",
-              toolCall: event.toolCall,
-            },
-            {
-              ...auditStepMetadata(),
-              toolCallId: event.toolCall.toolCallId,
-            }
-          );
-        },
-        onToolExecutionStart: (event) => {
-          audit?.record(
-            "tool.called",
-            {
-              callId: event.callId,
-              toolCall: event.toolCall,
-            },
-            {
-              ...auditStepMetadata(),
-              toolCallId: event.toolCall.toolCallId,
-            }
-          );
-        },
-        model: ai ? ai.wrap(baseModel) : baseModel,
-        onStepFinish: (step) => {
-          audit?.record(
-            "model.step",
-            serializeObservableModelStep(step),
-            auditStepMetadata(step.stepNumber)
-          );
-        },
-        prompt,
-        stopWhen: stepCountIs(8),
-        tools,
-      });
-    } catch (error) {
-      audit?.record(
-        "model.failed",
-        {
-          durationMs: performance.now() - modelStartedAt,
-          error,
-          status: "failed",
-        },
-        auditStepMetadata()
-      );
-      throw error;
-    }
-  })();
+  let text: string;
+  let steps: Awaited<ReturnType<typeof generateText>>["steps"];
+  let totalUsage: Awaited<ReturnType<typeof generateText>>["totalUsage"];
+  try {
+    ({ text, steps, totalUsage } = await generateText({
+      onToolExecutionEnd: (event) => {
+        audit?.record(
+          "tool.completed",
+          {
+            callId: event.callId,
+            durationMs: event.toolExecutionMs,
+            error:
+              event.toolOutput.type === "tool-error"
+                ? event.toolOutput.error
+                : null,
+            output:
+              event.toolOutput.type === "tool-result"
+                ? event.toolOutput.output
+                : null,
+            success: event.toolOutput.type === "tool-result",
+            toolCall: event.toolCall,
+          },
+          { ...inSynthesis, toolCallId: event.toolCall.toolCallId }
+        );
+      },
+      onToolExecutionStart: (event) => {
+        audit?.record(
+          "tool.called",
+          { callId: event.callId, toolCall: event.toolCall },
+          { ...inSynthesis, toolCallId: event.toolCall.toolCallId }
+        );
+      },
+      model: ai ? ai.wrap(baseModel) : baseModel,
+      onStepFinish: (step) => {
+        audit?.record("model.step", serializeObservableModelStep(step), {
+          ...inSynthesis,
+          stepIndex: step.stepNumber,
+        });
+      },
+      prompt,
+      stopWhen: stepCountIs(8),
+      tools,
+    }));
+  } catch (error) {
+    audit?.record(
+      "model.failed",
+      {
+        durationMs: performance.now() - modelStartedAt,
+        error,
+        status: "failed",
+      },
+      inSynthesis
+    );
+    throw error;
+  }
 
-  const { text, steps, totalUsage } = generationResult;
-
-  const lastStep = steps.at(-1);
   audit?.record(
     "model.completed",
     {
-      step: lastStep ? serializeObservableModelStep(lastStep) : null,
       steps: steps.map(serializeObservableModelStep),
       text,
       totalUsage,
       durationMs: performance.now() - modelStartedAt,
     },
-    auditStepMetadata()
+    inSynthesis
   );
 
   const raw = parseRawActionSetFromText(text, input.availability, requestLog);
-  audit?.record("output.parsed", { raw, text }, auditStepMetadata());
+  audit?.record("output.parsed", { raw, text }, inSynthesis);
   // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
   // Prompt instructions alone cannot authorize an external PR link. If primary
   // loses a link_pr, discard the set so recommendation stays consistent.

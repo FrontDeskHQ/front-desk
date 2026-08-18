@@ -1,9 +1,8 @@
-import { createHash } from "node:crypto";
-
 import { google } from "@ai-sdk/google";
 import { embed } from "ai";
 
 import type { AgentRunAudit } from "../pipeline/core/agent-run-audit";
+import { auditEmbedding } from "../pipeline/core/model-audit";
 import type { WorkerLogger } from "./logging";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
@@ -23,86 +22,39 @@ export const generateSimilarityEmbedding = async (
     return null;
   }
 
-  const startedAt = performance.now();
-  const model = {
+  const span = auditEmbedding(audit, {
     modelId: EMBEDDING_MODEL,
-    provider: "google",
-  };
-  const metadata = {
-    input: {
-      chars: text.length,
-      hash: createHash("sha256").update(text).digest("hex"),
-    },
-    kind: "embedding",
-    model,
-    providerOptions: { google: { taskType: "SEMANTIC_SIMILARITY" } },
-  };
-  audit?.record("model.requested", metadata, {
-    phase: "model",
     processor: "synthesis",
+    taskType: "SEMANTIC_SIMILARITY",
+    text,
   });
 
+  let embedding: number[];
+  let usage: unknown;
   try {
-    const { embedding, usage } = await embed({
+    ({ embedding, usage } = await embed({
       model: embeddingModel,
       providerOptions: {
         google: { taskType: "SEMANTIC_SIMILARITY" },
       },
       value: text,
-    });
-
-    const norm = Math.hypot(...embedding);
-    if (!Number.isFinite(norm) || norm === 0) {
-      requestLog?.warn("Embedding normalization produced an invalid norm", {
-        embedding: { dimensions: embedding.length, norm },
-        step: "normalize_embedding",
-      });
-      audit?.record(
-        "model.completed",
-        {
-          ...metadata,
-          dimensions: embedding.length,
-          durationMs: performance.now() - startedAt,
-          embeddingHash: createHash("sha256")
-            .update(JSON.stringify(embedding))
-            .digest("hex"),
-          normalized: false,
-          status: "completed",
-          usage,
-        },
-        { phase: "model", processor: "synthesis" }
-      );
-      return embedding;
-    }
-
-    const normalizedEmbedding = embedding.map((value) => value / norm);
-    audit?.record(
-      "model.completed",
-      {
-        ...metadata,
-        dimensions: normalizedEmbedding.length,
-        durationMs: performance.now() - startedAt,
-        embeddingHash: createHash("sha256")
-          .update(JSON.stringify(normalizedEmbedding))
-          .digest("hex"),
-        normalized: true,
-        status: "completed",
-        usage,
-      },
-      { phase: "model", processor: "synthesis" }
-    );
-    return normalizedEmbedding;
+    }));
   } catch (error) {
-    audit?.record(
-      "model.failed",
-      {
-        ...metadata,
-        durationMs: performance.now() - startedAt,
-        error,
-        status: "failed",
-      },
-      { phase: "model", processor: "synthesis" }
-    );
+    span.failed(error);
     throw error;
   }
+
+  const norm = Math.hypot(...embedding);
+  if (!Number.isFinite(norm) || norm === 0) {
+    requestLog?.warn("Embedding normalization produced an invalid norm", {
+      embedding: { dimensions: embedding.length, norm },
+      step: "normalize_embedding",
+    });
+    span.completed(embedding, usage, { normalized: false });
+    return embedding;
+  }
+
+  const normalized = embedding.map((value) => value / norm);
+  span.completed(normalized, usage, { normalized: true });
+  return normalized;
 };

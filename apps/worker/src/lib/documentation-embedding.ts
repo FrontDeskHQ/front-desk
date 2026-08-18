@@ -1,10 +1,9 @@
-import { createHash } from "node:crypto";
-
 import { google } from "@ai-sdk/google";
 import { log } from "@workspace/utils/logging";
 import { embed } from "ai";
 
 import type { AgentRunAudit } from "../pipeline/core/agent-run-audit";
+import { auditEmbedding } from "../pipeline/core/model-audit";
 import { errorFields } from "./logging";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
@@ -32,23 +31,11 @@ export const generateDocumentationQueryEmbedding = async (
     return null;
   }
 
-  const startedAt = performance.now();
-  const model = {
+  const span = auditEmbedding(audit, {
     modelId: EMBEDDING_MODEL,
-    provider: "google",
-  };
-  const metadata = {
-    input: {
-      chars: query.length,
-      hash: createHash("sha256").update(query).digest("hex"),
-    },
-    kind: "embedding",
-    model,
-    providerOptions: { google: { taskType: "RETRIEVAL_QUERY" } },
-  };
-  audit?.record("model.requested", metadata, {
-    phase: "model",
     processor,
+    taskType: "RETRIEVAL_QUERY",
+    text: query,
   });
 
   try {
@@ -59,33 +46,10 @@ export const generateDocumentationQueryEmbedding = async (
       },
       value: query,
     });
-    audit?.record(
-      "model.completed",
-      {
-        ...metadata,
-        dimensions: embedding.length,
-        durationMs: performance.now() - startedAt,
-        embeddingHash: createHash("sha256")
-          .update(JSON.stringify(embedding))
-          .digest("hex"),
-        normalized: false,
-        status: "completed",
-        usage,
-      },
-      { phase: "model", processor }
-    );
+    span.completed(embedding, usage, { normalized: false });
     return embedding;
   } catch (error) {
-    audit?.record(
-      "model.failed",
-      {
-        ...metadata,
-        durationMs: performance.now() - startedAt,
-        error,
-        status: "failed",
-      },
-      { phase: "model", processor }
-    );
+    span.failed(error);
     log.error({
       action: "worker.documentation_search",
       operation: "query_embedding.generate",

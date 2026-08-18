@@ -410,7 +410,7 @@ const agentRun = object("agentRun", {
   metadataStr: string().nullable(),
   organizationId: reference("organization.id").index(),
   pipelineJobId: string().nullable().index(),
-  queueJobId: string().nullable().index(),
+  bullmqJobId: string().nullable().index(),
   queueName: string().nullable(),
   startedAt: timestamp().index(),
   status: string().index(),

@@ -52,7 +52,6 @@ export interface AgentRunAuditStart {
   organizationId: string;
   pipelineJobId?: string;
   queueGeneration?: number;
-  queueJobId?: string;
   queueName?: string;
   threadId: string;
   input: PipelineJobInput;
@@ -103,13 +102,13 @@ const stableId = (value: string): string =>
 export const agentRunIdFor = ({
   pipelineJobId,
   queueGeneration,
-  queueJobId,
+  bullmqJobId,
   queueName,
   threadId,
 }: {
   pipelineJobId?: string;
   queueGeneration?: number;
-  queueJobId?: string;
+  bullmqJobId?: string;
   queueName?: string;
   threadId: string;
 }): string =>
@@ -117,7 +116,7 @@ export const agentRunIdFor = ({
     [
       queueName ?? "pipeline",
       queueGeneration === undefined
-        ? (queueJobId ?? pipelineJobId ?? ulid())
+        ? (bullmqJobId ?? pipelineJobId ?? ulid())
         : `generation:${queueGeneration}`,
       threadId,
     ].join(":")
@@ -173,9 +172,6 @@ const serializeForAudit = (value: unknown): string => {
   }
 };
 
-const payloadHash = (payloadStr: string): string =>
-  createHash("sha256").update(payloadStr).digest("hex");
-
 const auditLog = (event: string, fields: Record<string, unknown>) => {
   // Keep audit transport failures on the operational logging path. This is
   // deliberately not the same as the forensic ledger: the pipeline must not
@@ -220,7 +216,7 @@ class AgentRunAuditImpl implements AgentRunAudit {
   }[] = [];
   #flushPromise: Promise<void> | null = null;
   #flushScheduled = false;
-  #incomplete = false;
+  #incompleteReason: string | null = null;
   #incompleteEventRecorded = false;
   #started = false;
   #start: AgentRunAuditStart;
@@ -244,7 +240,6 @@ class AgentRunAuditImpl implements AgentRunAudit {
         metadataStr: JSON.stringify(startMetadata(this.#start)),
         organizationId: this.#start.organizationId,
         pipelineJobId: this.#start.pipelineJobId ?? null,
-        queueJobId: this.#start.queueJobId ?? null,
         queueName: this.#start.queueName ?? null,
         runId: this.runId,
         startedAt: new Date(),
@@ -254,7 +249,7 @@ class AgentRunAuditImpl implements AgentRunAudit {
     this.#startPromise = startRequest
       .then(() => {
         this.#started = true;
-        this.recordIncompleteEvent("start_timeout");
+        this.recordIncompleteEvent();
         return true;
       })
       .catch((error) => {
@@ -294,7 +289,7 @@ class AgentRunAuditImpl implements AgentRunAudit {
       id: stableId(`${this.attemptId}:event:${sequence}`),
       occurredAt,
       organizationId: this.#start.organizationId,
-      payloadHash: payloadHash(payloadStr),
+      payloadHash: createHash("sha256").update(payloadStr).digest("hex"),
       payloadStr,
       phase: metadata.phase ?? null,
       processor: metadata.processor ?? null,
@@ -394,7 +389,8 @@ class AgentRunAuditImpl implements AgentRunAudit {
       return;
     }
 
-    const auditIncomplete = this.#incomplete || this.#pending.length > 0;
+    const auditIncomplete =
+      this.#incompleteReason !== null || this.#pending.length > 0;
     const metadataStr = JSON.stringify({
       ...(payload && typeof payload === "object" ? payload : {}),
       auditIncomplete,
@@ -464,17 +460,30 @@ class AgentRunAuditImpl implements AgentRunAudit {
     }
   }
 
-  private recordIncompleteEvent(reason: string): void {
-    if (this.#started && this.#incomplete && !this.#incompleteEventRecorded) {
+  /**
+   * Emits the `audit.incomplete` marker once, on the first reason. Skipped
+   * while the run row does not exist yet: the event has nothing to attach to,
+   * so `start` retries this the moment the row lands.
+   */
+  private recordIncompleteEvent(): void {
+    if (
+      this.#started &&
+      this.#incompleteReason &&
+      !this.#incompleteEventRecorded
+    ) {
       this.#incompleteEventRecorded = true;
-      this.record("audit.incomplete", { reason }, { phase: "audit" });
+      this.record(
+        "audit.incomplete",
+        { reason: this.#incompleteReason },
+        { phase: "audit" }
+      );
     }
   }
 
   private markIncomplete(reason: string): void {
-    const firstIncomplete = !this.#incomplete;
-    this.#incomplete = true;
-    this.recordIncompleteEvent(reason);
+    const firstIncomplete = !this.#incompleteReason;
+    this.#incompleteReason ??= reason;
+    this.recordIncompleteEvent();
     if (!firstIncomplete) {
       return;
     }
@@ -543,7 +552,7 @@ export const createAgentRunAudit = async (
   const runId = agentRunIdFor({
     pipelineJobId: start.pipelineJobId,
     queueGeneration: start.queueGeneration,
-    queueJobId: start.queueJobId,
+    bullmqJobId: start.bullmqJobId,
     queueName: start.queueName,
     threadId: start.threadId,
   });

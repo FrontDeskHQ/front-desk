@@ -421,7 +421,17 @@ export const executePipeline = async (
     }
 
     const auditStart = input.audit;
-    const startedAudits = await Promise.all(
+    const effectiveTriggers = input.triggers ?? [];
+    const normalizedTriggers =
+      auditStart?.normalizedTriggers ?? effectiveTriggers;
+    // Mixed supersede + synthesis jobs clear the previous read in the worker
+    // preflight, before this pipeline gets its RunState. Preserve that
+    // observable write in the same logical run's sequence.
+    const supersedeClearedInPreflight =
+      normalizedTriggers.some((trigger) => trigger.kind === "supersede") &&
+      !effectiveTriggers.some((trigger) => trigger.kind === "supersede");
+
+    await Promise.all(
       [...runStates.entries()].map(async ([threadId, run]) => {
         const audit = await createAgentRunAudit({
           attemptNumber: auditStart?.attemptNumber ?? 1,
@@ -431,52 +441,36 @@ export const executePipeline = async (
           organizationId: run.organizationId,
           pipelineJobId,
           queueGeneration: auditStart?.queueGeneration,
-          queueJobId: auditStart?.queueJobId,
           queueName: auditStart?.queueName,
           rawQueuePayload: auditStart?.rawQueuePayload,
           threadId,
         });
         run.attachAudit(audit);
+        audits.set(threadId, audit);
+
         audit.record(
           "run.started",
-          {
-            pipelineJobId,
-            threadId,
-            triggers: input.triggers ?? [],
-          },
+          { pipelineJobId, threadId, triggers: effectiveTriggers },
           { phase: "run" }
         );
         audit.record(
           "trigger.received",
           {
-            effectiveTriggers: input.triggers ?? [],
-            normalizedTriggers:
-              input.audit?.normalizedTriggers ?? input.triggers ?? [],
-            rawQueuePayload: input.audit?.rawQueuePayload ?? null,
+            effectiveTriggers,
+            normalizedTriggers,
+            rawQueuePayload: auditStart?.rawQueuePayload ?? null,
           },
           { phase: "trigger" }
         );
-        return [threadId, audit] as const;
+        if (supersedeClearedInPreflight) {
+          audit.record(
+            "read.published",
+            { reason: "supersede", read: null, source: "worker_preflight" },
+            { phase: "supersede" }
+          );
+        }
       })
     );
-    for (const [threadId, audit] of startedAudits) {
-      audits.set(threadId, audit);
-      const normalizedTriggers =
-        input.audit?.normalizedTriggers ?? input.triggers ?? [];
-      const supersedeWasClearedBeforePipeline =
-        normalizedTriggers.some((trigger) => trigger.kind === "supersede") &&
-        !(input.triggers ?? []).some((trigger) => trigger.kind === "supersede");
-      if (supersedeWasClearedBeforePipeline) {
-        // Mixed supersede + synthesis jobs clear the previous read in the
-        // worker preflight, before this pipeline gets its RunState. Preserve
-        // that observable write in the same logical run's sequence.
-        audit.record(
-          "read.published",
-          { reason: "supersede", read: null, source: "worker_preflight" },
-          { phase: "supersede" }
-        );
-      }
-    }
 
     const context = new JobContext(pipelineJobId, input, options, runStates);
 
@@ -490,21 +484,19 @@ export const executePipeline = async (
       },
     });
     for (const [threadId, audit] of audits) {
+      const run = runStates.get(threadId);
       audit.record(
         "pipeline.plan",
-        {
-          processorCount: totalProcessors,
-          turns: executionOrder,
-        },
+        { processorCount: totalProcessors, turns: executionOrder },
         { phase: "pipeline" }
       );
       audit.record(
         "context.captured",
         {
-          hints: runStates.get(threadId)?.hints() ?? {},
+          hints: run?.hints() ?? {},
           options,
-          thread: runStates.get(threadId)?.thread ?? null,
-          triggers: input.triggers ?? [],
+          thread: run?.thread ?? null,
+          triggers: effectiveTriggers,
         },
         { phase: "context" }
       );

@@ -24,7 +24,6 @@ export const startAgentRunInputSchema = z
     metadataStr: jsonStringSchema.nullable().optional(),
     organizationId: z.string().min(1),
     pipelineJobId: z.string().nullable().optional(),
-    queueJobId: z.string().nullable().optional(),
     queueName: z.string().nullable().optional(),
     runId: z.string().min(1),
     startedAt: z.coerce.date(),
@@ -95,8 +94,6 @@ type AppendAgentRunEventsInput = z.infer<
 >;
 type CompleteAgentRunInput = z.infer<typeof completeAgentRunInputSchema>;
 type LatestAgentRunInput = z.infer<typeof latestAgentRunInputSchema>;
-
-const now = () => new Date();
 
 const assertRunScope = (
   run: { organizationId: string; threadId: string },
@@ -185,13 +182,16 @@ const assertEventScope = (
   }
 };
 
+/** The tenant and run an event row belongs to — all a duplicate must match. */
+interface EventScope {
+  agentRunId: string;
+  attemptId: string;
+  organizationId: string;
+  threadId: string;
+}
+
 const assertStoredEventScope = (
-  stored: {
-    agentRunId: string;
-    attemptId: string;
-    organizationId: string;
-    threadId: string;
-  },
+  stored: EventScope,
   event: AppendAgentRunEventsInput["events"][number]
 ): void => {
   if (
@@ -208,164 +208,144 @@ export const runStartAgentRun = async (
   db: AgentRunDb,
   input: StartAgentRunInput
 ) => {
-  const timestamp = input.createdAt ?? now();
-  const run = await db.agentRun.one(input.runId).get();
+  const timestamp = input.createdAt ?? new Date();
+  const shared = {
+    completedAt: null,
+    startedAt: input.startedAt,
+    status: "running",
+    updatedAt: timestamp,
+  };
+  const attemptScope = {
+    agentRunId: input.runId,
+    organizationId: input.organizationId,
+    threadId: input.threadId,
+  };
 
-  if (run) {
-    assertRunScope(run, input);
-    const values = {
-      auditIncomplete: run.auditIncomplete,
-      completedAt: null,
-      metadataStr: input.metadataStr ?? run.metadataStr,
-      pipelineJobId: input.pipelineJobId ?? run.pipelineJobId,
-      queueJobId: input.queueJobId ?? run.queueJobId,
-      queueName: input.queueName ?? run.queueName,
-      startedAt: input.startedAt,
-      status: "running",
-      updatedAt: timestamp,
-    };
-    await db.agentRun.update(run.id, values);
-  } else {
-    try {
-      await db.insert(schema.agentRun, {
+  await upsertStartedRow({
+    assertScope: (row) => assertRunScope(row, input),
+    insert: () =>
+      db.insert(schema.agentRun, {
+        ...shared,
         auditIncomplete: false,
-        completedAt: null,
+        bullmqJobId: input.bullmqJobId ?? null,
         createdAt: timestamp,
         id: input.runId,
         metadataStr: input.metadataStr ?? null,
         organizationId: input.organizationId,
         pipelineJobId: input.pipelineJobId ?? null,
-        queueJobId: input.queueJobId ?? null,
         queueName: input.queueName ?? null,
-        startedAt: input.startedAt,
-        status: "running",
         threadId: input.threadId,
-        updatedAt: timestamp,
-      });
-    } catch (error) {
-      if (!isUniqueViolation(error)) {
-        throw error;
-      }
-      const concurrent = await db.agentRun.one(input.runId).get();
-      if (!concurrent) {
-        throw new Error("AGENT_RUN_INSERT_FAILED", { cause: error });
-      }
-      assertRunScope(concurrent, input);
-      await db.agentRun.update(concurrent.id, {
-        auditIncomplete: concurrent.auditIncomplete,
-        completedAt: null,
-        metadataStr: input.metadataStr ?? concurrent.metadataStr,
-        pipelineJobId: input.pipelineJobId ?? concurrent.pipelineJobId,
-        queueJobId: input.queueJobId ?? concurrent.queueJobId,
-        queueName: input.queueName ?? concurrent.queueName,
-        startedAt: input.startedAt,
-        status: "running",
-        updatedAt: timestamp,
-      });
-    }
-  }
+      }),
+    insertFailedError: "AGENT_RUN_INSERT_FAILED",
+    read: () => db.agentRun.one(input.runId).get(),
+    update: (row) =>
+      db.agentRun.update(row.id, {
+        ...shared,
+        bullmqJobId: input.bullmqJobId ?? row.bullmqJobId,
+        metadataStr: input.metadataStr ?? row.metadataStr,
+        pipelineJobId: input.pipelineJobId ?? row.pipelineJobId,
+        queueName: input.queueName ?? row.queueName,
+      }),
+  });
 
-  const attempt = await db.agentRunAttempt.one(input.attemptId).get();
-  if (attempt) {
-    assertAttemptScope(attempt, {
-      agentRunId: input.runId,
-      organizationId: input.organizationId,
-      threadId: input.threadId,
-    });
-    const values = {
-      auditIncomplete: attempt.auditIncomplete,
-      bullmqJobId: input.bullmqJobId ?? attempt.bullmqJobId,
-      completedAt: null,
-      metadataStr: input.metadataStr ?? attempt.metadataStr,
-      pipelineJobId: input.pipelineJobId ?? attempt.pipelineJobId,
-      queueName: input.queueName ?? attempt.queueName,
-      startedAt: input.startedAt,
-      status: "running",
-      updatedAt: timestamp,
-    };
-    await db.agentRunAttempt.update(attempt.id, values);
-  } else {
-    try {
-      await db.insert(schema.agentRunAttempt, {
-        agentRunId: input.runId,
-        auditIncomplete: false,
+  await upsertStartedRow({
+    assertScope: (row) => assertAttemptScope(row, attemptScope),
+    insert: () =>
+      db.insert(schema.agentRunAttempt, {
+        ...shared,
+        ...attemptScope,
         attemptNumber: input.attemptNumber,
+        auditIncomplete: false,
         bullmqJobId: input.bullmqJobId ?? null,
-        completedAt: null,
         createdAt: timestamp,
         id: input.attemptId,
         metadataStr: input.metadataStr ?? null,
-        organizationId: input.organizationId,
         pipelineJobId: input.pipelineJobId ?? null,
         queueName: input.queueName ?? null,
-        startedAt: input.startedAt,
-        status: "running",
-        threadId: input.threadId,
-        updatedAt: timestamp,
-      });
-    } catch (error) {
-      if (!isUniqueViolation(error)) {
-        throw error;
-      }
-      const concurrent = await db.agentRunAttempt.one(input.attemptId).get();
-      if (!concurrent) {
-        throw new Error("AGENT_RUN_ATTEMPT_INSERT_FAILED", { cause: error });
-      }
-      assertAttemptScope(concurrent, {
-        agentRunId: input.runId,
-        organizationId: input.organizationId,
-        threadId: input.threadId,
-      });
-      await db.agentRunAttempt.update(concurrent.id, {
-        auditIncomplete: concurrent.auditIncomplete,
-        bullmqJobId: input.bullmqJobId ?? concurrent.bullmqJobId,
-        completedAt: null,
-        metadataStr: input.metadataStr ?? concurrent.metadataStr,
-        pipelineJobId: input.pipelineJobId ?? concurrent.pipelineJobId,
-        queueName: input.queueName ?? concurrent.queueName,
-        startedAt: input.startedAt,
-        status: "running",
-        updatedAt: timestamp,
-      });
-    }
-  }
+      }),
+    insertFailedError: "AGENT_RUN_ATTEMPT_INSERT_FAILED",
+    read: () => db.agentRunAttempt.one(input.attemptId).get(),
+    update: (row) =>
+      db.agentRunAttempt.update(row.id, {
+        ...shared,
+        bullmqJobId: input.bullmqJobId ?? row.bullmqJobId,
+        metadataStr: input.metadataStr ?? row.metadataStr,
+        pipelineJobId: input.pipelineJobId ?? row.pipelineJobId,
+        queueName: input.queueName ?? row.queueName,
+      }),
+  });
 
   return { attemptId: input.attemptId, runId: input.runId };
+};
+
+/**
+ * Insert the row, or reset the one already there back to "running" — restarting
+ * a run or attempt is idempotent. The unique-violation retry covers a
+ * concurrent start inserting the same id between the read and the insert.
+ */
+const upsertStartedRow = async <T extends { id: string }>({
+  assertScope,
+  insert,
+  insertFailedError,
+  read,
+  update,
+}: {
+  assertScope: (row: T) => void;
+  insert: () => Promise<unknown>;
+  insertFailedError: string;
+  read: () => Promise<T | null | undefined>;
+  update: (row: T) => Promise<unknown>;
+}): Promise<void> => {
+  const existing = await read();
+  if (existing) {
+    assertScope(existing);
+    await update(existing);
+    return;
+  }
+
+  try {
+    await insert();
+  } catch (error) {
+    if (!isUniqueViolation(error)) {
+      throw error;
+    }
+    const concurrent = await read();
+    if (!concurrent) {
+      throw new Error(insertFailedError, { cause: error });
+    }
+    assertScope(concurrent);
+    await update(concurrent);
+  }
 };
 
 export const runAppendAgentRunEvents = async (
   db: AgentRunDb,
   input: AppendAgentRunEventsInput
 ) => {
-  if (input.events.length === 0) {
-    return { inserted: 0 };
-  }
-
-  const eventIds = [...new Set(input.events.map((event) => event.id))];
   const firstEvent = input.events[0];
   if (!firstEvent) {
     return { inserted: 0 };
   }
+
   const [run, attempt] = await Promise.all([
     db.agentRun.one(firstEvent.agentRunId).get(),
     db.agentRunAttempt.one(firstEvent.attemptId).get(),
   ]);
-  const existing = Object.values(
-    await db.find(schema.agentRunEvent, {
-      where: { id: { $in: eventIds } },
-    })
+  const stored = new Map<string, EventScope>(
+    Object.values(
+      await db.find(schema.agentRunEvent, {
+        where: { id: { $in: [...new Set(input.events.map((e) => e.id))] } },
+      })
+    ).map((event) => [event.id, event])
   );
-  const existingIds = new Set(existing.map((event) => event.id));
   let inserted = 0;
 
   for (const event of input.events) {
     assertEventScope(run, attempt, event);
 
-    if (existingIds.has(event.id)) {
-      const stored = await db.agentRunEvent.one(event.id).get();
-      if (stored) {
-        assertStoredEventScope(stored, event);
-      }
+    const already = stored.get(event.id);
+    if (already) {
+      assertStoredEventScope(already, event);
       continue;
     }
 
@@ -388,7 +368,7 @@ export const runAppendAgentRunEvents = async (
         toolCallId: event.toolCallId ?? null,
         type: event.type,
       });
-      existingIds.add(event.id);
+      stored.set(event.id, event);
       inserted += 1;
     } catch (error) {
       if (!isUniqueViolation(error)) {
@@ -401,7 +381,7 @@ export const runAppendAgentRunEvents = async (
         throw new Error("AGENT_RUN_EVENT_INSERT_FAILED", { cause: error });
       }
       assertStoredEventScope(concurrent, event);
-      existingIds.add(event.id);
+      stored.set(event.id, concurrent);
       inserted += 1;
     }
   }
@@ -423,7 +403,7 @@ export const runCompleteAgentRun = async (
     throw new Error("AGENT_RUN_ATTEMPT_NOT_FOUND");
   }
 
-  const timestamp = now();
+  const timestamp = new Date();
   await db.agentRunAttempt.update(attempt.id, {
     auditIncomplete: input.auditIncomplete ?? attempt.auditIncomplete,
     completedAt: input.completedAt,

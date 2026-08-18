@@ -45,7 +45,7 @@ const startInput = () => ({
   organizationId: "org-1",
   pipelineJobId: "pipeline-1",
   queueGeneration: 1,
-  queueJobId: "queue-1",
+  bullmqJobId: "queue-1",
   queueName: "thread-pipeline",
   rawQueuePayload: {
     threadId: "thread-1",
@@ -70,7 +70,7 @@ describe("agent run audit transport", () => {
   it("derives stable logical and attempt ids", () => {
     const identity = {
       pipelineJobId: "pipeline-1",
-      queueJobId: "queue-1",
+      bullmqJobId: "queue-1",
       queueName: "thread-pipeline",
       threadId: "thread-1",
     };

@@ -108,7 +108,7 @@ describe("thread-read trigger contracts", () => {
   });
 });
 
-describe("fingerprint stability", () => {
+describe(fingerprintAgentRead, () => {
   it("is stable when nested action keys are reshuffled (jsonb vs insertion order)", () => {
     const insertionOrder: ThreadRead = {
       alternatives: [{ draftMarkdown: "hi", kind: "reply" }],
