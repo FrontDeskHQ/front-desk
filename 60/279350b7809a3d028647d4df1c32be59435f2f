@@ -1,0 +1,32 @@
+apps/api/src/live-state/schema.ts
+  s_2f6be1edc09245::t_a415ecac4980b9 403
+apps/api/src/lib/agent-run-audit.ts
+  s_2f6be1edc09245::t_e484e6c5c5efd6 81-96,113-114,454,456,458-479,494-505,510-512,515-528
+  s_2f6be1edc09245::t_4af6efa93118aa 455,457
+apps/api/src/live-state/router/agent-run.ts
+  s_2f6be1edc09245::t_4af6efa93118aa 2,6-7,11,43-56
+apps/web/src/components/devtools/devtools-menu/agent-run-clipboard.ts
+  s_2f6be1edc09245::t_59ac7acf2cd371 1-51
+apps/web/src/components/devtools/devtools-menu/copy-latest-agent-run-command.ts
+  s_2f6be1edc09245::t_59ac7acf2cd371 7,44
+apps/web/src/components/devtools/devtools-menu/copy-agent-run-page.tsx
+  s_2f6be1edc09245::t_4a3759dc0c6e8d 1-169
+apps/web/src/components/devtools/developer-commands.tsx
+  s_2f6be1edc09245::t_e231689255f361 14,35-38,244-245,275-280
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "60279350b7809a3d028647d4df1c32be59435f2f",
+  "prompts": {},
+  "sessions": {
+    "s_2f6be1edc09245": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "a012f1f2-161c-43f8-a7fd-beb28349abfd",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
