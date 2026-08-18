@@ -36,14 +36,18 @@ export const relatedDocsHintSpec: RetrievalHintSpec<
 
   requiresEmbedding: false,
 
-  async retrieve({ organizationId, summary, tuning }) {
+  async retrieve({ audit, organizationId, summary, tuning }) {
     const query = summary ? buildSearchQuery(summary) : "";
     // An absent query legitimately means "no evidence" and clears the hint. A
     // query that fails to embed does not — throw, so the prior hint survives.
     if (query.length === 0) {
       return [];
     }
-    const vector = await generateDocumentationQueryEmbedding(query);
+    const vector = await generateDocumentationQueryEmbedding(
+      query,
+      audit,
+      "related_docs"
+    );
     if (!vector) {
       throw new Error("Failed to embed documentation search query");
     }

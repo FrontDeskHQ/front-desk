@@ -159,6 +159,7 @@ Think: "If another user has the exact same underlying problem with different wor
   let lastError: unknown;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    let modelStartedAt: number | undefined;
     try {
       const baseModel = generationModel();
       audit?.record(
@@ -180,7 +181,7 @@ Think: "If another user has the exact same underlying problem with different wor
         { phase: "summarize", stepIndex: attempt }
       );
 
-      const modelStartedAt = performance.now();
+      modelStartedAt = performance.now();
       const result = await generateText({
         model: ai ? ai.wrap(baseModel) : baseModel,
         onStepFinish: (step) => {
@@ -221,6 +222,18 @@ Think: "If another user has the exact same underlying problem with different wor
       };
     } catch (error) {
       lastError = error;
+      if (modelStartedAt !== undefined) {
+        audit?.record(
+          "model.failed",
+          {
+            attempt: attempt + 1,
+            durationMs: performance.now() - modelStartedAt,
+            error,
+            status: "failed",
+          },
+          { phase: "summarize", stepIndex: attempt }
+        );
+      }
       const isLastAttempt = attempt === MAX_RETRIES - 1;
       const isRetryable = isRetryableError(error);
       const isRateLimit = isRateLimitError(error);

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { serializeObservableModelStep } from "./model-audit";
 
 describe("model audit serialization", () => {
-  it("keeps observable output while excluding reasoning parts and response messages", () => {
+  it("keeps observable output while excluding reasoning and provider metadata", () => {
     const serialized = serializeObservableModelStep({
       content: [
         { text: "visible", type: "text" },
@@ -17,6 +17,9 @@ describe("model audit serialization", () => {
         modelId: "model-1",
         timestamp: new Date().toISOString(),
       },
+      providerMetadata: {
+        google: { hiddenReasoning: "should not be copied" },
+      },
       text: "visible",
     });
 
@@ -29,5 +32,6 @@ describe("model audit serialization", () => {
       modelId: "model-1",
       timestamp: expect.any(String),
     });
+    expect(serialized).not.toHaveProperty("providerMetadata");
   });
 });

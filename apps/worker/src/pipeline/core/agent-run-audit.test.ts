@@ -44,6 +44,7 @@ const startInput = () => ({
   options: {},
   organizationId: "org-1",
   pipelineJobId: "pipeline-1",
+  queueGeneration: 1,
   queueJobId: "queue-1",
   queueName: "thread-pipeline",
   rawQueuePayload: {
@@ -75,6 +76,12 @@ describe("agent run audit transport", () => {
     };
 
     expect(agentRunIdFor(identity)).toBe(agentRunIdFor(identity));
+    expect(agentRunIdFor({ ...identity, queueGeneration: 1 })).toBe(
+      agentRunIdFor({ ...identity, queueGeneration: 1 })
+    );
+    expect(agentRunIdFor({ ...identity, queueGeneration: 1 })).not.toBe(
+      agentRunIdFor({ ...identity, queueGeneration: 2 })
+    );
     expect(agentRunAttemptIdFor("run-1", 1)).not.toBe(
       agentRunAttemptIdFor("run-1", 2)
     );
@@ -84,21 +91,31 @@ describe("agent run audit transport", () => {
     const audit = await createAgentRunAudit(startInput());
     const circular: Record<string, unknown> = {};
     circular.self = circular;
+    const shared = { kind: "reply", value: "same object twice" };
 
-    audit.record("context.captured", { circular, count: 3n });
+    audit.record("context.captured", {
+      circular,
+      count: 3n,
+      first: shared,
+      second: shared,
+    });
+    audit.record("hint.computed", { status: "complete" });
     await audit.flush();
 
     const firstBatch = auditMocks.appendEvents.mock.calls[0]?.[0];
-    if (!firstBatch?.events[0]) {
+    if (!firstBatch?.events[0] || !firstBatch.events[1]) {
       throw new Error("Expected an audit event batch");
     }
-    const event = firstBatch.events[0];
-    expect(event.sequence).toBe(0);
-    expect(JSON.parse(event.payloadStr)).toStrictEqual({
+    expect(firstBatch.events.map((event) => event.sequence)).toStrictEqual([
+      0, 1,
+    ]);
+    expect(JSON.parse(firstBatch.events[0].payloadStr)).toStrictEqual({
       circular: { self: "[Circular]" },
       count: "3n",
+      first: shared,
+      second: shared,
     });
-    expect(event.payloadHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(firstBatch.events[0].payloadHash).toMatch(/^[a-f0-9]{64}$/);
 
     await audit.complete("completed", { httpStatus: 200 });
 
@@ -145,5 +162,59 @@ describe("agent run audit transport", () => {
     } finally {
       warning.mockRestore();
     }
+  });
+
+  it("reconciles a start that settles after its timeout", async () => {
+    let resolveStart!: (response: AuditResponse) => void;
+    auditMocks.start.mockReturnValueOnce(
+      new Promise<AuditResponse>((resolve) => {
+        resolveStart = resolve;
+      })
+    );
+
+    const audit = await createAgentRunAudit(startInput());
+    const completion = audit.complete("completed");
+    setTimeout(
+      () =>
+        resolveStart({
+          attemptId: "attempt-1",
+          runId: "run-1",
+        }),
+      25
+    );
+
+    await completion;
+
+    expect(auditMocks.complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        auditIncomplete: true,
+        status: "completed",
+      })
+    );
+  });
+
+  it("reconciles a completion that settles after its timeout", async () => {
+    auditMocks.complete
+      .mockReturnValueOnce(
+        new Promise<AuditResponse>((resolve) => {
+          setTimeout(
+            () => resolve({ attemptId: "attempt-1", runId: "run-1" }),
+            600
+          );
+        })
+      )
+      .mockResolvedValueOnce({ attemptId: "attempt-1", runId: "run-1" });
+
+    const audit = await createAgentRunAudit(startInput());
+    await audit.complete("completed");
+    await new Promise((resolve) => setTimeout(resolve, 650));
+
+    expect(auditMocks.complete).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        auditIncomplete: true,
+        status: "completed",
+      })
+    );
   });
 });

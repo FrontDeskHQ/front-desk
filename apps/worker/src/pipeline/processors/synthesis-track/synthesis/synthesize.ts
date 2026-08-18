@@ -490,55 +490,72 @@ Return a single valid JSON object with exactly this shape:
   );
 
   const modelStartedAt = performance.now();
-  const { text, steps } = await generateText({
-    onToolExecutionEnd: (event) => {
-      audit?.record(
-        "tool.completed",
-        {
-          callId: event.callId,
-          durationMs: event.toolExecutionMs,
-          error:
-            event.toolOutput.type === "tool-error"
-              ? event.toolOutput.error
-              : null,
-          output:
-            event.toolOutput.type === "tool-result"
-              ? event.toolOutput.output
-              : null,
-          success: event.toolOutput.type === "tool-result",
-          toolCall: event.toolCall,
+  const generationResult = await (async () => {
+    try {
+      return await generateText({
+        onToolExecutionEnd: (event) => {
+          audit?.record(
+            "tool.completed",
+            {
+              callId: event.callId,
+              durationMs: event.toolExecutionMs,
+              error:
+                event.toolOutput.type === "tool-error"
+                  ? event.toolOutput.error
+                  : null,
+              output:
+                event.toolOutput.type === "tool-result"
+                  ? event.toolOutput.output
+                  : null,
+              success: event.toolOutput.type === "tool-result",
+              toolCall: event.toolCall,
+            },
+            {
+              ...auditStepMetadata(),
+              toolCallId: event.toolCall.toolCallId,
+            }
+          );
         },
-        {
-          ...auditStepMetadata(),
-          toolCallId: event.toolCall.toolCallId,
-        }
-      );
-    },
-    onToolExecutionStart: (event) => {
-      audit?.record(
-        "tool.called",
-        {
-          callId: event.callId,
-          toolCall: event.toolCall,
+        onToolExecutionStart: (event) => {
+          audit?.record(
+            "tool.called",
+            {
+              callId: event.callId,
+              toolCall: event.toolCall,
+            },
+            {
+              ...auditStepMetadata(),
+              toolCallId: event.toolCall.toolCallId,
+            }
+          );
         },
-        {
-          ...auditStepMetadata(),
-          toolCallId: event.toolCall.toolCallId,
-        }
-      );
-    },
-    model: ai ? ai.wrap(baseModel) : baseModel,
-    onStepFinish: (step) => {
+        model: ai ? ai.wrap(baseModel) : baseModel,
+        onStepFinish: (step) => {
+          audit?.record(
+            "model.step",
+            serializeObservableModelStep(step),
+            auditStepMetadata(step.stepNumber)
+          );
+        },
+        prompt,
+        stopWhen: stepCountIs(8),
+        tools,
+      });
+    } catch (error) {
       audit?.record(
-        "model.step",
-        serializeObservableModelStep(step),
-        auditStepMetadata(step.stepNumber)
+        "model.failed",
+        {
+          durationMs: performance.now() - modelStartedAt,
+          error,
+          status: "failed",
+        },
+        auditStepMetadata()
       );
-    },
-    prompt,
-    stopWhen: stepCountIs(8),
-    tools,
-  });
+      throw error;
+    }
+  })();
+
+  const { text, steps, totalUsage } = generationResult;
 
   const lastStep = steps.at(-1);
   audit?.record(
@@ -547,7 +564,7 @@ Return a single valid JSON object with exactly this shape:
       step: lastStep ? serializeObservableModelStep(lastStep) : null,
       steps: steps.map(serializeObservableModelStep),
       text,
-      totalUsage: steps.map((step) => step.usage),
+      totalUsage,
       durationMs: performance.now() - modelStartedAt,
     },
     auditStepMetadata()

@@ -95,7 +95,11 @@ configureThreadReadQueue({ connection });
  * current read first and bypass synthesis when no other cause was coalesced.
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
-  const { threadId, triggers } = normalizeThreadReadJobData(job.data);
+  const {
+    generation: queueGeneration,
+    threadId,
+    triggers,
+  } = normalizeThreadReadJobData(job.data);
   const loggedThreadId = threadId || "missing";
 
   const requestLog = createWorkerJobLogger(
@@ -149,6 +153,7 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
               },
               options: {},
               organizationId: run.organizationId,
+              queueGeneration,
               queueJobId: job.id === undefined ? undefined : String(job.id),
               queueName: THREAD_PIPELINE_QUEUE,
               rawQueuePayload: job.data,
@@ -194,6 +199,7 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
         attemptNumber: job.attemptsMade + 1,
         bullmqJobId: job.id === undefined ? undefined : String(job.id),
         normalizedTriggers: triggers,
+        queueGeneration,
         queueJobId: job.id === undefined ? undefined : String(job.id),
         queueName: THREAD_PIPELINE_QUEUE,
         rawQueuePayload: job.data,

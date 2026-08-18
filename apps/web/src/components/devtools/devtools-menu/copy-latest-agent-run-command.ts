@@ -52,6 +52,7 @@ export const copyLatestAgentRunDataFromParam = async ({
       return;
     }
 
+    const { metadataStr: runMetadataStr, ...run } = result.run;
     const output = {
       attempts: result.attempts.map(({ metadataStr, ...attempt }) => ({
         ...attempt,
@@ -62,8 +63,8 @@ export const copyLatestAgentRunDataFromParam = async ({
         payload: parseStoredJson(payloadStr),
       })),
       run: {
-        ...result.run,
-        metadata: parseStoredJson(result.run.metadataStr),
+        ...run,
+        metadata: parseStoredJson(runMetadataStr),
       },
     };
 

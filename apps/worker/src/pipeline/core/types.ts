@@ -45,6 +45,8 @@ export interface PipelineAuditInput {
   bullmqJobId?: string;
   /** The normalized/coalesced causes before the pipeline removes supersede. */
   normalizedTriggers?: ThreadReadTrigger[];
+  /** Queue generation: stable across BullMQ retries, new after a terminal requeue. */
+  queueGeneration?: number;
   queueJobId?: string;
   queueName?: string;
   rawQueuePayload?: unknown;

@@ -1,5 +1,4 @@
 import type { ServerDB } from "@live-state/sync/server";
-import { ulid } from "ulid";
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
@@ -99,6 +98,82 @@ type LatestAgentRunInput = z.infer<typeof latestAgentRunInputSchema>;
 
 const now = () => new Date();
 
+const assertRunScope = (
+  run: { organizationId: string; threadId: string },
+  input: { organizationId: string; threadId: string }
+): void => {
+  if (
+    run.organizationId !== input.organizationId ||
+    run.threadId !== input.threadId
+  ) {
+    throw new Error("AGENT_RUN_SCOPE_MISMATCH");
+  }
+};
+
+const assertAttemptScope = (
+  attempt: {
+    agentRunId: string;
+    organizationId: string;
+    threadId: string;
+  },
+  input: {
+    agentRunId: string;
+    organizationId: string;
+    threadId: string;
+  }
+): void => {
+  if (
+    attempt.agentRunId !== input.agentRunId ||
+    attempt.organizationId !== input.organizationId ||
+    attempt.threadId !== input.threadId
+  ) {
+    throw new Error("AGENT_RUN_ATTEMPT_SCOPE_MISMATCH");
+  }
+};
+
+const assertEventScope = async (
+  db: AgentRunDb,
+  event: AppendAgentRunEventsInput["events"][number]
+): Promise<void> => {
+  const run = await db.agentRun.one(event.agentRunId).get();
+  if (
+    !run ||
+    run.organizationId !== event.organizationId ||
+    run.threadId !== event.threadId
+  ) {
+    throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+  }
+
+  const attempt = await db.agentRunAttempt.one(event.attemptId).get();
+  if (
+    !attempt ||
+    attempt.agentRunId !== event.agentRunId ||
+    attempt.organizationId !== event.organizationId ||
+    attempt.threadId !== event.threadId
+  ) {
+    throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+  }
+};
+
+const assertStoredEventScope = (
+  stored: {
+    agentRunId: string;
+    attemptId: string;
+    organizationId: string;
+    threadId: string;
+  },
+  event: AppendAgentRunEventsInput["events"][number]
+): void => {
+  if (
+    stored.agentRunId !== event.agentRunId ||
+    stored.attemptId !== event.attemptId ||
+    stored.organizationId !== event.organizationId ||
+    stored.threadId !== event.threadId
+  ) {
+    throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+  }
+};
+
 export const runStartAgentRun = async (
   db: AgentRunDb,
   input: StartAgentRunInput
@@ -107,7 +182,8 @@ export const runStartAgentRun = async (
   const run = await db.agentRun.one(input.runId).get();
 
   if (run) {
-    await db.agentRun.update(run.id, {
+    assertRunScope(run, input);
+    const values = {
       auditIncomplete: run.auditIncomplete,
       completedAt: null,
       metadataStr: input.metadataStr ?? run.metadataStr,
@@ -117,28 +193,53 @@ export const runStartAgentRun = async (
       startedAt: input.startedAt,
       status: "running",
       updatedAt: timestamp,
-    });
+    };
+    await db.agentRun.update(run.id, values);
   } else {
-    await db.insert(schema.agentRun, {
-      auditIncomplete: false,
-      completedAt: null,
-      createdAt: timestamp,
-      id: input.runId,
-      metadataStr: input.metadataStr ?? null,
-      organizationId: input.organizationId,
-      pipelineJobId: input.pipelineJobId ?? null,
-      queueJobId: input.queueJobId ?? null,
-      queueName: input.queueName ?? null,
-      startedAt: input.startedAt,
-      status: "running",
-      threadId: input.threadId,
-      updatedAt: timestamp,
-    });
+    try {
+      await db.insert(schema.agentRun, {
+        auditIncomplete: false,
+        completedAt: null,
+        createdAt: timestamp,
+        id: input.runId,
+        metadataStr: input.metadataStr ?? null,
+        organizationId: input.organizationId,
+        pipelineJobId: input.pipelineJobId ?? null,
+        queueJobId: input.queueJobId ?? null,
+        queueName: input.queueName ?? null,
+        startedAt: input.startedAt,
+        status: "running",
+        threadId: input.threadId,
+        updatedAt: timestamp,
+      });
+    } catch {
+      const concurrent = await db.agentRun.one(input.runId).get();
+      if (!concurrent) {
+        throw new Error("AGENT_RUN_INSERT_FAILED");
+      }
+      assertRunScope(concurrent, input);
+      await db.agentRun.update(concurrent.id, {
+        auditIncomplete: concurrent.auditIncomplete,
+        completedAt: null,
+        metadataStr: input.metadataStr ?? concurrent.metadataStr,
+        pipelineJobId: input.pipelineJobId ?? concurrent.pipelineJobId,
+        queueJobId: input.queueJobId ?? concurrent.queueJobId,
+        queueName: input.queueName ?? concurrent.queueName,
+        startedAt: input.startedAt,
+        status: "running",
+        updatedAt: timestamp,
+      });
+    }
   }
 
   const attempt = await db.agentRunAttempt.one(input.attemptId).get();
   if (attempt) {
-    await db.agentRunAttempt.update(attempt.id, {
+    assertAttemptScope(attempt, {
+      agentRunId: input.runId,
+      organizationId: input.organizationId,
+      threadId: input.threadId,
+    });
+    const values = {
       auditIncomplete: attempt.auditIncomplete,
       bullmqJobId: input.bullmqJobId ?? attempt.bullmqJobId,
       completedAt: null,
@@ -148,25 +249,49 @@ export const runStartAgentRun = async (
       startedAt: input.startedAt,
       status: "running",
       updatedAt: timestamp,
-    });
+    };
+    await db.agentRunAttempt.update(attempt.id, values);
   } else {
-    await db.insert(schema.agentRunAttempt, {
-      agentRunId: input.runId,
-      auditIncomplete: false,
-      attemptNumber: input.attemptNumber,
-      bullmqJobId: input.bullmqJobId ?? null,
-      completedAt: null,
-      createdAt: timestamp,
-      id: input.attemptId,
-      metadataStr: input.metadataStr ?? null,
-      organizationId: input.organizationId,
-      pipelineJobId: input.pipelineJobId ?? null,
-      queueName: input.queueName ?? null,
-      startedAt: input.startedAt,
-      status: "running",
-      threadId: input.threadId,
-      updatedAt: timestamp,
-    });
+    try {
+      await db.insert(schema.agentRunAttempt, {
+        agentRunId: input.runId,
+        auditIncomplete: false,
+        attemptNumber: input.attemptNumber,
+        bullmqJobId: input.bullmqJobId ?? null,
+        completedAt: null,
+        createdAt: timestamp,
+        id: input.attemptId,
+        metadataStr: input.metadataStr ?? null,
+        organizationId: input.organizationId,
+        pipelineJobId: input.pipelineJobId ?? null,
+        queueName: input.queueName ?? null,
+        startedAt: input.startedAt,
+        status: "running",
+        threadId: input.threadId,
+        updatedAt: timestamp,
+      });
+    } catch {
+      const concurrent = await db.agentRunAttempt.one(input.attemptId).get();
+      if (!concurrent) {
+        throw new Error("AGENT_RUN_ATTEMPT_INSERT_FAILED");
+      }
+      assertAttemptScope(concurrent, {
+        agentRunId: input.runId,
+        organizationId: input.organizationId,
+        threadId: input.threadId,
+      });
+      await db.agentRunAttempt.update(concurrent.id, {
+        auditIncomplete: concurrent.auditIncomplete,
+        bullmqJobId: input.bullmqJobId ?? concurrent.bullmqJobId,
+        completedAt: null,
+        metadataStr: input.metadataStr ?? concurrent.metadataStr,
+        pipelineJobId: input.pipelineJobId ?? concurrent.pipelineJobId,
+        queueName: input.queueName ?? concurrent.queueName,
+        startedAt: input.startedAt,
+        status: "running",
+        updatedAt: timestamp,
+      });
+    }
   }
 
   return { attemptId: input.attemptId, runId: input.runId };
@@ -190,7 +315,13 @@ export const runAppendAgentRunEvents = async (
   let inserted = 0;
 
   for (const event of input.events) {
+    await assertEventScope(db, event);
+
     if (existingIds.has(event.id)) {
+      const stored = await db.agentRunEvent.one(event.id).get();
+      if (stored) {
+        assertStoredEventScope(stored, event);
+      }
       continue;
     }
 
@@ -200,7 +331,7 @@ export const runAppendAgentRunEvents = async (
         attemptId: event.attemptId,
         causationEventId: event.causationEventId ?? null,
         emittedAt: event.emittedAt,
-        id: event.id || ulid().toLowerCase(),
+        id: event.id,
         occurredAt: event.occurredAt,
         organizationId: event.organizationId,
         payloadHash: event.payloadHash ?? null,
@@ -222,6 +353,9 @@ export const runAppendAgentRunEvents = async (
       if (!concurrent) {
         throw new Error("AGENT_RUN_EVENT_INSERT_FAILED");
       }
+      assertStoredEventScope(concurrent, event);
+      existingIds.add(event.id);
+      inserted += 1;
     }
   }
 
@@ -232,6 +366,11 @@ export const runCompleteAgentRun = async (
   db: AgentRunDb,
   input: CompleteAgentRunInput
 ) => {
+  const run = await db.agentRun.one(input.runId).get();
+  if (!run) {
+    throw new Error("AGENT_RUN_NOT_FOUND");
+  }
+
   const attempt = await db.agentRunAttempt.one(input.attemptId).get();
   if (!attempt || attempt.agentRunId !== input.runId) {
     throw new Error("AGENT_RUN_ATTEMPT_NOT_FOUND");
@@ -245,11 +384,6 @@ export const runCompleteAgentRun = async (
     status: input.status,
     updatedAt: timestamp,
   });
-
-  const run = await db.agentRun.one(input.runId).get();
-  if (!run) {
-    throw new Error("AGENT_RUN_NOT_FOUND");
-  }
 
   await db.agentRun.update(run.id, {
     auditIncomplete: run.auditIncomplete || (input.auditIncomplete ?? false),
@@ -282,6 +416,7 @@ export const runLatestAgentRunForThread = async (
       threadId: input.threadId,
     })
     .orderBy("startedAt", "desc")
+    .orderBy("id", "desc")
     .limit(1)
     .get();
   const run = runs[0];

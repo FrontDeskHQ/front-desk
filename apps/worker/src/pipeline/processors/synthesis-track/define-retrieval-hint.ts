@@ -5,6 +5,7 @@ import { createLogger } from "@workspace/utils/logging";
 
 import { isRetryableError } from "../../../lib/logging";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../../types";
+import type { AgentRunAudit } from "../../core/agent-run-audit";
 import type { SlotEvidenceMap } from "../../core/run-state";
 import type {
   ProcessorDefinition,
@@ -38,6 +39,7 @@ export interface RetrievalTuning {
 }
 
 export interface RetrievalInput {
+  audit?: AgentRunAudit;
   thread: Thread;
   organizationId: string;
   /** Thread embedding, or null when `embed` produced none. */
@@ -157,9 +159,7 @@ export const defineRetrievalHint = <K extends HintKind, THit>(
         }
 
         const summary = summaryOf(context);
-        const hash = computeSha256(
-          summary ? summaryHashInput(summary) : ""
-        );
+        const hash = computeSha256(summary ? summaryHashInput(summary) : "");
 
         const embedding =
           jobContext.getProcessorOutput<EmbedOutput>("embed", threadId)
@@ -177,6 +177,7 @@ export const defineRetrievalHint = <K extends HintKind, THit>(
         }
 
         const hits = await spec.retrieve({
+          audit: run.audit,
           embedding,
           organizationId: thread.organizationId,
           summary,
@@ -191,9 +192,7 @@ export const defineRetrievalHint = <K extends HintKind, THit>(
         requestLog.set({
           outcome: {
             status: "completed",
-            evidenceCount: evidence
-              ? (spec.count?.(evidence) ?? 1)
-              : 0,
+            evidenceCount: evidence ? (spec.count?.(evidence) ?? 1) : 0,
           },
           search: {
             candidateCount: hits.length,

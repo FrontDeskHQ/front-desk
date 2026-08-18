@@ -51,6 +51,7 @@ export interface AgentRunAuditStart {
   bullmqJobId?: string;
   organizationId: string;
   pipelineJobId?: string;
+  queueGeneration?: number;
   queueJobId?: string;
   queueName?: string;
   threadId: string;
@@ -101,11 +102,13 @@ const stableId = (value: string): string =>
 
 export const agentRunIdFor = ({
   pipelineJobId,
+  queueGeneration,
   queueJobId,
   queueName,
   threadId,
 }: {
   pipelineJobId?: string;
+  queueGeneration?: number;
   queueJobId?: string;
   queueName?: string;
   threadId: string;
@@ -113,7 +116,9 @@ export const agentRunIdFor = ({
   stableId(
     [
       queueName ?? "pipeline",
-      queueJobId ?? pipelineJobId ?? ulid(),
+      queueGeneration === undefined
+        ? (queueJobId ?? pipelineJobId ?? ulid())
+        : `generation:${queueGeneration}`,
       threadId,
     ].join(":")
   );
@@ -125,29 +130,36 @@ export const agentRunAttemptIdFor = (
 
 const serializeForAudit = (value: unknown): string => {
   try {
-    const seen = new WeakSet<object>();
-    const serialized = JSON.stringify(value, (_key, currentValue: unknown) => {
-      if (typeof currentValue === "bigint") {
-        return `${currentValue.toString()}n`;
-      }
-
-      if (currentValue instanceof Error) {
-        return {
-          message: currentValue.message,
-          name: currentValue.name,
-          stack: currentValue.stack,
-        };
-      }
-
-      if (typeof currentValue === "object" && currentValue !== null) {
-        if (seen.has(currentValue)) {
-          return "[Circular]";
+    const stack: unknown[] = [];
+    const serialized = JSON.stringify(
+      value,
+      function serializeReplacer(this: unknown, _key, currentValue: unknown) {
+        while (stack.length > 0 && stack.at(-1) !== this) {
+          stack.pop();
         }
-        seen.add(currentValue);
-      }
 
-      return currentValue;
-    });
+        if (typeof currentValue === "bigint") {
+          return `${currentValue.toString()}n`;
+        }
+
+        if (currentValue instanceof Error) {
+          return {
+            message: currentValue.message,
+            name: currentValue.name,
+            stack: currentValue.stack,
+          };
+        }
+
+        if (typeof currentValue === "object" && currentValue !== null) {
+          if (stack.includes(currentValue)) {
+            return "[Circular]";
+          }
+          stack.push(currentValue);
+        }
+
+        return currentValue;
+      }
+    );
 
     return serialized === undefined ? "null" : serialized;
   } catch (error) {
@@ -176,6 +188,7 @@ const auditLog = (event: string, fields: Record<string, unknown>) => {
 const startMetadata = (start: AgentRunAuditStart) => ({
   captureMode: "full",
   options: start.options,
+  queueGeneration: start.queueGeneration ?? null,
   queuePayload: start.rawQueuePayload ?? null,
   triggers: start.input.audit?.normalizedTriggers ?? start.input.triggers ?? [],
 });
@@ -209,6 +222,9 @@ class AgentRunAuditImpl implements AgentRunAudit {
   #incompleteEventRecorded = false;
   #started = false;
   #start: AgentRunAuditStart;
+  #startPromise: Promise<boolean> | null = null;
+  #startSettled = false;
+  #completionPromise: Promise<void> | null = null;
 
   constructor(start: AgentRunAuditStart, runId: string, attemptId: string) {
     this.#start = start;
@@ -217,39 +233,45 @@ class AgentRunAuditImpl implements AgentRunAudit {
   }
 
   async start(): Promise<void> {
-    try {
-      const result = await withTimeout(
-        fetchClient.mutate.agentRun.start({
-          attemptId: this.attemptId,
-          attemptNumber: this.#start.attemptNumber,
-          bullmqJobId: this.#start.bullmqJobId ?? null,
-          createdAt: new Date(),
-          metadataStr: JSON.stringify(startMetadata(this.#start)),
-          organizationId: this.#start.organizationId,
-          pipelineJobId: this.#start.pipelineJobId ?? null,
-          queueJobId: this.#start.queueJobId ?? null,
-          queueName: this.#start.queueName ?? null,
-          runId: this.runId,
-          startedAt: new Date(),
-          threadId: this.#start.threadId,
-        }),
-        FLUSH_TIMEOUT_MS
-      );
-
-      if (!result) {
-        this.markIncomplete("start_timeout");
-        return;
-      }
-
-      this.#started = true;
-    } catch (error) {
-      this.markIncomplete("start_failed");
-      auditLog("start_failed", {
+    const startRequest = Promise.resolve().then(() =>
+      fetchClient.mutate.agentRun.start({
         attemptId: this.attemptId,
-        error: errorFields(error),
+        attemptNumber: this.#start.attemptNumber,
+        bullmqJobId: this.#start.bullmqJobId ?? null,
+        createdAt: new Date(),
+        metadataStr: JSON.stringify(startMetadata(this.#start)),
+        organizationId: this.#start.organizationId,
+        pipelineJobId: this.#start.pipelineJobId ?? null,
+        queueJobId: this.#start.queueJobId ?? null,
+        queueName: this.#start.queueName ?? null,
         runId: this.runId,
+        startedAt: new Date(),
         threadId: this.#start.threadId,
+      })
+    );
+    this.#startPromise = startRequest
+      .then(() => {
+        this.#started = true;
+        this.recordIncompleteEvent("start_timeout");
+        return true;
+      })
+      .catch((error) => {
+        this.markIncomplete("start_failed");
+        auditLog("start_failed", {
+          attemptId: this.attemptId,
+          error: errorFields(error),
+          runId: this.runId,
+          threadId: this.#start.threadId,
+        });
+        return false;
+      })
+      .finally(() => {
+        this.#startSettled = true;
       });
+
+    const result = await withTimeout(this.#startPromise, FLUSH_TIMEOUT_MS);
+    if (result === undefined) {
+      this.markIncomplete("start_timeout");
     }
   }
 
@@ -299,40 +321,107 @@ class AgentRunAuditImpl implements AgentRunAudit {
     status: "completed" | "failed" | "abandoned",
     payload?: unknown
   ): Promise<void> {
+    if (this.#completionPromise) {
+      return this.#completionPromise;
+    }
+
+    this.#completionPromise = this.completeOnce(status, payload);
+    return this.#completionPromise;
+  }
+
+  private async completeOnce(
+    status: "completed" | "failed" | "abandoned",
+    payload?: unknown
+  ): Promise<void> {
     this.record(
       status === "completed" ? "run.completed" : "run.failed",
       payload ?? { status },
       { phase: "run" }
     );
 
+    const started = this.#started
+      ? true
+      : await withTimeout(
+          this.#startPromise ?? Promise.resolve(false),
+          FLUSH_TIMEOUT_MS
+        );
+
+    if (started === undefined) {
+      this.markIncomplete("complete_waiting_for_start");
+      if (this.#startPromise && !this.#startSettled) {
+        void this.#startPromise
+          .then((didStart) => {
+            if (!didStart) {
+              this.markIncomplete("run_never_started");
+              return;
+            }
+            return this.finishCompletion(status, payload);
+          })
+          .catch((error) => {
+            this.markIncomplete("complete_after_start_failed");
+            auditLog("complete_after_start_failed", {
+              attemptId: this.attemptId,
+              error: errorFields(error),
+              runId: this.runId,
+              threadId: this.#start.threadId,
+            });
+          });
+      }
+      return;
+    }
+
+    if (!started) {
+      this.markIncomplete("run_never_started");
+      return;
+    }
+
+    await this.finishCompletion(status, payload);
+  }
+
+  private async finishCompletion(
+    status: "completed" | "failed" | "abandoned",
+    payload?: unknown
+  ): Promise<void> {
     // `flushLoop` applies the transport timeout per batch and marks the audit
     // incomplete on timeout. Do not wrap this void-returning promise in
     // another timeout: `undefined` is also the successful result of `flush()`.
     await this.flush();
 
+    if (!this.#started) {
+      this.markIncomplete("run_never_started");
+      return;
+    }
+
+    const auditIncomplete = this.#incomplete || this.#pending.length > 0;
+    const metadataStr = JSON.stringify({
+      ...(payload && typeof payload === "object" ? payload : {}),
+      auditIncomplete,
+    });
+    const completionRequest = Promise.resolve().then(() =>
+      fetchClient.mutate.agentRun.complete({
+        attemptId: this.attemptId,
+        auditIncomplete,
+        completedAt: new Date(),
+        metadataStr,
+        runId: this.runId,
+        status,
+      })
+    );
+
     try {
-      if (!this.#started) {
-        this.markIncomplete("run_never_started");
-        return;
-      }
-
-      const result = await withTimeout(
-        fetchClient.mutate.agentRun.complete({
-          attemptId: this.attemptId,
-          auditIncomplete: this.#incomplete || this.#pending.length > 0,
-          completedAt: new Date(),
-          metadataStr: JSON.stringify({
-            ...(payload && typeof payload === "object" ? payload : {}),
-            auditIncomplete: this.#incomplete || this.#pending.length > 0,
-          }),
-          runId: this.runId,
-          status,
-        }),
-        FLUSH_TIMEOUT_MS
-      );
-
-      if (!result) {
+      const result = await withTimeout(completionRequest, FLUSH_TIMEOUT_MS);
+      if (result === undefined) {
         this.markIncomplete("complete_timeout");
+        void completionRequest
+          .catch((error) => {
+            auditLog("complete_failed_after_timeout", {
+              attemptId: this.attemptId,
+              error: errorFields(error),
+              runId: this.runId,
+              threadId: this.#start.threadId,
+            });
+          })
+          .then(() => this.reconcileCompletion(status, payload));
       }
     } catch (error) {
       this.markIncomplete("complete_failed");
@@ -345,14 +434,47 @@ class AgentRunAuditImpl implements AgentRunAudit {
     }
   }
 
-  private markIncomplete(reason: string): void {
-    if (this.#incomplete) {
-      return;
+  private async reconcileCompletion(
+    status: "completed" | "failed" | "abandoned",
+    payload?: unknown
+  ): Promise<void> {
+    await this.flush();
+    const metadataStr = JSON.stringify({
+      ...(payload && typeof payload === "object" ? payload : {}),
+      auditIncomplete: true,
+    });
+    try {
+      await fetchClient.mutate.agentRun.complete({
+        attemptId: this.attemptId,
+        auditIncomplete: true,
+        completedAt: new Date(),
+        metadataStr,
+        runId: this.runId,
+        status,
+      });
+    } catch (error) {
+      auditLog("complete_reconcile_failed", {
+        attemptId: this.attemptId,
+        error: errorFields(error),
+        runId: this.runId,
+        threadId: this.#start.threadId,
+      });
     }
-    this.#incomplete = true;
-    if (this.#started && !this.#incompleteEventRecorded) {
+  }
+
+  private recordIncompleteEvent(reason: string): void {
+    if (this.#started && this.#incomplete && !this.#incompleteEventRecorded) {
       this.#incompleteEventRecorded = true;
       this.record("audit.incomplete", { reason }, { phase: "audit" });
+    }
+  }
+
+  private markIncomplete(reason: string): void {
+    const firstIncomplete = !this.#incomplete;
+    this.#incomplete = true;
+    this.recordIncompleteEvent(reason);
+    if (!firstIncomplete) {
+      return;
     }
     auditLog("incomplete", {
       attemptId: this.attemptId,
@@ -418,6 +540,7 @@ export const createAgentRunAudit = async (
 ): Promise<AgentRunAudit> => {
   const runId = agentRunIdFor({
     pipelineJobId: start.pipelineJobId,
+    queueGeneration: start.queueGeneration,
     queueJobId: start.queueJobId,
     queueName: start.queueName,
     threadId: start.threadId,

@@ -25,7 +25,8 @@ const embeddingModel = google.embedding(EMBEDDING_MODEL);
  */
 export const generateDocumentationQueryEmbedding = async (
   query: string,
-  audit?: AgentRunAudit
+  audit?: AgentRunAudit,
+  processor = "synthesis"
 ): Promise<number[] | null> => {
   if (!query.trim()) {
     return null;
@@ -47,7 +48,7 @@ export const generateDocumentationQueryEmbedding = async (
   };
   audit?.record("model.requested", metadata, {
     phase: "model",
-    processor: "synthesis",
+    processor,
   });
 
   try {
@@ -71,7 +72,7 @@ export const generateDocumentationQueryEmbedding = async (
         status: "completed",
         usage,
       },
-      { phase: "model", processor: "synthesis" }
+      { phase: "model", processor }
     );
     return embedding;
   } catch (error) {
@@ -83,7 +84,7 @@ export const generateDocumentationQueryEmbedding = async (
         error,
         status: "failed",
       },
-      { phase: "model", processor: "synthesis" }
+      { phase: "model", processor }
     );
     log.error({
       action: "worker.documentation_search",

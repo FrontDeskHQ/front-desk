@@ -91,17 +91,31 @@ Return the chosen label id (exactly as listed) or null. Confidence should reflec
   );
 
   const modelStartedAt = performance.now();
-  const result = await generateText({
-    model: ai ? ai.wrap(baseModel) : baseModel,
-    onStepFinish: (step) => {
-      audit?.record("model.step", serializeObservableModelStep(step), {
-        phase: "label_classifier",
-        stepIndex: step.stepNumber,
-      });
-    },
-    output: Output.object({ schema: responseSchema }),
-    prompt,
-  });
+  let result: Awaited<ReturnType<typeof generateText>>;
+  try {
+    result = await generateText({
+      model: ai ? ai.wrap(baseModel) : baseModel,
+      onStepFinish: (step) => {
+        audit?.record("model.step", serializeObservableModelStep(step), {
+          phase: "label_classifier",
+          stepIndex: step.stepNumber,
+        });
+      },
+      output: Output.object({ schema: responseSchema }),
+      prompt,
+    });
+  } catch (error) {
+    audit?.record(
+      "model.failed",
+      {
+        durationMs: performance.now() - modelStartedAt,
+        error,
+        status: "failed",
+      },
+      { phase: "label_classifier" }
+    );
+    throw error;
+  }
 
   audit?.record(
     "model.completed",

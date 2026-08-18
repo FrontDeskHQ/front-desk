@@ -115,11 +115,23 @@ export const applySynthesisAutonomy = async (
       run.recordAudit(
         "action.executed",
         {
-          actions: autoActions,
+          actions: result.succeeded,
           result,
         },
         { phase: "execution" }
       );
+
+      if (result.failed) {
+        run.recordAudit(
+          "action.failed",
+          {
+            action: result.failed.action,
+            error: result.failed.error,
+            result,
+          },
+          { phase: "execution" }
+        );
+      }
 
       await writeReplyReceipt(run, result.succeeded, fingerprints);
 

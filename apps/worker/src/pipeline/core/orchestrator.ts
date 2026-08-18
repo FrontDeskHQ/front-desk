@@ -430,6 +430,7 @@ export const executePipeline = async (
           options,
           organizationId: run.organizationId,
           pipelineJobId,
+          queueGeneration: auditStart?.queueGeneration,
           queueJobId: auditStart?.queueJobId,
           queueName: auditStart?.queueName,
           rawQueuePayload: auditStart?.rawQueuePayload,

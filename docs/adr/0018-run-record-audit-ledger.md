@@ -1,6 +1,6 @@
 # 0018 — Persist forensic run records for Agent behavior
 
-**Status:** Accepted  **Date:** 2026-08-18  **References:** [ADR 0005](./0005-synthesis-candidate-persistence.md), [ADR 0006](./0006-trigger-context-channel.md), [ADR 0017](./0017-inbound-only-trigger-causality.md)
+**Status:** Accepted  **Date:** 2026-08-18  **References:** [ADR 0005](./0005-hints-as-evidence-agentic-synthesis.md), [ADR 0006](./0006-trigger-context-channel.md), [ADR 0017](./0017-inbound-only-trigger-causality.md)
 
 ## Context
 

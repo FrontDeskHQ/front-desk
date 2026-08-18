@@ -39,7 +39,6 @@ export const serializeObservableModelStep = (step: {
     content: observableContent(step.content),
     finishReason: step.finishReason,
     model: step.model,
-    providerMetadata: step.providerMetadata,
     rawFinishReason: step.rawFinishReason,
     response: response
       ? {

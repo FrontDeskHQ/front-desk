@@ -129,25 +129,26 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         );
 
         if (!labelId || confidence < SUGGEST_THRESHOLD) {
+          const skipReason = labelId ? "below_threshold" : "no_label";
           run.recordAudit(
             "action.filtered",
             {
               action: labelId ? { kind: "apply_label", labelId } : null,
               confidence,
-              reason: "below_threshold",
+              reason: skipReason,
               threshold: SUGGEST_THRESHOLD,
             },
             { phase: "label_classifier" }
           );
           requestLog.set({
             classification: { confidence, threshold: SUGGEST_THRESHOLD },
-            outcome: { status: "skipped", reason: "below_threshold" },
+            outcome: { status: "skipped", reason: skipReason },
           });
           return {
             data: {
               confidence,
               labelId: undefined,
-              skipped: "below_threshold",
+              skipped: labelId ? "below_threshold" : "no_labels",
             },
             success: true,
             threadId,
