@@ -1,0 +1,37 @@
+apps/api/src/lib/agent-run-audit.test.ts
+  s_cd65ffd0b4c9fa::t_af4f0a4e113ede 212-247,281-313
+  s_cd65ffd0b4c9fa::t_5033ffeeaefd60 15-17,20,22,24,33,90-95,103-106,129-131,135,138-140,144,147-149,153,159
+apps/api/src/lib/agent-run-audit.ts
+  s_cd65ffd0b4c9fa::t_837b6618444f90 149-165
+  s_cd65ffd0b4c9fa::t_3e65e04b43baab 251,312,401
+  s_cd65ffd0b4c9fa::t_8bea6687f82715 134-148,167,170,179,245-248,306-309,345-352,362,393-396
+apps/worker/src/pipeline/core/agent-run-audit.ts
+  s_cd65ffd0b4c9fa::t_797b9f6ca9b886 146,151-152
+apps/worker/src/pipeline/processors/inline-track/label/processor.ts
+  s_cd65ffd0b4c9fa::t_9234953d3af1b8 132,151
+apps/worker/src/pipeline/core/agent-run-audit.test.ts
+  s_cd65ffd0b4c9fa::t_797b9f6ca9b886 95-98,103,120-127,196,200
+packages/queue/src/thread-read.ts
+  s_cd65ffd0b4c9fa::t_797b9f6ca9b886 500
+packages/schemas/src/signals.test.ts
+  s_cd65ffd0b4c9fa::t_797b9f6ca9b886 33-46
+packages/queue/src/thread-read.test.ts
+  s_cd65ffd0b4c9fa::t_3e65e04b43baab 296-297,299
+  s_cd65ffd0b4c9fa::t_837b6618444f90 298
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0c84e15978c6736ca8d5642d037f6b287792e8b0",
+  "prompts": {},
+  "sessions": {
+    "s_cd65ffd0b4c9fa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01259-be8f-7823-8c26-d133030647f3",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
