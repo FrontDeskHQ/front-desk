@@ -3,7 +3,7 @@ import { isOutbound } from "@workspace/schemas/message-roles";
 
 import { isOrganizationMember } from "../lib/organization-membership";
 import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
-import type { schema } from "./schema";
+import { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
   message: {
@@ -20,9 +20,14 @@ export const liveStateHooks = defineHooks<typeof schema>({
           // self-limiting, a trigger dropped on a transient error is neither.
           let outbound = false;
           try {
-            const thread = await db.thread.one(value.threadId).get();
+            // Hooks receive the raw storage handle, not the `db.<collection>`
+            // proxy the ServerDB type advertises, so the collection accessors
+            // are undefined here — findOne/find are what actually exist.
+            const thread = await db.findOne(schema.thread, value.threadId);
             if (thread) {
-              const author = await db.author.one(value.authorId).get();
+              const author = value.authorId
+                ? await db.findOne(schema.author, value.authorId)
+                : undefined;
               outbound = isOutbound({
                 isOrganizationMember: await isOrganizationMember(
                   db,
