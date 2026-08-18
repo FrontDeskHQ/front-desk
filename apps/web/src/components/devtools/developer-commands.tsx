@@ -11,6 +11,7 @@ import {
   Flag,
   GitPullRequest,
   Github,
+  History,
   ListRestart,
   RefreshCw,
   ScanSearch,
@@ -31,6 +32,10 @@ import { reflagClient } from "~/lib/feature-flag";
 import { fetchClient, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
+import {
+  COPY_AGENT_RUN_PAGE_ID,
+  useCopyAgentRunPage,
+} from "./devtools-menu/copy-agent-run-page";
 import { copyLatestAgentRunDataFromParam } from "./devtools-menu/copy-latest-agent-run-command";
 import { CreateThreadDialog } from "./devtools-menu/create-thread-dialog";
 import { duplicateThreadFromParam } from "./devtools-menu/duplicate-thread-command";
@@ -236,6 +241,8 @@ export const DeveloperToolsCommands = ({
     });
   }, [organizationId, rawThreadParam]);
 
+  useCopyAgentRunPage({ organizationId, rawThreadParam });
+
   const threadsPage: CommandPage = {
     commands: [
       {
@@ -264,6 +271,13 @@ export const DeveloperToolsCommands = ({
         id: "developer-tools.copy-latest-agent-run",
         label: "Copy latest agent run data",
         onSelect: handleCopyLatestAgentRunData,
+      },
+      {
+        disabled: !rawThreadParam,
+        icon: <History />,
+        id: "developer-tools.copy-agent-run",
+        label: "Copy Agent run...",
+        pageId: COPY_AGENT_RUN_PAGE_ID,
       },
     ],
     icon: <Terminal />,

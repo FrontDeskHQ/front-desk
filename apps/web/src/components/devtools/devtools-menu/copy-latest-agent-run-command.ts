@@ -4,19 +4,8 @@ import { toast } from "sonner";
 
 import { fetchClient } from "~/lib/live-state";
 
+import { copyAgentRunBundle } from "./agent-run-clipboard";
 import { resolveThreadUlid } from "./thread-route-for-devtools";
-
-const parseStoredJson = (value: string | null): unknown => {
-  if (value === null) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(value);
-  } catch {
-    return value;
-  }
-};
 
 export const copyLatestAgentRunDataFromParam = async ({
   activeOrganizationId,
@@ -52,24 +41,7 @@ export const copyLatestAgentRunDataFromParam = async ({
       return;
     }
 
-    const { metadataStr: runMetadataStr, ...run } = result.run;
-    const output = {
-      attempts: result.attempts.map(({ metadataStr, ...attempt }) => ({
-        ...attempt,
-        metadata: parseStoredJson(metadataStr),
-      })),
-      events: result.events.map(({ payloadStr, ...event }) => ({
-        ...event,
-        payload: parseStoredJson(payloadStr),
-      })),
-      run: {
-        ...run,
-        metadata: parseStoredJson(runMetadataStr),
-      },
-    };
-
-    await navigator.clipboard.writeText(JSON.stringify(output, null, 2));
-    toast.success("Latest Agent run data copied");
+    await copyAgentRunBundle(result, "Latest Agent run data copied");
   } catch (error) {
     console.error("Failed to copy latest Agent run data:", error);
     toast.error("Failed to copy latest Agent run data");

@@ -400,7 +400,7 @@ const pipelineJob = object("pipelineJob", {
 /**
  * Server-only forensic records for background Agent pipeline executions. These
  * rows are deliberately not part of the client-synced surface; the developer
- * tool reads them through the scoped `agentRun.latestForThread` procedure.
+ * tool reads them through the scoped `agentRun.*ForThread` procedures.
  */
 const agentRun = object("agentRun", {
   auditIncomplete: boolean().default(false),

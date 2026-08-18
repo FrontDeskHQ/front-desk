@@ -1,10 +1,14 @@
 import {
+  agentRunForThreadInputSchema,
   appendAgentRunEventsInputSchema,
   completeAgentRunInputSchema,
   latestAgentRunInputSchema,
+  listAgentRunsInputSchema,
+  runAgentRunForThread,
   runAppendAgentRunEvents,
   runCompleteAgentRun,
   runLatestAgentRunForThread,
+  runListAgentRunsForThread,
   runStartAgentRun,
   startAgentRunInputSchema,
 } from "../../lib/agent-run-audit";
@@ -34,6 +38,22 @@ export const agentRunRoutes = {
           action: "agent_run.read",
         });
         return runLatestAgentRunForThread(db, req.input);
+      }
+    ),
+    listForThread: query(listAgentRunsInputSchema).handler(
+      async ({ db, req }) => {
+        authorizeDeveloperAction(req, req.input.organizationId, {
+          action: "agent_run.read",
+        });
+        return runListAgentRunsForThread(db, req.input);
+      }
+    ),
+    oneForThread: query(agentRunForThreadInputSchema).handler(
+      async ({ db, req }) => {
+        authorizeDeveloperAction(req, req.input.organizationId, {
+          action: "agent_run.read",
+        });
+        return runAgentRunForThread(db, req.input);
       }
     ),
     start: mutation(startAgentRunInputSchema).handler(async ({ db, req }) => {

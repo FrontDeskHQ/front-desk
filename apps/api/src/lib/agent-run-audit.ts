@@ -78,6 +78,22 @@ export const latestAgentRunInputSchema = z
   })
   .strict();
 
+export const listAgentRunsInputSchema = z
+  .object({
+    limit: z.number().int().min(1).max(100).optional(),
+    organizationId: z.string().min(1),
+    threadId: z.string().min(1),
+  })
+  .strict();
+
+export const agentRunForThreadInputSchema = z
+  .object({
+    organizationId: z.string().min(1),
+    runId: z.string().min(1),
+    threadId: z.string().min(1),
+  })
+  .strict();
+
 type AgentRunDb = Pick<
   ServerDB<typeof schema>,
   | "agentRun"
@@ -94,6 +110,8 @@ type AppendAgentRunEventsInput = z.infer<
 >;
 type CompleteAgentRunInput = z.infer<typeof completeAgentRunInputSchema>;
 type LatestAgentRunInput = z.infer<typeof latestAgentRunInputSchema>;
+type ListAgentRunsInput = z.infer<typeof listAgentRunsInputSchema>;
+type AgentRunForThreadInput = z.infer<typeof agentRunForThreadInputSchema>;
 
 const assertRunScope = (
   run: { organizationId: string; threadId: string },
@@ -433,6 +451,32 @@ const sortByTimeAndSequence = <
     return time !== 0 ? time : a.sequence - b.sequence;
   });
 
+/** Everything the audit ledger holds for one run: the run, its attempts, its events. */
+const loadAgentRunBundle = async <T extends { id: string }>(
+  db: AgentRunDb,
+  run: T | null | undefined,
+  scope: { organizationId: string; threadId: string }
+) => {
+  if (!run) {
+    return null;
+  }
+
+  const where = {
+    agentRunId: run.id,
+    organizationId: scope.organizationId,
+    threadId: scope.threadId,
+  };
+  const attempts = await db.agentRunAttempt
+    .where(where)
+    .orderBy("attemptNumber", "asc")
+    .get();
+  const events = sortByTimeAndSequence(
+    await db.agentRunEvent.where(where).get()
+  );
+
+  return { attempts, events, run };
+};
+
 export const runLatestAgentRunForThread = async (
   db: AgentRunDb,
   input: LatestAgentRunInput
@@ -446,28 +490,40 @@ export const runLatestAgentRunForThread = async (
     .orderBy("id", "desc")
     .limit(1)
     .get();
-  const run = runs[0];
-  if (!run) {
-    return null;
-  }
 
-  const attempts = await db.agentRunAttempt
+  return loadAgentRunBundle(db, runs[0], input);
+};
+
+/**
+ * Run summaries for the thread, newest first. Metadata and events are left out
+ * — this feeds a picker, and the selected run is fetched in full separately.
+ */
+export const runListAgentRunsForThread = async (
+  db: AgentRunDb,
+  input: ListAgentRunsInput
+) => {
+  const runs = await db.agentRun
     .where({
-      agentRunId: run.id,
       organizationId: input.organizationId,
       threadId: input.threadId,
     })
-    .orderBy("attemptNumber", "asc")
+    .orderBy("startedAt", "desc")
+    .orderBy("id", "desc")
+    .limit(input.limit ?? 25)
     .get();
-  const events = sortByTimeAndSequence(
-    await db.agentRunEvent
-      .where({
-        agentRunId: run.id,
-        organizationId: input.organizationId,
-        threadId: input.threadId,
-      })
-      .get()
-  );
 
-  return { attempts, events, run };
+  return runs.map(({ metadataStr: _metadataStr, ...run }) => run);
+};
+
+export const runAgentRunForThread = async (
+  db: AgentRunDb,
+  input: AgentRunForThreadInput
+) => {
+  const run = await db.agentRun.one(input.runId).get();
+  if (!run) {
+    return null;
+  }
+  assertRunScope(run, input);
+
+  return loadAgentRunBundle(db, run, input);
 };
