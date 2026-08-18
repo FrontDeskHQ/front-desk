@@ -1,0 +1,55 @@
+apps/worker/src/pipeline/core/agent-run-audit.ts
+  s_2688eff193b038::t_cc65c18381eed0 219,252,292,463-473,475-479,484-486
+  s_2688eff193b038::t_01f48500a83270 105,111,119,555
+  s_2688eff193b038::t_715ea8a0b96c5c 392-393
+apps/worker/src/worker.ts
+  s_2688eff193b038::t_1351ccd3ee7896 156,200,228
+  s_2688eff193b038::t_9431a48726373e 13,43,94-143,199,203
+packages/schemas/src/signals.test.ts
+  s_2688eff193b038::t_bd605710aedbbe 111
+apps/api/src/live-state/schema.ts
+  s_2688eff193b038::t_01f48500a83270 413
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_2688eff193b038::t_87893d6de23414 23,469,483,487-541,551,555
+apps/worker/src/pipeline/core/model-audit.ts
+  s_2688eff193b038::t_20fc3726af6d5e 1,3,42-43,47-104
+  s_2688eff193b038::t_0b3f381291b67a 44-46,106-128
+apps/worker/src/lib/documentation-embedding.ts
+  s_2688eff193b038::t_f0d0cf7f07bd66 6,34,37-38,49,52
+apps/worker/src/pipeline/processors/embed-messages.ts
+  s_2688eff193b038::t_131a43a79aec84 14,49,52-53,83,87-89,91
+apps/worker/src/lib/entity-embedding.ts
+  s_2688eff193b038::t_3466435beee544 5,25,28-29,32-33,35,41,43,46-59
+apps/worker/src/pipeline/processors/embed.ts
+  s_2688eff193b038::t_6a33de17e290a3 14,54,57-58,89,93-95,97
+apps/worker/src/pipeline/core/orchestrator.ts
+  s_2688eff193b038::t_5ccd24d3558724 424,427-434,449-450,453,459-461,465-471,487,490,496,498-499
+  s_2688eff193b038::t_715ea8a0b96c5c 425-426
+apps/api/src/lib/agent-run-audit.ts
+  s_2688eff193b038::t_1ed3344e974c19 329,335-339,346-348,371,384
+  s_2688eff193b038::t_6cd37d7571b69c 211-228,230,238-249,251-256,258,265-276,281-318,406
+  s_2688eff193b038::t_b88663f2d59a04 185-192,194,334
+apps/worker/src/pipeline/core/agent-run-audit.test.ts
+  s_2688eff193b038::t_01f48500a83270 48,73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "26fc2b2da760dc0e07370cb003615ea67938eaa2",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_2688eff193b038": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "77f57a58-d9dd-4bb4-9158-3158ecf02d53",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
