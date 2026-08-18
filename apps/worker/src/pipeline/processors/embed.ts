@@ -10,6 +10,7 @@ import type { WorkerLogger } from "../../lib/logging";
 import { threadIndex } from "../../lib/qdrant/threads";
 import type { ThreadPayload } from "../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
+import type { AgentRunAudit } from "../core/agent-run-audit";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -42,11 +43,28 @@ const createSummaryText = (summary: ParsedSummary): string =>
 const generateEmbedding = async (
   text: string,
   ai?: ReturnType<typeof createAILogger>,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
+
+  const startedAt = performance.now();
+  const model = {
+    modelId: EMBEDDING_MODEL,
+    provider: "google",
+  };
+  const modelMetadata = {
+    input: { chars: text.length, hash: computeSha256(text) },
+    kind: "embedding",
+    model,
+    providerOptions: { google: { taskType: "SEMANTIC_SIMILARITY" } },
+  };
+  audit?.record("model.requested", modelMetadata, {
+    phase: "model",
+    processor: "embed",
+  });
 
   try {
     const { embedding, usage } = await embed({
@@ -76,11 +94,48 @@ const generateEmbedding = async (
           step: "normalize_embedding",
         }
       );
+      audit?.record(
+        "model.completed",
+        {
+          ...modelMetadata,
+          dimensions: embedding.length,
+          durationMs: performance.now() - startedAt,
+          embeddingHash: computeSha256(JSON.stringify(embedding)),
+          normalized: false,
+          status: "completed",
+          usage,
+        },
+        { phase: "model", processor: "embed" }
+      );
       return embedding;
     }
 
-    return embedding.map((value) => value / norm);
+    const normalizedEmbedding = embedding.map((value) => value / norm);
+    audit?.record(
+      "model.completed",
+      {
+        ...modelMetadata,
+        dimensions: normalizedEmbedding.length,
+        durationMs: performance.now() - startedAt,
+        embeddingHash: computeSha256(JSON.stringify(normalizedEmbedding)),
+        normalized: true,
+        status: "completed",
+        usage,
+      },
+      { phase: "model", processor: "embed" }
+    );
+    return normalizedEmbedding;
   } catch (error) {
+    audit?.record(
+      "model.failed",
+      {
+        ...modelMetadata,
+        durationMs: performance.now() - startedAt,
+        error,
+        status: "failed",
+      },
+      { phase: "model", processor: "embed" }
+    );
     requestLog?.error(error instanceof Error ? error : String(error), {
       retryable: isRetryableError(error),
       step: "generate_thread_embedding",
@@ -204,7 +259,12 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
 
       const summaryText = createSummaryText(summary);
 
-      const embedding = await generateEmbedding(summaryText, ai, requestLog);
+      const embedding = await generateEmbedding(
+        summaryText,
+        ai,
+        requestLog,
+        context.run.audit
+      );
 
       if (!embedding) {
         status = 500;

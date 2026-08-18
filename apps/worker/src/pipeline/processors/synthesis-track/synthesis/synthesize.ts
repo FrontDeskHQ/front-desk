@@ -20,6 +20,11 @@ import z from "zod";
 import type { WorkerLogger } from "../../../../lib/logging";
 import { generationModel } from "../../../../lib/respan";
 import type { ParsedSummary } from "../../../../types";
+import type {
+  AgentRunAudit,
+  AgentRunEventMetadata,
+} from "../../../core/agent-run-audit";
+import { serializeObservableModelStep } from "../../../core/model-audit";
 import {
   collectRetrievedDocUrls,
   verifyReplyGrounding,
@@ -42,6 +47,31 @@ const baseSynthesisActionSchemas = [
   linkIssueActionSchema,
   setStatusActionSchema,
 ] as const;
+
+const describeTool = (name: string, definition: unknown) => {
+  const candidate = definition as {
+    description?: unknown;
+    inputSchema?: unknown;
+  };
+  let inputSchema: unknown = candidate.inputSchema ?? null;
+
+  if (inputSchema && typeof inputSchema === "object") {
+    try {
+      inputSchema = z.toJSONSchema(inputSchema as z.ZodType);
+    } catch {
+      // A provider-native JSON schema is already useful as-is. If it is not
+      // serializable either, the tool name and description still explain what
+      // the model was allowed to call.
+    }
+  }
+
+  return {
+    description:
+      typeof candidate.description === "string" ? candidate.description : null,
+    inputSchema,
+    name,
+  };
+};
 
 /**
  * The parse schema is shaped by [action availability](../../../../CONTEXT.md):
@@ -144,7 +174,8 @@ export const synthesizeThreadRead = async (
   input: SynthesizeThreadReadInput,
   tools: ReturnType<typeof createSynthesisTools>,
   ai?: ReturnType<typeof createAILogger>,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<SynthesisRawActionSet> => {
   // One JSON object per line, content included as a JSON string value rather
   // than interpolated next to the metadata. `customer_confirmed` is a claim
@@ -435,14 +466,95 @@ Return a single valid JSON object with exactly this shape:
 `;
 
   const baseModel = generationModel();
+  const toolDefinitions = Object.entries(tools).map(([name, definition]) =>
+    describeTool(name, definition)
+  );
+  const auditStepMetadata = (stepIndex?: number): AgentRunEventMetadata => ({
+    phase: "synthesis",
+    ...(stepIndex === undefined ? {} : { stepIndex }),
+  });
+
+  audit?.record(
+    "model.requested",
+    {
+      input,
+      model: {
+        modelId: baseModel.modelId,
+        provider: baseModel.provider,
+      },
+      prompt,
+      stopWhen: "stepCountIs(8)",
+      tools: toolDefinitions,
+    },
+    auditStepMetadata()
+  );
+
+  const modelStartedAt = performance.now();
   const { text, steps } = await generateText({
+    onToolExecutionEnd: (event) => {
+      audit?.record(
+        "tool.completed",
+        {
+          callId: event.callId,
+          durationMs: event.toolExecutionMs,
+          error:
+            event.toolOutput.type === "tool-error"
+              ? event.toolOutput.error
+              : null,
+          output:
+            event.toolOutput.type === "tool-result"
+              ? event.toolOutput.output
+              : null,
+          success: event.toolOutput.type === "tool-result",
+          toolCall: event.toolCall,
+        },
+        {
+          ...auditStepMetadata(),
+          toolCallId: event.toolCall.toolCallId,
+        }
+      );
+    },
+    onToolExecutionStart: (event) => {
+      audit?.record(
+        "tool.called",
+        {
+          callId: event.callId,
+          toolCall: event.toolCall,
+        },
+        {
+          ...auditStepMetadata(),
+          toolCallId: event.toolCall.toolCallId,
+        }
+      );
+    },
     model: ai ? ai.wrap(baseModel) : baseModel,
+    onStepFinish: (step) => {
+      audit?.record(
+        "model.step",
+        serializeObservableModelStep(step),
+        auditStepMetadata(step.stepNumber)
+      );
+    },
     prompt,
     stopWhen: stepCountIs(8),
     tools,
   });
 
+  const lastStep = steps.at(-1);
+  audit?.record(
+    "model.completed",
+    {
+      step: lastStep ? serializeObservableModelStep(lastStep) : null,
+      steps: steps.map(serializeObservableModelStep),
+      text,
+      totalUsage: steps.map((step) => step.usage),
+      durationMs: performance.now() - modelStartedAt,
+    },
+    auditStepMetadata()
+  );
+
   const raw = parseRawActionSetFromText(text, input.availability, requestLog);
+  audit?.record("output.parsed", { raw, text }, auditStepMetadata());
   // Trust boundary: only allow link_pr URLs returned by a successful read_pr.
   // Prompt instructions alone cannot authorize an external PR link. If primary
   // loses a link_pr, discard the set so recommendation stays consistent.

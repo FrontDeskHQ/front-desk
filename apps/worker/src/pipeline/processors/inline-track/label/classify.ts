@@ -3,6 +3,8 @@ import { generateText, Output } from "ai";
 import z from "zod";
 
 import { generationModel } from "../../../../lib/respan";
+import type { AgentRunAudit } from "../../../core/agent-run-audit";
+import { serializeObservableModelStep } from "../../../core/model-audit";
 import type { SummarizeOutput } from "../../summarize";
 
 export interface ClassifyLabelInput {
@@ -33,7 +35,8 @@ const responseSchema = z.object({
 
 export const classifyLabel = async (
   input: ClassifyLabelInput,
-  ai?: ReturnType<typeof createAILogger>
+  ai?: ReturnType<typeof createAILogger>,
+  audit?: AgentRunAudit
 ): Promise<ClassifyLabelResult> => {
   if (input.orgLabels.length === 0) {
     return { confidence: 0, labelId: null };
@@ -73,15 +76,47 @@ ${
 Return the chosen label id (exactly as listed) or null. Confidence should reflect how confident you are; use values below 0.5 when uncertain, above 0.85 only when the match is unambiguous.`;
 
   const baseModel = generationModel();
-  const { output } = await generateText({
+  audit?.record(
+    "model.requested",
+    {
+      input,
+      model: {
+        modelId: baseModel.modelId,
+        provider: baseModel.provider,
+      },
+      outputSchema: z.toJSONSchema(responseSchema),
+      prompt,
+    },
+    { phase: "label_classifier" }
+  );
+
+  const modelStartedAt = performance.now();
+  const result = await generateText({
     model: ai ? ai.wrap(baseModel) : baseModel,
+    onStepFinish: (step) => {
+      audit?.record("model.step", serializeObservableModelStep(step), {
+        phase: "label_classifier",
+        stepIndex: step.stepNumber,
+      });
+    },
     output: Output.object({ schema: responseSchema }),
     prompt,
   });
 
-  const valid = input.orgLabels.some((l) => l.id === output.labelId);
+  audit?.record(
+    "model.completed",
+    {
+      output: result.output,
+      text: result.text,
+      totalUsage: result.totalUsage,
+      durationMs: performance.now() - modelStartedAt,
+    },
+    { phase: "label_classifier" }
+  );
+
+  const valid = input.orgLabels.some((l) => l.id === result.output.labelId);
   return {
-    confidence: output.confidence,
-    labelId: valid ? output.labelId : null,
+    confidence: result.output.confidence,
+    labelId: valid ? result.output.labelId : null,
   };
 };

@@ -397,6 +397,88 @@ const pipelineJob = object("pipelineJob", {
   updatedAt: timestamp(),
 });
 
+/**
+ * Server-only forensic records for background Agent pipeline executions. These
+ * rows are deliberately not part of the client-synced surface; the developer
+ * tool reads them through the scoped `agentRun.latestForThread` procedure.
+ */
+const agentRun = object("agentRun", {
+  auditIncomplete: boolean().default(false),
+  completedAt: timestamp().nullable(),
+  createdAt: timestamp().index(),
+  id: id(),
+  metadataStr: string().nullable(),
+  organizationId: reference("organization.id").index(),
+  pipelineJobId: string().nullable().index(),
+  queueJobId: string().nullable().index(),
+  queueName: string().nullable(),
+  startedAt: timestamp().index(),
+  status: string().index(),
+  threadId: reference("thread.id").index(),
+  updatedAt: timestamp().index(),
+});
+
+const agentRunAttempt = object("agentRunAttempt", {
+  agentRunId: reference("agentRun.id").index(),
+  auditIncomplete: boolean().default(false),
+  attemptNumber: number().index(),
+  bullmqJobId: string().nullable().index(),
+  completedAt: timestamp().nullable(),
+  createdAt: timestamp().index(),
+  id: id(),
+  metadataStr: string().nullable(),
+  organizationId: reference("organization.id").index(),
+  pipelineJobId: string().nullable().index(),
+  queueName: string().nullable(),
+  startedAt: timestamp().index(),
+  status: string().index(),
+  threadId: reference("thread.id").index(),
+  updatedAt: timestamp().index(),
+});
+
+const agentRunEvent = object("agentRunEvent", {
+  agentRunId: reference("agentRun.id").index(),
+  attemptId: reference("agentRunAttempt.id").index(),
+  causationEventId: string().nullable(),
+  emittedAt: timestamp().index(),
+  id: id(),
+  occurredAt: timestamp().index(),
+  organizationId: reference("organization.id").index(),
+  payloadHash: string().nullable(),
+  payloadStr: string().nullable(),
+  phase: string().nullable(),
+  processor: string().nullable(),
+  sequence: number().index(),
+  stepIndex: number().nullable(),
+  threadId: reference("thread.id").index(),
+  toolCallId: string().nullable(),
+  type: string().index(),
+});
+
+const agentRunRelations = createRelations(agentRun, ({ one, many }) => ({
+  attempts: many(agentRunAttempt, "agentRunId"),
+  events: many(agentRunEvent, "agentRunId"),
+  organization: one(organization, "organizationId"),
+  thread: one(thread, "threadId"),
+}));
+
+const agentRunAttemptRelations = createRelations(
+  agentRunAttempt,
+  ({ one, many }) => ({
+    events: many(agentRunEvent, "attemptId"),
+    organization: one(organization, "organizationId"),
+    run: one(agentRun, "agentRunId"),
+    thread: one(thread, "threadId"),
+  })
+);
+
+const agentRunEventRelations = createRelations(agentRunEvent, ({ one }) => ({
+  attempt: one(agentRunAttempt, "attemptId"),
+  organization: one(organization, "organizationId"),
+  run: one(agentRun, "agentRunId"),
+  thread: one(thread, "threadId"),
+}));
+
 const migration = object("migration", {
   appliedAt: timestamp(),
   id: id(),
@@ -432,6 +514,9 @@ export const schema = createSchema({
   label,
   threadLabel,
   autonomousAction,
+  agentRun,
+  agentRunAttempt,
+  agentRunEvent,
   pipelineIdempotencyKey,
   pipelineJob,
   onboarding,
@@ -459,4 +544,7 @@ export const schema = createSchema({
   agentChatRelations,
   agentChatMessageRelations,
   externalEntityRelations,
+  agentRunRelations,
+  agentRunAttemptRelations,
+  agentRunEventRelations,
 });

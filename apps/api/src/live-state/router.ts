@@ -49,6 +49,7 @@ import { notifyWaitlistSignup } from "../lib/waitlist-discord";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatRoute } from "./router/agent-chat";
+import { agentRunRoutes } from "./router/agent-run";
 import autonomousActionRoute from "./router/autonomous-action";
 import developerActionRoute from "./router/developer-action";
 import documentationSourcesRoute from "./router/documentation-sources";
@@ -1202,6 +1203,7 @@ export const router = createRouter({
     onboarding: onboardingRoute,
     documentationSource: documentationSourcesRoute,
     agentChat: agentChatRoute,
+    ...agentRunRoutes,
     ...labelsRoute,
     ...pipelineRoutes,
   },

@@ -4,11 +4,13 @@ import { google } from "@ai-sdk/google";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
+
 import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import { messageIndex } from "../../lib/qdrant/messages";
 import type { MessagePayload } from "../../lib/qdrant/messages";
+import type { AgentRunAudit } from "../core/agent-run-audit";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -36,11 +38,28 @@ const computeSha256 = (data: string): string =>
 const generateMessageEmbedding = async (
   text: string,
   ai?: ReturnType<typeof createAILogger>,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
+
+  const startedAt = performance.now();
+  const model = {
+    modelId: EMBEDDING_MODEL,
+    provider: "google",
+  };
+  const modelMetadata = {
+    input: { chars: text.length, hash: computeSha256(text) },
+    kind: "embedding",
+    model,
+    providerOptions: { google: { taskType: "RETRIEVAL_DOCUMENT" } },
+  };
+  audit?.record("model.requested", modelMetadata, {
+    phase: "model",
+    processor: "embed-messages",
+  });
 
   try {
     const { embedding, usage } = await embed({
@@ -69,11 +88,48 @@ const generateMessageEmbedding = async (
           step: "normalize_embedding",
         }
       );
+      audit?.record(
+        "model.completed",
+        {
+          ...modelMetadata,
+          dimensions: embedding.length,
+          durationMs: performance.now() - startedAt,
+          embeddingHash: computeSha256(JSON.stringify(embedding)),
+          normalized: false,
+          status: "completed",
+          usage,
+        },
+        { phase: "model", processor: "embed-messages" }
+      );
       return embedding;
     }
 
-    return embedding.map((value) => value / norm);
+    const normalizedEmbedding = embedding.map((value) => value / norm);
+    audit?.record(
+      "model.completed",
+      {
+        ...modelMetadata,
+        dimensions: normalizedEmbedding.length,
+        durationMs: performance.now() - startedAt,
+        embeddingHash: computeSha256(JSON.stringify(normalizedEmbedding)),
+        normalized: true,
+        status: "completed",
+        usage,
+      },
+      { phase: "model", processor: "embed-messages" }
+    );
+    return normalizedEmbedding;
   } catch (error) {
+    audit?.record(
+      "model.failed",
+      {
+        ...modelMetadata,
+        durationMs: performance.now() - startedAt,
+        error,
+        status: "failed",
+      },
+      { phase: "model", processor: "embed-messages" }
+    );
     requestLog?.error(error instanceof Error ? error : String(error), {
       retryable: isRetryableError(error),
       step: "generate_message_embedding",
@@ -190,7 +246,8 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
               const embedding = await generateMessageEmbedding(
                 plainText,
                 ai,
-                requestLog
+                requestLog,
+                context.run.audit
               );
               if (!embedding) return null;
               // Message ids are ULIDs and the index derives its point id from

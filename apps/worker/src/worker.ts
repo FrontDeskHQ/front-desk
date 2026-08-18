@@ -35,6 +35,8 @@ import { issueIndex } from "./lib/qdrant/issues";
 import { messageIndex } from "./lib/qdrant/messages";
 import { prIndex } from "./lib/qdrant/pull-requests";
 import { threadIndex } from "./lib/qdrant/threads";
+import { createAgentRunAudit } from "./pipeline/core/agent-run-audit";
+import type { AgentRunAudit } from "./pipeline/core/agent-run-audit";
 import { executePipeline } from "./pipeline/core/orchestrator";
 import { hydrateRunStates } from "./pipeline/core/run-state";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
@@ -116,6 +118,7 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     }
   );
   let status = 200;
+  let supersedeAudit: AgentRunAudit | undefined;
 
   try {
     if (!threadId) {
@@ -135,6 +138,38 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     const supersedeCleared = hasSupersede
       ? await (async () => {
           const run = (await hydrateRunStates([threadId])).get(threadId);
+          if (run && synthesisTriggers.length === 0) {
+            supersedeAudit = await createAgentRunAudit({
+              attemptNumber: job.attemptsMade + 1,
+              bullmqJobId: job.id === undefined ? undefined : String(job.id),
+              input: {
+                audit: { normalizedTriggers: triggers },
+                threadIds: [threadId],
+                triggers,
+              },
+              options: {},
+              organizationId: run.organizationId,
+              queueJobId: job.id === undefined ? undefined : String(job.id),
+              queueName: THREAD_PIPELINE_QUEUE,
+              rawQueuePayload: job.data,
+              threadId,
+            });
+            run.attachAudit(supersedeAudit);
+            supersedeAudit.record(
+              "run.started",
+              { reason: "supersede", threadId, triggers },
+              { phase: "run" }
+            );
+            supersedeAudit.record(
+              "trigger.received",
+              {
+                effectiveTriggers: [],
+                normalizedTriggers: triggers,
+                rawQueuePayload: job.data,
+              },
+              { phase: "trigger" }
+            );
+          }
           await run?.publishRead(null);
           return Boolean(run);
         })()
@@ -155,6 +190,14 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     }
 
     const result = await executePipeline({
+      audit: {
+        attemptNumber: job.attemptsMade + 1,
+        bullmqJobId: job.id === undefined ? undefined : String(job.id),
+        normalizedTriggers: triggers,
+        queueJobId: job.id === undefined ? undefined : String(job.id),
+        queueName: THREAD_PIPELINE_QUEUE,
+        rawQueuePayload: job.data,
+      },
       threadIds: [threadId],
       triggers: synthesisTriggers,
     });
@@ -212,6 +255,10 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     });
     throw error;
   } finally {
+    await supersedeAudit?.complete(status >= 500 ? "failed" : "completed", {
+      reason: "supersede",
+      status,
+    });
     requestLog.emit({ status });
   }
 };
