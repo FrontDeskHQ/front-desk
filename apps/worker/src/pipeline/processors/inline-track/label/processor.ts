@@ -25,6 +25,7 @@ export interface LabelClassifierOutput {
   skipped?:
     | "autonomy_off"
     | "no_labels"
+    | "no_label"
     | "below_threshold"
     | "already_applied";
   labelId?: string;
@@ -129,7 +130,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         );
 
         if (!labelId || confidence < SUGGEST_THRESHOLD) {
-          const skipReason = labelId ? "below_threshold" : "no_labels";
+          const skipReason = labelId ? "below_threshold" : "no_label";
           run.recordAudit(
             "action.filtered",
             {
