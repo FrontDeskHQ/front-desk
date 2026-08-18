@@ -293,11 +293,10 @@ describe(ThreadReadQueueManager, () => {
     });
 
     const job = queue.jobs.get("thread:t1:read");
-    expect(job?.data.triggers).toStrictEqual([
-      prTrigger("pr-1"),
-      { kind: "message" },
-      prTrigger("pr-2"),
-    ]);
+    expect(job?.data).toMatchObject({
+      generation: 1,
+      triggers: [prTrigger("pr-1"), { kind: "message" }, prTrigger("pr-2")],
+    });
     expect(job?.opts.priority).toBe(1);
   });
 

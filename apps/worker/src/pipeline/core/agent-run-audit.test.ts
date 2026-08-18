@@ -92,10 +92,15 @@ describe("agent run audit transport", () => {
     const circular: Record<string, unknown> = {};
     circular.self = circular;
     const shared = { kind: "reply", value: "same object twice" };
+    const errorEvidence: Record<string, unknown> = {
+      error: new Error("model failed"),
+    };
+    errorEvidence.self = errorEvidence;
 
     audit.record("context.captured", {
       circular,
       count: 3n,
+      errorEvidence,
       first: shared,
       second: shared,
     });
@@ -112,6 +117,14 @@ describe("agent run audit transport", () => {
     expect(JSON.parse(firstBatch.events[0].payloadStr)).toStrictEqual({
       circular: { self: "[Circular]" },
       count: "3n",
+      errorEvidence: {
+        error: {
+          message: "model failed",
+          name: "Error",
+          stack: expect.any(String),
+        },
+        self: "[Circular]",
+      },
       first: shared,
       second: shared,
     });
@@ -180,10 +193,11 @@ describe("agent run audit transport", () => {
           attemptId: "attempt-1",
           runId: "run-1",
         }),
-      25
+      600
     );
 
     await completion;
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
     expect(auditMocks.complete).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -497,7 +497,7 @@ export class ThreadReadQueueManager {
 
           if (changed) {
             await existing.updateData({
-              generation: claim.pending.generation,
+              generation: existingData.generation ?? claim.pending.generation,
               threadId,
               triggers: mergedTriggers,
             });

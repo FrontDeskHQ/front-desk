@@ -30,6 +30,20 @@ describe("thread-read trigger contracts", () => {
     });
   });
 
+  it("preserves queue generation for legacy payloads", () => {
+    expect(
+      normalizeThreadReadJobData({
+        generation: 4,
+        kind: "message",
+        threadId: "thread-1",
+      })
+    ).toStrictEqual({
+      generation: 4,
+      threadId: "thread-1",
+      triggers: [{ kind: "message" }],
+    });
+  });
+
   it("normalizes legacy coalesced payloads without losing either cause", () => {
     expect(
       normalizeThreadReadJobData({

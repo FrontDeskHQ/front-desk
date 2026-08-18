@@ -131,22 +131,52 @@ const assertAttemptScope = (
   }
 };
 
-const assertEventScope = async (
-  db: AgentRunDb,
+const isUniqueViolation = (error: unknown): boolean => {
+  if (typeof error !== "object" || error === null) {
+    return false;
+  }
+
+  const candidate = error as { cause?: unknown; code?: unknown };
+  return (
+    candidate.code === "23505" ||
+    (candidate.cause !== undefined &&
+      candidate.cause !== error &&
+      isUniqueViolation(candidate.cause))
+  );
+};
+
+const assertEventScope = (
+  run:
+    | {
+        id: string;
+        organizationId: string;
+        threadId: string;
+      }
+    | null
+    | undefined,
+  attempt:
+    | {
+        agentRunId: string;
+        id: string;
+        organizationId: string;
+        threadId: string;
+      }
+    | null
+    | undefined,
   event: AppendAgentRunEventsInput["events"][number]
-): Promise<void> => {
-  const run = await db.agentRun.one(event.agentRunId).get();
+): void => {
   if (
     !run ||
+    run.id !== event.agentRunId ||
     run.organizationId !== event.organizationId ||
     run.threadId !== event.threadId
   ) {
     throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
   }
 
-  const attempt = await db.agentRunAttempt.one(event.attemptId).get();
   if (
     !attempt ||
+    attempt.id !== event.attemptId ||
     attempt.agentRunId !== event.agentRunId ||
     attempt.organizationId !== event.organizationId ||
     attempt.threadId !== event.threadId
@@ -212,10 +242,13 @@ export const runStartAgentRun = async (
         threadId: input.threadId,
         updatedAt: timestamp,
       });
-    } catch {
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
       const concurrent = await db.agentRun.one(input.runId).get();
       if (!concurrent) {
-        throw new Error("AGENT_RUN_INSERT_FAILED");
+        throw new Error("AGENT_RUN_INSERT_FAILED", { cause: error });
       }
       assertRunScope(concurrent, input);
       await db.agentRun.update(concurrent.id, {
@@ -270,10 +303,13 @@ export const runStartAgentRun = async (
         threadId: input.threadId,
         updatedAt: timestamp,
       });
-    } catch {
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
       const concurrent = await db.agentRunAttempt.one(input.attemptId).get();
       if (!concurrent) {
-        throw new Error("AGENT_RUN_ATTEMPT_INSERT_FAILED");
+        throw new Error("AGENT_RUN_ATTEMPT_INSERT_FAILED", { cause: error });
       }
       assertAttemptScope(concurrent, {
         agentRunId: input.runId,
@@ -306,6 +342,14 @@ export const runAppendAgentRunEvents = async (
   }
 
   const eventIds = [...new Set(input.events.map((event) => event.id))];
+  const firstEvent = input.events[0];
+  if (!firstEvent) {
+    return { inserted: 0 };
+  }
+  const [run, attempt] = await Promise.all([
+    db.agentRun.one(firstEvent.agentRunId).get(),
+    db.agentRunAttempt.one(firstEvent.attemptId).get(),
+  ]);
   const existing = Object.values(
     await db.find(schema.agentRunEvent, {
       where: { id: { $in: eventIds } },
@@ -315,7 +359,7 @@ export const runAppendAgentRunEvents = async (
   let inserted = 0;
 
   for (const event of input.events) {
-    await assertEventScope(db, event);
+    assertEventScope(run, attempt, event);
 
     if (existingIds.has(event.id)) {
       const stored = await db.agentRunEvent.one(event.id).get();
@@ -346,12 +390,15 @@ export const runAppendAgentRunEvents = async (
       });
       existingIds.add(event.id);
       inserted += 1;
-    } catch {
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
       // A concurrent flush may have inserted the same immutable event. Verify
       // that case rather than making a harmless duplicate race fail the run.
       const concurrent = await db.agentRunEvent.one(event.id).get();
       if (!concurrent) {
-        throw new Error("AGENT_RUN_EVENT_INSERT_FAILED");
+        throw new Error("AGENT_RUN_EVENT_INSERT_FAILED", { cause: error });
       }
       assertStoredEventScope(concurrent, event);
       existingIds.add(event.id);

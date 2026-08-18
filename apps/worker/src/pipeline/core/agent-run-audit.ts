@@ -143,11 +143,13 @@ const serializeForAudit = (value: unknown): string => {
         }
 
         if (currentValue instanceof Error) {
-          return {
+          const serializedError = {
             message: currentValue.message,
             name: currentValue.name,
             stack: currentValue.stack,
           };
+          stack.push(serializedError);
+          return serializedError;
         }
 
         if (typeof currentValue === "object" && currentValue !== null) {

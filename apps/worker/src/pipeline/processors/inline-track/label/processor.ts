@@ -129,7 +129,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         );
 
         if (!labelId || confidence < SUGGEST_THRESHOLD) {
-          const skipReason = labelId ? "below_threshold" : "no_label";
+          const skipReason = labelId ? "below_threshold" : "no_labels";
           run.recordAudit(
             "action.filtered",
             {
@@ -148,7 +148,7 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
             data: {
               confidence,
               labelId: undefined,
-              skipped: labelId ? "below_threshold" : "no_labels",
+              skipped: skipReason,
             },
             success: true,
             threadId,
