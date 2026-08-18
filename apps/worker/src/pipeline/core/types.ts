@@ -40,6 +40,17 @@ export interface PipelineJobOptions {
   scoreThreshold?: number;
 }
 
+export interface PipelineAuditInput {
+  attemptNumber?: number;
+  bullmqJobId?: string;
+  /** The normalized/coalesced causes before the pipeline removes supersede. */
+  normalizedTriggers?: ThreadReadTrigger[];
+  /** Queue generation: stable across BullMQ retries, new after a terminal requeue. */
+  queueGeneration?: number;
+  queueName?: string;
+  rawQueuePayload?: unknown;
+}
+
 export interface PipelineJobInput {
   threadIds: string[];
   /**
@@ -49,6 +60,8 @@ export interface PipelineJobInput {
    * because the worker enqueues one thread per job.
    */
   triggers?: ThreadReadTrigger[];
+  /** Queue identity used to link retries into one logical run record. */
+  audit?: PipelineAuditInput;
 }
 
 export interface ProcessorExecuteContext {

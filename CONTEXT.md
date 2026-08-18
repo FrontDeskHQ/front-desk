@@ -48,6 +48,22 @@ A [processor](#processor) that produces zero or one [read hint](#read-hint) for 
 
 One execution of the pipeline over a single [thread](#thread). A run is the scope [processors](#processor) execute within, and the scope [read hints](#read-hint), [action availability](#action-availability) and the [autonomy stage](#autonomy-stage) share: a hint written by a [hint processor](#hint-processor) early in a run is visible to [synthesis](#synthesis) later in the same run, and availability is resolved once for the whole run. Several [triggers](#trigger) may coalesce into one run, so a run has _causes_ rather than a cause. _Avoid_: "batch" — a run covers exactly one thread, never several.
 
+### Run record
+
+A durable forensic record of one [run](#run), kept so the team can understand how the Agent reached a position or took an action after the run has finished. It preserves the run's causes, relevant inputs, observations, decisions, and outcomes without replacing the [thread read](#thread-read) or becoming a customer-facing activity history. _Avoid_: treating the run record as the current Agent surface or as a single log line.
+
+### Run attempt
+
+One actual worker execution of a [run](#run), including a retry after a queue failure. A run record keeps one attempt for each execution so a later investigation can distinguish the first failure from the retry that completed, rather than overwriting the earlier evidence. _Avoid_: calling a retry a new logical run when the queue job is the same cause.
+
+### Run event
+
+An ordered observation within a [run record](#run-record): a pipeline stage, model interaction, tool use, policy decision, gate result, or action outcome. Run events describe what happened and what the Agent was allowed to see at that point, so a sequence can be reconstructed instead of inferred only from the final [thread read](#thread-read). _Avoid_: using "event" for a new customer or queue trigger when the domain term is [trigger](#trigger).
+
+### Agent-visible context
+
+The thread state, [read hints](#read-hint), [trigger](#trigger) context, processor outputs, and tool results actually supplied to [synthesis](#synthesis) during a [run](#run). It is the evidence boundary for a [run record](#run-record): server-only configuration, credentials, and unrelated storage are outside it. _Avoid_: treating everything the worker can access as Agent-visible.
+
 ### Processor
 
 A unit of work in the pipeline with declared dependencies, run in dependency order. "Entry", "hint", and "synthesis" are _conceptual categories_ of processor, not different code shapes — they all share one definition. The label classifier behind [inline suggestions](#inline-suggestion) is also a processor, on a self-contained fast path: one cheap LLM call, no [action gate](#action-gate), applying autonomy itself before writing a chip.

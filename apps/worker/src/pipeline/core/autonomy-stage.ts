@@ -35,11 +35,17 @@ export const applySynthesisAutonomy = async (
   rawActionSet: ThreadRead | null
 ): Promise<ThreadRead | null> => {
   if (!rawActionSet) {
+    run.recordAudit(
+      "action.filtered",
+      { reason: "no_raw_action_set" },
+      { phase: "autonomy" }
+    );
     await run.publishRead(null);
     return null;
   }
 
   const autonomy = await run.autonomy();
+  run.recordAudit("autonomy.policy", { autonomy }, { phase: "autonomy" });
 
   const primary = rawActionSet.primary.filter((action) =>
     keepForRead(action, autonomy)
@@ -48,16 +54,32 @@ export const applySynthesisAutonomy = async (
     keepForRead(action, autonomy)
   );
 
-  if (primary.length === 0) {
-    await run.publishRead(null);
-    return null;
-  }
-
   const filteredRead: ThreadRead = {
     ...rawActionSet,
     alternatives,
     primary,
   };
+
+  run.recordAudit(
+    "action.filtered",
+    {
+      alternatives: rawActionSet.alternatives ?? [],
+      filteredRead,
+      primary: rawActionSet.primary,
+      removedAlternatives: (rawActionSet.alternatives ?? []).filter(
+        (action) => !alternatives.includes(action)
+      ),
+      removedPrimary: rawActionSet.primary.filter(
+        (action) => !primary.includes(action)
+      ),
+    },
+    { phase: "autonomy" }
+  );
+
+  if (primary.length === 0) {
+    await run.publishRead(null);
+    return null;
+  }
 
   const permitted = primary.filter(
     (action) => autonomy[action.kind] === "auto"
@@ -90,6 +112,27 @@ export const applySynthesisAutonomy = async (
     try {
       const result = await run.executeBundle(autoActions);
 
+      run.recordAudit(
+        "action.executed",
+        {
+          actions: result.succeeded,
+          result,
+        },
+        { phase: "execution" }
+      );
+
+      if (result.failed) {
+        run.recordAudit(
+          "action.failed",
+          {
+            action: result.failed.action,
+            error: result.failed.error,
+            result,
+          },
+          { phase: "execution" }
+        );
+      }
+
       await writeReplyReceipt(run, result.succeeded, fingerprints);
 
       const afterAuto = nextAgentReadAfterExecution(
@@ -105,6 +148,11 @@ export const applySynthesisAutonomy = async (
         );
       }
     } catch (error) {
+      run.recordAudit(
+        "action.failed",
+        { actions: autoActions, error },
+        { phase: "execution" }
+      );
       // TODO(idempotency): On an RPC/transport error we don't know whether the
       // server actually executed the bundle, so re-suggesting `autoActions` here
       // can replay non-idempotent actions (e.g. a duplicate reply) if it did.
@@ -132,6 +180,16 @@ export const applySynthesisAutonomy = async (
     ...filteredRead,
     primary: finalPrimary,
   };
+
+  run.recordAudit(
+    "action.suggested",
+    {
+      actions: finalPrimary,
+      gated,
+      reason: "retained_for_review",
+    },
+    { phase: "autonomy" }
+  );
 
   await run.publishRead(agentRead);
   return agentRead;
@@ -170,6 +228,14 @@ const applyActionGates = async (
     })
     .toSorted((a, b) => gateRank(a.action.kind) - gateRank(b.action.kind));
 
+  for (const action of confirmed) {
+    run.recordAudit(
+      "gate.evaluated",
+      { action, allowed: true, reason: "no_gate" },
+      { phase: "gate" }
+    );
+  }
+
   for (const { action, gate } of toEvaluate) {
     const siblings = confirmed.filter((other) => other !== action);
     let result: ActionGateResult;
@@ -187,6 +253,19 @@ const applyActionGates = async (
         outcome: "downgraded_to_suggest",
       });
     }
+
+    run.recordAudit(
+      "gate.evaluated",
+      {
+        action,
+        allowed: result.allowed,
+        reason: result.allowed ? "allowed" : result.reason,
+        stateFingerprint: result.allowed
+          ? (result.stateFingerprint ?? null)
+          : null,
+      },
+      { phase: "gate" }
+    );
 
     if (result.allowed) {
       if (result.stateFingerprint) {

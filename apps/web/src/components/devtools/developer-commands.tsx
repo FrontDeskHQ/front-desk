@@ -6,6 +6,7 @@ import { githubIntegrationSchema } from "@workspace/schemas/integration/github";
 import {
   Archive,
   Bug,
+  Clipboard,
   EyeOff,
   Flag,
   GitPullRequest,
@@ -30,6 +31,7 @@ import { reflagClient } from "~/lib/feature-flag";
 import { fetchClient, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
 
+import { copyLatestAgentRunDataFromParam } from "./devtools-menu/copy-latest-agent-run-command";
 import { CreateThreadDialog } from "./devtools-menu/create-thread-dialog";
 import { duplicateThreadFromParam } from "./devtools-menu/duplicate-thread-command";
 import type { DuplicatedThread } from "./devtools-menu/duplicate-thread-command";
@@ -227,6 +229,13 @@ export const DeveloperToolsCommands = ({
     });
   }, [organizationId, rawThreadParam]);
 
+  const handleCopyLatestAgentRunData = useCallback(() => {
+    void copyLatestAgentRunDataFromParam({
+      activeOrganizationId: organizationId,
+      rawParam: rawThreadParam,
+    });
+  }, [organizationId, rawThreadParam]);
+
   const threadsPage: CommandPage = {
     commands: [
       {
@@ -248,6 +257,13 @@ export const DeveloperToolsCommands = ({
         id: "developer-tools.retrigger-thread-read",
         label: "Retrigger current thread read",
         onSelect: handleRetriggerThreadRead,
+      },
+      {
+        disabled: !rawThreadParam,
+        icon: <Clipboard />,
+        id: "developer-tools.copy-latest-agent-run",
+        label: "Copy latest agent run data",
+        onSelect: handleCopyLatestAgentRunData,
       },
     ],
     icon: <Terminal />,
@@ -538,7 +554,12 @@ export const DeveloperToolsCommands = ({
 
   useCommandPage(
     () => threadsPage,
-    [handleDuplicateThread, handleRetriggerThreadRead, rawThreadParam]
+    [
+      handleCopyLatestAgentRunData,
+      handleDuplicateThread,
+      handleRetriggerThreadRead,
+      rawThreadParam,
+    ]
   );
   useCommandPage(
     () => githubPrPage,

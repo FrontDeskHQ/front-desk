@@ -4,11 +4,14 @@ import { google } from "@ai-sdk/google";
 import { createAILogger, createLogger } from "@workspace/utils/logging";
 import { jsonContentToPlainText, safeParseJSON } from "@workspace/utils/tiptap";
 import { embed } from "ai";
+
 import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import { messageIndex } from "../../lib/qdrant/messages";
 import type { MessagePayload } from "../../lib/qdrant/messages";
+import type { AgentRunAudit } from "../core/agent-run-audit";
+import { auditEmbedding } from "../core/model-audit";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -36,11 +39,19 @@ const computeSha256 = (data: string): string =>
 const generateMessageEmbedding = async (
   text: string,
   ai?: ReturnType<typeof createAILogger>,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
+
+  const span = auditEmbedding(audit, {
+    modelId: EMBEDDING_MODEL,
+    processor: "embed-messages",
+    taskType: "RETRIEVAL_DOCUMENT",
+    text,
+  });
 
   try {
     const { embedding, usage } = await embed({
@@ -69,11 +80,15 @@ const generateMessageEmbedding = async (
           step: "normalize_embedding",
         }
       );
+      span.completed(embedding, usage, { normalized: false });
       return embedding;
     }
 
-    return embedding.map((value) => value / norm);
+    const normalized = embedding.map((value) => value / norm);
+    span.completed(normalized, usage, { normalized: true });
+    return normalized;
   } catch (error) {
+    span.failed(error);
     requestLog?.error(error instanceof Error ? error : String(error), {
       retryable: isRetryableError(error),
       step: "generate_message_embedding",
@@ -190,7 +205,8 @@ export const embedMessagesProcessor: ProcessorDefinition<EmbedMessagesOutput> =
               const embedding = await generateMessageEmbedding(
                 plainText,
                 ai,
-                requestLog
+                requestLog,
+                context.run.audit
               );
               if (!embedding) return null;
               // Message ids are ULIDs and the index derives its point id from

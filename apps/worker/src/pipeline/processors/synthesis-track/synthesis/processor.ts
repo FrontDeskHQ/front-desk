@@ -60,25 +60,18 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         "summarize",
         threadId
       );
-      const duplicate = jobContext.getProcessorOutput<RetrievalHintOutput<"duplicate">>(
-        "duplicate",
-        threadId
-      );
-      const relatedDocs =
-        jobContext.getProcessorOutput<RetrievalHintOutput<"related_docs">>(
-          "related_docs",
-          threadId
-        );
-      const relatedPrs =
-        jobContext.getProcessorOutput<RetrievalHintOutput<"related_prs">>(
-          "related_prs",
-          threadId
-        );
-      const relatedIssues =
-        jobContext.getProcessorOutput<RetrievalHintOutput<"related_issues">>(
-          "related_issues",
-          threadId
-        );
+      const duplicate = jobContext.getProcessorOutput<
+        RetrievalHintOutput<"duplicate">
+      >("duplicate", threadId);
+      const relatedDocs = jobContext.getProcessorOutput<
+        RetrievalHintOutput<"related_docs">
+      >("related_docs", threadId);
+      const relatedPrs = jobContext.getProcessorOutput<
+        RetrievalHintOutput<"related_prs">
+      >("related_prs", threadId);
+      const relatedIssues = jobContext.getProcessorOutput<
+        RetrievalHintOutput<"related_issues">
+      >("related_issues", threadId);
 
       const hashInput = [
         thread.id,
@@ -186,6 +179,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         const availability = await run.availability();
 
         const tools = createSynthesisTools({
+          audit: run.audit,
           organizationId: thread.organizationId,
           currentThreadId: threadId,
           currentThread: thread,
@@ -215,7 +209,8 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           },
           tools,
           ai,
-          requestLog
+          requestLog,
+          run.audit
         );
 
         const rawActionSet = normalizeSynthesisRawActionSet({

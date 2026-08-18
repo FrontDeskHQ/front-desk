@@ -16,6 +16,34 @@ const candidate = (prId: string, score: number, title = prId) => ({
 });
 
 describe("thread-read trigger contracts", () => {
+  it("preserves queue generation for audit identity", () => {
+    expect(
+      normalizeThreadReadJobData({
+        generation: 4,
+        threadId: "thread-1",
+        triggers: [{ kind: "message" }],
+      })
+    ).toStrictEqual({
+      generation: 4,
+      threadId: "thread-1",
+      triggers: [{ kind: "message" }],
+    });
+  });
+
+  it("preserves queue generation for legacy payloads", () => {
+    expect(
+      normalizeThreadReadJobData({
+        generation: 4,
+        kind: "message",
+        threadId: "thread-1",
+      })
+    ).toStrictEqual({
+      generation: 4,
+      threadId: "thread-1",
+      triggers: [{ kind: "message" }],
+    });
+  });
+
   it("normalizes legacy coalesced payloads without losing either cause", () => {
     expect(
       normalizeThreadReadJobData({
@@ -80,7 +108,7 @@ describe("thread-read trigger contracts", () => {
   });
 });
 
-describe("fingerprintAgentRead", () => {
+describe(fingerprintAgentRead, () => {
   it("is stable when nested action keys are reshuffled (jsonb vs insertion order)", () => {
     const insertionOrder: ThreadRead = {
       alternatives: [{ draftMarkdown: "hi", kind: "reply" }],

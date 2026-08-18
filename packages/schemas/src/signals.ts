@@ -210,13 +210,15 @@ export const statusWitnessSchema = z.object({
 export type StatusWitness = z.infer<typeof statusWitnessSchema>;
 
 /** Which witness class may finish a thread into which status. */
-export const WITNESS_JUSTIFIES: Record<StatusWitnessClass, ReadonlySet<number>> =
-  {
-    abandoned: new Set([STATUS_CLOSED]),
-    customer_confirmed: new Set([STATUS_RESOLVED]),
-    entity_settled: new Set([STATUS_RESOLVED]),
-    inferred: new Set<number>(),
-  };
+export const WITNESS_JUSTIFIES: Record<
+  StatusWitnessClass,
+  ReadonlySet<number>
+> = {
+  abandoned: new Set([STATUS_CLOSED]),
+  customer_confirmed: new Set([STATUS_RESOLVED]),
+  entity_settled: new Set([STATUS_RESOLVED]),
+  inferred: new Set<number>(),
+};
 
 // Emitted directly by the label classifier, the sole writer of
 // `thread.inlineSuggestions` (ADR 0014).
@@ -801,6 +803,7 @@ export const threadReadTriggerSchema = z.object({
 export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
 
 const canonicalThreadReadJobDataSchema = z.object({
+  generation: z.number().int().positive().optional(),
   threadId: z.string(),
   triggers: z.array(threadReadTriggerSchema).min(1),
 });
@@ -813,6 +816,7 @@ const canonicalThreadReadJobDataSchema = z.object({
 export const legacyThreadReadJobDataSchema = z.object({
   kind: threadReadKindSchema,
   prMatched: prMatchCandidateSchema.optional(),
+  generation: z.number().int().positive().optional(),
   threadId: z.string(),
 });
 export type LegacyThreadReadJobData = z.infer<
@@ -870,10 +874,13 @@ export const sortThreadReadTriggers = (
 
 export const normalizeThreadReadJobData = (
   input: unknown
-): { threadId: string; triggers: ThreadReadTrigger[] } => {
+): { generation?: number; threadId: string; triggers: ThreadReadTrigger[] } => {
   const canonical = canonicalThreadReadJobDataSchema.safeParse(input);
   if (canonical.success) {
     return {
+      ...(canonical.data.generation === undefined
+        ? {}
+        : { generation: canonical.data.generation }),
       threadId: canonical.data.threadId,
       triggers: mergeThreadReadTriggers(canonical.data.triggers),
     };
@@ -889,6 +896,9 @@ export const normalizeThreadReadJobData = (
         ]
     : [{ kind: legacy.kind }];
   return {
+    ...(legacy.generation === undefined
+      ? {}
+      : { generation: legacy.generation }),
     threadId: legacy.threadId,
     triggers: mergeThreadReadTriggers(triggers),
   };

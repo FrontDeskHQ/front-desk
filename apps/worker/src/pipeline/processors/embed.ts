@@ -10,6 +10,8 @@ import type { WorkerLogger } from "../../lib/logging";
 import { threadIndex } from "../../lib/qdrant/threads";
 import type { ThreadPayload } from "../../lib/qdrant/threads";
 import type { EmbedOutput, ParsedSummary, Thread } from "../../types";
+import type { AgentRunAudit } from "../core/agent-run-audit";
+import { auditEmbedding } from "../core/model-audit";
 import type {
   ProcessorDefinition,
   ProcessorExecuteContext,
@@ -42,11 +44,19 @@ const createSummaryText = (summary: ParsedSummary): string =>
 const generateEmbedding = async (
   text: string,
   ai?: ReturnType<typeof createAILogger>,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
+
+  const span = auditEmbedding(audit, {
+    modelId: EMBEDDING_MODEL,
+    processor: "embed",
+    taskType: "SEMANTIC_SIMILARITY",
+    text,
+  });
 
   try {
     const { embedding, usage } = await embed({
@@ -76,11 +86,15 @@ const generateEmbedding = async (
           step: "normalize_embedding",
         }
       );
+      span.completed(embedding, usage, { normalized: false });
       return embedding;
     }
 
-    return embedding.map((value) => value / norm);
+    const normalized = embedding.map((value) => value / norm);
+    span.completed(normalized, usage, { normalized: true });
+    return normalized;
   } catch (error) {
+    span.failed(error);
     requestLog?.error(error instanceof Error ? error : String(error), {
       retryable: isRetryableError(error),
       step: "generate_thread_embedding",
@@ -204,7 +218,12 @@ export const embedProcessor: ProcessorDefinition<EmbedOutput> = {
 
       const summaryText = createSummaryText(summary);
 
-      const embedding = await generateEmbedding(summaryText, ai, requestLog);
+      const embedding = await generateEmbedding(
+        summaryText,
+        ai,
+        requestLog,
+        context.run.audit
+      );
 
       if (!embedding) {
         status = 500;

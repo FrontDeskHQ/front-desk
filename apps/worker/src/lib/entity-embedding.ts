@@ -1,6 +1,8 @@
 import { google } from "@ai-sdk/google";
 import { embed } from "ai";
 
+import type { AgentRunAudit } from "../pipeline/core/agent-run-audit";
+import { auditEmbedding } from "../pipeline/core/model-audit";
 import type { WorkerLogger } from "./logging";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
@@ -13,19 +15,34 @@ const embeddingModel = google.embedding(EMBEDDING_MODEL);
  */
 export const generateSimilarityEmbedding = async (
   text: string,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<number[] | null> => {
   if (!text || text.trim().length === 0) {
     return null;
   }
 
-  const { embedding } = await embed({
-    model: embeddingModel,
-    providerOptions: {
-      google: { taskType: "SEMANTIC_SIMILARITY" },
-    },
-    value: text,
+  const span = auditEmbedding(audit, {
+    modelId: EMBEDDING_MODEL,
+    processor: "synthesis",
+    taskType: "SEMANTIC_SIMILARITY",
+    text,
   });
+
+  let embedding: number[];
+  let usage: unknown;
+  try {
+    ({ embedding, usage } = await embed({
+      model: embeddingModel,
+      providerOptions: {
+        google: { taskType: "SEMANTIC_SIMILARITY" },
+      },
+      value: text,
+    }));
+  } catch (error) {
+    span.failed(error);
+    throw error;
+  }
 
   const norm = Math.hypot(...embedding);
   if (!Number.isFinite(norm) || norm === 0) {
@@ -33,7 +50,11 @@ export const generateSimilarityEmbedding = async (
       embedding: { dimensions: embedding.length, norm },
       step: "normalize_embedding",
     });
+    span.completed(embedding, usage, { normalized: false });
     return embedding;
   }
-  return embedding.map((value) => value / norm);
+
+  const normalized = embedding.map((value) => value / norm);
+  span.completed(normalized, usage, { normalized: true });
+  return normalized;
 };

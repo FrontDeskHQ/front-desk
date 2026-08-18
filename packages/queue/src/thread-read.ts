@@ -445,6 +445,8 @@ export class ThreadReadQueueManager {
     const priority = job.opts.priority ?? THREAD_READ_PRIORITY_VALUES.normal;
     return (
       data.threadId === threadId &&
+      (data.generation === undefined ||
+        data.generation <= pending.generation) &&
       priority <= pending.priority &&
       containsTriggers(data.triggers, pending.triggers)
     );
@@ -494,7 +496,11 @@ export class ThreadReadQueueManager {
             mergedPriority !== existingPriority;
 
           if (changed) {
-            await existing.updateData({ threadId, triggers: mergedTriggers });
+            await existing.updateData({
+              generation: existingData.generation ?? claim.pending.generation,
+              threadId,
+              triggers: mergedTriggers,
+            });
             if (mergedPriority !== existingPriority) {
               await existing.changePriority({ priority: mergedPriority });
             }
@@ -537,7 +543,11 @@ export class ThreadReadQueueManager {
 
       const added = await this.queue.add(
         THREAD_READ_JOB_NAME,
-        { threadId, triggers: claim.pending.triggers },
+        {
+          generation: claim.pending.generation,
+          threadId,
+          triggers: claim.pending.triggers,
+        },
         {
           delay: delayMs,
           jobId,

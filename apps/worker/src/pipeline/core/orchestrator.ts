@@ -1,8 +1,12 @@
+import { createHash } from "node:crypto";
+
 import { createLogger } from "@workspace/utils/logging";
 
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import { processorRegistry } from "../processors/registry";
+import { createAgentRunAudit } from "./agent-run-audit";
+import type { AgentRunAudit } from "./agent-run-audit";
 import { JobContext } from "./context";
 import {
   batchCheckIdempotency,
@@ -33,6 +37,32 @@ import type {
 } from "./types";
 
 const DEFAULT_CONCURRENCY = 5;
+
+const processorResultForAudit = (result: ProcessorResult): ProcessorResult => {
+  if (!("data" in result) || !result.data || typeof result.data !== "object") {
+    return result;
+  }
+
+  const data = result.data as Record<string, unknown>;
+  if (!Array.isArray(data.embedding)) {
+    return result;
+  }
+
+  return {
+    ...result,
+    data: {
+      ...data,
+      // The vector itself is not useful for reconstructing a decision, but its
+      // shape and hash let us prove which generated output was used.
+      embedding: {
+        dimensions: data.embedding.length,
+        hash: createHash("sha256")
+          .update(JSON.stringify(data.embedding))
+          .digest("hex"),
+      },
+    },
+  } as ProcessorResult;
+};
 
 /**
  * Process a batch of threads with controlled concurrency
@@ -87,6 +117,15 @@ const executeProcessor = async (
       continue;
     }
 
+    run.recordAudit(
+      "processor.started",
+      {
+        dependencies,
+        processor: processor.name,
+      },
+      { phase: "processor", processor: processor.name }
+    );
+
     const execContext: ProcessorExecuteContext = {
       context,
       run,
@@ -137,6 +176,16 @@ const executeProcessor = async (
         threadId,
       });
       context.markProcessorSkipped(processor.name, threadId);
+      context.runState(threadId)?.recordAudit(
+        "processor.skipped",
+        {
+          processor: processor.name,
+          reason: keyExists
+            ? "dependencies-skipped"
+            : "dependencies-skipped-no-prior-run",
+        },
+        { phase: "processor", processor: processor.name }
+      );
     }
   }
 
@@ -199,6 +248,11 @@ const executeProcessor = async (
         threadId: item.threadId,
       });
       context.markProcessorSkipped(processor.name, item.threadId);
+      item.run.recordAudit(
+        "processor.skipped",
+        { hash: item.hash, processor: processor.name, reason: "idempotent" },
+        { phase: "processor", processor: processor.name }
+      );
     } else {
       toProcess.push(item);
     }
@@ -218,6 +272,7 @@ const executeProcessor = async (
         threadId: item.threadId,
       };
 
+      const processorStartedAt = performance.now();
       try {
         const result = await processor.execute(execContext);
 
@@ -229,6 +284,17 @@ const executeProcessor = async (
           );
         }
 
+        item.run.recordAudit(
+          result.success ? "processor.completed" : "processor.failed",
+          {
+            hash: item.hash,
+            processor: processor.name,
+            result: processorResultForAudit(result),
+            durationMs: performance.now() - processorStartedAt,
+          },
+          { phase: "processor", processor: processor.name }
+        );
+
         return { hash: item.hash, key: item.key, result };
       } catch (error) {
         const retryable = isRetryableError(error);
@@ -238,6 +304,17 @@ const executeProcessor = async (
           retryable,
           step: "processor.execute",
         });
+        item.run.recordAudit(
+          "processor.failed",
+          {
+            error,
+            hash: item.hash,
+            processor: processor.name,
+            retryable,
+            durationMs: performance.now() - processorStartedAt,
+          },
+          { phase: "processor", processor: processor.name }
+        );
         return {
           hash: item.hash,
           key: item.key,
@@ -294,6 +371,7 @@ export const executePipeline = async (
   });
   let status = 200;
   let jobId: string | undefined;
+  const audits = new Map<string, AgentRunAudit>();
 
   try {
     const pipelineJobId = await createPipelineJob(input.threadIds, options);
@@ -342,6 +420,58 @@ export const executePipeline = async (
       return result;
     }
 
+    const auditStart = input.audit;
+    const effectiveTriggers = input.triggers ?? [];
+    const normalizedTriggers =
+      auditStart?.normalizedTriggers ?? effectiveTriggers;
+    // Mixed supersede + synthesis jobs clear the previous read in the worker
+    // preflight, before this pipeline gets its RunState. Preserve that
+    // observable write in the same logical run's sequence.
+    const supersedeClearedInPreflight =
+      normalizedTriggers.some((trigger) => trigger.kind === "supersede") &&
+      !effectiveTriggers.some((trigger) => trigger.kind === "supersede");
+
+    await Promise.all(
+      [...runStates.entries()].map(async ([threadId, run]) => {
+        const audit = await createAgentRunAudit({
+          attemptNumber: auditStart?.attemptNumber ?? 1,
+          bullmqJobId: auditStart?.bullmqJobId,
+          input,
+          options,
+          organizationId: run.organizationId,
+          pipelineJobId,
+          queueGeneration: auditStart?.queueGeneration,
+          queueName: auditStart?.queueName,
+          rawQueuePayload: auditStart?.rawQueuePayload,
+          threadId,
+        });
+        run.attachAudit(audit);
+        audits.set(threadId, audit);
+
+        audit.record(
+          "run.started",
+          { pipelineJobId, threadId, triggers: effectiveTriggers },
+          { phase: "run" }
+        );
+        audit.record(
+          "trigger.received",
+          {
+            effectiveTriggers,
+            normalizedTriggers,
+            rawQueuePayload: auditStart?.rawQueuePayload ?? null,
+          },
+          { phase: "trigger" }
+        );
+        if (supersedeClearedInPreflight) {
+          audit.record(
+            "read.published",
+            { reason: "supersede", read: null, source: "worker_preflight" },
+            { phase: "supersede" }
+          );
+        }
+      })
+    );
+
     const context = new JobContext(pipelineJobId, input, options, runStates);
 
     const executionOrder = processorRegistry.resolveExecutionOrder();
@@ -353,6 +483,24 @@ export const executePipeline = async (
         turns: executionOrder,
       },
     });
+    for (const [threadId, audit] of audits) {
+      const run = runStates.get(threadId);
+      audit.record(
+        "pipeline.plan",
+        { processorCount: totalProcessors, turns: executionOrder },
+        { phase: "pipeline" }
+      );
+      audit.record(
+        "context.captured",
+        {
+          hints: run?.hints() ?? {},
+          options,
+          thread: run?.thread ?? null,
+          triggers: effectiveTriggers,
+        },
+        { phase: "context" }
+      );
+    }
 
     const turns: TurnSummary[] = [];
     const turnLogSummaries: {
@@ -574,6 +722,14 @@ export const executePipeline = async (
       turns: [],
     };
   } finally {
+    await Promise.all(
+      [...audits.values()].map((audit) =>
+        audit.complete(status >= 500 ? "failed" : "completed", {
+          httpStatus: status,
+          pipelineJobId: jobId ?? null,
+        })
+      )
+    );
     requestLog.emit({ status });
   }
 };

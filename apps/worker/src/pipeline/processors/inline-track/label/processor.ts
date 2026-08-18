@@ -25,6 +25,7 @@ export interface LabelClassifierOutput {
   skipped?:
     | "autonomy_off"
     | "no_labels"
+    | "no_label"
     | "below_threshold"
     | "already_applied";
   labelId?: string;
@@ -66,6 +67,16 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
 
       try {
         const autonomy = (await run.autonomy()).apply_label;
+        run.recordAudit(
+          "autonomy.policy",
+          {
+            actionKind: "apply_label",
+            autonomy,
+            suggestThreshold: SUGGEST_THRESHOLD,
+            autoThreshold: AUTO_THRESHOLD,
+          },
+          { phase: "label_classifier" }
+        );
         if (autonomy === "off") {
           requestLog.set({
             outcome: { status: "skipped", reason: "autonomy_off" },
@@ -114,19 +125,31 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
             summary: summarizeOutput?.summary ?? null,
             threadName: thread.name ?? null,
           },
-          ai
+          ai,
+          run.audit
         );
 
         if (!labelId || confidence < SUGGEST_THRESHOLD) {
+          const skipReason = labelId ? "below_threshold" : "no_label";
+          run.recordAudit(
+            "action.filtered",
+            {
+              action: labelId ? { kind: "apply_label", labelId } : null,
+              confidence,
+              reason: skipReason,
+              threshold: SUGGEST_THRESHOLD,
+            },
+            { phase: "label_classifier" }
+          );
           requestLog.set({
             classification: { confidence, threshold: SUGGEST_THRESHOLD },
-            outcome: { status: "skipped", reason: "below_threshold" },
+            outcome: { status: "skipped", reason: skipReason },
           });
           return {
             data: {
               confidence,
               labelId: undefined,
-              skipped: "below_threshold",
+              skipped: skipReason,
             },
             success: true,
             threadId,
@@ -134,6 +157,15 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
         }
 
         if (appliedLabelIds.has(labelId)) {
+          run.recordAudit(
+            "action.filtered",
+            {
+              action: { kind: "apply_label", labelId },
+              confidence,
+              reason: "already_applied",
+            },
+            { phase: "label_classifier" }
+          );
           requestLog.set({
             classification: {
               confidence,
@@ -167,6 +199,11 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
                 ? result.failed.error
                 : new Error(String(result.failed.error));
             }
+            run.recordAudit(
+              "action.executed",
+              { action, result },
+              { phase: "label_classifier" }
+            );
             requestLog.set({
               classification: {
                 confidence,
@@ -181,6 +218,11 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
               threadId,
             };
           } catch (error) {
+            run.recordAudit(
+              "action.failed",
+              { action, error },
+              { phase: "label_classifier" }
+            );
             // Same posture as the synthesis autonomy stage: a failed autonomous
             // execution falls back to the human rather than vanishing.
             requestLog.set({
@@ -203,6 +245,11 @@ export const labelClassifierProcessor: ProcessorDefinition<LabelClassifierOutput
           generator: "label_classifier",
           id: `label:${threadId}`,
         });
+        run.recordAudit(
+          "action.suggested",
+          { action, confidence, threshold: SUGGEST_THRESHOLD },
+          { phase: "label_classifier" }
+        );
 
         requestLog.set({
           classification: { confidence, labelId, threshold: SUGGEST_THRESHOLD },

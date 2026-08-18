@@ -293,11 +293,10 @@ describe(ThreadReadQueueManager, () => {
     });
 
     const job = queue.jobs.get("thread:t1:read");
-    expect(job?.data.triggers).toStrictEqual([
-      prTrigger("pr-1"),
-      { kind: "message" },
-      prTrigger("pr-2"),
-    ]);
+    expect(job?.data).toMatchObject({
+      generation: 1,
+      triggers: [prTrigger("pr-1"), { kind: "message" }, prTrigger("pr-2")],
+    });
     expect(job?.opts.priority).toBe(1);
   });
 
@@ -318,6 +317,7 @@ describe(ThreadReadQueueManager, () => {
     await manager.enqueue("t1", [prTrigger("pr-1")]);
     const active = queue.jobs.get("thread:t1:read");
     if (!active) throw new Error("missing test job");
+    expect(active.data.generation).toBe(1);
     active.state = "active";
 
     await expect(
@@ -335,6 +335,7 @@ describe(ThreadReadQueueManager, () => {
     expect(queue.jobs.get("thread:t1:read")?.data.triggers).toStrictEqual([
       { kind: "message" },
     ]);
+    expect(queue.jobs.get("thread:t1:read")?.data.generation).toBe(2);
   });
 
   it("buffers when a waiting job becomes active during payload mutation", async () => {

@@ -11,6 +11,8 @@ import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
 import { generationModel } from "../../lib/respan";
 import type { ParsedSummary } from "../../types";
+import type { AgentRunAudit } from "../core/agent-run-audit";
+import { serializeObservableModelStep } from "../core/model-audit";
 import { hasSynthesisTrigger } from "../core/trigger-policy";
 import type {
   ProcessorDefinition,
@@ -84,7 +86,8 @@ export const summarizeThread = async (
     { messages: true; labels: { include: { label: true } } }
   >,
   ai?: ReturnType<typeof createAILogger>,
-  requestLog?: WorkerLogger
+  requestLog?: WorkerLogger,
+  audit?: AgentRunAudit
 ): Promise<ParsedSummary> => {
   requestLog?.set({
     input: {
@@ -156,30 +159,81 @@ Think: "If another user has the exact same underlying problem with different wor
   let lastError: unknown;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    let modelStartedAt: number | undefined;
     try {
       const baseModel = generationModel();
-      const { output } = await generateText({
+      audit?.record(
+        "model.requested",
+        {
+          attempt: attempt + 1,
+          input: {
+            appliedLabels: activeLabels || null,
+            firstMessage: firstMessage?.content ?? null,
+            threadName: thread.name ?? null,
+          },
+          model: {
+            modelId: baseModel.modelId,
+            provider: baseModel.provider,
+          },
+          outputSchema: z.toJSONSchema(summarySchema),
+          prompt,
+        },
+        { phase: "summarize", stepIndex: attempt }
+      );
+
+      modelStartedAt = performance.now();
+      const result = await generateText({
         model: ai ? ai.wrap(baseModel) : baseModel,
+        onStepFinish: (step) => {
+          audit?.record("model.step", serializeObservableModelStep(step), {
+            phase: "summarize",
+            stepIndex: attempt,
+          });
+        },
         output: Output.object({ schema: summarySchema }),
         prompt,
       });
 
+      audit?.record(
+        "model.completed",
+        {
+          attempt: attempt + 1,
+          output: result.output,
+          text: result.text,
+          totalUsage: result.totalUsage,
+          durationMs: performance.now() - modelStartedAt,
+        },
+        { phase: "summarize", stepIndex: attempt }
+      );
+
       requestLog?.set({
         output: {
-          entityCount: output.entities.length,
-          keywordCount: output.keywords.length,
-          hasTitle: output.title.trim().length > 0,
+          entityCount: result.output.entities.length,
+          keywordCount: result.output.keywords.length,
+          hasTitle: result.output.title.trim().length > 0,
         },
       });
       return {
-        entities: output.entities,
-        expectedAction: output.expectedAction,
-        keywords: output.keywords,
-        shortDescription: output.shortDescription,
-        title: output.title,
+        entities: result.output.entities,
+        expectedAction: result.output.expectedAction,
+        keywords: result.output.keywords,
+        shortDescription: result.output.shortDescription,
+        title: result.output.title,
       };
     } catch (error) {
       lastError = error;
+      if (modelStartedAt !== undefined) {
+        audit?.record(
+          "model.failed",
+          {
+            attempt: attempt + 1,
+            durationMs: performance.now() - modelStartedAt,
+            error,
+            status: "failed",
+          },
+          { phase: "summarize", stepIndex: attempt }
+        );
+      }
       const isLastAttempt = attempt === MAX_RETRIES - 1;
       const isRetryable = isRetryableError(error);
       const isRateLimit = isRateLimitError(error);
@@ -259,7 +313,12 @@ export const summarizeProcessor: ProcessorDefinition<SummarizeOutput> = {
     let status = 200;
 
     try {
-      const summary = await summarizeThread(thread, ai, requestLog);
+      const summary = await summarizeThread(
+        thread,
+        ai,
+        requestLog,
+        context.run.audit
+      );
 
       if (!summary || !summary.title || summary.title.trim().length === 0) {
         status = 500;

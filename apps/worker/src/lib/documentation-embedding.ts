@@ -2,6 +2,8 @@ import { google } from "@ai-sdk/google";
 import { log } from "@workspace/utils/logging";
 import { embed } from "ai";
 
+import type { AgentRunAudit } from "../pipeline/core/agent-run-audit";
+import { auditEmbedding } from "../pipeline/core/model-audit";
 import { errorFields } from "./logging";
 
 const EMBEDDING_MODEL = "gemini-embedding-001";
@@ -21,22 +23,33 @@ const embeddingModel = google.embedding(EMBEDDING_MODEL);
  * ranking (see ADR 0012).
  */
 export const generateDocumentationQueryEmbedding = async (
-  query: string
+  query: string,
+  audit?: AgentRunAudit,
+  processor = "synthesis"
 ): Promise<number[] | null> => {
   if (!query.trim()) {
     return null;
   }
 
+  const span = auditEmbedding(audit, {
+    modelId: EMBEDDING_MODEL,
+    processor,
+    taskType: "RETRIEVAL_QUERY",
+    text: query,
+  });
+
   try {
-    const { embedding } = await embed({
+    const { embedding, usage } = await embed({
       model: embeddingModel,
       providerOptions: {
         google: { taskType: "RETRIEVAL_QUERY" },
       },
       value: query,
     });
+    span.completed(embedding, usage, { normalized: false });
     return embedding;
   } catch (error) {
+    span.failed(error);
     log.error({
       action: "worker.documentation_search",
       operation: "query_embedding.generate",

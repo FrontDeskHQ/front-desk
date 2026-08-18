@@ -14,6 +14,7 @@ import {
   issueIndex,
 } from "../../../../lib/qdrant/issues";
 import type { Thread } from "../../../../types";
+import type { AgentRunAudit } from "../../../core/agent-run-audit";
 
 /**
  * What `search_documentation` hands the synthesis agent. Flat and id-free by
@@ -38,6 +39,7 @@ export interface DocumentationPageChunkResult {
 }
 
 interface CreateSynthesisToolsOptions {
+  audit?: AgentRunAudit;
   organizationId: string;
   currentThreadId: string;
   currentThread: Thread;
@@ -54,7 +56,7 @@ const toOrderedMessages = (thread: Thread) =>
     }));
 
 export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
-  const { organizationId, currentThreadId, currentThread } = options;
+  const { audit, organizationId, currentThreadId, currentThread } = options;
 
   return {
     read_documentation_page: tool({
@@ -230,7 +232,11 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         // and failing it would abort the whole synthesis run.
         let results: Awaited<ReturnType<typeof issueIndex.search>>;
         try {
-          const vector = await generateSimilarityEmbedding(query);
+          const vector = await generateSimilarityEmbedding(
+            query,
+            undefined,
+            audit
+          );
           if (!vector) {
             return { hits: [] };
           }
@@ -267,7 +273,10 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         // Same reasoning as `search_issues`: degrade to no hits rather than
         // aborting the synthesis run on a backend failure.
         try {
-          const vector = await generateDocumentationQueryEmbedding(query);
+          const vector = await generateDocumentationQueryEmbedding(
+            query,
+            audit
+          );
           if (!vector) {
             return { hits: [] };
           }

@@ -27,6 +27,11 @@ import { log } from "@workspace/utils/logging";
 import { fetchClient } from "../../lib/database/client";
 import { errorFields } from "../../lib/logging";
 import type { Thread } from "../../types";
+import type {
+  AgentRunAudit,
+  AgentRunEventMetadata,
+  AgentRunEventType,
+} from "./agent-run-audit";
 
 /** An organization label, as the label classifier consumes it. */
 export interface OrgLabel {
@@ -105,6 +110,7 @@ export class RunState {
   #autonomy?: Promise<Record<ActionKind, AutonomyLevel>>;
   #availability?: Promise<ActionAvailability>;
   #authors?: Promise<ResolvedMessageAuthors>;
+  #audit?: AgentRunAudit;
   #labels?: Promise<OrgLabel[]>;
   #lastAutonomousReply?: Promise<{ stateFingerprint: string } | null>;
 
@@ -113,6 +119,24 @@ export class RunState {
     this.threadId = thread.id;
     this.organizationId = thread.organizationId;
     this.#hints = { ...(thread.hints as Hints | null) };
+  }
+
+  /** Attach the forensic record after hydration has established its tenant. */
+  attachAudit(audit: AgentRunAudit): void {
+    this.#audit = audit;
+  }
+
+  /** Best-effort observation hook; it can never affect pipeline behavior. */
+  recordAudit(
+    type: AgentRunEventType,
+    payload: unknown,
+    metadata?: AgentRunEventMetadata
+  ): void {
+    this.#audit?.record(type, payload, metadata);
+  }
+
+  get audit(): AgentRunAudit | undefined {
+    return this.#audit;
   }
 
   /**
@@ -154,6 +178,12 @@ export class RunState {
     } as Parameters<typeof fetchClient.mutate.thread.writeHintSlot>[0]);
 
     this.#hints = { ...this.#hints, [kind]: slot };
+    this.recordAudit("hint.computed", {
+      evidence,
+      hash,
+      kind,
+      slot,
+    });
   }
 
   /**
@@ -166,6 +196,7 @@ export class RunState {
       organizationId: this.organizationId,
       threadId: this.threadId,
     });
+    this.recordAudit("read.published", { read });
   }
 
   /** Upserts an inline suggestion by id, server-side and transactional. */

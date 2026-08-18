@@ -10,6 +10,7 @@ import type {
   PrIndexJobData,
   PrMatchJobData,
   ThreadReadJobData,
+  ThreadReadTrigger,
 } from "@workspace/schemas/signals";
 import { normalizeThreadReadJobData } from "@workspace/schemas/signals";
 import {
@@ -35,8 +36,11 @@ import { issueIndex } from "./lib/qdrant/issues";
 import { messageIndex } from "./lib/qdrant/messages";
 import { prIndex } from "./lib/qdrant/pull-requests";
 import { threadIndex } from "./lib/qdrant/threads";
+import { createAgentRunAudit } from "./pipeline/core/agent-run-audit";
+import type { AgentRunAudit } from "./pipeline/core/agent-run-audit";
 import { executePipeline } from "./pipeline/core/orchestrator";
 import { hydrateRunStates } from "./pipeline/core/run-state";
+import type { RunState } from "./pipeline/core/run-state";
 import { registerDefaultProcessors } from "./pipeline/processors/registration";
 
 const THREAD_PIPELINE_QUEUE = "thread-pipeline";
@@ -88,13 +92,68 @@ if (!connection) {
 configureThreadReadQueue({ connection });
 
 /**
+ * A supersede that coalesced with no other cause never reaches the pipeline, so
+ * it opens its own run record here — otherwise the read it clears would leave
+ * no trace in the ledger at all.
+ */
+const startSupersedeAudit = async (
+  run: RunState,
+  job: Job<ThreadReadJobData>,
+  identity: {
+    bullmqJobId?: string;
+    queueGeneration?: number;
+    threadId: string;
+    triggers: ThreadReadTrigger[];
+  }
+): Promise<AgentRunAudit> => {
+  const { threadId, triggers } = identity;
+  const audit = await createAgentRunAudit({
+    attemptNumber: job.attemptsMade + 1,
+    bullmqJobId: identity.bullmqJobId,
+    input: {
+      audit: { normalizedTriggers: triggers },
+      threadIds: [threadId],
+      triggers,
+    },
+    options: {},
+    organizationId: run.organizationId,
+    queueGeneration: identity.queueGeneration,
+    queueName: THREAD_PIPELINE_QUEUE,
+    rawQueuePayload: job.data,
+    threadId,
+  });
+
+  run.attachAudit(audit);
+  audit.record(
+    "run.started",
+    { reason: "supersede", threadId, triggers },
+    { phase: "run" }
+  );
+  audit.record(
+    "trigger.received",
+    {
+      effectiveTriggers: [],
+      normalizedTriggers: triggers,
+      rawQueuePayload: job.data,
+    },
+    { phase: "trigger" }
+  );
+  return audit;
+};
+
+/**
  * Handler for thread-pipeline jobs
  * Runs the full thread pipeline for a single thread. Supersede causes clear the
  * current read first and bypass synthesis when no other cause was coalesced.
  */
 const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
-  const { threadId, triggers } = normalizeThreadReadJobData(job.data);
+  const {
+    generation: queueGeneration,
+    threadId,
+    triggers,
+  } = normalizeThreadReadJobData(job.data);
   const loggedThreadId = threadId || "missing";
+  const bullmqJobId = job.id === undefined ? undefined : String(job.id);
 
   const requestLog = createWorkerJobLogger(
     THREAD_PIPELINE_QUEUE,
@@ -116,6 +175,7 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     }
   );
   let status = 200;
+  let supersedeAudit: AgentRunAudit | undefined;
 
   try {
     if (!threadId) {
@@ -135,6 +195,14 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     const supersedeCleared = hasSupersede
       ? await (async () => {
           const run = (await hydrateRunStates([threadId])).get(threadId);
+          if (run && synthesisTriggers.length === 0) {
+            supersedeAudit = await startSupersedeAudit(run, job, {
+              bullmqJobId,
+              queueGeneration,
+              threadId,
+              triggers,
+            });
+          }
           await run?.publishRead(null);
           return Boolean(run);
         })()
@@ -155,6 +223,14 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     }
 
     const result = await executePipeline({
+      audit: {
+        attemptNumber: job.attemptsMade + 1,
+        bullmqJobId,
+        normalizedTriggers: triggers,
+        queueGeneration,
+        queueName: THREAD_PIPELINE_QUEUE,
+        rawQueuePayload: job.data,
+      },
       threadIds: [threadId],
       triggers: synthesisTriggers,
     });
@@ -212,6 +288,10 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     });
     throw error;
   } finally {
+    await supersedeAudit?.complete(status >= 500 ? "failed" : "completed", {
+      reason: "supersede",
+      status,
+    });
     requestLog.emit({ status });
   }
 };
