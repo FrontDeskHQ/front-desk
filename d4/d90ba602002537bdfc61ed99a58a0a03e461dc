@@ -1,0 +1,78 @@
+apps/worker/src/pipeline/core/autonomy-stage.ts
+  s_cd65ffd0b4c9fa::t_e4cc68f924e083 118,124-134
+apps/web/src/components/devtools/devtools-menu/copy-latest-agent-run-command.ts
+  s_cd65ffd0b4c9fa::t_240607ef731e74 55,66-67
+docs/adr/0018-run-record-audit-ledger.md
+  s_cd65ffd0b4c9fa::t_e4cc68f924e083 3
+packages/queue/src/thread-read.ts
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 448-449
+  s_cd65ffd0b4c9fa::t_d9a35d0ccdd64c 499-503,546-550
+apps/api/src/lib/agent-run-audit.ts
+  s_cd65ffd0b4c9fa::t_97167c37a5e08c 101-176,185-186,196-197,199-232,237-242,252-253,255-294,318-319,321-324,334,356-358,369-373,419
+apps/worker/src/pipeline/core/agent-run-audit.ts
+  s_cd65ffd0b4c9fa::t_d9a35d0ccdd64c 54,105,111,119-121,191
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 134-139,141-143,145-150,153-162,239-246,248,250
+  s_cd65ffd0b4c9fa::t_ac5bab71337d50 225-227,236-237,251-269,271-274,323-334,342-384,390-393,395-409,411-413,415-424,437-461,463-466,470-478,543
+  s_cd65ffd0b4c9fa::t_e4cc68f924e083 133
+apps/worker/src/pipeline/core/orchestrator.ts
+  s_cd65ffd0b4c9fa::t_d9a35d0ccdd64c 433
+apps/worker/src/pipeline/processors/synthesis-track/define-retrieval-hint.ts
+  s_cd65ffd0b4c9fa::t_2d1ddd1844b725 8,42,180
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 162,195
+apps/worker/src/pipeline/core/model-audit.test.ts
+  s_cd65ffd0b4c9fa::t_d21021ff59bd36 6,20-22,35
+apps/worker/src/pipeline/processors/inline-track/label/processor.ts
+  s_cd65ffd0b4c9fa::t_e4cc68f924e083 132,138,145
+  s_cd65ffd0b4c9fa::t_2311362a3c2248 151
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 496-517,519-542
+  s_cd65ffd0b4c9fa::t_2311362a3c2248 493-495,543-544,546,548-550,552,554-556
+  s_cd65ffd0b4c9fa::t_145556d7865f43 558,567
+apps/worker/src/pipeline/processors/synthesis-track/related_docs/processor.ts
+  s_cd65ffd0b4c9fa::t_2d1ddd1844b725 39,46-50
+packages/schemas/src/signals.ts
+  s_cd65ffd0b4c9fa::t_d9a35d0ccdd64c 806,819,877,881-883,899-901
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 213-221
+apps/worker/src/lib/documentation-embedding.ts
+  s_cd65ffd0b4c9fa::t_2d1ddd1844b725 28-29,51,75,87
+apps/worker/src/pipeline/core/types.ts
+  s_cd65ffd0b4c9fa::t_d9a35d0ccdd64c 48-49
+apps/worker/src/pipeline/processors/inline-track/label/classify.ts
+  s_cd65ffd0b4c9fa::t_145556d7865f43 94-118
+apps/worker/src/worker.ts
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 98-102
+  s_cd65ffd0b4c9fa::t_d9a35d0ccdd64c 156,202
+apps/worker/src/pipeline/core/agent-run-audit.test.ts
+  s_cd65ffd0b4c9fa::t_bfe8f90d5dca85 47,94,96-102,106,109-112,115-116,118
+  s_cd65ffd0b4c9fa::t_9613d53fb0018d 79-84
+  s_cd65ffd0b4c9fa::t_ba66f5f08d0914 198-204
+  s_cd65ffd0b4c9fa::t_84d5bfc54f9b45 166-197,205-219
+packages/queue/src/thread-read.test.ts
+  s_cd65ffd0b4c9fa::t_d51a99d52a9f8c 321,339
+apps/worker/src/pipeline/processors/summarize.ts
+  s_cd65ffd0b4c9fa::t_145556d7865f43 162,184,225-236
+apps/api/src/lib/agent-run-audit.test.ts
+  s_cd65ffd0b4c9fa::t_ba66f5f08d0914 104,107
+  s_cd65ffd0b4c9fa::t_85ca2fda471640 187-342,358-376
+  s_cd65ffd0b4c9fa::t_5070a8a5643f2f 15-21,45-73,75,115-118,121-124,127-130
+  s_cd65ffd0b4c9fa::t_3c663b1591e917 343-357
+packages/schemas/src/signals.test.ts
+  s_cd65ffd0b4c9fa::t_34d0e957cbbb65 19-32
+  s_cd65ffd0b4c9fa::t_ba66f5f08d0914 97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d4d90ba602002537bdfc61ed99a58a0a03e461dc",
+  "prompts": {},
+  "sessions": {
+    "s_cd65ffd0b4c9fa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a01259-be8f-7823-8c26-d133030647f3",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
