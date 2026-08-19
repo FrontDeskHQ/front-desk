@@ -1,0 +1,24 @@
+docs/adr/0017-inbound-only-trigger-causality.md
+  s_e1ad53f7a90b4d::t_8f56a80ef5817f 5
+  s_e1ad53f7a90b4d::t_f79f31e2ce0491 37
+apps/api/src/live-state/router/message.ts
+  s_e1ad53f7a90b4d::t_b254ead5b7d4eb 2,33-44
+CONTEXT.md
+  s_e1ad53f7a90b4d::t_f79f31e2ce0491 17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "3c13f27f9862542761ea67adc1ed143f63846718",
+  "prompts": {},
+  "sessions": {
+    "s_e1ad53f7a90b4d": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "dffb4836-173a-4baa-a7f7-80ca437b2efa",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
