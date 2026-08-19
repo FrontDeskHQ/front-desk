@@ -40,6 +40,25 @@ export const isFrontDeskOriginated = (
   origin: string | null | undefined
 ): boolean => messageOriginSchema.safeParse(origin).success;
 
+/**
+ * `message.origin` as a *caller* may set it: a free string (connector ingest
+ * writes the provider name) with the FrontDesk-composed values fenced off.
+ * Those tell the insert hook "we sent this", which skips the trigger, so a
+ * caller that could set them could silence the Agent on an ordinary message.
+ * Only `reply.ts` stamps them, and it inserts directly rather than through a
+ * public mutation.
+ *
+ * Shared by every public write path that accepts an origin — one guard, so a
+ * new path cannot quietly reopen the hole.
+ */
+export const callerOriginSchema = z
+  .string()
+  .nullable()
+  .optional()
+  .refine((origin) => !isFrontDeskOriginated(origin), {
+    message: "ORIGIN_RESERVED",
+  });
+
 export interface ResolvedMessageAuthors {
   names: Map<string, string>;
   roles: Map<string, MessageRole>;

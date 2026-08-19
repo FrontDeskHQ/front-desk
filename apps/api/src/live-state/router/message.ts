@@ -1,5 +1,5 @@
 // TODO refactor with new live-state mental model
-import { isFrontDeskOriginated } from "@workspace/schemas/message-roles";
+import { callerOriginSchema } from "@workspace/schemas/message-roles";
 import { ulid } from "ulid";
 import z from "zod";
 
@@ -30,18 +30,7 @@ const messageCreateInputSchema = z.object({
   id: z.string().optional(),
   isBackfill: z.boolean().optional(),
   organizationId: z.string(),
-  // Free string by design (connector ingest writes the provider name), with
-  // the FrontDesk-composed values fenced off: they tell the insert hook "we
-  // sent this", which skips the trigger, so a caller that could set them could
-  // silence the Agent on an ordinary message. Only `reply.ts` stamps them, and
-  // it inserts directly rather than through this mutation.
-  origin: z
-    .string()
-    .nullable()
-    .optional()
-    .refine((origin) => !isFrontDeskOriginated(origin), {
-      message: "ORIGIN_RESERVED",
-    }),
+  origin: callerOriginSchema,
   threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),
