@@ -1,3 +1,4 @@
+import type { MessageOrigin } from "@workspace/schemas/message-roles";
 import type { ReplyAction } from "@workspace/schemas/signals";
 import { parse } from "@workspace/utils/md-tiptap";
 import { ulid } from "ulid";
@@ -45,7 +46,11 @@ export const replyHandler: ActionHandler<ReplyAction> = {
       createdAt: new Date(),
       externalMessageId: null,
       id: ulid().toLowerCase(),
-      origin: "agent_read",
+      // An actor id is what makes this an accept — the same test `resolveSender`
+      // uses to decide who it goes out as.
+      origin: (ctx.actorUserId
+        ? "agent_read"
+        : "agent_auto") satisfies MessageOrigin,
       threadId: ctx.threadId,
     });
   },

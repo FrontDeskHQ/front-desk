@@ -297,6 +297,22 @@ export const ACTION_KIND_VERB: Record<ActionKind, string> = {
   set_status: "set status",
 };
 
+/**
+ * Past-tense phrases for actions that already ran — the Agent's own moves,
+ * reported back to the human who still has to rule on their siblings. Written
+ * as the Agent doing them ("Agent replied"), because it did: these are the
+ * `auto` half of a bundle, executed without anyone approving them.
+ */
+export const ACTION_KIND_VERB_PAST: Record<ActionKind, string> = {
+  apply_label: "applied a label",
+  create_issue: "filed an issue",
+  link_issue: "linked an issue",
+  link_pr: "linked a pull request",
+  mark_duplicate: "marked this a duplicate",
+  reply: "replied",
+  set_status: "set the status",
+};
+
 // --- Reversibility + track partition --------------------------------------
 
 export const REVERSIBLE_ACTIONS: ReadonlySet<ActionKind> = new Set([
@@ -368,6 +384,14 @@ export const threadReadSchema = z.object({
   /** ISO timestamp when synthesis produced this read. */
   createdAt: z.string().optional(),
   dismissedAt: z.string().optional(),
+  /**
+   * Actions of *this* read that have already run — today only the autonomous
+   * path writes it, when part of a bundle executed and the rest was retained
+   * for a human. Deliberately outside `primary` (nothing here is selectable or
+   * re-executable) and outside {@link fingerprintAgentRead} (it adds context,
+   * not actions, so a card rendered before the execution stays acceptable).
+   */
+  executed: z.array(actionSchema).optional(),
   primary: z.array(actionSchema),
   reasoning: z.string(),
   /** Actionable output: the imperative next move, tied to `primary`. */
@@ -478,6 +502,11 @@ export const nextAgentReadAfterExecution = (
 
   return {
     ...read,
+    // Once part of the bundle has actually run, its pick-one alternatives are
+    // no longer alternatives to anything — choosing one now would stack a
+    // second action on top of a completed one, not replace it. A pure rollback
+    // (handled above) leaves them intact, because nothing ran.
+    alternatives: [],
     primary: remainingPrimary,
   };
 };

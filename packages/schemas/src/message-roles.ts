@@ -10,6 +10,36 @@ import z from "zod";
  */
 export type MessageRole = "customer" | "teammate" | "unknown";
 
+/**
+ * The values of `message.origin` that mean *FrontDesk composed this message*:
+ *
+ * - `agent_read` — a [thread read](../../../CONTEXT.md#thread-read) reply a
+ *   human accepted. Sent as the accepting human.
+ * - `agent_auto` — a reply the Agent sent autonomously. Sent as the thread's
+ *   assignee (ADR 0017); no human saw it first.
+ *
+ * The two are separate because a human's accept and the Agent acting alone
+ * read differently to whoever comes along next, even though neither supersedes
+ * the read it came from.
+ *
+ * A *subset* of the column, not its full range: connector ingest writes the
+ * provider name there (`"discord"`, …) and a message typed in the app or
+ * posted from the portal writes nothing. So the column stays a free string —
+ * parse against this to ask "did we send it?", never to validate the field.
+ */
+export const messageOriginSchema = z.enum(["agent_read", "agent_auto"]);
+export type MessageOrigin = z.infer<typeof messageOriginSchema>;
+
+/**
+ * Whether FrontDesk itself composed and sent this message. A FrontDesk-
+ * originated message never enqueues a `supersede` trigger: the read that
+ * produced it already accounts for it, and clearing that read would delete the
+ * sibling actions a human still has to approve (ADR 0017, amended).
+ */
+export const isFrontDeskOriginated = (
+  origin: string | null | undefined
+): boolean => messageOriginSchema.safeParse(origin).success;
+
 export interface ResolvedMessageAuthors {
   names: Map<string, string>;
   roles: Map<string, MessageRole>;

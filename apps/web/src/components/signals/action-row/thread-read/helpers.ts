@@ -1,5 +1,6 @@
 import {
   ACTION_KIND_VERB,
+  ACTION_KIND_VERB_PAST,
   STATUS_CLOSED,
   STATUS_DUPLICATED,
   STATUS_IN_PROGRESS,
@@ -153,4 +154,21 @@ export function formatErrorMessage(error: unknown): string {
     return "The configured issue target is no longer connected. Pick another in Integrations settings.";
   }
   return "Could not apply this signal. Please try again.";
+}
+
+/**
+ * One line describing what the Agent already did on this read, e.g. "Agent
+ * replied" or "Agent replied and marked this a duplicate". Null when nothing
+ * ran — the ordinary case, where every action is still awaiting a human.
+ */
+export function executedSummary(executed: Action[] | undefined): string | null {
+  if (!executed || executed.length === 0) {
+    return null;
+  }
+  const phrases = executed.map((action) => ACTION_KIND_VERB_PAST[action.kind]);
+  const joined =
+    phrases.length === 1
+      ? phrases[0]
+      : `${phrases.slice(0, -1).join(", ")} and ${phrases.at(-1)}`;
+  return `Agent already ${joined}`;
 }
