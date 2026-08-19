@@ -1,5 +1,8 @@
 import { defineHooks } from "@live-state/sync/server";
-import { isOutbound } from "@workspace/schemas/message-roles";
+import {
+  isFrontDeskOriginated,
+  isOutbound,
+} from "@workspace/schemas/message-roles";
 
 import { isOrganizationMember } from "../lib/organization-membership";
 import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
@@ -10,10 +13,18 @@ export const liveStateHooks = defineHooks<typeof schema>({
     afterInsert: ({ db, value }) => {
       (async () => {
         try {
+          // A message FrontDesk itself composed enqueues nothing at all: it
+          // cannot cause a run (the Agent must not read its own output as
+          // evidence), and it must not supersede either — the read that
+          // produced it is still carrying the sibling actions a human has to
+          // approve, and clearing it would delete them (ADR 0017, amended).
+          // Both paths clear their own read when they mean to.
+          if (isFrontDeskOriginated(value.origin)) {
+            return;
+          }
+
           // Only an inbound message causes a run (ADR 0017). A teammate's
-          // reply — typed, accepted from a thread read, or auto-sent — clears
-          // the standing read instead, so the Agent's own output never comes
-          // back to it as evidence.
+          // reply typed by hand clears the standing read instead.
           //
           // A lookup that fails counts as inbound, matching what ADR 0017 does
           // with an author it cannot place: a redundant read is visible and

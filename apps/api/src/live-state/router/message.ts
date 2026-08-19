@@ -1,4 +1,5 @@
 // TODO refactor with new live-state mental model
+import { callerOriginSchema } from "@workspace/schemas/message-roles";
 import { ulid } from "ulid";
 import z from "zod";
 
@@ -29,7 +30,7 @@ const messageCreateInputSchema = z.object({
   id: z.string().optional(),
   isBackfill: z.boolean().optional(),
   organizationId: z.string(),
-  origin: z.string().nullable().optional(),
+  origin: callerOriginSchema,
   threadId: z.string(),
   userId: z.string().optional(),
   userName: z.string().optional(),

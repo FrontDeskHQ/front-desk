@@ -68,20 +68,3 @@ export const resolveBundleFromSelection = (
     };
   });
 };
-
-/**
- * Primary actions the human left unselected in a subset bundle. These must
- * survive a fully-successful execution of the selected subset rather than being
- * cleared along with the rest of the read. Empty for full-primary or
- * alternative selections, where no primary action is intentionally retained.
- */
-export const deselectedPrimaryActions = (
-  read: ThreadRead,
-  selection: ReadSelection
-): Action[] => {
-  if (selection === "primary" || "alternativeIndex" in selection) {
-    return [];
-  }
-  const selected = new Set(selection.primaryActionIndices);
-  return read.primary.filter((_, index) => !selected.has(index));
-};

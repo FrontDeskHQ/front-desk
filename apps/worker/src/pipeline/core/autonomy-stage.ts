@@ -107,6 +107,7 @@ export const applySynthesisAutonomy = async (
   };
 
   let finalPrimary = keepInReadOrder(gated, suggestPrimary);
+  let executed: Action[] = [];
 
   if (autoActions.length > 0) {
     try {
@@ -134,6 +135,8 @@ export const applySynthesisAutonomy = async (
       }
 
       await writeReplyReceipt(run, result.succeeded, fingerprints);
+
+      executed = result.succeeded;
 
       const afterAuto = nextAgentReadAfterExecution(
         { ...filteredRead, primary: autoActions },
@@ -178,6 +181,14 @@ export const applySynthesisAutonomy = async (
 
   const agentRead: ThreadRead = {
     ...filteredRead,
+    // Alternatives are alternatives *to the primary bundle*. Once any part of
+    // that bundle has actually run, offering a pick-one instead of it is a lie
+    // — a rival reply would be a second message, not a substitute. Keyed on
+    // what succeeded rather than on what was attempted: a bundle that failed
+    // outright leaves exactly the read synthesis proposed, alternatives and
+    // all.
+    alternatives: executed.length > 0 ? [] : filteredRead.alternatives,
+    executed: executed.length > 0 ? executed : undefined,
     primary: finalPrimary,
   };
 
@@ -185,12 +196,18 @@ export const applySynthesisAutonomy = async (
     "action.suggested",
     {
       actions: finalPrimary,
+      executed,
       gated,
       reason: "retained_for_review",
     },
     { phase: "autonomy" }
   );
 
+  // TODO(read-generation): last write wins. A `message` run started while this
+  // one was executing can publish a fresher read first, and this call then
+  // overwrites it with a stale one. Needs a compare-and-set on `setAgentRead`
+  // (a read generation carried through the run), not an ordering assumption
+  // about the queue.
   await run.publishRead(agentRead);
   return agentRead;
 };

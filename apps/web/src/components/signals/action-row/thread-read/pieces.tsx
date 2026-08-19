@@ -23,7 +23,7 @@ import { client, query } from "~/lib/live-state";
 import { ActionRow } from "../action-row";
 import { SignalReplyDraftEditor } from "../signal-reply-draft-editor";
 import { useThreadRead } from "./context";
-import { compoundButtonLabel } from "./helpers";
+import { compoundButtonLabel, executedSummary } from "./helpers";
 
 interface CompoundActionButtonProps {
   label: string;
@@ -311,16 +311,24 @@ function Root({ children }: { children: ReactNode }) {
 
 function Summary() {
   const { state } = useThreadRead();
+  // Trailing clause, not a separate row: without it the card reads as a plan
+  // nobody has acted on, even though auto actions already ran.
+  const executed = executedSummary(state.read.executed);
   return (
-    <RichMarkdown
-      content={state.read.summary}
-      preset="inline"
+    <div
       className={
         state.read.recommendation
-          ? "text-foreground-secondary"
-          : "text-foreground-primary"
+          ? "text-sm text-foreground-secondary"
+          : "text-sm text-foreground-primary"
       }
-    />
+    >
+      <RichMarkdown
+        content={state.read.summary}
+        preset="inline"
+        className="inline"
+      />
+      {executed ? ` ${executed}.` : null}
+    </div>
   );
 }
 

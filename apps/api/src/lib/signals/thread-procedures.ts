@@ -16,7 +16,6 @@ import type { AuthorizeReq } from "../authorize";
 import { authorize, getWorkspaceActor } from "../authorize";
 import {
   assertReadFingerprint,
-  deselectedPrimaryActions,
   nextAgentReadAfterExecution,
   resolveBundleFromSelection,
 } from "./agent-read";
@@ -203,12 +202,12 @@ export const runAcceptRead = async (
   // writes thread fields (status, links, …) that live-state broadcasts as the
   // full row; if agentRead is still the pre-accept value, the feed card
   // flickers back in, then disappears when this persist finally runs.
-  const deselectedUpFront = deselectedPrimaryActions(originalRead, selection);
-  const pendingRead =
-    deselectedUpFront.length > 0
-      ? { ...originalRead, primary: deselectedUpFront }
-      : null;
-  await persistAgentRead(db, input.threadId, pendingRead);
+  //
+  // Cleared outright rather than trimmed to what the human left unselected:
+  // accepting a subset is a ruling on the whole read, and deselecting is how
+  // the human declines the rest. (The autonomous path is the opposite case —
+  // nobody has ruled on its `suggest` actions, so it republishes them.)
+  await persistAgentRead(db, input.threadId, null);
 
   let result: ExecutionResult;
   try {
@@ -218,17 +217,15 @@ export const runAcceptRead = async (
     throw error;
   }
 
-  let nextRead = nextAgentReadAfterExecution(originalRead, result);
-
-  // A successful subset selection only consumes the chosen primary actions;
-  // preserve the ones the human deselected instead of clearing the read with
-  // them. (Partial failures already retain the unconsumed primary entries.)
-  if (!result.failed) {
-    const deselected = deselectedPrimaryActions(originalRead, selection);
-    if (deselected.length > 0) {
-      nextRead = { ...originalRead, primary: deselected };
-    }
-  }
+  // A failure is not a decision: what the human chose but the bundle could not
+  // deliver stays on the read to be retried. Retention runs over the *selected*
+  // bundle, so the deselected actions cleared above cannot come back through
+  // it — and an accepted alternative retains its own unexecuted actions rather
+  // than the primary ones it replaced.
+  const nextRead = nextAgentReadAfterExecution(
+    { ...originalRead, primary: bundle },
+    result
+  );
 
   await persistAgentRead(db, input.threadId, nextRead);
 
