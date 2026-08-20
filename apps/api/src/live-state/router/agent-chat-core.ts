@@ -11,7 +11,26 @@ export interface AgentChatContext {
   currentUserName?: string | null;
 }
 
-export function buildSystemPrompt(ctx: AgentChatContext): string {
+/**
+ * Builds the system prompt for a given tool map.
+ *
+ * `tools` is not decoration: the prompt describes the tools the model has, so
+ * it reads which ones exist off the very map that is handed to the model. A
+ * separate capability flag was tried and rejected — two independent inputs can
+ * disagree, and a prompt that advertises an undeclared tool makes the model
+ * call something that is not there.
+ */
+export function buildSystemPrompt(
+  ctx: AgentChatContext,
+  tools: AgentChatTools
+): string {
+  const threadSearch = "searchThreads" in tools;
+  const searchTools = threadSearch
+    ? "searchDocumentation and/or searchThreads"
+    : "searchDocumentation";
+  const lookupTools = threadSearch
+    ? "searchThreads, searchDocumentation, or listThreads"
+    : "searchDocumentation or listThreads";
   return `You are a helpful AI assistant for a customer support team. You have access to the following support thread for context.
 
 ${ctx.currentUserName ? `You are chatting with ${ctx.currentUserName}, a support agent on this team. Address them by name when appropriate.\n\n` : ""}## Thread Details
@@ -27,8 +46,7 @@ You also have a tool called "setDraft" that lets you draft a reply message for t
 You also have a tool called "getDraft" that lets you read the current draft reply. Use it when the user asks about or references their current draft, or when you need to see the draft before making modifications. The support agent may have edited the draft manually, so always use getDraft to read the latest version before updating it with setDraft.
 
 You also have tools to explore other support threads in the organization:
-- "searchThreads": Search across all support threads using a text query. Use it to find related issues, check if a problem has been reported before, or find context from past conversations.
-- "getThread": Read the full details and messages of a specific thread by its ID. Use it after finding a thread via search to get the complete conversation.
+${threadSearch ? `- "searchThreads": Search across all support threads using a text query. Use it to find related issues, check if a problem has been reported before, or find context from past conversations.\n` : ""}- "getThread": Read the full details and messages of a specific thread by its ID. Use it after finding a thread via search to get the complete conversation.
 - "listThreads": Browse recent support threads, optionally filtered by status or priority. Use it to get an overview of current issues or find threads with a specific status.
 ${ctx.customInstructions ? `\n## Custom Instructions\n${ctx.customInstructions}\n` : ""}
 Use the thread context to help answer questions about this support thread. Be concise and helpful.
@@ -39,8 +57,8 @@ IMPORTANT: When mentioning threads in your responses, ALWAYS use markdown link s
 Follow these rules to decide which tools to use:
 
 1. **If the user asks to UPDATE or EDIT an existing draft** → call getDraft, then setDraft. Do NOT search.
-2. **If the user asks to draft, write, reply, compose, or respond** → search for context using searchDocumentation and/or searchThreads (you may retry once with a different query if the first returns no results), then MUST call setDraft. Do not search more than twice per tool. Always draft based on whatever context you have — even if all searches return empty, use the thread messages to write the draft.
-3. **If the user asks to search, look up, find, or list** → use ONLY the requested tool (searchThreads, searchDocumentation, or listThreads). Do NOT call setDraft. Present results and stop.
+2. **If the user asks to draft, write, reply, compose, or respond** → search for context using ${searchTools} (you may retry once with a different query if the first returns no results), then MUST call setDraft. Do not search more than twice per tool. Always draft based on whatever context you have — even if all searches return empty, use the thread messages to write the draft.
+3. **If the user asks to search, look up, find, or list** → use ONLY the requested tool (${lookupTools}). Do NOT call setDraft. Present results and stop.
 4. **If the user asks a question about this thread** → answer from context. No tools needed unless the answer requires external information.
 
 IMPORTANT: In rules 1-3, use ONLY the tools listed. Do not add extra tools like listThreads or getThread unless the user specifically asks for them or suggestions mention a related thread to read. Only retry a tool when explicitly allowed above (e.g., rule 2); otherwise use one call per tool.
@@ -200,7 +218,11 @@ export interface AgentChatToolImplementations {
     content: string | null;
   }>;
   setDraft: (args: { content: string }) => Promise<{ success: boolean }>;
-  searchThreads: (args: { query: string }) => Promise<SearchThreadsResult[]>;
+  /**
+   * Optional: when omitted the `searchThreads` tool is not declared to the
+   * model at all. Pair with `threadSearchEnabled: false` on the system prompt.
+   */
+  searchThreads?: (args: { query: string }) => Promise<SearchThreadsResult[]>;
   getThread: (args: {
     threadId: string;
   }) => Promise<GetThreadResult | { error: string }>;
@@ -211,10 +233,29 @@ export interface AgentChatToolImplementations {
   }) => Promise<ListThreadsResult[]>;
 }
 
+/**
+ * Built only when there is something to execute, so the tool is never declared
+ * to the model without a working implementation behind it.
+ */
+function buildSearchThreadsTool(
+  execute: NonNullable<AgentChatToolImplementations["searchThreads"]>
+) {
+  return tool({
+    description:
+      "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
+    inputSchema: z.object({
+      query: z
+        .string()
+        .describe("The search query to find relevant support threads"),
+    }),
+    execute,
+  });
+}
+
 export function buildAgentChatTools(
   implementations: AgentChatToolImplementations
 ) {
-  return {
+  const base = {
     getDraft: tool({
       description:
         "Read the current draft reply. Use this when you need to see the support agent's current draft before making changes.",
@@ -260,16 +301,6 @@ export function buildAgentChatTools(
       }),
       execute: implementations.searchDocumentation,
     }),
-    searchThreads: tool({
-      description:
-        "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
-      inputSchema: z.object({
-        query: z
-          .string()
-          .describe("The search query to find relevant support threads"),
-      }),
-      execute: implementations.searchThreads,
-    }),
     setDraft: tool({
       description:
         "Draft a reply message for the support agent to send to the customer. This replaces the current draft if one exists. The draft will be shown to the agent for review and editing before sending. Use markdown formatting. You MUST call this tool when the user asks to draft, write, reply, or respond. Do not stop after searching without calling this tool.",
@@ -281,4 +312,29 @@ export function buildAgentChatTools(
       execute: implementations.setDraft,
     }),
   };
+
+  type Tools = typeof base & {
+    searchThreads: ReturnType<typeof buildSearchThreadsTool>;
+  };
+
+  const searchThreadsImpl = implementations.searchThreads;
+
+  if (!searchThreadsImpl) {
+    // Leaving the tool out is the only way to stop the model from calling
+    // something that cannot work; `buildSystemPrompt` reads this map, so the
+    // prompt drops it too.
+    //
+    // The cast is deliberate. Typing the key as optional widens the AI SDK's
+    // `TypedToolCall` with `undefined`, which breaks tool-call typing for every
+    // caller, so the type stays whole and the runtime map — the one that
+    // actually reaches the model — is what varies.
+    return base as Tools;
+  }
+
+  return {
+    ...base,
+    searchThreads: buildSearchThreadsTool(searchThreadsImpl),
+  } as Tools;
 }
+
+export type AgentChatTools = ReturnType<typeof buildAgentChatTools>;

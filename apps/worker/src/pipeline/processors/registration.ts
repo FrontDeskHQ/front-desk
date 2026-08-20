@@ -1,5 +1,4 @@
 import { embedProcessor } from "./embed";
-import { embedMessagesProcessor } from "./embed-messages";
 import { labelClassifierProcessor } from "./inline-track/label/processor";
 import { processorRegistry } from "./registry";
 import { summarizeProcessor } from "./summarize";
@@ -12,7 +11,11 @@ import { synthesisProcessor } from "./synthesis-track/synthesis/processor";
 export const registerDefaultProcessors = (): string[] => {
   processorRegistry.register(summarizeProcessor);
   processorRegistry.register(embedProcessor);
-  processorRegistry.register(embedMessagesProcessor);
+  // TODO(FRO-224): `messages-v1` is retired — per-message embedding produced the
+  // largest collection in Qdrant to serve a flag-gated search page and one Agent
+  // tool, neither of which used message-level granularity. `embedMessagesProcessor`
+  // is left in the tree, unregistered, so the search rewrite can reuse or delete it
+  // deliberately rather than reconstruct it from history.
 
   // --- Inline suggestions --------------------------------------------------
   // One producer, one kind (ADR 0014): synthesis owns status, since it already

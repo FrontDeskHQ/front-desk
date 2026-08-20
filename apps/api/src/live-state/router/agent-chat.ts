@@ -10,7 +10,9 @@ import {
   authorizeOwnedAgentChat,
   authorizeWorkspaceOrgMember,
 } from "../../lib/authorize";
-import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
+// Thread search is retired along with the `messages-v1` index (FRO-224); the
+// `searchThreads` tool is not declared to the model until it is rebuilt.
+import { searchDocumentation } from "../../lib/search/qdrant";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import {
@@ -310,14 +312,6 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
     // Fetch current user name for personalization
     const currentUser = await db.findOne(schema.user, actor.userId);
 
-    const systemPrompt = buildSystemPrompt({
-      threadMetadata,
-      threadContext,
-      suggestionsContext,
-      customInstructions: org?.customInstructions,
-      currentUserName: currentUser?.name ?? null,
-    });
-
     // Stream in background — don't await, let the mutation return immediately
     // so the client sees the user message + empty assistant message right away.
     (async () => {
@@ -377,89 +371,6 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
               draftStatus: "active",
             });
             return { success: true };
-          },
-          searchThreads: async ({ query }) => {
-            console.log(
-              `[agent-chat] Tool call: searchThreads query="${query}"`
-            );
-            const results = await searchMessages({
-              query,
-              organizationId,
-              limit: 15,
-            });
-
-            // Deduplicate by threadId, keeping highest score per thread
-            const threadMap = new Map<
-              string,
-              { messageId: string; threadId: string; score: number }
-            >();
-            for (const r of results) {
-              if (r.threadId === agentChat.threadId) continue;
-              const existing = threadMap.get(r.threadId);
-              if (!existing || r.score > existing.score) {
-                threadMap.set(r.threadId, r);
-              }
-            }
-
-            const uniqueResults = [...threadMap.values()]
-              .toSorted((a, b) => b.score - a.score)
-              .slice(0, 8);
-
-            const enriched = await Promise.all(
-              uniqueResults.map(async (r) => {
-                const [foundThread, message] = await Promise.all([
-                  db
-                    .find(schema.thread, {
-                      where: {
-                        id: r.threadId,
-                        organizationId,
-                        deletedAt: null,
-                      },
-                    })
-                    .then((res) => Object.values(res)[0] ?? null),
-                  db.findOne(schema.message, r.messageId),
-                ]);
-
-                if (!foundThread) {
-                  return null;
-                }
-
-                const author = foundThread.authorId
-                  ? await db.findOne(schema.author, foundThread.authorId)
-                  : null;
-
-                let snippet = "";
-                if (message) {
-                  snippet = jsonContentToPlainText(
-                    safeParseJSON(message.content)
-                  );
-                  if (snippet.length > 300) {
-                    snippet = `${snippet.slice(0, 300)}...`;
-                  }
-                }
-
-                return {
-                  _id: r.threadId,
-                  name: foundThread.name,
-                  status: statusLabels[foundThread.status ?? 0] ?? "Unknown",
-                  priority: priorityLabels[foundThread.priority ?? 0] ?? "None",
-                  author: author?.name ?? "Unknown",
-                  createdAt: foundThread.createdAt
-                    ? new Date(foundThread.createdAt).toISOString()
-                    : "Unknown",
-                  matchingMessageSnippet: snippet,
-                  score: r.score,
-                };
-              })
-            );
-
-            const filtered = enriched.filter(
-              (item): item is NonNullable<typeof item> => item !== null
-            );
-            console.log(
-              `[agent-chat] searchThreads returned ${filtered.length} threads`
-            );
-            return filtered;
           },
           getThread: async ({ threadId }) => {
             console.log(
@@ -646,11 +557,25 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
           },
         };
 
+        // `toolImplementations` omits `searchThreads` while thread search is
+        // retired (FRO-224), so the prompt built from this map drops it too.
+        const tools = buildAgentChatTools(toolImplementations);
+        const systemPrompt = buildSystemPrompt(
+          {
+            threadMetadata,
+            threadContext,
+            suggestionsContext,
+            customInstructions: org?.customInstructions,
+            currentUserName: currentUser?.name ?? null,
+          },
+          tools
+        );
+
         const result = streamText({
           model: agentModel(),
           system: systemPrompt,
           messages: conversationHistory,
-          tools: buildAgentChatTools(toolImplementations),
+          tools,
           stopWhen: stepCountIs(12),
         });
 

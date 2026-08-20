@@ -10,7 +10,8 @@ import {
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
-import { searchMessages } from "../../lib/search/qdrant";
+// Retired with `messages-v1` (FRO-224); see the commented search handler below.
+// import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -228,23 +229,36 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     return updatedMessage ?? { ...message, markedAsAnswer: true };
   }),
+  /**
+   * Stubbed with the `messages-v1` index behind it (FRO-224). Kept as a
+   * procedure so the search page keeps rendering its empty state instead of
+   * erroring; the page is gated behind the `in-app-search` flag, which is off
+   * everywhere.
+   */
   search: mutation(
     z.object({
       organizationId: z.string(),
       query: z.string(),
     })
-  ).handler(async ({ req }) => {
-    const results = await searchMessages({
-      organizationId: req.input.organizationId,
-      query: req.input.query,
-    });
+  ).handler(async () => ({ hits: [] as { document: { id: string } }[] })),
 
-    return {
-      hits: results.map((r) => ({
-        document: { id: r.messageId },
-      })),
-    };
-  }),
+  // search: mutation(
+  //   z.object({
+  //     organizationId: z.string(),
+  //     query: z.string(),
+  //   })
+  // ).handler(async ({ req }) => {
+  //   const results = await searchMessages({
+  //     organizationId: req.input.organizationId,
+  //     query: req.input.query,
+  //   });
+  //
+  //   return {
+  //     hits: results.map((r) => ({
+  //       document: { id: r.messageId },
+  //     })),
+  //   };
+  // }),
   setExternalMessageId: mutation(setExternalMessageIdInputSchema).handler(
     async ({ req, db }) => {
       requireInternalApiKey(req.context);

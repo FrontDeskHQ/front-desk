@@ -6,15 +6,13 @@ import { evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
 import { OpenAI } from "openai";
 
-import {
-  agentModel,
-  RESPAN_OPENAI_BASE_URL,
-} from "../lib/ai/respan";
+import { agentModel, RESPAN_OPENAI_BASE_URL } from "../lib/ai/respan";
 import {
   buildAgentChatTools,
   buildSystemPrompt,
   formatThreadMetadata,
 } from "../live-state/router/agent-chat-core";
+import type { AgentChatTools } from "../live-state/router/agent-chat-core";
 import {
   toolSelectionDataset,
   proactiveToolDataset,
@@ -92,6 +90,7 @@ function buildPromptFromThread(
     labels: string[];
     messages: { author: string; content: string }[];
   },
+  tools: AgentChatTools,
   suggestionsContext = ""
 ) {
   const threadMetadata = formatThreadMetadata({
@@ -108,11 +107,13 @@ function buildPromptFromThread(
     .map((m) => `[${m.author}]: ${m.content}`)
     .join("\n");
 
-  return buildSystemPrompt({
-    suggestionsContext,
-    threadContext,
-    threadMetadata,
-  });
+  // The prompt describes whatever `tools` actually holds; the fixtures supply a
+  // `searchThreads` implementation, so the evals keep exercising the full
+  // tool surface.
+  return buildSystemPrompt(
+    { suggestionsContext, threadContext, threadMetadata },
+    tools
+  );
 }
 
 function extractToolNames(
@@ -137,10 +138,10 @@ evalite("Agent Chat — Tool Selection", {
   data: () => toolSelectionDataset,
   scorers: [toolSelectionAccuracy],
   task: async (input) => {
-    const systemPrompt = buildPromptFromThread(input.thread);
     const tools = buildAgentChatTools(
       createMockToolImplementations(input.toolOverrides)
     );
+    const systemPrompt = buildPromptFromThread(input.thread, tools);
 
     const start = Date.now();
     const result = await generateText({
@@ -162,12 +163,13 @@ evalite("Agent Chat — Proactive Tool Usage", {
   data: () => proactiveToolDataset,
   scorers: [proactiveToolUsage],
   task: async (input) => {
-    const systemPrompt = buildPromptFromThread(
-      input.thread,
-      input.suggestionsContext
-    );
     const tools = buildAgentChatTools(
       createMockToolImplementations(input.toolOverrides)
+    );
+    const systemPrompt = buildPromptFromThread(
+      input.thread,
+      tools,
+      input.suggestionsContext
     );
 
     const start = Date.now();
@@ -192,7 +194,6 @@ evalite("Agent Chat — Draft Quality", {
   task: async (input) => {
     let capturedDraft = "";
 
-    const systemPrompt = buildPromptFromThread(input.thread);
     const tools = buildAgentChatTools(
       createMockToolImplementations({
         ...input.toolOverrides,
@@ -202,6 +203,7 @@ evalite("Agent Chat — Draft Quality", {
         },
       })
     );
+    const systemPrompt = buildPromptFromThread(input.thread, tools);
 
     const start = Date.now();
     const result = await generateText({
@@ -223,10 +225,10 @@ evalite("Agent Chat — Thread References", {
   data: () => threadReferenceDataset,
   scorers: [threadReferenceFormat],
   task: async (input) => {
-    const systemPrompt = buildPromptFromThread(input.thread);
     const tools = buildAgentChatTools(
       createMockToolImplementations(input.toolOverrides)
     );
+    const systemPrompt = buildPromptFromThread(input.thread, tools);
 
     const start = Date.now();
     const result = await generateText({
