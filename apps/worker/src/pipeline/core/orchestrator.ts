@@ -527,7 +527,8 @@ export const executePipeline = async (
       processors: string[];
       turnNumber: number;
     }[] = [];
-    const requestedThreadIds = input.threadIds;
+    const enabledThreadIds = [...runStates.keys()];
+    const pipelineDisabledCount = hydratedRunStates.size - runStates.size;
     let completedProcessors = 0;
 
     for (let turnIndex = 0; turnIndex < executionOrder.length; turnIndex++) {
@@ -552,7 +553,7 @@ export const executePipeline = async (
             );
             return {
               processor: processorName,
-              threadResults: requestedThreadIds.map((threadId) => ({
+              threadResults: enabledThreadIds.map((threadId) => ({
                 error: `Processor "${processorName}" not found`,
                 success: false as const,
                 threadId,
@@ -560,7 +561,7 @@ export const executePipeline = async (
               stats: {
                 successful: 0,
                 skipped: 0,
-                failed: requestedThreadIds.length,
+                failed: enabledThreadIds.length,
               },
             };
           }
@@ -568,7 +569,7 @@ export const executePipeline = async (
           const results = await executeProcessor(
             processor,
             context,
-            requestedThreadIds,
+            enabledThreadIds,
             concurrency,
             requestLog
           );
@@ -636,7 +637,7 @@ export const executePipeline = async (
     }
 
     const skippedSet = new Set<string>();
-    for (const threadId of requestedThreadIds) {
+    for (const threadId of enabledThreadIds) {
       if (!processedSet.has(threadId) && !failedSet.has(threadId)) {
         skippedSet.add(threadId);
       }
@@ -659,7 +660,7 @@ export const executePipeline = async (
         completedProcessors,
         failedThreads: failedSet.size,
         processedThreads: processedSet.size,
-        skippedThreads: skippedSet.size,
+        skippedThreads: skippedSet.size + pipelineDisabledCount,
         totalProcessors,
         totalThreads: input.threadIds.length,
       },
