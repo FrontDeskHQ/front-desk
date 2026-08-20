@@ -10,15 +10,18 @@ export interface AgentChatContext {
   customInstructions?: string | null;
   currentUserName?: string | null;
   /**
-   * Whether the `searchThreads` tool is available. Defaults to true; the
-   * production route turns it off while thread search is retired (FRO-224) so
-   * the prompt never advertises a tool the model cannot actually use.
+   * Whether the `searchThreads` tool is available, i.e. whether a
+   * `searchThreads` implementation was handed to
+   * {@link buildAgentChatTools}. Required rather than defaulted: a default
+   * would let the prompt advertise a tool the model was never given. The
+   * production route sets it to false while thread search is retired
+   * (FRO-224).
    */
-  threadSearchEnabled?: boolean;
+  threadSearchEnabled: boolean;
 }
 
 export function buildSystemPrompt(ctx: AgentChatContext): string {
-  const threadSearch = ctx.threadSearchEnabled ?? true;
+  const threadSearch = ctx.threadSearchEnabled;
   const searchTools = threadSearch
     ? "searchDocumentation and/or searchThreads"
     : "searchDocumentation";
@@ -299,9 +302,13 @@ export function buildAgentChatTools(
     }),
   };
 
-  // Declared above so the object keeps a concrete type for callers, then
-  // removed when there is no implementation — an undeclared tool is the only
-  // way to stop the model from calling something that cannot work.
+  // Declared above, then removed when there is no implementation — an
+  // undeclared tool is the only way to stop the model from calling something
+  // that cannot work. The return type deliberately keeps the key required:
+  // marking it optional widens the AI SDK's `TypedToolCall` with `undefined`
+  // and breaks tool-call typing for every caller. `threadSearchEnabled` on
+  // `AgentChatContext` is required for the same reason — it is the one switch
+  // callers must set, and it cannot silently disagree with this map.
   if (!searchThreadsImpl) {
     delete (tools as Partial<typeof tools>).searchThreads;
   }

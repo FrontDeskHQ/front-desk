@@ -112,6 +112,9 @@ function buildPromptFromThread(
     suggestionsContext,
     threadContext,
     threadMetadata,
+    // The fixtures always supply a `searchThreads` implementation, so the
+    // evals keep exercising the full tool surface.
+    threadSearchEnabled: true,
   });
 }
 

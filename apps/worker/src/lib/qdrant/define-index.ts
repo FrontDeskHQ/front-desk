@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { log } from "@workspace/utils/logging";
+import { z } from "zod";
 
 import { errorFields } from "../logging";
 import { qdrantClient } from "./client";
@@ -21,6 +22,24 @@ import { qdrantClient } from "./client";
  *
  * **Organization scoping** is applied by this module, not by callers.
  */
+
+/**
+ * The slice of Qdrant's live `quantization_config` that
+ * {@link VectorIndex.ensure}'s reconcile compares against. Parsed rather than
+ * asserted because it is an external response: anything else — a different
+ * quantization mode, a shape a future Qdrant returns — falls through as "does
+ * not match" instead of reading fields off an unchecked value.
+ */
+const scalarQuantizationSchema = z.object({
+  scalar: z
+    .object({
+      always_ram: z.boolean().nullish(),
+      memory: z.string().nullish(),
+      quantile: z.number().nullish(),
+      type: z.string().nullish(),
+    })
+    .optional(),
+});
 
 /** A value a payload field can be matched on. */
 type MatchValue = string | number | boolean;
@@ -336,21 +355,15 @@ export const defineIndex = <
    * otherwise read as a permanent mismatch and re-PATCH on every boot.
    */
   const quantizationMatches = (current: unknown): boolean => {
-    const scalar = (
-      current as {
-        scalar?: {
-          type?: string;
-          quantile?: number | null;
-          always_ram?: boolean | null;
-          memory?: string | null;
-        };
-      } | null
-    )?.scalar;
+    const parsed = scalarQuantizationSchema.safeParse(current);
 
-    if (!scalar) {
-      // Absent, or a different mode (product/binary) that has no `scalar` key.
+    if (!parsed.success || !parsed.data.scalar) {
+      // Absent, malformed, or a different mode (product/binary) that has no
+      // `scalar` key.
       return false;
     }
+
+    const { scalar } = parsed.data;
 
     const pinned = scalar.always_ram === true || scalar.memory === "pinned";
 
