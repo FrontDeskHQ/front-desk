@@ -308,18 +308,60 @@ export const defineIndex = <
    */
   const INDEXING_THRESHOLD = 20_000;
 
+  /**
+   * Clips the top and bottom percentile so a single outlier dimension does not
+   * stretch the int8 range for every other one.
+   */
+  const QUANTIZATION_QUANTILE = 0.99;
+
   const quantizationConfig = {
     scalar: {
       always_ram: true,
-      // Clip the top and bottom percentile so a single outlier dimension does
-      // not stretch the int8 range for every other one.
-      quantile: 0.99,
+      quantile: QUANTIZATION_QUANTILE,
       type: "int8" as const,
     },
   };
 
   /** The `VectorsConfigDiff` key for this collection's dense vector. */
   const denseVectorKey = sparse ? "dense" : "";
+
+  /**
+   * Whether a collection's live quantization matches {@link quantizationConfig}
+   * field by field. A looser "is anything configured at all" test would let the
+   * constants above be retuned without existing collections ever picking the new
+   * values up, which is the one thing a reconcile is for.
+   *
+   * `always_ram` is the legacy spelling of `memory: "pinned"`. Qdrant 1.16
+   * round-trips it unchanged, but a later version that normalizes it would
+   * otherwise read as a permanent mismatch and re-PATCH on every boot.
+   */
+  const quantizationMatches = (current: unknown): boolean => {
+    const scalar = (
+      current as {
+        scalar?: {
+          type?: string;
+          quantile?: number | null;
+          always_ram?: boolean | null;
+          memory?: string | null;
+        };
+      } | null
+    )?.scalar;
+
+    if (!scalar) {
+      // Absent, or a different mode (product/binary) that has no `scalar` key.
+      return false;
+    }
+
+    const pinned = scalar.always_ram === true || scalar.memory === "pinned";
+
+    // Qdrant stores the quantile as an f32, so a round-trip can land a hair off
+    // the literal above. Comparing exactly would re-PATCH forever.
+    const quantileMatches =
+      typeof scalar.quantile === "number" &&
+      Math.abs(scalar.quantile - QUANTIZATION_QUANTILE) < 1e-6;
+
+    return scalar.type === "int8" && quantileMatches && pinned;
+  };
 
   /**
    * Bring an existing collection up to the memory config above. No-op once it
@@ -335,9 +377,9 @@ export const defineIndex = <
       : (config.params.vectors as { on_disk?: boolean | null } | undefined);
 
     const alreadyApplied =
-      Boolean(config.quantization_config) &&
+      quantizationMatches(config.quantization_config) &&
       vectorParams?.on_disk === true &&
-      config.optimizer_config.indexing_threshold !== 0;
+      config.optimizer_config.indexing_threshold === INDEXING_THRESHOLD;
 
     if (alreadyApplied) {
       return;
