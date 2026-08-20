@@ -71,17 +71,10 @@ export const liveStateHooks = defineHooks<typeof schema>({
             );
           }
 
-          if (!organizationId) {
-            console.warn(
-              `Skipping thread-read enqueue for message ${value.id}: organization not resolved`
-            );
-            return;
-          }
-
           const queuePriority = value.isBackfill ? "low" : "high";
           const result = await enqueueThreadRead(value.threadId, {
             kind: outbound ? "supersede" : "message",
-            organizationId,
+            ...(organizationId ? { organizationId } : {}),
             priority: queuePriority,
           });
 

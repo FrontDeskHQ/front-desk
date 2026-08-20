@@ -22,9 +22,14 @@ import { isOrganizationFeatureEnabled } from "./feature-flag";
 
 const SUPPORT_INTELLIGENCE_PIPELINE_FLAG = "support-intelligence-pipeline";
 
-/** False when this org should not enqueue worker jobs. Always on outside production. */
-export const areWorkerJobsEnabled = (organizationId: string): boolean =>
+/**
+ * False when this org should not enqueue worker jobs. Always on outside
+ * production. A missing tenant cannot evaluate the flag — keep the durable
+ * enqueue path (the worker skips a thread it cannot hydrate).
+ */
+export const areWorkerJobsEnabled = (organizationId?: string): boolean =>
   process.env.NODE_ENV !== "production" ||
+  organizationId === undefined ||
   isOrganizationFeatureEnabled(
     organizationId,
     SUPPORT_INTELLIGENCE_PIPELINE_FLAG
@@ -51,7 +56,8 @@ export const enqueueThreadRead = async (
   threadId: string,
   opts: {
     kind: ThreadReadKind;
-    organizationId: string;
+    /** Used to evaluate `support-intelligence-pipeline`. Optional so a live-state visibility race can still enqueue. */
+    organizationId?: string;
     /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
     prMatched?: PrMatchCandidate;
   } & EnqueueThreadReadOptions
