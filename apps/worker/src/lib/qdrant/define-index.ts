@@ -295,6 +295,70 @@ export const defineIndex = <
     return collections.collections.some((c) => c.name === name);
   };
 
+  /**
+   * Keeps the RAM-resident copy of a 3072-dimension vector to a quarter of its
+   * float32 size: an int8 quantized copy is pinned in memory and the originals
+   * are served from mmap, read back only to rescore the shortlist.
+   *
+   * `indexing_threshold` must stay above zero. Quantized vectors are produced by
+   * the same optimizer pass that builds the HNSW graph, so a collection that
+   * never indexes never quantizes either, and the config below would be inert.
+   * It also keeps search off a full scan, which with on-disk originals would
+   * pull the entire collection through the page cache on every query.
+   */
+  const INDEXING_THRESHOLD = 20_000;
+
+  const quantizationConfig = {
+    scalar: {
+      always_ram: true,
+      // Clip the top and bottom percentile so a single outlier dimension does
+      // not stretch the int8 range for every other one.
+      quantile: 0.99,
+      type: "int8" as const,
+    },
+  };
+
+  /** The `VectorsConfigDiff` key for this collection's dense vector. */
+  const denseVectorKey = sparse ? "dense" : "";
+
+  /**
+   * Bring an existing collection up to the memory config above. No-op once it
+   * already matches, so this is safe to call on every boot.
+   */
+  const reconcileMemoryConfig = async (): Promise<void> => {
+    const info = await client.getCollection(name);
+    const { config } = info;
+
+    const vectorParams = sparse
+      ? (config.params.vectors as Record<string, { on_disk?: boolean | null }>)
+          ?.dense
+      : (config.params.vectors as { on_disk?: boolean | null } | undefined);
+
+    const alreadyApplied =
+      Boolean(config.quantization_config) &&
+      vectorParams?.on_disk === true &&
+      config.optimizer_config.indexing_threshold !== 0;
+
+    if (alreadyApplied) {
+      return;
+    }
+
+    await client.updateCollection(name, {
+      optimizers_config: { indexing_threshold: INDEXING_THRESHOLD },
+      quantization_config: quantizationConfig,
+      vectors: { [denseVectorKey]: { on_disk: true } },
+    });
+
+    log.info({
+      action: "worker.qdrant",
+      operation: "collection.reconcile_memory_config",
+      collection: name,
+      indexingThreshold: INDEXING_THRESHOLD,
+      quantization: "int8",
+      vectorsOnDisk: true,
+    });
+  };
+
   const toVector = (point: UpsertPoint<TPayload, TSparse>) => {
     const dense = point.vector;
     if (!sparse) {
@@ -313,15 +377,26 @@ export const defineIndex = <
         if (!(await collectionExists())) {
           try {
             await client.createCollection(name, {
-              optimizers_config: { indexing_threshold: 0 },
+              optimizers_config: { indexing_threshold: INDEXING_THRESHOLD },
+              quantization_config: quantizationConfig,
               ...(sparse
                 ? {
                     sparse_vectors: { bm25: { modifier: "idf" as const } },
                     vectors: {
-                      dense: { distance: "Cosine" as const, size: dimensions },
+                      dense: {
+                        distance: "Cosine" as const,
+                        on_disk: true,
+                        size: dimensions,
+                      },
                     },
                   }
-                : { vectors: { distance: "Cosine" as const, size: dimensions } }),
+                : {
+                    vectors: {
+                      distance: "Cosine" as const,
+                      on_disk: true,
+                      size: dimensions,
+                    },
+                  }),
             });
 
             log.info({
@@ -339,6 +414,14 @@ export const defineIndex = <
             }
           }
         }
+
+        // Collections created before quantization was introduced still hold
+        // full float32 vectors in RAM, and a create-time config reaches only new
+        // ones. Patch them in place instead — Qdrant re-quantizes on the next
+        // optimizer pass, with no re-upload from our side. Guarded on the
+        // current config because an unconditional PATCH on every worker boot
+        // would restart that pass each time.
+        await reconcileMemoryConfig();
 
         // Reconciled on every boot, not only on creation: a descriptor can gain
         // a payload index, and a create that died mid-loop leaves the rest
