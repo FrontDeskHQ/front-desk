@@ -404,17 +404,23 @@ export const executePipeline = async (
     });
 
     if (runStates.size === 0) {
-      status = hydratedRunStates.size === 0 ? 404 : 200;
-      const skippedBecauseDisabled = hydratedRunStates.size > 0;
+      const missingCount = input.threadIds.length - hydratedRunStates.size;
+      const disabledCount = hydratedRunStates.size;
+      status =
+        missingCount > 0 && disabledCount === 0
+          ? 404
+          : missingCount > 0
+            ? 207
+            : 200;
       const result: PipelineExecutionResult = {
         duration: performance.now() - startTime,
         jobId: pipelineJobId,
         status: "completed",
         summary: {
           completedProcessors: 0,
-          failedThreads: skippedBecauseDisabled ? 0 : input.threadIds.length,
+          failedThreads: missingCount,
           processedThreads: 0,
-          skippedThreads: skippedBecauseDisabled ? hydratedRunStates.size : 0,
+          skippedThreads: disabledCount,
           totalProcessors: 0,
           totalThreads: input.threadIds.length,
         },
@@ -425,9 +431,12 @@ export const executePipeline = async (
         persistence: { completed: persisted },
         outcome: {
           status: "completed",
-          reason: skippedBecauseDisabled
-            ? "pipeline_disabled"
-            : "no_threads_found",
+          reason:
+            missingCount === 0
+              ? "pipeline_disabled"
+              : disabledCount === 0
+                ? "no_threads_found"
+                : "mixed_missing_and_disabled",
         },
       });
       return result;
@@ -527,8 +536,13 @@ export const executePipeline = async (
       processors: string[];
       turnNumber: number;
     }[] = [];
-    const enabledThreadIds = [...runStates.keys()];
-    const pipelineDisabledCount = hydratedRunStates.size - runStates.size;
+    const pipelineDisabledIds = new Set(
+      [...hydratedRunStates.keys()].filter((id) => !runStates.has(id))
+    );
+    const processorThreadIds = input.threadIds.filter(
+      (id) => !pipelineDisabledIds.has(id)
+    );
+    const pipelineDisabledCount = pipelineDisabledIds.size;
     let completedProcessors = 0;
 
     for (let turnIndex = 0; turnIndex < executionOrder.length; turnIndex++) {
@@ -553,7 +567,7 @@ export const executePipeline = async (
             );
             return {
               processor: processorName,
-              threadResults: enabledThreadIds.map((threadId) => ({
+              threadResults: processorThreadIds.map((threadId) => ({
                 error: `Processor "${processorName}" not found`,
                 success: false as const,
                 threadId,
@@ -561,7 +575,7 @@ export const executePipeline = async (
               stats: {
                 successful: 0,
                 skipped: 0,
-                failed: enabledThreadIds.length,
+                failed: processorThreadIds.length,
               },
             };
           }
@@ -569,7 +583,7 @@ export const executePipeline = async (
           const results = await executeProcessor(
             processor,
             context,
-            enabledThreadIds,
+            processorThreadIds,
             concurrency,
             requestLog
           );
@@ -637,7 +651,7 @@ export const executePipeline = async (
     }
 
     const skippedSet = new Set<string>();
-    for (const threadId of enabledThreadIds) {
+    for (const threadId of processorThreadIds) {
       if (!processedSet.has(threadId) && !failedSet.has(threadId)) {
         skippedSet.add(threadId);
       }
