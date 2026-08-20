@@ -9,19 +9,22 @@ export interface AgentChatContext {
   suggestionsContext: string;
   customInstructions?: string | null;
   currentUserName?: string | null;
-  /**
-   * Whether the `searchThreads` tool is available, i.e. whether a
-   * `searchThreads` implementation was handed to
-   * {@link buildAgentChatTools}. Required rather than defaulted: a default
-   * would let the prompt advertise a tool the model was never given. The
-   * production route sets it to false while thread search is retired
-   * (FRO-224).
-   */
-  threadSearchEnabled: boolean;
 }
 
-export function buildSystemPrompt(ctx: AgentChatContext): string {
-  const threadSearch = ctx.threadSearchEnabled;
+/**
+ * Builds the system prompt for a given tool map.
+ *
+ * `tools` is not decoration: the prompt describes the tools the model has, so
+ * it reads which ones exist off the very map that is handed to the model. A
+ * separate capability flag was tried and rejected — two independent inputs can
+ * disagree, and a prompt that advertises an undeclared tool makes the model
+ * call something that is not there.
+ */
+export function buildSystemPrompt(
+  ctx: AgentChatContext,
+  tools: AgentChatTools
+): string {
+  const threadSearch = "searchThreads" in tools;
   const searchTools = threadSearch
     ? "searchDocumentation and/or searchThreads"
     : "searchDocumentation";
@@ -230,11 +233,29 @@ export interface AgentChatToolImplementations {
   }) => Promise<ListThreadsResult[]>;
 }
 
+/**
+ * Built only when there is something to execute, so the tool is never declared
+ * to the model without a working implementation behind it.
+ */
+function buildSearchThreadsTool(
+  execute: NonNullable<AgentChatToolImplementations["searchThreads"]>
+) {
+  return tool({
+    description:
+      "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
+    inputSchema: z.object({
+      query: z
+        .string()
+        .describe("The search query to find relevant support threads"),
+    }),
+    execute,
+  });
+}
+
 export function buildAgentChatTools(
   implementations: AgentChatToolImplementations
 ) {
-  const searchThreadsImpl = implementations.searchThreads;
-  const tools = {
+  const base = {
     getDraft: tool({
       description:
         "Read the current draft reply. Use this when you need to see the support agent's current draft before making changes.",
@@ -280,16 +301,6 @@ export function buildAgentChatTools(
       }),
       execute: implementations.searchDocumentation,
     }),
-    searchThreads: tool({
-      description:
-        "Search across all support threads in the organization using a text query. Use this to find related issues, check if a problem has been reported before, or find context from past conversations. Results include an _id field. When presenting results to the user, ALWAYS format thread references as [Thread Name](thread:<threadId>) markdown links, substituting each result's _id value.",
-      inputSchema: z.object({
-        query: z
-          .string()
-          .describe("The search query to find relevant support threads"),
-      }),
-      execute: searchThreadsImpl ?? (async () => []),
-    }),
     setDraft: tool({
       description:
         "Draft a reply message for the support agent to send to the customer. This replaces the current draft if one exists. The draft will be shown to the agent for review and editing before sending. Use markdown formatting. You MUST call this tool when the user asks to draft, write, reply, or respond. Do not stop after searching without calling this tool.",
@@ -302,16 +313,28 @@ export function buildAgentChatTools(
     }),
   };
 
-  // Declared above, then removed when there is no implementation — an
-  // undeclared tool is the only way to stop the model from calling something
-  // that cannot work. The return type deliberately keeps the key required:
-  // marking it optional widens the AI SDK's `TypedToolCall` with `undefined`
-  // and breaks tool-call typing for every caller. `threadSearchEnabled` on
-  // `AgentChatContext` is required for the same reason — it is the one switch
-  // callers must set, and it cannot silently disagree with this map.
+  type Tools = typeof base & {
+    searchThreads: ReturnType<typeof buildSearchThreadsTool>;
+  };
+
+  const searchThreadsImpl = implementations.searchThreads;
+
   if (!searchThreadsImpl) {
-    delete (tools as Partial<typeof tools>).searchThreads;
+    // Leaving the tool out is the only way to stop the model from calling
+    // something that cannot work; `buildSystemPrompt` reads this map, so the
+    // prompt drops it too.
+    //
+    // The cast is deliberate. Typing the key as optional widens the AI SDK's
+    // `TypedToolCall` with `undefined`, which breaks tool-call typing for every
+    // caller, so the type stays whole and the runtime map — the one that
+    // actually reaches the model — is what varies.
+    return base as Tools;
   }
 
-  return tools;
+  return {
+    ...base,
+    searchThreads: buildSearchThreadsTool(searchThreadsImpl),
+  } as Tools;
 }
+
+export type AgentChatTools = ReturnType<typeof buildAgentChatTools>;

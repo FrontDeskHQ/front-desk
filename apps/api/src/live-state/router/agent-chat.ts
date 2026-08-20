@@ -312,16 +312,6 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
     // Fetch current user name for personalization
     const currentUser = await db.findOne(schema.user, actor.userId);
 
-    const systemPrompt = buildSystemPrompt({
-      threadMetadata,
-      threadContext,
-      suggestionsContext,
-      customInstructions: org?.customInstructions,
-      currentUserName: currentUser?.name ?? null,
-      // Thread search is retired with the `messages-v1` index (FRO-224).
-      threadSearchEnabled: false,
-    });
-
     // Stream in background — don't await, let the mutation return immediately
     // so the client sees the user message + empty assistant message right away.
     (async () => {
@@ -567,11 +557,25 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
           },
         };
 
+        // `toolImplementations` omits `searchThreads` while thread search is
+        // retired (FRO-224), so the prompt built from this map drops it too.
+        const tools = buildAgentChatTools(toolImplementations);
+        const systemPrompt = buildSystemPrompt(
+          {
+            threadMetadata,
+            threadContext,
+            suggestionsContext,
+            customInstructions: org?.customInstructions,
+            currentUserName: currentUser?.name ?? null,
+          },
+          tools
+        );
+
         const result = streamText({
           model: agentModel(),
           system: systemPrompt,
           messages: conversationHistory,
-          tools: buildAgentChatTools(toolImplementations),
+          tools,
           stopWhen: stepCountIs(12),
         });
 
