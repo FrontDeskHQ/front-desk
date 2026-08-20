@@ -1,0 +1,27 @@
+apps/worker/src/worker.ts
+  s_7400e8eabd8a94::t_1e3eeeb89903ec 519-521
+apps/api/src/live-state/router/message.ts
+  s_7400e8eabd8a94::t_1e3eeeb89903ec 13-14,232-237,243-261
+apps/api/src/lib/search/qdrant.ts
+  s_7400e8eabd8a94::t_1e3eeeb89903ec 8-9,17-27,32,35-89
+apps/api/src/live-state/router/agent-chat.ts
+  s_7400e8eabd8a94::t_1e3eeeb89903ec 13-15,383-471
+apps/worker/src/pipeline/processors/registration.ts
+  s_7400e8eabd8a94::t_1e3eeeb89903ec 14-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "685c3b1588e540ad40dcdc65c2f22bfa3aecc385",
+  "prompts": {},
+  "sessions": {
+    "s_7400e8eabd8a94": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d23865f5-9928-4855-af6a-778855a82688",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
