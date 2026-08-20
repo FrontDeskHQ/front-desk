@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 
 import { createLogger } from "@workspace/utils/logging";
+import { areWorkerJobsEnabled } from "api/feature-flag";
 
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
@@ -385,28 +386,35 @@ export const executePipeline = async (
     requestLog.set({ persistence: { markedRunning } });
 
     const fetchStartTime = performance.now();
-    const runStates = await hydrateRunStates(input.threadIds);
+    const hydratedRunStates = await hydrateRunStates(input.threadIds);
+    const runStates = new Map(
+      [...hydratedRunStates.entries()].filter(([, run]) =>
+        areWorkerJobsEnabled(run.organizationId)
+      )
+    );
     const fetchTime = performance.now() - fetchStartTime;
     requestLog.set({
       fetch: {
         requestedCount: input.threadIds.length,
-        fetchedCount: runStates.size,
-        missingCount: input.threadIds.length - runStates.size,
+        fetchedCount: hydratedRunStates.size,
+        missingCount: input.threadIds.length - hydratedRunStates.size,
+        pipelineDisabledCount: hydratedRunStates.size - runStates.size,
         durationMs: fetchTime,
       },
     });
 
     if (runStates.size === 0) {
-      status = 404;
+      status = hydratedRunStates.size === 0 ? 404 : 200;
+      const skippedBecauseDisabled = hydratedRunStates.size > 0;
       const result: PipelineExecutionResult = {
         duration: performance.now() - startTime,
         jobId: pipelineJobId,
         status: "completed",
         summary: {
           completedProcessors: 0,
-          failedThreads: input.threadIds.length,
+          failedThreads: skippedBecauseDisabled ? 0 : input.threadIds.length,
           processedThreads: 0,
-          skippedThreads: 0,
+          skippedThreads: skippedBecauseDisabled ? hydratedRunStates.size : 0,
           totalProcessors: 0,
           totalThreads: input.threadIds.length,
         },
@@ -415,7 +423,12 @@ export const executePipeline = async (
       const persisted = await completePipelineJob(pipelineJobId, result);
       requestLog.set({
         persistence: { completed: persisted },
-        outcome: { status: "completed", reason: "no_threads_found" },
+        outcome: {
+          status: "completed",
+          reason: skippedBecauseDisabled
+            ? "pipeline_disabled"
+            : "no_threads_found",
+        },
       });
       return result;
     }

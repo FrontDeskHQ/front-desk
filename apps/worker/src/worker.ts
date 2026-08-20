@@ -21,7 +21,7 @@ import {
 } from "@workspace/utils/logging";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
-
+import { areWorkerJobsEnabled } from "api/feature-flag";
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleIndexIssue } from "./handlers/index-issue";
 import { handleIndexPr } from "./handlers/index-pr";
@@ -194,6 +194,9 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
     const supersedeCleared = hasSupersede
       ? await (async () => {
           const run = (await hydrateRunStates([threadId])).get(threadId);
+          if (run && !areWorkerJobsEnabled(run.organizationId)) {
+            return "pipeline_disabled" as const;
+          }
           if (run && synthesisTriggers.length === 0) {
             supersedeAudit = await startSupersedeAudit(run, job, {
               bullmqJobId,
@@ -206,6 +209,18 @@ const handleThreadReadJob = async (job: Job<ThreadReadJobData>) => {
           return Boolean(run);
         })()
       : undefined;
+
+    if (supersedeCleared === "pipeline_disabled") {
+      requestLog.set({
+        outcome: { status: "skipped", reason: "pipeline_disabled" },
+      });
+      return {
+        bullmqJobId: job.id,
+        kind: "supersede",
+        status: "skipped",
+        threadId,
+      };
+    }
 
     if (synthesisTriggers.length === 0) {
       requestLog.set({

@@ -18,22 +18,7 @@ import { Queue } from "bullmq";
 import type Redis from "ioredis";
 
 import "../env";
-import { isOrganizationFeatureEnabled } from "./feature-flag";
-
-const SUPPORT_INTELLIGENCE_PIPELINE_FLAG = "support-intelligence-pipeline";
-
-/**
- * False when this org should not enqueue worker jobs. Always on outside
- * production. A missing tenant cannot evaluate the flag — keep the durable
- * enqueue path (the worker skips a thread it cannot hydrate).
- */
-export const areWorkerJobsEnabled = (organizationId?: string): boolean =>
-  process.env.NODE_ENV !== "production" ||
-  organizationId === undefined ||
-  isOrganizationFeatureEnabled(
-    organizationId,
-    SUPPORT_INTELLIGENCE_PIPELINE_FLAG
-  );
+import { areWorkerJobsEnabled } from "./feature-flag";
 
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
@@ -62,7 +47,13 @@ export const enqueueThreadRead = async (
     prMatched?: PrMatchCandidate;
   } & EnqueueThreadReadOptions
 ): Promise<ThreadReadEnqueueResult> => {
-  if (!areWorkerJobsEnabled(opts.organizationId)) {
+  // A missing tenant cannot evaluate the flag at enqueue time. Still enqueue
+  // so a live-state visibility race does not drop the trigger; the worker
+  // re-checks `areWorkerJobsEnabled` after it hydrates the thread.
+  if (
+    opts.organizationId !== undefined &&
+    !areWorkerJobsEnabled(opts.organizationId)
+  ) {
     return {
       disposition: "skipped",
       jobId: null,

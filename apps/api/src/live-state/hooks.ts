@@ -4,8 +4,9 @@ import {
   isOutbound,
 } from "@workspace/schemas/message-roles";
 
+import { areWorkerJobsEnabled } from "../lib/feature-flag";
 import { isOrganizationMember } from "../lib/organization-membership";
-import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
+import { enqueueThreadRead } from "../lib/queue";
 import { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
@@ -80,7 +81,8 @@ export const liveStateHooks = defineHooks<typeof schema>({
 
           if (
             result.reason === "queue_unavailable" &&
-            areWorkerJobsEnabled(organizationId)
+            (organizationId === undefined ||
+              areWorkerJobsEnabled(organizationId))
           ) {
             const outcome =
               result.disposition === "buffered"
