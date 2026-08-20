@@ -9,9 +9,22 @@ export interface AgentChatContext {
   suggestionsContext: string;
   customInstructions?: string | null;
   currentUserName?: string | null;
+  /**
+   * Whether the `searchThreads` tool is available. Defaults to true; the
+   * production route turns it off while thread search is retired (FRO-224) so
+   * the prompt never advertises a tool the model cannot actually use.
+   */
+  threadSearchEnabled?: boolean;
 }
 
 export function buildSystemPrompt(ctx: AgentChatContext): string {
+  const threadSearch = ctx.threadSearchEnabled ?? true;
+  const searchTools = threadSearch
+    ? "searchDocumentation and/or searchThreads"
+    : "searchDocumentation";
+  const lookupTools = threadSearch
+    ? "searchThreads, searchDocumentation, or listThreads"
+    : "searchDocumentation or listThreads";
   return `You are a helpful AI assistant for a customer support team. You have access to the following support thread for context.
 
 ${ctx.currentUserName ? `You are chatting with ${ctx.currentUserName}, a support agent on this team. Address them by name when appropriate.\n\n` : ""}## Thread Details
@@ -27,8 +40,7 @@ You also have a tool called "setDraft" that lets you draft a reply message for t
 You also have a tool called "getDraft" that lets you read the current draft reply. Use it when the user asks about or references their current draft, or when you need to see the draft before making modifications. The support agent may have edited the draft manually, so always use getDraft to read the latest version before updating it with setDraft.
 
 You also have tools to explore other support threads in the organization:
-- "searchThreads": Search across all support threads using a text query. Use it to find related issues, check if a problem has been reported before, or find context from past conversations.
-- "getThread": Read the full details and messages of a specific thread by its ID. Use it after finding a thread via search to get the complete conversation.
+${threadSearch ? `- "searchThreads": Search across all support threads using a text query. Use it to find related issues, check if a problem has been reported before, or find context from past conversations.\n` : ""}- "getThread": Read the full details and messages of a specific thread by its ID. Use it after finding a thread via search to get the complete conversation.
 - "listThreads": Browse recent support threads, optionally filtered by status or priority. Use it to get an overview of current issues or find threads with a specific status.
 ${ctx.customInstructions ? `\n## Custom Instructions\n${ctx.customInstructions}\n` : ""}
 Use the thread context to help answer questions about this support thread. Be concise and helpful.
@@ -39,8 +51,8 @@ IMPORTANT: When mentioning threads in your responses, ALWAYS use markdown link s
 Follow these rules to decide which tools to use:
 
 1. **If the user asks to UPDATE or EDIT an existing draft** → call getDraft, then setDraft. Do NOT search.
-2. **If the user asks to draft, write, reply, compose, or respond** → search for context using searchDocumentation and/or searchThreads (you may retry once with a different query if the first returns no results), then MUST call setDraft. Do not search more than twice per tool. Always draft based on whatever context you have — even if all searches return empty, use the thread messages to write the draft.
-3. **If the user asks to search, look up, find, or list** → use ONLY the requested tool (searchThreads, searchDocumentation, or listThreads). Do NOT call setDraft. Present results and stop.
+2. **If the user asks to draft, write, reply, compose, or respond** → search for context using ${searchTools} (you may retry once with a different query if the first returns no results), then MUST call setDraft. Do not search more than twice per tool. Always draft based on whatever context you have — even if all searches return empty, use the thread messages to write the draft.
+3. **If the user asks to search, look up, find, or list** → use ONLY the requested tool (${lookupTools}). Do NOT call setDraft. Present results and stop.
 4. **If the user asks a question about this thread** → answer from context. No tools needed unless the answer requires external information.
 
 IMPORTANT: In rules 1-3, use ONLY the tools listed. Do not add extra tools like listThreads or getThread unless the user specifically asks for them or suggestions mention a related thread to read. Only retry a tool when explicitly allowed above (e.g., rule 2); otherwise use one call per tool.
@@ -200,7 +212,11 @@ export interface AgentChatToolImplementations {
     content: string | null;
   }>;
   setDraft: (args: { content: string }) => Promise<{ success: boolean }>;
-  searchThreads: (args: { query: string }) => Promise<SearchThreadsResult[]>;
+  /**
+   * Optional: when omitted the `searchThreads` tool is not declared to the
+   * model at all. Pair with `threadSearchEnabled: false` on the system prompt.
+   */
+  searchThreads?: (args: { query: string }) => Promise<SearchThreadsResult[]>;
   getThread: (args: {
     threadId: string;
   }) => Promise<GetThreadResult | { error: string }>;
@@ -214,7 +230,8 @@ export interface AgentChatToolImplementations {
 export function buildAgentChatTools(
   implementations: AgentChatToolImplementations
 ) {
-  return {
+  const searchThreadsImpl = implementations.searchThreads;
+  const tools = {
     getDraft: tool({
       description:
         "Read the current draft reply. Use this when you need to see the support agent's current draft before making changes.",
@@ -268,7 +285,7 @@ export function buildAgentChatTools(
           .string()
           .describe("The search query to find relevant support threads"),
       }),
-      execute: implementations.searchThreads,
+      execute: searchThreadsImpl ?? (async () => []),
     }),
     setDraft: tool({
       description:
@@ -281,4 +298,13 @@ export function buildAgentChatTools(
       execute: implementations.setDraft,
     }),
   };
+
+  // Declared above so the object keeps a concrete type for callers, then
+  // removed when there is no implementation — an undeclared tool is the only
+  // way to stop the model from calling something that cannot work.
+  if (!searchThreadsImpl) {
+    delete (tools as Partial<typeof tools>).searchThreads;
+  }
+
+  return tools;
 }
