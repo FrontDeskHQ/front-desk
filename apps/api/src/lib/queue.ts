@@ -18,13 +18,17 @@ import { Queue } from "bullmq";
 import type Redis from "ioredis";
 
 import "../env";
+import { isOrganizationFeatureEnabled } from "./feature-flag";
 
-// TEMP: Worker service stopped on Railway — re-enable in prod when worker is
-// back. Always enabled in development so the pipeline can run locally.
-const WORKER_JOBS_DISABLED = process.env.NODE_ENV === "production";
+const SUPPORT_INTELLIGENCE_PIPELINE_FLAG = "support-intelligence-pipeline";
 
-/** False when worker enqueue is intentionally skipped (e.g. prod without worker service). */
-export const areWorkerJobsEnabled = (): boolean => !WORKER_JOBS_DISABLED;
+/** False when this org should not enqueue worker jobs. Always on outside production. */
+export const areWorkerJobsEnabled = (organizationId: string): boolean =>
+  process.env.NODE_ENV !== "production" ||
+  isOrganizationFeatureEnabled(
+    organizationId,
+    SUPPORT_INTELLIGENCE_PIPELINE_FLAG
+  );
 
 const CRAWL_DOCUMENTATION_QUEUE = "crawl-documentation";
 const PR_INDEX_QUEUE = "pr-index";
@@ -47,11 +51,12 @@ export const enqueueThreadRead = async (
   threadId: string,
   opts: {
     kind: ThreadReadKind;
+    organizationId: string;
     /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
     prMatched?: PrMatchCandidate;
   } & EnqueueThreadReadOptions
 ): Promise<ThreadReadEnqueueResult> => {
-  if (WORKER_JOBS_DISABLED) {
+  if (!areWorkerJobsEnabled(opts.organizationId)) {
     return {
       disposition: "skipped",
       jobId: null,
@@ -121,7 +126,7 @@ const getCrawlDocQueue = (): Queue<CrawlDocumentationJobData> | null => {
 export const enqueueCrawlDocumentation = async (
   data: CrawlDocumentationJobData
 ): Promise<string | null> => {
-  if (WORKER_JOBS_DISABLED) {
+  if (!areWorkerJobsEnabled(data.organizationId)) {
     return null;
   }
 
@@ -170,7 +175,7 @@ const getPrIndexQueue = (): Queue<PrIndexJobData> | null => {
 export const enqueuePrIndex = async (
   data: PrIndexJobData
 ): Promise<string | null> => {
-  if (WORKER_JOBS_DISABLED) {
+  if (!areWorkerJobsEnabled(data.organizationId)) {
     return null;
   }
 
@@ -236,7 +241,7 @@ const getIssueIndexQueue = (): Queue<IssueIndexJobData> | null => {
 export const enqueueIssueIndex = async (
   data: IssueIndexJobData
 ): Promise<string | null> => {
-  if (WORKER_JOBS_DISABLED) {
+  if (!areWorkerJobsEnabled(data.organizationId)) {
     return null;
   }
 

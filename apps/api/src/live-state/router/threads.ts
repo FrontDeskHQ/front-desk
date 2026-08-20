@@ -686,6 +686,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     return enqueueThreadRead(req.input.threadId, {
       delayMs: 0,
       kind: "manual",
+      organizationId: req.input.organizationId,
       priority: "high",
     });
   }),
