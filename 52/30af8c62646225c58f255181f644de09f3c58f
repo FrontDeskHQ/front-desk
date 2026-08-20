@@ -1,0 +1,20 @@
+apps/worker/src/lib/qdrant/define-index.ts
+  s_7400e8eabd8a94::t_902f146850c6a0 355
+  s_7400e8eabd8a94::t_8178ff35b57dd8 311-316,320,328-354,356-365,380,382
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5230af8c62646225c58f255181f644de09f3c58f",
+  "prompts": {},
+  "sessions": {
+    "s_7400e8eabd8a94": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "d23865f5-9928-4855-af6a-778855a82688",
+        "model": "claude-opus-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
