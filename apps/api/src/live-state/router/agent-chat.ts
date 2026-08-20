@@ -10,7 +10,9 @@ import {
   authorizeOwnedAgentChat,
   authorizeWorkspaceOrgMember,
 } from "../../lib/authorize";
-import { searchDocumentation, searchMessages } from "../../lib/search/qdrant";
+// `searchMessages` is retired with `messages-v1` (FRO-224); see the commented
+// searchThreads implementation below.
+import { searchDocumentation } from "../../lib/search/qdrant";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import {
@@ -378,89 +380,96 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
             });
             return { success: true };
           },
-          searchThreads: async ({ query }) => {
-            console.log(
-              `[agent-chat] Tool call: searchThreads query="${query}"`
-            );
-            const results = await searchMessages({
-              query,
-              organizationId,
-              limit: 15,
-            });
+          // Stubbed with the `messages-v1` index it searched (FRO-224). The
+          // tool stays declared to the model so the prompt and evals keep their
+          // shape; it just finds nothing until search is rebuilt on a substrate
+          // that does not need a per-message vector index.
+          searchThreads: async () => [],
 
-            // Deduplicate by threadId, keeping highest score per thread
-            const threadMap = new Map<
-              string,
-              { messageId: string; threadId: string; score: number }
-            >();
-            for (const r of results) {
-              if (r.threadId === agentChat.threadId) continue;
-              const existing = threadMap.get(r.threadId);
-              if (!existing || r.score > existing.score) {
-                threadMap.set(r.threadId, r);
-              }
-            }
+          // searchThreads: async ({ query }) => {
+          //   console.log(
+          //     `[agent-chat] Tool call: searchThreads query="${query}"`
+          //   );
+          //   const results = await searchMessages({
+          //     query,
+          //     organizationId,
+          //     limit: 15,
+          //   });
+          //
+          //   // Deduplicate by threadId, keeping highest score per thread
+          //   const threadMap = new Map<
+          //     string,
+          //     { messageId: string; threadId: string; score: number }
+          //   >();
+          //   for (const r of results) {
+          //     if (r.threadId === agentChat.threadId) continue;
+          //     const existing = threadMap.get(r.threadId);
+          //     if (!existing || r.score > existing.score) {
+          //       threadMap.set(r.threadId, r);
+          //     }
+          //   }
+          //
+          //   const uniqueResults = [...threadMap.values()]
+          //     .toSorted((a, b) => b.score - a.score)
+          //     .slice(0, 8);
+          //
+          //   const enriched = await Promise.all(
+          //     uniqueResults.map(async (r) => {
+          //       const [foundThread, message] = await Promise.all([
+          //         db
+          //           .find(schema.thread, {
+          //             where: {
+          //               id: r.threadId,
+          //               organizationId,
+          //               deletedAt: null,
+          //             },
+          //           })
+          //           .then((res) => Object.values(res)[0] ?? null),
+          //         db.findOne(schema.message, r.messageId),
+          //       ]);
+          //
+          //       if (!foundThread) {
+          //         return null;
+          //       }
+          //
+          //       const author = foundThread.authorId
+          //         ? await db.findOne(schema.author, foundThread.authorId)
+          //         : null;
+          //
+          //       let snippet = "";
+          //       if (message) {
+          //         snippet = jsonContentToPlainText(
+          //           safeParseJSON(message.content)
+          //         );
+          //         if (snippet.length > 300) {
+          //           snippet = `${snippet.slice(0, 300)}...`;
+          //         }
+          //       }
+          //
+          //       return {
+          //         _id: r.threadId,
+          //         name: foundThread.name,
+          //         status: statusLabels[foundThread.status ?? 0] ?? "Unknown",
+          //         priority: priorityLabels[foundThread.priority ?? 0] ?? "None",
+          //         author: author?.name ?? "Unknown",
+          //         createdAt: foundThread.createdAt
+          //           ? new Date(foundThread.createdAt).toISOString()
+          //           : "Unknown",
+          //         matchingMessageSnippet: snippet,
+          //         score: r.score,
+          //       };
+          //     })
+          //   );
+          //
+          //   const filtered = enriched.filter(
+          //     (item): item is NonNullable<typeof item> => item !== null
+          //   );
+          //   console.log(
+          //     `[agent-chat] searchThreads returned ${filtered.length} threads`
+          //   );
+          //   return filtered;
+          // },
 
-            const uniqueResults = [...threadMap.values()]
-              .toSorted((a, b) => b.score - a.score)
-              .slice(0, 8);
-
-            const enriched = await Promise.all(
-              uniqueResults.map(async (r) => {
-                const [foundThread, message] = await Promise.all([
-                  db
-                    .find(schema.thread, {
-                      where: {
-                        id: r.threadId,
-                        organizationId,
-                        deletedAt: null,
-                      },
-                    })
-                    .then((res) => Object.values(res)[0] ?? null),
-                  db.findOne(schema.message, r.messageId),
-                ]);
-
-                if (!foundThread) {
-                  return null;
-                }
-
-                const author = foundThread.authorId
-                  ? await db.findOne(schema.author, foundThread.authorId)
-                  : null;
-
-                let snippet = "";
-                if (message) {
-                  snippet = jsonContentToPlainText(
-                    safeParseJSON(message.content)
-                  );
-                  if (snippet.length > 300) {
-                    snippet = `${snippet.slice(0, 300)}...`;
-                  }
-                }
-
-                return {
-                  _id: r.threadId,
-                  name: foundThread.name,
-                  status: statusLabels[foundThread.status ?? 0] ?? "Unknown",
-                  priority: priorityLabels[foundThread.priority ?? 0] ?? "None",
-                  author: author?.name ?? "Unknown",
-                  createdAt: foundThread.createdAt
-                    ? new Date(foundThread.createdAt).toISOString()
-                    : "Unknown",
-                  matchingMessageSnippet: snippet,
-                  score: r.score,
-                };
-              })
-            );
-
-            const filtered = enriched.filter(
-              (item): item is NonNullable<typeof item> => item !== null
-            );
-            console.log(
-              `[agent-chat] searchThreads returned ${filtered.length} threads`
-            );
-            return filtered;
-          },
           getThread: async ({ threadId }) => {
             console.log(
               `[agent-chat] Tool call: getThread threadId="${threadId}"`

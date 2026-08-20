@@ -33,7 +33,6 @@ import {
 } from "./lib/logging";
 import { documentationIndex } from "./lib/qdrant/documentation";
 import { issueIndex } from "./lib/qdrant/issues";
-import { messageIndex } from "./lib/qdrant/messages";
 import { prIndex } from "./lib/qdrant/pull-requests";
 import { threadIndex } from "./lib/qdrant/threads";
 import { createAgentRunAudit } from "./pipeline/core/agent-run-audit";
@@ -517,13 +516,9 @@ const initialize = async () => {
     });
 
     // Ensure Qdrant collections exist
-    const indexes = [
-      threadIndex,
-      messageIndex,
-      documentationIndex,
-      prIndex,
-      issueIndex,
-    ];
+    // `messageIndex` is absent: nothing writes to `messages-v1` any more, and
+    // ensuring it would recreate the collection after it is dropped in Qdrant.
+    const indexes = [threadIndex, documentationIndex, prIndex, issueIndex];
     const readiness = await Promise.all(
       indexes.map(async (index) => [index.name, await index.ensure()] as const)
     );
