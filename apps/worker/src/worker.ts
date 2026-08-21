@@ -19,9 +19,10 @@ import {
   initSharedLogger,
   log,
 } from "@workspace/utils/logging";
+import { areWorkerJobsEnabled, initializeFeatureFlags } from "api/feature-flag";
 import { Worker } from "bullmq";
 import type { Job } from "bullmq";
-import { areWorkerJobsEnabled } from "api/feature-flag";
+
 import { handleCrawlDocumentation } from "./handlers/crawl-documentation";
 import { handleIndexIssue } from "./handlers/index-issue";
 import { handleIndexPr } from "./handlers/index-pr";
@@ -522,6 +523,9 @@ const initialize = async () => {
   let status = 200;
 
   try {
+    await initializeFeatureFlags();
+    requestLog.set({ featureFlags: { initialized: true } });
+
     const processorNames = registerDefaultProcessors();
     requestLog.set({
       processors: {
