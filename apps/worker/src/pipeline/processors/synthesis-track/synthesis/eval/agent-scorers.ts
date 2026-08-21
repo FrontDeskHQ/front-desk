@@ -258,7 +258,7 @@ export const targetedIssueSearch = createScorer<In, Out, Expected>({
     "Requires issue creation to be preceded by a query that covers its concrete symptom.",
   name: "Targeted Issue Search",
   scorer: ({ output }) => {
-    const createIssues = output.raw.primary.filter(
+    const createIssues = allActions(output).filter(
       (action) => action.kind === "create_issue"
     );
     if (createIssues.length === 0) {
