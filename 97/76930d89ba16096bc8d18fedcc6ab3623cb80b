@@ -1,0 +1,21 @@
+docs/adr/0019-one-evolving-thread-digest.md
+  s_808afbae2ff001::t_83744396b65734 1-24
+CONTEXT.md
+  s_808afbae2ff001::t_83744396b65734 39-42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9776930d89ba16096bc8d18fedcc6ab3623cb80b",
+  "prompts": {},
+  "sessions": {
+    "s_808afbae2ff001": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a02569-3c4e-73d3-99ac-ef3df580aea0",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
