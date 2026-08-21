@@ -244,7 +244,8 @@ These are leads, not confirmed links. Read a candidate with read_pr and confirm 
       ? [
           "- On a strong `related_issues` hit, prefer link_issue over create_issue. Filing a duplicate issue is worse than linking an existing one — including a CLOSED one, which often means the problem is already fixed and is the strongest reason not to file again.",
           "- Emit at most one issue action (link_issue or create_issue) across primary and alternatives combined — a thread links a single issue. NEVER put link_issue and create_issue in the same primary array; they cannot both run.",
-          "- Only emit create_issue for a concrete, reproducible defect or a specific actionable request that no existing issue covers. A question, a how-to, or a vague complaint is not grounds for create_issue.",
+          "- Before emitting create_issue, use search_issues with the current concrete symptom or request. Only file after that targeted search returns no covering issue; if it returns a candidate, verify it with read_issue and prefer link_issue when it genuinely covers the case.",
+          "- Only emit create_issue for an actionable defect or a specific actionable request that no existing issue covers. The customer does not need developer-grade diagnostics or repeated reproduction: reporting a named server-side error after trying remediation prescribed earlier in the thread is concrete enough for create_issue. Bundle it with a reply that acknowledges the escalation and asks for any diagnostics engineering will need. A question, a how-to, or a vague complaint such as only 'still not working' is not grounds for create_issue.",
         ]
       : [
           "- Emit at most one link_issue across primary and alternatives combined — a thread links a single issue.",
