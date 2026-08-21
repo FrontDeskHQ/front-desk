@@ -21,6 +21,11 @@
     "./plugins/subdomain-oauth": {
       "types": "./src/lib/plugins/subdomain-oauth.ts"
     },
+    "./feature-flag": {
+      "types": "./src/lib/feature-flag.ts",
+      "import": "./src/lib/feature-flag.ts",
+      "default": "./src/lib/feature-flag.ts"
+    },
     "./queue": {
       "types": "./src/lib/queue.ts",
       "import": "./src/lib/queue.ts",

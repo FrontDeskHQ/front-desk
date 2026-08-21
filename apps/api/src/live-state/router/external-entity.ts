@@ -155,6 +155,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
 
       const result = await enqueueThreadRead(threadId, {
         kind: "pr_matched",
+        organizationId,
         prMatched: {
           prId: pr.id,
           url: pr.url,

@@ -4,8 +4,9 @@ import {
   isOutbound,
 } from "@workspace/schemas/message-roles";
 
+import { areWorkerJobsEnabled } from "../lib/feature-flag";
 import { isOrganizationMember } from "../lib/organization-membership";
-import { areWorkerJobsEnabled, enqueueThreadRead } from "../lib/queue";
+import { enqueueThreadRead } from "../lib/queue";
 import { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
@@ -30,12 +31,14 @@ export const liveStateHooks = defineHooks<typeof schema>({
           // with an author it cannot place: a redundant read is visible and
           // self-limiting, a trigger dropped on a transient error is neither.
           let outbound = false;
+          let organizationId: string | undefined;
           try {
             // Hooks receive the raw storage handle, not the `db.<collection>`
             // proxy the ServerDB type advertises, so the collection accessors
             // are undefined here — findOne/find are what actually exist.
             const thread = await db.findOne(schema.thread, value.threadId);
             if (thread) {
+              organizationId = thread.organizationId;
               const author = value.authorId
                 ? await db.findOne(schema.author, value.authorId)
                 : undefined;
@@ -57,6 +60,10 @@ export const liveStateHooks = defineHooks<typeof schema>({
               console.info(
                 `Thread ${value.threadId} not yet visible while classifying message ${value.id}; treating it as inbound`
               );
+              if (value.authorId) {
+                const author = await db.findOne(schema.author, value.authorId);
+                organizationId = author?.organizationId ?? undefined;
+              }
             }
           } catch (error) {
             console.error(
@@ -68,10 +75,15 @@ export const liveStateHooks = defineHooks<typeof schema>({
           const queuePriority = value.isBackfill ? "low" : "high";
           const result = await enqueueThreadRead(value.threadId, {
             kind: outbound ? "supersede" : "message",
+            ...(organizationId ? { organizationId } : {}),
             priority: queuePriority,
           });
 
-          if (result.reason === "queue_unavailable" && areWorkerJobsEnabled()) {
+          if (
+            result.reason === "queue_unavailable" &&
+            (organizationId === undefined ||
+              areWorkerJobsEnabled(organizationId))
+          ) {
             const outcome =
               result.disposition === "buffered"
                 ? "buffered durably and awaiting recovery"
