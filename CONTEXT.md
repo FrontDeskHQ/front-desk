@@ -36,6 +36,10 @@ The page (formerly `/signals`) where thread reads — and, once built, [pattern 
 
 A [processor](#processor) that prepares raw thread data for everything downstream — summarisation, embedding, message extraction. Its output is _processor-facing_, never user-facing. Both the label classifier behind [inline suggestions](#inline-suggestion) and the [synthesis track](#read-hint) consume entry-processor output.
 
+### Thread digest
+
+The normalized, processor-facing description of a thread's current unresolved case. It evolves as material follow-ups change the understanding while retaining earlier causal context; it is distinct from the human-facing summary inside a [thread read](#thread-read). _Avoid_: "initial summary", "canonical summary", or treating it as immutable history.
+
 ### Read hint
 
 Evidence about a thread, computed eagerly by a [hint processor](#hint-processor) and read by [synthesis](#synthesis). A hint is _evidence, not an action_: "thread #482 looks like a duplicate, score 0.91", "these three docs are relevant", "these open PRs look related". Synthesis — not the hint processor — decides whether that evidence becomes an action. Hints provide **breadth** (always-on detectors that surface leads); synthesis tools provide **depth** (on-demand investigation of a lead). Persisted per-processor so synthesis sees a complete bag even when individual hint processors skip on unchanged inputs.

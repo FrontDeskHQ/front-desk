@@ -12,8 +12,10 @@
     "eval:labels": "evalite src/pipeline/processors/inline-track/label/eval/label.eval.ts",
     "eval:duplicate": "evalite src/pipeline/processors/synthesis-track/duplicate/eval/duplicate.eval.ts",
     "eval:related-docs": "evalite src/pipeline/processors/synthesis-track/related_docs/eval/related-docs.eval.ts",
+    "eval:summarize-current-case": "evalite src/pipeline/processors/summarize/eval/current-case.eval.ts",
     "eval:synthesis": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis.eval.ts",
-    "eval:synthesis-agent": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts"
+    "eval:synthesis-agent": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-agent.eval.ts",
+    "eval:synthesis-escalation": "evalite src/pipeline/processors/synthesis-track/synthesis/eval/synthesis-escalation.eval.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^4.0.42",

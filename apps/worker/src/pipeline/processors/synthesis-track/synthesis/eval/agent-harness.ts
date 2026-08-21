@@ -13,6 +13,7 @@ type ToolOutput<T> = T extends Tool<infer _I, infer O> ? O : never;
 type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
 type ReadPrOutput = ToolOutput<SynthesisTools["read_pr"]>;
 type ReadIssueOutput = ToolOutput<SynthesisTools["read_issue"]>;
+type SearchIssuesOutput = ToolOutput<SynthesisTools["search_issues"]>;
 
 export interface ToolCallCounters {
   read_thread: number;
@@ -41,6 +42,7 @@ export interface SynthesisAgentRunResult {
   error: string | null;
   raw: SynthesisRawActionSet;
   toolCalls: ToolCallCounters;
+  issueSearchQueries: string[];
   verifiedReads: VerifiedReadUrls;
 }
 
@@ -74,6 +76,7 @@ export const createMockTools = (
 ): {
   tools: SynthesisTools;
   counters: ToolCallCounters;
+  issueSearchQueries: string[];
   /** Populated as the run reads; snapshot after `synthesizeThreadRead` returns. */
   verifiedIssueUrls: Set<string>;
   verifiedPrUrls: Set<string>;
@@ -89,6 +92,7 @@ export const createMockTools = (
 
   const verifiedIssueUrls = new Set<string>();
   const verifiedPrUrls = new Set<string>();
+  const issueSearchQueries: string[] = [];
 
   const tools: SynthesisTools = {
     read_documentation_page: tool({
@@ -179,18 +183,25 @@ export const createMockTools = (
         query: z.string(),
         limit: z.number().int().min(1).max(10).optional(),
       }),
-      execute: async ({ query, limit }) => {
+      execute: async ({ query, limit }): Promise<SearchIssuesOutput> => {
         counters.search_issues++;
+        issueSearchQueries.push(query);
         const hits = (fixtures.issueSearchHitsByQuery?.[query] ?? []).slice(
           0,
           limit ?? DEFAULT_SEARCH_LIMIT
         );
-        return { hits };
+        return { hits, status: "ok" as const };
       },
     }),
   };
 
-  return { counters, tools, verifiedIssueUrls, verifiedPrUrls };
+  return {
+    counters,
+    issueSearchQueries,
+    tools,
+    verifiedIssueUrls,
+    verifiedPrUrls,
+  };
 };
 
 /**
@@ -203,8 +214,13 @@ export const createMockTools = (
 export const runSynthesisAgentCase = async (
   input: SynthesisAgentEvalInput
 ): Promise<SynthesisAgentRunResult> => {
-  const { tools, counters, verifiedIssueUrls, verifiedPrUrls } =
-    createMockTools(input.toolFixtures);
+  const {
+    tools,
+    counters,
+    issueSearchQueries,
+    verifiedIssueUrls,
+    verifiedPrUrls,
+  } = createMockTools(input.toolFixtures);
 
   let raw: SynthesisRawActionSet = emptyActionSet;
   let error: string | null = null;
@@ -218,6 +234,7 @@ export const runSynthesisAgentCase = async (
     error,
     raw,
     toolCalls: counters,
+    issueSearchQueries,
     verifiedReads: { issues: [...verifiedIssueUrls], prs: [...verifiedPrUrls] },
   };
 };

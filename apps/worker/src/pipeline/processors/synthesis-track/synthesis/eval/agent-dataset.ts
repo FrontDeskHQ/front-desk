@@ -1465,7 +1465,8 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
                 repoFullName: "acme/api",
                 score: 0.93,
                 state: "open",
-                title: "Scheduled reports send in UTC regardless of org timezone",
+                title:
+                  "Scheduled reports send in UTC regardless of org timezone",
                 url: "https://github.com/acme/api/issues/412",
               },
             ],
@@ -1765,6 +1766,129 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
     },
   },
   {
+    expected: {
+      minToolCalls: { search_issues: 1 },
+      mustExcludePrimaryKinds: ["link_issue"],
+      mustIncludePrimaryKinds: ["create_issue", "reply"],
+      replyMustOmitIssueReference: true,
+      replyMustContainAll: ["engineering"],
+      replyMustContainAny: ["diagnostic", "logs", "request id", "timestamp"],
+      requiresReplyDraft: true,
+    },
+    input: {
+      availability: { create_issue: true },
+      hasTeamReply: true,
+      hints: {},
+      sourceInputMessageId: "tes1m4",
+      summary: {
+        entities: ["FrontDesk API", "widget", "API key"],
+        expectedAction: "configuration guidance",
+        keywords: ["API key rotation", "widget load failure", "authentication"],
+        shortDescription:
+          "After rotating the API key, the widget fails to load and may still reference the old key.",
+        title: "Widget fails to load after API key rotation",
+      },
+      threadId: "tes1",
+      threadMessages: [
+        {
+          id: "tes1m1",
+          authorId: "ces1",
+          role: "customer",
+          createdAt: now,
+          content:
+            "We rotated our API key this morning and now the widget won't load.",
+        },
+        {
+          id: "tes1m2",
+          authorId: "team1",
+          role: "teammate",
+          createdAt: now,
+          content:
+            "Update the publicKey in the widget client, then rebuild and redeploy the application.",
+        },
+        {
+          id: "tes1m3",
+          authorId: "ces1",
+          role: "customer",
+          createdAt: now,
+          content: "I tried those steps, but it is still not working.",
+        },
+        {
+          id: "tes1m4",
+          authorId: "ces1",
+          role: "customer",
+          createdAt: now,
+          content: 'It is giving me this error: "Internal server error".',
+        },
+      ],
+      threadName: "Widget fails after API key rotation",
+    },
+    name: "escalation: server error after prescribed remediation should file an issue",
+    toolFixtures: {
+      issueSearchHitsByQuery: {},
+      issuesByUrl: {},
+      threads: {
+        tes1: mkThread("tes1", "Widget fails after API key rotation"),
+      },
+    },
+  },
+  {
+    expected: {
+      mustExcludePrimaryKinds: ["create_issue", "link_issue"],
+      mustIncludePrimaryKinds: ["reply"],
+      requiresReplyDraft: true,
+    },
+    input: {
+      availability: { create_issue: true },
+      hasTeamReply: true,
+      hints: {},
+      sourceInputMessageId: "tes2m3",
+      summary: {
+        entities: ["FrontDesk API", "widget", "API key"],
+        expectedAction: "configuration guidance",
+        keywords: ["API key rotation", "widget load failure", "authentication"],
+        shortDescription:
+          "After rotating the API key, the widget fails to load and may still reference the old key.",
+        title: "Widget fails to load after API key rotation",
+      },
+      threadId: "tes2",
+      threadMessages: [
+        {
+          id: "tes2m1",
+          authorId: "ces2",
+          role: "customer",
+          createdAt: now,
+          content:
+            "We rotated our API key this morning and now the widget won't load.",
+        },
+        {
+          id: "tes2m2",
+          authorId: "team1",
+          role: "teammate",
+          createdAt: now,
+          content:
+            "Update the publicKey in the widget client, then rebuild and redeploy the application.",
+        },
+        {
+          id: "tes2m3",
+          authorId: "ces2",
+          role: "customer",
+          createdAt: now,
+          content: "I tried that, but it still isn't working.",
+        },
+      ],
+      threadName: "Widget fails after API key rotation",
+    },
+    name: "escalation: vague failure after remediation should gather details",
+    toolFixtures: {
+      issueSearchHitsByQuery: {},
+      issuesByUrl: {},
+      threads: {
+        tes2: mkThread("tes2", "Widget fails after API key rotation"),
+      },
+    },
+  },
+  {
     // The same defect, for an org with no issue target. Availability is
     // resolved before synthesis, so the verb is absent from both the prompt
     // vocabulary and the parse schema — filing must simply not be offered.
@@ -1889,14 +2013,17 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
           authorId: "cs1",
           role: "customer",
           createdAt: now,
-          content: "That worked, all the rows came through. Thanks, you can close this.",
+          content:
+            "That worked, all the rows came through. Thanks, you can close this.",
         },
       ],
       threadName: "CSV import failing on semicolon delimiter",
     },
     name: "status: customer confirmed the fix -> resolved with customer_confirmed",
     toolFixtures: {
-      threads: { ts1: mkThread("ts1", "CSV import failing on semicolon delimiter") },
+      threads: {
+        ts1: mkThread("ts1", "CSV import failing on semicolon delimiter"),
+      },
     },
   },
   {
@@ -1937,7 +2064,8 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
           authorId: "as2",
           role: "teammate",
           createdAt: now,
-          content: "Provisioned the remaining 15 seats on your workspace just now.",
+          content:
+            "Provisioned the remaining 15 seats on your workspace just now.",
         },
         {
           id: "ts2m3",
@@ -2031,7 +2159,9 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
           url: "https://github.com/acme/api/issues/455",
         },
       },
-      threads: { ts3: mkThread("ts3", "Search results lag behind new records") },
+      threads: {
+        ts3: mkThread("ts3", "Search results lag behind new records"),
+      },
     },
   },
   {
@@ -2063,7 +2193,8 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
           authorId: "cs4",
           role: "customer",
           createdAt: now,
-          content: "Our webhook signature check is failing sometimes. Any ideas?",
+          content:
+            "Our webhook signature check is failing sometimes. Any ideas?",
         },
         {
           id: "ts4m2",
@@ -2079,7 +2210,9 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
     },
     name: "status: silence after a reply is abandoned -> closed",
     toolFixtures: {
-      threads: { ts4: mkThread("ts4", "Webhook signature verification question") },
+      threads: {
+        ts4: mkThread("ts4", "Webhook signature verification question"),
+      },
     },
   },
   {
@@ -2160,7 +2293,9 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
           url: "https://github.com/acme/api/pull/733",
         },
       },
-      threads: { ts5: mkThread("ts5", "Digest emails arrive at the wrong time") },
+      threads: {
+        ts5: mkThread("ts5", "Digest emails arrive at the wrong time"),
+      },
     },
   },
 
@@ -2192,7 +2327,8 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
                 repoFullName: "acme/api",
                 score: 0.88,
                 state: "open",
-                title: "Bulk delete removes records outside the selected filter",
+                title:
+                  "Bulk delete removes records outside the selected filter",
                 url: "https://github.com/acme/api/issues/620",
               },
             ],
@@ -2236,7 +2372,9 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
           url: "https://github.com/acme/api/issues/620",
         },
       },
-      threads: { tx1: mkThread("tx1", "Bulk delete removed the wrong records") },
+      threads: {
+        tx1: mkThread("tx1", "Bulk delete removed the wrong records"),
+      },
     },
   },
   {

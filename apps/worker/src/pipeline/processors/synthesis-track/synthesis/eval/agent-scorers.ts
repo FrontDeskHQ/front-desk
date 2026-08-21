@@ -7,6 +7,7 @@ import type { StatusWitnessClass } from "@workspace/schemas/signals";
 import { extractRenderedMarkdownLinkUrls } from "@workspace/utils/markdown-links";
 import { createScorer } from "evalite";
 
+import { issueSearchQueryCoversAction } from "../link-issue-verification";
 import { containsOnlyCompleteMarkdownLinkToUrl } from "../link-pr-verification";
 import type { SynthesisRawActionSet } from "../synthesize";
 import type {
@@ -23,6 +24,7 @@ type PrimaryReply = Extract<
 interface Out {
   /** Non-null when the run threw — unparseable model output, most often. */
   error: string | null;
+  issueSearchQueries: string[];
   raw: SynthesisRawActionSet;
   toolCalls: {
     read_thread: number;
@@ -247,6 +249,33 @@ export const minimumToolCalls = createScorer<In, Out, Expected>({
     return {
       score: failures.length === 0 ? 1 : 0,
       metadata: { minimums, actual: output.toolCalls, failures },
+    };
+  },
+});
+
+export const targetedIssueSearch = createScorer<In, Out, Expected>({
+  description:
+    "Requires issue creation to be preceded by a query that covers its concrete symptom.",
+  name: "Targeted Issue Search",
+  scorer: ({ output }) => {
+    const createIssues = allActions(output).filter(
+      (action) => action.kind === "create_issue"
+    );
+    if (createIssues.length === 0) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+    const unmatchedIssues = createIssues.filter(
+      (action) =>
+        !output.issueSearchQueries.some((query) =>
+          issueSearchQueryCoversAction(query, action)
+        )
+    );
+    return {
+      score: unmatchedIssues.length === 0 ? 1 : 0,
+      metadata: {
+        queries: output.issueSearchQueries,
+        unmatchedIssueTitles: unmatchedIssues.map((issue) => issue.title),
+      },
     };
   },
 });
