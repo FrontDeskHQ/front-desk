@@ -16,14 +16,20 @@ import type {
 import { App } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
 import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse";
+import {
+  createLogger,
+  flushSharedLogger,
+  initSharedLogger,
+} from "@workspace/utils/logging";
 import { parse } from "@workspace/utils/md-tiptap";
 import { stringify } from "@workspace/utils/tiptap-md";
-import { z } from "zod";
 
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
+import { resolveSlackTargetPrerequisites } from "./lib/outbound-target";
+import type { SlackTargetPrerequisiteFailureReason } from "./lib/outbound-target";
 import type { BackfillChannelResult } from "./lib/queue";
 import {
   addChannelBackfillJob,
@@ -39,8 +45,7 @@ import {
   withBackfillLock,
 } from "./lib/utils";
 
-/** Thread `externalMetadataStr` shape — a non-empty Slack channel id. */
-const externalMetadataSchema = z.object({ channelId: z.string().min(1) });
+initSharedLogger({ service: "slack-connector" });
 
 const app = new App({
   authorize: async ({ teamId, enterpriseId }): Promise<AuthorizeResult> => {
@@ -231,7 +236,17 @@ const buildPortalBotBlocks = ({
   },
 ];
 
-const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
+type SlackClientResolution =
+  | { client: WebClient; ok: true }
+  | {
+      error?: unknown;
+      ok: false;
+      reason: "bot_token_missing" | "installation_lookup_failed";
+    };
+
+const resolveClientForTeam = async (
+  teamId: string
+): Promise<SlackClientResolution> => {
   try {
     const installation = await installationStore.fetchInstallation({
       enterpriseId: undefined,
@@ -250,17 +265,31 @@ const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
       installationData.bot?.token ?? installationData.access_token ?? null;
 
     if (!botToken) {
-      console.error(
-        `Bot token not found in installation for teamId: ${teamId}`
-      );
-      return null;
+      return { ok: false, reason: "bot_token_missing" };
     }
 
-    return new WebClient(botToken);
+    return { client: new WebClient(botToken), ok: true };
   } catch (error) {
-    console.error(`Failed to get client for teamId: ${teamId}`, error);
-    return null;
+    return { error, ok: false, reason: "installation_lookup_failed" };
   }
+};
+
+const getClientForTeam = async (teamId: string): Promise<WebClient | null> => {
+  const resolution = await resolveClientForTeam(teamId);
+  if (resolution.ok) {
+    return resolution.client;
+  }
+
+  if (resolution.reason === "bot_token_missing") {
+    console.error(`Bot token not found in installation for teamId: ${teamId}`);
+  } else {
+    console.error(
+      `Failed to get client for teamId: ${teamId}`,
+      resolution.error
+    );
+  }
+
+  return null;
 };
 
 /** Integration `type` / `support-entry-point` provider key for this connector. */
@@ -900,54 +929,71 @@ app.message(
  * channel id lives in the thread's `externalMetadataStr`; the thread ts on
  * `externalId`.
  */
+type SlackTargetFailureReason =
+  | "bot_token_missing"
+  | "installation_lookup_failed"
+  | SlackTargetPrerequisiteFailureReason;
+
+type SlackTargetResolution =
+  | {
+      ok: true;
+      target: {
+        channelId: string;
+        client: WebClient;
+        integrationId: string;
+        teamId: string;
+        threadTs: string;
+      };
+    }
+  | {
+      context?: Record<string, unknown>;
+      error?: unknown;
+      ok: false;
+      reason: SlackTargetFailureReason;
+    };
+
+const toLogError = (error: unknown, fallback: string): Error =>
+  new Error(error instanceof Error ? error.message : fallback);
+
 const resolveSlackTarget = async (thread: {
   organizationId?: string;
   externalId?: string | null;
   externalMetadataStr?: string | null;
-}): Promise<{
-  client: WebClient;
-  channelId: string;
-  threadTs: string;
-} | null> => {
+}): Promise<SlackTargetResolution> => {
   const integration = store.query.integration
     .first({ organizationId: thread?.organizationId, type: "slack" })
     .get();
-  if (!integration || !integration.configStr) {
-    return null;
+  const prerequisiteResolution = resolveSlackTargetPrerequisites({
+    integration,
+    parseIntegrationConfig: safeParseIntegrationSettings,
+    thread,
+  });
+  if (!prerequisiteResolution.ok) {
+    return prerequisiteResolution;
+  }
+  const { channelId, integrationId, teamId, threadTs } =
+    prerequisiteResolution.target;
+
+  const clientResolution = await resolveClientForTeam(teamId);
+  if (!clientResolution.ok) {
+    return {
+      context: { channelId, integrationId, teamId },
+      error: clientResolution.error,
+      ok: false,
+      reason: clientResolution.reason,
+    };
   }
 
-  const parsedConfig = safeParseIntegrationSettings(integration.configStr);
-  const teamId = parsedConfig?.teamId;
-  if (!teamId) {
-    return null;
-  }
-
-  const threadTs = thread.externalId;
-  if (!threadTs) {
-    return null;
-  }
-
-  let channelId: string | null = null;
-  if (thread.externalMetadataStr) {
-    try {
-      const metadata = externalMetadataSchema.parse(
-        JSON.parse(thread.externalMetadataStr)
-      );
-      channelId = metadata.channelId;
-    } catch (error) {
-      console.error("Error parsing externalMetadataStr:", error);
-    }
-  }
-  if (!channelId) {
-    return null;
-  }
-
-  const client = await getClientForTeam(teamId);
-  if (!client) {
-    return null;
-  }
-
-  return { channelId, client, threadTs };
+  return {
+    ok: true,
+    target: {
+      channelId,
+      client: clientResolution.client,
+      integrationId,
+      teamId,
+      threadTs,
+    },
+  };
 };
 
 /**
@@ -957,12 +1003,54 @@ const resolveSlackTarget = async (thread: {
 const deliverSlackMessage = async (
   message: OutboundMessage
 ): Promise<string | null> => {
-  const target = await resolveSlackTarget(message.thread);
-  if (!target) {
-    return null;
-  }
+  const requestLog = createLogger({
+    action: "connector.outbound_reply",
+    message: {
+      id: message.id,
+      origin: message.origin,
+    },
+    operation: "slack.reply.sync",
+    provider: "slack",
+    thread: {
+      externalOrigin: message.thread.externalOrigin,
+      hasExternalId: Boolean(message.thread.externalId),
+      hasExternalMetadata: Boolean(message.thread.externalMetadataStr),
+      id: message.thread.id,
+      organizationId: message.thread.organizationId,
+    },
+  });
+  let status = 500;
 
   try {
+    const resolution = await resolveSlackTarget(message.thread);
+    if (!resolution.ok) {
+      requestLog.set({
+        delivery: {
+          outcome: "blocked",
+          reason: resolution.reason,
+        },
+        slack: resolution.context,
+      });
+      if (resolution.error !== undefined) {
+        requestLog.error(
+          toLogError(resolution.error, "Slack target resolution failed"),
+          { step: "resolve_target" }
+        );
+      }
+      status = 424;
+      return null;
+    }
+
+    const { target } = resolution;
+    requestLog.set({
+      slack: {
+        channelId: target.channelId,
+        integrationId: target.integrationId,
+        teamId: target.teamId,
+        threadTs: target.threadTs,
+      },
+    });
+
     const result = await target.client.chat.postMessage({
       channel: target.channelId,
       icon_url: message.author?.user?.image ?? undefined,
@@ -974,10 +1062,52 @@ const deliverSlackMessage = async (
       username: message.author.name,
     });
 
-    return result.ok && result.ts ? result.ts : null;
+    if (!result.ok) {
+      const slackError =
+        "error" in result && typeof result.error === "string"
+          ? result.error
+          : undefined;
+      requestLog.set({
+        delivery: {
+          outcome: "rejected",
+          reason: "slack_api_not_ok",
+          ...(slackError ? { slackError } : {}),
+        },
+      });
+      status = 502;
+      return null;
+    }
+
+    if (!result.ts) {
+      requestLog.set({
+        delivery: {
+          outcome: "rejected",
+          reason: "slack_response_missing_ts",
+        },
+      });
+      status = 502;
+      return null;
+    }
+
+    requestLog.set({
+      delivery: {
+        externalMessageId: result.ts,
+        outcome: "delivered",
+      },
+    });
+    status = 200;
+    return result.ts;
   } catch (error) {
-    console.error("Error sending Slack message:", error);
+    requestLog.set({
+      delivery: { outcome: "failed", reason: "slack_api_exception" },
+    });
+    requestLog.error(toLogError(error, "Slack API call failed"), {
+      step: "slack_api",
+    });
+    status = 502;
     return null;
+  } finally {
+    requestLog.emit({ status });
   }
 };
 
@@ -1022,10 +1152,11 @@ const formatUpdateMessage = (update: OutboundUpdate): string => {
 const deliverSlackUpdate = async (
   update: OutboundUpdate
 ): Promise<string | null> => {
-  const target = await resolveSlackTarget(update.thread);
-  if (!target) {
+  const resolution = await resolveSlackTarget(update.thread);
+  if (!resolution.ok) {
     return null;
   }
+  const { target } = resolution;
 
   const result = await target.client.chat.postMessage({
     channel: target.channelId,
@@ -1093,14 +1224,14 @@ const deliverSlackUpdate = async (
   setTimeout(async () => {
     // Watch un-replicated outbound messages/updates for Slack threads and
     // deliver them; the framework owns the round-trip of external message ids.
-    // Slack additionally requires the parent channel id in externalMetadataStr.
+    // Do not pre-filter missing Slack target metadata here: the resolver emits
+    // a reason-coded event for malformed legacy rows instead of hiding them.
     await startOutboundReplication({
       deliverMessage: deliverSlackMessage,
       deliverUpdate: deliverSlackUpdate,
       fetchClient,
       provider: "slack",
       store,
-      threadFilter: { externalMetadataStr: { $not: null } },
     });
 
     // Subscribe to Slack integrations to trigger backfill when channels are added
@@ -1116,6 +1247,7 @@ const shutdown = async () => {
   await reflagClient.flush();
   await closeBackfillQueue();
   await closeDigestWorker();
+  await flushSharedLogger();
   process.exit(0);
 };
 

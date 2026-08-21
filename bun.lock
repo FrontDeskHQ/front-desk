@@ -297,8 +297,10 @@
         "zod": "catalog:",
       },
       "devDependencies": {
+        "@types/node": "^22.15.2",
         "bun-types": "latest",
         "tsdown": "^0.10.2",
+        "vitest": "^4.0.0",
       },
     },
     "packages/emails": {
