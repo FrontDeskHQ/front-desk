@@ -1,0 +1,32 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_808afbae2ff001::t_90a050ec51340d 1774-1775
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-harness.ts
+  s_808afbae2ff001::t_9154c3358e9ea3 16
+  s_808afbae2ff001::t_3742708385be95 193
+  s_808afbae2ff001::t_edd385163b79d1 186
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-scorers.ts
+  s_808afbae2ff001::t_28365bc721dfdb 10,258,260-264,267-272,274,277
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/link-issue-verification.ts
+  s_808afbae2ff001::t_28365bc721dfdb 24,66,69-81,93,114
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/link-issue-verification.test.ts
+  s_808afbae2ff001::t_28365bc721dfdb 22,39-60
+  s_808afbae2ff001::t_90a050ec51340d 6,74-80
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/tools.ts
+  s_808afbae2ff001::t_28365bc721dfdb 229-231,240,248,260
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "52616e25a5b0b4cf616e773a35efddaa976023e5",
+  "prompts": {},
+  "sessions": {
+    "s_808afbae2ff001": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a02569-3c4e-73d3-99ac-ef3df580aea0",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
