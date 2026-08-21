@@ -953,7 +953,7 @@ type SlackTargetResolution =
     };
 
 const toLogError = (error: unknown, fallback: string): Error =>
-  new Error(error instanceof Error ? error.message : fallback);
+  error instanceof Error ? error : new Error(fallback);
 
 const resolveSlackTarget = async (thread: {
   organizationId?: string;
@@ -1247,7 +1247,11 @@ const shutdown = async () => {
   await reflagClient.flush();
   await closeBackfillQueue();
   await closeDigestWorker();
-  await flushSharedLogger();
+  try {
+    await flushSharedLogger();
+  } catch (error) {
+    console.error("[Slack] Failed to flush shared logger:", error);
+  }
   process.exit(0);
 };
 
