@@ -1,0 +1,19 @@
+connectors/slack/src/index.ts
+  s_3da38e728c31dc::t_d1adab12cd120a 956,1250-1254
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1ffbd88254aecc7e0da3707e1b5ffc481e61c41e",
+  "prompts": {},
+  "sessions": {
+    "s_3da38e728c31dc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a024f3-f35b-79e2-9a4d-25a6e227785b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
