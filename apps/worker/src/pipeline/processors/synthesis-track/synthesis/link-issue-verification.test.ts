@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   collectVerifiedIssueSearchesFromToolSteps,
   filterActionSetToVerifiedCreateIssue,
+  issueSearchQueryCoversAction,
 } from "./link-issue-verification";
 
 describe("create_issue verification", () => {
@@ -18,7 +19,7 @@ describe("create_issue verification", () => {
         toolResults: [
           {
             input: { query: "widget internal server error" },
-            output: { hits: [] },
+            output: { hits: [], status: "ok" },
             toolName: "search_issues",
           },
         ],
@@ -35,6 +36,30 @@ describe("create_issue verification", () => {
     ).toStrictEqual([createIssue]);
   });
 
+  it("rejects a backend failure disguised as an empty result", () => {
+    const searches = collectVerifiedIssueSearchesFromToolSteps([
+      {
+        toolResults: [
+          {
+            input: { query: "widget internal server error" },
+            output: { hits: [], status: "unavailable" },
+            toolName: "search_issues",
+          },
+        ],
+      },
+    ]);
+
+    expect(searches).toStrictEqual([]);
+    expect(
+      filterActionSetToVerifiedCreateIssue(
+        [createIssue],
+        [],
+        searches,
+        new Set()
+      ).primary
+    ).toStrictEqual([]);
+  });
+
   it("discards the action set when search is absent or unrelated", () => {
     expect(
       filterActionSetToVerifiedCreateIssue(
@@ -44,6 +69,15 @@ describe("create_issue verification", () => {
         new Set()
       )
     ).toStrictEqual({ alternatives: [], primary: [] });
+  });
+
+  it("treats concrete symptom words and numeric error codes as relevant", () => {
+    expect(
+      issueSearchQueryCoversAction("API key rotation 401 failure", {
+        body: "Requests return 401 while a rotated API key propagates.",
+        title: "API key rotation causes authentication failure",
+      })
+    ).toBe(true);
   });
 
   it("requires every returned candidate to be read", () => {

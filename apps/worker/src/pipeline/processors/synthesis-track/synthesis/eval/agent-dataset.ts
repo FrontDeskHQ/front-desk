@@ -83,7 +83,6 @@ export interface SynthesisAgentEvalCase {
     requiresReplyDraft: boolean;
     replyMustContainAny?: string[];
     replyMustContainAll?: string[];
-    requiredIssueSearchTerms?: string[];
     replyMustStartWith?: string;
     minToolCalls?: {
       read_thread?: number;
@@ -1526,8 +1525,6 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
       mustExcludePrimaryKinds: ["create_issue"],
       mustIncludePrimaryKinds: ["link_issue", "reply"],
       replyMustOmitIssueReference: true,
-      replyMustContainAll: ["engineering", "diagnostic"],
-      requiredIssueSearchTerms: ["internal", "server", "error"],
       requiresReplyDraft: true,
     },
     input: {
@@ -1774,6 +1771,8 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
       mustExcludePrimaryKinds: ["link_issue"],
       mustIncludePrimaryKinds: ["create_issue", "reply"],
       replyMustOmitIssueReference: true,
+      replyMustContainAll: ["engineering"],
+      replyMustContainAny: ["diagnostic", "logs", "request id", "timestamp"],
       requiresReplyDraft: true,
     },
     input: {

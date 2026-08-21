@@ -21,6 +21,7 @@ const readIssueOutputSchema = z.object({
 const searchIssuesInputSchema = z.object({ query: z.string().trim().min(1) });
 const searchIssuesOutputSchema = z.object({
   hits: z.array(z.object({ url: z.string().trim().min(1) })),
+  status: z.literal("ok"),
 });
 
 export interface VerifiedIssueSearch {
@@ -50,13 +51,8 @@ export const collectVerifiedIssueSearchesFromToolSteps = (
 const SEARCH_STOP_WORDS = new Set([
   "after",
   "before",
-  "error",
-  "fails",
-  "failure",
   "issue",
-  "problem",
   "request",
-  "server",
   "that",
   "this",
   "with",
@@ -67,10 +63,22 @@ const significantTerms = (value: string): Set<string> =>
     value
       .toLowerCase()
       .match(/[a-z0-9]+/g)
-      ?.filter((term) => term.length >= 4 && !SEARCH_STOP_WORDS.has(term)) ?? []
+      ?.filter((term) => term.length >= 3 && !SEARCH_STOP_WORDS.has(term)) ?? []
   );
 
-const searchCoversAction = (
+export const issueSearchQueryCoversAction = (
+  query: string,
+  action: { body?: string; title?: string }
+): boolean => {
+  const queryTerms = significantTerms(query);
+  const actionTerms = significantTerms(
+    `${action.title ?? ""} ${action.body ?? ""}`
+  );
+  const overlap = [...queryTerms].filter((term) => actionTerms.has(term));
+  return overlap.length >= Math.min(2, queryTerms.size) && queryTerms.size > 0;
+};
+
+const verifiedSearchCoversAction = (
   search: VerifiedIssueSearch,
   action: { body?: string; title?: string },
   verifiedIssueUrls: Set<string>
@@ -82,12 +90,7 @@ const searchCoversAction = (
   ) {
     return false;
   }
-  const queryTerms = significantTerms(search.query);
-  const actionTerms = significantTerms(
-    `${action.title ?? ""} ${action.body ?? ""}`
-  );
-  const overlap = [...queryTerms].filter((term) => actionTerms.has(term));
-  return overlap.length >= Math.min(2, queryTerms.size) && queryTerms.size > 0;
+  return issueSearchQueryCoversAction(search.query, action);
 };
 
 /**
@@ -108,7 +111,7 @@ export const filterActionSetToVerifiedCreateIssue = <
       (action) =>
         action.kind !== "create_issue" ||
         searches.some((search) =>
-          searchCoversAction(search, action, verifiedIssueUrls)
+          verifiedSearchCoversAction(search, action, verifiedIssueUrls)
         )
     );
   const filteredPrimary = filter(primary);

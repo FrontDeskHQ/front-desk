@@ -13,6 +13,7 @@ type ToolOutput<T> = T extends Tool<infer _I, infer O> ? O : never;
 type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
 type ReadPrOutput = ToolOutput<SynthesisTools["read_pr"]>;
 type ReadIssueOutput = ToolOutput<SynthesisTools["read_issue"]>;
+type SearchIssuesOutput = ToolOutput<SynthesisTools["search_issues"]>;
 
 export interface ToolCallCounters {
   read_thread: number;
@@ -182,14 +183,14 @@ export const createMockTools = (
         query: z.string(),
         limit: z.number().int().min(1).max(10).optional(),
       }),
-      execute: async ({ query, limit }) => {
+      execute: async ({ query, limit }): Promise<SearchIssuesOutput> => {
         counters.search_issues++;
         issueSearchQueries.push(query);
         const hits = (fixtures.issueSearchHitsByQuery?.[query] ?? []).slice(
           0,
           limit ?? DEFAULT_SEARCH_LIMIT
         );
-        return { hits };
+        return { hits, status: "ok" as const };
       },
     }),
   };

@@ -226,10 +226,9 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         limit: z.number().int().min(1).max(10).optional(),
       }),
       execute: async ({ query, limit }) => {
-        // Degrade to no hits rather than throwing. Unlike the `related_issues`
-        // hint — which must distinguish "no matches" from a backend failure so
-        // it never clears a valid lead — this is one probe inside a tool loop,
-        // and failing it would abort the whole synthesis run.
+        // Keep the tool loop alive on backend failure, but preserve the
+        // distinction from a successful search with no matches. Issue creation
+        // may only use the latter as evidence that no duplicate exists.
         let results: Awaited<ReturnType<typeof issueIndex.search>>;
         try {
           const vector = await generateSimilarityEmbedding(
@@ -238,7 +237,7 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
             audit
           );
           if (!vector) {
-            return { hits: [] };
+            return { hits: [], status: "unavailable" as const };
           }
           results = await issueIndex.search(vector, {
             limit: limit ?? 5,
@@ -246,7 +245,7 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
             scoreThreshold: ISSUE_MATCH_THRESHOLD,
           });
         } catch {
-          return { hits: [] };
+          return { hits: [], status: "unavailable" as const };
         }
 
         return {
@@ -258,6 +257,7 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
             title: result.payload.title,
             url: result.payload.url,
           })),
+          status: "ok" as const,
         };
       },
     }),

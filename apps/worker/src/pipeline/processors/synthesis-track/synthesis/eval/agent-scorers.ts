@@ -7,6 +7,7 @@ import type { StatusWitnessClass } from "@workspace/schemas/signals";
 import { extractRenderedMarkdownLinkUrls } from "@workspace/utils/markdown-links";
 import { createScorer } from "evalite";
 
+import { issueSearchQueryCoversAction } from "../link-issue-verification";
 import { containsOnlyCompleteMarkdownLinkToUrl } from "../link-pr-verification";
 import type { SynthesisRawActionSet } from "../synthesize";
 import type {
@@ -254,25 +255,26 @@ export const minimumToolCalls = createScorer<In, Out, Expected>({
 
 export const targetedIssueSearch = createScorer<In, Out, Expected>({
   description:
-    "Requires issue-search queries to contain the concrete symptom terms named by the case.",
+    "Requires issue creation to be preceded by a query that covers its concrete symptom.",
   name: "Targeted Issue Search",
-  scorer: ({ output, expected }) => {
-    const requiredTerms = expected?.requiredIssueSearchTerms;
-    if (!requiredTerms?.length) {
+  scorer: ({ output }) => {
+    const createIssues = output.raw.primary.filter(
+      (action) => action.kind === "create_issue"
+    );
+    if (createIssues.length === 0) {
       return { score: 1, metadata: { skipped: true } };
     }
-    const matchedQuery = output.issueSearchQueries.find((query) => {
-      const normalized = query.toLowerCase();
-      return requiredTerms.every((term) =>
-        normalized.includes(term.toLowerCase())
-      );
-    });
+    const unmatchedIssues = createIssues.filter(
+      (action) =>
+        !output.issueSearchQueries.some((query) =>
+          issueSearchQueryCoversAction(query, action)
+        )
+    );
     return {
-      score: matchedQuery ? 1 : 0,
+      score: unmatchedIssues.length === 0 ? 1 : 0,
       metadata: {
-        matchedQuery,
         queries: output.issueSearchQueries,
-        requiredTerms,
+        unmatchedIssueTitles: unmatchedIssues.map((issue) => issue.title),
       },
     };
   },
