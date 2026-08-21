@@ -1,8 +1,7 @@
 import { createScorer, evalite } from "evalite";
 import { reportTrace } from "evalite/traces";
 
-import type { Thread } from "../../../../types";
-import type { ParsedSummary } from "../../../../types";
+import type { ParsedSummary, Thread } from "../../../../types";
 import { summarizeThread } from "../../summarize";
 
 interface CurrentCaseInput {
@@ -20,6 +19,7 @@ interface CurrentCaseExpected {
   expectedActionTerms: string[];
   descriptionTerms: string[];
   forbiddenActionTerms?: string[];
+  forbiddenDescriptionTerms?: string[];
 }
 
 const currentCaseAlignment = createScorer<
@@ -41,24 +41,32 @@ const currentCaseAlignment = createScorer<
     const descriptionMatched = expected.descriptionTerms.every((term) =>
       description.includes(term.toLowerCase())
     );
-    const forbiddenMatched = (expected.forbiddenActionTerms ?? []).some(
+    const forbiddenActionMatched = (expected.forbiddenActionTerms ?? []).some(
       (term) => action.includes(term.toLowerCase())
     );
+    const forbiddenDescriptionMatched = (
+      expected.forbiddenDescriptionTerms ?? []
+    ).some((term) => description.includes(term.toLowerCase()));
 
     return {
-      score: actionMatched && descriptionMatched && !forbiddenMatched ? 1 : 0,
+      score:
+        actionMatched &&
+        descriptionMatched &&
+        !forbiddenActionMatched &&
+        !forbiddenDescriptionMatched
+          ? 1
+          : 0,
       metadata: {
         action: output.expectedAction,
         actionMatched,
         descriptionMatched,
-        forbiddenMatched,
+        forbiddenActionMatched,
+        forbiddenDescriptionMatched,
         title: output.title,
       },
     };
   },
 });
-
-const now = new Date().toISOString();
 
 const cases: {
   input: CurrentCaseInput;
@@ -69,10 +77,17 @@ const cases: {
       name: "Widget fails after API key rotation",
       messages: [
         {
+          id: "sum1m4",
+          authorId: "customer1",
+          role: "customer",
+          createdAt: "2026-08-21T12:03:00.000Z",
+          content: 'It is giving me this error: "Internal server error".',
+        },
+        {
           id: "sum1m1",
           authorId: "customer1",
           role: "customer",
-          createdAt: now,
+          createdAt: "2026-08-21T12:00:00.000Z",
           content:
             "We rotated our API key this morning and now the widget won't load.",
         },
@@ -80,7 +95,7 @@ const cases: {
           id: "sum1m2",
           authorId: "teammate1",
           role: "teammate",
-          createdAt: now,
+          createdAt: "2026-08-21T12:01:00.000Z",
           content:
             "Update the publicKey in the widget client, then rebuild and redeploy the application.",
         },
@@ -88,15 +103,8 @@ const cases: {
           id: "sum1m3",
           authorId: "customer1",
           role: "customer",
-          createdAt: now,
+          createdAt: "2026-08-21T12:02:00.000Z",
           content: "I tried those steps, but it is still not working.",
-        },
-        {
-          id: "sum1m4",
-          authorId: "customer1",
-          role: "customer",
-          createdAt: now,
-          content: 'It is giving me this error: "Internal server error".',
         },
       ],
     },
@@ -110,10 +118,17 @@ const cases: {
       name: "Widget fails after API key rotation",
       messages: [
         {
+          id: "sum2m3",
+          authorId: "customer2",
+          role: "customer",
+          createdAt: "2026-08-21T12:02:00.000Z",
+          content: "I tried that, but it still isn't working.",
+        },
+        {
           id: "sum2m1",
           authorId: "customer2",
           role: "customer",
-          createdAt: now,
+          createdAt: "2026-08-21T12:00:00.000Z",
           content:
             "We rotated our API key this morning and now the widget won't load.",
         },
@@ -121,16 +136,9 @@ const cases: {
           id: "sum2m2",
           authorId: "teammate1",
           role: "teammate",
-          createdAt: now,
+          createdAt: "2026-08-21T12:01:00.000Z",
           content:
             "Update the publicKey in the widget client, then rebuild and redeploy the application.",
-        },
-        {
-          id: "sum2m3",
-          authorId: "customer2",
-          role: "customer",
-          createdAt: now,
-          content: "I tried that, but it still isn't working.",
         },
       ],
     },
@@ -141,7 +149,8 @@ const cases: {
         "clarification",
       ],
       descriptionTerms: ["widget"],
-      forbiddenActionTerms: ["engineering", "bug", "defect"],
+      forbiddenActionTerms: ["engineering", "bug", "defect", "investigation"],
+      forbiddenDescriptionTerms: ["internal server error"],
     },
   },
 ];

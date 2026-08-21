@@ -8,8 +8,10 @@ import {
   forbiddenPrimaryKinds,
   minimumToolCalls,
   replyOmitsIssueReference,
+  replySubstance,
   requiredPrimaryKinds,
   synthesisCompleted,
+  targetedIssueSearch,
 } from "./agent-scorers";
 
 const escalationCases = synthesisAgentDataset.filter((testCase) =>
@@ -30,8 +32,10 @@ evalite("Synthesis Agent — Follow-up Escalation", {
     requiredPrimaryKinds,
     forbiddenPrimaryKinds,
     minimumToolCalls,
+    targetedIssueSearch,
     atMostOneIssueAction,
     replyOmitsIssueReference,
+    replySubstance,
   ],
   task: async (input) => {
     const start = Date.now();

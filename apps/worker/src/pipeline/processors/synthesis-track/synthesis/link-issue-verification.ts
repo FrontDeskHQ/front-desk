@@ -2,6 +2,7 @@ import z from "zod";
 
 interface ToolStep {
   toolResults: {
+    input?: unknown;
     toolName: string;
     output: unknown;
   }[];
@@ -16,6 +17,106 @@ const readIssueOutputSchema = z.object({
     })
     .optional(),
 });
+
+const searchIssuesInputSchema = z.object({ query: z.string().trim().min(1) });
+const searchIssuesOutputSchema = z.object({
+  hits: z.array(z.object({ url: z.string().trim().min(1) })),
+});
+
+export interface VerifiedIssueSearch {
+  candidateUrls: string[];
+  query: string;
+}
+
+export const collectVerifiedIssueSearchesFromToolSteps = (
+  steps: ToolStep[]
+): VerifiedIssueSearch[] => {
+  const searches: VerifiedIssueSearch[] = [];
+  for (const step of steps) {
+    for (const result of step.toolResults) {
+      if (result.toolName !== "search_issues") continue;
+      const input = searchIssuesInputSchema.safeParse(result.input);
+      const output = searchIssuesOutputSchema.safeParse(result.output);
+      if (!input.success || !output.success) continue;
+      searches.push({
+        candidateUrls: output.data.hits.map((hit) => hit.url),
+        query: input.data.query,
+      });
+    }
+  }
+  return searches;
+};
+
+const SEARCH_STOP_WORDS = new Set([
+  "after",
+  "before",
+  "error",
+  "fails",
+  "failure",
+  "issue",
+  "problem",
+  "request",
+  "server",
+  "that",
+  "this",
+  "with",
+]);
+
+const significantTerms = (value: string): Set<string> =>
+  new Set(
+    value
+      .toLowerCase()
+      .match(/[a-z0-9]+/g)
+      ?.filter((term) => term.length >= 4 && !SEARCH_STOP_WORDS.has(term)) ?? []
+  );
+
+const searchCoversAction = (
+  search: VerifiedIssueSearch,
+  action: { body?: string; title?: string },
+  verifiedIssueUrls: Set<string>
+): boolean => {
+  if (
+    search.candidateUrls.some(
+      (candidateUrl) => !verifiedIssueUrls.has(candidateUrl)
+    )
+  ) {
+    return false;
+  }
+  const queryTerms = significantTerms(search.query);
+  const actionTerms = significantTerms(
+    `${action.title ?? ""} ${action.body ?? ""}`
+  );
+  const overlap = [...queryTerms].filter((term) => actionTerms.has(term));
+  return overlap.length >= Math.min(2, queryTerms.size) && queryTerms.size > 0;
+};
+
+/**
+ * Fail closed when `create_issue` lacks duplicate-search evidence. A relevant
+ * successful search is required, and every candidate it returned must have
+ * crossed the existing `read_issue` verification boundary.
+ */
+export const filterActionSetToVerifiedCreateIssue = <
+  T extends { body?: string; kind: string; title?: string },
+>(
+  primary: T[],
+  alternatives: T[],
+  searches: VerifiedIssueSearch[],
+  verifiedIssueUrls: Set<string>
+): { primary: T[]; alternatives: T[] } => {
+  const filter = (actions: T[]): T[] =>
+    actions.filter(
+      (action) =>
+        action.kind !== "create_issue" ||
+        searches.some((search) =>
+          searchCoversAction(search, action, verifiedIssueUrls)
+        )
+    );
+  const filteredPrimary = filter(primary);
+  if (filteredPrimary.length !== primary.length) {
+    return { alternatives: [], primary: [] };
+  }
+  return { alternatives: filter(alternatives), primary: filteredPrimary };
+};
 
 /**
  * Collect issue URLs returned by successful `read_issue` calls. Only these may

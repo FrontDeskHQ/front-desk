@@ -9,6 +9,7 @@ import z from "zod";
 import { AI_PRICING } from "../../lib/ai-pricing";
 import { isRetryableError } from "../../lib/logging";
 import type { WorkerLogger } from "../../lib/logging";
+import { sortMessagesByTime } from "../../lib/message-order";
 import { generationModel } from "../../lib/respan";
 import type { ParsedSummary } from "../../types";
 import type { AgentRunAudit } from "../core/agent-run-audit";
@@ -96,9 +97,7 @@ export const summarizeThread = async (
       hasTitle: Boolean(thread.name),
     },
   });
-  const orderedMessages = thread.messages?.toSorted((a, b) =>
-    a.id.localeCompare(b.id)
-  );
+  const orderedMessages = sortMessagesByTime(thread.messages);
   const activeLabels = thread.labels
     ?.filter((l) => l.label?.enabled)
     .map((l) => l.label?.name)

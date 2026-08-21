@@ -23,6 +23,7 @@ type PrimaryReply = Extract<
 interface Out {
   /** Non-null when the run threw — unparseable model output, most often. */
   error: string | null;
+  issueSearchQueries: string[];
   raw: SynthesisRawActionSet;
   toolCalls: {
     read_thread: number;
@@ -247,6 +248,32 @@ export const minimumToolCalls = createScorer<In, Out, Expected>({
     return {
       score: failures.length === 0 ? 1 : 0,
       metadata: { minimums, actual: output.toolCalls, failures },
+    };
+  },
+});
+
+export const targetedIssueSearch = createScorer<In, Out, Expected>({
+  description:
+    "Requires issue-search queries to contain the concrete symptom terms named by the case.",
+  name: "Targeted Issue Search",
+  scorer: ({ output, expected }) => {
+    const requiredTerms = expected?.requiredIssueSearchTerms;
+    if (!requiredTerms?.length) {
+      return { score: 1, metadata: { skipped: true } };
+    }
+    const matchedQuery = output.issueSearchQueries.find((query) => {
+      const normalized = query.toLowerCase();
+      return requiredTerms.every((term) =>
+        normalized.includes(term.toLowerCase())
+      );
+    });
+    return {
+      score: matchedQuery ? 1 : 0,
+      metadata: {
+        matchedQuery,
+        queries: output.issueSearchQueries,
+        requiredTerms,
+      },
     };
   },
 });

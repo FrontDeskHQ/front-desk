@@ -41,6 +41,7 @@ export interface SynthesisAgentRunResult {
   error: string | null;
   raw: SynthesisRawActionSet;
   toolCalls: ToolCallCounters;
+  issueSearchQueries: string[];
   verifiedReads: VerifiedReadUrls;
 }
 
@@ -74,6 +75,7 @@ export const createMockTools = (
 ): {
   tools: SynthesisTools;
   counters: ToolCallCounters;
+  issueSearchQueries: string[];
   /** Populated as the run reads; snapshot after `synthesizeThreadRead` returns. */
   verifiedIssueUrls: Set<string>;
   verifiedPrUrls: Set<string>;
@@ -89,6 +91,7 @@ export const createMockTools = (
 
   const verifiedIssueUrls = new Set<string>();
   const verifiedPrUrls = new Set<string>();
+  const issueSearchQueries: string[] = [];
 
   const tools: SynthesisTools = {
     read_documentation_page: tool({
@@ -181,6 +184,7 @@ export const createMockTools = (
       }),
       execute: async ({ query, limit }) => {
         counters.search_issues++;
+        issueSearchQueries.push(query);
         const hits = (fixtures.issueSearchHitsByQuery?.[query] ?? []).slice(
           0,
           limit ?? DEFAULT_SEARCH_LIMIT
@@ -190,7 +194,13 @@ export const createMockTools = (
     }),
   };
 
-  return { counters, tools, verifiedIssueUrls, verifiedPrUrls };
+  return {
+    counters,
+    issueSearchQueries,
+    tools,
+    verifiedIssueUrls,
+    verifiedPrUrls,
+  };
 };
 
 /**
@@ -203,8 +213,13 @@ export const createMockTools = (
 export const runSynthesisAgentCase = async (
   input: SynthesisAgentEvalInput
 ): Promise<SynthesisAgentRunResult> => {
-  const { tools, counters, verifiedIssueUrls, verifiedPrUrls } =
-    createMockTools(input.toolFixtures);
+  const {
+    tools,
+    counters,
+    issueSearchQueries,
+    verifiedIssueUrls,
+    verifiedPrUrls,
+  } = createMockTools(input.toolFixtures);
 
   let raw: SynthesisRawActionSet = emptyActionSet;
   let error: string | null = null;
@@ -218,6 +233,7 @@ export const runSynthesisAgentCase = async (
     error,
     raw,
     toolCalls: counters,
+    issueSearchQueries,
     verifiedReads: { issues: [...verifiedIssueUrls], prs: [...verifiedPrUrls] },
   };
 };

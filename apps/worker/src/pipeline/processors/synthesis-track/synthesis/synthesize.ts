@@ -28,6 +28,8 @@ import {
 } from "./grounding-verification";
 import {
   collectVerifiedIssueUrlsFromToolSteps,
+  collectVerifiedIssueSearchesFromToolSteps,
+  filterActionSetToVerifiedCreateIssue,
   filterActionSetToVerifiedLinkIssue,
 } from "./link-issue-verification";
 import {
@@ -245,7 +247,7 @@ These are leads, not confirmed links. Read a candidate with read_pr and confirm 
           "- On a strong `related_issues` hit, prefer link_issue over create_issue. Filing a duplicate issue is worse than linking an existing one — including a CLOSED one, which often means the problem is already fixed and is the strongest reason not to file again.",
           "- Emit at most one issue action (link_issue or create_issue) across primary and alternatives combined — a thread links a single issue. NEVER put link_issue and create_issue in the same primary array; they cannot both run.",
           "- Before emitting create_issue, use search_issues with the current concrete symptom or request. Only file after that targeted search returns no covering issue; if it returns a candidate, verify it with read_issue and prefer link_issue when it genuinely covers the case.",
-          "- Only emit create_issue for an actionable defect or a specific actionable request that no existing issue covers. The customer does not need developer-grade diagnostics or repeated reproduction: reporting a named server-side error after trying remediation prescribed earlier in the thread is concrete enough for create_issue. Bundle it with a reply that acknowledges the escalation and asks for any diagnostics engineering will need. A question, a how-to, or a vague complaint such as only 'still not working' is not grounds for create_issue.",
+          "- Only emit create_issue for an actionable defect or a specific actionable request that no existing issue covers. The customer does not need developer-grade diagnostics or repeated reproduction: reporting a named server-side error after trying remediation prescribed earlier in the thread is concrete enough for create_issue. Bundle it with a reply that acknowledges the engineering investigation, promises a follow-up, and asks them to share relevant diagnostics such as request IDs, timestamps, or logs if available. A question, a how-to, or a vague complaint such as only 'still not working' is not grounds for create_issue.",
         ]
       : [
           "- Emit at most one link_issue across primary and alternatives combined — a thread links a single issue.",
@@ -273,7 +275,7 @@ A reply draft must NEVER contain an issue number, issue URL, or issue key — no
 
 In \`[create_issue, reply]\` the draft is authored now and the issue does not exist until execution, so any number you write would be invented. Do not write a placeholder token either: the feed card previews the draft to a human before they accept it, and a raw token is visible there. Substituting the real id after creation would require passing data from one executed action into the next, which the executor deliberately cannot do (ADR 0003) — so do not "fix" this by writing a placeholder.
 
-Say that engineering has been made aware and that you will follow up. Nothing more specific.`
+Say that engineering has been made aware, that you will follow up, and ask for relevant diagnostics such as request IDs, timestamps, or logs if the customer has them. Do not claim a diagnosis, fix, ETA, or issue identifier.`
     : "";
 
   // Kept in step with the parse schema above: the create_issue variant appears
@@ -570,11 +572,28 @@ Return a single valid JSON object with exactly this shape:
   // issue text (related_issues evidence, read_issue bodies, search_issues
   // hits), so an injected instruction must not be able to authorize a link.
   const verifiedIssueUrls = collectVerifiedIssueUrlsFromToolSteps(steps);
-  const filtered = filterActionSetToVerifiedLinkIssue(
+  const issueLinkFiltered = filterActionSetToVerifiedLinkIssue(
     prFiltered.primary,
     prFiltered.alternatives,
     verifiedIssueUrls
   );
+  const verifiedIssueSearches =
+    collectVerifiedIssueSearchesFromToolSteps(steps);
+  const filtered = filterActionSetToVerifiedCreateIssue(
+    issueLinkFiltered.primary,
+    issueLinkFiltered.alternatives,
+    verifiedIssueSearches,
+    verifiedIssueUrls
+  );
+  if (filtered.primary.length !== issueLinkFiltered.primary.length) {
+    return {
+      ...raw,
+      alternatives: [],
+      primary: [],
+      recommendation:
+        "No reply, duplicate link, issue filing, or status change is justified yet.",
+    };
+  }
 
   // Trust boundary for `documented`: a cited page must have been retrieved on
   // this run. Unlike link_pr / link_issue this does not discard the action —
