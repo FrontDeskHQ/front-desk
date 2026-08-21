@@ -3,7 +3,8 @@
   "version": "0.0.0",
   "module": "src/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
     "build": "tsdown",
     "start": "node dist/index.mjs",
     "dev": "bun run --watch src/index.ts"
@@ -24,7 +25,9 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@types/node": "^22.15.2",
     "bun-types": "latest",
-    "tsdown": "^0.10.2"
+    "tsdown": "^0.10.2",
+    "vitest": "^4.0.0"
   }
 }

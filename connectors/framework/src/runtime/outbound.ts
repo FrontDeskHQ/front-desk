@@ -43,10 +43,7 @@ export interface OutboundReplicationOptions {
    * Matches the thread's origin and namespaces the replicated marker.
    */
   provider: string;
-  /**
-   * Extra constraints merged into the `thread` sub-filter of both queries (e.g.
-   * slack also requires `externalMetadataStr: { $not: null }`).
-   */
+  /** Extra constraints merged into the `thread` sub-filter of both queries. */
   threadFilter?: Record<string, unknown>;
   deliverMessage: Deliver<OutboundMessage>;
   deliverUpdate: Deliver<OutboundUpdate>;
@@ -72,11 +69,11 @@ export const startOutboundReplication = async ({
   deliverMessage,
   deliverUpdate,
 }: OutboundReplicationOptions) => {
-  // Provider invariants are spread last so a caller-supplied `threadFilter`
-  // cannot override `externalOrigin`/`externalId` and pull another provider's rows.
+  // The provider invariant is spread last so a caller-supplied `threadFilter`
+  // cannot pull another provider's rows. Provider resolvers intentionally see
+  // rows with missing target metadata so they can emit a precise blocked reason.
   const threadWhere = {
     ...threadFilter,
-    externalId: { $not: null },
     externalOrigin: provider,
   };
 
@@ -95,7 +92,7 @@ export const startOutboundReplication = async ({
       try {
         const externalMessageId = await deliverMessage(message);
         if (externalMessageId) {
-          store.mutate.message.setExternalMessageId({
+          await store.mutate.message.setExternalMessageId({
             externalMessageId,
             messageId: message.id,
           });
