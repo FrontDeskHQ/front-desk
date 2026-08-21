@@ -282,23 +282,25 @@ function RouteComponent() {
     <>
       <ThreadCommands threadId={id} />
       <div className="flex size-full">
-        <div className="flex-1 flex flex-col">
-          <CardHeader>
+        <div className="flex-1 flex flex-col min-w-0">
+          <CardHeader className="min-w-0 grid-cols-[minmax(0,1fr)]">
             {thread && (
-              <div className="flex justify-between items-center w-full">
-                <Breadcrumb>
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
+              <div className="flex justify-between items-center w-full min-w-0 gap-2">
+                <Breadcrumb className="min-w-0 flex-1">
+                  <BreadcrumbList className="min-w-0 flex-nowrap">
+                    <BreadcrumbItem className="shrink-0">
                       <BreadcrumbLink asChild>
                         <Link to="/app/threads">Threads</Link>
                       </BreadcrumbLink>
                     </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="flex items-center gap-1.5">
-                        <span>{thread.name}</span>
+                    <BreadcrumbSeparator className="shrink-0" />
+                    <BreadcrumbItem className="min-w-0">
+                      <BreadcrumbPage className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate" title={thread.name}>
+                          {thread.name}
+                        </span>
                         {thread.shortId !== null && (
-                          <span className="text-foreground-secondary tabular-nums font-normal">
+                          <span className="text-foreground-secondary tabular-nums font-normal shrink-0">
                             #{thread.shortId}
                           </span>
                         )}
@@ -312,7 +314,7 @@ function RouteComponent() {
                       variant="ghost"
                       aria-label="Open menu"
                       size="sm"
-                      className="ml-auto"
+                      className="ml-auto shrink-0"
                     >
                       <MoreHorizontalIcon />
                     </Button>
