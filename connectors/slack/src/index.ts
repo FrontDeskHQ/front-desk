@@ -1,7 +1,6 @@
 import "./env";
 import {
   buildPortalThreadUrl,
-  safeParseJSON,
   startOutboundReplication,
 } from "@connectors/framework/runtime";
 import type {
@@ -22,12 +21,15 @@ import {
   initSharedLogger,
 } from "@workspace/utils/logging";
 import { parse } from "@workspace/utils/md-tiptap";
-import { stringify } from "@workspace/utils/tiptap-md";
 
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
+import {
+  formatSlackOutboundText,
+  sanitizeSlackLinkLabel,
+} from "./lib/markdown-to-mrkdwn";
 import { resolveSlackTargetPrerequisites } from "./lib/outbound-target";
 import type { SlackTargetPrerequisiteFailureReason } from "./lib/outbound-target";
 import type { BackfillChannelResult } from "./lib/queue";
@@ -186,13 +188,6 @@ const getRelatedThreadLinks = async (_args: {
   threadId: string;
   baseUrl: string;
 }): Promise<RelatedThreadLink[]> => [];
-
-const sanitizeSlackLinkLabel = (label: string): string =>
-  label
-    .replaceAll(/&/g, "&amp;")
-    .replaceAll(/</g, "&lt;")
-    .replaceAll(/>/g, "&gt;")
-    .replaceAll(/\|/g, "-");
 
 const buildPortalBotText = ({
   portalUrl,
@@ -1054,10 +1049,7 @@ const deliverSlackMessage = async (
     const result = await target.client.chat.postMessage({
       channel: target.channelId,
       icon_url: message.author?.user?.image ?? undefined,
-      text: stringify(safeParseJSON(message.content), {
-        heading: true,
-        horizontalRule: true,
-      }),
+      text: formatSlackOutboundText(message.content),
       thread_ts: target.threadTs,
       username: message.author.name,
     });
