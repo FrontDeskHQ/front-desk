@@ -5,6 +5,15 @@ export const reflagClient = new ReflagClient({
   secretKey: process.env.REFLAG_SECRET_KEY,
 });
 
+/**
+ * Load flag definitions before either service accepts work. Reflag returns no
+ * flags when queried before initialization, which otherwise looks identical to
+ * an intentionally disabled feature.
+ */
+export const initializeFeatureFlags = async (): Promise<void> => {
+  await reflagClient.initialize();
+};
+
 export const isOrganizationFeatureEnabled = (
   organizationId: string,
   flag: string

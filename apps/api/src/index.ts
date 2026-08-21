@@ -17,7 +17,7 @@ import {
 } from "./lib/api-credential";
 import { auth } from "./lib/auth";
 import { parsePortalOrganizationSlug } from "./lib/authorize";
-import { reflagClient } from "./lib/feature-flag";
+import { initializeFeatureFlags, reflagClient } from "./lib/feature-flag";
 import { portalAuth } from "./lib/portal-auth";
 import { liveStateHooks } from "./live-state/hooks";
 import { runMigrations } from "./live-state/migrations";
@@ -340,9 +340,8 @@ expressAdapter(app as unknown as Express, lsServer, {
   basePath: "/api/ls",
 });
 
-reflagClient.initialize().then(() => {
-  console.log("Reflag client initialized");
-});
+await initializeFeatureFlags();
+console.log("Reflag client initialized");
 
 await runMigrations(storage);
 
