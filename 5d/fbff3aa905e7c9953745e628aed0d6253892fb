@@ -1,0 +1,31 @@
+connectors/slack/package.json
+  s_80c3778514fbe3::t_09c85f5af2ab63 25-28
+  s_80c3778514fbe3::t_8e8b0574171d5c 32
+  s_80c3778514fbe3::t_6fb78015ab2129 35
+connectors/slack/src/lib/markdown-to-mrkdwn.test.ts
+  s_80c3778514fbe3::t_df6b9edc181fe1 32-34
+  s_80c3778514fbe3::t_e8e6e3aa5f9694 35-37
+bun.lock
+  ai_agent 297-300,304,307,2236,4944-4945,5952-5953,6530
+connectors/slack/src/lib/markdown-to-mrkdwn.ts
+  s_80c3778514fbe3::t_c8923595e5aebf 4,6-9,23-41
+  s_80c3778514fbe3::t_5f5e6deec50aa0 2
+  s_80c3778514fbe3::t_b68cd352b6b3a8 5
+  s_80c3778514fbe3::t_e974b072847a99 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "5dfbff3aa905e7c9953745e628aed0d6253892fb",
+  "prompts": {},
+  "sessions": {
+    "s_80c3778514fbe3": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "d3f259b2-c5f3-4523-aa59-b75f590a2270",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
