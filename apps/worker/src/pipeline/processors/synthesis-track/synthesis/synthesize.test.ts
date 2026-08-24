@@ -96,7 +96,7 @@ describe("synthesis action contract", () => {
     const autonomy = allSuggest();
     for (const kind of SYNTHESIS_ACTION_KINDS) autonomy[kind] = "off";
 
-    expect(enabledSynthesisActionKinds(inputFor(autonomy))).toHaveLength(0);
+    expect(enabledSynthesisActionKinds(inputFor(autonomy)).size).toBe(0);
   });
 
   it("keeps enabled non-reply actions on an unreplied thread when reply is off", () => {
