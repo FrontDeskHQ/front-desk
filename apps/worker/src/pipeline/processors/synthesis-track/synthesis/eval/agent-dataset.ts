@@ -186,8 +186,9 @@ const mkThread = (id: string, name: string) => ({
 // issue filing opts in explicitly.
 type SynthesisAgentEvalCaseInput = Omit<
   SynthesizeThreadReadInput,
-  "availability" | "hasTeamReply"
+  "autonomy" | "availability" | "hasTeamReply"
 > & {
+  autonomy?: SynthesizeThreadReadInput["autonomy"];
   availability?: SynthesizeThreadReadInput["availability"];
   hasTeamReply?: boolean;
 };
@@ -2449,6 +2450,15 @@ export const synthesisAgentDataset: SynthesisAgentEvalCase[] =
     ...testCase,
     input: {
       ...testCase.input,
+      autonomy: testCase.input.autonomy ?? {
+        apply_label: "suggest",
+        create_issue: "suggest",
+        link_issue: "suggest",
+        link_pr: "suggest",
+        mark_duplicate: "suggest",
+        reply: "suggest",
+        set_status: "suggest",
+      },
       availability: testCase.input.availability ?? { create_issue: false },
       hasTeamReply: testCase.input.hasTeamReply ?? false,
     },

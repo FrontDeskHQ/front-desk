@@ -154,6 +154,7 @@ export const normalizeSynthesisRawActionSet = ({
   messageIds,
   fallbackSourceInputMessageId,
   hasTeamReply,
+  replyEnabled = true,
   verifiedPrUrls,
   verifiedIssueUrls,
   customerMessageIds,
@@ -162,6 +163,11 @@ export const normalizeSynthesisRawActionSet = ({
   messageIds: Set<string>;
   fallbackSourceInputMessageId: string;
   hasTeamReply: boolean;
+  /**
+   * Whether reply was part of this run's synthesis contract. The first-response
+   * bundle invariant only applies when the Agent is allowed to emit one.
+   */
+  replyEnabled?: boolean;
   /**
    * Ids of the messages the customer wrote. When set, a `customer_confirmed`
    * witness citing none of them is downgraded to `inferred` — a teammate's
@@ -274,7 +280,7 @@ export const normalizeSynthesisRawActionSet = ({
   primary = dedupeIssueAction(primary);
   alternatives = dedupeIssueAction(alternatives);
 
-  if (!hasTeamReply) {
+  if (!hasTeamReply && replyEnabled) {
     alternatives = alternatives.filter((action) => action.kind === "reply");
     const primaryHasNonReply = primary.some(
       (action) => action.kind !== "reply"

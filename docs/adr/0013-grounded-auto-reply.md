@@ -12,9 +12,9 @@
 
 **A class, not a scalar.** A self-reported 0–1 confidence is uncheckable; models emit `0.9` on hallucinations. A class that must name its sources is verifiable against what the run actually retrieved — the same move already made for `link_pr` and `link_issue`. Applicability (does the source answer _this_ question?) is folded into the class definition rather than split into a second field, because a separate `sufficiency` dimension would be collapsed straight back to a boolean by the gate.
 
-**Gated in the autonomy stage, via a generic action-gate registry.** Synthesis keeps emitting its best draft regardless; permission is the autonomy stage's job, and a low-grounding reply still reaches a human as a `suggest` rather than vanishing. The gate is a per-kind entry in a registry so future kinds can register one, but grounding itself stays on `replyActionSchema` — no other kind grows a field it will never use.
+**Gated in the autonomy stage, via a generic action-gate registry.** When reply autonomy is `suggest` or `auto`, synthesis emits its best draft; `off` removes reply from the synthesis contract entirely. A low-grounding reply under `auto` still reaches a human as a `suggest` rather than vanishing. The gate is a per-kind entry in a registry so future kinds can register one, but grounding itself stays on `replyActionSchema` — no other kind grows a field it will never use.
 
-**The gate runs after per-kind autonomy partitioning.** It has to: `link_pr` defaults to `off`, so a `state_report` reply citing a link established in the same bundle must be able to see whether that sibling is actually executing. Without this ordering the modal first-time configuration auto-sends a customer a reference to a link that was silently dropped.
+**The gate runs after per-kind autonomy partitioning.** A `state_report` reply citing a link established in the same bundle must be able to see whether that sibling is actually executing rather than merely suggested. Without this ordering the Agent could auto-send a customer a reference to work whose linking action still awaits human review.
 
 **Degradation is per-action.** A failed gate downgrades the reply only; reversible siblings still auto-execute, leaving the ADR-0003 partial state ("prefix committed, reply still owed") the UI already handles.
 
