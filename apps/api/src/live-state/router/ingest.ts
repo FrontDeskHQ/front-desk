@@ -3,6 +3,7 @@ import { supportEntryPointIngestSchema } from "@connectors/framework";
 import { ulid } from "ulid";
 
 import { requireInternalApiKey } from "../../lib/authorize";
+import { ensureExternalAuthor } from "../../lib/external-author";
 import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { nextThreadShortId } from "../../lib/thread-short-id";
 import { serializeMessageContent } from "../../lib/tiptap-content";
@@ -21,7 +22,8 @@ import { schema } from "../schema";
  * - **Hard-errors** when a message targets an unknown external thread with no
  *   `thread` descriptor, rather than create a silent titleless thread.
  * - **Author** find-or-create/dedup on `(organizationId, metaId)` with the
- *   `provider:` prefixing convention.
+ *   `provider:` prefixing convention, refreshing `name` when the provider
+ *   sent a new one (a Slack/Discord rename is the same author).
  *
  * `isBackfill` is written onto the message rows and only influences downstream
  * pipeline triggers (via the message `afterInsert` hook); it does not change
@@ -49,22 +51,11 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
       const content = serializeMessageContent(message.body);
 
       return db.transaction(async ({ trx }) => {
-        // Author find-or-create/dedup, keyed on (organizationId, metaId).
-        const existingAuthor = await trx.author
-          .first({ metaId, organizationId })
-          .get();
-
-        let authorId = existingAuthor?.id;
-        if (!authorId) {
-          authorId = ulid().toLowerCase();
-          await trx.author.insert({
-            id: authorId,
-            metaId,
-            name: author.name,
-            organizationId,
-            userId: null,
-          });
-        }
+        const authorId = await ensureExternalAuthor(trx, {
+          metaId,
+          name: author.name,
+          organizationId,
+        });
 
         // Locate the thread for this external thread within the org. Scope by
         // provider too: two providers can mint the same raw external id, and
