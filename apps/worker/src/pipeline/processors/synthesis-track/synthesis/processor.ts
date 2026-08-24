@@ -19,7 +19,10 @@ import type {
 import type { SummarizeOutput } from "../../summarize";
 import type { RetrievalHintOutput } from "../define-retrieval-hint";
 import { normalizeSynthesisRawActionSet } from "./normalize";
-import { synthesizeThreadRead } from "./synthesize";
+import {
+  enabledSynthesisActionKinds,
+  synthesizeThreadRead,
+} from "./synthesize";
 import { createSynthesisTools } from "./tools";
 
 const computeSha256 = (data: string): string =>
@@ -174,9 +177,34 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           ? (resolvedAuthors.names.get(thread.authorId) ?? null)
           : null;
 
-        // Availability is resolved *before* synthesis so it can shape the
-        // prompt and the output schema (see CONTEXT.md, "Action availability").
+        // Availability and autonomy are resolved *before* synthesis so they
+        // shape the prompt and output contract. The autonomy stage repeats the
+        // policy check afterward as defense in depth.
         const availability = await run.availability();
+        const autonomy = await run.autonomy();
+        const enabledActionKinds = enabledSynthesisActionKinds({
+          autonomy,
+          availability,
+        });
+
+        if (enabledActionKinds.size === 0) {
+          await applySynthesisAutonomy(run, null);
+          requestLog.set({
+            synthesis: {
+              createIssueAvailable: availability.create_issue,
+              enabledActionCount: 0,
+              hintCount: Object.keys(hints).length,
+              messageCount: messages.length,
+              teamReplyPresent: hasTeamReply,
+            },
+            outcome: { status: "completed", reason: "all_actions_off" },
+          });
+          return {
+            threadId,
+            success: true,
+            data: { rawActionSet: null, agentRead: null },
+          };
+        }
 
         const tools = createSynthesisTools({
           audit: run.audit,
@@ -202,6 +230,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
                   : String(message.createdAt),
             })),
             availability,
+            autonomy,
             summary: summarize?.summary ?? null,
             hints,
             triggers: jobContext.input.triggers ?? [],
@@ -226,6 +255,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           ),
           fallbackSourceInputMessageId: latestMessage.id,
           hasTeamReply,
+          replyEnabled: enabledActionKinds.has("reply"),
         });
 
         const agentRead = await applySynthesisAutonomy(run, rawActionSet);
