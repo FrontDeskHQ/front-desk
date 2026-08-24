@@ -17,8 +17,7 @@ describe("slackAuthorName", () => {
     expect(
       slackAuthorName({
         name: "ada",
-        profile: { display_name: "", real_name: "Ada Lovelace" },
-        real_name: "Ada Lovelace",
+        profile: { display_name: "", real_name: " Ada Lovelace " },
       })
     ).toBe("Ada Lovelace");
   });
