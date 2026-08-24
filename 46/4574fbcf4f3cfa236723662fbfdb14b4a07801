@@ -1,0 +1,41 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_ba37b0ce001aec::t_8abbb395edd34f 186
+  s_ba37b0ce001aec::t_d378bf989c5ff3 233-235,251,269-294,297,299,301-322,325-331,333,339-340,351-358,360-363,366-370,373
+  s_ba37b0ce001aec::t_6781e2efc26e57 513,546,563,579,583,608,617-628,718
+  s_ba37b0ce001aec::t_2c7df23463b629 334,386-388,393-409,411-412,429,431,434-457,461-484
+  s_ba37b0ce001aec::t_800877bfeaf7f7 4-5,44,49,53-66,71-78,105-108,110-118,179-183,188,196,207-209
+  s_ba37b0ce001aec::t_cb22128b9e6e22 488-501
+  s_ba37b0ce001aec::t_960f20ed807b37 67-70,341,348,359,389-392,418-423,458-460,505-507,537-539,541-543,551,565,567-569,581
+docs/adr/0013-grounded-auto-reply.md
+  s_ba37b0ce001aec::t_522646f221414f 15,17
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.test.ts
+  s_ba37b0ce001aec::t_135cad524f16f8 4,116
+  s_ba37b0ce001aec::t_8abbb395edd34f 1-3,5-99,117-118
+  s_ba37b0ce001aec::t_e1a3fab89393ad 100-115
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_ba37b0ce001aec::t_bc02a12d4a248b 189,191,2453-2461
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/processor.ts
+  s_ba37b0ce001aec::t_4aae7210884f63 22-25,180-182,184,189,191-207,233
+  s_ba37b0ce001aec::t_2290c2240a03f3 185-188,190,258
+CONTEXT.md
+  s_ba37b0ce001aec::t_522646f221414f 89
+  s_ba37b0ce001aec::t_32572f853fab3b 85
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/normalize.ts
+  s_ba37b0ce001aec::t_2290c2240a03f3 157,166-170,283
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "464574fbcf4f3cfa236723662fbfdb14b4a07801",
+  "prompts": {},
+  "sessions": {
+    "s_ba37b0ce001aec": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03519-e91e-74a1-a5c5-2fc87090d734",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
