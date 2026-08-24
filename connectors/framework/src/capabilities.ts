@@ -29,9 +29,10 @@ export const isCapability = (value: string): value is Capability =>
  * A connector translates a provider event into these neutral shapes and calls
  * the core's `mutate.ingest` procedure. The core owns normalization: idempotent
  * create-vs-append keyed on `(organizationId, externalThreadId,
- * externalMessageId)`, author find-or-create, and the `provider:` prefixing
- * convention. The connector keeps only the un-liftable provider work — event
- * translation and resolving a raw user id → display name.
+ * externalMessageId)`, author find-or-create with display-name refresh, and
+ * the `provider:` prefixing convention. The connector keeps only the
+ * un-liftable provider work — event translation and resolving a raw user id
+ * → display name.
  *
  * See `docs/adr/0009-emitting-side-connector-retrofit.md`.
  */

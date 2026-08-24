@@ -12,6 +12,7 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
+import { ensureExternalAuthor } from "../../lib/external-author";
 import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { runCreateIssue } from "../../lib/issue-tracker";
 import { enqueueThreadRead } from "../../lib/queue";
@@ -155,28 +156,11 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           });
         }
       } else if (req.input.author) {
-        // API key flow - use metaId
-        const existingAuthor = Object.values(
-          await trx.find(schema.author, {
-            where: {
-              metaId: req.input.author.id,
-              organizationId,
-            },
-          })
-        );
-
-        authorId = existingAuthor[0]?.id;
-
-        if (!authorId) {
-          authorId = ulid().toLowerCase();
-          await trx.insert(schema.author, {
-            id: authorId,
-            metaId: req.input.author.id,
-            name: req.input.author.name,
-            organizationId,
-            userId: null,
-          });
-        }
+        authorId = await ensureExternalAuthor(trx, {
+          metaId: req.input.author.id,
+          name: req.input.author.name,
+          organizationId,
+        });
       } else {
         throw new Error("MISSING_AUTHOR_INFO");
       }

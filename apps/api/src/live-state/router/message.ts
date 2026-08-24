@@ -10,6 +10,7 @@ import {
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
+import { ensureExternalAuthor } from "../../lib/external-author";
 // Retired with `messages-v1` (FRO-224); see the commented search handler below.
 // import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
@@ -93,25 +94,11 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       let authorId: string | undefined;
 
       if (hasIntegrationAuthor && req.input.author) {
-        const existingAuthor = await trx.author
-          .first({
-            metaId: req.input.author.id,
-            organizationId: req.input.organizationId,
-          })
-          .get();
-
-        authorId = existingAuthor?.id;
-
-        if (!authorId) {
-          authorId = ulid().toLowerCase();
-          await trx.author.insert({
-            id: authorId,
-            metaId: req.input.author.id,
-            name: req.input.author.name,
-            organizationId: req.input.organizationId,
-            userId: null,
-          });
-        }
+        authorId = await ensureExternalAuthor(trx, {
+          metaId: req.input.author.id,
+          name: req.input.author.name,
+          organizationId: req.input.organizationId,
+        });
       } else {
         if (!humanAuthor) {
           throw new Error("AUTHOR_REQUIRED");

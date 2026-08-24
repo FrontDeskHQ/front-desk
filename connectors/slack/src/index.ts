@@ -22,6 +22,7 @@ import {
 } from "@workspace/utils/logging";
 import { parse } from "@workspace/utils/md-tiptap";
 
+import { slackAuthorName } from "./lib/author-name";
 import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
@@ -304,7 +305,7 @@ const resolveSlackAuthor = async (
   try {
     const userInfo = await client.users.info({ user: slackUserId });
     if (userInfo.ok && userInfo.user) {
-      userName = userInfo.user.real_name || userInfo.user.name || "Unknown";
+      userName = slackAuthorName(userInfo.user);
     }
   } catch (error) {
     console.error(
