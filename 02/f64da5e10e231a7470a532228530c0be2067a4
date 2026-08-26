@@ -1,0 +1,25 @@
+packages/utils/src/lib/format.test.ts
+  s_c3f500711592f5::t_3041ac511143a5 1-2,26-38
+  s_c3f500711592f5::t_b6a2bfb4f78144 3-25
+apps/api/src/live-state/schema.ts
+  s_c3f500711592f5::t_6663f6aea7162c 20-28
+  s_c3f500711592f5::t_11de3f3fb4adda 11
+packages/utils/src/lib/format.ts
+  s_c3f500711592f5::t_61769d8af81a2a 3-26,28,31-32,38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "02f64da5e10e231a7470a532228530c0be2067a4",
+  "prompts": {},
+  "sessions": {
+    "s_c3f500711592f5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "b6ae7b5d-33d6-4c3a-81ad-72f4955adc01",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
