@@ -14,7 +14,7 @@ function RouteComponent() {
   return (
     <div className="w-screen h-full flex overflow-hidden">
       <AppSidebar />
-      <Card className="flex-1 relative m-2 ml-0 h-auto overflow-hidden [&:has([data-slot=sidebar-trigger])]:ml-2 [&:has([data-slot=sidebar-trigger])_[data-slot=card-header]]:pl-12">
+      <Card className="flex-1 relative m-2 ml-0 h-auto overflow-hidden [&:has([data-slot=collapsed-sidebar-trigger])]:ml-2 [&:has([data-slot=collapsed-sidebar-trigger])_[data-slot=card-header]]:pl-12">
         <CollapsedSidebarTrigger />
         <Outlet />
       </Card>

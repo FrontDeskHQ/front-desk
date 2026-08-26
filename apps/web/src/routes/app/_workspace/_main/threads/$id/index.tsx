@@ -35,7 +35,14 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { Separator } from "@workspace/ui/components/separator";
-import { TooltipProvider } from "@workspace/ui/components/tooltip";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarInset,
+  SidebarProvider,
+  SidebarResizeHandle,
+  SidebarTrigger,
+} from "@workspace/ui/components/sidebar";
 import { useAutoScroll } from "@workspace/ui/hooks/use-auto-scroll";
 import type { schema } from "api/schema";
 import { useAtomValue } from "jotai";
@@ -281,8 +288,14 @@ function RouteComponent() {
   return (
     <>
       <ThreadCommands threadId={id} />
-      <div className="flex size-full">
-        <div className="flex-1 flex flex-col min-w-0">
+      <SidebarProvider
+        id="thread-details"
+        className="size-full min-h-0 overflow-hidden"
+        defaultWidth={256}
+        maxWidth={480}
+        minWidth={196}
+      >
+        <SidebarInset className="min-h-0 overflow-hidden bg-transparent">
           <CardHeader className="min-w-0 grid-cols-[minmax(0,1fr)]">
             {thread && (
               <div className="flex justify-between items-center w-full min-w-0 gap-2">
@@ -308,13 +321,18 @@ function RouteComponent() {
                     </BreadcrumbItem>
                   </BreadcrumbList>
                 </Breadcrumb>
+                <SidebarTrigger
+                  aria-label="Toggle thread details"
+                  className="ml-auto shrink-0"
+                  side="right"
+                />
                 <DropdownMenu modal={false}>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
                       aria-label="Open menu"
                       size="sm"
-                      className="ml-auto shrink-0"
+                      className="shrink-0"
                     >
                       <MoreHorizontalIcon />
                     </Button>
@@ -429,9 +447,9 @@ function RouteComponent() {
               </div>
             </div>
           </div>
-        </div>
-        <div className="w-64 border-l bg-muted/25 flex flex-col p-4 gap-4">
-          <TooltipProvider>
+        </SidebarInset>
+        <Sidebar side="right" variant="inset">
+          <SidebarContent className="gap-4 p-4">
             <PropertiesSection
               thread={thread}
               id={id}
@@ -443,7 +461,6 @@ function RouteComponent() {
               threadId={id}
               captureThreadEvent={captureThreadEvent}
             />
-
             <IssuesSection
               threadId={id}
               user={user}
@@ -457,11 +474,11 @@ function RouteComponent() {
               externalPrId={thread?.externalPrId ?? null}
               captureThreadEvent={captureThreadEvent}
             />
-
             <RelatedThreadsSection threadId={id} />
-          </TooltipProvider>
-        </div>
-      </div>
+          </SidebarContent>
+          <SidebarResizeHandle />
+        </Sidebar>
+      </SidebarProvider>
     </>
   );
 }

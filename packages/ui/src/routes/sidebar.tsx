@@ -486,6 +486,13 @@ function RouteComponent() {
               type: '"left" | "right"',
             },
             {
+              default: '"left"',
+              description:
+                "Which panel edge the default trigger icon depicts. The sidebar strip is filled when open and outlined when collapsed. Open does not apply a pressed/active button look. Pass children to replace the icon.",
+              name: "side / children (Trigger)",
+              type: '"left" | "right" / ReactNode',
+            },
+            {
               default: '"sidebar"',
               description:
                 "Visual chrome. sidebar is flush (no fill, no border). inset is a filled surface with a side border. floating overlays content in a Base UI Dialog (rounded, bordered, no layout gap).",

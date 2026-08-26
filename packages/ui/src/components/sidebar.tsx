@@ -21,7 +21,6 @@ import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
-import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
 
 const SIDEBAR_STORAGE_PREFIX = "fd.sidebar.v1.";
@@ -934,15 +933,58 @@ function SidebarPanel({
   );
 }
 
+function SidebarTriggerIcon({
+  open,
+  side,
+}: {
+  open: boolean;
+  side: SidebarSide;
+}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect width="18" height="18" x="3" y="3" rx="2" />
+      {open ? (
+        <path
+          fill="currentColor"
+          stroke="none"
+          d={
+            side === "right"
+              ? "M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4z"
+              : "M3 5a2 2 0 0 1 2-2h4v18H5a2 2 0 0 1-2-2z"
+          }
+        />
+      ) : (
+        <path d={side === "right" ? "M15 3v18" : "M9 3v18"} />
+      )}
+    </svg>
+  );
+}
+
 function SidebarTrigger({
+  children,
   className,
   handle,
   onClick,
+  side: sideProp,
   ...props
 }: React.ComponentProps<typeof Button> & {
   handle?: SidebarHandle;
+  side?: SidebarSide;
 }) {
   const { handle: resolvedHandle, open, toggleSidebar } = useSidebar(handle);
+  const layout = React.use(SidebarLayoutContext);
+  const side = sideProp ?? layout?.side ?? "left";
 
   return (
     <Button
@@ -952,7 +994,10 @@ function SidebarTrigger({
       size="icon"
       aria-controls={resolvedHandle.panelId}
       aria-expanded={open}
-      className={cn("size-7", className)}
+      className={cn(
+        "size-7 aria-expanded:bg-transparent aria-expanded:text-current",
+        className
+      )}
       onClick={(event) => {
         onClick?.(event);
         if (event.defaultPrevented) {
@@ -962,7 +1007,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      <PanelLeftIcon />
+      {children ?? <SidebarTriggerIcon open={open} side={side} />}
       <span className="sr-only">Toggle sidebar</span>
     </Button>
   );
