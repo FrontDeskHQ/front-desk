@@ -22,7 +22,7 @@ function RootComponent() {
         <SidebarProvider className="flex min-h-0 w-full flex-1 flex-row overflow-hidden">
           <RootSidebar />
           <SidebarInset className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border-primary px-2 md:hidden">
+            <header className="flex h-12 shrink-0 items-center gap-2 border-b border-border-primary px-2 lg:hidden">
               <SidebarTrigger />
               <span className="font-medium text-sm">FrontDesk UI</span>
             </header>

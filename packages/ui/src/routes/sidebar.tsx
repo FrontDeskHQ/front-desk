@@ -29,7 +29,7 @@ import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "A collapsible, resizable app chrome panel with left or right placement, optional hover-to-peek, a floating Dialog overlay, and a detached trigger via createSidebarHandle.",
+    "A collapsible, resizable app chrome panel with left or right placement, optional hover-to-peek, a floating Dialog overlay, a viewport overlay below lg, and a detached trigger via createSidebarHandle.",
   import:
     'import { Sidebar, SidebarProvider, SidebarTrigger, createSidebarHandle } from "@workspace/ui/components/sidebar";',
   name: "Sidebar",
@@ -45,6 +45,7 @@ export const meta: ComponentMeta = {
     "A floating overlay panel that should not push layout — use variant=\"floating\" (Base UI Dialog).",
     "More than one sidebar on the same screen — give each Provider or handle its own id, width, and min/max.",
     "A collapse control that lives outside the panel (toolbar, inbox header) — pass a handle to SidebarTrigger.",
+    "Narrow viewports (below lg / 1024px) — the panel stays collapsed in layout; the trigger shows an overlay instead of pinning it open.",
   ],
 };
 
@@ -411,6 +412,52 @@ function RouteComponent() {
       </DocSection>
 
       <DocSection
+        title="Below lg"
+        description="Below the lg breakpoint (1024px) the panel cannot pin open in the layout. The trigger opens a temporary overlay; closing it leaves the desktop pin state unchanged. Resize the preview or your window to try it."
+      >
+        <Demo
+          className="h-80 w-full overflow-hidden p-0"
+          code={`<SidebarProvider id="nav">
+  <Sidebar>
+    <SidebarHeader>Acme</SidebarHeader>
+    <SidebarContent>{/* nav */}</SidebarContent>
+    <SidebarResizeHandle />
+  </Sidebar>
+  <SidebarInset>
+    <SidebarTrigger />
+    Inbox
+  </SidebarInset>
+</SidebarProvider>`}
+        >
+          <SidebarProvider
+            className="h-80 w-full"
+            defaultWidth={220}
+            id="docs-below-lg"
+            maxWidth={320}
+            minWidth={180}
+          >
+            <Sidebar>
+              <SidebarHeader className="text-sm">Acme</SidebarHeader>
+              <SidebarContent>
+                <NavItems />
+              </SidebarContent>
+              <SidebarResizeHandle />
+            </Sidebar>
+            <SidebarInset>
+              <header className="flex h-10 items-center gap-2 border-b px-2">
+                <SidebarTrigger />
+                <span className="text-sm">Inbox</span>
+              </header>
+              <div className="p-3 text-foreground-secondary text-sm">
+                Below lg the trigger shows the sidebar as an overlay. It does
+                not expand the layout.
+              </div>
+            </SidebarInset>
+          </SidebarProvider>
+        </Demo>
+      </DocSection>
+
+      <DocSection
         title="Detached trigger"
         description="createSidebarHandle() is a store. Pass the same handle to SidebarTrigger and SidebarProvider so the trigger can live outside the provider tree."
       >
@@ -484,6 +531,13 @@ function RouteComponent() {
               description: "Which edge the panel occupies. Mirrors overlay, hover target, and resize.",
               name: "side (Sidebar)",
               type: '"left" | "right"',
+            },
+            {
+              default: "false",
+              description:
+                "Below lg, the trigger toggles this overlay instead of the persisted pin. Not written to storage.",
+              name: "openMobile (context)",
+              type: "boolean",
             },
             {
               default: '"left"',

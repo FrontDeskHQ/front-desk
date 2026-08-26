@@ -17,11 +17,17 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
-import { useIsMobile } from "@workspace/ui/hooks/use-mobile";
+import { MOBILE_BREAKPOINT, useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
+
+function matchesMobileViewport() {
+  return (
+    typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT
+  );
+}
 
 const SIDEBAR_STORAGE_PREFIX = "fd.sidebar.v1.";
 const DEFAULT_WIDTH = 256;
@@ -409,9 +415,22 @@ function SidebarProvider({
     [handle, onWidthChange, widthProp]
   );
 
+  const [openMobile, setOpenMobile] = React.useState(false);
+
   const toggleSidebar = React.useCallback(() => {
+    const overlayViewport = matchesMobileViewport() || isMobile;
+    if (overlayViewport || isMobile) {
+      setOpenMobile((open) => !open);
+      return;
+    }
     setOpen((open) => !open);
-  }, [setOpen]);
+  }, [isMobile, setOpen]);
+
+  React.useEffect(() => {
+    if (!isMobile) {
+      setOpenMobile(false);
+    }
+  }, [isMobile]);
 
   const [overlayRoot, setOverlayRoot] = React.useState<HTMLElement | null>(
     null
@@ -427,12 +446,12 @@ function SidebarProvider({
       onOpenChange,
       onWidthChange,
       open: snapshot.open,
-      openMobile: isMobile ? snapshot.open : false,
+      openMobile,
       overlayRoot,
       peeking: snapshot.peeking,
       resizing: snapshot.resizing,
       setOpen,
-      setOpenMobile: setOpen,
+      setOpenMobile,
       setPeeking: handle.setPeeking,
       setResizing: handle.setResizing,
       setWidth,
@@ -446,8 +465,10 @@ function SidebarProvider({
       isMobile,
       onOpenChange,
       onWidthChange,
+      openMobile,
       overlayRoot,
       setOpen,
+      setOpenMobile,
       setWidth,
       snapshot.open,
       snapshot.peeking,
@@ -594,13 +615,16 @@ function SidebarFloatingFrame({
   const {
     isMobile,
     open,
+    openMobile,
     overlayRoot,
     peeking,
     resizing,
     setOpen,
+    setOpenMobile,
     setPeeking,
     width,
   } = useSidebar();
+  const overlayVisible = isMobile ? openMobile : visible;
 
   return (
     <div
@@ -626,10 +650,14 @@ function SidebarFloatingFrame({
         />
       ) : null}
       <Dialog
-        open={visible}
+        open={overlayVisible}
         disablePointerDismissal={!isMobile}
         modal={isMobile}
         onOpenChange={(next) => {
+          if (isMobile) {
+            setOpenMobile(next);
+            return;
+          }
           if (next) {
             setOpen(true);
             return;
@@ -756,9 +784,10 @@ function SidebarPanel({
     handle,
     isMobile,
     open,
+    openMobile,
     peeking,
     resizing,
-    setOpen,
+    setOpenMobile,
     setPeeking,
     width,
   } = useSidebar();
@@ -813,7 +842,7 @@ function SidebarPanel({
           data-state="expanded"
           data-variant={variant}
           data-collapse-mode="none"
-          className={cn("relative hidden h-full md:flex", className)}
+          className={cn("relative hidden h-full lg:flex", className)}
           style={{ width }}
           {...props}
         >
@@ -828,16 +857,16 @@ function SidebarPanel({
     );
   }
 
-  if (isMobile) {
+  if (isMobile || openMobile) {
     return (
       <SidebarLayoutContext value={layoutValue}>
-        {open ? (
+        {openMobile ? (
           <button
             type="button"
             data-slot="sidebar-backdrop"
             aria-label="Close sidebar"
-            className="fixed inset-0 z-40 bg-black/50 md:hidden"
-            onClick={() => setOpen(false)}
+            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
+            onClick={() => setOpenMobile(false)}
           />
         ) : null}
         <div
@@ -845,12 +874,12 @@ function SidebarPanel({
           data-slot="sidebar"
           data-mobile="true"
           data-side={side}
-          data-state={open ? "expanded" : "collapsed"}
+          data-state={openMobile ? "expanded" : "collapsed"}
           data-variant={variant}
           className={cn(
-            "fixed inset-y-0 z-50 flex w-72 flex-col bg-sidebar text-sidebar-foreground shadow-lg transition-transform duration-200 ease-out md:hidden",
+            "fixed inset-y-0 z-50 flex w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground shadow-lg transition-transform duration-200 ease-out lg:hidden",
             side === "left" ? "left-0 border-r" : "right-0 border-l",
-            open
+            openMobile
               ? "translate-x-0"
               : side === "left"
                 ? "-translate-x-full"
@@ -868,7 +897,7 @@ function SidebarPanel({
   return (
     <SidebarLayoutContext value={layoutValue}>
       <div
-        className="group/sidebar peer relative hidden h-full overflow-visible text-sidebar-foreground md:flex"
+        className="group/sidebar peer relative hidden h-full overflow-visible text-sidebar-foreground lg:flex"
         data-slot="sidebar"
         data-side={side}
         data-state={open ? "expanded" : "collapsed"}
@@ -982,9 +1011,17 @@ function SidebarTrigger({
   handle?: SidebarHandle;
   side?: SidebarSide;
 }) {
-  const { handle: resolvedHandle, open, toggleSidebar } = useSidebar(handle);
+  const {
+    handle: resolvedHandle,
+    isMobile,
+    open,
+    openMobile,
+    toggleSidebar,
+  } = useSidebar(handle);
   const layout = React.use(SidebarLayoutContext);
   const side = sideProp ?? layout?.side ?? "left";
+  const overlay = isMobile || matchesMobileViewport();
+  const expanded = overlay ? openMobile : open;
 
   return (
     <Button
@@ -993,7 +1030,7 @@ function SidebarTrigger({
       variant="ghost"
       size="icon"
       aria-controls={resolvedHandle.panelId}
-      aria-expanded={open}
+      aria-expanded={expanded}
       className={cn(
         "size-7 aria-expanded:bg-transparent aria-expanded:text-current",
         className
@@ -1007,7 +1044,7 @@ function SidebarTrigger({
       }}
       {...props}
     >
-      {children ?? <SidebarTriggerIcon open={open} side={side} />}
+      {children ?? <SidebarTriggerIcon open={expanded} side={side} />}
       <span className="sr-only">Toggle sidebar</span>
     </Button>
   );
@@ -1098,7 +1135,7 @@ function SidebarResizeHandle({
       role="separator"
       title={open ? "Drag to resize, click to collapse" : "Click to expand"}
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-3 cursor-col-resize touch-none items-center justify-center md:flex",
+        "absolute inset-y-0 z-20 hidden w-3 cursor-col-resize touch-none items-center justify-center lg:flex",
         "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
         "hover:after:bg-foreground-tertiary focus-visible:after:bg-ring",
         "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
@@ -1127,7 +1164,8 @@ function SidebarInset({ className, ...props }: React.ComponentProps<"main">) {
       data-slot="sidebar-inset"
       className={cn(
         "bg-background-primary relative flex min-w-0 w-full flex-1 flex-col",
-        "md:peer-data-[variant=inset]:m-2 md:peer-data-[variant=inset]:ml-0 md:peer-data-[variant=inset]:rounded-xl md:peer-data-[variant=inset]:shadow-sm md:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
+        "max-lg:w-full",
+        "lg:peer-data-[variant=inset]:m-2 lg:peer-data-[variant=inset]:ml-0 lg:peer-data-[variant=inset]:rounded-xl lg:peer-data-[variant=inset]:shadow-sm lg:peer-data-[variant=inset]:peer-data-[state=collapsed]:ml-2",
         className
       )}
       {...props}
