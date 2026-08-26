@@ -1,0 +1,22 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.test.ts
+  s_d7050c6171dff9::t_074ada35a93d51 119-122,149-158
+  s_d7050c6171dff9::t_32fa9cd3e7adad 141-148
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_d7050c6171dff9::t_074ada35a93d51 435
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d3c25f6ff06d29f0fe4a707709bc6224affa4620",
+  "prompts": {},
+  "sessions": {
+    "s_d7050c6171dff9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a03f5d-46d6-7c50-a33d-5a599dfc0912",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
