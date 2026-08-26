@@ -64,7 +64,7 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
   const { isEnabled: isSearchEnabled } = useFlag("in-app-search");
 
   return (
-    <Sidebar variant="inset" className="bg-none" {...props}>
+    <Sidebar {...props}>
       <SidebarHeader className="bg-none flex-row">
         <OrgSwitcher />
         {isSearchEnabled && (

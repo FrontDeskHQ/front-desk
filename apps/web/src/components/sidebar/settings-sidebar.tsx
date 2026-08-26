@@ -123,7 +123,7 @@ export function SettingsSidebar() {
   );
 
   return (
-    <Sidebar variant="inset" className="bg-none">
+    <Sidebar>
       <SidebarHeader className="bg-none">
         <SidebarMenuButton asChild className="w-fit">
           <Link to="/app">

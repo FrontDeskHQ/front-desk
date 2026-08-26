@@ -39,7 +39,7 @@ const ORG_NAME = "Acme";
 
 export function MockSidebar({ active = "threads" }: MockSidebarProps) {
   return (
-    <Sidebar variant="inset" className="bg-transparent p-2" collapsible="none">
+    <Sidebar collapsible="none">
       <SidebarHeader className="bg-transparent flex-row">
         <SidebarMenu>
           <SidebarMenuItem>
