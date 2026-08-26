@@ -99,6 +99,42 @@ describe("synthesis action contract", () => {
     expect(enabledSynthesisActionKinds(inputFor(autonomy)).size).toBe(0);
   });
 
+  it("instructs replies to advance the conversation without recapping the customer problem", () => {
+    const prompt = buildSynthesisPrompt(inputFor());
+
+    expect(prompt).toContain("Every reply must move the conversation forward");
+    expect(prompt).toContain(
+      "Do not repeat or paraphrase their problem, symptoms, error message, request, or troubleshooting steps"
+    );
+    expect(prompt).toContain(
+      "contributing something new: the answer, the current status, the next step, or a focused request"
+    );
+  });
+
+  it("forbids greetings when the team has already replied", () => {
+    const prompt = buildSynthesisPrompt(inputFor());
+
+    expect(prompt).toContain("This is an ongoing conversation");
+    expect(prompt).toContain("NEVER begin with a greeting or salutation");
+    expect(prompt).not.toContain("Customer display name (use only in this");
+  });
+
+  it("requires a greeting when the team has not replied", () => {
+    const input = inputFor();
+    input.customerName = "Alex Rivera";
+    input.hasTeamReply = false;
+
+    const prompt = buildSynthesisPrompt(input);
+
+    expect(prompt).toContain("First-reply tone:");
+    expect(prompt).toContain("Begin with `Hi <first name>,`");
+    expect(prompt).toContain('"John Nolan" becomes "Hi John,"');
+    expect(prompt).toContain(
+      'derive the first name only for this first-reply greeting): "Alex Rivera"'
+    );
+    expect(prompt).not.toContain("NEVER begin with a greeting or salutation");
+  });
+
   it("keeps enabled non-reply actions on an unreplied thread when reply is off", () => {
     const output = parseRawActionSetFromText(
       rawActionSet({ kind: "set_status", status: 1, witness: null }),
