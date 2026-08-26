@@ -432,8 +432,7 @@ ${
     : `First-reply tone:
 - Begin with \`Hi ${customerName ? "<first name>" : "there"},\`.
 - When a customer display name is supplied, primarily use only the customer's first name, not their full display name: "John Nolan" becomes "Hi John,". Keep a single-name display name as-is. If the display name looks like a company, handle, email address, or you cannot confidently identify a first name, use \`Hi there,\` rather than guessing.
-${hasAction("link_pr") ? "- When primary includes link_pr, lead with the important customer-facing status: the engineering team is working on a fix for the reported issue.\n" : ""}- Then promise to update the customer when the fix is available or complete. Do not invent an ETA.
-- Thank or acknowledge the report briefly after the status and follow-up promise, without paraphrasing the problem back to the customer.
+${hasAction("link_pr") ? "- When primary includes link_pr, lead with the important customer-facing status: the engineering team is working on a fix for the reported issue, and promise to update the customer when the fix is available or complete. Do not invent an ETA.\n" : ""}${hasAction("create_issue") ? "- When primary includes create_issue, say that engineering will investigate and promise to follow up with the customer. Do not invent an ETA.\n" : ""}- Thank or acknowledge the report briefly, without paraphrasing the problem back to the customer.
 ${hasAction("link_pr") ? "- Do not say the pull request was linked. The PR link is an internal thread action, not a customer-facing claim.\n" : ""}
 Customer display name (derive the first name only for this first-reply greeting): ${JSON.stringify(customerName)}`
 }

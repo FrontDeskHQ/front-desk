@@ -116,7 +116,10 @@ describe("synthesis action contract", () => {
 
     expect(prompt).toContain("This is an ongoing conversation");
     expect(prompt).toContain("NEVER begin with a greeting or salutation");
-    expect(prompt).not.toContain("Customer display name (use only in this");
+    expect(prompt).not.toContain("First-reply tone:");
+    expect(prompt).not.toContain(
+      "Customer display name (derive the first name only for this first-reply greeting):"
+    );
   });
 
   it("requires a greeting when the team has not replied", () => {
@@ -133,6 +136,26 @@ describe("synthesis action contract", () => {
       'derive the first name only for this first-reply greeting): "Alex Rivera"'
     );
     expect(prompt).not.toContain("NEVER begin with a greeting or salutation");
+  });
+
+  it("scopes future-update promises to available engineering actions", () => {
+    const engineeringPromptInput = inputFor();
+    engineeringPromptInput.hasTeamReply = false;
+    const engineeringPrompt = buildSynthesisPrompt(engineeringPromptInput);
+
+    expect(engineeringPrompt).toContain("When primary includes link_pr");
+    expect(engineeringPrompt).toContain("When primary includes create_issue");
+
+    const autonomy = allSuggest();
+    autonomy.create_issue = "off";
+    autonomy.link_pr = "off";
+    const input = inputFor(autonomy);
+    input.hasTeamReply = false;
+
+    const prompt = buildSynthesisPrompt(input);
+
+    expect(prompt).not.toContain("promise to update the customer");
+    expect(prompt).not.toContain("promise to follow up with the customer");
   });
 
   it("keeps enabled non-reply actions on an unreplied thread when reply is off", () => {
