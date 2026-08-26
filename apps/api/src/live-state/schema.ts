@@ -8,7 +8,7 @@ import {
   object,
   reference,
   string,
-  timestamp,
+  timestamp as liveTimestamp,
 } from "@live-state/sync";
 import type { SupportChannel } from "@workspace/schemas/early-access";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
@@ -17,6 +17,15 @@ import type {
   InlineSuggestion,
   ThreadRead,
 } from "@workspace/schemas/signals";
+import { parseLiveTimestamp } from "@workspace/utils/format";
+
+function timestamp(): ReturnType<typeof liveTimestamp> {
+  const field = liveTimestamp();
+  (field as { convertFunc?: (value: unknown) => unknown }).convertFunc = (
+    value
+  ) => (typeof value === "string" ? parseLiveTimestamp(value) : value);
+  return field;
+}
 
 const organization = object("organization", {
   createdAt: timestamp(),
