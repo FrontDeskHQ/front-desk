@@ -1,0 +1,66 @@
+apps/web/src/components/sidebar/app-sidebar.tsx
+  s_f4dc9eb856226c::t_2b8946ae71debe 67
+packages/ui/src/components/sidebar.tsx
+  s_f4dc9eb856226c::t_4a52c235845a8d 218
+  s_f4dc9eb856226c::t_84452b1876814c 227
+  s_f4dc9eb856226c::t_fad78057bf1fbd 64
+  s_f4dc9eb856226c::t_d355792ce0ba16 243
+  s_f4dc9eb856226c::t_c10c3014525b8d 417-419,421,423-424,426-434,436-440,442,444-458,462,465,467,470-471,476
+  s_f4dc9eb856226c::t_2e46fe66772e26 575-607,609-641,653,675,687-688
+  s_f4dc9eb856226c::t_7faa896d36df89 608
+  s_f4dc9eb856226c::t_19b0b0c460db65 642-652,654-674,676-686
+  s_f4dc9eb856226c::t_85c9c7ec1e78b5 926
+  s_f4dc9eb856226c::t_69593dcca0d80f 780,786-787,789-805
+  s_f4dc9eb856226c::t_7dfda823d1a62f 489-530
+  s_f4dc9eb856226c::t_c8ca2a0054fca9 159
+  s_f4dc9eb856226c::t_5d995142c2d157 766-771
+  s_f4dc9eb856226c::t_6133973e2bb643 817
+  s_f4dc9eb856226c::t_57e6106ad34570 3,6-10
+  s_f4dc9eb856226c::t_c0f7e5a985724d 783-784
+  s_f4dc9eb856226c::t_299915899cabb5 312
+  s_f4dc9eb856226c::t_75b20b2954a441 990
+apps/web/src/routes/app/_workspace/_main/route.tsx
+  s_f4dc9eb856226c::t_53a773cb51bf2e 17
+  s_f4dc9eb856226c::t_5e7a57a2d604bc 6,18
+packages/ui/src/routes/sidebar.tsx
+  s_f4dc9eb856226c::t_23555270630fd2 32
+  s_f4dc9eb856226c::t_63bccb86d70298 440-443
+  s_f4dc9eb856226c::t_e211e927eb59e0 36
+  s_f4dc9eb856226c::t_aaba73c74d86d0 166-215
+  s_f4dc9eb856226c::t_706207f3412267 216-262
+  s_f4dc9eb856226c::t_6ccd81f1592a93 339
+  s_f4dc9eb856226c::t_588b9e6f22e428 396
+  s_f4dc9eb856226c::t_8235fbc79769df 122
+  s_f4dc9eb856226c::t_bb75a445638f3e 264
+  s_f4dc9eb856226c::t_d8e1ff3330bce5 510-524
+  s_f4dc9eb856226c::t_ee2b79af3df1c8 490
+  s_f4dc9eb856226c::t_e6b9fc9e6d467c 491
+  s_f4dc9eb856226c::t_fe744e339b7cc4 45
+  s_f4dc9eb856226c::t_da8d7cff48e0d3 368
+  s_f4dc9eb856226c::t_3736fc428f6778 310-316
+apps/web/src/components/sidebar/settings-sidebar.tsx
+  s_f4dc9eb856226c::t_e93aabef18b9e6 126
+apps/web/src/routes/app/_workspace/settings/route.tsx
+  s_f4dc9eb856226c::t_e8cfea718ce3a0 4,17
+  s_f4dc9eb856226c::t_4d172ed5c93a05 16
+apps/web/src/components/sidebar/collapsed-sidebar-trigger.tsx
+  s_f4dc9eb856226c::t_efad0a27316d01 1-25
+apps/web/src/components/landing-page/shared/app-chrome/mock-sidebar.tsx
+  s_f4dc9eb856226c::t_21fd95f529ce64 42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "be535cf2b5aefcb9eabdd8dd11be63b418a1727d",
+  "prompts": {},
+  "sessions": {
+    "s_f4dc9eb856226c": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ed43681f-7be5-4071-a6f1-6212b6784a33",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
