@@ -975,7 +975,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
       minToolCalls: { read_pr: 1 },
       mustIncludePrimaryKinds: ["link_pr", "reply"],
       replyMustContainAll: ["engineering", "working on", "let you know"],
-      replyMustStartWith: "Hi Alex Rivera,",
+      replyMustStartWith: "Hi Alex,",
       requiresReplyDraft: true,
       forbiddenReplyPhrases: [
         "we've identified a fix",
@@ -1728,7 +1728,7 @@ const synthesisAgentDatasetCases: (Omit<SynthesisAgentEvalCase, "input"> & {
       mustExcludePrimaryKinds: ["link_issue"],
       mustIncludePrimaryKinds: ["create_issue", "reply"],
       replyMustOmitIssueReference: true,
-      replyMustStartWith: "Hi Marta Silva,",
+      replyMustStartWith: "Hi Marta,",
       requiresReplyDraft: true,
     },
     input: {
