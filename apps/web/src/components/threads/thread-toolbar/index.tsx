@@ -57,15 +57,18 @@ function ToolbarPanel({
       {open && (
         <motion.div
           data-slot="thread-toolbar-panel"
-          initial={{ opacity: 0, scale: 0.9, width: 576 }}
+          initial={{ opacity: 0, scale: 0.9, maxWidth: 576 }}
           animate={{
             opacity: 1,
             scale: 1,
-            width,
+            maxWidth: width,
           }}
           exit={{ opacity: 0, scale: 0.9 }}
           transition={{ duration: 0.15, ease: "easeInOut" }}
-          className={cn("origin-bottom overflow-hidden", className)}
+          className={cn(
+            "w-full min-w-0 origin-bottom overflow-hidden",
+            className
+          )}
         >
           {children}
         </motion.div>
@@ -196,7 +199,7 @@ export const ThreadToolbar = ({
   return (
     <div
       data-slot="thread-toolbar"
-      className="w-full flex flex-col gap-2.5 items-center"
+      className="w-full min-w-0 flex flex-col gap-2.5 items-center"
     >
       <ToolbarPanel
         open={isPanelOpen}

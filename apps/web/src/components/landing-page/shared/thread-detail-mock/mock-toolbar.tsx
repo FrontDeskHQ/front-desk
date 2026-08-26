@@ -32,13 +32,12 @@ export function MockThreadToolbar({
   return (
     <div
       data-slot="thread-toolbar"
-      className="w-full flex flex-col gap-2.5 items-center"
+      className="w-full min-w-0 flex flex-col gap-2.5 items-center"
     >
       {hasSi && summary && draft ? (
         <div
           data-slot="thread-toolbar-panel"
-          className="origin-bottom overflow-hidden"
-          style={{ width: 768 }}
+          className="w-full min-w-0 max-w-3xl origin-bottom overflow-hidden"
         >
           <MockThreadReadPanel
             summary={summary}
