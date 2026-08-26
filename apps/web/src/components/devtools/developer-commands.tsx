@@ -44,6 +44,13 @@ import { retriggerThreadReadFromParam } from "./devtools-menu/retrigger-thread-r
 import { useThreadRouteRawParam } from "./devtools-menu/thread-route-for-devtools";
 import { useReactScanEnabled } from "./react-scan";
 
+const DEVELOPER_SEARCH_GROUP = "Developer";
+const DEVELOPER_SEARCH_KEYWORDS = ["developer", "devtools"];
+const DEVELOPER_PAGE_SEARCH = {
+  searchGroup: DEVELOPER_SEARCH_GROUP,
+  searchKeywords: DEVELOPER_SEARCH_KEYWORDS,
+  searchable: true,
+} as const;
 const DEVELOPER_TOOLS_PAGE_ID = "developer-tools";
 const DEVELOPER_THREADS_PAGE_ID = "developer-tools.threads";
 const DEVELOPER_GITHUB_PAGE_ID = "developer-tools.github";
@@ -248,6 +255,7 @@ export const DeveloperToolsCommands = ({
       {
         icon: <Terminal />,
         id: "developer-tools.create-thread",
+        keywords: ["new thread"],
         label: "Create thread",
         onSelect: () => setCreateThreadOpen(true),
       },
@@ -255,6 +263,7 @@ export const DeveloperToolsCommands = ({
         disabled: !rawThreadParam,
         icon: <Archive />,
         id: "developer-tools.duplicate-thread",
+        keywords: ["clone thread", "copy thread"],
         label: "Duplicate current thread",
         onSelect: handleDuplicateThread,
       },
@@ -262,6 +271,7 @@ export const DeveloperToolsCommands = ({
         disabled: !rawThreadParam,
         icon: <RefreshCw />,
         id: "developer-tools.retrigger-thread-read",
+        keywords: ["pipeline", "ingest"],
         label: "Retrigger current thread read",
         onSelect: handleRetriggerThreadRead,
       },
@@ -269,6 +279,7 @@ export const DeveloperToolsCommands = ({
         disabled: !rawThreadParam,
         icon: <Clipboard />,
         id: "developer-tools.copy-latest-agent-run",
+        keywords: ["clipboard", "agent"],
         label: "Copy latest agent run data",
         onSelect: handleCopyLatestAgentRunData,
       },
@@ -276,6 +287,7 @@ export const DeveloperToolsCommands = ({
         disabled: !rawThreadParam,
         icon: <History />,
         id: "developer-tools.copy-agent-run",
+        keywords: ["agent", "history"],
         label: "Copy Agent run...",
         pageId: COPY_AGENT_RUN_PAGE_ID,
       },
@@ -283,6 +295,7 @@ export const DeveloperToolsCommands = ({
     icon: <Terminal />,
     id: DEVELOPER_THREADS_PAGE_ID,
     label: "Threads",
+    ...DEVELOPER_PAGE_SEARCH,
   };
 
   const githubPrPage: CommandPage = {
@@ -392,12 +405,14 @@ export const DeveloperToolsCommands = ({
       {
         icon: <GitPullRequest />,
         id: "developer-tools.github.replay",
+        keywords: ["pull request", "pr match"],
         label: "Replay GitHub PR match...",
         pageId: DEVELOPER_GITHUB_PR_PAGE_ID,
       },
       {
         icon: <RefreshCw />,
         id: "developer-tools.github.backfill",
+        keywords: ["repository", "sync"],
         label: "Backfill GitHub repositories...",
         pageId: DEVELOPER_GITHUB_BACKFILL_PAGE_ID,
       },
@@ -405,6 +420,7 @@ export const DeveloperToolsCommands = ({
     icon: <Github />,
     id: DEVELOPER_GITHUB_PAGE_ID,
     label: "GitHub",
+    ...DEVELOPER_PAGE_SEARCH,
   };
 
   const signalsPage: CommandPage = {
@@ -413,6 +429,7 @@ export const DeveloperToolsCommands = ({
           {
             icon: <Bug />,
             id: "developer-tools.signals.seed",
+            keywords: ["fake", "autonomous"],
             label: "Seed leverage actions",
             onSelect: async () => {
               try {
@@ -431,6 +448,7 @@ export const DeveloperToolsCommands = ({
           {
             icon: <Bug />,
             id: "developer-tools.signals.clear",
+            keywords: ["autonomous"],
             label: "Clear leverage actions",
             onSelect: async () => {
               try {
@@ -450,6 +468,7 @@ export const DeveloperToolsCommands = ({
     icon: <Bug />,
     id: DEVELOPER_SIGNALS_PAGE_ID,
     label: "Signals (local only)",
+    ...DEVELOPER_PAGE_SEARCH,
   };
 
   const flagCommands: Command[] = flagsLoading
@@ -509,12 +528,14 @@ export const DeveloperToolsCommands = ({
       {
         icon: <Terminal />,
         id: "developer-tools.threads",
+        keywords: ["thread"],
         label: "Threads...",
         pageId: DEVELOPER_THREADS_PAGE_ID,
       },
       {
         icon: <Github />,
         id: "developer-tools.github",
+        keywords: ["github", "pr"],
         label: "GitHub...",
         pageId: DEVELOPER_GITHUB_PAGE_ID,
       },
@@ -523,12 +544,14 @@ export const DeveloperToolsCommands = ({
             {
               icon: <Bug />,
               id: "developer-tools.signals",
+              keywords: ["leverage"],
               label: "Signals...",
               pageId: DEVELOPER_SIGNALS_PAGE_ID,
             } satisfies Command,
             {
               icon: <Flag />,
               id: "developer-tools.flags",
+              keywords: ["reflag", "flag"],
               label: "Feature flags...",
               pageId: DEVELOPER_FLAGS_PAGE_ID,
             } satisfies Command,
@@ -537,18 +560,21 @@ export const DeveloperToolsCommands = ({
       {
         icon: <EyeOff />,
         id: "developer-tools.hide-toolbar",
+        keywords: ["toolbar"],
         label: "Hide toolbar temporarily",
         onSelect: () => onHideToolbar("temporary"),
       },
       {
         icon: <EyeOff />,
         id: "developer-tools.hide-toolbar-section",
+        keywords: ["toolbar", "section"],
         label: "Hide toolbar for this section",
         onSelect: () => onHideToolbar("section"),
       },
       {
         icon: <ListRestart />,
         id: "developer-tools.live-state-log",
+        keywords: ["websocket", "sync"],
         label: "Open live-state log",
         onSelect: onOpenLiveStateLog,
       },
@@ -557,6 +583,7 @@ export const DeveloperToolsCommands = ({
         icon: <ScanSearch />,
         id: "developer-tools.react-scan",
         keepOpen: true,
+        keywords: ["renders"],
         label: "React Scan",
         onSelect: () => setReactScanEnabled(!reactScanEnabled),
       },
@@ -564,6 +591,7 @@ export const DeveloperToolsCommands = ({
     icon: <Wrench />,
     id: DEVELOPER_TOOLS_PAGE_ID,
     label: "Developer tools",
+    ...DEVELOPER_PAGE_SEARCH,
   };
 
   useCommandPage(

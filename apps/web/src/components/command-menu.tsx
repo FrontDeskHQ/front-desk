@@ -112,19 +112,21 @@ export const CommandMenu = () => {
   // Filter commands by visibility first
   const filterByVisible = (command: Command) => isCommandVisible(command);
 
-  // Filter commands by search query
-  const filterCommand = (command: Command) => {
+  const commandMatchesSearch = (command: Command) => {
     if (!search) {
       return true;
     }
-    const searchLower = search.toLowerCase();
-    return (
-      (typeof command.label === "string" &&
-        command.label.toLowerCase().includes(searchLower)) ||
-      command.keywords?.some((keyword) =>
-        keyword.toLowerCase().includes(searchLower)
-      )
-    );
+
+    const haystacks = [
+      typeof command.label === "string" ? command.label.toLowerCase() : "",
+      ...(command.keywords ?? []).map((keyword) => keyword.toLowerCase()),
+    ].filter(Boolean);
+
+    return search
+      .toLowerCase()
+      .split(/\s+/u)
+      .filter(Boolean)
+      .every((token) => haystacks.some((haystack) => haystack.includes(token)));
   };
 
   const pageUngrouped: Command[] = [];
@@ -132,7 +134,7 @@ export const CommandMenu = () => {
 
   const filteredPageCommands = commands
     .filter(filterByVisible)
-    .filter(filterCommand);
+    .filter(commandMatchesSearch);
 
   // Separate grouped vs ungrouped for page commands
   filteredPageCommands.forEach((command) => {
@@ -154,10 +156,10 @@ export const CommandMenu = () => {
   // Filter context and global commands separately (when not on a page)
   const filteredContextCommands = contextCommands
     .filter(filterByVisible)
-    .filter(filterCommand);
+    .filter(commandMatchesSearch);
   const filteredGlobalCommands = globalCommands
     .filter(filterByVisible)
-    .filter(filterCommand);
+    .filter(commandMatchesSearch);
 
   // Separate grouped vs ungrouped for context commands
   const contextUngrouped: Command[] = [];
@@ -241,6 +243,7 @@ export const CommandMenu = () => {
       multiple={isMultiSelectPage}
       open={open}
       onOpenChange={setOpen}
+      shouldFilter={false}
       value={selectedValues}
       render={
         <motion.div

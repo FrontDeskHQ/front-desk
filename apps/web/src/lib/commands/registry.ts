@@ -62,6 +62,40 @@ export const commandRegistryActions = {
     return state.globalCommands.filter((cmd) => !cmd.contextId);
   },
 
+  getSearchableCommands: (state: CommandRegistryState): Command[] => {
+    if (state.currentPageId || !state.search.trim()) {
+      return [];
+    }
+
+    const seen = new Set(state.globalCommands.map((command) => command.id));
+    const commands: Command[] = [];
+
+    for (const page of Object.values(state.globalPages)) {
+      if (!page.searchable) {
+        continue;
+      }
+
+      for (const command of page.commands) {
+        if (seen.has(command.id)) {
+          continue;
+        }
+
+        seen.add(command.id);
+        commands.push({
+          ...command,
+          group: command.group ?? page.searchGroup ?? page.label,
+          keywords: [
+            ...(command.keywords ?? []),
+            page.label,
+            ...(page.searchKeywords ?? []),
+          ],
+        });
+      }
+    }
+
+    return commands;
+  },
+
   getCurrentPage: (state: CommandRegistryState): CommandPage | null => {
     if (!state.currentPageId) {
       return null;

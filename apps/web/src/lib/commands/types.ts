@@ -36,6 +36,14 @@ export interface CommandPage {
   commands: Command[];
   multiple?: boolean;
   onBack?: () => void; // Custom back handler
+  /**
+   * When true, this page's commands are included in root command-palette
+   * search. Use for a small, named action set — not unbounded lists.
+   */
+  searchable?: boolean;
+  /** Group heading used when this page's commands appear in root search. */
+  searchGroup?: string;
+  searchKeywords?: string[];
 }
 
 export interface CommandContext {

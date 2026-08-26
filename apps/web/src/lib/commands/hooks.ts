@@ -198,9 +198,15 @@ export const useCommandMenu = () => {
     [registry.currentContextId, registry.contexts]
   );
 
-  const globalCommands = registry.globalCommands.filter(
-    (cmd) => !cmd.contextId || cmd.contextId === registry.currentContextId
-  );
+  const globalCommands = useMemo(() => {
+    const scopedGlobals = registry.globalCommands.filter(
+      (cmd) => !cmd.contextId || cmd.contextId === registry.currentContextId
+    );
+    return [
+      ...scopedGlobals,
+      ...commandRegistryActions.getSearchableCommands(registry),
+    ];
+  }, [registry]);
 
   const currentContextFooter = registry.currentContextId
     ? registry.contexts[registry.currentContextId]?.footer
