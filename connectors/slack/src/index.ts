@@ -7,12 +7,13 @@ import type {
   OutboundMessage,
   OutboundUpdate,
 } from "@connectors/framework/runtime";
+import type { IncomingMessage, ServerResponse } from "node:http";
 import type {
   AllMiddlewareArgs,
   AuthorizeResult,
   SlackEventMiddlewareArgs,
 } from "@slack/bolt";
-import { App } from "@slack/bolt";
+import { App, HTTPReceiver } from "@slack/bolt";
 import { WebClient } from "@slack/web-api";
 import type { MessageElement } from "@slack/web-api/dist/types/response/ConversationsHistoryResponse";
 import {
@@ -50,8 +51,166 @@ import {
 
 initSharedLogger({ service: "slack-connector" });
 
+const toLogError = (error: unknown, fallback: string): Error =>
+  error instanceof Error ? error : new Error(fallback);
+
+type SlackEventEnvelope = {
+  api_app_id?: string;
+  event?: {
+    channel?: string;
+    subtype?: string;
+    thread_ts?: string;
+    ts?: string;
+    type?: string;
+    user?: string;
+  };
+  event_id?: string;
+  team_id?: string;
+  type?: string;
+};
+
+const SLACK_EVENTS_PATH = "/slack/events";
+const SLACK_REQUEST_MAX_AGE_SEC = 5 * 60;
+
+const readHeader = (
+  value: string | string[] | undefined
+): string | undefined => (Array.isArray(value) ? value[0] : value);
+
+const logSlackHttpRequest = (req: IncomingMessage) => {
+  const requestTimestampSec = Number(
+    readHeader(req.headers["x-slack-request-timestamp"])
+  );
+  const systemTimestampSec = Math.floor(Date.now() / 1000);
+  const deltaSec = Number.isFinite(requestTimestampSec)
+    ? systemTimestampSec - requestTimestampSec
+    : undefined;
+  const stale =
+    deltaSec !== undefined && deltaSec > SLACK_REQUEST_MAX_AGE_SEC;
+  const requestLog = createLogger({
+    action: "connector.inbound_event",
+    operation: "slack.events.http",
+    provider: "slack",
+    slack: {
+      deltaSec,
+      path: req.url,
+      requestTimestampSec: Number.isFinite(requestTimestampSec)
+        ? requestTimestampSec
+        : undefined,
+      retryNum: readHeader(req.headers["x-slack-retry-num"]),
+      retryReason: readHeader(req.headers["x-slack-retry-reason"]),
+      stale,
+      systemTimestampSec,
+    },
+  });
+  if (stale) {
+    requestLog.error(
+      new Error("Slack request timestamp is older than 5 minutes"),
+      { step: "verify_timestamp" }
+    );
+  }
+  requestLog.emit({ status: stale ? 401 : 200 });
+};
+
+const slackCustomRoutes = [
+  {
+    path: "/api/channels",
+    method: ["GET"],
+    handler: async (req: IncomingMessage, res: ServerResponse) => {
+      try {
+        const expectedKey = process.env.DISCORD_BOT_KEY;
+        const providedKey = req.headers["x-discord-bot-key"];
+        if (
+          !expectedKey ||
+          typeof providedKey !== "string" ||
+          providedKey !== expectedKey
+        ) {
+          res.writeHead(401, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "UNAUTHORIZED" }));
+          return;
+        }
+
+        const url = new URL(req.url ?? "", "http://localhost");
+        const teamId = url.searchParams.get("team_id");
+        if (!teamId) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "MISSING_TEAM_ID" }));
+          return;
+        }
+
+        const client = await getClientForTeam(teamId);
+        if (!client) {
+          res.writeHead(404, { "Content-Type": "application/json" });
+          res.end(JSON.stringify({ error: "INSTALLATION_NOT_FOUND" }));
+          return;
+        }
+
+        const channels: {
+          id: string;
+          name: string;
+          isPrivate: boolean;
+        }[] = [];
+        let cursor: string | undefined;
+        do {
+          const result = await client.conversations.list({
+            types: "public_channel,private_channel",
+            limit: 200,
+            exclude_archived: true,
+            cursor,
+          });
+
+          for (const c of result.channels ?? []) {
+            if (!c.id || !c.name) continue;
+            channels.push({
+              id: c.id,
+              name: c.name,
+              isPrivate: !!c.is_private,
+            });
+          }
+
+          cursor = result.response_metadata?.next_cursor || undefined;
+        } while (cursor);
+
+        channels.sort((a, b) => a.name.localeCompare(b.name));
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ channels }));
+      } catch (error) {
+        console.error("[Slack] /api/channels error:", error);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ error: "SLACK_API_ERROR" }));
+      }
+    },
+  },
+];
+
+const receiver = new HTTPReceiver({
+  customRoutes: slackCustomRoutes,
+  signingSecret: process.env.SLACK_SIGNING_SECRET ?? "",
+});
+
+const originalRequestListener = receiver.requestListener.bind(receiver);
+receiver.requestListener = (req, res) => {
+  try {
+    const path = new URL(req.url ?? "", "http://localhost").pathname;
+    if (req.method === "POST" && path === SLACK_EVENTS_PATH) {
+      logSlackHttpRequest(req);
+    }
+  } catch (error) {
+    console.error("[Slack] Failed to log incoming HTTP request:", error);
+  }
+  return originalRequestListener(req, res);
+};
+
 const app = new App({
   authorize: async ({ teamId, enterpriseId }): Promise<AuthorizeResult> => {
+    const requestLog = createLogger({
+      action: "connector.authorize",
+      operation: "slack.events.authorize",
+      provider: "slack",
+      slack: { enterpriseId, teamId },
+    });
+    let status = 200;
+
     try {
       const installation = await installationStore.fetchInstallation({
         teamId: teamId ?? undefined,
@@ -76,6 +235,7 @@ const app = new App({
         );
       }
 
+      requestLog.set({ authorize: { outcome: "ok" } });
       return {
         botToken,
         botId: installationData.bot?.id ?? undefined,
@@ -86,86 +246,61 @@ const app = new App({
         userToken: installationData.user?.token ?? undefined,
       };
     } catch (error) {
-      console.error(
-        `[Slack] Authorization failed for teamId: ${teamId}`,
-        error
-      );
+      status = 401;
+      requestLog.set({ authorize: { outcome: "failed" } });
+      requestLog.error(toLogError(error, "Slack authorization failed"), {
+        step: "authorize",
+      });
       throw error;
+    } finally {
+      requestLog.emit({ status });
     }
   },
-  customRoutes: [
-    {
-      path: "/api/channels",
-      method: ["GET"],
-      handler: async (req, res) => {
-        try {
-          const expectedKey = process.env.DISCORD_BOT_KEY;
-          const providedKey = req.headers["x-discord-bot-key"];
-          if (
-            !expectedKey ||
-            typeof providedKey !== "string" ||
-            providedKey !== expectedKey
-          ) {
-            res.writeHead(401, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "UNAUTHORIZED" }));
-            return;
-          }
-
-          const url = new URL(req.url ?? "", "http://localhost");
-          const teamId = url.searchParams.get("team_id");
-          if (!teamId) {
-            res.writeHead(400, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "MISSING_TEAM_ID" }));
-            return;
-          }
-
-          const client = await getClientForTeam(teamId);
-          if (!client) {
-            res.writeHead(404, { "Content-Type": "application/json" });
-            res.end(JSON.stringify({ error: "INSTALLATION_NOT_FOUND" }));
-            return;
-          }
-
-          const channels: {
-            id: string;
-            name: string;
-            isPrivate: boolean;
-          }[] = [];
-          let cursor: string | undefined;
-          do {
-            const result = await client.conversations.list({
-              types: "public_channel,private_channel",
-              limit: 200,
-              exclude_archived: true,
-              cursor,
-            });
-
-            for (const c of result.channels ?? []) {
-              if (!c.id || !c.name) continue;
-              channels.push({
-                id: c.id,
-                name: c.name,
-                isPrivate: !!c.is_private,
-              });
-            }
-
-            cursor = result.response_metadata?.next_cursor || undefined;
-          } while (cursor);
-
-          channels.sort((a, b) => a.name.localeCompare(b.name));
-
-          res.writeHead(200, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ channels }));
-        } catch (error) {
-          console.error("[Slack] /api/channels error:", error);
-          res.writeHead(500, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "SLACK_API_ERROR" }));
-        }
-      },
-    },
-  ],
+  receiver,
   signingSecret: process.env.SLACK_SIGNING_SECRET,
 });
+
+const originalProcessEvent = app.processEvent.bind(app);
+app.processEvent = async (event) => {
+  const body = event.body as SlackEventEnvelope;
+  const innerAck = event.ack;
+  let acknowledged = false;
+  event.ack = async (response) => {
+    if (acknowledged) {
+      return;
+    }
+    acknowledged = true;
+    await innerAck(response);
+  };
+
+  // Bolt only acks Events API after authorize(). Slack closes the HTTP
+  // request at ~3s if that lookup is slow or throws — Railway then shows 499.
+  if (body.type === "event_callback") {
+    await event.ack();
+  }
+
+  createLogger({
+    action: "connector.inbound_event",
+    operation: "slack.events.receive",
+    provider: "slack",
+    slack: {
+      apiAppId: body.api_app_id,
+      bodyType: body.type,
+      channelId: body.event?.channel,
+      eventId: body.event_id,
+      eventType: body.event?.type,
+      retryNum: event.retryNum,
+      retryReason: event.retryReason,
+      subtype: body.event?.subtype,
+      teamId: body.team_id,
+      threadTs: body.event?.thread_ts,
+      ts: body.event?.ts,
+      userId: body.event?.user,
+    },
+  }).emit({ status: 200 });
+
+  return originalProcessEvent(event);
+};
 
 interface RelatedThreadLink {
   threadId: string;
@@ -738,183 +873,248 @@ app.message(
     ack,
     say,
     client,
+    context,
   }: SlackEventMiddlewareArgs<"message"> & AllMiddlewareArgs) => {
-    // Slack SDK is VERY BAD
-    if (ack && typeof ack === "function") {
-      await (ack as () => Promise<void>)();
-    }
-
-    if (!("user" in message) || !message.user) {
-      return;
-    }
-
-    // Filter out bot messages and system messages (any message with a subtype)
-    if (message.subtype || "bot_id" in message || "bot_profile" in message) {
-      return;
-    }
-
-    const isFirstMessage = !("thread_ts" in message);
-
-    const conversation = await client.conversations.info({
-      channel: message.channel,
+    const requestLog = createLogger({
+      action: "connector.inbound_message",
+      operation: "slack.events.message",
+      provider: "slack",
+      slack: {
+        channelId: message.channel,
+        retryNum: context.retryNum,
+        retryReason: context.retryReason,
+        subtype: "subtype" in message ? message.subtype : undefined,
+        teamId: context.teamId,
+        threadTs: "thread_ts" in message ? message.thread_ts : undefined,
+        ts: message.ts,
+        userId: "user" in message ? message.user : undefined,
+      },
     });
-
-    if (!conversation.ok || !conversation.channel) {
-      return;
-    }
-
-    const channelName = conversation.channel.name;
-    if (!channelName) {
-      return;
-    }
-
-    const teamId = conversation.channel.context_team_id;
-    const integration = store.query.integration
-      .where({ type: "slack" })
-      .get()
-      .find((i) => {
-        const parsed = safeParseIntegrationSettings(i.configStr);
-        return parsed?.teamId === teamId;
-      });
-
-    if (!integration) {
-      return;
-    }
-
-    const integrationSettings = safeParseIntegrationSettings(
-      integration.configStr
-    );
-
-    const channelId = conversation.channel.id;
-    if (
-      !channelId ||
-      !(integrationSettings?.selectedChannels ?? []).some(
-        (c) => c.id === channelId
-      )
-    ) {
-      return;
-    }
-
-    const author = await resolveSlackAuthor(client, message.user);
-    const messageText = "text" in message ? message.text : undefined;
-
-    // `externalThreadId` is the root `ts` in both cases — the reply carries it
-    // as `thread_ts`.
-    const externalThreadId = isFirstMessage ? message.ts : message.thread_ts;
-    if (!externalThreadId) {
-      return;
-    }
-
-    // Always attach a thread descriptor, like the Discord connector: the core
-    // ignores it once the thread exists (append path), so it only bootstraps a
-    // thread when one doesn't yet exist. This makes ingest resilient to Slack's
-    // non-guaranteed delivery order — a reply that arrives before its root no
-    // longer hard-errors, it creates the thread with a channel-name fallback
-    // title instead. A root message still titles the thread from its own text.
-    const threadTitle = isFirstMessage
-      ? slackThreadTitle(messageText, channelName)
-      : channelName;
-
-    // One idempotent ingest call: the core creates the thread on the first
-    // message it sees for `externalThreadId` and appends thereafter (no timing
-    // heuristic, no dedup here).
-    const { thread, created } = await ingestSlackMessage({
-      author,
-      channelId: message.channel,
-      externalThreadId,
-      organizationId: integration.organizationId,
-      text: messageText || "",
-      threadTitle,
-      ts: message.ts,
-    });
-
-    if (!thread) {
-      return;
-    }
-    const threadId = thread.id;
-
-    // The portal-link reply is posted once, when the thread is first created.
-    if (!created) {
-      return;
-    }
+    let status = 200;
 
     try {
-      const organization = await fetchClient.query.organization.byId({
-        id: integration.organizationId,
+      // Slack SDK is VERY BAD
+      if (ack && typeof ack === "function") {
+        await (ack as () => Promise<void>)();
+      }
+
+      if (!("user" in message) || !message.user) {
+        requestLog.set({ ingest: { outcome: "skipped", reason: "missing_user" } });
+        return;
+      }
+
+      // Filter out bot messages and system messages (any message with a subtype)
+      if (message.subtype || "bot_id" in message || "bot_profile" in message) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "bot_or_subtype" },
+        });
+        return;
+      }
+
+      const isFirstMessage = !("thread_ts" in message);
+
+      const conversation = await client.conversations.info({
+        channel: message.channel,
       });
 
-      if (organization?.slug) {
-        const showPortalMessage =
-          integrationSettings?.showPortalMessage !== false;
+      if (!conversation.ok || !conversation.channel) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "conversation_lookup_failed" },
+          slackApi: {
+            ok: conversation.ok,
+            error: "error" in conversation ? conversation.error : undefined,
+          },
+        });
+        return;
+      }
 
-        if (showPortalMessage) {
-          const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-          const portalUrl = buildPortalThreadUrl(
-            baseUrl,
-            organization.slug,
-            threadId
-          );
-          const portalText = buildPortalBotText({
-            portalUrl,
-            relatedThreadLinks: [],
-          });
-          const portalBlocks = buildPortalBotBlocks({
-            portalUrl,
-            relatedThreadLinks: [],
-          });
+      const channelName = conversation.channel.name;
+      if (!channelName) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "missing_channel_name" },
+        });
+        return;
+      }
 
-          const postResult = await say({
-            text: portalText,
-            blocks: portalBlocks,
-            channel: message.channel,
-            // Nest under the root, not this event's `ts`: when a reply bootstraps
-            // the thread, `message.ts` is the reply — the portal message must
-            // still thread onto the root (`externalThreadId`).
-            thread_ts: externalThreadId,
-          });
+      const teamId = conversation.channel.context_team_id;
+      requestLog.set({ conversationTeamId: teamId });
+      const integration = store.query.integration
+        .where({ type: "slack" })
+        .get()
+        .find((i) => {
+          const parsed = safeParseIntegrationSettings(i.configStr);
+          return parsed?.teamId === teamId;
+        });
 
-          void (async () => {
-            try {
-              await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
+      if (!integration) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "integration_not_found" },
+        });
+        return;
+      }
 
-              const relatedThreadLinks = await getRelatedThreadLinks({
-                baseUrl,
-                organizationId: integration.organizationId,
-                organizationSlug: organization.slug,
-                threadId,
-              });
+      const integrationSettings = safeParseIntegrationSettings(
+        integration.configStr
+      );
 
-              if (relatedThreadLinks.length === 0) {
-                return;
+      const channelId = conversation.channel.id;
+      if (
+        !channelId ||
+        !(integrationSettings?.selectedChannels ?? []).some(
+          (c) => c.id === channelId
+        )
+      ) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "channel_not_selected" },
+          integration: { id: integration.id },
+        });
+        return;
+      }
+
+      const author = await resolveSlackAuthor(client, message.user);
+      const messageText = "text" in message ? message.text : undefined;
+
+      // `externalThreadId` is the root `ts` in both cases — the reply carries it
+      // as `thread_ts`.
+      const externalThreadId = isFirstMessage ? message.ts : message.thread_ts;
+      if (!externalThreadId) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "missing_thread_id" },
+        });
+        return;
+      }
+
+      // Always attach a thread descriptor, like the Discord connector: the core
+      // ignores it once the thread exists (append path), so it only bootstraps a
+      // thread when one doesn't yet exist. This makes ingest resilient to Slack's
+      // non-guaranteed delivery order — a reply that arrives before its root no
+      // longer hard-errors, it creates the thread with a channel-name fallback
+      // title instead. A root message still titles the thread from its own text.
+      const threadTitle = isFirstMessage
+        ? slackThreadTitle(messageText, channelName)
+        : channelName;
+
+      // One idempotent ingest call: the core creates the thread on the first
+      // message it sees for `externalThreadId` and appends thereafter (no timing
+      // heuristic, no dedup here).
+      const { thread, created } = await ingestSlackMessage({
+        author,
+        channelId: message.channel,
+        externalThreadId,
+        organizationId: integration.organizationId,
+        text: messageText || "",
+        threadTitle,
+        ts: message.ts,
+      });
+
+      if (!thread) {
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "ingest_returned_no_thread" },
+          integration: { id: integration.id },
+        });
+        return;
+      }
+      const threadId = thread.id;
+      requestLog.set({
+        ingest: {
+          created,
+          outcome: created ? "thread_created" : "message_appended",
+        },
+        thread: { id: threadId },
+        integration: { id: integration.id },
+      });
+
+      // The portal-link reply is posted once, when the thread is first created.
+      if (!created) {
+        return;
+      }
+
+      try {
+        const organization = await fetchClient.query.organization.byId({
+          id: integration.organizationId,
+        });
+
+        if (organization?.slug) {
+          const showPortalMessage =
+            integrationSettings?.showPortalMessage !== false;
+
+          if (showPortalMessage) {
+            const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
+            const portalUrl = buildPortalThreadUrl(
+              baseUrl,
+              organization.slug,
+              threadId
+            );
+            const portalText = buildPortalBotText({
+              portalUrl,
+              relatedThreadLinks: [],
+            });
+            const portalBlocks = buildPortalBotBlocks({
+              portalUrl,
+              relatedThreadLinks: [],
+            });
+
+            const postResult = await say({
+              text: portalText,
+              blocks: portalBlocks,
+              channel: message.channel,
+              // Nest under the root, not this event's `ts`: when a reply bootstraps
+              // the thread, `message.ts` is the reply — the portal message must
+              // still thread onto the root (`externalThreadId`).
+              thread_ts: externalThreadId,
+            });
+
+            void (async () => {
+              try {
+                await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
+
+                const relatedThreadLinks = await getRelatedThreadLinks({
+                  baseUrl,
+                  organizationId: integration.organizationId,
+                  organizationSlug: organization.slug,
+                  threadId,
+                });
+
+                if (relatedThreadLinks.length === 0) {
+                  return;
+                }
+
+                const updatedText = buildPortalBotText({
+                  portalUrl,
+                  relatedThreadLinks,
+                });
+                const updatedBlocks = buildPortalBotBlocks({
+                  portalUrl,
+                  relatedThreadLinks,
+                });
+
+                if (!postResult?.ts) {
+                  return;
+                }
+
+                await client.chat.update({
+                  blocks: updatedBlocks,
+                  channel: message.channel,
+                  text: updatedText,
+                  ts: postResult.ts,
+                });
+              } catch (error) {
+                console.error("Error updating portal link message:", error);
               }
-
-              const updatedText = buildPortalBotText({
-                portalUrl,
-                relatedThreadLinks,
-              });
-              const updatedBlocks = buildPortalBotBlocks({
-                portalUrl,
-                relatedThreadLinks,
-              });
-
-              if (!postResult?.ts) {
-                return;
-              }
-
-              await client.chat.update({
-                blocks: updatedBlocks,
-                channel: message.channel,
-                text: updatedText,
-                ts: postResult.ts,
-              });
-            } catch (error) {
-              console.error("Error updating portal link message:", error);
-            }
-          })();
+            })();
+          }
         }
+      } catch (error) {
+        console.error("Error sending portal link message:", error);
       }
     } catch (error) {
-      console.error("Error sending portal link message:", error);
+      status = 500;
+      requestLog.set({ ingest: { outcome: "failed" } });
+      requestLog.error(toLogError(error, "Slack message ingest failed"), {
+        step: "ingest_message",
+      });
+    } finally {
+      requestLog.emit({ status });
     }
   }
 );
@@ -947,9 +1147,6 @@ type SlackTargetResolution =
       ok: false;
       reason: SlackTargetFailureReason;
     };
-
-const toLogError = (error: unknown, fallback: string): Error =>
-  error instanceof Error ? error : new Error(fallback);
 
 const resolveSlackTarget = async (thread: {
   organizationId?: string;
@@ -1166,6 +1363,16 @@ const deliverSlackUpdate = async (
   console.log("[Slack] Reflag initialized");
 
   await app.start(process.env.PORT || 3011);
+
+  createLogger({
+    action: "connector.startup",
+    operation: "slack.clock",
+    provider: "slack",
+    clock: {
+      iso: new Date().toISOString(),
+      unixSec: Math.floor(Date.now() / 1000),
+    },
+  }).emit({ status: 200 });
 
   app.logger.info(
     `⚡️ Bolt app is running at port ${process.env.PORT || 3011}!`
