@@ -1,0 +1,31 @@
+connectors/slack/src/index.ts
+  s_a0dbea657d38d1::t_5bb621523abdce 962-963
+  s_a0dbea657d38d1::t_c996802175ce50 130
+  s_a0dbea657d38d1::t_ff937693c39f49 939-941,943
+  s_a0dbea657d38d1::t_e01a8a07a8fb71 968,970
+  s_a0dbea657d38d1::t_ecac1334a97121 900,904
+  s_a0dbea657d38d1::t_5b621a48c311fa 15
+  s_a0dbea657d38d1::t_55a5cb4ce2c3b0 905
+  s_a0dbea657d38d1::t_07639c377ae38c 56,69,71-72,76,127-129,131,135-205,211,214-215,217-236,238,261-281
+  s_a0dbea657d38d1::t_b65e4fdbdded36 1005,1008
+  s_a0dbea657d38d1::t_86b63934bfb6fd 857,878,880-882
+  s_a0dbea657d38d1::t_5ab775fb22f543 929,931-935,942
+  s_a0dbea657d38d1::t_1643eec596c6b1 1006-1007
+  s_a0dbea657d38d1::t_90094dd018ffa2 1117
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "af0bb396d4d9364d9bf3db4c155542690f00f633",
+  "prompts": {},
+  "sessions": {
+    "s_a0dbea657d38d1": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "11fd7a12-5de7-4797-a2f7-e5b6acbe394b",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
