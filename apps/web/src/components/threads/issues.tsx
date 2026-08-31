@@ -294,7 +294,8 @@ export function IssuesSection({
     <div className="flex flex-col gap-2">
       <div className="text-foreground-secondary text-xs">Issues</div>
       <div className="flex flex-col gap-1.5">
-        <div className="flex gap-1 items-center group w-full max-w-52">
+        <div className="flex gap-1 items-center group w-full max-w-76 min-w-0">
+          <div className="min-w-0 max-w-full overflow-hidden">
           <Combobox
             items={comboboxItems}
             value={linkedIssue?.externalKey ?? ""}
@@ -364,7 +365,7 @@ export function IssuesSection({
                 <ActionButton
                   size="sm"
                   variant="ghost"
-                  className="justify-start text-sm w-full p-0 grow shrink has-[>svg]:px-2 h-7"
+                  className="justify-start text-sm w-fit min-w-0 max-w-full overflow-hidden p-0 has-[>svg]:px-2 h-7"
                   tooltip="Link issue"
                   keybind="i"
                 >
@@ -426,6 +427,7 @@ export function IssuesSection({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
+          </div>
           {linkedIssue?.url && (
             <ActionButton
               variant="ghost"

@@ -96,7 +96,8 @@ export function PullRequestsSection({
     <div className="flex flex-col gap-2">
       <div className="text-foreground-secondary text-xs">Pull Requests</div>
       <div className="flex flex-col gap-1.5">
-        <div className="flex gap-1 items-center group w-full max-w-52">
+        <div className="flex gap-1 items-center group w-full max-w-76 min-w-0">
+          <div className="min-w-0 max-w-full overflow-hidden">
           <Combobox
             items={comboboxItems}
             value={linkedPr?.externalKey ?? ""}
@@ -160,7 +161,7 @@ export function PullRequestsSection({
                 <ActionButton
                   size="sm"
                   variant="ghost"
-                  className="justify-start text-sm w-full p-0 grow shrink has-[>svg]:px-2 h-7"
+                  className="justify-start text-sm w-fit min-w-0 max-w-full overflow-hidden p-0 has-[>svg]:px-2 h-7"
                   tooltip="Link pull request"
                   keybind="shift+p"
                 >
@@ -199,6 +200,7 @@ export function PullRequestsSection({
               </ComboboxList>
             </ComboboxContent>
           </Combobox>
+          </div>
           {linkedPr?.url && (
             <ActionButton
               variant="ghost"
