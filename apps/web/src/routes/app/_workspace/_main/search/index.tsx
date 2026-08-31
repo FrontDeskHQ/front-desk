@@ -27,7 +27,7 @@ import {
 } from "nuqs";
 import { useEffect, useRef, useState } from "react";
 
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, query } from "~/lib/live-state";
 import { buildThreadParam } from "~/utils/thread";
@@ -210,7 +210,7 @@ function RouteComponent() {
   return (
     <>
       <CardHeader className="flex items-center gap-2">
-        <CollapsedSidebarTrigger />
+        <WorkspaceBreadcrumbs />
         <Search className="size-4" />
         <Input
           placeholder="Search..."

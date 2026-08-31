@@ -8,7 +8,7 @@ import type {
   RichMarkdownMarkings,
   RichMarkdownPreset,
 } from "~/components/markdown/rich-markdown";
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -271,7 +271,7 @@ function RichMarkdownPlaygroundPage() {
       <div className="max-w-6xl mx-auto space-y-6">
         <header className="space-y-2">
           <div className="flex items-center gap-2">
-            <CollapsedSidebarTrigger />
+            <WorkspaceBreadcrumbs />
             <h1 className="text-xl font-semibold">Rich Markdown Playground</h1>
           </div>
           <p className="text-sm text-foreground-secondary">

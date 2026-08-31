@@ -36,6 +36,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/billing"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Billing",
+  },
   head: () => ({
     meta: [
       ...seo({

@@ -33,6 +33,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/slack/"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Slack",
+  },
   head: () => ({
     meta: [
       ...seo({

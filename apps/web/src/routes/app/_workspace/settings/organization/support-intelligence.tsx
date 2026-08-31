@@ -38,6 +38,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/support-intelligence"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Support Intelligence",
+  },
   head: () => ({
     meta: [
       ...seo({

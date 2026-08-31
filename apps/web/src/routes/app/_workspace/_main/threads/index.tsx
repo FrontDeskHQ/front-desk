@@ -8,14 +8,6 @@ import type {
   FilterOptions,
   FilterValue,
 } from "@workspace/ui/components/blocks/filter";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb";
 import { Button } from "@workspace/ui/components/button";
 import {
   CardAction,
@@ -62,7 +54,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -197,28 +189,7 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
     <>
       <CardHeader>
         <CardTitle className="gap-4">
-          <CollapsedSidebarTrigger />
-          <Breadcrumb>
-            <BreadcrumbList>
-              <BreadcrumbItem>
-                {subTitle ? (
-                  <BreadcrumbLink asChild>
-                    <Link to="/app/threads">Threads</Link>
-                  </BreadcrumbLink>
-                ) : (
-                  <BreadcrumbPage>Threads</BreadcrumbPage>
-                )}
-              </BreadcrumbItem>
-              {subTitle && (
-                <>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem>
-                    <BreadcrumbPage>{subTitle}</BreadcrumbPage>
-                  </BreadcrumbItem>
-                </>
-              )}
-            </BreadcrumbList>
-          </Breadcrumb>
+          <WorkspaceBreadcrumbs current={subTitle} />
           <Filter
             options={filterOptions}
             value={filter}

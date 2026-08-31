@@ -53,6 +53,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/api-keys"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "API keys",
+  },
 });
 
 function RouteComponent() {

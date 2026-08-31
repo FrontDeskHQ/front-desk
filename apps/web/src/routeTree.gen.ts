@@ -37,6 +37,9 @@ import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_wor
 import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
 import { Route as SupportSlugThreadsIdRouteImport } from './routes/support/$slug/threads/$id'
 import { Route as SupportSlugApiSplatRouteImport } from './routes/support/$slug/api/$'
+import { Route as AppWorkspaceSettingsUserRouteRouteImport } from './routes/app/_workspace/settings/user/route'
+import { Route as AppWorkspaceSettingsOrganizationRouteRouteImport } from './routes/app/_workspace/settings/organization/route'
+import { Route as AppWorkspaceMainThreadsRouteRouteImport } from './routes/app/_workspace/_main/threads/route'
 import { Route as AppWorkspaceSettingsUserIndexRouteImport } from './routes/app/_workspace/settings/user/index'
 import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
 import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
@@ -52,6 +55,8 @@ import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from './r
 import { Route as AppWorkspaceMainThreadsOpenRouteImport } from './routes/app/_workspace/_main/threads/open'
 import { Route as AppWorkspaceMainThreadsAssignedRouteImport } from './routes/app/_workspace/_main/threads/assigned'
 import { Route as AppWorkspaceMainPlaygroundRichMarkdownRouteImport } from './routes/app/_workspace/_main/playground/rich-markdown'
+import { Route as AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport } from './routes/app/_workspace/settings/organization/integration/route'
+import { Route as AppWorkspaceMainThreadsArchiveRouteRouteImport } from './routes/app/_workspace/_main/threads/archive/route'
 import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
 import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
 import { Route as AppWorkspaceMainThreadsIdIndexRouteImport } from './routes/app/_workspace/_main/threads/$id/index'
@@ -204,23 +209,41 @@ const SupportSlugApiSplatRoute = SupportSlugApiSplatRouteImport.update({
   path: '/api/$',
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
+const AppWorkspaceSettingsUserRouteRoute =
+  AppWorkspaceSettingsUserRouteRouteImport.update({
+    id: '/user',
+    path: '/user',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
+const AppWorkspaceSettingsOrganizationRouteRoute =
+  AppWorkspaceSettingsOrganizationRouteRouteImport.update({
+    id: '/organization',
+    path: '/organization',
+    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+  } as any)
+const AppWorkspaceMainThreadsRouteRoute =
+  AppWorkspaceMainThreadsRouteRouteImport.update({
+    id: '/threads',
+    path: '/threads',
+    getParentRoute: () => AppWorkspaceMainRouteRoute,
+  } as any)
 const AppWorkspaceSettingsUserIndexRoute =
   AppWorkspaceSettingsUserIndexRouteImport.update({
-    id: '/user/',
-    path: '/user/',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWorkspaceSettingsUserRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIndexRoute =
   AppWorkspaceSettingsOrganizationIndexRouteImport.update({
-    id: '/organization/',
-    path: '/organization/',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsIndexRoute =
   AppWorkspaceMainThreadsIndexRouteImport.update({
-    id: '/threads/',
-    path: '/threads/',
-    getParentRoute: () => AppWorkspaceMainRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainSignalIndexRoute =
   AppWorkspaceMainSignalIndexRouteImport.update({
@@ -242,51 +265,51 @@ const AppWorkspaceMainPlaygroundIndexRoute =
   } as any)
 const AppWorkspaceSettingsOrganizationTeamRoute =
   AppWorkspaceSettingsOrganizationTeamRouteImport.update({
-    id: '/organization/team',
-    path: '/organization/team',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/team',
+    path: '/team',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationSupportIntelligenceRoute =
   AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport.update({
-    id: '/organization/support-intelligence',
-    path: '/organization/support-intelligence',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/support-intelligence',
+    path: '/support-intelligence',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationLabelsRoute =
   AppWorkspaceSettingsOrganizationLabelsRouteImport.update({
-    id: '/organization/labels',
-    path: '/organization/labels',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/labels',
+    path: '/labels',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationDocumentationRoute =
   AppWorkspaceSettingsOrganizationDocumentationRouteImport.update({
-    id: '/organization/documentation',
-    path: '/organization/documentation',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/documentation',
+    path: '/documentation',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationBillingRoute =
   AppWorkspaceSettingsOrganizationBillingRouteImport.update({
-    id: '/organization/billing',
-    path: '/organization/billing',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/billing',
+    path: '/billing',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationApiKeysRoute =
   AppWorkspaceSettingsOrganizationApiKeysRouteImport.update({
-    id: '/organization/api-keys',
-    path: '/organization/api-keys',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/api-keys',
+    path: '/api-keys',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsOpenRoute =
   AppWorkspaceMainThreadsOpenRouteImport.update({
-    id: '/threads/open',
-    path: '/threads/open',
-    getParentRoute: () => AppWorkspaceMainRouteRoute,
+    id: '/open',
+    path: '/open',
+    getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsAssignedRoute =
   AppWorkspaceMainThreadsAssignedRouteImport.update({
-    id: '/threads/assigned',
-    path: '/threads/assigned',
-    getParentRoute: () => AppWorkspaceMainRouteRoute,
+    id: '/assigned',
+    path: '/assigned',
+    getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainPlaygroundRichMarkdownRoute =
   AppWorkspaceMainPlaygroundRichMarkdownRouteImport.update({
@@ -294,59 +317,71 @@ const AppWorkspaceMainPlaygroundRichMarkdownRoute =
     path: '/playground/rich-markdown',
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
+const AppWorkspaceSettingsOrganizationIntegrationRouteRoute =
+  AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport.update({
+    id: '/integration',
+    path: '/integration',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
+  } as any)
+const AppWorkspaceMainThreadsArchiveRouteRoute =
+  AppWorkspaceMainThreadsArchiveRouteRouteImport.update({
+    id: '/archive',
+    path: '/archive',
+    getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
+  } as any)
 const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport.update({
-    id: '/organization/integration/',
-    path: '/organization/integration/',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsArchiveIndexRoute =
   AppWorkspaceMainThreadsArchiveIndexRouteImport.update({
-    id: '/threads/archive/',
-    path: '/threads/archive/',
-    getParentRoute: () => AppWorkspaceMainRouteRoute,
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppWorkspaceMainThreadsArchiveRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsIdIndexRoute =
   AppWorkspaceMainThreadsIdIndexRouteImport.update({
-    id: '/threads/$id/',
-    path: '/threads/$id/',
-    getParentRoute: () => AppWorkspaceMainRouteRoute,
+    id: '/$id/',
+    path: '/$id/',
+    getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsArchiveIdRoute =
   AppWorkspaceMainThreadsArchiveIdRouteImport.update({
-    id: '/threads/archive/$id',
-    path: '/threads/archive/$id',
-    getParentRoute: () => AppWorkspaceMainRouteRoute,
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AppWorkspaceMainThreadsArchiveRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport.update({
-    id: '/organization/integration/slack/',
-    path: '/organization/integration/slack/',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/slack/',
+    path: '/slack/',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationGithubIndexRouteImport.update({
-    id: '/organization/integration/github/',
-    path: '/organization/integration/github/',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/github/',
+    path: '/github/',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport.update({
-    id: '/organization/integration/discord/',
-    path: '/organization/integration/discord/',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/discord/',
+    path: '/discord/',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute =
   AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport.update({
-    id: '/organization/integration/slack/redirect',
-    path: '/organization/integration/slack/redirect',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/slack/redirect',
+    path: '/slack/redirect',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
   AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport.update({
-    id: '/organization/integration/discord/redirect',
-    path: '/organization/integration/discord/redirect',
-    getParentRoute: () => AppWorkspaceSettingsRouteRoute,
+    id: '/discord/redirect',
+    path: '/discord/redirect',
+    getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -370,11 +405,16 @@ export interface FileRoutesByFullPath {
   '/updates': typeof PublicUpdatesIndexRoute
   '/app/onboarding': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
+  '/app/threads': typeof AppWorkspaceMainThreadsRouteRouteWithChildren
+  '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
+  '/app/settings/user': typeof AppWorkspaceSettingsUserRouteRouteWithChildren
   '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/': typeof AppWorkspaceMainIndexRoute
   '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
+  '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
+  '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
   '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -387,13 +427,13 @@ export interface FileRoutesByFullPath {
   '/app/playground': typeof AppWorkspaceMainPlaygroundIndexRoute
   '/app/search': typeof AppWorkspaceMainSearchIndexRoute
   '/app/signal': typeof AppWorkspaceMainSignalIndexRoute
-  '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
-  '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
+  '/app/threads/': typeof AppWorkspaceMainThreadsIndexRoute
+  '/app/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
+  '/app/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
   '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
   '/app/threads/$id': typeof AppWorkspaceMainThreadsIdIndexRoute
-  '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
-  '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  '/app/threads/archive/': typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  '/app/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   '/app/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
   '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
@@ -473,11 +513,16 @@ export interface FileRoutesById {
   '/_public/updates/': typeof PublicUpdatesIndexRoute
   '/app/onboarding/': typeof AppOnboardingIndexRoute
   '/support/$slug/': typeof SupportSlugIndexRoute
+  '/app/_workspace/_main/threads': typeof AppWorkspaceMainThreadsRouteRouteWithChildren
+  '/app/_workspace/settings/organization': typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
+  '/app/_workspace/settings/user': typeof AppWorkspaceSettingsUserRouteRouteWithChildren
   '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
   '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
   '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
   '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
   '/support/$slug/threads/': typeof SupportSlugThreadsIndexRoute
+  '/app/_workspace/_main/threads/archive': typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
+  '/app/_workspace/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
   '/app/_workspace/_main/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   '/app/_workspace/_main/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
   '/app/_workspace/_main/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
@@ -526,11 +571,16 @@ export interface FileRouteTypes {
     | '/updates'
     | '/app/onboarding'
     | '/support/$slug/'
+    | '/app/threads'
+    | '/app/settings/organization'
+    | '/app/settings/user'
     | '/support/$slug/api/$'
     | '/support/$slug/threads/$id'
     | '/app/'
     | '/app/settings/'
     | '/support/$slug/threads'
+    | '/app/threads/archive'
+    | '/app/settings/organization/integration'
     | '/app/playground/rich-markdown'
     | '/app/threads/assigned'
     | '/app/threads/open'
@@ -543,13 +593,13 @@ export interface FileRouteTypes {
     | '/app/playground'
     | '/app/search'
     | '/app/signal'
-    | '/app/threads'
-    | '/app/settings/organization'
-    | '/app/settings/user'
+    | '/app/threads/'
+    | '/app/settings/organization/'
+    | '/app/settings/user/'
     | '/app/threads/archive/$id'
     | '/app/threads/$id'
-    | '/app/threads/archive'
-    | '/app/settings/organization/integration'
+    | '/app/threads/archive/'
+    | '/app/settings/organization/integration/'
     | '/app/settings/organization/integration/discord/redirect'
     | '/app/settings/organization/integration/slack/redirect'
     | '/app/settings/organization/integration/discord'
@@ -628,11 +678,16 @@ export interface FileRouteTypes {
     | '/_public/updates/'
     | '/app/onboarding/'
     | '/support/$slug/'
+    | '/app/_workspace/_main/threads'
+    | '/app/_workspace/settings/organization'
+    | '/app/_workspace/settings/user'
     | '/support/$slug/api/$'
     | '/support/$slug/threads/$id'
     | '/app/_workspace/_main/'
     | '/app/_workspace/settings/'
     | '/support/$slug/threads/'
+    | '/app/_workspace/_main/threads/archive'
+    | '/app/_workspace/settings/organization/integration'
     | '/app/_workspace/_main/playground/rich-markdown'
     | '/app/_workspace/_main/threads/assigned'
     | '/app/_workspace/_main/threads/open'
@@ -869,26 +924,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SupportSlugApiSplatRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/app/_workspace/settings/user/': {
-      id: '/app/_workspace/settings/user/'
+    '/app/_workspace/settings/user': {
+      id: '/app/_workspace/settings/user'
       path: '/user'
       fullPath: '/app/settings/user'
-      preLoaderRoute: typeof AppWorkspaceSettingsUserIndexRouteImport
+      preLoaderRoute: typeof AppWorkspaceSettingsUserRouteRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
+    '/app/_workspace/settings/organization': {
+      id: '/app/_workspace/settings/organization'
+      path: '/organization'
+      fullPath: '/app/settings/organization'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationRouteRouteImport
+      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+    }
+    '/app/_workspace/_main/threads': {
+      id: '/app/_workspace/_main/threads'
+      path: '/threads'
+      fullPath: '/app/threads'
+      preLoaderRoute: typeof AppWorkspaceMainThreadsRouteRouteImport
+      parentRoute: typeof AppWorkspaceMainRouteRoute
+    }
+    '/app/_workspace/settings/user/': {
+      id: '/app/_workspace/settings/user/'
+      path: '/'
+      fullPath: '/app/settings/user/'
+      preLoaderRoute: typeof AppWorkspaceSettingsUserIndexRouteImport
+      parentRoute: typeof AppWorkspaceSettingsUserRouteRoute
     }
     '/app/_workspace/settings/organization/': {
       id: '/app/_workspace/settings/organization/'
-      path: '/organization'
-      fullPath: '/app/settings/organization'
+      path: '/'
+      fullPath: '/app/settings/organization/'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/_main/threads/': {
       id: '/app/_workspace/_main/threads/'
-      path: '/threads'
-      fullPath: '/app/threads'
+      path: '/'
+      fullPath: '/app/threads/'
       preLoaderRoute: typeof AppWorkspaceMainThreadsIndexRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
+      parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
     '/app/_workspace/_main/signal/': {
       id: '/app/_workspace/_main/signal/'
@@ -913,59 +989,59 @@ declare module '@tanstack/react-router' {
     }
     '/app/_workspace/settings/organization/team': {
       id: '/app/_workspace/settings/organization/team'
-      path: '/organization/team'
+      path: '/team'
       fullPath: '/app/settings/organization/team'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationTeamRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/settings/organization/support-intelligence': {
       id: '/app/_workspace/settings/organization/support-intelligence'
-      path: '/organization/support-intelligence'
+      path: '/support-intelligence'
       fullPath: '/app/settings/organization/support-intelligence'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/settings/organization/labels': {
       id: '/app/_workspace/settings/organization/labels'
-      path: '/organization/labels'
+      path: '/labels'
       fullPath: '/app/settings/organization/labels'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationLabelsRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/settings/organization/documentation': {
       id: '/app/_workspace/settings/organization/documentation'
-      path: '/organization/documentation'
+      path: '/documentation'
       fullPath: '/app/settings/organization/documentation'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/settings/organization/billing': {
       id: '/app/_workspace/settings/organization/billing'
-      path: '/organization/billing'
+      path: '/billing'
       fullPath: '/app/settings/organization/billing'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationBillingRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/settings/organization/api-keys': {
       id: '/app/_workspace/settings/organization/api-keys'
-      path: '/organization/api-keys'
+      path: '/api-keys'
       fullPath: '/app/settings/organization/api-keys'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationApiKeysRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
     '/app/_workspace/_main/threads/open': {
       id: '/app/_workspace/_main/threads/open'
-      path: '/threads/open'
+      path: '/open'
       fullPath: '/app/threads/open'
       preLoaderRoute: typeof AppWorkspaceMainThreadsOpenRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
+      parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
     '/app/_workspace/_main/threads/assigned': {
       id: '/app/_workspace/_main/threads/assigned'
-      path: '/threads/assigned'
+      path: '/assigned'
       fullPath: '/app/threads/assigned'
       preLoaderRoute: typeof AppWorkspaceMainThreadsAssignedRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
+      parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
     '/app/_workspace/_main/playground/rich-markdown': {
       id: '/app/_workspace/_main/playground/rich-markdown'
@@ -974,68 +1050,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
+    '/app/_workspace/settings/organization/integration': {
+      id: '/app/_workspace/settings/organization/integration'
+      path: '/integration'
+      fullPath: '/app/settings/organization/integration'
+      preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport
+      parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
+    }
+    '/app/_workspace/_main/threads/archive': {
+      id: '/app/_workspace/_main/threads/archive'
+      path: '/archive'
+      fullPath: '/app/threads/archive'
+      preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveRouteRouteImport
+      parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
+    }
     '/app/_workspace/settings/organization/integration/': {
       id: '/app/_workspace/settings/organization/integration/'
-      path: '/organization/integration'
-      fullPath: '/app/settings/organization/integration'
+      path: '/'
+      fullPath: '/app/settings/organization/integration/'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
     '/app/_workspace/_main/threads/archive/': {
       id: '/app/_workspace/_main/threads/archive/'
-      path: '/threads/archive'
-      fullPath: '/app/threads/archive'
+      path: '/'
+      fullPath: '/app/threads/archive/'
       preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIndexRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
+      parentRoute: typeof AppWorkspaceMainThreadsArchiveRouteRoute
     }
     '/app/_workspace/_main/threads/$id/': {
       id: '/app/_workspace/_main/threads/$id/'
-      path: '/threads/$id'
+      path: '/$id'
       fullPath: '/app/threads/$id'
       preLoaderRoute: typeof AppWorkspaceMainThreadsIdIndexRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
+      parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
     '/app/_workspace/_main/threads/archive/$id': {
       id: '/app/_workspace/_main/threads/archive/$id'
-      path: '/threads/archive/$id'
+      path: '/$id'
       fullPath: '/app/threads/archive/$id'
       preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIdRouteImport
-      parentRoute: typeof AppWorkspaceMainRouteRoute
+      parentRoute: typeof AppWorkspaceMainThreadsArchiveRouteRoute
     }
     '/app/_workspace/settings/organization/integration/slack/': {
       id: '/app/_workspace/settings/organization/integration/slack/'
-      path: '/organization/integration/slack'
+      path: '/slack'
       fullPath: '/app/settings/organization/integration/slack'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
     '/app/_workspace/settings/organization/integration/github/': {
       id: '/app/_workspace/settings/organization/integration/github/'
-      path: '/organization/integration/github'
+      path: '/github'
       fullPath: '/app/settings/organization/integration/github'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
     '/app/_workspace/settings/organization/integration/discord/': {
       id: '/app/_workspace/settings/organization/integration/discord/'
-      path: '/organization/integration/discord'
+      path: '/discord'
       fullPath: '/app/settings/organization/integration/discord'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
     '/app/_workspace/settings/organization/integration/slack/redirect': {
       id: '/app/_workspace/settings/organization/integration/slack/redirect'
-      path: '/organization/integration/slack/redirect'
+      path: '/slack/redirect'
       fullPath: '/app/settings/organization/integration/slack/redirect'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
     '/app/_workspace/settings/organization/integration/discord/redirect': {
       id: '/app/_workspace/settings/organization/integration/discord/redirect'
-      path: '/organization/integration/discord/redirect'
+      path: '/discord/redirect'
       fullPath: '/app/settings/organization/integration/discord/redirect'
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport
-      parentRoute: typeof AppWorkspaceSettingsRouteRoute
+      parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
   }
 }
@@ -1058,34 +1148,65 @@ const PublicRouteRouteWithChildren = PublicRouteRoute._addFileChildren(
   PublicRouteRouteChildren,
 )
 
-interface AppWorkspaceMainRouteRouteChildren {
-  AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
-  AppWorkspaceMainPlaygroundRichMarkdownRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
-  AppWorkspaceMainThreadsAssignedRoute: typeof AppWorkspaceMainThreadsAssignedRoute
-  AppWorkspaceMainThreadsOpenRoute: typeof AppWorkspaceMainThreadsOpenRoute
-  AppWorkspaceMainPlaygroundIndexRoute: typeof AppWorkspaceMainPlaygroundIndexRoute
-  AppWorkspaceMainSearchIndexRoute: typeof AppWorkspaceMainSearchIndexRoute
-  AppWorkspaceMainSignalIndexRoute: typeof AppWorkspaceMainSignalIndexRoute
-  AppWorkspaceMainThreadsIndexRoute: typeof AppWorkspaceMainThreadsIndexRoute
+interface AppWorkspaceMainThreadsArchiveRouteRouteChildren {
   AppWorkspaceMainThreadsArchiveIdRoute: typeof AppWorkspaceMainThreadsArchiveIdRoute
-  AppWorkspaceMainThreadsIdIndexRoute: typeof AppWorkspaceMainThreadsIdIndexRoute
   AppWorkspaceMainThreadsArchiveIndexRoute: typeof AppWorkspaceMainThreadsArchiveIndexRoute
 }
 
+const AppWorkspaceMainThreadsArchiveRouteRouteChildren: AppWorkspaceMainThreadsArchiveRouteRouteChildren =
+  {
+    AppWorkspaceMainThreadsArchiveIdRoute:
+      AppWorkspaceMainThreadsArchiveIdRoute,
+    AppWorkspaceMainThreadsArchiveIndexRoute:
+      AppWorkspaceMainThreadsArchiveIndexRoute,
+  }
+
+const AppWorkspaceMainThreadsArchiveRouteRouteWithChildren =
+  AppWorkspaceMainThreadsArchiveRouteRoute._addFileChildren(
+    AppWorkspaceMainThreadsArchiveRouteRouteChildren,
+  )
+
+interface AppWorkspaceMainThreadsRouteRouteChildren {
+  AppWorkspaceMainThreadsArchiveRouteRoute: typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
+  AppWorkspaceMainThreadsAssignedRoute: typeof AppWorkspaceMainThreadsAssignedRoute
+  AppWorkspaceMainThreadsOpenRoute: typeof AppWorkspaceMainThreadsOpenRoute
+  AppWorkspaceMainThreadsIndexRoute: typeof AppWorkspaceMainThreadsIndexRoute
+  AppWorkspaceMainThreadsIdIndexRoute: typeof AppWorkspaceMainThreadsIdIndexRoute
+}
+
+const AppWorkspaceMainThreadsRouteRouteChildren: AppWorkspaceMainThreadsRouteRouteChildren =
+  {
+    AppWorkspaceMainThreadsArchiveRouteRoute:
+      AppWorkspaceMainThreadsArchiveRouteRouteWithChildren,
+    AppWorkspaceMainThreadsAssignedRoute: AppWorkspaceMainThreadsAssignedRoute,
+    AppWorkspaceMainThreadsOpenRoute: AppWorkspaceMainThreadsOpenRoute,
+    AppWorkspaceMainThreadsIndexRoute: AppWorkspaceMainThreadsIndexRoute,
+    AppWorkspaceMainThreadsIdIndexRoute: AppWorkspaceMainThreadsIdIndexRoute,
+  }
+
+const AppWorkspaceMainThreadsRouteRouteWithChildren =
+  AppWorkspaceMainThreadsRouteRoute._addFileChildren(
+    AppWorkspaceMainThreadsRouteRouteChildren,
+  )
+
+interface AppWorkspaceMainRouteRouteChildren {
+  AppWorkspaceMainThreadsRouteRoute: typeof AppWorkspaceMainThreadsRouteRouteWithChildren
+  AppWorkspaceMainIndexRoute: typeof AppWorkspaceMainIndexRoute
+  AppWorkspaceMainPlaygroundRichMarkdownRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
+  AppWorkspaceMainPlaygroundIndexRoute: typeof AppWorkspaceMainPlaygroundIndexRoute
+  AppWorkspaceMainSearchIndexRoute: typeof AppWorkspaceMainSearchIndexRoute
+  AppWorkspaceMainSignalIndexRoute: typeof AppWorkspaceMainSignalIndexRoute
+}
+
 const AppWorkspaceMainRouteRouteChildren: AppWorkspaceMainRouteRouteChildren = {
+  AppWorkspaceMainThreadsRouteRoute:
+    AppWorkspaceMainThreadsRouteRouteWithChildren,
   AppWorkspaceMainIndexRoute: AppWorkspaceMainIndexRoute,
   AppWorkspaceMainPlaygroundRichMarkdownRoute:
     AppWorkspaceMainPlaygroundRichMarkdownRoute,
-  AppWorkspaceMainThreadsAssignedRoute: AppWorkspaceMainThreadsAssignedRoute,
-  AppWorkspaceMainThreadsOpenRoute: AppWorkspaceMainThreadsOpenRoute,
   AppWorkspaceMainPlaygroundIndexRoute: AppWorkspaceMainPlaygroundIndexRoute,
   AppWorkspaceMainSearchIndexRoute: AppWorkspaceMainSearchIndexRoute,
   AppWorkspaceMainSignalIndexRoute: AppWorkspaceMainSignalIndexRoute,
-  AppWorkspaceMainThreadsIndexRoute: AppWorkspaceMainThreadsIndexRoute,
-  AppWorkspaceMainThreadsArchiveIdRoute: AppWorkspaceMainThreadsArchiveIdRoute,
-  AppWorkspaceMainThreadsIdIndexRoute: AppWorkspaceMainThreadsIdIndexRoute,
-  AppWorkspaceMainThreadsArchiveIndexRoute:
-    AppWorkspaceMainThreadsArchiveIndexRoute,
 }
 
 const AppWorkspaceMainRouteRouteWithChildren =
@@ -1093,16 +1214,7 @@ const AppWorkspaceMainRouteRouteWithChildren =
     AppWorkspaceMainRouteRouteChildren,
   )
 
-interface AppWorkspaceSettingsRouteRouteChildren {
-  AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
-  AppWorkspaceSettingsOrganizationApiKeysRoute: typeof AppWorkspaceSettingsOrganizationApiKeysRoute
-  AppWorkspaceSettingsOrganizationBillingRoute: typeof AppWorkspaceSettingsOrganizationBillingRoute
-  AppWorkspaceSettingsOrganizationDocumentationRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRoute
-  AppWorkspaceSettingsOrganizationLabelsRoute: typeof AppWorkspaceSettingsOrganizationLabelsRoute
-  AppWorkspaceSettingsOrganizationSupportIntelligenceRoute: typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
-  AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
-  AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
-  AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
+interface AppWorkspaceSettingsOrganizationIntegrationRouteRouteChildren {
   AppWorkspaceSettingsOrganizationIntegrationIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
   AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
   AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
@@ -1111,9 +1223,42 @@ interface AppWorkspaceSettingsRouteRouteChildren {
   AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 
-const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
+const AppWorkspaceSettingsOrganizationIntegrationRouteRouteChildren: AppWorkspaceSettingsOrganizationIntegrationRouteRouteChildren =
   {
-    AppWorkspaceSettingsIndexRoute: AppWorkspaceSettingsIndexRoute,
+    AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
+    AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute:
+      AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute,
+    AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute:
+      AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute,
+    AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute,
+    AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute,
+    AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute:
+      AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute,
+  }
+
+const AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren =
+  AppWorkspaceSettingsOrganizationIntegrationRouteRoute._addFileChildren(
+    AppWorkspaceSettingsOrganizationIntegrationRouteRouteChildren,
+  )
+
+interface AppWorkspaceSettingsOrganizationRouteRouteChildren {
+  AppWorkspaceSettingsOrganizationIntegrationRouteRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
+  AppWorkspaceSettingsOrganizationApiKeysRoute: typeof AppWorkspaceSettingsOrganizationApiKeysRoute
+  AppWorkspaceSettingsOrganizationBillingRoute: typeof AppWorkspaceSettingsOrganizationBillingRoute
+  AppWorkspaceSettingsOrganizationDocumentationRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  AppWorkspaceSettingsOrganizationLabelsRoute: typeof AppWorkspaceSettingsOrganizationLabelsRoute
+  AppWorkspaceSettingsOrganizationSupportIntelligenceRoute: typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
+  AppWorkspaceSettingsOrganizationTeamRoute: typeof AppWorkspaceSettingsOrganizationTeamRoute
+  AppWorkspaceSettingsOrganizationIndexRoute: typeof AppWorkspaceSettingsOrganizationIndexRoute
+}
+
+const AppWorkspaceSettingsOrganizationRouteRouteChildren: AppWorkspaceSettingsOrganizationRouteRouteChildren =
+  {
+    AppWorkspaceSettingsOrganizationIntegrationRouteRoute:
+      AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren,
     AppWorkspaceSettingsOrganizationApiKeysRoute:
       AppWorkspaceSettingsOrganizationApiKeysRoute,
     AppWorkspaceSettingsOrganizationBillingRoute:
@@ -1128,19 +1273,40 @@ const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChil
       AppWorkspaceSettingsOrganizationTeamRoute,
     AppWorkspaceSettingsOrganizationIndexRoute:
       AppWorkspaceSettingsOrganizationIndexRoute,
+  }
+
+const AppWorkspaceSettingsOrganizationRouteRouteWithChildren =
+  AppWorkspaceSettingsOrganizationRouteRoute._addFileChildren(
+    AppWorkspaceSettingsOrganizationRouteRouteChildren,
+  )
+
+interface AppWorkspaceSettingsUserRouteRouteChildren {
+  AppWorkspaceSettingsUserIndexRoute: typeof AppWorkspaceSettingsUserIndexRoute
+}
+
+const AppWorkspaceSettingsUserRouteRouteChildren: AppWorkspaceSettingsUserRouteRouteChildren =
+  {
     AppWorkspaceSettingsUserIndexRoute: AppWorkspaceSettingsUserIndexRoute,
-    AppWorkspaceSettingsOrganizationIntegrationIndexRoute:
-      AppWorkspaceSettingsOrganizationIntegrationIndexRoute,
-    AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute:
-      AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute,
-    AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute:
-      AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute,
-    AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute:
-      AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute,
-    AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute:
-      AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute,
-    AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute:
-      AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute,
+  }
+
+const AppWorkspaceSettingsUserRouteRouteWithChildren =
+  AppWorkspaceSettingsUserRouteRoute._addFileChildren(
+    AppWorkspaceSettingsUserRouteRouteChildren,
+  )
+
+interface AppWorkspaceSettingsRouteRouteChildren {
+  AppWorkspaceSettingsOrganizationRouteRoute: typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
+  AppWorkspaceSettingsUserRouteRoute: typeof AppWorkspaceSettingsUserRouteRouteWithChildren
+  AppWorkspaceSettingsIndexRoute: typeof AppWorkspaceSettingsIndexRoute
+}
+
+const AppWorkspaceSettingsRouteRouteChildren: AppWorkspaceSettingsRouteRouteChildren =
+  {
+    AppWorkspaceSettingsOrganizationRouteRoute:
+      AppWorkspaceSettingsOrganizationRouteRouteWithChildren,
+    AppWorkspaceSettingsUserRouteRoute:
+      AppWorkspaceSettingsUserRouteRouteWithChildren,
+    AppWorkspaceSettingsIndexRoute: AppWorkspaceSettingsIndexRoute,
   }
 
 const AppWorkspaceSettingsRouteRouteWithChildren =

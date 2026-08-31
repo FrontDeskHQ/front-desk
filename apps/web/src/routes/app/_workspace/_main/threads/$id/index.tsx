@@ -5,18 +5,9 @@ import { useLiveQuery } from "@live-state/sync/client";
 import {
   createFileRoute,
   getRouteApi,
-  Link,
   notFound,
   useNavigate,
 } from "@tanstack/react-router";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb";
 import { Button } from "@workspace/ui/components/button";
 import { CardHeader } from "@workspace/ui/components/card";
 import {
@@ -50,7 +41,6 @@ import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
@@ -60,6 +50,7 @@ import { ThreadHeader } from "~/components/threads/thread-header";
 import { ThreadReply } from "~/components/threads/thread-reply";
 import { ThreadToolbar } from "~/components/threads/thread-toolbar";
 import { ThreadUpdates } from "~/components/threads/thread-updates";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { ThreadCommands } from "~/lib/commands/commands/thread";
 import { useThreadAnalytics } from "~/lib/hooks/use-thread-analytics";
@@ -300,29 +291,21 @@ function RouteComponent() {
           <CardHeader className="min-w-0 grid-cols-[minmax(0,1fr)]">
             {thread && (
               <div className="flex justify-between items-center w-full min-w-0 gap-2">
-                <CollapsedSidebarTrigger />
-                <Breadcrumb className="min-w-0 flex-1">
-                  <BreadcrumbList className="min-w-0 flex-nowrap">
-                    <BreadcrumbItem className="shrink-0">
-                      <BreadcrumbLink asChild>
-                        <Link to="/app/threads">Threads</Link>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator className="shrink-0" />
-                    <BreadcrumbItem className="min-w-0">
-                      <BreadcrumbPage className="flex min-w-0 items-center gap-1.5">
-                        <span className="truncate" title={thread.name}>
-                          {thread.name}
+                <WorkspaceBreadcrumbs
+                  className="flex-1"
+                  current={
+                    <>
+                      <span className="truncate" title={thread.name}>
+                        {thread.name}
+                      </span>
+                      {thread.shortId !== null && (
+                        <span className="text-foreground-secondary tabular-nums font-normal shrink-0">
+                          #{thread.shortId}
                         </span>
-                        {thread.shortId !== null && (
-                          <span className="text-foreground-secondary tabular-nums font-normal shrink-0">
-                            #{thread.shortId}
-                          </span>
-                        )}
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
+                      )}
+                    </>
+                  }
+                />
                 <SidebarTrigger
                   aria-label="Toggle thread details"
                   className="ml-auto shrink-0"

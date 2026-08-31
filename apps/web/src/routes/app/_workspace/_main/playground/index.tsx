@@ -4,7 +4,7 @@ import { useAtomValue } from "jotai/react";
 import { Bot, Send, User } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { mutate, query } from "~/lib/live-state";
 
@@ -94,7 +94,7 @@ function PlaygroundPage() {
   return (
     <div className="flex flex-col h-full">
       <div className="border-b pl-2.5 pr-6 py-4 flex items-start gap-2">
-        <CollapsedSidebarTrigger className="mt-0.5" />
+        <WorkspaceBreadcrumbs className="mt-0.5" />
         <div>
           <h1 className="text-lg font-semibold">Agent Playground</h1>
           <p className="text-sm text-foreground-secondary">

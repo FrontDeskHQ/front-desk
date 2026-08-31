@@ -46,6 +46,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/documentation"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Documentation",
+  },
 });
 
 const statusVariant = (

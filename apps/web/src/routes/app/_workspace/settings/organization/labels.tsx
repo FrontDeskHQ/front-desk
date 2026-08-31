@@ -58,6 +58,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/labels"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Labels",
+  },
 });
 
 function RouteComponent() {
