@@ -193,7 +193,7 @@ export function FirstStepsChecklist() {
                           }}
                         >
                           <div className="flex items-center gap-3 grow shrink overflow-hidden">
-                            <StepIcon className="h-4 w-4" />
+                            <StepIcon className="h-4 w-4 shrink-0" />
                             <div
                               className={cn(
                                 "truncate grow shrink",
