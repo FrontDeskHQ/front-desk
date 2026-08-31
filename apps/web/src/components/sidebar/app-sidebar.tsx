@@ -16,11 +16,19 @@ import {
   SidebarMenuSubItem,
   SidebarRail,
 } from "@workspace/ui/components/sidebar";
+import {
+  TreeJoin,
+  TreeSkip,
+  treeRowClassName,
+} from "@workspace/ui/components/tree";
+import { cn } from "@workspace/ui/lib/utils";
 import { Activity, MessagesSquare, Search } from "lucide-react";
 
 import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
 
 import { OrgSwitcher } from "./organization-switcher";
+
+const TREE_GAP_PX = 2;
 
 interface Item {
   title: string;
@@ -82,9 +90,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent className="bg-none">
         <SidebarGroup>
           <SidebarGroupContent>
-            <SidebarMenu>
+            <SidebarMenu className="gap-0.5">
               {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
+                <SidebarMenuItem key={item.title} className="flex flex-col gap-0.5">
                   <SidebarMenuButton
                     asChild
                     data-active={matches.some(
@@ -97,22 +105,38 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
                     </Link>
                   </SidebarMenuButton>
                   {item.items && item.items.length > 0 && (
-                    <SidebarMenuSub>
-                      {item.items.map((subItem) => (
-                        <SidebarMenuSubItem key={subItem.title}>
-                          <SidebarMenuSubButton
-                            asChild
-                            isActive={matches.some(
-                              (match) => match.routeId === subItem.route
-                            )}
+                    <SidebarMenuSub className="ml-0 translate-x-0 gap-0.5 border-l-0 py-0 pl-2">
+                      {item.items.map((subItem, index, subItems) => {
+                        const isLast = index === subItems.length - 1;
+
+                        return (
+                          <SidebarMenuSubItem
+                            key={subItem.title}
+                            className={cn(treeRowClassName, "min-h-7")}
                           >
-                            <Link to={subItem.url}>
-                              {subItem.icon && <subItem.icon />}
-                              <span>{subItem.title}</span>
-                            </Link>
-                          </SidebarMenuSubButton>
-                        </SidebarMenuSubItem>
-                      ))}
+                            {isLast ? (
+                              <TreeJoin isLast stretchStart={TREE_GAP_PX} />
+                            ) : (
+                              <TreeSkip
+                                stretchStart={TREE_GAP_PX}
+                                stretchEnd={TREE_GAP_PX}
+                              />
+                            )}
+                            <SidebarMenuSubButton
+                              asChild
+                              className="min-w-0 flex-1 translate-x-0"
+                              isActive={matches.some(
+                                (match) => match.routeId === subItem.route
+                              )}
+                            >
+                              <Link to={subItem.url}>
+                                {subItem.icon && <subItem.icon />}
+                                <span>{subItem.title}</span>
+                              </Link>
+                            </SidebarMenuSubButton>
+                          </SidebarMenuSubItem>
+                        );
+                      })}
                     </SidebarMenuSub>
                   )}
                 </SidebarMenuItem>
