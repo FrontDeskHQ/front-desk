@@ -38,6 +38,7 @@ import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import {
@@ -143,10 +144,10 @@ function RouteComponent() {
       <div className="flex-1 flex flex-col">
         <CardHeader>
           <CardTitle>
-            {" "}
             {thread && (
-              <div className="flex justify-between items-center w-full">
-                <Breadcrumb>
+              <div className="flex justify-between items-center w-full gap-2">
+                <CollapsedSidebarTrigger />
+                <Breadcrumb className="min-w-0 flex-1">
                   <BreadcrumbList>
                     <BreadcrumbItem>
                       <BreadcrumbLink asChild>

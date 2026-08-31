@@ -50,6 +50,7 @@ import { Copy, MoreHorizontalIcon, Trash2 } from "lucide-react";
 import { Fragment, useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 import { IssuesSection } from "~/components/threads/issues";
 import { LabelsSection } from "~/components/threads/labels";
 import { PropertiesSection } from "~/components/threads/properties";
@@ -299,6 +300,7 @@ function RouteComponent() {
           <CardHeader className="min-w-0 grid-cols-[minmax(0,1fr)]">
             {thread && (
               <div className="flex justify-between items-center w-full min-w-0 gap-2">
+                <CollapsedSidebarTrigger />
                 <Breadcrumb className="min-w-0 flex-1">
                   <BreadcrumbList className="min-w-0 flex-nowrap">
                     <BreadcrumbItem className="shrink-0">

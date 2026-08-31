@@ -24,9 +24,7 @@ import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 function matchesMobileViewport() {
-  return (
-    typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT
-  );
+  return typeof window !== "undefined" && window.innerWidth < MOBILE_BREAKPOINT;
 }
 
 const SIDEBAR_STORAGE_PREFIX = "fd.sidebar.v1.";
@@ -47,6 +45,7 @@ interface SidebarPersistedState {
 }
 
 interface SidebarSnapshot extends SidebarPersistedState {
+  openMobile: boolean;
   peeking: boolean;
   resizing: boolean;
 }
@@ -71,6 +70,7 @@ interface SidebarHandle {
   getSnapshot: () => SidebarSnapshot;
   getServerSnapshot: () => SidebarSnapshot;
   setOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
+  setOpenMobile: (open: boolean | ((prev: boolean) => boolean)) => void;
   setWidth: (width: number | ((prev: number) => number)) => void;
   setPeeking: (peeking: boolean) => void;
   setResizing: (resizing: boolean) => void;
@@ -109,7 +109,10 @@ function readPersisted(id: string | undefined): Partial<SidebarPersistedState> {
   }
 }
 
-function writePersisted(id: string | undefined, snapshot: SidebarPersistedState) {
+function writePersisted(
+  id: string | undefined,
+  snapshot: SidebarPersistedState
+) {
   if (!id) {
     return;
   }
@@ -138,12 +141,14 @@ function createSidebarHandle(
   const persisted = readPersisted(options.id);
   const initial: SidebarSnapshot = {
     open: persisted.open ?? options.defaultOpen ?? true,
+    openMobile: false,
     peeking: false,
     resizing: false,
     width: clamp(persisted.width ?? defaultWidth, minWidth, maxWidth),
   };
   const serverSnapshot: SidebarSnapshot = {
     open: options.defaultOpen ?? true,
+    openMobile: false,
     peeking: false,
     resizing: false,
     width: defaultWidth,
@@ -176,6 +181,15 @@ function createSidebarHandle(
       }
       snapshot = { ...snapshot, open: next, peeking: false };
       persist();
+      emit();
+    },
+    setOpenMobile: (open) => {
+      const next =
+        typeof open === "function" ? open(snapshot.openMobile) : open;
+      if (snapshot.openMobile === next) {
+        return;
+      }
+      snapshot = { ...snapshot, openMobile: next };
       emit();
     },
     setPeeking: (peeking) => {
@@ -212,6 +226,10 @@ function createSidebarHandle(
       };
     },
     toggle: () => {
+      if (matchesMobileViewport()) {
+        handle.setOpenMobile((open) => !open);
+        return;
+      }
       handle.setOpen((open) => !open);
     },
   };
@@ -229,7 +247,6 @@ interface SidebarContextValue {
   onWidthChange?: (width: number) => void;
   open: boolean;
   openMobile: boolean;
-  overlayRoot: HTMLElement | null;
   peeking: boolean;
   resizing: boolean;
   setOpen: (open: boolean | ((prev: boolean) => boolean)) => void;
@@ -260,6 +277,7 @@ function useOptionalSidebar() {
 
 const EMPTY_SNAPSHOT: SidebarSnapshot = {
   open: true,
+  openMobile: false,
   peeking: false,
   resizing: false,
   width: DEFAULT_WIDTH,
@@ -313,12 +331,11 @@ function bindHandle(
     maxWidth: handle.maxWidth,
     minWidth: handle.minWidth,
     open: snapshot.open,
-    openMobile: isMobile ? snapshot.open : false,
-    overlayRoot: null,
+    openMobile: snapshot.openMobile,
     peeking: snapshot.peeking,
     resizing: snapshot.resizing,
     setOpen,
-    setOpenMobile: setOpen,
+    setOpenMobile: handle.setOpenMobile,
     setPeeking: handle.setPeeking,
     setResizing: handle.setResizing,
     setWidth: handle.setWidth,
@@ -358,16 +375,17 @@ function SidebarProvider({
   width?: number;
 }) {
   const isMobile = useIsMobile();
-  const [internalHandle] = React.useState(() =>
-    handleProp ??
-    createSidebarHandle({
-      collapseMode,
-      defaultOpen,
-      defaultWidth,
-      id,
-      maxWidth,
-      minWidth,
-    })
+  const [internalHandle] = React.useState(
+    () =>
+      handleProp ??
+      createSidebarHandle({
+        collapseMode,
+        defaultOpen,
+        defaultWidth,
+        id,
+        maxWidth,
+        minWidth,
+      })
   );
   const handle = handleProp ?? internalHandle;
   const snapshot = React.useSyncExternalStore(
@@ -390,7 +408,8 @@ function SidebarProvider({
 
   const setOpen = React.useCallback(
     (value: boolean | ((prev: boolean) => boolean)) => {
-      const next = typeof value === "function" ? value(handle.getSnapshot().open) : value;
+      const next =
+        typeof value === "function" ? value(handle.getSnapshot().open) : value;
       onOpenChange?.(next);
       if (openProp === undefined) {
         handle.setOpen(next);
@@ -415,7 +434,8 @@ function SidebarProvider({
     [handle, onWidthChange, widthProp]
   );
 
-  const [openMobile, setOpenMobile] = React.useState(false);
+  const setOpenMobile = handle.setOpenMobile;
+  const openMobile = snapshot.openMobile;
 
   const toggleSidebar = React.useCallback(() => {
     const overlayViewport = matchesMobileViewport() || isMobile;
@@ -424,17 +444,13 @@ function SidebarProvider({
       return;
     }
     setOpen((open) => !open);
-  }, [isMobile, setOpen]);
+  }, [isMobile, setOpen, setOpenMobile]);
 
   React.useEffect(() => {
     if (!isMobile) {
       setOpenMobile(false);
     }
-  }, [isMobile]);
-
-  const [overlayRoot, setOverlayRoot] = React.useState<HTMLElement | null>(
-    null
-  );
+  }, [isMobile, setOpenMobile]);
 
   const contextValue = React.useMemo<SidebarContextValue>(
     () => ({
@@ -447,7 +463,6 @@ function SidebarProvider({
       onWidthChange,
       open: snapshot.open,
       openMobile,
-      overlayRoot,
       peeking: snapshot.peeking,
       resizing: snapshot.resizing,
       setOpen,
@@ -466,7 +481,6 @@ function SidebarProvider({
       onOpenChange,
       onWidthChange,
       openMobile,
-      overlayRoot,
       setOpen,
       setOpenMobile,
       setWidth,
@@ -482,7 +496,6 @@ function SidebarProvider({
     <SidebarContext value={contextValue}>
       <TooltipProvider>
         <div
-          ref={setOverlayRoot}
           data-slot="sidebar-wrapper"
           data-state={contextValue.state}
           style={
@@ -592,6 +605,121 @@ function usePeekHover({
   return { onPeekEnter, onPeekLeave };
 }
 
+function SidebarDialogOverlay({
+  children,
+  className,
+  keepMounted,
+  onPeekEnter,
+  onPeekLeave,
+  panelId,
+  peekEnabled,
+  side,
+  variant,
+  visible,
+  ...props
+}: React.ComponentProps<"div"> & {
+  keepMounted?: boolean;
+  onPeekEnter: () => void;
+  onPeekLeave: () => void;
+  panelId: string;
+  peekEnabled: boolean;
+  side: SidebarSide;
+  variant: SidebarVariant;
+  visible: boolean;
+}) {
+  const {
+    isMobile,
+    open,
+    openMobile,
+    peeking,
+    resizing,
+    setOpen,
+    setOpenMobile,
+    setPeeking,
+    width,
+  } = useSidebar();
+  const overlayVisible = isMobile ? openMobile : visible;
+  const floating = variant === "floating";
+
+  return (
+    <Dialog
+      open={overlayVisible}
+      disablePointerDismissal={!isMobile}
+      modal={isMobile}
+      onOpenChange={(next) => {
+        if (isMobile) {
+          setOpenMobile(next);
+          return;
+        }
+        if (next) {
+          if (!peekEnabled) {
+            setOpen(true);
+          }
+          return;
+        }
+        setOpen(false);
+        setPeeking(false);
+      }}
+    >
+      <DialogPortal keepMounted={keepMounted}>
+        {isMobile ? (
+          <DialogPrimitive.Backdrop
+            data-slot="dialog-overlay"
+            className="fixed inset-0 isolate bg-black/70 pointer-events-auto data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 duration-100"
+          />
+        ) : null}
+        <DialogPrimitive.Viewport
+          data-slot="sidebar-floating-viewport"
+          className="fixed inset-0 isolate flex pointer-events-none"
+        >
+          <DialogPrimitive.Popup
+            id={panelId}
+            data-slot="sidebar-container"
+            data-sidebar="sidebar"
+            data-mobile={isMobile ? "true" : undefined}
+            data-side={side}
+            finalFocus={peeking ? false : undefined}
+            initialFocus={peeking ? false : undefined}
+            onMouseEnter={peekEnabled ? onPeekEnter : undefined}
+            onMouseLeave={peekEnabled ? onPeekLeave : undefined}
+            className={cn(
+              "group/sidebar pointer-events-auto absolute flex h-full outline-none",
+              floating
+                ? cn("inset-y-2", side === "left" ? "left-2" : "right-2")
+                : cn("inset-y-0", side === "left" ? "left-0" : "right-0"),
+              isMobile && "bg-sidebar shadow-lg",
+              isMobile && (side === "left" ? "border-r" : "border-l"),
+              !resizing &&
+                "data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 duration-200 ease-out",
+              !resizing &&
+                (side === "left"
+                  ? "data-closed:slide-out-to-left data-open:slide-in-from-left"
+                  : "data-closed:slide-out-to-right data-open:slide-in-from-right"),
+              className
+            )}
+            style={{ width }}
+            {...props}
+          >
+            <DialogTitle className="sr-only">Sidebar</DialogTitle>
+            <div
+              data-slot="sidebar-inner"
+              className={cn(
+                sidebarVariants({ side, variant }),
+                peeking &&
+                  !open &&
+                  !floating &&
+                  "bg-sidebar shadow-lg ring-1 ring-foreground/10"
+              )}
+            >
+              {children}
+            </div>
+          </DialogPrimitive.Popup>
+        </DialogPrimitive.Viewport>
+      </DialogPortal>
+    </Dialog>
+  );
+}
+
 function SidebarFloatingFrame({
   children,
   className,
@@ -612,19 +740,7 @@ function SidebarFloatingFrame({
   side: SidebarSide;
   visible: boolean;
 }) {
-  const {
-    isMobile,
-    open,
-    openMobile,
-    overlayRoot,
-    peeking,
-    resizing,
-    setOpen,
-    setOpenMobile,
-    setPeeking,
-    width,
-  } = useSidebar();
-  const overlayVisible = isMobile ? openMobile : visible;
+  const { open, peeking } = useSidebar();
 
   return (
     <div
@@ -642,76 +758,27 @@ function SidebarFloatingFrame({
         <div
           data-slot="sidebar-hover-target"
           className={cn(
-            "absolute inset-y-0 z-20 w-4",
+            "absolute inset-y-0 w-4",
             side === "left" ? "left-0" : "right-0"
           )}
           onMouseEnter={onPeekEnter}
           onMouseLeave={onPeekLeave}
         />
       ) : null}
-      <Dialog
-        open={overlayVisible}
-        disablePointerDismissal={!isMobile}
-        modal={isMobile}
-        onOpenChange={(next) => {
-          if (isMobile) {
-            setOpenMobile(next);
-            return;
-          }
-          if (next) {
-            setOpen(true);
-            return;
-          }
-          setOpen(false);
-          setPeeking(false);
-        }}
+      <SidebarDialogOverlay
+        className={className}
+        keepMounted={peekEnabled}
+        onPeekEnter={onPeekEnter}
+        onPeekLeave={onPeekLeave}
+        panelId={panelId}
+        peekEnabled={peekEnabled}
+        side={side}
+        variant="floating"
+        visible={visible}
+        {...props}
       >
-        {overlayRoot ? (
-          <DialogPortal container={overlayRoot} keepMounted={peekEnabled}>
-            {isMobile ? (
-              <DialogPrimitive.Backdrop
-                data-slot="dialog-overlay"
-                className="absolute inset-0 isolate bg-black/70 pointer-events-auto data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 duration-100"
-              />
-            ) : null}
-            <DialogPrimitive.Viewport
-              data-slot="sidebar-floating-viewport"
-              className="absolute inset-0 isolate z-40 flex pointer-events-none"
-            >
-              <DialogPrimitive.Popup
-                id={panelId}
-                data-slot="sidebar-container"
-                data-sidebar="sidebar"
-                finalFocus={peeking ? false : undefined}
-                initialFocus={peeking ? false : undefined}
-                onMouseEnter={peekEnabled ? onPeekEnter : undefined}
-                onMouseLeave={peekEnabled ? onPeekLeave : undefined}
-                className={cn(
-                  "pointer-events-auto absolute inset-y-2 z-10 flex outline-none",
-                  side === "left" ? "left-2" : "right-2",
-                  !resizing &&
-                    "data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 duration-200 ease-out",
-                  !resizing &&
-                    (side === "left"
-                      ? "data-closed:slide-out-to-left data-open:slide-in-from-left"
-                      : "data-closed:slide-out-to-right data-open:slide-in-from-right"),
-                  className
-                )}
-                style={{ width }}
-                {...props}
-              >
-                <DialogTitle className="sr-only">Sidebar</DialogTitle>
-                <div
-                  data-slot="sidebar-inner"
-                  className={sidebarVariants({ side, variant: "floating" })}
-                >
-                  {children}
-                </div>
-              </DialogPrimitive.Popup>
-            </DialogPrimitive.Viewport>
-          </DialogPortal>
-        ) : null}
-      </Dialog>
+        {children}
+      </SidebarDialogOverlay>
     </div>
   );
 }
@@ -787,7 +854,6 @@ function SidebarPanel({
     openMobile,
     peeking,
     resizing,
-    setOpenMobile,
     setPeeking,
     width,
   } = useSidebar();
@@ -857,39 +923,22 @@ function SidebarPanel({
     );
   }
 
-  if (isMobile || openMobile) {
+  if (isMobile) {
     return (
       <SidebarLayoutContext value={layoutValue}>
-        {openMobile ? (
-          <button
-            type="button"
-            data-slot="sidebar-backdrop"
-            aria-label="Close sidebar"
-            className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-            onClick={() => setOpenMobile(false)}
-          />
-        ) : null}
-        <div
-          id={panelId}
-          data-slot="sidebar"
-          data-mobile="true"
-          data-side={side}
-          data-state={openMobile ? "expanded" : "collapsed"}
-          data-variant={variant}
-          className={cn(
-            "fixed inset-y-0 z-50 flex w-(--sidebar-width) flex-col bg-sidebar text-sidebar-foreground shadow-lg transition-transform duration-200 ease-out lg:hidden",
-            side === "left" ? "left-0 border-r" : "right-0 border-l",
-            openMobile
-              ? "translate-x-0"
-              : side === "left"
-                ? "-translate-x-full"
-                : "translate-x-full",
-            className
-          )}
+        <SidebarDialogOverlay
+          className={className}
+          onPeekEnter={onPeekEnter}
+          onPeekLeave={onPeekLeave}
+          panelId={panelId}
+          peekEnabled={false}
+          side={side}
+          variant={variant}
+          visible={openMobile}
           {...props}
         >
           {children}
-        </div>
+        </SidebarDialogOverlay>
       </SidebarLayoutContext>
     );
   }
@@ -918,45 +967,56 @@ function SidebarPanel({
           <div
             data-slot="sidebar-hover-target"
             className={cn(
-              "absolute inset-y-0 z-20 w-4",
+              "absolute inset-y-0 w-4",
               side === "left" ? "left-0" : "right-0"
             )}
             onMouseEnter={onPeekEnter}
             onMouseLeave={onPeekLeave}
           />
         ) : null}
-        <div
-          id={panelId}
-          data-slot="sidebar-container"
-          inert={!visible ? true : undefined}
-          aria-hidden={visible ? undefined : true}
-          onMouseEnter={peekEnabled ? onPeekEnter : undefined}
-          onMouseLeave={peekEnabled ? onPeekLeave : undefined}
-          className={cn(
-            "absolute inset-y-0 z-10 flex h-full",
-            side === "left" ? "left-0" : "right-0",
-            peeking && !open && "z-30",
-            !visible &&
-              (side === "left" ? "-translate-x-full" : "translate-x-full"),
-            !resizing && "transition-transform duration-200 ease-out",
-            className
-          )}
-          style={{ width }}
-          {...props}
-        >
-          <div
-            data-slot="sidebar-inner"
-            data-sidebar="sidebar"
-            className={cn(
-              sidebarVariants({ side, variant }),
-              peeking &&
-                !open &&
-                "bg-sidebar shadow-lg ring-1 ring-foreground/10"
-            )}
+        {peekEnabled && !open ? (
+          <SidebarDialogOverlay
+            className={className}
+            keepMounted
+            onPeekEnter={onPeekEnter}
+            onPeekLeave={onPeekLeave}
+            panelId={panelId}
+            peekEnabled
+            side={side}
+            variant={variant}
+            visible={peeking}
+            {...props}
           >
             {children}
+          </SidebarDialogOverlay>
+        ) : (
+          <div
+            id={panelId}
+            data-slot="sidebar-container"
+            inert={!visible ? true : undefined}
+            aria-hidden={visible ? undefined : true}
+            onMouseEnter={peekEnabled ? onPeekEnter : undefined}
+            onMouseLeave={peekEnabled ? onPeekLeave : undefined}
+            className={cn(
+              "absolute inset-y-0 flex h-full",
+              side === "left" ? "left-0" : "right-0",
+              !visible &&
+                (side === "left" ? "-translate-x-full" : "translate-x-full"),
+              !resizing && "transition-transform duration-200 ease-out",
+              className
+            )}
+            style={{ width }}
+            {...props}
+          >
+            <div
+              data-slot="sidebar-inner"
+              data-sidebar="sidebar"
+              className={cn(sidebarVariants({ side, variant }))}
+            >
+              {children}
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </SidebarLayoutContext>
   );
@@ -1115,7 +1175,16 @@ function SidebarResizeHandle({
       target.addEventListener("pointerup", onUp);
       target.addEventListener("pointercancel", onUp);
     },
-    [onPointerDown, open, peeking, setResizing, setWidth, side, toggleSidebar, width]
+    [
+      onPointerDown,
+      open,
+      peeking,
+      setResizing,
+      setWidth,
+      side,
+      toggleSidebar,
+      width,
+    ]
   );
 
   if (isMobile) {
@@ -1135,7 +1204,7 @@ function SidebarResizeHandle({
       role="separator"
       title={open ? "Drag to resize, click to collapse" : "Click to expand"}
       className={cn(
-        "absolute inset-y-0 z-20 hidden w-3 cursor-col-resize touch-none items-center justify-center lg:flex",
+        "absolute inset-y-0 hidden w-3 cursor-col-resize touch-none items-center justify-center lg:flex",
         "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
         "hover:after:bg-foreground-tertiary focus-visible:after:bg-ring",
         "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
@@ -1451,7 +1520,10 @@ function SidebarMenuSkeleton({
 }: React.ComponentProps<"div"> & {
   showIcon?: boolean;
 }) {
-  const width = React.useMemo(() => `${Math.floor(Math.random() * 40) + 50}%`, []);
+  const width = React.useMemo(
+    () => `${Math.floor(Math.random() * 40) + 50}%`,
+    []
+  );
 
   return (
     <div

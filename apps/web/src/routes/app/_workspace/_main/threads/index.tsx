@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { useRef, useState } from "react";
 
+import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -196,6 +197,7 @@ export function ThreadsList({ fixedFilters = {}, subTitle }: ThreadsListProps) {
     <>
       <CardHeader>
         <CardTitle className="gap-4">
+          <CollapsedSidebarTrigger />
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>

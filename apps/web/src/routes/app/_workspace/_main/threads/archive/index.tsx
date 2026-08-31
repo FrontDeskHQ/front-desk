@@ -39,6 +39,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
@@ -105,7 +106,10 @@ function RouteComponent() {
   return (
     <>
       <CardHeader>
-        <CardTitle className="gap-4">Archive</CardTitle>
+        <CardTitle className="gap-4">
+          <CollapsedSidebarTrigger />
+          Archive
+        </CardTitle>
         <CardAction side="right">
           {/* TODO: Implement search functionality when live-state supports full text search */}
           {/* <Search placeholder="Search" /> */}

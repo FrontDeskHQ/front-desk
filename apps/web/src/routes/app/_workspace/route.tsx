@@ -19,6 +19,7 @@ import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
 import { lazy, Suspense, useEffect, useState } from "react";
 
+import { workspaceNavHandle } from "~/components/sidebar/workspace-nav";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { hasDeveloperToolAccess } from "~/lib/developer-tools/access";
 import { reflagClient } from "~/lib/feature-flag";
@@ -216,7 +217,10 @@ function RouteComponent() {
   return (
     <div className="flex flex-col w-full overflow-hidden h-svh">
       <ReflagClientProvider client={reflagClient}>
-        <SidebarProvider className="min-h-0 overflow-hidden">
+        <SidebarProvider
+          handle={workspaceNavHandle}
+          className="min-h-0 overflow-hidden"
+        >
           <Dialog open={showTrialExpiredDialog} disablePointerDismissal>
             <DialogContent showCloseButton={false} className="max-w-3xl">
               <DialogHeader className="text-left">

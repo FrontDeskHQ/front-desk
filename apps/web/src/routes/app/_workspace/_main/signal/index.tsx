@@ -10,6 +10,7 @@ import { useMemo } from "react";
 
 import { ActionList } from "~/components/signals/action-list";
 import type { ActorContext } from "~/components/signals/action-row";
+import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 // import { LeverageReport } from "~/components/signals/leverage-report";
 import { activeOrganizationAtom } from "~/lib/atoms";
 
@@ -53,7 +54,10 @@ function RouteComponent() {
   return (
     <>
       <CardHeader>
-        <CardTitle>Signals</CardTitle>
+        <CardTitle>
+          <CollapsedSidebarTrigger />
+          Signals
+        </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 overflow-y-auto py-10!">
         {/* <LeverageReport

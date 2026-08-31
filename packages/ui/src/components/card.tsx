@@ -25,7 +25,7 @@ const headerVariants = cva(
     },
     variants: {
       size: {
-        default: "h-10 px-5",
+        default: "h-10 pr-5 pl-5",
         sm: "h-8 px-1",
       },
       variant: {
@@ -45,7 +45,11 @@ function CardHeader({
   return (
     <div
       data-slot="card-header"
-      className={cn(headerVariants({ className, size, variant }))}
+      className={cn(
+        headerVariants({ size, variant }),
+        "has-data-[slot=nav-sidebar-trigger]:pl-2.5",
+        className
+      )}
       {...props}
     />
   );

@@ -8,6 +8,7 @@ import type {
   RichMarkdownMarkings,
   RichMarkdownPreset,
 } from "~/components/markdown/rich-markdown";
+import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -266,10 +267,13 @@ function RichMarkdownPlaygroundPage() {
   );
 
   return (
-    <main className="h-full overflow-y-auto p-6">
+    <main className="h-full overflow-y-auto py-6 pl-2.5 pr-6">
       <div className="max-w-6xl mx-auto space-y-6">
         <header className="space-y-2">
-          <h1 className="text-xl font-semibold">Rich Markdown Playground</h1>
+          <div className="flex items-center gap-2">
+            <CollapsedSidebarTrigger />
+            <h1 className="text-xl font-semibold">Rich Markdown Playground</h1>
+          </div>
           <p className="text-sm text-foreground-secondary">
             Temporary playground for validating `RichMarkdown` presets,
             markings, and static vs streaming modes.
