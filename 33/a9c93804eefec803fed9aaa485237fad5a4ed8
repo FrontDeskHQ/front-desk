@@ -1,0 +1,82 @@
+apps/web/src/routes/app/_workspace/settings/organization/billing.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 39-41
+apps/web/src/components/workspace-breadcrumbs.tsx
+  s_bbb216b08902a3::t_df53ee852edcf9 77
+  s_bbb216b08902a3::t_8e7cc1aabf298a 1
+  s_bbb216b08902a3::t_6a2b878905f0a9 11-12,42-45,60,65,76,78
+  s_bbb216b08902a3::t_b9e84467c2322d 2-10,13-17,23-41,46-59,69,71-75,79-88
+  s_bbb216b08902a3::t_6f83cd46a541f1 18-22
+  s_bbb216b08902a3::t_f8c76d8cf58daa 61-64,66-68,70
+apps/web/src/routes/app/_workspace/_main/threads/assigned.tsx
+  s_bbb216b08902a3::t_a895ec5cb37be3 9-11
+apps/web/src/routes/app/_workspace/_main/threads/open.tsx
+  s_bbb216b08902a3::t_a895ec5cb37be3 23-25
+apps/web/src/routes/app/_workspace/settings/organization/integration/github/index.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 28-30
+apps/web/src/routes/app/_workspace/_main/signal/index.tsx
+  s_bbb216b08902a3::t_8e33c1314e0973 14,19-21,61
+apps/web/src/routes/app/_workspace/_main/playground/rich-markdown.tsx
+  s_bbb216b08902a3::t_f3ff7f6c5359ef 11,274
+apps/web/src/routes/app/_workspace/settings/organization/team.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 42-44
+apps/web/src/routes/app/_workspace/_main/playground/index.tsx
+  s_bbb216b08902a3::t_f3ff7f6c5359ef 7,97
+apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 41-43
+apps/web/src/routes/app/_workspace/_main/threads/index.tsx
+  s_bbb216b08902a3::t_54c8bc6b5747f0 57,192
+apps/web/src/routes/app/_workspace/settings/organization/labels.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 61-63
+apps/web/src/routes/app/_workspace/settings/organization/documentation.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 49-51
+apps/web/src/routes/app/_workspace/settings/organization/integration/route.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 1-10
+apps/web/src/lib/route-meta.ts
+  s_bbb216b08902a3::t_b9e84467c2322d 1-9
+apps/web/src/routes/app/_workspace/settings/route.tsx
+  s_bbb216b08902a3::t_b726f34497af4d 6,10-12,21
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 56-58
+apps/web/src/routes/app/_workspace/settings/organization/integration/slack/index.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 36-38
+apps/web/src/routes/app/_workspace/_main/threads/archive/index.tsx
+  s_bbb216b08902a3::t_a731cb1b7dd4c0 42,110
+apps/web/src/routes/app/_workspace/_main/search/index.tsx
+  s_bbb216b08902a3::t_f3ff7f6c5359ef 30,213
+apps/web/src/routeTree.gen.ts
+  s_bbb216b08902a3::t_14827fba4df7c8 42,59,224-229,244-246,304-306,310-312,326-331,340-342,346-348,352-354,408,416,430,435,516,524,574,582,596,601,681,689,941-942,945,964-967,1034,1037,1041,1044,1060-1066,1076-1077,1079,1083,1086,1090,1093,1151-1191,1193,1202-1203
+  s_bbb216b08902a3::t_0f8fcd428490d9 40-41,58,212-223,232-234,238-240,268-270,274-276,280-282,286-288,292-294,298-300,320-325,334-336,358-360,364-366,370-372,376-378,382-384,409-410,417,431-432,436,517-518,525,575-576,583,597-598,602,682-683,690,927-928,931,934-935,938,950-960,992,995,999,1002,1006,1009,1013,1016,1020,1023,1027,1030,1053-1058,1069-1070,1072,1097,1100,1104,1107,1111,1114,1118,1121,1125,1128,1217-1248,1258,1260-1261,1276-1288,1290-1309
+apps/web/src/routes/app/_workspace/settings/organization/route.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 1-2,4-8
+  s_bbb216b08902a3::t_8e7cc1aabf298a 3
+apps/web/src/routes/app/_workspace/_main/threads/route.tsx
+  s_bbb216b08902a3::t_b9e84467c2322d 1-8
+apps/web/src/routes/app/_workspace/settings/user/route.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 1-8
+apps/web/src/routes/app/_workspace/settings/organization/integration/discord/index.tsx
+  s_bbb216b08902a3::t_ea2f377bde67e3 35-37
+apps/web/src/routes/app/_workspace/_main/threads/$id/index.tsx
+  s_bbb216b08902a3::t_3be55ba4ec008f 53
+  s_bbb216b08902a3::t_f229270dd75425 294-303,305-308
+apps/web/src/routes/app/_workspace/_main/threads/archive/$id.tsx
+  s_bbb216b08902a3::t_33c46648d7217c 32,140-154
+apps/web/src/routes/app/_workspace/_main/threads/archive/route.tsx
+  s_bbb216b08902a3::t_b9e84467c2322d 1-2,4-8
+  s_bbb216b08902a3::t_8e7cc1aabf298a 3
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "33a9c93804eefec803fed9aaa485237fad5a4ed8",
+  "prompts": {},
+  "sessions": {
+    "s_bbb216b08902a3": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05893-a0ab-79d0-8db3-0e13fb1bd234",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
