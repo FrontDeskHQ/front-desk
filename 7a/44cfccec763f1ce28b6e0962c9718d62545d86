@@ -1,0 +1,20 @@
+packages/ui/src/components/sidebar.tsx
+  s_daf4e6651931aa::t_1fad4fe60be67c 1411
+  s_daf4e6651931aa::t_a28d6ced4f5f82 1398,1412,1414,1603
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7a44cfccec763f1ce28b6e0962c9718d62545d86",
+  "prompts": {},
+  "sessions": {
+    "s_daf4e6651931aa": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ef840116-299a-43b1-b45b-3077ec64e14f",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
