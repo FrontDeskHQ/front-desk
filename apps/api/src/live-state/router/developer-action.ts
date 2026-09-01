@@ -8,8 +8,9 @@ import {
   DeveloperActionError,
   dispatchDeveloperAction,
 } from "../../lib/developer-action-dispatch";
+import { fanOutEntityFinished } from "../../lib/entity-finished";
 import { publicRoute } from "../factories";
-import type { schema } from "../schema";
+import { schema } from "../schema";
 
 const developerActionPayloadSchema = z
   .record(z.string(), z.unknown())
@@ -56,12 +57,42 @@ export const runDeveloperAction = async (
   });
 
   try {
-    const result = await dispatchDeveloperAction(db, {
+    let result = await dispatchDeveloperAction(db, {
       action: input.action,
       connectorType: input.connectorType,
       organizationId: input.organizationId,
       payload: input.payload,
     });
+
+    // Finished-entity replay is intentionally a devtool-only procedure. The
+    // connector refreshes authoritative upstream state, then this authorized
+    // route owns the internal fan-out; there is no generally callable replay
+    // mutation on the external-entity router.
+    if (input.action === "entity_finished_replay") {
+      const entityId = input.payload.entityId;
+      if (typeof entityId !== "string" || entityId.length === 0) {
+        throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_INPUT");
+      }
+      const entity = Object.values(
+        await db.find(schema.externalEntity, {
+          where: {
+            deletedAt: null,
+            id: entityId,
+            organizationId: input.organizationId,
+            provider: input.connectorType,
+          },
+        })
+      )[0];
+      if (!entity) {
+        throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_TARGET");
+      }
+      const replay = await fanOutEntityFinished(db, entity);
+      result = {
+        ...result,
+        jobIds: [...new Set([...result.jobIds, ...replay.jobIds])],
+        target: entity.externalKey,
+      };
+    }
 
     logDeveloperActionEvent({
       action: input.action,

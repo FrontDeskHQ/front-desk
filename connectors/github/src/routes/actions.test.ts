@@ -162,9 +162,6 @@ const issueTarget = {
 
 describe("GitHub developer-action handlers", () => {
   it("refreshes and replays a finished external entity", async () => {
-    const replayFinished = vi
-      .fn<GithubDeveloperActionDependencies["replayFinished"]>()
-      .mockResolvedValue({ jobIds: ["thread-read-job"] });
     const upsertExternalEntity = vi
       .fn<GithubDeveloperActionDependencies["upsertExternalEntity"]>()
       .mockResolvedValue(undefined);
@@ -185,7 +182,6 @@ describe("GitHub developer-action handlers", () => {
           updated_at: "2026-08-05T00:00:00Z",
           user: { login: "maintainer" },
         }),
-      replayFinished,
       upsertExternalEntity,
     });
 
@@ -198,16 +194,12 @@ describe("GitHub developer-action handlers", () => {
     expect(response).toStrictEqual({
       body: {
         accepted: true,
-        jobIds: ["thread-read-job"],
+        jobIds: [],
         target: issueTarget.externalKey,
       },
       status: 202,
     });
     expect(upsertExternalEntity).toHaveBeenCalledOnce();
-    expect(replayFinished).toHaveBeenCalledWith({
-      externalKey: issueTarget.externalKey,
-      organizationId: "org-a",
-    });
   });
 
   it("refreshes an eligible PR and enqueues the existing match pipeline", async () => {

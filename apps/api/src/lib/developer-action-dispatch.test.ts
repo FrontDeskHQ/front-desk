@@ -10,6 +10,9 @@ import type { AuthorizeReq } from "./authorize";
 import { connectorRegistry } from "./connector-registry";
 import type { DeveloperActionError } from "./developer-action-dispatch";
 import { dispatchDeveloperAction } from "./developer-action-dispatch";
+import { fanOutEntityFinished } from "./entity-finished";
+
+vi.mock("./entity-finished", () => ({ fanOutEntityFinished: vi.fn() }));
 
 const organizationId = "org-a";
 
@@ -55,7 +58,7 @@ const dbWithIntegrations = (integrations: Record<string, unknown>) => {
     .mockImplementation(
       async (_table: unknown, request: { where?: Record<string, unknown> }) => {
         const where = request.where ?? {};
-        if ("id" in where && "type" in where) {
+        if ("id" in where) {
           const entity = integrations.externalEntity as
             | Record<string, unknown>
             | undefined;
@@ -93,6 +96,11 @@ describe("developer-action transport", () => {
   beforeEach(() => {
     process.env.NODE_ENV = "test";
     process.env.DISCORD_BOT_KEY = "test-connector-secret";
+    vi.mocked(fanOutEntityFinished).mockResolvedValue({
+      enqueued: 1,
+      jobIds: ["thread-read-job"],
+      unavailable: 0,
+    });
   });
 
   afterEach(() => {
@@ -212,6 +220,62 @@ describe("developer-action transport", () => {
     });
     expect(find).toHaveBeenCalledTimes(2);
     expect(log).toHaveBeenCalledWith(expect.not.stringContaining("do-not-log"));
+  });
+
+  it("fans out finished-entity replay only inside the authorized devtool procedure", async () => {
+    const entity = {
+      deletedAt: null,
+      externalKey: "github:owner/repo#124",
+      id: "entity-finished",
+      merged: null,
+      number: 124,
+      organizationId,
+      provider: "github",
+      repoFullName: "owner/repo",
+      state: "closed",
+      type: "issue",
+      url: "https://github.com/owner/repo/issues/124",
+    };
+    const { db } = dbWithIntegrations({
+      externalEntity: entity,
+      integration: {
+        configStr: '{"installationId":123}',
+        enabled: true,
+        id: "integration-a",
+        organizationId,
+        type: "github",
+      },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(
+          JSON.stringify({
+            accepted: true,
+            jobIds: [],
+            target: entity.externalKey,
+          }),
+          { status: 202 }
+        )
+      )
+    );
+
+    const result = await runDeveloperAction(
+      db,
+      memberRequest(),
+      actionInput({
+        action: "entity_finished_replay",
+        payload: { entityId: entity.id },
+      })
+    );
+
+    expect(fanOutEntityFinished).toHaveBeenCalledOnce();
+    expect(fanOutEntityFinished).toHaveBeenCalledWith(db, entity);
+    expect(result).toEqual({
+      accepted: true,
+      jobIds: ["thread-read-job"],
+      target: entity.externalKey,
+    });
   });
 
   it("rejects a missing mirrored PR target before invoking the connector", async () => {

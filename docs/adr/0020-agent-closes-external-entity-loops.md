@@ -14,7 +14,7 @@ Synthesis reads the current outcome through the entity's existing tracker capabi
 
 The Agent owns both the reply and resolution. A linked thread remains live until the reply and finishing status actions execute or a human accepts them. The executor persists a closing reply before a finishing status so partial failure leaves the thread live after the customer hears from the team, never resolved without a reply. External reopening does not reopen customer threads, and accepted reads are not revalidated against later entity state in this version.
 
-Transition fan-out uses the existing durable thread-read queue rather than a transactional outbox. A failure before Redis accepts the trigger can lose the automatic run; reconciliation does not recreate a transition, so developer replay is the recovery path. This bounded reliability gap avoids a new claim, retention, and recovery subsystem for a rare failure window.
+Transition fan-out uses the existing durable thread-read queue rather than a transactional outbox. A failure before Redis accepts the trigger can lose the automatic run; reconciliation does not recreate a transition, so developer replay is the recovery path. Replay is exposed only through the authorized developer-action procedure: the connector refreshes upstream state, then that devtool procedure performs the internal fan-out. This bounded reliability gap avoids a new claim, retention, and recovery subsystem for a rare failure window.
 
 ## Consequences
 

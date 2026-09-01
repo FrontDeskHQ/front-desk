@@ -336,29 +336,6 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     return { status: "unavailable" as const };
   }),
 
-  /** Manual recovery after a missed queue delivery; the mirror must be finished. */
-  replayFinished: mutation(
-    z.object({
-      externalKey: z.string().min(1),
-      organizationId: z.string(),
-    })
-  ).handler(async ({ req, db }) => {
-    requireInternalApiKey(req.context);
-    const entity = Object.values(
-      await db.find(schema.externalEntity, {
-        where: {
-          deletedAt: null,
-          externalKey: req.input.externalKey,
-          organizationId: req.input.organizationId,
-        },
-      })
-    )[0];
-    if (!entity) {
-      throw new Error("EXTERNAL_ENTITY_NOT_FOUND");
-    }
-    return fanOutEntityFinished(db, entity);
-  }),
-
   /**
    * Soft-delete the mirror row (issue deletion / transfer-out). No-op when the
    * entity was never mirrored.

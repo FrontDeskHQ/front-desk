@@ -12,7 +12,6 @@ import type {
   GitHubPullRequestLike,
   RepoRef,
 } from "./external-entity";
-import { fetchClient } from "./live-state";
 import { enqueuePrMatch, enqueueRepoBackfill } from "./queue";
 
 /** A handled response: an HTTP status plus the JSON body to return. */
@@ -52,10 +51,6 @@ export interface GithubDeveloperActionDependencies {
     repo: string,
     issueNumber: number
   ) => Promise<GitHubIssueLike>;
-  replayFinished: (input: {
-    externalKey: string;
-    organizationId: string;
-  }) => Promise<{ jobIds: string[] }>;
   upsertExternalEntity: typeof upsertExternalEntity;
 }
 
@@ -303,14 +298,10 @@ const replayFinishedEntity = async (
     if (!finished) {
       return result(409, "ENTITY_NOT_FINISHED");
     }
-    const replay = await dependencies.replayFinished({
-      externalKey: fields.externalKey,
-      organizationId,
-    });
     return {
       body: {
         accepted: true,
-        jobIds: replay.jobIds,
+        jobIds: [],
         target: fields.externalKey,
       },
       status: 202,
@@ -422,8 +413,6 @@ const defaultDependencies: GithubDeveloperActionDependencies = {
     import("./github").then(({ fetchPullRequest }) =>
       fetchPullRequest(...args)
     ),
-  replayFinished: (input) =>
-    fetchClient.mutate.externalEntity.replayFinished(input),
   upsertExternalEntity,
 };
 
