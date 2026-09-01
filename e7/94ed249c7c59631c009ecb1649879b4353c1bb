@@ -1,0 +1,43 @@
+apps/web/src/components/devtools/developer-commands.tsx
+  s_42ce934fd4fbdf::t_23c59e207dc501 54
+apps/web/src/components/devtools/fps-meter.tsx
+  s_42ce934fd4fbdf::t_0b1bf14bbe0c91 47
+apps/web/src/components/devtools/memory-meter.tsx
+  s_42ce934fd4fbdf::t_d45ecc2274ce03 58-64
+  s_42ce934fd4fbdf::t_db4bebcf48be3c 91-95,105-106
+  s_42ce934fd4fbdf::t_e36b3e41b17100 7,9,11
+  s_42ce934fd4fbdf::t_60bda835e324ee 43
+  s_42ce934fd4fbdf::t_8ec3e1d2a60bb3 31
+  s_42ce934fd4fbdf::t_60f39ea3d4e3c4 1-6,8,10,12-30,32-42,44-57,65-90,96-97,111-112
+  s_42ce934fd4fbdf::t_f835e17507e506 98-104,107-110
+apps/web/src/components/devtools/toolbar.tsx
+  s_42ce934fd4fbdf::t_316072f1052e7d 93-119
+  s_42ce934fd4fbdf::t_fd1f38d3c9144b 92
+  s_42ce934fd4fbdf::t_c06d2438b0c98c 5
+  h_79bcdd5201702b 78-79,84,86
+  s_42ce934fd4fbdf::t_a8bab06f7d1788 76-77,80-81
+  s_42ce934fd4fbdf::t_addf8a36c240d1 26
+  s_42ce934fd4fbdf::t_8c516446db2131 7,11-15,19-22
+  s_42ce934fd4fbdf::t_1094ebd5ce9cfc 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e794ed249c7c59631c009ecb1649879b4353c1bb",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_42ce934fd4fbdf": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6d19c431-5871-4e1b-ae52-66dd9f048d36",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
