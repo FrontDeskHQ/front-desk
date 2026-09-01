@@ -2,19 +2,10 @@ import { useLiveQuery } from "@live-state/sync/client";
 import {
   createFileRoute,
   getRouteApi,
-  Link,
   useNavigate,
 } from "@tanstack/react-router";
 import { Avatar } from "@workspace/ui/components/avatar";
 import { RichText } from "@workspace/ui/components/blocks/tiptap";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@workspace/ui/components/breadcrumb";
 import { Button } from "@workspace/ui/components/button";
 import {
   Card,
@@ -38,7 +29,7 @@ import { Undo2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 import { seo } from "~/utils/seo";
 import {
@@ -146,27 +137,21 @@ function RouteComponent() {
           <CardTitle>
             {thread && (
               <div className="flex justify-between items-center w-full gap-2">
-                <CollapsedSidebarTrigger />
-                <Breadcrumb className="min-w-0 flex-1">
-                  <BreadcrumbList>
-                    <BreadcrumbItem>
-                      <BreadcrumbLink asChild>
-                        <Link to="/app/threads/archive">Archive</Link>
-                      </BreadcrumbLink>
-                    </BreadcrumbItem>
-                    <BreadcrumbSeparator />
-                    <BreadcrumbItem>
-                      <BreadcrumbPage className="flex items-center gap-1.5">
-                        <span>{thread.name}</span>
-                        {thread.shortId !== null && (
-                          <span className="text-foreground-secondary tabular-nums font-normal">
-                            #{thread.shortId}
-                          </span>
-                        )}
-                      </BreadcrumbPage>
-                    </BreadcrumbItem>
-                  </BreadcrumbList>
-                </Breadcrumb>
+                <WorkspaceBreadcrumbs
+                  className="flex-1"
+                  current={
+                    <>
+                      <span className="truncate" title={thread.name}>
+                        {thread.name}
+                      </span>
+                      {thread.shortId !== null && (
+                        <span className="text-foreground-secondary tabular-nums font-normal shrink-0">
+                          #{thread.shortId}
+                        </span>
+                      )}
+                    </>
+                  }
+                />
               </div>
             )}
           </CardTitle>

@@ -25,6 +25,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/github/"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "GitHub",
+  },
   head: () => ({
     meta: [
       ...seo({

@@ -32,6 +32,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/discord/"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Discord",
+  },
   head: () => ({
     meta: [
       ...seo({

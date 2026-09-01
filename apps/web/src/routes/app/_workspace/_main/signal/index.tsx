@@ -10,12 +10,15 @@ import { useMemo } from "react";
 
 import { ActionList } from "~/components/signals/action-list";
 import type { ActorContext } from "~/components/signals/action-row";
-import { CollapsedSidebarTrigger } from "~/components/sidebar/collapsed-sidebar-trigger";
 // import { LeverageReport } from "~/components/signals/leverage-report";
+import { WorkspaceBreadcrumbs } from "~/components/workspace-breadcrumbs";
 import { activeOrganizationAtom } from "~/lib/atoms";
 
 export const Route = createFileRoute("/app/_workspace/_main/signal/")({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Signals",
+  },
 });
 
 const NEW_ORG_DAY_THRESHOLD = 3;
@@ -55,8 +58,7 @@ function RouteComponent() {
     <>
       <CardHeader>
         <CardTitle>
-          <CollapsedSidebarTrigger />
-          Signals
+          <WorkspaceBreadcrumbs />
         </CardTitle>
       </CardHeader>
       <CardContent className="flex flex-col gap-4 overflow-y-auto py-10!">

@@ -39,6 +39,9 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/team"
 )({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Members",
+  },
   head: () => ({
     meta: [
       ...seo({

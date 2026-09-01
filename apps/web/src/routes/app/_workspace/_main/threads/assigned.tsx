@@ -6,6 +6,9 @@ import { ThreadsList } from "./index";
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/assigned")({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Assigned to me",
+  },
   head: () => ({
     meta: [
       ...seo({
@@ -21,7 +24,6 @@ function RouteComponent() {
 
   return (
     <ThreadsList
-      subTitle="Assigned to me"
       fixedFilters={{
         assignedUserId: user.id,
       }}

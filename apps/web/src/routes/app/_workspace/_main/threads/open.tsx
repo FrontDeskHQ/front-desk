@@ -20,6 +20,9 @@ const STATUS_CLOSED =
 
 export const Route = createFileRoute("/app/_workspace/_main/threads/open")({
   component: RouteComponent,
+  staticData: {
+    breadcrumb: "Open",
+  },
   head: () => ({
     meta: [
       ...seo({
@@ -33,7 +36,6 @@ export const Route = createFileRoute("/app/_workspace/_main/threads/open")({
 function RouteComponent() {
   return (
     <ThreadsList
-      subTitle="Open"
       fixedFilters={{
         status: { $not: { $in: [STATUS_RESOLVED, STATUS_CLOSED] } },
       }}
