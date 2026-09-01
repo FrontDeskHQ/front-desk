@@ -8,710 +8,710 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as SignUpRouteImport } from './routes/sign-up'
-import { Route as SignInRouteImport } from './routes/sign-in'
-import { Route as RobotsDottxtRouteImport } from './routes/robots[.]txt'
-import { Route as NowAllowedRouteImport } from './routes/now-allowed'
-import { Route as AppRouteRouteImport } from './routes/app/route'
-import { Route as PublicRouteRouteImport } from './routes/_public/route'
-import { Route as PublicIndexRouteImport } from './routes/_public/index'
-import { Route as ApiSplatRouteImport } from './routes/api/$'
-import { Route as SupportSlugRouteRouteImport } from './routes/support/$slug/route'
-import { Route as AppWorkspaceRouteRouteImport } from './routes/app/_workspace/route'
-import { Route as SupportSlugIndexRouteImport } from './routes/support/$slug/index'
-import { Route as AppOnboardingIndexRouteImport } from './routes/app/onboarding/index'
-import { Route as PublicUpdatesIndexRouteImport } from './routes/_public/updates/index'
-import { Route as SupportSlugSitemapDotxmlRouteImport } from './routes/support/$slug/sitemap[.]xml'
-import { Route as SupportSlugRobotsDottxtRouteImport } from './routes/support/$slug/robots[.]txt'
-import { Route as AppOnboardingNewRouteImport } from './routes/app/onboarding/new'
-import { Route as AppOnboardingConnectRouteImport } from './routes/app/onboarding/connect'
-import { Route as AppInvitationIdRouteImport } from './routes/app/invitation.$id'
-import { Route as PublicLegalTermsOfServiceRouteImport } from './routes/_public/legal/terms-of-service'
-import { Route as PublicLegalPrivacyPolicyRouteImport } from './routes/_public/legal/privacy-policy'
-import { Route as AppWorkspaceSettingsRouteRouteImport } from './routes/app/_workspace/settings/route'
-import { Route as AppWorkspaceMainRouteRouteImport } from './routes/app/_workspace/_main/route'
-import { Route as SupportSlugThreadsIndexRouteImport } from './routes/support/$slug/threads/index'
-import { Route as AppWorkspaceSettingsIndexRouteImport } from './routes/app/_workspace/settings/index'
-import { Route as AppWorkspaceMainIndexRouteImport } from './routes/app/_workspace/_main/index'
-import { Route as SupportSlugThreadsIdRouteImport } from './routes/support/$slug/threads/$id'
-import { Route as SupportSlugApiSplatRouteImport } from './routes/support/$slug/api/$'
-import { Route as AppWorkspaceSettingsUserRouteRouteImport } from './routes/app/_workspace/settings/user/route'
-import { Route as AppWorkspaceSettingsOrganizationRouteRouteImport } from './routes/app/_workspace/settings/organization/route'
-import { Route as AppWorkspaceMainThreadsRouteRouteImport } from './routes/app/_workspace/_main/threads/route'
-import { Route as AppWorkspaceSettingsUserIndexRouteImport } from './routes/app/_workspace/settings/user/index'
-import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from './routes/app/_workspace/settings/organization/index'
-import { Route as AppWorkspaceMainThreadsIndexRouteImport } from './routes/app/_workspace/_main/threads/index'
-import { Route as AppWorkspaceMainSignalIndexRouteImport } from './routes/app/_workspace/_main/signal/index'
-import { Route as AppWorkspaceMainSearchIndexRouteImport } from './routes/app/_workspace/_main/search/index'
-import { Route as AppWorkspaceMainPlaygroundIndexRouteImport } from './routes/app/_workspace/_main/playground/index'
-import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from './routes/app/_workspace/settings/organization/team'
-import { Route as AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport } from './routes/app/_workspace/settings/organization/support-intelligence'
-import { Route as AppWorkspaceSettingsOrganizationLabelsRouteImport } from './routes/app/_workspace/settings/organization/labels'
-import { Route as AppWorkspaceSettingsOrganizationDocumentationRouteImport } from './routes/app/_workspace/settings/organization/documentation'
-import { Route as AppWorkspaceSettingsOrganizationBillingRouteImport } from './routes/app/_workspace/settings/organization/billing'
-import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from './routes/app/_workspace/settings/organization/api-keys'
-import { Route as AppWorkspaceMainThreadsOpenRouteImport } from './routes/app/_workspace/_main/threads/open'
-import { Route as AppWorkspaceMainThreadsAssignedRouteImport } from './routes/app/_workspace/_main/threads/assigned'
-import { Route as AppWorkspaceMainPlaygroundRichMarkdownRouteImport } from './routes/app/_workspace/_main/playground/rich-markdown'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport } from './routes/app/_workspace/settings/organization/integration/route'
-import { Route as AppWorkspaceMainThreadsArchiveRouteRouteImport } from './routes/app/_workspace/_main/threads/archive/route'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/index'
-import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from './routes/app/_workspace/_main/threads/archive/index'
-import { Route as AppWorkspaceMainThreadsIdIndexRouteImport } from './routes/app/_workspace/_main/threads/$id/index'
-import { Route as AppWorkspaceMainThreadsArchiveIdRouteImport } from './routes/app/_workspace/_main/threads/archive/$id'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/slack/index'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationGithubIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/github/index'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/index'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/slack/redirect'
-import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from './routes/app/_workspace/settings/organization/integration/discord/redirect'
+import { Route as rootRouteImport } from "./routes/__root"
+import { Route as SitemapDotxmlRouteImport } from "./routes/sitemap[.]xml"
+import { Route as SignUpRouteImport } from "./routes/sign-up"
+import { Route as SignInRouteImport } from "./routes/sign-in"
+import { Route as RobotsDottxtRouteImport } from "./routes/robots[.]txt"
+import { Route as NowAllowedRouteImport } from "./routes/now-allowed"
+import { Route as AppRouteRouteImport } from "./routes/app/route"
+import { Route as PublicRouteRouteImport } from "./routes/_public/route"
+import { Route as PublicIndexRouteImport } from "./routes/_public/index"
+import { Route as ApiSplatRouteImport } from "./routes/api/$"
+import { Route as SupportSlugRouteRouteImport } from "./routes/support/$slug/route"
+import { Route as AppWorkspaceRouteRouteImport } from "./routes/app/_workspace/route"
+import { Route as SupportSlugIndexRouteImport } from "./routes/support/$slug/index"
+import { Route as AppOnboardingIndexRouteImport } from "./routes/app/onboarding/index"
+import { Route as PublicUpdatesIndexRouteImport } from "./routes/_public/updates/index"
+import { Route as SupportSlugSitemapDotxmlRouteImport } from "./routes/support/$slug/sitemap[.]xml"
+import { Route as SupportSlugRobotsDottxtRouteImport } from "./routes/support/$slug/robots[.]txt"
+import { Route as AppOnboardingNewRouteImport } from "./routes/app/onboarding/new"
+import { Route as AppOnboardingConnectRouteImport } from "./routes/app/onboarding/connect"
+import { Route as AppInvitationIdRouteImport } from "./routes/app/invitation.$id"
+import { Route as PublicLegalTermsOfServiceRouteImport } from "./routes/_public/legal/terms-of-service"
+import { Route as PublicLegalPrivacyPolicyRouteImport } from "./routes/_public/legal/privacy-policy"
+import { Route as AppWorkspaceSettingsRouteRouteImport } from "./routes/app/_workspace/settings/route"
+import { Route as AppWorkspaceMainRouteRouteImport } from "./routes/app/_workspace/_main/route"
+import { Route as SupportSlugThreadsIndexRouteImport } from "./routes/support/$slug/threads/index"
+import { Route as AppWorkspaceSettingsIndexRouteImport } from "./routes/app/_workspace/settings/index"
+import { Route as AppWorkspaceMainIndexRouteImport } from "./routes/app/_workspace/_main/index"
+import { Route as SupportSlugThreadsIdRouteImport } from "./routes/support/$slug/threads/$id"
+import { Route as SupportSlugApiSplatRouteImport } from "./routes/support/$slug/api/$"
+import { Route as AppWorkspaceSettingsUserRouteRouteImport } from "./routes/app/_workspace/settings/user/route"
+import { Route as AppWorkspaceSettingsOrganizationRouteRouteImport } from "./routes/app/_workspace/settings/organization/route"
+import { Route as AppWorkspaceMainThreadsRouteRouteImport } from "./routes/app/_workspace/_main/threads/route"
+import { Route as AppWorkspaceSettingsUserIndexRouteImport } from "./routes/app/_workspace/settings/user/index"
+import { Route as AppWorkspaceSettingsOrganizationIndexRouteImport } from "./routes/app/_workspace/settings/organization/index"
+import { Route as AppWorkspaceMainThreadsIndexRouteImport } from "./routes/app/_workspace/_main/threads/index"
+import { Route as AppWorkspaceMainSignalIndexRouteImport } from "./routes/app/_workspace/_main/signal/index"
+import { Route as AppWorkspaceMainSearchIndexRouteImport } from "./routes/app/_workspace/_main/search/index"
+import { Route as AppWorkspaceMainPlaygroundIndexRouteImport } from "./routes/app/_workspace/_main/playground/index"
+import { Route as AppWorkspaceSettingsOrganizationTeamRouteImport } from "./routes/app/_workspace/settings/organization/team"
+import { Route as AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport } from "./routes/app/_workspace/settings/organization/support-intelligence"
+import { Route as AppWorkspaceSettingsOrganizationLabelsRouteImport } from "./routes/app/_workspace/settings/organization/labels"
+import { Route as AppWorkspaceSettingsOrganizationDocumentationRouteImport } from "./routes/app/_workspace/settings/organization/documentation"
+import { Route as AppWorkspaceSettingsOrganizationBillingRouteImport } from "./routes/app/_workspace/settings/organization/billing"
+import { Route as AppWorkspaceSettingsOrganizationApiKeysRouteImport } from "./routes/app/_workspace/settings/organization/api-keys"
+import { Route as AppWorkspaceMainThreadsOpenRouteImport } from "./routes/app/_workspace/_main/threads/open"
+import { Route as AppWorkspaceMainThreadsAssignedRouteImport } from "./routes/app/_workspace/_main/threads/assigned"
+import { Route as AppWorkspaceMainPlaygroundRichMarkdownRouteImport } from "./routes/app/_workspace/_main/playground/rich-markdown"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport } from "./routes/app/_workspace/settings/organization/integration/route"
+import { Route as AppWorkspaceMainThreadsArchiveRouteRouteImport } from "./routes/app/_workspace/_main/threads/archive/route"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport } from "./routes/app/_workspace/settings/organization/integration/index"
+import { Route as AppWorkspaceMainThreadsArchiveIndexRouteImport } from "./routes/app/_workspace/_main/threads/archive/index"
+import { Route as AppWorkspaceMainThreadsIdIndexRouteImport } from "./routes/app/_workspace/_main/threads/$id/index"
+import { Route as AppWorkspaceMainThreadsArchiveIdRouteImport } from "./routes/app/_workspace/_main/threads/archive/$id"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport } from "./routes/app/_workspace/settings/organization/integration/slack/index"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationGithubIndexRouteImport } from "./routes/app/_workspace/settings/organization/integration/github/index"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport } from "./routes/app/_workspace/settings/organization/integration/discord/index"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport } from "./routes/app/_workspace/settings/organization/integration/slack/redirect"
+import { Route as AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport } from "./routes/app/_workspace/settings/organization/integration/discord/redirect"
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+  id: "/sitemap.xml",
+  path: "/sitemap.xml",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignUpRoute = SignUpRouteImport.update({
-  id: '/sign-up',
-  path: '/sign-up',
+  id: "/sign-up",
+  path: "/sign-up",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
-  id: '/sign-in',
-  path: '/sign-in',
+  id: "/sign-in",
+  path: "/sign-in",
   getParentRoute: () => rootRouteImport,
 } as any)
 const RobotsDottxtRoute = RobotsDottxtRouteImport.update({
-  id: '/robots.txt',
-  path: '/robots.txt',
+  id: "/robots.txt",
+  path: "/robots.txt",
   getParentRoute: () => rootRouteImport,
 } as any)
 const NowAllowedRoute = NowAllowedRouteImport.update({
-  id: '/now-allowed',
-  path: '/now-allowed',
+  id: "/now-allowed",
+  path: "/now-allowed",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppRouteRoute = AppRouteRouteImport.update({
-  id: '/app',
-  path: '/app',
+  id: "/app",
+  path: "/app",
   getParentRoute: () => rootRouteImport,
 } as any)
 const PublicRouteRoute = PublicRouteRouteImport.update({
-  id: '/_public',
+  id: "/_public",
   getParentRoute: () => rootRouteImport,
 } as any)
 const PublicIndexRoute = PublicIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => PublicRouteRoute,
 } as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
-  id: '/api/$',
-  path: '/api/$',
+  id: "/api/$",
+  path: "/api/$",
   getParentRoute: () => rootRouteImport,
 } as any)
 const SupportSlugRouteRoute = SupportSlugRouteRouteImport.update({
-  id: '/support/$slug',
-  path: '/support/$slug',
+  id: "/support/$slug",
+  path: "/support/$slug",
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
-  id: '/_workspace',
+  id: "/_workspace",
   getParentRoute: () => AppRouteRoute,
 } as any)
 const SupportSlugIndexRoute = SupportSlugIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
-  id: '/onboarding/',
-  path: '/onboarding/',
+  id: "/onboarding/",
+  path: "/onboarding/",
   getParentRoute: () => AppRouteRoute,
 } as any)
 const PublicUpdatesIndexRoute = PublicUpdatesIndexRouteImport.update({
-  id: '/updates/',
-  path: '/updates/',
+  id: "/updates/",
+  path: "/updates/",
   getParentRoute: () => PublicRouteRoute,
 } as any)
 const SupportSlugSitemapDotxmlRoute =
   SupportSlugSitemapDotxmlRouteImport.update({
-    id: '/sitemap.xml',
-    path: '/sitemap.xml',
+    id: "/sitemap.xml",
+    path: "/sitemap.xml",
     getParentRoute: () => SupportSlugRouteRoute,
   } as any)
 const SupportSlugRobotsDottxtRoute = SupportSlugRobotsDottxtRouteImport.update({
-  id: '/robots.txt',
-  path: '/robots.txt',
+  id: "/robots.txt",
+  path: "/robots.txt",
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
-  id: '/onboarding/new',
-  path: '/onboarding/new',
+  id: "/onboarding/new",
+  path: "/onboarding/new",
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppOnboardingConnectRoute = AppOnboardingConnectRouteImport.update({
-  id: '/onboarding/connect',
-  path: '/onboarding/connect',
+  id: "/onboarding/connect",
+  path: "/onboarding/connect",
   getParentRoute: () => AppRouteRoute,
 } as any)
 const AppInvitationIdRoute = AppInvitationIdRouteImport.update({
-  id: '/invitation/$id',
-  path: '/invitation/$id',
+  id: "/invitation/$id",
+  path: "/invitation/$id",
   getParentRoute: () => AppRouteRoute,
 } as any)
 const PublicLegalTermsOfServiceRoute =
   PublicLegalTermsOfServiceRouteImport.update({
-    id: '/legal/terms-of-service',
-    path: '/legal/terms-of-service',
+    id: "/legal/terms-of-service",
+    path: "/legal/terms-of-service",
     getParentRoute: () => PublicRouteRoute,
   } as any)
 const PublicLegalPrivacyPolicyRoute =
   PublicLegalPrivacyPolicyRouteImport.update({
-    id: '/legal/privacy-policy',
-    path: '/legal/privacy-policy',
+    id: "/legal/privacy-policy",
+    path: "/legal/privacy-policy",
     getParentRoute: () => PublicRouteRoute,
   } as any)
 const AppWorkspaceSettingsRouteRoute =
   AppWorkspaceSettingsRouteRouteImport.update({
-    id: '/settings',
-    path: '/settings',
+    id: "/settings",
+    path: "/settings",
     getParentRoute: () => AppWorkspaceRouteRoute,
   } as any)
 const AppWorkspaceMainRouteRoute = AppWorkspaceMainRouteRouteImport.update({
-  id: '/_main',
+  id: "/_main",
   getParentRoute: () => AppWorkspaceRouteRoute,
 } as any)
 const SupportSlugThreadsIndexRoute = SupportSlugThreadsIndexRouteImport.update({
-  id: '/threads/',
-  path: '/threads/',
+  id: "/threads/",
+  path: "/threads/",
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppWorkspaceSettingsIndexRoute =
   AppWorkspaceSettingsIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
 const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => AppWorkspaceMainRouteRoute,
 } as any)
 const SupportSlugThreadsIdRoute = SupportSlugThreadsIdRouteImport.update({
-  id: '/threads/$id',
-  path: '/threads/$id',
+  id: "/threads/$id",
+  path: "/threads/$id",
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const SupportSlugApiSplatRoute = SupportSlugApiSplatRouteImport.update({
-  id: '/api/$',
-  path: '/api/$',
+  id: "/api/$",
+  path: "/api/$",
   getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppWorkspaceSettingsUserRouteRoute =
   AppWorkspaceSettingsUserRouteRouteImport.update({
-    id: '/user',
-    path: '/user',
+    id: "/user",
+    path: "/user",
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationRouteRoute =
   AppWorkspaceSettingsOrganizationRouteRouteImport.update({
-    id: '/organization',
-    path: '/organization',
+    id: "/organization",
+    path: "/organization",
     getParentRoute: () => AppWorkspaceSettingsRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsRouteRoute =
   AppWorkspaceMainThreadsRouteRouteImport.update({
-    id: '/threads',
-    path: '/threads',
+    id: "/threads",
+    path: "/threads",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
 const AppWorkspaceSettingsUserIndexRoute =
   AppWorkspaceSettingsUserIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceSettingsUserRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIndexRoute =
   AppWorkspaceSettingsOrganizationIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsIndexRoute =
   AppWorkspaceMainThreadsIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainSignalIndexRoute =
   AppWorkspaceMainSignalIndexRouteImport.update({
-    id: '/signal/',
-    path: '/signal/',
+    id: "/signal/",
+    path: "/signal/",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
 const AppWorkspaceMainSearchIndexRoute =
   AppWorkspaceMainSearchIndexRouteImport.update({
-    id: '/search/',
-    path: '/search/',
+    id: "/search/",
+    path: "/search/",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
 const AppWorkspaceMainPlaygroundIndexRoute =
   AppWorkspaceMainPlaygroundIndexRouteImport.update({
-    id: '/playground/',
-    path: '/playground/',
+    id: "/playground/",
+    path: "/playground/",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationTeamRoute =
   AppWorkspaceSettingsOrganizationTeamRouteImport.update({
-    id: '/team',
-    path: '/team',
+    id: "/team",
+    path: "/team",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationSupportIntelligenceRoute =
   AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport.update({
-    id: '/support-intelligence',
-    path: '/support-intelligence',
+    id: "/support-intelligence",
+    path: "/support-intelligence",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationLabelsRoute =
   AppWorkspaceSettingsOrganizationLabelsRouteImport.update({
-    id: '/labels',
-    path: '/labels',
+    id: "/labels",
+    path: "/labels",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationDocumentationRoute =
   AppWorkspaceSettingsOrganizationDocumentationRouteImport.update({
-    id: '/documentation',
-    path: '/documentation',
+    id: "/documentation",
+    path: "/documentation",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationBillingRoute =
   AppWorkspaceSettingsOrganizationBillingRouteImport.update({
-    id: '/billing',
-    path: '/billing',
+    id: "/billing",
+    path: "/billing",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationApiKeysRoute =
   AppWorkspaceSettingsOrganizationApiKeysRouteImport.update({
-    id: '/api-keys',
-    path: '/api-keys',
+    id: "/api-keys",
+    path: "/api-keys",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsOpenRoute =
   AppWorkspaceMainThreadsOpenRouteImport.update({
-    id: '/open',
-    path: '/open',
+    id: "/open",
+    path: "/open",
     getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsAssignedRoute =
   AppWorkspaceMainThreadsAssignedRouteImport.update({
-    id: '/assigned',
-    path: '/assigned',
+    id: "/assigned",
+    path: "/assigned",
     getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainPlaygroundRichMarkdownRoute =
   AppWorkspaceMainPlaygroundRichMarkdownRouteImport.update({
-    id: '/playground/rich-markdown',
-    path: '/playground/rich-markdown',
+    id: "/playground/rich-markdown",
+    path: "/playground/rich-markdown",
     getParentRoute: () => AppWorkspaceMainRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationRouteRoute =
   AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport.update({
-    id: '/integration',
-    path: '/integration',
+    id: "/integration",
+    path: "/integration",
     getParentRoute: () => AppWorkspaceSettingsOrganizationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsArchiveRouteRoute =
   AppWorkspaceMainThreadsArchiveRouteRouteImport.update({
-    id: '/archive',
-    path: '/archive',
+    id: "/archive",
+    path: "/archive",
     getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsArchiveIndexRoute =
   AppWorkspaceMainThreadsArchiveIndexRouteImport.update({
-    id: '/',
-    path: '/',
+    id: "/",
+    path: "/",
     getParentRoute: () => AppWorkspaceMainThreadsArchiveRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsIdIndexRoute =
   AppWorkspaceMainThreadsIdIndexRouteImport.update({
-    id: '/$id/',
-    path: '/$id/',
+    id: "/$id/",
+    path: "/$id/",
     getParentRoute: () => AppWorkspaceMainThreadsRouteRoute,
   } as any)
 const AppWorkspaceMainThreadsArchiveIdRoute =
   AppWorkspaceMainThreadsArchiveIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
+    id: "/$id",
+    path: "/$id",
     getParentRoute: () => AppWorkspaceMainThreadsArchiveRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport.update({
-    id: '/slack/',
-    path: '/slack/',
+    id: "/slack/",
+    path: "/slack/",
     getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationGithubIndexRouteImport.update({
-    id: '/github/',
-    path: '/github/',
+    id: "/github/",
+    path: "/github/",
     getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute =
   AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport.update({
-    id: '/discord/',
-    path: '/discord/',
+    id: "/discord/",
+    path: "/discord/",
     getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute =
   AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport.update({
-    id: '/slack/redirect',
-    path: '/slack/redirect',
+    id: "/slack/redirect",
+    path: "/slack/redirect",
     getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 const AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute =
   AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport.update({
-    id: '/discord/redirect',
-    path: '/discord/redirect',
+    id: "/discord/redirect",
+    path: "/discord/redirect",
     getParentRoute: () => AppWorkspaceSettingsOrganizationIntegrationRouteRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
-  '/app': typeof AppWorkspaceMainRouteRouteWithChildren
-  '/now-allowed': typeof NowAllowedRoute
-  '/robots.txt': typeof RobotsDottxtRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/support/$slug': typeof SupportSlugRouteRouteWithChildren
-  '/api/$': typeof ApiSplatRoute
-  '/': typeof PublicIndexRoute
-  '/app/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
-  '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
-  '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
-  '/app/invitation/$id': typeof AppInvitationIdRoute
-  '/app/onboarding/connect': typeof AppOnboardingConnectRoute
-  '/app/onboarding/new': typeof AppOnboardingNewRoute
-  '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
-  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
-  '/updates': typeof PublicUpdatesIndexRoute
-  '/app/onboarding': typeof AppOnboardingIndexRoute
-  '/support/$slug/': typeof SupportSlugIndexRoute
-  '/app/threads': typeof AppWorkspaceMainThreadsRouteRouteWithChildren
-  '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
-  '/app/settings/user': typeof AppWorkspaceSettingsUserRouteRouteWithChildren
-  '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
-  '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
-  '/app/': typeof AppWorkspaceMainIndexRoute
-  '/app/settings/': typeof AppWorkspaceSettingsIndexRoute
-  '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
-  '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
-  '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
-  '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
-  '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
-  '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
-  '/app/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysRoute
-  '/app/settings/organization/billing': typeof AppWorkspaceSettingsOrganizationBillingRoute
-  '/app/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
-  '/app/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
-  '/app/settings/organization/support-intelligence': typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
-  '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
-  '/app/playground': typeof AppWorkspaceMainPlaygroundIndexRoute
-  '/app/search': typeof AppWorkspaceMainSearchIndexRoute
-  '/app/signal': typeof AppWorkspaceMainSignalIndexRoute
-  '/app/threads/': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
-  '/app/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
-  '/app/threads/$id': typeof AppWorkspaceMainThreadsIdIndexRoute
-  '/app/threads/archive/': typeof AppWorkspaceMainThreadsArchiveIndexRoute
-  '/app/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
-  '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
-  '/app/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
-  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
-  '/app/settings/organization/integration/github': typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute
-  '/app/settings/organization/integration/slack': typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
+  "/app": typeof AppWorkspaceMainRouteRouteWithChildren
+  "/now-allowed": typeof NowAllowedRoute
+  "/robots.txt": typeof RobotsDottxtRoute
+  "/sign-in": typeof SignInRoute
+  "/sign-up": typeof SignUpRoute
+  "/sitemap.xml": typeof SitemapDotxmlRoute
+  "/support/$slug": typeof SupportSlugRouteRouteWithChildren
+  "/api/$": typeof ApiSplatRoute
+  "/": typeof PublicIndexRoute
+  "/app/settings": typeof AppWorkspaceSettingsRouteRouteWithChildren
+  "/legal/privacy-policy": typeof PublicLegalPrivacyPolicyRoute
+  "/legal/terms-of-service": typeof PublicLegalTermsOfServiceRoute
+  "/app/invitation/$id": typeof AppInvitationIdRoute
+  "/app/onboarding/connect": typeof AppOnboardingConnectRoute
+  "/app/onboarding/new": typeof AppOnboardingNewRoute
+  "/support/$slug/robots.txt": typeof SupportSlugRobotsDottxtRoute
+  "/support/$slug/sitemap.xml": typeof SupportSlugSitemapDotxmlRoute
+  "/updates": typeof PublicUpdatesIndexRoute
+  "/app/onboarding": typeof AppOnboardingIndexRoute
+  "/support/$slug/": typeof SupportSlugIndexRoute
+  "/app/threads": typeof AppWorkspaceMainThreadsRouteRouteWithChildren
+  "/app/settings/organization": typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
+  "/app/settings/user": typeof AppWorkspaceSettingsUserRouteRouteWithChildren
+  "/support/$slug/api/$": typeof SupportSlugApiSplatRoute
+  "/support/$slug/threads/$id": typeof SupportSlugThreadsIdRoute
+  "/app/": typeof AppWorkspaceMainIndexRoute
+  "/app/settings/": typeof AppWorkspaceSettingsIndexRoute
+  "/support/$slug/threads": typeof SupportSlugThreadsIndexRoute
+  "/app/threads/archive": typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
+  "/app/settings/organization/integration": typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
+  "/app/playground/rich-markdown": typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
+  "/app/threads/assigned": typeof AppWorkspaceMainThreadsAssignedRoute
+  "/app/threads/open": typeof AppWorkspaceMainThreadsOpenRoute
+  "/app/settings/organization/api-keys": typeof AppWorkspaceSettingsOrganizationApiKeysRoute
+  "/app/settings/organization/billing": typeof AppWorkspaceSettingsOrganizationBillingRoute
+  "/app/settings/organization/documentation": typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  "/app/settings/organization/labels": typeof AppWorkspaceSettingsOrganizationLabelsRoute
+  "/app/settings/organization/support-intelligence": typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
+  "/app/settings/organization/team": typeof AppWorkspaceSettingsOrganizationTeamRoute
+  "/app/playground": typeof AppWorkspaceMainPlaygroundIndexRoute
+  "/app/search": typeof AppWorkspaceMainSearchIndexRoute
+  "/app/signal": typeof AppWorkspaceMainSignalIndexRoute
+  "/app/threads/": typeof AppWorkspaceMainThreadsIndexRoute
+  "/app/settings/organization/": typeof AppWorkspaceSettingsOrganizationIndexRoute
+  "/app/settings/user/": typeof AppWorkspaceSettingsUserIndexRoute
+  "/app/threads/archive/$id": typeof AppWorkspaceMainThreadsArchiveIdRoute
+  "/app/threads/$id": typeof AppWorkspaceMainThreadsIdIndexRoute
+  "/app/threads/archive/": typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  "/app/settings/organization/integration/": typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  "/app/settings/organization/integration/discord/redirect": typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  "/app/settings/organization/integration/slack/redirect": typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
+  "/app/settings/organization/integration/discord": typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  "/app/settings/organization/integration/github": typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute
+  "/app/settings/organization/integration/slack": typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 export interface FileRoutesByTo {
-  '/app': typeof AppWorkspaceMainIndexRoute
-  '/now-allowed': typeof NowAllowedRoute
-  '/robots.txt': typeof RobotsDottxtRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/api/$': typeof ApiSplatRoute
-  '/': typeof PublicIndexRoute
-  '/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
-  '/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
-  '/app/invitation/$id': typeof AppInvitationIdRoute
-  '/app/onboarding/connect': typeof AppOnboardingConnectRoute
-  '/app/onboarding/new': typeof AppOnboardingNewRoute
-  '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
-  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
-  '/updates': typeof PublicUpdatesIndexRoute
-  '/app/onboarding': typeof AppOnboardingIndexRoute
-  '/support/$slug': typeof SupportSlugIndexRoute
-  '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
-  '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
-  '/app/settings': typeof AppWorkspaceSettingsIndexRoute
-  '/support/$slug/threads': typeof SupportSlugThreadsIndexRoute
-  '/app/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
-  '/app/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
-  '/app/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
-  '/app/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysRoute
-  '/app/settings/organization/billing': typeof AppWorkspaceSettingsOrganizationBillingRoute
-  '/app/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
-  '/app/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
-  '/app/settings/organization/support-intelligence': typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
-  '/app/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
-  '/app/playground': typeof AppWorkspaceMainPlaygroundIndexRoute
-  '/app/search': typeof AppWorkspaceMainSearchIndexRoute
-  '/app/signal': typeof AppWorkspaceMainSignalIndexRoute
-  '/app/threads': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/settings/organization': typeof AppWorkspaceSettingsOrganizationIndexRoute
-  '/app/settings/user': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
-  '/app/threads/$id': typeof AppWorkspaceMainThreadsIdIndexRoute
-  '/app/threads/archive': typeof AppWorkspaceMainThreadsArchiveIndexRoute
-  '/app/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
-  '/app/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
-  '/app/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
-  '/app/settings/organization/integration/discord': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
-  '/app/settings/organization/integration/github': typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute
-  '/app/settings/organization/integration/slack': typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
+  "/app": typeof AppWorkspaceMainIndexRoute
+  "/now-allowed": typeof NowAllowedRoute
+  "/robots.txt": typeof RobotsDottxtRoute
+  "/sign-in": typeof SignInRoute
+  "/sign-up": typeof SignUpRoute
+  "/sitemap.xml": typeof SitemapDotxmlRoute
+  "/api/$": typeof ApiSplatRoute
+  "/": typeof PublicIndexRoute
+  "/legal/privacy-policy": typeof PublicLegalPrivacyPolicyRoute
+  "/legal/terms-of-service": typeof PublicLegalTermsOfServiceRoute
+  "/app/invitation/$id": typeof AppInvitationIdRoute
+  "/app/onboarding/connect": typeof AppOnboardingConnectRoute
+  "/app/onboarding/new": typeof AppOnboardingNewRoute
+  "/support/$slug/robots.txt": typeof SupportSlugRobotsDottxtRoute
+  "/support/$slug/sitemap.xml": typeof SupportSlugSitemapDotxmlRoute
+  "/updates": typeof PublicUpdatesIndexRoute
+  "/app/onboarding": typeof AppOnboardingIndexRoute
+  "/support/$slug": typeof SupportSlugIndexRoute
+  "/support/$slug/api/$": typeof SupportSlugApiSplatRoute
+  "/support/$slug/threads/$id": typeof SupportSlugThreadsIdRoute
+  "/app/settings": typeof AppWorkspaceSettingsIndexRoute
+  "/support/$slug/threads": typeof SupportSlugThreadsIndexRoute
+  "/app/playground/rich-markdown": typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
+  "/app/threads/assigned": typeof AppWorkspaceMainThreadsAssignedRoute
+  "/app/threads/open": typeof AppWorkspaceMainThreadsOpenRoute
+  "/app/settings/organization/api-keys": typeof AppWorkspaceSettingsOrganizationApiKeysRoute
+  "/app/settings/organization/billing": typeof AppWorkspaceSettingsOrganizationBillingRoute
+  "/app/settings/organization/documentation": typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  "/app/settings/organization/labels": typeof AppWorkspaceSettingsOrganizationLabelsRoute
+  "/app/settings/organization/support-intelligence": typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
+  "/app/settings/organization/team": typeof AppWorkspaceSettingsOrganizationTeamRoute
+  "/app/playground": typeof AppWorkspaceMainPlaygroundIndexRoute
+  "/app/search": typeof AppWorkspaceMainSearchIndexRoute
+  "/app/signal": typeof AppWorkspaceMainSignalIndexRoute
+  "/app/threads": typeof AppWorkspaceMainThreadsIndexRoute
+  "/app/settings/organization": typeof AppWorkspaceSettingsOrganizationIndexRoute
+  "/app/settings/user": typeof AppWorkspaceSettingsUserIndexRoute
+  "/app/threads/archive/$id": typeof AppWorkspaceMainThreadsArchiveIdRoute
+  "/app/threads/$id": typeof AppWorkspaceMainThreadsIdIndexRoute
+  "/app/threads/archive": typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  "/app/settings/organization/integration": typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  "/app/settings/organization/integration/discord/redirect": typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  "/app/settings/organization/integration/slack/redirect": typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
+  "/app/settings/organization/integration/discord": typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  "/app/settings/organization/integration/github": typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute
+  "/app/settings/organization/integration/slack": typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/_public': typeof PublicRouteRouteWithChildren
-  '/app': typeof AppRouteRouteWithChildren
-  '/now-allowed': typeof NowAllowedRoute
-  '/robots.txt': typeof RobotsDottxtRoute
-  '/sign-in': typeof SignInRoute
-  '/sign-up': typeof SignUpRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/app/_workspace': typeof AppWorkspaceRouteRouteWithChildren
-  '/support/$slug': typeof SupportSlugRouteRouteWithChildren
-  '/api/$': typeof ApiSplatRoute
-  '/_public/': typeof PublicIndexRoute
-  '/app/_workspace/_main': typeof AppWorkspaceMainRouteRouteWithChildren
-  '/app/_workspace/settings': typeof AppWorkspaceSettingsRouteRouteWithChildren
-  '/_public/legal/privacy-policy': typeof PublicLegalPrivacyPolicyRoute
-  '/_public/legal/terms-of-service': typeof PublicLegalTermsOfServiceRoute
-  '/app/invitation/$id': typeof AppInvitationIdRoute
-  '/app/onboarding/connect': typeof AppOnboardingConnectRoute
-  '/app/onboarding/new': typeof AppOnboardingNewRoute
-  '/support/$slug/robots.txt': typeof SupportSlugRobotsDottxtRoute
-  '/support/$slug/sitemap.xml': typeof SupportSlugSitemapDotxmlRoute
-  '/_public/updates/': typeof PublicUpdatesIndexRoute
-  '/app/onboarding/': typeof AppOnboardingIndexRoute
-  '/support/$slug/': typeof SupportSlugIndexRoute
-  '/app/_workspace/_main/threads': typeof AppWorkspaceMainThreadsRouteRouteWithChildren
-  '/app/_workspace/settings/organization': typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
-  '/app/_workspace/settings/user': typeof AppWorkspaceSettingsUserRouteRouteWithChildren
-  '/support/$slug/api/$': typeof SupportSlugApiSplatRoute
-  '/support/$slug/threads/$id': typeof SupportSlugThreadsIdRoute
-  '/app/_workspace/_main/': typeof AppWorkspaceMainIndexRoute
-  '/app/_workspace/settings/': typeof AppWorkspaceSettingsIndexRoute
-  '/support/$slug/threads/': typeof SupportSlugThreadsIndexRoute
-  '/app/_workspace/_main/threads/archive': typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
-  '/app/_workspace/settings/organization/integration': typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
-  '/app/_workspace/_main/playground/rich-markdown': typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
-  '/app/_workspace/_main/threads/assigned': typeof AppWorkspaceMainThreadsAssignedRoute
-  '/app/_workspace/_main/threads/open': typeof AppWorkspaceMainThreadsOpenRoute
-  '/app/_workspace/settings/organization/api-keys': typeof AppWorkspaceSettingsOrganizationApiKeysRoute
-  '/app/_workspace/settings/organization/billing': typeof AppWorkspaceSettingsOrganizationBillingRoute
-  '/app/_workspace/settings/organization/documentation': typeof AppWorkspaceSettingsOrganizationDocumentationRoute
-  '/app/_workspace/settings/organization/labels': typeof AppWorkspaceSettingsOrganizationLabelsRoute
-  '/app/_workspace/settings/organization/support-intelligence': typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
-  '/app/_workspace/settings/organization/team': typeof AppWorkspaceSettingsOrganizationTeamRoute
-  '/app/_workspace/_main/playground/': typeof AppWorkspaceMainPlaygroundIndexRoute
-  '/app/_workspace/_main/search/': typeof AppWorkspaceMainSearchIndexRoute
-  '/app/_workspace/_main/signal/': typeof AppWorkspaceMainSignalIndexRoute
-  '/app/_workspace/_main/threads/': typeof AppWorkspaceMainThreadsIndexRoute
-  '/app/_workspace/settings/organization/': typeof AppWorkspaceSettingsOrganizationIndexRoute
-  '/app/_workspace/settings/user/': typeof AppWorkspaceSettingsUserIndexRoute
-  '/app/_workspace/_main/threads/archive/$id': typeof AppWorkspaceMainThreadsArchiveIdRoute
-  '/app/_workspace/_main/threads/$id/': typeof AppWorkspaceMainThreadsIdIndexRoute
-  '/app/_workspace/_main/threads/archive/': typeof AppWorkspaceMainThreadsArchiveIndexRoute
-  '/app/_workspace/settings/organization/integration/': typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
-  '/app/_workspace/settings/organization/integration/discord/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
-  '/app/_workspace/settings/organization/integration/slack/redirect': typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
-  '/app/_workspace/settings/organization/integration/discord/': typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
-  '/app/_workspace/settings/organization/integration/github/': typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute
-  '/app/_workspace/settings/organization/integration/slack/': typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
+  "/_public": typeof PublicRouteRouteWithChildren
+  "/app": typeof AppRouteRouteWithChildren
+  "/now-allowed": typeof NowAllowedRoute
+  "/robots.txt": typeof RobotsDottxtRoute
+  "/sign-in": typeof SignInRoute
+  "/sign-up": typeof SignUpRoute
+  "/sitemap.xml": typeof SitemapDotxmlRoute
+  "/app/_workspace": typeof AppWorkspaceRouteRouteWithChildren
+  "/support/$slug": typeof SupportSlugRouteRouteWithChildren
+  "/api/$": typeof ApiSplatRoute
+  "/_public/": typeof PublicIndexRoute
+  "/app/_workspace/_main": typeof AppWorkspaceMainRouteRouteWithChildren
+  "/app/_workspace/settings": typeof AppWorkspaceSettingsRouteRouteWithChildren
+  "/_public/legal/privacy-policy": typeof PublicLegalPrivacyPolicyRoute
+  "/_public/legal/terms-of-service": typeof PublicLegalTermsOfServiceRoute
+  "/app/invitation/$id": typeof AppInvitationIdRoute
+  "/app/onboarding/connect": typeof AppOnboardingConnectRoute
+  "/app/onboarding/new": typeof AppOnboardingNewRoute
+  "/support/$slug/robots.txt": typeof SupportSlugRobotsDottxtRoute
+  "/support/$slug/sitemap.xml": typeof SupportSlugSitemapDotxmlRoute
+  "/_public/updates/": typeof PublicUpdatesIndexRoute
+  "/app/onboarding/": typeof AppOnboardingIndexRoute
+  "/support/$slug/": typeof SupportSlugIndexRoute
+  "/app/_workspace/_main/threads": typeof AppWorkspaceMainThreadsRouteRouteWithChildren
+  "/app/_workspace/settings/organization": typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
+  "/app/_workspace/settings/user": typeof AppWorkspaceSettingsUserRouteRouteWithChildren
+  "/support/$slug/api/$": typeof SupportSlugApiSplatRoute
+  "/support/$slug/threads/$id": typeof SupportSlugThreadsIdRoute
+  "/app/_workspace/_main/": typeof AppWorkspaceMainIndexRoute
+  "/app/_workspace/settings/": typeof AppWorkspaceSettingsIndexRoute
+  "/support/$slug/threads/": typeof SupportSlugThreadsIndexRoute
+  "/app/_workspace/_main/threads/archive": typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
+  "/app/_workspace/settings/organization/integration": typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
+  "/app/_workspace/_main/playground/rich-markdown": typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
+  "/app/_workspace/_main/threads/assigned": typeof AppWorkspaceMainThreadsAssignedRoute
+  "/app/_workspace/_main/threads/open": typeof AppWorkspaceMainThreadsOpenRoute
+  "/app/_workspace/settings/organization/api-keys": typeof AppWorkspaceSettingsOrganizationApiKeysRoute
+  "/app/_workspace/settings/organization/billing": typeof AppWorkspaceSettingsOrganizationBillingRoute
+  "/app/_workspace/settings/organization/documentation": typeof AppWorkspaceSettingsOrganizationDocumentationRoute
+  "/app/_workspace/settings/organization/labels": typeof AppWorkspaceSettingsOrganizationLabelsRoute
+  "/app/_workspace/settings/organization/support-intelligence": typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRoute
+  "/app/_workspace/settings/organization/team": typeof AppWorkspaceSettingsOrganizationTeamRoute
+  "/app/_workspace/_main/playground/": typeof AppWorkspaceMainPlaygroundIndexRoute
+  "/app/_workspace/_main/search/": typeof AppWorkspaceMainSearchIndexRoute
+  "/app/_workspace/_main/signal/": typeof AppWorkspaceMainSignalIndexRoute
+  "/app/_workspace/_main/threads/": typeof AppWorkspaceMainThreadsIndexRoute
+  "/app/_workspace/settings/organization/": typeof AppWorkspaceSettingsOrganizationIndexRoute
+  "/app/_workspace/settings/user/": typeof AppWorkspaceSettingsUserIndexRoute
+  "/app/_workspace/_main/threads/archive/$id": typeof AppWorkspaceMainThreadsArchiveIdRoute
+  "/app/_workspace/_main/threads/$id/": typeof AppWorkspaceMainThreadsIdIndexRoute
+  "/app/_workspace/_main/threads/archive/": typeof AppWorkspaceMainThreadsArchiveIndexRoute
+  "/app/_workspace/settings/organization/integration/": typeof AppWorkspaceSettingsOrganizationIntegrationIndexRoute
+  "/app/_workspace/settings/organization/integration/discord/redirect": typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRoute
+  "/app/_workspace/settings/organization/integration/slack/redirect": typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRoute
+  "/app/_workspace/settings/organization/integration/discord/": typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRoute
+  "/app/_workspace/settings/organization/integration/github/": typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRoute
+  "/app/_workspace/settings/organization/integration/slack/": typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/app'
-    | '/now-allowed'
-    | '/robots.txt'
-    | '/sign-in'
-    | '/sign-up'
-    | '/sitemap.xml'
-    | '/support/$slug'
-    | '/api/$'
-    | '/'
-    | '/app/settings'
-    | '/legal/privacy-policy'
-    | '/legal/terms-of-service'
-    | '/app/invitation/$id'
-    | '/app/onboarding/connect'
-    | '/app/onboarding/new'
-    | '/support/$slug/robots.txt'
-    | '/support/$slug/sitemap.xml'
-    | '/updates'
-    | '/app/onboarding'
-    | '/support/$slug/'
-    | '/app/threads'
-    | '/app/settings/organization'
-    | '/app/settings/user'
-    | '/support/$slug/api/$'
-    | '/support/$slug/threads/$id'
-    | '/app/'
-    | '/app/settings/'
-    | '/support/$slug/threads'
-    | '/app/threads/archive'
-    | '/app/settings/organization/integration'
-    | '/app/playground/rich-markdown'
-    | '/app/threads/assigned'
-    | '/app/threads/open'
-    | '/app/settings/organization/api-keys'
-    | '/app/settings/organization/billing'
-    | '/app/settings/organization/documentation'
-    | '/app/settings/organization/labels'
-    | '/app/settings/organization/support-intelligence'
-    | '/app/settings/organization/team'
-    | '/app/playground'
-    | '/app/search'
-    | '/app/signal'
-    | '/app/threads/'
-    | '/app/settings/organization/'
-    | '/app/settings/user/'
-    | '/app/threads/archive/$id'
-    | '/app/threads/$id'
-    | '/app/threads/archive/'
-    | '/app/settings/organization/integration/'
-    | '/app/settings/organization/integration/discord/redirect'
-    | '/app/settings/organization/integration/slack/redirect'
-    | '/app/settings/organization/integration/discord'
-    | '/app/settings/organization/integration/github'
-    | '/app/settings/organization/integration/slack'
+    | "/app"
+    | "/now-allowed"
+    | "/robots.txt"
+    | "/sign-in"
+    | "/sign-up"
+    | "/sitemap.xml"
+    | "/support/$slug"
+    | "/api/$"
+    | "/"
+    | "/app/settings"
+    | "/legal/privacy-policy"
+    | "/legal/terms-of-service"
+    | "/app/invitation/$id"
+    | "/app/onboarding/connect"
+    | "/app/onboarding/new"
+    | "/support/$slug/robots.txt"
+    | "/support/$slug/sitemap.xml"
+    | "/updates"
+    | "/app/onboarding"
+    | "/support/$slug/"
+    | "/app/threads"
+    | "/app/settings/organization"
+    | "/app/settings/user"
+    | "/support/$slug/api/$"
+    | "/support/$slug/threads/$id"
+    | "/app/"
+    | "/app/settings/"
+    | "/support/$slug/threads"
+    | "/app/threads/archive"
+    | "/app/settings/organization/integration"
+    | "/app/playground/rich-markdown"
+    | "/app/threads/assigned"
+    | "/app/threads/open"
+    | "/app/settings/organization/api-keys"
+    | "/app/settings/organization/billing"
+    | "/app/settings/organization/documentation"
+    | "/app/settings/organization/labels"
+    | "/app/settings/organization/support-intelligence"
+    | "/app/settings/organization/team"
+    | "/app/playground"
+    | "/app/search"
+    | "/app/signal"
+    | "/app/threads/"
+    | "/app/settings/organization/"
+    | "/app/settings/user/"
+    | "/app/threads/archive/$id"
+    | "/app/threads/$id"
+    | "/app/threads/archive/"
+    | "/app/settings/organization/integration/"
+    | "/app/settings/organization/integration/discord/redirect"
+    | "/app/settings/organization/integration/slack/redirect"
+    | "/app/settings/organization/integration/discord"
+    | "/app/settings/organization/integration/github"
+    | "/app/settings/organization/integration/slack"
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/app'
-    | '/now-allowed'
-    | '/robots.txt'
-    | '/sign-in'
-    | '/sign-up'
-    | '/sitemap.xml'
-    | '/api/$'
-    | '/'
-    | '/legal/privacy-policy'
-    | '/legal/terms-of-service'
-    | '/app/invitation/$id'
-    | '/app/onboarding/connect'
-    | '/app/onboarding/new'
-    | '/support/$slug/robots.txt'
-    | '/support/$slug/sitemap.xml'
-    | '/updates'
-    | '/app/onboarding'
-    | '/support/$slug'
-    | '/support/$slug/api/$'
-    | '/support/$slug/threads/$id'
-    | '/app/settings'
-    | '/support/$slug/threads'
-    | '/app/playground/rich-markdown'
-    | '/app/threads/assigned'
-    | '/app/threads/open'
-    | '/app/settings/organization/api-keys'
-    | '/app/settings/organization/billing'
-    | '/app/settings/organization/documentation'
-    | '/app/settings/organization/labels'
-    | '/app/settings/organization/support-intelligence'
-    | '/app/settings/organization/team'
-    | '/app/playground'
-    | '/app/search'
-    | '/app/signal'
-    | '/app/threads'
-    | '/app/settings/organization'
-    | '/app/settings/user'
-    | '/app/threads/archive/$id'
-    | '/app/threads/$id'
-    | '/app/threads/archive'
-    | '/app/settings/organization/integration'
-    | '/app/settings/organization/integration/discord/redirect'
-    | '/app/settings/organization/integration/slack/redirect'
-    | '/app/settings/organization/integration/discord'
-    | '/app/settings/organization/integration/github'
-    | '/app/settings/organization/integration/slack'
+    | "/app"
+    | "/now-allowed"
+    | "/robots.txt"
+    | "/sign-in"
+    | "/sign-up"
+    | "/sitemap.xml"
+    | "/api/$"
+    | "/"
+    | "/legal/privacy-policy"
+    | "/legal/terms-of-service"
+    | "/app/invitation/$id"
+    | "/app/onboarding/connect"
+    | "/app/onboarding/new"
+    | "/support/$slug/robots.txt"
+    | "/support/$slug/sitemap.xml"
+    | "/updates"
+    | "/app/onboarding"
+    | "/support/$slug"
+    | "/support/$slug/api/$"
+    | "/support/$slug/threads/$id"
+    | "/app/settings"
+    | "/support/$slug/threads"
+    | "/app/playground/rich-markdown"
+    | "/app/threads/assigned"
+    | "/app/threads/open"
+    | "/app/settings/organization/api-keys"
+    | "/app/settings/organization/billing"
+    | "/app/settings/organization/documentation"
+    | "/app/settings/organization/labels"
+    | "/app/settings/organization/support-intelligence"
+    | "/app/settings/organization/team"
+    | "/app/playground"
+    | "/app/search"
+    | "/app/signal"
+    | "/app/threads"
+    | "/app/settings/organization"
+    | "/app/settings/user"
+    | "/app/threads/archive/$id"
+    | "/app/threads/$id"
+    | "/app/threads/archive"
+    | "/app/settings/organization/integration"
+    | "/app/settings/organization/integration/discord/redirect"
+    | "/app/settings/organization/integration/slack/redirect"
+    | "/app/settings/organization/integration/discord"
+    | "/app/settings/organization/integration/github"
+    | "/app/settings/organization/integration/slack"
   id:
-    | '__root__'
-    | '/_public'
-    | '/app'
-    | '/now-allowed'
-    | '/robots.txt'
-    | '/sign-in'
-    | '/sign-up'
-    | '/sitemap.xml'
-    | '/app/_workspace'
-    | '/support/$slug'
-    | '/api/$'
-    | '/_public/'
-    | '/app/_workspace/_main'
-    | '/app/_workspace/settings'
-    | '/_public/legal/privacy-policy'
-    | '/_public/legal/terms-of-service'
-    | '/app/invitation/$id'
-    | '/app/onboarding/connect'
-    | '/app/onboarding/new'
-    | '/support/$slug/robots.txt'
-    | '/support/$slug/sitemap.xml'
-    | '/_public/updates/'
-    | '/app/onboarding/'
-    | '/support/$slug/'
-    | '/app/_workspace/_main/threads'
-    | '/app/_workspace/settings/organization'
-    | '/app/_workspace/settings/user'
-    | '/support/$slug/api/$'
-    | '/support/$slug/threads/$id'
-    | '/app/_workspace/_main/'
-    | '/app/_workspace/settings/'
-    | '/support/$slug/threads/'
-    | '/app/_workspace/_main/threads/archive'
-    | '/app/_workspace/settings/organization/integration'
-    | '/app/_workspace/_main/playground/rich-markdown'
-    | '/app/_workspace/_main/threads/assigned'
-    | '/app/_workspace/_main/threads/open'
-    | '/app/_workspace/settings/organization/api-keys'
-    | '/app/_workspace/settings/organization/billing'
-    | '/app/_workspace/settings/organization/documentation'
-    | '/app/_workspace/settings/organization/labels'
-    | '/app/_workspace/settings/organization/support-intelligence'
-    | '/app/_workspace/settings/organization/team'
-    | '/app/_workspace/_main/playground/'
-    | '/app/_workspace/_main/search/'
-    | '/app/_workspace/_main/signal/'
-    | '/app/_workspace/_main/threads/'
-    | '/app/_workspace/settings/organization/'
-    | '/app/_workspace/settings/user/'
-    | '/app/_workspace/_main/threads/archive/$id'
-    | '/app/_workspace/_main/threads/$id/'
-    | '/app/_workspace/_main/threads/archive/'
-    | '/app/_workspace/settings/organization/integration/'
-    | '/app/_workspace/settings/organization/integration/discord/redirect'
-    | '/app/_workspace/settings/organization/integration/slack/redirect'
-    | '/app/_workspace/settings/organization/integration/discord/'
-    | '/app/_workspace/settings/organization/integration/github/'
-    | '/app/_workspace/settings/organization/integration/slack/'
+    | "__root__"
+    | "/_public"
+    | "/app"
+    | "/now-allowed"
+    | "/robots.txt"
+    | "/sign-in"
+    | "/sign-up"
+    | "/sitemap.xml"
+    | "/app/_workspace"
+    | "/support/$slug"
+    | "/api/$"
+    | "/_public/"
+    | "/app/_workspace/_main"
+    | "/app/_workspace/settings"
+    | "/_public/legal/privacy-policy"
+    | "/_public/legal/terms-of-service"
+    | "/app/invitation/$id"
+    | "/app/onboarding/connect"
+    | "/app/onboarding/new"
+    | "/support/$slug/robots.txt"
+    | "/support/$slug/sitemap.xml"
+    | "/_public/updates/"
+    | "/app/onboarding/"
+    | "/support/$slug/"
+    | "/app/_workspace/_main/threads"
+    | "/app/_workspace/settings/organization"
+    | "/app/_workspace/settings/user"
+    | "/support/$slug/api/$"
+    | "/support/$slug/threads/$id"
+    | "/app/_workspace/_main/"
+    | "/app/_workspace/settings/"
+    | "/support/$slug/threads/"
+    | "/app/_workspace/_main/threads/archive"
+    | "/app/_workspace/settings/organization/integration"
+    | "/app/_workspace/_main/playground/rich-markdown"
+    | "/app/_workspace/_main/threads/assigned"
+    | "/app/_workspace/_main/threads/open"
+    | "/app/_workspace/settings/organization/api-keys"
+    | "/app/_workspace/settings/organization/billing"
+    | "/app/_workspace/settings/organization/documentation"
+    | "/app/_workspace/settings/organization/labels"
+    | "/app/_workspace/settings/organization/support-intelligence"
+    | "/app/_workspace/settings/organization/team"
+    | "/app/_workspace/_main/playground/"
+    | "/app/_workspace/_main/search/"
+    | "/app/_workspace/_main/signal/"
+    | "/app/_workspace/_main/threads/"
+    | "/app/_workspace/settings/organization/"
+    | "/app/_workspace/settings/user/"
+    | "/app/_workspace/_main/threads/archive/$id"
+    | "/app/_workspace/_main/threads/$id/"
+    | "/app/_workspace/_main/threads/archive/"
+    | "/app/_workspace/settings/organization/integration/"
+    | "/app/_workspace/settings/organization/integration/discord/redirect"
+    | "/app/_workspace/settings/organization/integration/slack/redirect"
+    | "/app/_workspace/settings/organization/integration/discord/"
+    | "/app/_workspace/settings/organization/integration/github/"
+    | "/app/_workspace/settings/organization/integration/slack/"
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -726,404 +726,404 @@ export interface RootRouteChildren {
   ApiSplatRoute: typeof ApiSplatRoute
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
+    "/sitemap.xml": {
+      id: "/sitemap.xml"
+      path: "/sitemap.xml"
+      fullPath: "/sitemap.xml"
       preLoaderRoute: typeof SitemapDotxmlRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sign-up': {
-      id: '/sign-up'
-      path: '/sign-up'
-      fullPath: '/sign-up'
+    "/sign-up": {
+      id: "/sign-up"
+      path: "/sign-up"
+      fullPath: "/sign-up"
       preLoaderRoute: typeof SignUpRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/sign-in': {
-      id: '/sign-in'
-      path: '/sign-in'
-      fullPath: '/sign-in'
+    "/sign-in": {
+      id: "/sign-in"
+      path: "/sign-in"
+      fullPath: "/sign-in"
       preLoaderRoute: typeof SignInRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/robots.txt': {
-      id: '/robots.txt'
-      path: '/robots.txt'
-      fullPath: '/robots.txt'
+    "/robots.txt": {
+      id: "/robots.txt"
+      path: "/robots.txt"
+      fullPath: "/robots.txt"
       preLoaderRoute: typeof RobotsDottxtRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/now-allowed': {
-      id: '/now-allowed'
-      path: '/now-allowed'
-      fullPath: '/now-allowed'
+    "/now-allowed": {
+      id: "/now-allowed"
+      path: "/now-allowed"
+      fullPath: "/now-allowed"
       preLoaderRoute: typeof NowAllowedRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app': {
-      id: '/app'
-      path: '/app'
-      fullPath: '/app'
+    "/app": {
+      id: "/app"
+      path: "/app"
+      fullPath: "/app"
       preLoaderRoute: typeof AppRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_public': {
-      id: '/_public'
-      path: ''
-      fullPath: ''
+    "/_public": {
+      id: "/_public"
+      path: ""
+      fullPath: ""
       preLoaderRoute: typeof PublicRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_public/': {
-      id: '/_public/'
-      path: '/'
-      fullPath: '/'
+    "/_public/": {
+      id: "/_public/"
+      path: "/"
+      fullPath: "/"
       preLoaderRoute: typeof PublicIndexRouteImport
       parentRoute: typeof PublicRouteRoute
     }
-    '/api/$': {
-      id: '/api/$'
-      path: '/api/$'
-      fullPath: '/api/$'
+    "/api/$": {
+      id: "/api/$"
+      path: "/api/$"
+      fullPath: "/api/$"
       preLoaderRoute: typeof ApiSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/support/$slug': {
-      id: '/support/$slug'
-      path: '/support/$slug'
-      fullPath: '/support/$slug'
+    "/support/$slug": {
+      id: "/support/$slug"
+      path: "/support/$slug"
+      fullPath: "/support/$slug"
       preLoaderRoute: typeof SupportSlugRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/app/_workspace': {
-      id: '/app/_workspace'
-      path: ''
-      fullPath: '/app'
+    "/app/_workspace": {
+      id: "/app/_workspace"
+      path: ""
+      fullPath: "/app"
       preLoaderRoute: typeof AppWorkspaceRouteRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/support/$slug/': {
-      id: '/support/$slug/'
-      path: '/'
-      fullPath: '/support/$slug/'
+    "/support/$slug/": {
+      id: "/support/$slug/"
+      path: "/"
+      fullPath: "/support/$slug/"
       preLoaderRoute: typeof SupportSlugIndexRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/app/onboarding/': {
-      id: '/app/onboarding/'
-      path: '/onboarding'
-      fullPath: '/app/onboarding'
+    "/app/onboarding/": {
+      id: "/app/onboarding/"
+      path: "/onboarding"
+      fullPath: "/app/onboarding"
       preLoaderRoute: typeof AppOnboardingIndexRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/_public/updates/': {
-      id: '/_public/updates/'
-      path: '/updates'
-      fullPath: '/updates'
+    "/_public/updates/": {
+      id: "/_public/updates/"
+      path: "/updates"
+      fullPath: "/updates"
       preLoaderRoute: typeof PublicUpdatesIndexRouteImport
       parentRoute: typeof PublicRouteRoute
     }
-    '/support/$slug/sitemap.xml': {
-      id: '/support/$slug/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/support/$slug/sitemap.xml'
+    "/support/$slug/sitemap.xml": {
+      id: "/support/$slug/sitemap.xml"
+      path: "/sitemap.xml"
+      fullPath: "/support/$slug/sitemap.xml"
       preLoaderRoute: typeof SupportSlugSitemapDotxmlRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/support/$slug/robots.txt': {
-      id: '/support/$slug/robots.txt'
-      path: '/robots.txt'
-      fullPath: '/support/$slug/robots.txt'
+    "/support/$slug/robots.txt": {
+      id: "/support/$slug/robots.txt"
+      path: "/robots.txt"
+      fullPath: "/support/$slug/robots.txt"
       preLoaderRoute: typeof SupportSlugRobotsDottxtRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/app/onboarding/new': {
-      id: '/app/onboarding/new'
-      path: '/onboarding/new'
-      fullPath: '/app/onboarding/new'
+    "/app/onboarding/new": {
+      id: "/app/onboarding/new"
+      path: "/onboarding/new"
+      fullPath: "/app/onboarding/new"
       preLoaderRoute: typeof AppOnboardingNewRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/app/onboarding/connect': {
-      id: '/app/onboarding/connect'
-      path: '/onboarding/connect'
-      fullPath: '/app/onboarding/connect'
+    "/app/onboarding/connect": {
+      id: "/app/onboarding/connect"
+      path: "/onboarding/connect"
+      fullPath: "/app/onboarding/connect"
       preLoaderRoute: typeof AppOnboardingConnectRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/app/invitation/$id': {
-      id: '/app/invitation/$id'
-      path: '/invitation/$id'
-      fullPath: '/app/invitation/$id'
+    "/app/invitation/$id": {
+      id: "/app/invitation/$id"
+      path: "/invitation/$id"
+      fullPath: "/app/invitation/$id"
       preLoaderRoute: typeof AppInvitationIdRouteImport
       parentRoute: typeof AppRouteRoute
     }
-    '/_public/legal/terms-of-service': {
-      id: '/_public/legal/terms-of-service'
-      path: '/legal/terms-of-service'
-      fullPath: '/legal/terms-of-service'
+    "/_public/legal/terms-of-service": {
+      id: "/_public/legal/terms-of-service"
+      path: "/legal/terms-of-service"
+      fullPath: "/legal/terms-of-service"
       preLoaderRoute: typeof PublicLegalTermsOfServiceRouteImport
       parentRoute: typeof PublicRouteRoute
     }
-    '/_public/legal/privacy-policy': {
-      id: '/_public/legal/privacy-policy'
-      path: '/legal/privacy-policy'
-      fullPath: '/legal/privacy-policy'
+    "/_public/legal/privacy-policy": {
+      id: "/_public/legal/privacy-policy"
+      path: "/legal/privacy-policy"
+      fullPath: "/legal/privacy-policy"
       preLoaderRoute: typeof PublicLegalPrivacyPolicyRouteImport
       parentRoute: typeof PublicRouteRoute
     }
-    '/app/_workspace/settings': {
-      id: '/app/_workspace/settings'
-      path: '/settings'
-      fullPath: '/app/settings'
+    "/app/_workspace/settings": {
+      id: "/app/_workspace/settings"
+      path: "/settings"
+      fullPath: "/app/settings"
       preLoaderRoute: typeof AppWorkspaceSettingsRouteRouteImport
       parentRoute: typeof AppWorkspaceRouteRoute
     }
-    '/app/_workspace/_main': {
-      id: '/app/_workspace/_main'
-      path: ''
-      fullPath: '/app'
+    "/app/_workspace/_main": {
+      id: "/app/_workspace/_main"
+      path: ""
+      fullPath: "/app"
       preLoaderRoute: typeof AppWorkspaceMainRouteRouteImport
       parentRoute: typeof AppWorkspaceRouteRoute
     }
-    '/support/$slug/threads/': {
-      id: '/support/$slug/threads/'
-      path: '/threads'
-      fullPath: '/support/$slug/threads'
+    "/support/$slug/threads/": {
+      id: "/support/$slug/threads/"
+      path: "/threads"
+      fullPath: "/support/$slug/threads"
       preLoaderRoute: typeof SupportSlugThreadsIndexRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/app/_workspace/settings/': {
-      id: '/app/_workspace/settings/'
-      path: '/'
-      fullPath: '/app/settings/'
+    "/app/_workspace/settings/": {
+      id: "/app/_workspace/settings/"
+      path: "/"
+      fullPath: "/app/settings/"
       preLoaderRoute: typeof AppWorkspaceSettingsIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
-    '/app/_workspace/_main/': {
-      id: '/app/_workspace/_main/'
-      path: '/'
-      fullPath: '/app/'
+    "/app/_workspace/_main/": {
+      id: "/app/_workspace/_main/"
+      path: "/"
+      fullPath: "/app/"
       preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/support/$slug/threads/$id': {
-      id: '/support/$slug/threads/$id'
-      path: '/threads/$id'
-      fullPath: '/support/$slug/threads/$id'
+    "/support/$slug/threads/$id": {
+      id: "/support/$slug/threads/$id"
+      path: "/threads/$id"
+      fullPath: "/support/$slug/threads/$id"
       preLoaderRoute: typeof SupportSlugThreadsIdRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/support/$slug/api/$': {
-      id: '/support/$slug/api/$'
-      path: '/api/$'
-      fullPath: '/support/$slug/api/$'
+    "/support/$slug/api/$": {
+      id: "/support/$slug/api/$"
+      path: "/api/$"
+      fullPath: "/support/$slug/api/$"
       preLoaderRoute: typeof SupportSlugApiSplatRouteImport
       parentRoute: typeof SupportSlugRouteRoute
     }
-    '/app/_workspace/settings/user': {
-      id: '/app/_workspace/settings/user'
-      path: '/user'
-      fullPath: '/app/settings/user'
+    "/app/_workspace/settings/user": {
+      id: "/app/_workspace/settings/user"
+      path: "/user"
+      fullPath: "/app/settings/user"
       preLoaderRoute: typeof AppWorkspaceSettingsUserRouteRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
-    '/app/_workspace/settings/organization': {
-      id: '/app/_workspace/settings/organization'
-      path: '/organization'
-      fullPath: '/app/settings/organization'
+    "/app/_workspace/settings/organization": {
+      id: "/app/_workspace/settings/organization"
+      path: "/organization"
+      fullPath: "/app/settings/organization"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationRouteRouteImport
       parentRoute: typeof AppWorkspaceSettingsRouteRoute
     }
-    '/app/_workspace/_main/threads': {
-      id: '/app/_workspace/_main/threads'
-      path: '/threads'
-      fullPath: '/app/threads'
+    "/app/_workspace/_main/threads": {
+      id: "/app/_workspace/_main/threads"
+      path: "/threads"
+      fullPath: "/app/threads"
       preLoaderRoute: typeof AppWorkspaceMainThreadsRouteRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/app/_workspace/settings/user/': {
-      id: '/app/_workspace/settings/user/'
-      path: '/'
-      fullPath: '/app/settings/user/'
+    "/app/_workspace/settings/user/": {
+      id: "/app/_workspace/settings/user/"
+      path: "/"
+      fullPath: "/app/settings/user/"
       preLoaderRoute: typeof AppWorkspaceSettingsUserIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsUserRouteRoute
     }
-    '/app/_workspace/settings/organization/': {
-      id: '/app/_workspace/settings/organization/'
-      path: '/'
-      fullPath: '/app/settings/organization/'
+    "/app/_workspace/settings/organization/": {
+      id: "/app/_workspace/settings/organization/"
+      path: "/"
+      fullPath: "/app/settings/organization/"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/_main/threads/': {
-      id: '/app/_workspace/_main/threads/'
-      path: '/'
-      fullPath: '/app/threads/'
+    "/app/_workspace/_main/threads/": {
+      id: "/app/_workspace/_main/threads/"
+      path: "/"
+      fullPath: "/app/threads/"
       preLoaderRoute: typeof AppWorkspaceMainThreadsIndexRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
-    '/app/_workspace/_main/signal/': {
-      id: '/app/_workspace/_main/signal/'
-      path: '/signal'
-      fullPath: '/app/signal'
+    "/app/_workspace/_main/signal/": {
+      id: "/app/_workspace/_main/signal/"
+      path: "/signal"
+      fullPath: "/app/signal"
       preLoaderRoute: typeof AppWorkspaceMainSignalIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/app/_workspace/_main/search/': {
-      id: '/app/_workspace/_main/search/'
-      path: '/search'
-      fullPath: '/app/search'
+    "/app/_workspace/_main/search/": {
+      id: "/app/_workspace/_main/search/"
+      path: "/search"
+      fullPath: "/app/search"
       preLoaderRoute: typeof AppWorkspaceMainSearchIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/app/_workspace/_main/playground/': {
-      id: '/app/_workspace/_main/playground/'
-      path: '/playground'
-      fullPath: '/app/playground'
+    "/app/_workspace/_main/playground/": {
+      id: "/app/_workspace/_main/playground/"
+      path: "/playground"
+      fullPath: "/app/playground"
       preLoaderRoute: typeof AppWorkspaceMainPlaygroundIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/app/_workspace/settings/organization/team': {
-      id: '/app/_workspace/settings/organization/team'
-      path: '/team'
-      fullPath: '/app/settings/organization/team'
+    "/app/_workspace/settings/organization/team": {
+      id: "/app/_workspace/settings/organization/team"
+      path: "/team"
+      fullPath: "/app/settings/organization/team"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationTeamRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/settings/organization/support-intelligence': {
-      id: '/app/_workspace/settings/organization/support-intelligence'
-      path: '/support-intelligence'
-      fullPath: '/app/settings/organization/support-intelligence'
+    "/app/_workspace/settings/organization/support-intelligence": {
+      id: "/app/_workspace/settings/organization/support-intelligence"
+      path: "/support-intelligence"
+      fullPath: "/app/settings/organization/support-intelligence"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationSupportIntelligenceRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/settings/organization/labels': {
-      id: '/app/_workspace/settings/organization/labels'
-      path: '/labels'
-      fullPath: '/app/settings/organization/labels'
+    "/app/_workspace/settings/organization/labels": {
+      id: "/app/_workspace/settings/organization/labels"
+      path: "/labels"
+      fullPath: "/app/settings/organization/labels"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationLabelsRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/settings/organization/documentation': {
-      id: '/app/_workspace/settings/organization/documentation'
-      path: '/documentation'
-      fullPath: '/app/settings/organization/documentation'
+    "/app/_workspace/settings/organization/documentation": {
+      id: "/app/_workspace/settings/organization/documentation"
+      path: "/documentation"
+      fullPath: "/app/settings/organization/documentation"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationDocumentationRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/settings/organization/billing': {
-      id: '/app/_workspace/settings/organization/billing'
-      path: '/billing'
-      fullPath: '/app/settings/organization/billing'
+    "/app/_workspace/settings/organization/billing": {
+      id: "/app/_workspace/settings/organization/billing"
+      path: "/billing"
+      fullPath: "/app/settings/organization/billing"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationBillingRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/settings/organization/api-keys': {
-      id: '/app/_workspace/settings/organization/api-keys'
-      path: '/api-keys'
-      fullPath: '/app/settings/organization/api-keys'
+    "/app/_workspace/settings/organization/api-keys": {
+      id: "/app/_workspace/settings/organization/api-keys"
+      path: "/api-keys"
+      fullPath: "/app/settings/organization/api-keys"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationApiKeysRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/_main/threads/open': {
-      id: '/app/_workspace/_main/threads/open'
-      path: '/open'
-      fullPath: '/app/threads/open'
+    "/app/_workspace/_main/threads/open": {
+      id: "/app/_workspace/_main/threads/open"
+      path: "/open"
+      fullPath: "/app/threads/open"
       preLoaderRoute: typeof AppWorkspaceMainThreadsOpenRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
-    '/app/_workspace/_main/threads/assigned': {
-      id: '/app/_workspace/_main/threads/assigned'
-      path: '/assigned'
-      fullPath: '/app/threads/assigned'
+    "/app/_workspace/_main/threads/assigned": {
+      id: "/app/_workspace/_main/threads/assigned"
+      path: "/assigned"
+      fullPath: "/app/threads/assigned"
       preLoaderRoute: typeof AppWorkspaceMainThreadsAssignedRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
-    '/app/_workspace/_main/playground/rich-markdown': {
-      id: '/app/_workspace/_main/playground/rich-markdown'
-      path: '/playground/rich-markdown'
-      fullPath: '/app/playground/rich-markdown'
+    "/app/_workspace/_main/playground/rich-markdown": {
+      id: "/app/_workspace/_main/playground/rich-markdown"
+      path: "/playground/rich-markdown"
+      fullPath: "/app/playground/rich-markdown"
       preLoaderRoute: typeof AppWorkspaceMainPlaygroundRichMarkdownRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
     }
-    '/app/_workspace/settings/organization/integration': {
-      id: '/app/_workspace/settings/organization/integration'
-      path: '/integration'
-      fullPath: '/app/settings/organization/integration'
+    "/app/_workspace/settings/organization/integration": {
+      id: "/app/_workspace/settings/organization/integration"
+      path: "/integration"
+      fullPath: "/app/settings/organization/integration"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationRouteRoute
     }
-    '/app/_workspace/_main/threads/archive': {
-      id: '/app/_workspace/_main/threads/archive'
-      path: '/archive'
-      fullPath: '/app/threads/archive'
+    "/app/_workspace/_main/threads/archive": {
+      id: "/app/_workspace/_main/threads/archive"
+      path: "/archive"
+      fullPath: "/app/threads/archive"
       preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveRouteRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/': {
-      id: '/app/_workspace/settings/organization/integration/'
-      path: '/'
-      fullPath: '/app/settings/organization/integration/'
+    "/app/_workspace/settings/organization/integration/": {
+      id: "/app/_workspace/settings/organization/integration/"
+      path: "/"
+      fullPath: "/app/settings/organization/integration/"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
-    '/app/_workspace/_main/threads/archive/': {
-      id: '/app/_workspace/_main/threads/archive/'
-      path: '/'
-      fullPath: '/app/threads/archive/'
+    "/app/_workspace/_main/threads/archive/": {
+      id: "/app/_workspace/_main/threads/archive/"
+      path: "/"
+      fullPath: "/app/threads/archive/"
       preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIndexRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsArchiveRouteRoute
     }
-    '/app/_workspace/_main/threads/$id/': {
-      id: '/app/_workspace/_main/threads/$id/'
-      path: '/$id'
-      fullPath: '/app/threads/$id'
+    "/app/_workspace/_main/threads/$id/": {
+      id: "/app/_workspace/_main/threads/$id/"
+      path: "/$id"
+      fullPath: "/app/threads/$id"
       preLoaderRoute: typeof AppWorkspaceMainThreadsIdIndexRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsRouteRoute
     }
-    '/app/_workspace/_main/threads/archive/$id': {
-      id: '/app/_workspace/_main/threads/archive/$id'
-      path: '/$id'
-      fullPath: '/app/threads/archive/$id'
+    "/app/_workspace/_main/threads/archive/$id": {
+      id: "/app/_workspace/_main/threads/archive/$id"
+      path: "/$id"
+      fullPath: "/app/threads/archive/$id"
       preLoaderRoute: typeof AppWorkspaceMainThreadsArchiveIdRouteImport
       parentRoute: typeof AppWorkspaceMainThreadsArchiveRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/slack/': {
-      id: '/app/_workspace/settings/organization/integration/slack/'
-      path: '/slack'
-      fullPath: '/app/settings/organization/integration/slack'
+    "/app/_workspace/settings/organization/integration/slack/": {
+      id: "/app/_workspace/settings/organization/integration/slack/"
+      path: "/slack"
+      fullPath: "/app/settings/organization/integration/slack"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/github/': {
-      id: '/app/_workspace/settings/organization/integration/github/'
-      path: '/github'
-      fullPath: '/app/settings/organization/integration/github'
+    "/app/_workspace/settings/organization/integration/github/": {
+      id: "/app/_workspace/settings/organization/integration/github/"
+      path: "/github"
+      fullPath: "/app/settings/organization/integration/github"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationGithubIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/discord/': {
-      id: '/app/_workspace/settings/organization/integration/discord/'
-      path: '/discord'
-      fullPath: '/app/settings/organization/integration/discord'
+    "/app/_workspace/settings/organization/integration/discord/": {
+      id: "/app/_workspace/settings/organization/integration/discord/"
+      path: "/discord"
+      fullPath: "/app/settings/organization/integration/discord"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordIndexRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/slack/redirect': {
-      id: '/app/_workspace/settings/organization/integration/slack/redirect'
-      path: '/slack/redirect'
-      fullPath: '/app/settings/organization/integration/slack/redirect'
+    "/app/_workspace/settings/organization/integration/slack/redirect": {
+      id: "/app/_workspace/settings/organization/integration/slack/redirect"
+      path: "/slack/redirect"
+      fullPath: "/app/settings/organization/integration/slack/redirect"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationSlackRedirectRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
-    '/app/_workspace/settings/organization/integration/discord/redirect': {
-      id: '/app/_workspace/settings/organization/integration/discord/redirect'
-      path: '/discord/redirect'
-      fullPath: '/app/settings/organization/integration/discord/redirect'
+    "/app/_workspace/settings/organization/integration/discord/redirect": {
+      id: "/app/_workspace/settings/organization/integration/discord/redirect"
+      path: "/discord/redirect"
+      fullPath: "/app/settings/organization/integration/discord/redirect"
       preLoaderRoute: typeof AppWorkspaceSettingsOrganizationIntegrationDiscordRedirectRouteImport
       parentRoute: typeof AppWorkspaceSettingsOrganizationIntegrationRouteRoute
     }
@@ -1383,9 +1383,9 @@ export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
-import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx"
+import type { createStart } from "@tanstack/react-start"
+declare module "@tanstack/react-start" {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>

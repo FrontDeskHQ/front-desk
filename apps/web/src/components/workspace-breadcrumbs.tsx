@@ -55,7 +55,7 @@ function WorkspaceBreadcrumbs({
     <div className={cn("flex min-w-0 items-center gap-2", className)}>
       <CollapsedSidebarTrigger />
       {(currentMatch || hasCurrentOverride) && (
-        <Breadcrumb className="min-w-0 flex-1">
+        <Breadcrumb className="min-w-0 flex-1 overflow-x-auto">
           <BreadcrumbList className="min-w-0 flex-nowrap">
             {ancestorMatches.map(({ breadcrumb, match }) => (
               <Fragment key={match.id}>
