@@ -7,7 +7,6 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import type { ErrorComponentProps } from "@tanstack/react-router";
-import { TanStackRouterDevtools } from "@tanstack/react-router-devtools";
 import { Toaster } from "@workspace/ui/components/sonner";
 import { NuqsAdapter } from "nuqs/adapters/tanstack-router";
 
@@ -94,7 +93,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <Providers>
           <NuqsAdapter>
             {children}
-            <TanStackRouterDevtools position="bottom-right" />
             <Toaster />
           </NuqsAdapter>
         </Providers>

@@ -51,7 +51,7 @@ const DEVELOPER_PAGE_SEARCH = {
   searchKeywords: DEVELOPER_SEARCH_KEYWORDS,
   searchable: true,
 } as const;
-const DEVELOPER_TOOLS_PAGE_ID = "developer-tools";
+export const DEVELOPER_TOOLS_PAGE_ID = "developer-tools";
 const DEVELOPER_THREADS_PAGE_ID = "developer-tools.threads";
 const DEVELOPER_GITHUB_PAGE_ID = "developer-tools.github";
 const DEVELOPER_GITHUB_PR_PAGE_ID = "developer-tools.github.prs";

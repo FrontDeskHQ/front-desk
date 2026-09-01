@@ -34,6 +34,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import type { ReactNode } from "react";
 
 import type { OnboardingStep } from "~/lib/onboarding/types";
 import { useOnboarding } from "~/lib/onboarding/use-onboarding";
@@ -55,7 +56,7 @@ const getStepIcon = (stepId: string): LucideIcon => {
   return iconMap[stepId] ?? SlidersHorizontal;
 };
 
-export function FirstStepsChecklist() {
+export function FirstStepsChecklist({ children }: { children?: ReactNode }) {
   const { isVisible, steps, progress, skipOnboarding, completeOnboarding } =
     useOnboarding();
 
@@ -86,157 +87,169 @@ export function FirstStepsChecklist() {
     }
   }, [isVisible, progress.completed, progress.total, completeOnboarding]);
 
-  if (!isVisible) {
-    return null;
-  }
+  const showChecklist = isVisible && progress.completed !== progress.total;
 
-  if (progress.completed === progress.total) {
+  if (!showChecklist && !children) {
     return null;
   }
 
   return (
-    <AnimatePresence mode="popLayout" initial={false}>
-      {collapsed ? (
-        <motion.div
-          key="collapsed"
-          initial={{ opacity: 0.25, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0.25, scale: 0.9 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          className="pl-9 pt-9"
-        >
-          <button
-            type="button"
-            onClick={() => setCollapsed(false)}
-            className="rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+    <div className="flex flex-col">
+      <AnimatePresence mode="popLayout" initial={false}>
+        {showChecklist && !collapsed ? (
+          <motion.div
+            key="expanded"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+            style={{ transformOrigin: "bottom" }}
+            className="mb-2"
           >
-            First steps {progress.percentage}%
-          </button>
-        </motion.div>
-      ) : (
-        <motion.div
-          key="expanded"
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.9 }}
-          transition={{ duration: 0.2, ease: "easeOut" }}
-          style={{ transformOrigin: "bottom" }}
-          className="mb-9"
-        >
-          <Card>
-            <CardContent className="p-2 gap-2">
-              <div className="flex items-center justify-between h-6 px-2">
-                <div className="text-foreground-secondary">First steps</div>
-                <TooltipProvider>
-                  <div className="flex items-center gap-0.5">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <ActionButton
-                          variant="ghost"
-                          size="icon-sm"
-                          tooltip="More options"
-                          aria-label="Onboarding options"
-                        >
-                          <Ellipsis />
-                        </ActionButton>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={skipOnboarding}>
-                          Mark all as completed
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <ActionButton
-                      variant="ghost"
-                      size="icon-sm"
-                      tooltip="Collapse"
-                      onClick={() => setCollapsed(true)}
-                      aria-label="Collapse onboarding"
-                    >
-                      <Minus />
-                    </ActionButton>
-                  </div>
-                </TooltipProvider>
-              </div>
-              <div className="flex flex-col gap-3">
-                <div className="px-2">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
-                    <span>
-                      {progress.completed} of {progress.total} completed
-                    </span>
-                  </div>
-                  <Progress value={progress.percentage} className="h-1.5" />
+            <Card>
+              <CardContent className="p-2 gap-2">
+                <div className="flex items-center justify-between h-6 px-2">
+                  <div className="text-foreground-secondary">First steps</div>
+                  <TooltipProvider>
+                    <div className="flex items-center gap-0.5">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <ActionButton
+                            variant="ghost"
+                            size="icon-sm"
+                            tooltip="More options"
+                            aria-label="Onboarding options"
+                          >
+                            <Ellipsis />
+                          </ActionButton>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={skipOnboarding}>
+                            Mark all as completed
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <ActionButton
+                        variant="ghost"
+                        size="icon-sm"
+                        tooltip="Collapse"
+                        onClick={() => setCollapsed(true)}
+                        aria-label="Collapse onboarding"
+                      >
+                        <Minus />
+                      </ActionButton>
+                    </div>
+                  </TooltipProvider>
                 </div>
-                <SidebarMenu>
-                  {steps.map((step) => {
-                    const StepIcon = getStepIcon(step.id);
-                    const handleClick = () => {
-                      // Force open on click
-                      setHoverCardOpen(true);
-                    };
+                <div className="flex flex-col gap-3">
+                  <div className="px-2">
+                    <div className="flex items-center justify-between text-xs text-muted-foreground mb-1.5">
+                      <span>
+                        {progress.completed} of {progress.total} completed
+                      </span>
+                    </div>
+                    <Progress value={progress.percentage} className="h-1.5" />
+                  </div>
+                  <SidebarMenu>
+                    {steps.map((step) => {
+                      const StepIcon = getStepIcon(step.id);
+                      const handleClick = () => {
+                        // Force open on click
+                        setHoverCardOpen(true);
+                      };
 
-                    return (
-                      <SidebarMenuItem key={step.id}>
-                        <HoverCardTrigger
-                          render={
-                            <SidebarMenuButton
-                              className={cn(
-                                "gap-3 justify-between",
-                                step.isCompleted && "text-muted-foreground"
-                              )}
-                              onClick={handleClick}
-                            />
-                          }
-                          handle={hoverCardHandle}
-                          payload={{
-                            step,
-                          }}
-                        >
-                          <div className="flex items-center gap-3 grow shrink overflow-hidden">
-                            <StepIcon className="h-4 w-4 shrink-0" />
-                            <div
-                              className={cn(
-                                "truncate grow shrink",
-                                step.isCompleted && "line-through"
-                              )}
-                            >
-                              {step.title}
+                      return (
+                        <SidebarMenuItem key={step.id}>
+                          <HoverCardTrigger
+                            render={
+                              <SidebarMenuButton
+                                className={cn(
+                                  "gap-3 justify-between",
+                                  step.isCompleted && "text-muted-foreground"
+                                )}
+                                onClick={handleClick}
+                              />
+                            }
+                            handle={hoverCardHandle}
+                            payload={{
+                              step,
+                            }}
+                          >
+                            <div className="flex items-center gap-3 grow shrink overflow-hidden">
+                              <StepIcon className="h-4 w-4 shrink-0" />
+                              <div
+                                className={cn(
+                                  "truncate grow shrink",
+                                  step.isCompleted && "line-through"
+                                )}
+                              >
+                                {step.title}
+                              </div>
                             </div>
-                          </div>
-                          {step.isCompleted && (
-                            <Check className="h-4 w-4 text-muted-foreground" />
-                          )}
-                        </HoverCardTrigger>
-                      </SidebarMenuItem>
-                    );
-                  })}
-                </SidebarMenu>
-                <HoverCard
-                  handle={hoverCardHandle}
-                  open={hoverCardOpen}
-                  onOpenChange={setHoverCardOpen}
+                            {step.isCompleted && (
+                              <Check className="h-4 w-4 text-muted-foreground" />
+                            )}
+                          </HoverCardTrigger>
+                        </SidebarMenuItem>
+                      );
+                    })}
+                  </SidebarMenu>
+                  <HoverCard
+                    handle={hoverCardHandle}
+                    open={hoverCardOpen}
+                    onOpenChange={setHoverCardOpen}
+                  >
+                    {({ payload }) => (
+                      <HoverCardContent
+                        side="right"
+                        align="end"
+                        sideOffset={8}
+                        className="w-96"
+                      >
+                        <div className="space-y-2">
+                          <h4 className="font-medium text-sm">
+                            {payload?.step.title}
+                          </h4>
+                          {payload?.step.popoverContent}
+                        </div>
+                      </HoverCardContent>
+                    )}
+                  </HoverCard>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+      {(showChecklist && collapsed) || children ? (
+        <div
+          className={cn(
+            "flex items-center gap-2",
+            (!showChecklist || collapsed) && "pt-9"
+          )}
+        >
+          {children}
+          <AnimatePresence mode="popLayout" initial={false}>
+            {showChecklist && collapsed ? (
+              <motion.div
+                key="collapsed"
+                initial={{ opacity: 0.25, scale: 0.9 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0.25, scale: 0.9 }}
+                transition={{ duration: 0.2, ease: "easeOut" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(false)}
+                  className="h-6 rounded-full border bg-card px-3 text-xs text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
                 >
-                  {({ payload }) => (
-                    <HoverCardContent
-                      side="right"
-                      align="end"
-                      sideOffset={8}
-                      className="w-96"
-                    >
-                      <div className="space-y-2">
-                        <h4 className="font-medium text-sm">
-                          {payload?.step.title}
-                        </h4>
-                        {payload?.step.popoverContent}
-                      </div>
-                    </HoverCardContent>
-                  )}
-                </HoverCard>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-    </AnimatePresence>
+                  First steps {progress.percentage}%
+                </button>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
+        </div>
+      ) : null}
+    </div>
   );
 }

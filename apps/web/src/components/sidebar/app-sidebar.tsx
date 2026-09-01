@@ -27,6 +27,7 @@ import { Activity, MessagesSquare, Search } from "lucide-react";
 import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
 
 import { OrgSwitcher } from "./organization-switcher";
+import { Widget } from "./widget";
 
 const TREE_GAP_PX = 2;
 
@@ -149,7 +150,9 @@ export function AppSidebar(props: React.ComponentProps<typeof Sidebar>) {
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <FirstStepsChecklist />
+        <FirstStepsChecklist>
+          <Widget />
+        </FirstStepsChecklist>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

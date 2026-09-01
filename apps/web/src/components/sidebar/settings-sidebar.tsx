@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 
 import { FirstStepsChecklist } from "~/components/onboarding/first-steps-checklist";
+import { Widget } from "~/components/sidebar/widget";
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { query } from "~/lib/live-state";
 
@@ -159,7 +160,9 @@ export function SettingsSidebar() {
         {/* <NavSecondary items={data.navSecondary} className="mt-auto" /> */}
       </SidebarContent>
       <SidebarFooter>
-        <FirstStepsChecklist />
+        <FirstStepsChecklist>
+          <Widget />
+        </FirstStepsChecklist>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

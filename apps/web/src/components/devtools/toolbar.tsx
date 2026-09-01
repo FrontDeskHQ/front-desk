@@ -2,19 +2,28 @@
 
 import { getRouteApi } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
+import { cn } from "@workspace/ui/lib/utils";
 import { useAtomValue, useSetAtom } from "jotai/react";
-import { Command as CommandIcon } from "lucide-react";
+import { Wrench } from "lucide-react";
 import { useState } from "react";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
-import { commandMenuOpenAtom } from "~/lib/commands/registry";
+import {
+  commandMenuOpenAtom,
+  commandRegistryActions,
+  commandRegistryAtom,
+} from "~/lib/commands/registry";
 import { hasDeveloperToolAccess } from "~/lib/developer-tools/access";
 import { useOrganizationSwitcher } from "~/lib/hooks/query/use-organization-switcher";
 
-import { DeveloperToolsCommands } from "./developer-commands";
+import {
+  DEVELOPER_TOOLS_PAGE_ID,
+  DeveloperToolsCommands,
+} from "./developer-commands";
 import { FpsMeter } from "./fps-meter";
 import { LiveStateLog } from "./live-state-log";
 import { LiveStateMetrics } from "./live-state-metrics";
+import { MemoryMeter } from "./memory-meter";
 import { ReactScan } from "./react-scan";
 
 type HideMode = "temporary" | "section" | null;
@@ -23,6 +32,7 @@ export const Toolbar = () => {
   const [hideMode, setHideMode] = useState<HideMode>(null);
   const [liveStateLogOpen, setLiveStateLogOpen] = useState(false);
   const setCommandMenuOpen = useSetAtom(commandMenuOpenAtom);
+  const setCommandRegistry = useSetAtom(commandRegistryAtom);
   const currentOrganization = useAtomValue(activeOrganizationAtom);
   const organizationId = currentOrganization?.id;
   const { organizationUsers } = useOrganizationSwitcher();
@@ -63,37 +73,50 @@ export const Toolbar = () => {
 
   return (
     <>
-      <div className="w-screen h-6 bg-background-secondary border-t shrink-0 flex font-mono text-xs gap-2 items-center px-8 z-10">
+      <div
+        className={cn(
+          "flex h-6 w-screen shrink-0 items-center gap-2 px-8 text-xs z-10 border-t font-mono",
+          isLocalEnvironment ? "bg-brand/40 border-white/20" : "bg-transparent"
+        )}
+      >
         <span
           aria-label={`Environment: ${isLocalEnvironment ? "local" : "production"}`}
-          className={
-            isLocalEnvironment
-              ? "rounded-sm bg-amber-400 px-1.5 py-0.5 text-[10px] font-bold leading-none text-amber-950"
-              : "rounded-sm bg-emerald-700 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white"
-          }
+          className="mr-5 font-mono"
         >
-          {isLocalEnvironment ? "LOCAL" : "PROD"}
+          {isLocalEnvironment ? "LOCALHOST" : "PROD"}
         </span>
         <div className="bg-border w-px h-4" />
         <FpsMeter />
         <div className="bg-border w-px h-4" />
         <LiveStateMetrics />
-        <div className="bg-border w-px h-4" />
-        <Button
-          aria-label="Open developer tools command menu"
-          className="h-5 px-2 rounded-sm font-mono text-xs"
-          onClick={() => setCommandMenuOpen(true)}
-          size="sm"
-          variant="ghost"
-        >
-          <CommandIcon />
-          Command K
-        </Button>
-        <div className="bg-border w-px h-4" />
-        <LiveStateLog
-          onOpenChange={setLiveStateLogOpen}
-          open={liveStateLogOpen}
-        />
+        <MemoryMeter />
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            aria-label="Open developer tools command menu"
+            className="h-5 px-2 rounded-sm font-mono text-xs"
+            onClick={() => {
+              setCommandRegistry((state) => {
+                const reset = commandRegistryActions.resetNavigation(state);
+                const cleared = commandRegistryActions.setSearch(reset, "");
+                return commandRegistryActions.setPage(
+                  cleared,
+                  DEVELOPER_TOOLS_PAGE_ID
+                );
+              });
+              setCommandMenuOpen(true);
+            }}
+            size="sm"
+            variant="ghost"
+          >
+            <Wrench />
+            Dev tools
+          </Button>
+          <div className="bg-border w-px h-4" />
+          <LiveStateLog
+            onOpenChange={setLiveStateLogOpen}
+            open={liveStateLogOpen}
+          />
+        </div>
       </div>
       <DeveloperToolsCommands
         onHideToolbar={handleHideToolbar}
