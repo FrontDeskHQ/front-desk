@@ -1,0 +1,33 @@
+apps/api/src/live-state/router/developer-action.ts
+  s_d79447800df998::t_c0b3e1a8736588 11,60,67-95
+  s_d79447800df998::t_c7e261436de450 13
+docs/adr/0020-agent-closes-external-entity-loops.md
+  s_d79447800df998::t_ea2d8bceeeb8f2 17
+apps/api/src/lib/developer-action-dispatch.test.ts
+  s_d79447800df998::t_253b0c512dccb3 13-15,61,99-103,225-278
+connectors/github/src/lib/developer-actions.ts
+  s_d79447800df998::t_c0b3e1a8736588 304
+connectors/github/src/routes/actions.test.ts
+  s_d79447800df998::t_c0b3e1a8736588 197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "85cff184651c9123918ef343d7d3c3b137d96df1",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_d79447800df998": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d40-6dea-7de0-b33e-8f380420483c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
