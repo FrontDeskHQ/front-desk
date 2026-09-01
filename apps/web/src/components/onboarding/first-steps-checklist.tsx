@@ -104,6 +104,7 @@ export function FirstStepsChecklist({ children }: { children?: ReactNode }) {
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
             style={{ transformOrigin: "bottom" }}
+            className="mb-2"
           >
             <Card>
               <CardContent className="p-2 gap-2">
