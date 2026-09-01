@@ -39,7 +39,7 @@ export function Widget() {
       ]}
       trigger={{
         className:
-          "dark:bg-background-secondary dark:hover:bg-background-tertiary left-4 bottom-4 size-7 p-0 [&_svg]:size-4!",
+          "relative top-auto right-auto bottom-auto left-auto z-10 size-6 shrink-0 p-0 shadow-none rounded-full border bg-card text-muted-foreground hover:text-foreground hover:bg-accent dark:bg-card dark:hover:bg-accent [&_svg]:size-3.5!",
       }}
     />
   );
