@@ -194,8 +194,22 @@ export const STATUS_WITNESS_CLASSES = [
 export const statusWitnessClassSchema = z.enum(STATUS_WITNESS_CLASSES);
 export type StatusWitnessClass = z.infer<typeof statusWitnessClassSchema>;
 
+/** Provider-neutral customer impact of a finished external entity. */
+export const EXTERNAL_ENTITY_OUTCOMES = [
+  "delivered",
+  "declined",
+  "superseded",
+  "unknown",
+] as const;
+export const externalEntityOutcomeSchema = z.enum(EXTERNAL_ENTITY_OUTCOMES);
+export type ExternalEntityOutcome = z.infer<
+  typeof externalEntityOutcomeSchema
+>;
+
 export const statusWitnessSchema = z.object({
   class: statusWitnessClassSchema,
+  /** Required for `entity_settled`; ignored by the other witness classes. */
+  outcome: externalEntityOutcomeSchema.optional(),
   /**
    * What the class points at: message ids for `customer_confirmed`, the
    * external entity id for `entity_settled`. Empty for `abandoned` (the trigger
@@ -800,6 +814,7 @@ export function parseAutonomousActionMetadata(
 export const threadReadKindSchema = z.enum([
   "message",
   "pr_matched",
+  "entity_finished",
   "sla",
   "supersede",
   "manual",
@@ -820,12 +835,23 @@ export const prMatchCandidateSchema = z.object({
 });
 export type PrMatchCandidate = z.infer<typeof prMatchCandidateSchema>;
 
+/** Authoritative linked entity that caused an `entity_finished` run. */
+export const entityFinishedCandidateSchema = z.object({
+  externalKey: z.string().min(1),
+  type: z.enum(["issue", "pull_request"]),
+  url: z.string().url(),
+});
+export type EntityFinishedCandidate = z.infer<
+  typeof entityFinishedCandidateSchema
+>;
+
 /**
  * The trigger-context channel (ADR 0006): the cause of a pipeline run plus any
  * payload it pushed. Kept separate from `hints` so synthesis can distinguish a
  * push-side `pr_matched` candidate from a pull-side `related_prs` hint.
  */
 export const threadReadTriggerSchema = z.object({
+  entityFinished: entityFinishedCandidateSchema.optional(),
   kind: threadReadKindSchema,
   prMatched: prMatchCandidateSchema.optional(),
 });
@@ -855,7 +881,9 @@ export type LegacyThreadReadJobData = z.infer<
 const triggerIdentity = (trigger: ThreadReadTrigger): string =>
   trigger.kind === "pr_matched" && trigger.prMatched
     ? `pr_matched:${trigger.prMatched.prId}`
-    : trigger.kind;
+    : trigger.kind === "entity_finished" && trigger.entityFinished
+      ? `entity_finished:${trigger.entityFinished.externalKey}`
+      : trigger.kind;
 
 /**
  * Merge causes without overwriting them. The first occurrence fixes arrival

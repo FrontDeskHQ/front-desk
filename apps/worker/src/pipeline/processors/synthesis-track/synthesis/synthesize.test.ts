@@ -158,6 +158,30 @@ describe("synthesis action contract", () => {
     expect(prompt).not.toContain("promise to follow up with the customer");
   });
 
+  it("requires structural reads and hides tracker references for finished entities", () => {
+    const input = inputFor();
+    input.triggers = [
+      {
+        entityFinished: {
+          externalKey: "github:acme/app#42",
+          type: "issue",
+          url: "https://github.com/acme/app/issues/42",
+        },
+        kind: "entity_finished",
+      },
+    ];
+
+    const prompt = buildSynthesisPrompt(input);
+
+    expect(prompt).toContain(
+      "call read_external_entity with its exact externalKey"
+    );
+    expect(prompt).toContain("outcome is `delivered`");
+    expect(prompt).toContain(
+      "Never put an external URL, externalKey, tracker id, or issue/PR number"
+    );
+  });
+
   it("keeps enabled non-reply actions on an unreplied thread when reply is off", () => {
     const output = parseRawActionSetFromText(
       rawActionSet({ kind: "set_status", status: 1, witness: null }),

@@ -1,4 +1,8 @@
-import { isIssueAction, isReversible } from "@workspace/schemas/signals";
+import {
+  isFinishedStatus,
+  isIssueAction,
+  isReversible,
+} from "@workspace/schemas/signals";
 import type { Action } from "@workspace/schemas/signals";
 
 import type {
@@ -19,7 +23,21 @@ const partitionBundle = (bundle: Action[]) => {
     }
   }
 
-  return { nonReversibles, reversibles };
+  // If a bundle both tells the customer and finishes the thread, persist the
+  // reply first. A failed reply must leave the thread live for retry/review;
+  // a failed status update after a persisted reply is safe to retry alone.
+  const finishingStatuses = nonReversibles.filter(
+    (action) => action.kind === "set_status" && isFinishedStatus(action.status)
+  );
+  const orderedNonReversibles = [
+    ...nonReversibles.filter(
+      (action) =>
+        action.kind !== "set_status" || !isFinishedStatus(action.status)
+    ),
+    ...finishingStatuses,
+  ];
+
+  return { nonReversibles: orderedNonReversibles, reversibles };
 };
 
 const runSequential = async (

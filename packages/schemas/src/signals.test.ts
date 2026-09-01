@@ -15,6 +15,12 @@ const candidate = (prId: string, score: number, title = prId) => ({
   url: `https://example.com/${prId}`,
 });
 
+const finished = (externalKey: string) => ({
+  externalKey,
+  type: "issue" as const,
+  url: `https://example.com/${externalKey}`,
+});
+
 describe("thread-read trigger contracts", () => {
   it("preserves queue generation for audit identity", () => {
     expect(
@@ -105,6 +111,44 @@ describe("thread-read trigger contracts", () => {
     expect(sortThreadReadTriggers(left)).toStrictEqual(
       sortThreadReadTriggers(right)
     );
+  });
+
+  it("coalesces finished entities independently and refreshes matching payloads", () => {
+    const triggers = mergeThreadReadTriggers(
+      [
+        {
+          entityFinished: finished("issue-1"),
+          kind: "entity_finished" as const,
+        },
+      ],
+      [
+        {
+          entityFinished: finished("issue-2"),
+          kind: "entity_finished" as const,
+        },
+        {
+          entityFinished: {
+            ...finished("issue-1"),
+            url: "https://example.com/refreshed",
+          },
+          kind: "entity_finished" as const,
+        },
+      ]
+    );
+
+    expect(triggers).toStrictEqual([
+      {
+        entityFinished: {
+          ...finished("issue-1"),
+          url: "https://example.com/refreshed",
+        },
+        kind: "entity_finished",
+      },
+      {
+        entityFinished: finished("issue-2"),
+        kind: "entity_finished",
+      },
+    ]);
   });
 });
 

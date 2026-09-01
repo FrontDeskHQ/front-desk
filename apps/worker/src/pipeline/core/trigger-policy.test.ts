@@ -4,7 +4,13 @@ import { hasSynthesisTrigger } from "./trigger-policy";
 
 describe(hasSynthesisTrigger, () => {
   it("forces synthesis for every non-supersede cause", () => {
-    for (const kind of ["message", "pr_matched", "sla", "manual"] as const) {
+    for (const kind of [
+      "message",
+      "pr_matched",
+      "entity_finished",
+      "sla",
+      "manual",
+    ] as const) {
       expect(hasSynthesisTrigger([{ kind }])).toBeTruthy();
     }
   });

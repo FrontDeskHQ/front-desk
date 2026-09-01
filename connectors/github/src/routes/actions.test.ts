@@ -153,7 +153,63 @@ const replayTarget = {
   url: "https://github.com/owner/repo/pull/123",
 };
 
+const issueTarget = {
+  externalKey: "github:owner/repo#124",
+  number: 124,
+  repoFullName: "owner/repo",
+  url: "https://github.com/owner/repo/issues/124",
+};
+
 describe("GitHub developer-action handlers", () => {
+  it("refreshes and replays a finished external entity", async () => {
+    const replayFinished = vi
+      .fn<GithubDeveloperActionDependencies["replayFinished"]>()
+      .mockResolvedValue({ jobIds: ["thread-read-job"] });
+    const upsertExternalEntity = vi
+      .fn<GithubDeveloperActionDependencies["upsertExternalEntity"]>()
+      .mockResolvedValue(undefined);
+    const handlers = createGithubDeveloperActionHandlers({
+      fetchIssue: vi
+        .fn<GithubDeveloperActionDependencies["fetchIssue"]>()
+        .mockResolvedValue({
+          assignees: [],
+          body: "Done",
+          closed_at: "2026-08-05T00:00:00Z",
+          created_at: "2026-08-03T00:00:00Z",
+          html_url: issueTarget.url,
+          id: 124,
+          labels: [],
+          number: 124,
+          state: "closed",
+          title: "Implement request",
+          updated_at: "2026-08-05T00:00:00Z",
+          user: { login: "maintainer" },
+        }),
+      replayFinished,
+      upsertExternalEntity,
+    });
+
+    const response = await handlers.entity_finished_replay(githubConfig, {
+      organizationId: "org-a",
+      target: issueTarget,
+      type: "issue",
+    });
+
+    expect(response).toStrictEqual({
+      body: {
+        accepted: true,
+        jobIds: ["thread-read-job"],
+        target: issueTarget.externalKey,
+      },
+      status: 202,
+    });
+    expect(upsertExternalEntity).toHaveBeenCalledOnce();
+    expect(replayFinished).toHaveBeenCalledWith({
+      externalKey: issueTarget.externalKey,
+      organizationId: "org-a",
+    });
+  });
+
   it("refreshes an eligible PR and enqueues the existing match pipeline", async () => {
     const fetchPullRequest = vi
       .fn<GithubDeveloperActionDependencies["fetchPullRequest"]>()

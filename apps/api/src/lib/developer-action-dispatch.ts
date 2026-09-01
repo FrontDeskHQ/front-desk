@@ -16,7 +16,7 @@ import {
  * from connector capabilities and is extended when a new action is shipped.
  */
 export const DEVELOPER_ACTIONS: Readonly<Record<string, readonly string[]>> = {
-  github: ["pr_match_replay", "repository_backfill"],
+  github: ["entity_finished_replay", "pr_match_replay", "repository_backfill"],
 };
 
 export const isKnownDeveloperAction = (
@@ -129,6 +129,7 @@ const repositoryBackfillInputSchema = z
   });
 
 type ParsedDeveloperActionInput =
+  | { action: "entity_finished_replay"; entityId: string }
   | { action: "pr_match_replay"; entityId: string }
   | {
       action: "repository_backfill";
@@ -140,6 +141,14 @@ const parseDeveloperActionInput = (args: {
   action: string;
   payload: Record<string, unknown>;
 }): ParsedDeveloperActionInput => {
+  if (args.action === "entity_finished_replay") {
+    const parsed = prMatchReplayInputSchema.safeParse(args.payload);
+    if (!parsed.success) {
+      throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_INPUT");
+    }
+    return { action: args.action, entityId: parsed.data.entityId };
+  }
+
   if (args.action === "pr_match_replay") {
     const parsed = prMatchReplayInputSchema.safeParse(args.payload);
     if (!parsed.success) {
@@ -180,7 +189,10 @@ export const resolveDeveloperActionPayload = async (
 ): Promise<Record<string, unknown>> => {
   const input = parseDeveloperActionInput(args);
 
-  if (input.action === "pr_match_replay") {
+  if (
+    input.action === "pr_match_replay" ||
+    input.action === "entity_finished_replay"
+  ) {
     const entity = Object.values(
       await db.find(schema.externalEntity, {
         where: {
@@ -188,7 +200,9 @@ export const resolveDeveloperActionPayload = async (
           id: input.entityId,
           organizationId: args.organizationId,
           provider: args.connectorType,
-          type: "pull_request",
+          ...(input.action === "pr_match_replay"
+            ? { type: "pull_request" as const }
+            : {}),
         },
       })
     )[0] as ExternalEntityRow | undefined;
@@ -200,6 +214,9 @@ export const resolveDeveloperActionPayload = async (
     return {
       organizationId: args.organizationId,
       target: buildEntityRef(entity),
+      ...(input.action === "entity_finished_replay"
+        ? { type: entity.type }
+        : {}),
     };
   }
 

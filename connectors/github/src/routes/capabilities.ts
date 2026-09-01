@@ -4,12 +4,24 @@ import {
   invokeEnvelopeSchema,
   issueTrackerSetStatePayloadSchema,
   prTrackerLinkPayloadSchema,
+  trackerReadOutcomePayloadSchema,
+  trackerReadOutcomeResultSchema,
 } from "@connectors/framework";
 import { formatGitHubId } from "@workspace/schemas/external-issue";
 import Elysia from "elysia";
 import { z } from "zod";
 
-import { addComment, createIssue, setIssueState } from "../lib/github";
+import {
+  addComment,
+  createIssue,
+  fetchIssueOutcome,
+  fetchPullRequestOutcome,
+  setIssueState,
+} from "../lib/github";
+import {
+  normalizeGitHubIssueOutcome,
+  normalizeGitHubPullRequestOutcome,
+} from "../lib/outcome";
 
 /**
  * GitHub's opaque config, interpreted here — the core forwards `configStr`
@@ -45,6 +57,7 @@ const createIssuePayloadSchema = z.object({
 // the schemas the core dispatches against.
 const setStatePayloadSchema = issueTrackerSetStatePayloadSchema;
 const linkPayloadSchema = prTrackerLinkPayloadSchema;
+const readOutcomePayloadSchema = trackerReadOutcomePayloadSchema;
 
 /** A handled response: an HTTP status plus the JSON body to return. */
 interface HandlerResult {
@@ -171,14 +184,57 @@ const handleLinkPullRequest = async (
   }
 };
 
+const handleReadOutcome =
+  (type: "issue" | "pull_request") =>
+  async (config: GithubConfig, payload: unknown): Promise<HandlerResult> => {
+    const parsed = readOutcomePayloadSchema.safeParse(payload);
+    if (!parsed.success) {
+      return err(400, parsed.error.issues[0]?.message ?? "Invalid payload");
+    }
+    const { entity } = parsed.data;
+    const repo = findRepo(config, entity.repoFullName);
+    if (!repo) {
+      return err(400, "REPOSITORY_NOT_CONNECTED");
+    }
+
+    try {
+      const result =
+        type === "issue"
+          ? normalizeGitHubIssueOutcome(
+              await fetchIssueOutcome(
+                config.installationId,
+                repo.owner,
+                repo.name,
+                entity.number
+              ),
+              entity
+            )
+          : normalizeGitHubPullRequestOutcome(
+              await fetchPullRequestOutcome(
+                config.installationId,
+                repo.owner,
+                repo.name,
+                entity.number
+              ),
+              entity
+            );
+      return { body: trackerReadOutcomeResultSchema.parse(result), status: 200 };
+    } catch (error) {
+      console.error(`Error reading ${type} outcome:`, error);
+      return err(503, "Failed to read external outcome");
+    }
+  };
+
 /** Dispatch table keyed by `capability/method`. */
 const handlers: Record<
   string,
   (config: GithubConfig, payload: unknown) => Promise<HandlerResult>
 > = {
   "issue-tracker/create": handleCreateIssue,
+  "issue-tracker/readOutcome": handleReadOutcome("issue"),
   "issue-tracker/setState": handleSetIssueState,
   "pr-tracker/link": handleLinkPullRequest,
+  "pr-tracker/readOutcome": handleReadOutcome("pull_request"),
 };
 
 /**

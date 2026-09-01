@@ -2,6 +2,11 @@ import { App } from "octokit";
 
 import { getGitHubConfig } from "../utils";
 import type { GitHubPullRequestLike } from "./external-entity";
+import type { GitHubIssueLike } from "./external-entity";
+import type {
+  GitHubIssueOutcomeNode,
+  GitHubPullRequestOutcomeNode,
+} from "./outcome";
 
 const config = getGitHubConfig();
 
@@ -41,6 +46,29 @@ export const fetchIssues = async (
     console.error(`Error fetching issues:`, error);
     throw error;
   }
+};
+
+/** Fetch one authoritative issue for a developer-action replay. */
+export const fetchIssue = async (
+  installationId: number,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<GitHubIssueLike> => {
+  const octokit = await getOctokit(installationId);
+  const { data } = await octokit.request(
+    "GET /repos/{owner}/{repo}/issues/{issue_number}",
+    {
+      headers: { "X-GitHub-Api-Version": "2022-11-28" },
+      issue_number: issueNumber,
+      owner,
+      repo,
+    }
+  );
+  if (data.pull_request) {
+    throw new Error("TARGET_IS_PULL_REQUEST");
+  }
+  return data as GitHubIssueLike;
 };
 
 export const createIssue = async (
@@ -180,4 +208,75 @@ export const fetchPullRequest = async (
     console.error("Error fetching pull request:", error);
     throw error;
   }
+};
+
+export const fetchIssueOutcome = async (
+  installationId: number,
+  owner: string,
+  repo: string,
+  issueNumber: number
+): Promise<GitHubIssueOutcomeNode> => {
+  const octokit = await getOctokit(installationId);
+  const result = await octokit.graphql<{ repository: { issue: GitHubIssueOutcomeNode | null } }>(
+    `query ReadIssueOutcome($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        issue(number: $number) {
+          body
+          databaseId
+          number
+          state
+          stateReason
+          title
+          url
+          repository { nameWithOwner }
+          duplicateOf {
+            body
+            databaseId
+            number
+            state
+            stateReason
+            title
+            url
+            repository { nameWithOwner }
+          }
+        }
+      }
+    }`,
+    { number: issueNumber, owner, repo }
+  );
+  if (!result.repository.issue) {
+    throw new Error("ISSUE_NOT_FOUND");
+  }
+  return result.repository.issue;
+};
+
+export const fetchPullRequestOutcome = async (
+  installationId: number,
+  owner: string,
+  repo: string,
+  pullNumber: number
+): Promise<GitHubPullRequestOutcomeNode> => {
+  const octokit = await getOctokit(installationId);
+  const result = await octokit.graphql<{
+    repository: { pullRequest: GitHubPullRequestOutcomeNode | null };
+  }>(
+    `query ReadPullRequestOutcome($owner: String!, $repo: String!, $number: Int!) {
+      repository(owner: $owner, name: $repo) {
+        pullRequest(number: $number) {
+          body
+          merged
+          number
+          state
+          title
+          url
+          repository { nameWithOwner }
+        }
+      }
+    }`,
+    { number: pullNumber, owner, repo }
+  );
+  if (!result.repository.pullRequest) {
+    throw new Error("PULL_REQUEST_NOT_FOUND");
+  }
+  return result.repository.pullRequest;
 };

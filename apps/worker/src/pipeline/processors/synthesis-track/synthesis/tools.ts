@@ -2,6 +2,7 @@ import { tool } from "ai";
 import z from "zod";
 
 import {
+  fetchExternalEntityOutcome,
   fetchMirroredIssueByUrl,
   fetchMirroredPrByUrl,
   fetchThreadWithRelations,
@@ -59,6 +60,19 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
   const { audit, organizationId, currentThreadId, currentThread } = options;
 
   return {
+    read_external_entity: tool({
+      description:
+        "Read the current provider-verified structural outcome of a mirrored " +
+        "issue or pull request by externalKey. Returns delivered, declined, " +
+        "superseded, or unknown plus a structured canonical successor for " +
+        "duplicates. It never reads comments.",
+      inputSchema: z.object({
+        externalKey: z.string().min(1),
+      }),
+      execute: async ({ externalKey }) =>
+        fetchExternalEntityOutcome(organizationId, externalKey),
+    }),
+
     read_documentation_page: tool({
       description:
         "Read full documentation chunks for a specific page URL in this organization.",

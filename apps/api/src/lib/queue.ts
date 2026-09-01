@@ -10,6 +10,7 @@ import type {
 } from "@workspace/queue/thread-read";
 import type {
   IssueIndexJobData,
+  EntityFinishedCandidate,
   PrIndexJobData,
   PrMatchCandidate,
   ThreadReadKind,
@@ -45,6 +46,8 @@ export const enqueueThreadRead = async (
     organizationId?: string;
     /** Candidate PR for a `pr_matched` trigger (ADR 0006 trigger channel). */
     prMatched?: PrMatchCandidate;
+    /** Linked entity that crossed from unfinished to finished. */
+    entityFinished?: EntityFinishedCandidate;
   } & EnqueueThreadReadOptions
 ): Promise<ThreadReadEnqueueResult> => {
   // A missing tenant cannot evaluate the flag at enqueue time. Still enqueue
@@ -81,6 +84,9 @@ export const enqueueThreadRead = async (
     threadId,
     {
       kind: opts.kind,
+      ...(opts.entityFinished
+        ? { entityFinished: opts.entityFinished }
+        : {}),
       ...(opts.prMatched ? { prMatched: opts.prMatched } : {}),
     },
     { delayMs: opts.delayMs, priority: opts.priority }
