@@ -44,7 +44,7 @@ export const FpsMeter = () => {
 
   const getFpsColor = () => {
     if (fps >= 55) {
-      return "text-green-400 dark:text-green-600";
+      return "text-primary";
     }
     if (fps >= 30) {
       return "text-yellow-400 dark:text-yellow-600";
