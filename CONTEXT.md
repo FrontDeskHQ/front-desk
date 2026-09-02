@@ -129,7 +129,7 @@ What justifies finishing a [thread](#thread), and the input to status's [action 
 
 Deliberately its own noun rather than an extension of [grounding](#grounding), which is a property of a _reply's prose_; a witness is a property of a _state change_. Both are named classes for the same reason: a self-reported score is uncheckable. Resolving additionally requires a reply that is itself sending, so a conversation never ends without the customer hearing about it. _Avoid_: "confidence" (see [grounding](#grounding)), "status score".
 
-An `entity_settled` witness earns autonomous resolution only for a `delivered` outcome, such as a completed fix or merged pull request. A `declined` outcome, such as work the provider marks not planned, may still support a human-approved reply and resolution. `unknown` outcomes remain inferred. An external entity reopening later does not reopen or message threads that its earlier outcome resolved.
+An `entity_settled` witness earns autonomous resolution only for a `delivered` outcome, such as a completed fix or merged pull request. A `declined` outcome, such as work the provider marks not planned, may still support a human-approved reply and resolution. A `superseded` outcome remains inferred: the Agent follows its authoritative successor, and only that successor's verified outcome can settle the thread. `unknown` outcomes also remain inferred. An external entity reopening later does not reopen or message threads that its earlier outcome resolved.
 
 ### Autonomous action
 

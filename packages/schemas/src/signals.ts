@@ -966,14 +966,19 @@ export const normalizeThreadReadJobData = (
   }
 
   const legacy = legacyThreadReadJobDataSchema.parse(input);
+  // The pre-generational shape cannot carry authoritative entity evidence.
+  // During a rolling deployment, degrade that incomplete cause to a manual
+  // read instead of inventing a candidate or exhausting queue retries.
+  const legacyKind =
+    legacy.kind === "entity_finished" ? "manual" : legacy.kind;
   const triggers: ThreadReadTrigger[] = legacy.prMatched
-    ? legacy.kind === "pr_matched"
+    ? legacyKind === "pr_matched"
       ? [{ kind: "pr_matched", prMatched: legacy.prMatched }]
       : [
-          { kind: legacy.kind },
+          { kind: legacyKind },
           { kind: "pr_matched", prMatched: legacy.prMatched },
         ]
-    : [{ kind: legacy.kind }];
+    : [{ kind: legacyKind }];
   return {
     ...(legacy.generation === undefined
       ? {}

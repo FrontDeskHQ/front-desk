@@ -124,6 +124,57 @@ export const addExternalEntityReferenceTokens = (
   }
 };
 
+const trackerReferenceFromUrl = (value: string): string | null => {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    const segments = decodeURIComponent(url.pathname)
+      .split("/")
+      .filter(Boolean);
+    const entityIndex = segments.findIndex((segment) =>
+      ["issues", "merge_requests", "pull", "pulls"].includes(segment)
+    );
+    const number = segments[entityIndex + 1];
+    if (entityIndex < 1 || !number || !/^\d+$/.test(number)) {
+      return null;
+    }
+    const repository = segments
+      .slice(0, entityIndex)
+      .filter((segment) => segment !== "-")
+      .join("/")
+      .toLowerCase();
+    const kind = ["pull", "pulls", "merge_requests"].includes(
+      segments[entityIndex] ?? ""
+    )
+      ? "pull_request"
+      : "issue";
+    return `${host}:${repository}:${kind}:${number}`;
+  } catch {
+    return null;
+  }
+};
+
+const containsEquivalentTrackerUrl = (
+  markdown: string,
+  tokens: Set<string>
+): boolean => {
+  const protectedReferences = new Set(
+    [...tokens]
+      .map(trackerReferenceFromUrl)
+      .filter((reference): reference is string => reference !== null)
+  );
+  if (protectedReferences.size === 0) {
+    return false;
+  }
+  const urls = markdown.match(/https?:\/\/[^\s<>"')\]]+/gi) ?? [];
+  return urls.some((candidate) => {
+    const reference = trackerReferenceFromUrl(
+      candidate.replace(/[.,;:!?]+$/, "")
+    );
+    return reference !== null && protectedReferences.has(reference);
+  });
+};
+
 export const replyContainsExternalReference = (
   action: Action,
   tokens: Set<string>
@@ -132,6 +183,7 @@ export const replyContainsExternalReference = (
   ([...tokens].some(
     (token) => token.length > 0 && action.draftMarkdown.includes(token)
   ) ||
+    containsEquivalentTrackerUrl(action.draftMarkdown, tokens) ||
     /\b(?:issue|pull\s+request|pr)\s*#?\s*\d+\b/i.test(
       action.draftMarkdown
     ));

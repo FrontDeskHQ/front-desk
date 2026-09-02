@@ -143,6 +143,29 @@ describe("entity outcome verification", () => {
     ).toBe(true);
   });
 
+  it("blocks normalized variants of verified tracker links", () => {
+    expect(
+      replyContainsExternalReference(
+        {
+          draftMarkdown:
+            "You can read the [details](https://www.github.com/acme/app/issues/42?source=reply).",
+          kind: "reply",
+        },
+        new Set(["https://github.com/acme/app/issues/42"])
+      )
+    ).toBe(true);
+    expect(
+      replyContainsExternalReference(
+        {
+          draftMarkdown:
+            "The related issue is https://github.com/acme/other/issues/42.",
+          kind: "reply",
+        },
+        new Set(["https://github.com/acme/app/issues/42"])
+      )
+    ).toBe(false);
+  });
+
   it("downgrades an unverified delivered witness and triggered reply", () => {
     const actions: Action[] = [
       {

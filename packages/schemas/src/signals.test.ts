@@ -71,6 +71,18 @@ describe("thread-read trigger contracts", () => {
     });
   });
 
+  it("degrades an incomplete legacy entity_finished cause to manual", () => {
+    expect(
+      normalizeThreadReadJobData({
+        kind: "entity_finished",
+        threadId: "thread-1",
+      })
+    ).toStrictEqual({
+      threadId: "thread-1",
+      triggers: [{ kind: "manual" }],
+    });
+  });
+
   it("normalizes legacy coalesced payloads without losing either cause", () => {
     expect(
       normalizeThreadReadJobData({
