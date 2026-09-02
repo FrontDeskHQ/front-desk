@@ -1,0 +1,26 @@
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/entity-outcome-verification.ts
+  s_d79447800df998::t_48cbed02a44fc3 134-138,150,172,174-176,178
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/entity-outcome-verification.test.ts
+  s_d79447800df998::t_48cbed02a44fc3 169-194
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7a7dcf73c40e9dc4fecb6491fc5c6d95921f5b02",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_d79447800df998": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d40-6dea-7de0-b33e-8f380420483c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
