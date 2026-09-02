@@ -1,0 +1,93 @@
+CONTEXT.md
+  s_d79447800df998::t_1e2f5704f9dc81 87,132
+apps/web/src/components/devtools/developer-commands.tsx
+  s_d79447800df998::t_878c43aba87d6b 108,112,116-127,132,138
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.ts
+  s_d79447800df998::t_1ed44f8678acca 32,841-844,863
+apps/api/src/live-state/router/external-entity.ts
+  s_d79447800df998::t_b5f4bcb95d41ab 8,36-41,337-339
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/tools.ts
+  s_d79447800df998::t_0f13e7442f658b 70-73
+  s_d79447800df998::t_d641eda196a70c 20-23
+connectors/github/src/lib/outcome.ts
+  s_d79447800df998::t_96d282d341ca74 50-67,72,75,86-87
+apps/api/src/lib/thread-mutations.ts
+  s_d79447800df998::t_aa0222332a9cf1 447-467
+connectors/framework/src/invoke.test.ts
+  s_d79447800df998::t_ac315ea29a2cc6 6,96-141
+connectors/github/src/lib/github.test.ts
+  s_d79447800df998::t_e98c95eee72a49 1,5,12-37,64-67
+  s_d79447800df998::t_78b2fa91c688e1 6-11,38-63
+  s_d79447800df998::t_609cc36812d003 2-4
+apps/api/src/lib/signals/execute-bundle.test.ts
+  s_d79447800df998::t_0935a9b1f38634 58-80
+connectors/framework/src/capabilities.ts
+  s_d79447800df998::t_04dab4f10fa114 199-200
+apps/api/src/lib/developer-action-dispatch.ts
+  s_d79447800df998::t_02cfb1b629862a 177-179
+apps/api/src/lib/developer-action-dispatch.test.ts
+  s_d79447800df998::t_2bc6042da0267c 285-339,394-443
+  s_d79447800df998::t_609cc36812d003 15-18
+  s_d79447800df998::t_210c45d21daab4 102
+  s_d79447800df998::t_fbb7e2be088602 340-393
+connectors/framework/src/invoke.ts
+  s_d79447800df998::t_e13000edf44114 68-88,98,108,119
+packages/schemas/src/signals.test.ts
+  s_d79447800df998::t_0935a9b1f38634 8-9,27-45,176-183
+apps/api/src/lib/signals/execute-bundle.ts
+  s_d79447800df998::t_b0211d67d3b658 32-34,37
+  s_d79447800df998::t_1109d6788a80b5 35,38
+  s_d79447800df998::t_609cc36812d003 19-22
+connectors/github/src/lib/developer-actions.ts
+  s_d79447800df998::t_21ce77ee9bf773 269,271,295-318
+  s_d79447800df998::t_50ce89bbcb4f48 11
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/entity-outcome-verification.test.ts
+  s_d79447800df998::t_e0a164660effe9 5,81-125,144-145,190-231
+  s_d79447800df998::t_fa61857d75bb5f 8,126-143
+connectors/framework/src/index.ts
+  s_d79447800df998::t_d641eda196a70c 40
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-harness.ts
+  s_d79447800df998::t_dc568bb67ad893 106,108-112
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/eval/agent-dataset.ts
+  s_d79447800df998::t_d641eda196a70c 9,37
+  s_d79447800df998::t_dc568bb67ad893 34-36,38
+connectors/github/src/routes/capabilities.ts
+  s_d79447800df998::t_9e72c6294559c7 78-82
+connectors/github/src/lib/github.ts
+  s_d79447800df998::t_f749fe50298b90 2,14-57,59-73,75-84,292,319-323,337,353-359
+  s_d79447800df998::t_78b2fa91c688e1 58,74
+  s_d79447800df998::t_02d2c94a996504 143,278
+packages/schemas/src/signals.ts
+  s_d79447800df998::t_e20c724b55621a 209-233,852-854,865-879
+apps/api/src/live-state/router/developer-action.ts
+  s_d79447800df998::t_1ad6fe01fb99f7 11-13,15,64-86,99,116-137
+  s_d79447800df998::t_f4786bb53e3df3 100-101
+  s_d79447800df998::t_ac8adf0605a24a 14
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/entity-outcome-verification.ts
+  s_d79447800df998::t_9abefe0c5bc22c 49-50,62-67,114-126,132-137,154-159,171
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/synthesize.test.ts
+  s_d79447800df998::t_7d05960ef3b55e 179
+connectors/github/src/routes/actions.test.ts
+  s_d79447800df998::t_514802c94dac0d 205-234
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "91c1ff1a863e95cf84f52579eacf6ddeb78ac8f6",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_d79447800df998": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05d40-6dea-7de0-b33e-8f380420483c",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
