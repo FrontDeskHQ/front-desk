@@ -166,6 +166,32 @@ describe("entity outcome verification", () => {
     ).toBe(false);
   });
 
+  it("blocks protocol-relative tracker links", () => {
+    expect(
+      replyContainsExternalReference(
+        {
+          draftMarkdown:
+            "You can read the [details](//www.github.com/acme/app/issues/42).",
+          kind: "reply",
+        },
+        new Set(["https://github.com/acme/app/issues/42"])
+      )
+    ).toBe(true);
+  });
+
+  it("does not confuse repository names with tracker route segments", () => {
+    expect(
+      replyContainsExternalReference(
+        {
+          draftMarkdown:
+            "You can read the [details](https://www.github.com/issues/app/issues/42).",
+          kind: "reply",
+        },
+        new Set(["https://github.com/issues/app/issues/42"])
+      )
+    ).toBe(true);
+  });
+
   it("downgrades an unverified delivered witness and triggered reply", () => {
     const actions: Action[] = [
       {

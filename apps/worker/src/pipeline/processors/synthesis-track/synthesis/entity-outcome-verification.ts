@@ -131,8 +131,11 @@ const trackerReferenceFromUrl = (value: string): string | null => {
     const segments = decodeURIComponent(url.pathname)
       .split("/")
       .filter(Boolean);
-    const entityIndex = segments.findIndex((segment) =>
-      ["issues", "merge_requests", "pull", "pulls"].includes(segment)
+    const entityIndex = segments.findIndex(
+      (segment, index) =>
+        ["issues", "merge_requests", "pull", "pulls"].includes(
+          segment.toLowerCase()
+        ) && /^\d+$/.test(segments[index + 1] ?? "")
     );
     const number = segments[entityIndex + 1];
     if (entityIndex < 1 || !number || !/^\d+$/.test(number)) {
@@ -144,7 +147,7 @@ const trackerReferenceFromUrl = (value: string): string | null => {
       .join("/")
       .toLowerCase();
     const kind = ["pull", "pulls", "merge_requests"].includes(
-      segments[entityIndex] ?? ""
+      segments[entityIndex]?.toLowerCase() ?? ""
     )
       ? "pull_request"
       : "issue";
@@ -166,10 +169,13 @@ const containsEquivalentTrackerUrl = (
   if (protectedReferences.size === 0) {
     return false;
   }
-  const urls = markdown.match(/https?:\/\/[^\s<>"')\]]+/gi) ?? [];
+  const urls = markdown.match(/(?:https?:)?\/\/[^\s<>"')\]]+/gi) ?? [];
   return urls.some((candidate) => {
+    const absoluteCandidate = candidate.startsWith("//")
+      ? `https:${candidate}`
+      : candidate;
     const reference = trackerReferenceFromUrl(
-      candidate.replace(/[.,;:!?]+$/, "")
+      absoluteCandidate.replace(/[.,;:!?]+$/, "")
     );
     return reference !== null && protectedReferences.has(reference);
   });
