@@ -192,6 +192,19 @@ describe("entity outcome verification", () => {
     ).toBe(true);
   });
 
+  it("continues past a route-like owner and numeric repository", () => {
+    expect(
+      replyContainsExternalReference(
+        {
+          draftMarkdown:
+            "You can read the [details](https://www.github.com/issues/123/issues/%34%32).",
+          kind: "reply",
+        },
+        new Set(["https://github.com/issues/123/issues/42"])
+      )
+    ).toBe(true);
+  });
+
   it("downgrades an unverified delivered witness and triggered reply", () => {
     const actions: Action[] = [
       {

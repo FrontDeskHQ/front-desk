@@ -133,6 +133,7 @@ const trackerReferenceFromUrl = (value: string): string | null => {
       .filter(Boolean);
     const entityIndex = segments.findIndex(
       (segment, index) =>
+        index >= 1 &&
         ["issues", "merge_requests", "pull", "pulls"].includes(
           segment.toLowerCase()
         ) && /^\d+$/.test(segments[index + 1] ?? "")
