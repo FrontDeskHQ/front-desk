@@ -16,7 +16,10 @@ const partitionBundle = (bundle: Action[]) => {
   const nonReversibles: Action[] = [];
 
   for (const action of bundle) {
-    if (isReversible(action)) {
+    // mark_duplicate has compensation metadata, but it also finishes the
+    // customer thread. Treat it as non-reversible for bundle ordering so the
+    // customer reply persists first.
+    if (isReversible(action) && action.kind !== "mark_duplicate") {
       reversibles.push(action);
     } else {
       nonReversibles.push(action);
@@ -26,15 +29,13 @@ const partitionBundle = (bundle: Action[]) => {
   // If a bundle both tells the customer and finishes the thread, persist the
   // reply first. A failed reply must leave the thread live for retry/review;
   // a failed status update after a persisted reply is safe to retry alone.
-  const finishingStatuses = nonReversibles.filter(
-    (action) => action.kind === "set_status" && isFinishedStatus(action.status)
-  );
+  const finishesThread = (action: Action): boolean =>
+    action.kind === "mark_duplicate" ||
+    (action.kind === "set_status" && isFinishedStatus(action.status));
+  const finishingActions = nonReversibles.filter(finishesThread);
   const orderedNonReversibles = [
-    ...nonReversibles.filter(
-      (action) =>
-        action.kind !== "set_status" || !isFinishedStatus(action.status)
-    ),
-    ...finishingStatuses,
+    ...nonReversibles.filter((action) => !finishesThread(action)),
+    ...finishingActions,
   ];
 
   return { nonReversibles: orderedNonReversibles, reversibles };

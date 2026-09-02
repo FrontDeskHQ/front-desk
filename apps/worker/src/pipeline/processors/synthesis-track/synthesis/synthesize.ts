@@ -29,6 +29,7 @@ import {
   verifyReplyGrounding,
 } from "./grounding-verification";
 import {
+  addExternalEntityReferenceTokens,
   collectExternalReferenceTokens,
   collectVerifiedEntityOutcomes,
   replyContainsExternalReference,
@@ -830,13 +831,16 @@ export const synthesizeThreadRead = async (
     primary: groundReplies(filtered.primary),
   };
 
-  const verifiedEntityOutcomes = collectVerifiedEntityOutcomes(steps);
   const requiredEntityUrls = new Set(
     (input.triggers ?? [])
       .filter((trigger) => trigger.kind === "entity_finished")
       .flatMap((trigger) =>
         trigger.entityFinished ? [trigger.entityFinished.url] : []
       )
+  );
+  const verifiedEntityOutcomes = collectVerifiedEntityOutcomes(
+    steps,
+    requiredEntityUrls
   );
   const outcomeVerified = {
     alternatives: verifyEntityOutcomeActions(
@@ -856,8 +860,7 @@ export const synthesizeThreadRead = async (
       ? [trigger.entityFinished]
       : []
   )) {
-    externalReferenceTokens.add(entity.externalKey);
-    externalReferenceTokens.add(entity.url);
+    addExternalEntityReferenceTokens(externalReferenceTokens, entity);
   }
   if (
     outcomeVerified.primary.some((action) =>

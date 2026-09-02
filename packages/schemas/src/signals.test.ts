@@ -5,6 +5,8 @@ import {
   mergeThreadReadTriggers,
   normalizeThreadReadJobData,
   sortThreadReadTriggers,
+  statusWitnessSchema,
+  threadReadTriggerSchema,
 } from "./signals";
 import type { ThreadRead } from "./signals";
 
@@ -22,6 +24,25 @@ const finished = (externalKey: string) => ({
 });
 
 describe("thread-read trigger contracts", () => {
+  it("requires a finished-entity candidate for entity_finished", () => {
+    expect(
+      threadReadTriggerSchema.safeParse({ kind: "entity_finished" }).success
+    ).toBe(false);
+  });
+
+  it("accepts opaque non-empty provider URLs from the mirror", () => {
+    expect(
+      threadReadTriggerSchema.safeParse({
+        entityFinished: {
+          externalKey: "provider:item-1",
+          type: "issue",
+          url: "provider-local-reference",
+        },
+        kind: "entity_finished",
+      }).success
+    ).toBe(true);
+  });
+
   it("preserves queue generation for audit identity", () => {
     expect(
       normalizeThreadReadJobData({
@@ -149,6 +170,17 @@ describe("thread-read trigger contracts", () => {
         kind: "entity_finished",
       },
     ]);
+  });
+});
+
+describe("status witness contracts", () => {
+  it("requires an outcome for entity_settled", () => {
+    expect(
+      statusWitnessSchema.safeParse({
+        class: "entity_settled",
+        sources: ["https://example.com/issue/1"],
+      }).success
+    ).toBe(false);
   });
 });
 

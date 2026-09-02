@@ -75,7 +75,11 @@ const findRepo = (
   config: GithubConfig,
   repoFullName: string
 ): GithubRepo | undefined =>
-  config.repos.find((r) => r.fullName === repoFullName);
+  config.repos.find(
+    (repo) =>
+      repo.fullName === repoFullName &&
+      `${repo.owner}/${repo.name}` === repoFullName
+  );
 
 const handleCreateIssue = async (
   config: GithubConfig,

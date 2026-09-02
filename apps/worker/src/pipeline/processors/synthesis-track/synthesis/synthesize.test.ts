@@ -176,7 +176,7 @@ describe("synthesis action contract", () => {
     expect(prompt).toContain(
       "call read_external_entity with its exact externalKey"
     );
-    expect(prompt).toContain("outcome is `delivered`");
+    expect(prompt).toContain("whose outcome is delivered");
     expect(prompt).toContain(
       "Never put an external URL, externalKey, tracker id, or issue/PR number"
     );

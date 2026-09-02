@@ -37,6 +37,7 @@ export {
   actionInvokeEnvelopeSchema,
   type ActionInvokeEnvelope,
   type InvokeEnvelope,
+  RemoteInvokeError,
   invokeDeveloperAction,
   invokeCapability,
   invokeEnvelopeSchema,

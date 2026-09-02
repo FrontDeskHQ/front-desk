@@ -184,7 +184,6 @@ export type TrackerReadOutcomePayload = z.infer<
 >;
 
 const outcomeEntitySchema = z.object({
-  body: z.string().nullable(),
   entity: capabilityEntityRefSchema,
   finished: z.boolean(),
   outcome: externalOutcomeSchema,
@@ -197,7 +196,8 @@ const outcomeEntitySchema = z.object({
  * Provider-neutral structural result returned by tracker `readOutcome`.
  * `successor` is authoritative provider data for a duplicate, never a fuzzy
  * match. It is deliberately one level deep so a connector cannot hand an
- * unbounded relationship graph to synthesis.
+ * unbounded relationship graph to synthesis. Provider-authored bodies are
+ * excluded because they can carry unrelated tracker references and prose.
  */
 export const trackerReadOutcomeResultSchema = outcomeEntitySchema.extend({
   successor: outcomeEntitySchema.nullable().default(null),

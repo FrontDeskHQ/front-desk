@@ -46,7 +46,8 @@ const outputSchema = z.object({
 
 /** Outcomes that crossed the connector trust boundary in this synthesis run. */
 export const collectVerifiedEntityOutcomes = (
-  steps: ToolStep[]
+  steps: ToolStep[],
+  requiredUrls: ReadonlySet<string> = new Set()
 ): Map<string, ExternalEntityOutcome> => {
   const outcomes = new Map<string, ExternalEntityOutcome>();
   for (const step of steps) {
@@ -56,6 +57,12 @@ export const collectVerifiedEntityOutcomes = (
       }
       const parsed = outputSchema.safeParse(toolResult.output);
       if (!parsed.success || parsed.data.status !== "ok" || !parsed.data.result) {
+        continue;
+      }
+      if (
+        requiredUrls.size > 0 &&
+        !requiredUrls.has(parsed.data.result.entity.url)
+      ) {
         continue;
       }
       outcomes.set(
@@ -104,12 +111,30 @@ export const collectExternalReferenceTokens = (
   return tokens;
 };
 
+export const addExternalEntityReferenceTokens = (
+  tokens: Set<string>,
+  entity: { externalKey: string; url: string }
+): void => {
+  tokens.add(entity.externalKey);
+  tokens.add(entity.url);
+  const parsedKey = /^[^:]+:(.+)#(\d+)$/.exec(entity.externalKey);
+  if (parsedKey?.[1] && parsedKey[2]) {
+    tokens.add(`${parsedKey[1]}#${parsedKey[2]}`);
+    tokens.add(`#${parsedKey[2]}`);
+  }
+};
+
 export const replyContainsExternalReference = (
   action: Action,
   tokens: Set<string>
 ): boolean =>
   action.kind === "reply" &&
-  [...tokens].some((token) => token.length > 0 && action.draftMarkdown.includes(token));
+  ([...tokens].some(
+    (token) => token.length > 0 && action.draftMarkdown.includes(token)
+  ) ||
+    /\b(?:issue|pull\s+request|pr)\s*#?\s*\d+\b/i.test(
+      action.draftMarkdown
+    ));
 
 /**
  * Do not let model-authored outcome labels grant autonomy. Entity witnesses
@@ -126,10 +151,12 @@ export const verifyEntityOutcomeActions = <T extends Action>(
       action.kind === "set_status" &&
       action.witness?.class === "entity_settled"
     ) {
-      const sourceOutcome = action.witness.sources
-        .map((source) => outcomes.get(source))
-        .find(Boolean);
-      if (!sourceOutcome || sourceOutcome !== action.witness.outcome) {
+      const allSourcesMatch =
+        action.witness.sources.length > 0 &&
+        action.witness.sources.every(
+          (source) => outcomes.get(source) === action.witness?.outcome
+        );
+      if (!allSourcesMatch) {
         return {
           ...action,
           witness: { class: "inferred", sources: action.witness.sources },
@@ -141,7 +168,7 @@ export const verifyEntityOutcomeActions = <T extends Action>(
       const url = action.grounding.entityUrl?.trim() ?? "";
       const outcome = outcomes.get(url);
       if (
-        (requiredUrls.has(url) && outcome !== "delivered") ||
+        (requiredUrls.size > 0 && outcome !== "delivered") ||
         (outcome !== undefined && outcome !== "delivered")
       ) {
         return {

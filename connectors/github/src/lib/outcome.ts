@@ -47,25 +47,34 @@ const refForNode = (
   };
 };
 
+const issueOutcome = (
+  node: Pick<GitHubIssueOutcomeNode, "state" | "stateReason">
+): { finished: boolean; outcome: TrackerReadOutcomeResult["outcome"] } => {
+  const finished = node.state === "CLOSED";
+  return {
+    finished,
+    outcome: !finished
+      ? "unknown"
+      : node.stateReason === "COMPLETED"
+        ? "delivered"
+        : node.stateReason === "NOT_PLANNED"
+          ? "declined"
+          : node.stateReason === "DUPLICATE"
+            ? "superseded"
+            : "unknown",
+  };
+};
+
 const normalizeIssueNode = (
   node: GitHubIssueOutcomeNode,
   entity: CapabilityEntityRef
 ): TrackerReadOutcomeResult => {
-  const finished = node.state === "CLOSED";
-  const outcome = !finished
-    ? "unknown"
-    : node.stateReason === "COMPLETED"
-      ? "delivered"
-      : node.stateReason === "NOT_PLANNED"
-        ? "declined"
-        : node.stateReason === "DUPLICATE"
-          ? "superseded"
-          : "unknown";
+  const { finished, outcome } = issueOutcome(node);
   const duplicate = node.duplicateOf;
   const successorRef = duplicate ? refForNode(duplicate) : null;
+  const successorOutcome = duplicate ? issueOutcome(duplicate) : null;
 
   return {
-    body: node.body,
     entity,
     finished,
     outcome,
@@ -73,19 +82,9 @@ const normalizeIssueNode = (
     successor:
       duplicate && successorRef
         ? {
-            body: duplicate.body,
             entity: successorRef,
-            finished: duplicate.state === "CLOSED",
-            outcome:
-              duplicate.state !== "CLOSED"
-                ? "unknown"
-                : duplicate.stateReason === "COMPLETED"
-                  ? "delivered"
-                  : duplicate.stateReason === "NOT_PLANNED"
-                    ? "declined"
-                    : duplicate.stateReason === "DUPLICATE"
-                      ? "superseded"
-                      : "unknown",
+            finished: successorOutcome?.finished ?? false,
+            outcome: successorOutcome?.outcome ?? "unknown",
             state: duplicate.state.toLowerCase(),
             title: duplicate.title,
             type: "issue",
@@ -105,7 +104,6 @@ export const normalizeGitHubPullRequestOutcome = (
   node: GitHubPullRequestOutcomeNode,
   entity: CapabilityEntityRef
 ): TrackerReadOutcomeResult => ({
-  body: node.body,
   entity,
   finished: node.merged,
   outcome: node.merged ? "delivered" : "unknown",

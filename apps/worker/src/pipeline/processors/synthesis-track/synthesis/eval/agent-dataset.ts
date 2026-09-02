@@ -2,11 +2,11 @@ import type {
   GroundingClass,
   StatusWitnessClass,
 } from "@workspace/schemas/signals";
-
 import type { SynthesizeThreadReadInput } from "../synthesize";
 import type {
   DocumentationPageChunkResult,
   DocumentationSearchResult,
+  ExternalEntityOutcomeReadResult,
 } from "../tools";
 
 export interface SynthesisAgentEvalCase {
@@ -31,6 +31,11 @@ export interface SynthesisAgentEvalCase {
     >;
     docsSearchHitsByQuery?: Record<string, DocumentationSearchResult[]>;
     docsPageChunksByUrl?: Record<string, DocumentationPageChunkResult[]>;
+    /** Provider outcome reads keyed by externalKey. */
+    externalEntityOutcomesByKey?: Record<
+      string,
+      ExternalEntityOutcomeReadResult
+    >;
     /** Mirrored issues keyed by URL, served by the mocked `read_issue` tool. */
     issuesByUrl?: Record<
       string,

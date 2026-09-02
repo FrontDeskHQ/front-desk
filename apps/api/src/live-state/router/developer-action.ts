@@ -8,7 +8,11 @@ import {
   DeveloperActionError,
   dispatchDeveloperAction,
 } from "../../lib/developer-action-dispatch";
-import { fanOutEntityFinished } from "../../lib/entity-finished";
+import {
+  fanOutEntityFinished,
+  isExternalEntityFinished,
+  type ExternalEntityFinishState,
+} from "../../lib/entity-finished";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -57,6 +61,29 @@ export const runDeveloperAction = async (
   });
 
   try {
+    let replayEntityBeforeDispatch:
+      | (ExternalEntityFinishState & { id: string; provider: string })
+      | undefined;
+    if (input.action === "entity_finished_replay") {
+      const entityId = input.payload.entityId;
+      if (typeof entityId !== "string" || entityId.length === 0) {
+        throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_INPUT");
+      }
+      replayEntityBeforeDispatch = Object.values(
+        await db.find(schema.externalEntity, {
+          where: {
+            deletedAt: null,
+            id: entityId,
+            organizationId: input.organizationId,
+            provider: input.connectorType,
+          },
+        })
+      )[0];
+      if (!replayEntityBeforeDispatch) {
+        throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_TARGET");
+      }
+    }
+
     let result = await dispatchDeveloperAction(db, {
       action: input.action,
       connectorType: input.connectorType,
@@ -69,9 +96,9 @@ export const runDeveloperAction = async (
     // route owns the internal fan-out; there is no generally callable replay
     // mutation on the external-entity router.
     if (input.action === "entity_finished_replay") {
-      const entityId = input.payload.entityId;
-      if (typeof entityId !== "string" || entityId.length === 0) {
-        throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_INPUT");
+      const entityId = replayEntityBeforeDispatch?.id;
+      if (!entityId) {
+        throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_TARGET");
       }
       const entity = Object.values(
         await db.find(schema.externalEntity, {
@@ -86,12 +113,29 @@ export const runDeveloperAction = async (
       if (!entity) {
         throw new DeveloperActionError("INVALID_DEVELOPER_ACTION_TARGET");
       }
-      const replay = await fanOutEntityFinished(db, entity);
-      result = {
-        ...result,
-        jobIds: [...new Set([...result.jobIds, ...replay.jobIds])],
-        target: entity.externalKey,
-      };
+
+      // A stale unfinished mirror fans out during the refresh transition. Only
+      // an entity that was already finished needs the explicit recovery fan-out.
+      if (
+        replayEntityBeforeDispatch &&
+        isExternalEntityFinished(replayEntityBeforeDispatch)
+      ) {
+        try {
+          const replay = await fanOutEntityFinished(db, entity);
+          result = {
+            ...result,
+            ...(replay.unavailable > 0 ? { partial: true } : {}),
+            jobIds: [...new Set([...result.jobIds, ...replay.jobIds])],
+            target: entity.externalKey,
+          };
+        } catch (error) {
+          console.error(
+            `Failed to fan out finished entity replay ${entity.externalKey}:`,
+            error
+          );
+          result = { ...result, partial: true, target: entity.externalKey };
+        }
+      }
     }
 
     logDeveloperActionEvent({

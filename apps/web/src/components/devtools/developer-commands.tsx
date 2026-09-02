@@ -105,29 +105,37 @@ export const DeveloperToolsCommands = ({
     query.externalEntity.where({
       deletedAt: null,
       organizationId,
+      provider: "github",
       type: "pull_request",
     })
   );
-  const mirroredExternalEntities = useLiveQuery(
+  const finishedIssues = useLiveQuery(
     query.externalEntity.where({
       deletedAt: null,
       organizationId,
+      provider: "github",
+      state: "closed",
+      type: "issue",
+    })
+  );
+  const mergedPullRequests = useLiveQuery(
+    query.externalEntity.where({
+      deletedAt: null,
+      merged: true,
+      organizationId,
+      provider: "github",
+      type: "pull_request",
     })
   );
   const finishedExternalEntities = useMemo(
     () =>
-      (mirroredExternalEntities ?? [])
-        .filter(
-          (entity) =>
-            (entity.type === "issue" && entity.state === "closed") ||
-            (entity.type === "pull_request" && entity.merged === true)
-        )
+      [...(finishedIssues ?? []), ...(mergedPullRequests ?? [])]
         .toSorted((a, b) =>
           `${a.repoFullName}#${a.number}`.localeCompare(
             `${b.repoFullName}#${b.number}`
           )
         ),
-    [mirroredExternalEntities]
+    [finishedIssues, mergedPullRequests]
   );
 
   const githubRepos = useMemo<GithubRepo[]>(() => {

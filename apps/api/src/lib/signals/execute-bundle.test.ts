@@ -55,4 +55,27 @@ describe(executeBundle, () => {
     expect(result.failed?.action.kind).toBe("reply");
     expect(statusApply).not.toHaveBeenCalled();
   });
+
+  it("persists a reply before marking the thread as duplicate", async () => {
+    const calls: string[] = [];
+    const duplicate: Action = {
+      kind: "mark_duplicate",
+      targetThreadId: "thread-canonical",
+    };
+    const registry = {
+      mark_duplicate: {
+        apply: vi.fn(async () => calls.push("mark_duplicate")),
+      },
+      reply: { apply: vi.fn(async () => calls.push("reply")) },
+    } as unknown as ActionHandlerRegistry;
+
+    const result = await executeBundle(
+      [duplicate, reply],
+      registry,
+      context
+    );
+
+    expect(result.failed).toBeNull();
+    expect(calls).toEqual(["reply", "mark_duplicate"]);
+  });
 });

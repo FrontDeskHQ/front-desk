@@ -1,4 +1,5 @@
 import { App } from "octokit";
+import { z } from "zod";
 
 import { getGitHubConfig } from "../utils";
 import type { GitHubPullRequestLike } from "./external-entity";
@@ -9,6 +10,77 @@ import type {
 } from "./outcome";
 
 const config = getGitHubConfig();
+
+const githubUserSchema = z.object({ login: z.string().optional() }).nullable();
+const githubLabelSchema = z.union([
+  z.string(),
+  z.object({ name: z.string().optional() }).nullable(),
+]);
+
+export const githubIssueLikeSchema = z.object({
+  assignees: z.array(githubUserSchema).nullish(),
+  body: z.string().nullable().optional(),
+  closed_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  html_url: z.string(),
+  id: z.number(),
+  labels: z.array(githubLabelSchema).nullish(),
+  number: z.number(),
+  pull_request: z.unknown().optional(),
+  state: z.string().nullable().optional(),
+  title: z.string(),
+  updated_at: z.string(),
+  user: githubUserSchema.optional(),
+});
+
+export const githubPullRequestLikeSchema = z.object({
+  assignees: z.array(githubUserSchema).nullish(),
+  base: z.object({ ref: z.string() }),
+  body: z.string().nullable().optional(),
+  closed_at: z.string().nullable().optional(),
+  created_at: z.string(),
+  draft: z.boolean().nullable().optional(),
+  head: z.object({ ref: z.string() }),
+  html_url: z.string(),
+  id: z.number(),
+  labels: z
+    .array(z.object({ name: z.string().optional() }).nullable())
+    .nullish(),
+  merged: z.boolean().nullable().optional(),
+  merged_at: z.string().nullable().optional(),
+  number: z.number(),
+  state: z.string(),
+  title: z.string(),
+  updated_at: z.string(),
+  user: githubUserSchema.optional(),
+});
+
+export const issueOutcomeNodeSchema: z.ZodType<GitHubIssueOutcomeNode> = z.lazy(() =>
+  z.object({
+    body: z.string().nullable(),
+    databaseId: z.number().nullable(),
+    duplicateOf: issueOutcomeNodeSchema.nullish(),
+    number: z.number(),
+    repository: z.object({ nameWithOwner: z.string() }),
+    state: z.enum(["OPEN", "CLOSED"]),
+    stateReason: z
+      .enum(["COMPLETED", "NOT_PLANNED", "DUPLICATE", "REOPENED"])
+      .nullable(),
+    title: z.string(),
+    url: z.string(),
+  })
+);
+
+export const pullRequestOutcomeNodeSchema: z.ZodType<GitHubPullRequestOutcomeNode> =
+  z.object({
+    body: z.string().nullable(),
+    merged: z.boolean(),
+    number: z.number(),
+    repository: z.object({ nameWithOwner: z.string() }),
+    state: z.enum(["OPEN", "CLOSED", "MERGED"]),
+    title: z.string(),
+    url: z.string(),
+  });
 
 export const app = new App({
   appId: config.appId,
@@ -68,7 +140,7 @@ export const fetchIssue = async (
   if (data.pull_request) {
     throw new Error("TARGET_IS_PULL_REQUEST");
   }
-  return data as GitHubIssueLike;
+  return githubIssueLikeSchema.parse(data);
 };
 
 export const createIssue = async (
@@ -203,7 +275,7 @@ export const fetchPullRequest = async (
         repo,
       }
     );
-    return data as GitHubPullRequestLike;
+    return githubPullRequestLikeSchema.parse(data);
   } catch (error) {
     console.error("Error fetching pull request:", error);
     throw error;
@@ -217,7 +289,7 @@ export const fetchIssueOutcome = async (
   issueNumber: number
 ): Promise<GitHubIssueOutcomeNode> => {
   const octokit = await getOctokit(installationId);
-  const result = await octokit.graphql<{ repository: { issue: GitHubIssueOutcomeNode | null } }>(
+  const raw = await octokit.graphql(
     `query ReadIssueOutcome($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         issue(number: $number) {
@@ -244,6 +316,11 @@ export const fetchIssueOutcome = async (
     }`,
     { number: issueNumber, owner, repo }
   );
+  const result = z
+    .object({
+      repository: z.object({ issue: issueOutcomeNodeSchema.nullable() }),
+    })
+    .parse(raw);
   if (!result.repository.issue) {
     throw new Error("ISSUE_NOT_FOUND");
   }
@@ -257,9 +334,7 @@ export const fetchPullRequestOutcome = async (
   pullNumber: number
 ): Promise<GitHubPullRequestOutcomeNode> => {
   const octokit = await getOctokit(installationId);
-  const result = await octokit.graphql<{
-    repository: { pullRequest: GitHubPullRequestOutcomeNode | null };
-  }>(
+  const raw = await octokit.graphql(
     `query ReadPullRequestOutcome($owner: String!, $repo: String!, $number: Int!) {
       repository(owner: $owner, name: $repo) {
         pullRequest(number: $number) {
@@ -275,6 +350,13 @@ export const fetchPullRequestOutcome = async (
     }`,
     { number: pullNumber, owner, repo }
   );
+  const result = z
+    .object({
+      repository: z.object({
+        pullRequest: pullRequestOutcomeNodeSchema.nullable(),
+      }),
+    })
+    .parse(raw);
   if (!result.repository.pullRequest) {
     throw new Error("PULL_REQUEST_NOT_FOUND");
   }

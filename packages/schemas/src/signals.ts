@@ -206,21 +206,31 @@ export type ExternalEntityOutcome = z.infer<
   typeof externalEntityOutcomeSchema
 >;
 
-export const statusWitnessSchema = z.object({
-  class: statusWitnessClassSchema,
-  /** Required for `entity_settled`; ignored by the other witness classes. */
-  outcome: externalEntityOutcomeSchema.optional(),
-  /**
-   * What the class points at: message ids for `customer_confirmed`, the
-   * external entity id for `entity_settled`. Empty for `abandoned` (the trigger
-   * is the evidence) and for `inferred` (there is none).
-   *
-   * Required rather than defaulted: a `.default()` here diverges the schema's
-   * input and output types, and this schema sits inside the discriminated union
-   * the synthesis parse schema is built from.
-   */
-  sources: z.array(z.string()),
-});
+export const statusWitnessSchema = z
+  .object({
+    class: statusWitnessClassSchema,
+    /** Required for `entity_settled`; ignored by the other witness classes. */
+    outcome: externalEntityOutcomeSchema.optional(),
+    /**
+     * What the class points at: message ids for `customer_confirmed`, the
+     * external entity id for `entity_settled`. Empty for `abandoned` (the trigger
+     * is the evidence) and for `inferred` (there is none).
+     *
+     * Required rather than defaulted: a `.default()` here diverges the schema's
+     * input and output types, and this schema sits inside the discriminated union
+     * the synthesis parse schema is built from.
+     */
+    sources: z.array(z.string()),
+  })
+  .superRefine((witness, context) => {
+    if (witness.class === "entity_settled" && witness.outcome === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "entity_settled requires an outcome",
+        path: ["outcome"],
+      });
+    }
+  });
 export type StatusWitness = z.infer<typeof statusWitnessSchema>;
 
 /** Which witness class may finish a thread into which status. */
@@ -839,7 +849,9 @@ export type PrMatchCandidate = z.infer<typeof prMatchCandidateSchema>;
 export const entityFinishedCandidateSchema = z.object({
   externalKey: z.string().min(1),
   type: z.enum(["issue", "pull_request"]),
-  url: z.string().url(),
+  // Mirrors accept provider URLs as opaque strings. Queue validation must use
+  // the same contract or one malformed upstream URL can suppress fan-out.
+  url: z.string().min(1),
 });
 export type EntityFinishedCandidate = z.infer<
   typeof entityFinishedCandidateSchema
@@ -850,11 +862,21 @@ export type EntityFinishedCandidate = z.infer<
  * payload it pushed. Kept separate from `hints` so synthesis can distinguish a
  * push-side `pr_matched` candidate from a pull-side `related_prs` hint.
  */
-export const threadReadTriggerSchema = z.object({
-  entityFinished: entityFinishedCandidateSchema.optional(),
-  kind: threadReadKindSchema,
-  prMatched: prMatchCandidateSchema.optional(),
-});
+export const threadReadTriggerSchema = z
+  .object({
+    entityFinished: entityFinishedCandidateSchema.optional(),
+    kind: threadReadKindSchema,
+    prMatched: prMatchCandidateSchema.optional(),
+  })
+  .superRefine((trigger, context) => {
+    if (trigger.kind === "entity_finished" && !trigger.entityFinished) {
+      context.addIssue({
+        code: "custom",
+        message: "entity_finished requires entityFinished",
+        path: ["entityFinished"],
+      });
+    }
+  });
 export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
 
 const canonicalThreadReadJobDataSchema = z.object({

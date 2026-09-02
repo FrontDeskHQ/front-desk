@@ -103,9 +103,13 @@ export const createMockTools = (
     read_external_entity: tool({
       description: "Read a mocked external entity outcome.",
       inputSchema: z.object({ externalKey: z.string() }),
-      execute: async (): Promise<ReadExternalEntityOutput> => {
+      execute: async ({ externalKey }): Promise<ReadExternalEntityOutput> => {
         counters.read_external_entity++;
-        return { status: "not_found" as const };
+        return (
+          fixtures.externalEntityOutcomesByKey?.[externalKey] ?? {
+            status: "not_found" as const,
+          }
+        );
       },
     }),
     read_documentation_page: tool({

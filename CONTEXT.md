@@ -84,7 +84,7 @@ Only an **inbound** message causes a run (see [message direction](#message-direc
 
 The external fact that a linked [external issue](#external-issue) closed or a linked [external pull request](#external-pull-request) merged, supplied to the Agent as an `entity_finished` [trigger](#trigger). It becomes a cause when a known entity transitions from unfinished to finished, or when a human links a live [thread](#thread) to an entity that is already finished; first observing finished entities during backfill does not fan out runs. It causes one [run](#run) per affected live thread, but does not assert that the customer's need was [settled](#witness); [synthesis](#synthesis) must read the current external outcome and make that judgment. _Avoid_: `entity_settled` for the trigger, treating any closed pull request as finished.
 
-If the Agent path or both closing-loop actions are off, the transition does not bypass those settings: the linked thread stays live. The transition itself adds no thread activity; the linked entity's state and any later Agent actions are the visible history.
+If synthesis is unavailable, or the organization sets both `reply` and `set_status` to `off`, the transition leaves the linked thread live. If only one action is enabled, normal action policy still applies to that action, but autonomous resolution requires a sending reply and a `set_status` action with a valid witness. The transition itself adds no thread activity; the linked entity's state and any later Agent actions are the visible history.
 
 ### Synthesis
 
@@ -129,7 +129,7 @@ What justifies finishing a [thread](#thread), and the input to status's [action 
 
 Deliberately its own noun rather than an extension of [grounding](#grounding), which is a property of a _reply's prose_; a witness is a property of a _state change_. Both are named classes for the same reason: a self-reported score is uncheckable. Resolving additionally requires a reply that is itself sending, so a conversation never ends without the customer hearing about it. _Avoid_: "confidence" (see [grounding](#grounding)), "status score".
 
-An `entity_settled` witness earns autonomous resolution only for a completed fix or merged pull request. A final negative outcome such as declined or not planned may still support a human-approved reply and resolution, while cannot-reproduce and ambiguous outcomes remain inferred. An external entity reopening later does not reopen or message threads that its earlier outcome resolved.
+An `entity_settled` witness earns autonomous resolution only for a `delivered` outcome, such as a completed fix or merged pull request. A `declined` outcome, such as work the provider marks not planned, may still support a human-approved reply and resolution. `unknown` outcomes remain inferred. An external entity reopening later does not reopen or message threads that its earlier outcome resolved.
 
 ### Autonomous action
 

@@ -174,9 +174,9 @@ const parseDeveloperActionInput = (args: {
 
 /**
  * Resolve browser-facing action input into the provider-neutral payload the
- * connector needs. Entity IDs are looked up with both organization and PR
- * type filters so a caller cannot turn an ID from another organization or
- * another mirrored entity kind into a connector target.
+ * connector needs. Entity IDs are always scoped by organization and provider;
+ * PR-match replay adds a pull-request type filter, while finished replay
+ * deliberately accepts either supported entity type.
  */
 export const resolveDeveloperActionPayload = async (
   db: Pick<ServerDB<typeof schema>, "find">,

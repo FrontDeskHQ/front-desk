@@ -17,6 +17,10 @@ import {
 import type { Thread } from "../../../../types";
 import type { AgentRunAudit } from "../../../core/agent-run-audit";
 
+export type ExternalEntityOutcomeReadResult = Awaited<
+  ReturnType<typeof fetchExternalEntityOutcome>
+>;
+
 /**
  * What `search_documentation` hands the synthesis agent. Flat and id-free by
  * design: the agent should see page text and provenance, not the index's
@@ -63,9 +67,10 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
     read_external_entity: tool({
       description:
         "Read the current provider-verified structural outcome of a mirrored " +
-        "issue or pull request by externalKey. Returns delivered, declined, " +
-        "superseded, or unknown plus a structured canonical successor for " +
-        "duplicates. It never reads comments.",
+        "issue or pull request by externalKey. Returns a status envelope: ok " +
+        "includes delivered, declined, superseded, or unknown plus a structured " +
+        "canonical successor for duplicates; not_found and unavailable have no " +
+        "result. It never reads comments.",
       inputSchema: z.object({
         externalKey: z.string().min(1),
       }),

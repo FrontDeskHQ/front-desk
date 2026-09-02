@@ -444,18 +444,27 @@ const runLinkExternalEntity = async (
     // A human can link an entity after its upstream finish event was mirrored.
     // Give that thread the same close-loop read. Agent-originated links have a
     // null user id and deliberately do not trigger themselves.
-    const linkedEntity = Object.values(
-      await db.find(schema.externalEntity, {
-        where: {
-          deletedAt: null,
-          externalKey: input.externalId,
-          organizationId: input.organizationId,
-          type: config.entityType,
-        },
-      })
-    )[0];
-    if (linkedEntity && isExternalEntityFinished(linkedEntity)) {
-      await fanOutEntityFinished(db, linkedEntity, input.threadId);
+    try {
+      const linkedEntity = Object.values(
+        await db.find(schema.externalEntity, {
+          where: {
+            deletedAt: null,
+            externalKey: input.externalId,
+            organizationId: input.organizationId,
+            type: config.entityType,
+          },
+        })
+      )[0];
+      if (linkedEntity && isExternalEntityFinished(linkedEntity)) {
+        await fanOutEntityFinished(db, linkedEntity, input.threadId);
+      }
+    } catch (error) {
+      // The link is already committed. Keep the mutation successful and leave
+      // queue recovery to the developer replay instead of hiding the saved link.
+      console.error(
+        `Failed to fan out finished entity ${input.externalId} after linking thread ${input.threadId}:`,
+        error
+      );
     }
   }
 

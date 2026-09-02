@@ -8,6 +8,7 @@ import {
   upsertExternalEntity,
 } from "./external-entity";
 import type {
+  ExternalEntityFields,
   GitHubIssueLike,
   GitHubPullRequestLike,
   RepoRef,
@@ -265,8 +266,9 @@ const replayFinishedEntity = async (
     return result(400, repo ? "INVALID_TARGET" : "REPOSITORY_NOT_CONNECTED");
   }
 
+  let fields: ExternalEntityFields;
   try {
-    const fields =
+    fields =
       type === "issue"
         ? buildIssueFields(
             await dependencies.fetchIssue(
@@ -287,28 +289,33 @@ const replayFinishedEntity = async (
             repoRef(repo)
           );
 
-    if (fields.externalKey !== target.externalKey || fields.url !== target.url) {
-      return result(409, "TARGET_CHANGED");
-    }
-    await dependencies.upsertExternalEntity(organizationId, fields);
-    const finished =
-      fields.type === "issue"
-        ? fields.state === "closed"
-        : fields.merged === true;
-    if (!finished) {
-      return result(409, "ENTITY_NOT_FINISHED");
-    }
-    return {
-      body: {
-        accepted: true,
-        jobIds: [],
-        target: fields.externalKey,
-      },
-      status: 202,
-    };
   } catch {
     return result(502, "UPSTREAM_UNAVAILABLE");
   }
+
+  if (fields.externalKey !== target.externalKey || fields.url !== target.url) {
+    return result(409, "TARGET_CHANGED");
+  }
+  try {
+    await dependencies.upsertExternalEntity(organizationId, fields);
+  } catch {
+    return result(500, "ACTION_FAILED");
+  }
+  const finished =
+    fields.type === "issue"
+      ? fields.state === "closed"
+      : fields.merged === true;
+  if (!finished) {
+    return result(409, "ENTITY_NOT_FINISHED");
+  }
+  return {
+    body: {
+      accepted: true,
+      jobIds: [],
+      target: fields.externalKey,
+    },
+    status: 202,
+  };
 };
 
 const backfillRepositories = async (

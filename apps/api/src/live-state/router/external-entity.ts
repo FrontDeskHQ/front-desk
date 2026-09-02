@@ -5,6 +5,7 @@ import type {
 } from "@workspace/schemas/signals";
 import {
   invokeCapability,
+  RemoteInvokeError,
   trackerReadOutcomeResultSchema,
 } from "@connectors/framework";
 import { ulid } from "ulid";
@@ -31,6 +32,12 @@ import { schema } from "../schema";
 
 /** Thread statuses a push-side PR match may light up: Open (0), In progress (1). */
 const PR_MATCH_ACTIVE_STATUSES = new Set([0, 1]);
+
+const isTransientOutcomeReadError = (error: unknown): boolean =>
+  (error instanceof RemoteInvokeError && error.status >= 500) ||
+  error instanceof TypeError ||
+  (error instanceof Error &&
+    error.message.startsWith("CAPABILITY_INVOKE_TIMEOUT"));
 
 /**
  * Org-scoped mirror of external issues/PRs.
@@ -327,6 +334,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         };
       } catch (error) {
         lastError = error;
+        if (!isTransientOutcomeReadError(error)) {
+          break;
+        }
       }
     }
     console.error(
