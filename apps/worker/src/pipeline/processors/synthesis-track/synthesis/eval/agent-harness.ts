@@ -164,6 +164,10 @@ export const createMockTools = (
             status: thread.status,
             priority: thread.priority,
             createdAt: new Date(thread.createdAt),
+            linkedEntities: {
+              issueExternalKey: thread.externalIssueId ?? null,
+              pullRequestExternalKey: thread.externalPrId ?? null,
+            },
             // Same ordering the live tool applies (`toOrderedMessages`): a
             // fixture that lists messages out of id order must not hand the
             // model a transcript production would never produce.

@@ -2,6 +2,7 @@ import type {
   GroundingClass,
   StatusWitnessClass,
 } from "@workspace/schemas/signals";
+
 import type { SynthesizeThreadReadInput } from "../synthesize";
 import type {
   DocumentationPageChunkResult,
@@ -21,6 +22,8 @@ export interface SynthesisAgentEvalCase {
         status: number;
         priority: number;
         createdAt: string;
+        externalIssueId?: string | null;
+        externalPrId?: string | null;
         messages: {
           id: string;
           authorId: string;

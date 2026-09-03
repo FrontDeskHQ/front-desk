@@ -134,6 +134,7 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         return {
           found: true,
           pr: {
+            ...(pr.externalKey ? { externalKey: pr.externalKey } : {}),
             url: pr.url,
             repoFullName: pr.repoFullName,
             number: pr.number,
@@ -173,6 +174,7 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
         return {
           found: true,
           issue: {
+            ...(issue.externalKey ? { externalKey: issue.externalKey } : {}),
             url: issue.url,
             repoFullName: issue.repoFullName,
             number: issue.number,
@@ -188,7 +190,7 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
 
     read_thread: tool({
       description:
-        "Read a full support thread by id (same organization only), including all messages in chronological order.",
+        "Read a full support thread by id (same organization only), including its current external links and all messages in chronological order.",
       inputSchema: z.object({
         threadId: z.string(),
       }),
@@ -227,6 +229,10 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
             status: thread.status,
             priority: thread.priority,
             createdAt: thread.createdAt,
+            linkedEntities: {
+              issueExternalKey: thread.externalIssueId ?? null,
+              pullRequestExternalKey: thread.externalPrId ?? null,
+            },
             messages: toOrderedMessages(thread),
           },
         };

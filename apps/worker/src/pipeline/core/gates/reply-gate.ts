@@ -42,6 +42,7 @@ export const replyGate: ActionGate = async (action, ctx) => {
   }
 
   let entityState: string | null = null;
+  let reportedEntityUrl: string | null = null;
 
   if (grounding.class === "documented") {
     if (grounding.sources.length === 0) {
@@ -61,6 +62,7 @@ export const replyGate: ActionGate = async (action, ctx) => {
     if ("denied" in resolved) {
       return deny(resolved.denied);
     }
+    reportedEntityUrl = entityUrl;
     entityState = resolved.state;
   }
 
@@ -76,10 +78,20 @@ export const replyGate: ActionGate = async (action, ctx) => {
 
   // Speaking twice in a row is licensed by the state having moved, never by
   // elapsed time — a clock keeps ticking whether or not there is anything new
-  // to say. No prior receipt means the last word was a teammate's, and the
-  // Agent does not talk over one.
+  // to say. No prior receipt normally means the last word was a teammate's and
+  // the Agent must not talk over one. A provider-verified delivery is the one
+  // exception: it is the promised follow-up, not a repeat of the teammate.
   const previous = await ctx.run.lastAutonomousReply();
-  if (!previous || previous.stateFingerprint === fingerprint) {
+  if (!previous) {
+    if (
+      reportedEntityUrl &&
+      ctx.verifiedDeliveredEntityUrls?.has(reportedEntityUrl)
+    ) {
+      return { allowed: true, stateFingerprint: fingerprint };
+    }
+    return deny("no_new_state_since_last_reply");
+  }
+  if (previous.stateFingerprint === fingerprint) {
     return deny("no_new_state_since_last_reply");
   }
 

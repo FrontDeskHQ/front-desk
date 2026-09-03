@@ -25,10 +25,6 @@ import type { ParsedSummary } from "../../../../types";
 import type { AgentRunAudit } from "../../../core/agent-run-audit";
 import { serializeObservableModelStep } from "../../../core/model-audit";
 import {
-  collectRetrievedDocUrls,
-  verifyReplyGrounding,
-} from "./grounding-verification";
-import {
   addExternalEntityReferenceTokens,
   collectExternalReferenceTokens,
   collectVerifiedEntityOutcomes,
@@ -36,7 +32,15 @@ import {
   verifyEntityOutcomeActions,
 } from "./entity-outcome-verification";
 import {
-  collectVerifiedIssueUrlsFromToolSteps,
+  filterRedundantLinkActions,
+  recommendationAfterRedundantLink,
+} from "./existing-link-verification";
+import {
+  collectRetrievedDocUrls,
+  verifyReplyGrounding,
+} from "./grounding-verification";
+import {
+  collectVerifiedIssueDetailsFromToolSteps,
   collectVerifiedIssueSearchesFromToolSteps,
   filterActionSetToVerifiedCreateIssue,
   filterActionSetToVerifiedLinkIssue,
@@ -154,6 +158,9 @@ export class SynthesisOutputParseError extends Error {
 export interface SynthesizeThreadReadInput {
   threadId: string;
   threadName: string | null;
+  /** Provider identities for the entities this thread currently links. */
+  linkedIssueExternalKey?: string | null;
+  linkedPullRequestExternalKey?: string | null;
   /** Customer display name used only for a first-reply greeting. */
   customerName?: string | null;
   threadMessages: {
@@ -263,6 +270,26 @@ export const buildSynthesisPrompt = (
       } => trigger.kind === "entity_finished" && Boolean(trigger.entityFinished)
     )
     .map((trigger) => trigger.entityFinished);
+  const currentLinks = [
+    ...(input.linkedIssueExternalKey
+      ? [`- issue externalKey=${JSON.stringify(input.linkedIssueExternalKey)}`]
+      : []),
+    ...(input.linkedPullRequestExternalKey
+      ? [
+          `- pull request externalKey=${JSON.stringify(input.linkedPullRequestExternalKey)}`,
+        ]
+      : []),
+  ];
+  const currentLinksBlock =
+    currentLinks.length > 0
+      ? `## Current external links
+
+These are the entities already linked to this thread:
+${currentLinks.join("\n")}
+
+read_issue and read_pr return each entity's externalKey. Never emit a link action for the same entity. Emit link_issue or link_pr only when intentionally replacing the current link with a different verified entity.
+`
+      : "";
   const prTriggerBlock =
     hasAction("link_pr") && prMatched.length > 0
       ? `## Trigger context (why this run happened)
@@ -301,7 +328,7 @@ For every entity above, call read_external_entity with its exact externalKey bef
 Never put an external URL, externalKey, tracker id, or issue/PR number in the customer-facing draft. Multiple finished entities still produce one coherent reply and at most one status action.
 `
       : "";
-  const triggerBlock = `${prTriggerBlock}${finishedEntityTriggerBlock}`;
+  const triggerBlock = `${currentLinksBlock}${prTriggerBlock}${finishedEntityTriggerBlock}`;
 
   const vocabulary = [
     ...(hasAction("reply") ? ["- reply (requires draftMarkdown)"] : []),
@@ -784,21 +811,32 @@ export const synthesizeThreadRead = async (
   // successful read_issue returned. This pipeline feeds it untrusted external
   // issue text (related_issues evidence, read_issue bodies, search_issues
   // hits), so an injected instruction must not be able to authorize a link.
-  const verifiedIssueUrls = collectVerifiedIssueUrlsFromToolSteps(steps);
+  const verifiedIssueDetails = collectVerifiedIssueDetailsFromToolSteps(steps);
+  const verifiedIssueUrls = new Set(verifiedIssueDetails.keys());
   const issueLinkFiltered = filterActionSetToVerifiedLinkIssue(
     prFiltered.primary,
     prFiltered.alternatives,
     verifiedIssueUrls
   );
+  const existingLinkFiltered = filterRedundantLinkActions(
+    issueLinkFiltered.primary,
+    issueLinkFiltered.alternatives,
+    {
+      issueExternalKey: input.linkedIssueExternalKey,
+      pullRequestExternalKey: input.linkedPullRequestExternalKey,
+    },
+    verifiedIssueDetails,
+    verifiedPrDetails
+  );
   const verifiedIssueSearches =
     collectVerifiedIssueSearchesFromToolSteps(steps);
   const filtered = filterActionSetToVerifiedCreateIssue(
-    issueLinkFiltered.primary,
-    issueLinkFiltered.alternatives,
+    existingLinkFiltered.primary,
+    existingLinkFiltered.alternatives,
     verifiedIssueSearches,
     verifiedIssueUrls
   );
-  if (filtered.primary.length !== issueLinkFiltered.primary.length) {
+  if (filtered.primary.length !== existingLinkFiltered.primary.length) {
     return {
       ...raw,
       alternatives: [],
@@ -884,7 +922,9 @@ export const synthesizeThreadRead = async (
   };
 
   const recommendation = ensureVerifiedPrRecommendationLink(
-    raw.recommendation,
+    existingLinkFiltered.removedPrimary
+      ? recommendationAfterRedundantLink(referenceSafe.primary)
+      : raw.recommendation,
     referenceSafe.primary,
     verifiedPrDetails
   );
@@ -905,5 +945,13 @@ export const synthesizeThreadRead = async (
     alternatives: referenceSafe.alternatives,
     primary: referenceSafe.primary,
     recommendation,
+    ...(existingLinkFiltered.removedPrimary
+      ? {
+          reasoning:
+            referenceSafe.primary.length > 0
+              ? "The proposed external entity is already linked to this thread, so no link action is needed. The remaining actions reflect the evidence verified during this run."
+              : "The proposed external entity is already linked to this thread, so no further action remains.",
+        }
+      : {}),
   };
 };

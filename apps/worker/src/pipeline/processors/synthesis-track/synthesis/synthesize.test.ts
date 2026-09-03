@@ -182,6 +182,21 @@ describe("synthesis action contract", () => {
     );
   });
 
+  it("shows current external links and forbids linking the same entity", () => {
+    const input = inputFor() as SynthesizeThreadReadInput & {
+      linkedIssueExternalKey: string;
+      linkedPullRequestExternalKey: string;
+    };
+    input.linkedIssueExternalKey = "github:acme/app#42";
+    input.linkedPullRequestExternalKey = "github:acme/app#43";
+
+    const prompt = buildSynthesisPrompt(input);
+
+    expect(prompt).toContain('issue externalKey="github:acme/app#42"');
+    expect(prompt).toContain('pull request externalKey="github:acme/app#43"');
+    expect(prompt).toContain("Never emit a link action for the same entity");
+  });
+
   it("keeps enabled non-reply actions on an unreplied thread when reply is off", () => {
     const output = parseRawActionSetFromText(
       rawActionSet({ kind: "set_status", status: 1, witness: null }),

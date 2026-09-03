@@ -1,13 +1,17 @@
-import type { Thread } from "../../../../types";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import type {
+  fetchMirroredIssueByUrl,
+  fetchMirroredPrByUrl,
+} from "../../../../lib/database/client";
 import { fetchThreadWithRelations } from "../../../../lib/database/client";
+import type { Thread } from "../../../../types";
 import { createSynthesisTools } from "./tools";
 
-vi.mock("../../../../lib/database/client", () => ({
-  fetchMirroredIssueByUrl: vi.fn(),
-  fetchMirroredPrByUrl: vi.fn(),
-  fetchThreadWithRelations: vi.fn(),
+vi.mock(import("../../../../lib/database/client"), () => ({
+  fetchMirroredIssueByUrl: vi.fn<typeof fetchMirroredIssueByUrl>(),
+  fetchMirroredPrByUrl: vi.fn<typeof fetchMirroredPrByUrl>(),
+  fetchThreadWithRelations: vi.fn<typeof fetchThreadWithRelations>(),
 }));
 
 const mockedFetchThreadWithRelations = vi.mocked(fetchThreadWithRelations);
@@ -15,6 +19,8 @@ const mockedFetchThreadWithRelations = vi.mocked(fetchThreadWithRelations);
 const makeThread = (deletedAt: Date | null): Thread =>
   ({
     deletedAt,
+    externalIssueId: "github:acme/app#42",
+    externalPrId: "github:acme/app#43",
     id: "target-thread",
     messages: [],
     name: "Target thread",
@@ -45,9 +51,36 @@ describe("synthesis read_thread", () => {
       threadId: "target-thread",
     });
 
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       found: false,
       reason: "not_found",
+    });
+  });
+
+  it("exposes the thread's current external links", async () => {
+    const thread = makeThread(null);
+    mockedFetchThreadWithRelations.mockResolvedValue(thread);
+
+    const tools = createSynthesisTools({
+      currentThread: makeThread(null),
+      currentThreadId: "current-thread",
+      organizationId: "org-a",
+    });
+
+    const executeReadThread = tools.read_thread.execute as unknown as (input: {
+      threadId: string;
+    }) => Promise<unknown>;
+
+    await expect(
+      executeReadThread({ threadId: "target-thread" })
+    ).resolves.toMatchObject({
+      found: true,
+      thread: {
+        linkedEntities: {
+          issueExternalKey: "github:acme/app#42",
+          pullRequestExternalKey: "github:acme/app#43",
+        },
+      },
     });
   });
 });

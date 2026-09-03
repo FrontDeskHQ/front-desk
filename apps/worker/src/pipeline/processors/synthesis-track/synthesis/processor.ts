@@ -82,6 +82,7 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
         // Shapes availability (an already-linked thread cannot file an issue),
         // so it is a real synthesis input.
         thread.externalIssueId ?? "",
+        thread.externalPrId ?? "",
         // Every message's role is derived from the thread author (customer) and
         // from whether an author is linked to a teammate, so reassigning the
         // thread author re-labels the transcript and can invalidate a
@@ -217,6 +218,8 @@ export const synthesisProcessor: ProcessorDefinition<SynthesisProcessorOutput> =
           {
             threadId,
             threadName: thread.name ?? null,
+            linkedIssueExternalKey: thread.externalIssueId ?? null,
+            linkedPullRequestExternalKey: thread.externalPrId ?? null,
             customerName,
             sourceInputMessageId: latestMessage.id,
             threadMessages: messages.map((message) => ({
