@@ -12,11 +12,18 @@ const readIssueOutputSchema = z.object({
   found: z.boolean().optional(),
   issue: z
     .object({
+      externalKey: z.string().optional(),
       number: z.number().optional(),
       url: z.string().optional(),
     })
     .optional(),
 });
+
+export interface VerifiedIssueDetails {
+  externalKey?: string;
+  number?: number;
+  url: string;
+}
 
 const searchIssuesInputSchema = z.object({ query: z.string().trim().min(1) });
 const searchIssuesOutputSchema = z.object({
@@ -134,10 +141,10 @@ export const filterActionSetToVerifiedCreateIssue = <
  * has no such rendering, so repairing the sentence would add surface without
  * adding safety.
  */
-export const collectVerifiedIssueUrlsFromToolSteps = (
+export const collectVerifiedIssueDetailsFromToolSteps = (
   steps: ToolStep[]
-): Set<string> => {
-  const verified = new Set<string>();
+): Map<string, VerifiedIssueDetails> => {
+  const verified = new Map<string, VerifiedIssueDetails>();
 
   for (const step of steps) {
     for (const result of step.toolResults) {
@@ -150,13 +157,22 @@ export const collectVerifiedIssueUrlsFromToolSteps = (
       }
       const url = parsedOutput.data.issue?.url?.trim();
       if (url) {
-        verified.add(url);
+        verified.set(url, {
+          externalKey: parsedOutput.data.issue?.externalKey,
+          number: parsedOutput.data.issue?.number,
+          url,
+        });
       }
     }
   }
 
   return verified;
 };
+
+export const collectVerifiedIssueUrlsFromToolSteps = (
+  steps: ToolStep[]
+): Set<string> =>
+  new Set(collectVerifiedIssueDetailsFromToolSteps(steps).keys());
 
 /** Drop `link_issue` actions whose `issueUrl` was not returned by a successful `read_issue`. */
 export const filterLinkIssueToVerifiedUrls = <

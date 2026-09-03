@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ACTION_INVOKE_SECRET_HEADER,
   ACTION_INVOKE_TIMEOUT_MS,
+  invokeCapability,
   invokeDeveloperAction,
 } from "./invoke";
 
@@ -89,6 +90,55 @@ describe("developer-action connector transport", () => {
       )
     ).rejects.toThrow(
       `DEVELOPER_ACTION_INVOKE_TIMEOUT: no response after ${ACTION_INVOKE_TIMEOUT_MS}ms`
+    );
+  });
+});
+
+describe("credential-bearing connector transport", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.unstubAllGlobals();
+  });
+
+  it("rejects cleartext non-loopback endpoints before sending a secret", async () => {
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(
+      invokeCapability(
+        "http://connector.example/api/capabilities/invoke",
+        {
+          capability: "issue-tracker",
+          config: null,
+          method: "readOutcome",
+          payload: {},
+        },
+        { secret: "connector-secret" }
+      )
+    ).rejects.toThrow("CONNECTOR_INVOKE_REQUIRES_HTTPS");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects redirects when a capability request carries a secret", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ ok: true }), { status: 200 })
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await invokeCapability(
+      "https://connector.example/api/capabilities/invoke",
+      {
+        capability: "issue-tracker",
+        config: null,
+        method: "readOutcome",
+        payload: {},
+      },
+      { secret: "connector-secret" }
+    );
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://connector.example/api/capabilities/invoke",
+      expect.objectContaining({ redirect: "error" })
     );
   });
 });

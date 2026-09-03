@@ -153,7 +153,85 @@ const replayTarget = {
   url: "https://github.com/owner/repo/pull/123",
 };
 
+const issueTarget = {
+  externalKey: "github:owner/repo#124",
+  number: 124,
+  repoFullName: "owner/repo",
+  url: "https://github.com/owner/repo/issues/124",
+};
+
 describe("GitHub developer-action handlers", () => {
+  it("refreshes and replays a finished external entity", async () => {
+    const upsertExternalEntity = vi
+      .fn<GithubDeveloperActionDependencies["upsertExternalEntity"]>()
+      .mockResolvedValue(undefined);
+    const handlers = createGithubDeveloperActionHandlers({
+      fetchIssue: vi
+        .fn<GithubDeveloperActionDependencies["fetchIssue"]>()
+        .mockResolvedValue({
+          assignees: [],
+          body: "Done",
+          closed_at: "2026-08-05T00:00:00Z",
+          created_at: "2026-08-03T00:00:00Z",
+          html_url: issueTarget.url,
+          id: 124,
+          labels: [],
+          number: 124,
+          state: "closed",
+          title: "Implement request",
+          updated_at: "2026-08-05T00:00:00Z",
+          user: { login: "maintainer" },
+        }),
+      upsertExternalEntity,
+    });
+
+    const response = await handlers.entity_finished_replay(githubConfig, {
+      organizationId: "org-a",
+      target: issueTarget,
+      type: "issue",
+    });
+
+    expect(response).toStrictEqual({
+      body: {
+        accepted: true,
+        jobIds: [],
+        target: issueTarget.externalKey,
+      },
+      status: 202,
+    });
+    expect(upsertExternalEntity).toHaveBeenCalledOnce();
+  });
+
+  it("reports a finished replay mirror write failure as an action failure", async () => {
+    const handlers = createGithubDeveloperActionHandlers({
+      fetchIssue: vi
+        .fn<GithubDeveloperActionDependencies["fetchIssue"]>()
+        .mockResolvedValue({
+          created_at: "2026-08-03T00:00:00Z",
+          html_url: issueTarget.url,
+          id: 124,
+          number: 124,
+          state: "closed",
+          title: "Implement request",
+          updated_at: "2026-08-05T00:00:00Z",
+        }),
+      upsertExternalEntity: vi
+        .fn<GithubDeveloperActionDependencies["upsertExternalEntity"]>()
+        .mockRejectedValue(new Error("mirror unavailable")),
+    });
+
+    const response = await handlers.entity_finished_replay(githubConfig, {
+      organizationId: "org-a",
+      target: issueTarget,
+      type: "issue",
+    });
+
+    expect(response).toStrictEqual({
+      body: { error: "ACTION_FAILED" },
+      status: 500,
+    });
+  });
+
   it("refreshes an eligible PR and enqueues the existing match pipeline", async () => {
     const fetchPullRequest = vi
       .fn<GithubDeveloperActionDependencies["fetchPullRequest"]>()

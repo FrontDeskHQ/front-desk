@@ -14,8 +14,12 @@ type ReadThreadOutput = ToolOutput<SynthesisTools["read_thread"]>;
 type ReadPrOutput = ToolOutput<SynthesisTools["read_pr"]>;
 type ReadIssueOutput = ToolOutput<SynthesisTools["read_issue"]>;
 type SearchIssuesOutput = ToolOutput<SynthesisTools["search_issues"]>;
+type ReadExternalEntityOutput = ToolOutput<
+  SynthesisTools["read_external_entity"]
+>;
 
 export interface ToolCallCounters {
+  read_external_entity: number;
   read_thread: number;
   read_pr: number;
   read_issue: number;
@@ -82,6 +86,7 @@ export const createMockTools = (
   verifiedPrUrls: Set<string>;
 } => {
   const counters: ToolCallCounters = {
+    read_external_entity: 0,
     read_documentation_page: 0,
     read_issue: 0,
     read_pr: 0,
@@ -95,6 +100,18 @@ export const createMockTools = (
   const issueSearchQueries: string[] = [];
 
   const tools: SynthesisTools = {
+    read_external_entity: tool({
+      description: "Read a mocked external entity outcome.",
+      inputSchema: z.object({ externalKey: z.string() }),
+      execute: async ({ externalKey }): Promise<ReadExternalEntityOutput> => {
+        counters.read_external_entity++;
+        return (
+          fixtures.externalEntityOutcomesByKey?.[externalKey] ?? {
+            status: "not_found" as const,
+          }
+        );
+      },
+    }),
     read_documentation_page: tool({
       description: "Read docs page chunks from mocked fixtures.",
       inputSchema: z.object({
@@ -147,6 +164,10 @@ export const createMockTools = (
             status: thread.status,
             priority: thread.priority,
             createdAt: new Date(thread.createdAt),
+            linkedEntities: {
+              issueExternalKey: thread.externalIssueId ?? null,
+              pullRequestExternalKey: thread.externalPrId ?? null,
+            },
             // Same ordering the live tool applies (`toOrderedMessages`): a
             // fixture that lists messages out of id order must not hand the
             // model a transcript production would never produce.

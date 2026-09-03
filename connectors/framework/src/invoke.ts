@@ -65,6 +65,27 @@ interface RemoteInvokeOptions {
   timeoutMessage: string;
 }
 
+export class RemoteInvokeError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "RemoteInvokeError";
+    this.status = status;
+  }
+}
+
+const assertSecretTransport = (invokeUrl: string): void => {
+  const url = new URL(invokeUrl);
+  const isLoopback =
+    url.hostname === "localhost" ||
+    url.hostname === "127.0.0.1" ||
+    url.hostname === "[::1]";
+  if (url.protocol !== "https:" && !isLoopback) {
+    throw new Error("CONNECTOR_INVOKE_REQUIRES_HTTPS");
+  }
+};
+
 const invokeRemote = async <Result = unknown>(
   invokeUrl: string,
   envelope: unknown,
@@ -74,6 +95,7 @@ const invokeRemote = async <Result = unknown>(
     "Content-Type": "application/json",
   };
   if (options.secret) {
+    assertSecretTransport(invokeUrl);
     headers[CAPABILITY_INVOKE_SECRET_HEADER] = options.secret;
   }
 
@@ -83,7 +105,7 @@ const invokeRemote = async <Result = unknown>(
       body: JSON.stringify(envelope),
       headers,
       method: "POST",
-      redirect: options.redirect ?? "follow",
+      redirect: options.redirect ?? (options.secret ? "error" : "follow"),
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   } catch (error) {
@@ -94,7 +116,7 @@ const invokeRemote = async <Result = unknown>(
   }
 
   if (!response.ok) {
-    throw new Error(await options.failure(response));
+    throw new RemoteInvokeError(await options.failure(response), response.status);
   }
 
   return (await response.json()) as Result;

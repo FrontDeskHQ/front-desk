@@ -93,7 +93,16 @@ export const applySynthesisAutonomy = async (
   // cites a `link_pr` autonomy had already dropped.
   const { autoActions, gated, fingerprints } = await applyActionGates(
     run,
-    permitted
+    permitted,
+    new Set(
+      filteredRead.primary.flatMap((action) =>
+        action.kind === "set_status" &&
+        action.witness?.class === "entity_settled" &&
+        action.witness.outcome === "delivered"
+          ? action.witness.sources
+          : []
+      )
+    )
   );
 
   // A gated action is not lost and does not veto its siblings — it joins the
@@ -226,7 +235,8 @@ export const applySynthesisAutonomy = async (
  */
 const applyActionGates = async (
   run: RunState,
-  permitted: Action[]
+  permitted: Action[],
+  verifiedDeliveredEntityUrls: ReadonlySet<string>
 ): Promise<{
   autoActions: Action[];
   gated: Action[];
@@ -257,7 +267,11 @@ const applyActionGates = async (
     const siblings = confirmed.filter((other) => other !== action);
     let result: ActionGateResult;
     try {
-      result = await gate(action, { autoSiblings: siblings, run });
+      result = await gate(action, {
+        autoSiblings: siblings,
+        run,
+        verifiedDeliveredEntityUrls,
+      });
     } catch (error) {
       result = { allowed: false, reason: "gate_failed" };
       log.error({

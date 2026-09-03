@@ -167,6 +167,45 @@ export const capabilityEntityRefSchema = z.object({
 
 export type CapabilityEntityRef = z.infer<typeof capabilityEntityRefSchema>;
 
+/** Customer-impact result of a finished external issue or pull request. */
+export const externalOutcomeSchema = z.enum([
+  "delivered",
+  "declined",
+  "superseded",
+  "unknown",
+]);
+export type ExternalOutcome = z.infer<typeof externalOutcomeSchema>;
+
+export const trackerReadOutcomePayloadSchema = z.object({
+  entity: capabilityEntityRefSchema,
+});
+export type TrackerReadOutcomePayload = z.infer<
+  typeof trackerReadOutcomePayloadSchema
+>;
+
+const outcomeEntitySchema = z.object({
+  entity: capabilityEntityRefSchema,
+  finished: z.boolean(),
+  outcome: externalOutcomeSchema,
+  state: z.string(),
+  title: z.string(),
+  type: z.enum(["issue", "pull_request"]),
+});
+
+/**
+ * Provider-neutral structural result returned by tracker `readOutcome`.
+ * `successor` is authoritative provider data for a duplicate, never a fuzzy
+ * match. It is deliberately one level deep so a connector cannot hand an
+ * unbounded relationship graph to synthesis. Provider-authored bodies are
+ * excluded because they can carry unrelated tracker references and prose.
+ */
+export const trackerReadOutcomeResultSchema = outcomeEntitySchema.extend({
+  successor: outcomeEntitySchema.nullable().default(null),
+});
+export type TrackerReadOutcomeResult = z.infer<
+  typeof trackerReadOutcomeResultSchema
+>;
+
 /**
  * `issue-tracker` `setState` — push an open/closed state onto an existing issue,
  * keeping the external issue in sync with its linked thread's status. Routed by

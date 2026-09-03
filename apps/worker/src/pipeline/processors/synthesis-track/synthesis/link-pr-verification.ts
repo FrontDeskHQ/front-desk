@@ -3,6 +3,7 @@ import { extractRenderedMarkdownLinkUrls } from "@workspace/utils/markdown-links
 import z from "zod";
 
 export interface VerifiedPrDetails {
+  externalKey?: string;
   number?: number;
   url: string;
 }
@@ -18,6 +19,7 @@ const readPrOutputSchema = z.object({
   found: z.boolean().optional(),
   pr: z
     .object({
+      externalKey: z.string().optional(),
       number: z.number().optional(),
       url: z.string().optional(),
     })
@@ -55,6 +57,7 @@ export const collectVerifiedPrDetailsFromToolSteps = (
       if (url) {
         const number = parsedOutput.data.pr?.number;
         verified.set(url, {
+          externalKey: parsedOutput.data.pr?.externalKey,
           number,
           url,
         });

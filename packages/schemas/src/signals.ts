@@ -194,19 +194,43 @@ export const STATUS_WITNESS_CLASSES = [
 export const statusWitnessClassSchema = z.enum(STATUS_WITNESS_CLASSES);
 export type StatusWitnessClass = z.infer<typeof statusWitnessClassSchema>;
 
-export const statusWitnessSchema = z.object({
-  class: statusWitnessClassSchema,
-  /**
-   * What the class points at: message ids for `customer_confirmed`, the
-   * external entity id for `entity_settled`. Empty for `abandoned` (the trigger
-   * is the evidence) and for `inferred` (there is none).
-   *
-   * Required rather than defaulted: a `.default()` here diverges the schema's
-   * input and output types, and this schema sits inside the discriminated union
-   * the synthesis parse schema is built from.
-   */
-  sources: z.array(z.string()),
-});
+/** Provider-neutral customer impact of a finished external entity. */
+export const EXTERNAL_ENTITY_OUTCOMES = [
+  "delivered",
+  "declined",
+  "superseded",
+  "unknown",
+] as const;
+export const externalEntityOutcomeSchema = z.enum(EXTERNAL_ENTITY_OUTCOMES);
+export type ExternalEntityOutcome = z.infer<
+  typeof externalEntityOutcomeSchema
+>;
+
+export const statusWitnessSchema = z
+  .object({
+    class: statusWitnessClassSchema,
+    /** Required for `entity_settled`; ignored by the other witness classes. */
+    outcome: externalEntityOutcomeSchema.optional(),
+    /**
+     * What the class points at: message ids for `customer_confirmed`, the
+     * external entity id for `entity_settled`. Empty for `abandoned` (the trigger
+     * is the evidence) and for `inferred` (there is none).
+     *
+     * Required rather than defaulted: a `.default()` here diverges the schema's
+     * input and output types, and this schema sits inside the discriminated union
+     * the synthesis parse schema is built from.
+     */
+    sources: z.array(z.string()),
+  })
+  .superRefine((witness, context) => {
+    if (witness.class === "entity_settled" && witness.outcome === undefined) {
+      context.addIssue({
+        code: "custom",
+        message: "entity_settled requires an outcome",
+        path: ["outcome"],
+      });
+    }
+  });
 export type StatusWitness = z.infer<typeof statusWitnessSchema>;
 
 /** Which witness class may finish a thread into which status. */
@@ -800,6 +824,7 @@ export function parseAutonomousActionMetadata(
 export const threadReadKindSchema = z.enum([
   "message",
   "pr_matched",
+  "entity_finished",
   "sla",
   "supersede",
   "manual",
@@ -820,15 +845,38 @@ export const prMatchCandidateSchema = z.object({
 });
 export type PrMatchCandidate = z.infer<typeof prMatchCandidateSchema>;
 
+/** Authoritative linked entity that caused an `entity_finished` run. */
+export const entityFinishedCandidateSchema = z.object({
+  externalKey: z.string().min(1),
+  type: z.enum(["issue", "pull_request"]),
+  // Mirrors accept provider URLs as opaque strings. Queue validation must use
+  // the same contract or one malformed upstream URL can suppress fan-out.
+  url: z.string().min(1),
+});
+export type EntityFinishedCandidate = z.infer<
+  typeof entityFinishedCandidateSchema
+>;
+
 /**
  * The trigger-context channel (ADR 0006): the cause of a pipeline run plus any
  * payload it pushed. Kept separate from `hints` so synthesis can distinguish a
  * push-side `pr_matched` candidate from a pull-side `related_prs` hint.
  */
-export const threadReadTriggerSchema = z.object({
-  kind: threadReadKindSchema,
-  prMatched: prMatchCandidateSchema.optional(),
-});
+export const threadReadTriggerSchema = z
+  .object({
+    entityFinished: entityFinishedCandidateSchema.optional(),
+    kind: threadReadKindSchema,
+    prMatched: prMatchCandidateSchema.optional(),
+  })
+  .superRefine((trigger, context) => {
+    if (trigger.kind === "entity_finished" && !trigger.entityFinished) {
+      context.addIssue({
+        code: "custom",
+        message: "entity_finished requires entityFinished",
+        path: ["entityFinished"],
+      });
+    }
+  });
 export type ThreadReadTrigger = z.infer<typeof threadReadTriggerSchema>;
 
 const canonicalThreadReadJobDataSchema = z.object({
@@ -855,7 +903,9 @@ export type LegacyThreadReadJobData = z.infer<
 const triggerIdentity = (trigger: ThreadReadTrigger): string =>
   trigger.kind === "pr_matched" && trigger.prMatched
     ? `pr_matched:${trigger.prMatched.prId}`
-    : trigger.kind;
+    : trigger.kind === "entity_finished" && trigger.entityFinished
+      ? `entity_finished:${trigger.entityFinished.externalKey}`
+      : trigger.kind;
 
 /**
  * Merge causes without overwriting them. The first occurrence fixes arrival
@@ -916,14 +966,19 @@ export const normalizeThreadReadJobData = (
   }
 
   const legacy = legacyThreadReadJobDataSchema.parse(input);
+  // The pre-generational shape cannot carry authoritative entity evidence.
+  // During a rolling deployment, degrade that incomplete cause to a manual
+  // read instead of inventing a candidate or exhausting queue retries.
+  const legacyKind =
+    legacy.kind === "entity_finished" ? "manual" : legacy.kind;
   const triggers: ThreadReadTrigger[] = legacy.prMatched
-    ? legacy.kind === "pr_matched"
+    ? legacyKind === "pr_matched"
       ? [{ kind: "pr_matched", prMatched: legacy.prMatched }]
       : [
-          { kind: legacy.kind },
+          { kind: legacyKind },
           { kind: "pr_matched", prMatched: legacy.prMatched },
         ]
-    : [{ kind: legacy.kind }];
+    : [{ kind: legacyKind }];
   return {
     ...(legacy.generation === undefined
       ? {}

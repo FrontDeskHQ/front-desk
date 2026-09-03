@@ -3,10 +3,16 @@ import { parseExternalId } from "@workspace/schemas/external-issue";
 import { z } from "zod";
 
 import {
+  buildIssueFields,
   buildPullRequestFields,
   upsertExternalEntity,
 } from "./external-entity";
-import type { GitHubPullRequestLike, RepoRef } from "./external-entity";
+import type {
+  ExternalEntityFields,
+  GitHubIssueLike,
+  GitHubPullRequestLike,
+  RepoRef,
+} from "./external-entity";
 import { enqueuePrMatch, enqueueRepoBackfill } from "./queue";
 
 /** A handled response: an HTTP status plus the JSON body to return. */
@@ -40,6 +46,12 @@ export interface GithubDeveloperActionDependencies {
     repo: string,
     pullNumber: number
   ) => Promise<GitHubPullRequestLike>;
+  fetchIssue: (
+    installationId: number,
+    owner: string,
+    repo: string,
+    issueNumber: number
+  ) => Promise<GitHubIssueLike>;
   upsertExternalEntity: typeof upsertExternalEntity;
 }
 
@@ -62,6 +74,14 @@ const prMatchReplayPayloadSchema = z
   .object({
     organizationId: z.string().min(1),
     target: capabilityEntityRefSchema.strict(),
+  })
+  .strict();
+
+const entityFinishedReplayPayloadSchema = z
+  .object({
+    organizationId: z.string().min(1),
+    target: capabilityEntityRefSchema.strict(),
+    type: z.enum(["issue", "pull_request"]),
   })
   .strict();
 
@@ -217,6 +237,87 @@ const replayPullRequest = async (
   }
 };
 
+const replayFinishedEntity = async (
+  rawConfig: string,
+  rawPayload: unknown,
+  dependencies: GithubDeveloperActionDependencies
+): Promise<GithubDeveloperActionResult> => {
+  const config = parseConfig(rawConfig);
+  const parsedPayload = entityFinishedReplayPayloadSchema.safeParse(rawPayload);
+  if (!config) {
+    return result(400, "INVALID_CONFIG");
+  }
+  if (!parsedPayload.success) {
+    return result(400, "INVALID_TARGET");
+  }
+
+  const { organizationId, target, type } = parsedPayload.data;
+  const repo = config.repos.find(
+    (candidate) => candidate.fullName === target.repoFullName
+  );
+  const parsedExternalKey = parseExternalId(target.externalKey);
+  if (
+    !repo ||
+    !parsedExternalKey ||
+    parsedExternalKey.provider !== "github" ||
+    parsedExternalKey.owner !== repo.owner ||
+    parsedExternalKey.repo !== repo.name
+  ) {
+    return result(400, repo ? "INVALID_TARGET" : "REPOSITORY_NOT_CONNECTED");
+  }
+
+  let fields: ExternalEntityFields;
+  try {
+    fields =
+      type === "issue"
+        ? buildIssueFields(
+            await dependencies.fetchIssue(
+              config.installationId,
+              repo.owner,
+              repo.name,
+              target.number
+            ),
+            repoRef(repo)
+          )
+        : buildPullRequestFields(
+            await dependencies.fetchPullRequest(
+              config.installationId,
+              repo.owner,
+              repo.name,
+              target.number
+            ),
+            repoRef(repo)
+          );
+
+  } catch {
+    return result(502, "UPSTREAM_UNAVAILABLE");
+  }
+
+  if (fields.externalKey !== target.externalKey || fields.url !== target.url) {
+    return result(409, "TARGET_CHANGED");
+  }
+  try {
+    await dependencies.upsertExternalEntity(organizationId, fields);
+  } catch {
+    return result(500, "ACTION_FAILED");
+  }
+  const finished =
+    fields.type === "issue"
+      ? fields.state === "closed"
+      : fields.merged === true;
+  if (!finished) {
+    return result(409, "ENTITY_NOT_FINISHED");
+  }
+  return {
+    body: {
+      accepted: true,
+      jobIds: [],
+      target: fields.externalKey,
+    },
+    status: 202,
+  };
+};
+
 const backfillRepositories = async (
   rawConfig: string,
   rawPayload: unknown,
@@ -313,6 +414,8 @@ const backfillRepositories = async (
 const defaultDependencies: GithubDeveloperActionDependencies = {
   enqueuePrMatch,
   enqueueRepoBackfill,
+  fetchIssue: (...args) =>
+    import("./github").then(({ fetchIssue }) => fetchIssue(...args)),
   fetchPullRequest: (...args) =>
     import("./github").then(({ fetchPullRequest }) =>
       fetchPullRequest(...args)
@@ -326,6 +429,8 @@ export const createGithubDeveloperActionHandlers = (
 ): Readonly<Record<string, GithubDeveloperActionHandler>> => {
   const dependencies = { ...defaultDependencies, ...overrides };
   return {
+    entity_finished_replay: (config, payload) =>
+      replayFinishedEntity(config, payload, dependencies),
     pr_match_replay: (config, payload) =>
       replayPullRequest(config, payload, dependencies),
     repository_backfill: (config, payload) =>

@@ -6,6 +6,8 @@ import type { RunState } from "./run-state";
 
 export interface ActionGateContext {
   run: RunState;
+  /** Delivered entity reads already checked by synthesis' trust boundary. */
+  verifiedDeliveredEntityUrls?: ReadonlySet<string>;
   /**
    * Bundle siblings that are actually executing, not merely proposed: ungated
    * kinds plus gated ones already admitted this pass. Gated siblings that have

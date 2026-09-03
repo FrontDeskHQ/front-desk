@@ -104,3 +104,25 @@ export const fetchMirroredIssueByUrl = async (
     return null;
   }
 };
+
+/** Read a provider-verified structural outcome for a mirrored external entity. */
+export const fetchExternalEntityOutcome = async (
+  organizationId: string,
+  externalKey: string
+) => {
+  try {
+    return await fetchClient.query.externalEntity.readOutcome({
+      externalKey,
+      organizationId,
+    });
+  } catch (error) {
+    log.error({
+      action: "worker.database",
+      operation: "external_entity.outcome",
+      organizationId,
+      externalKey,
+      error: errorFields(error),
+    });
+    return { status: "unavailable" as const };
+  }
+};

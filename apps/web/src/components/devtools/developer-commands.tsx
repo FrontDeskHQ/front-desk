@@ -10,6 +10,7 @@ import {
   EyeOff,
   Flag,
   GitPullRequest,
+  GitMerge,
   Github,
   History,
   ListRestart,
@@ -55,6 +56,7 @@ export const DEVELOPER_TOOLS_PAGE_ID = "developer-tools";
 const DEVELOPER_THREADS_PAGE_ID = "developer-tools.threads";
 const DEVELOPER_GITHUB_PAGE_ID = "developer-tools.github";
 const DEVELOPER_GITHUB_PR_PAGE_ID = "developer-tools.github.prs";
+const DEVELOPER_GITHUB_FINISHED_PAGE_ID = "developer-tools.github.finished";
 const DEVELOPER_GITHUB_BACKFILL_PAGE_ID = "developer-tools.github.backfill";
 const DEVELOPER_SIGNALS_PAGE_ID = "developer-tools.signals";
 const DEVELOPER_FLAGS_PAGE_ID = "developer-tools.flags";
@@ -103,8 +105,37 @@ export const DeveloperToolsCommands = ({
     query.externalEntity.where({
       deletedAt: null,
       organizationId,
+      provider: "github",
       type: "pull_request",
     })
+  );
+  const finishedIssues = useLiveQuery(
+    query.externalEntity.where({
+      deletedAt: null,
+      organizationId,
+      provider: "github",
+      state: "closed",
+      type: "issue",
+    })
+  );
+  const mergedPullRequests = useLiveQuery(
+    query.externalEntity.where({
+      deletedAt: null,
+      merged: true,
+      organizationId,
+      provider: "github",
+      type: "pull_request",
+    })
+  );
+  const finishedExternalEntities = useMemo(
+    () =>
+      [...(finishedIssues ?? []), ...(mergedPullRequests ?? [])]
+        .toSorted((a, b) =>
+          `${a.repoFullName}#${a.number}`.localeCompare(
+            `${b.repoFullName}#${b.number}`
+          )
+        ),
+    [finishedIssues, mergedPullRequests]
   );
 
   const githubRepos = useMemo<GithubRepo[]>(() => {
@@ -189,7 +220,10 @@ export const DeveloperToolsCommands = ({
       payload,
       successMessage,
     }: {
-      action: "pr_match_replay" | "repository_backfill";
+      action:
+        | "entity_finished_replay"
+        | "pr_match_replay"
+        | "repository_backfill";
       payload: Record<string, unknown>;
       successMessage: string;
     }) => {
@@ -334,6 +368,43 @@ export const DeveloperToolsCommands = ({
     label: "Replay GitHub PR match",
   };
 
+  const githubFinishedPage: CommandPage = {
+    commands:
+      finishedExternalEntities.length > 0
+        ? finishedExternalEntities.map((entity) => ({
+            group: entity.repoFullName,
+            icon: <GitMerge />,
+            id: `developer-tools.github.finished.${entity.id}`,
+            keywords: [
+              "github",
+              "finished",
+              "close loop",
+              entity.repoFullName,
+              `#${entity.number}`,
+            ],
+            label: `#${entity.number} ${entity.title || "Untitled entity"}`,
+            onSelect: () => {
+              void invokeGithubAction({
+                action: "entity_finished_replay",
+                payload: { entityId: entity.id },
+                successMessage: `Accepted close-loop replay for ${entity.repoFullName}#${entity.number}`,
+              });
+            },
+          }))
+        : [
+            {
+              disabled: true,
+              icon: <GitMerge />,
+              id: "developer-tools.github.finished.empty",
+              label: "No finished mirrored issues or pull requests",
+              onSelect: () => undefined,
+            },
+          ],
+    icon: <GitMerge />,
+    id: DEVELOPER_GITHUB_FINISHED_PAGE_ID,
+    label: "Replay finished entity",
+  };
+
   const githubBackfillPage: CommandPage = {
     commands:
       githubRepos.length > 0
@@ -402,6 +473,13 @@ export const DeveloperToolsCommands = ({
 
   const githubPage: CommandPage = {
     commands: [
+      {
+        icon: <GitMerge />,
+        id: "developer-tools.github.finished",
+        keywords: ["issue", "pull request", "close loop"],
+        label: "Replay finished external entity...",
+        pageId: DEVELOPER_GITHUB_FINISHED_PAGE_ID,
+      },
       {
         icon: <GitPullRequest />,
         id: "developer-tools.github.replay",
@@ -606,6 +684,10 @@ export const DeveloperToolsCommands = ({
   useCommandPage(
     () => githubPrPage,
     [eligiblePullRequests, invokeGithubAction]
+  );
+  useCommandPage(
+    () => githubFinishedPage,
+    [finishedExternalEntities, invokeGithubAction]
   );
   useCommandPage(
     () => githubBackfillPage,

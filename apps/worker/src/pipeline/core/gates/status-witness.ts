@@ -48,6 +48,15 @@ export const statusWitnessGate: ActionGate = async (action, ctx) => {
     return deny(`witness_unsourced:${witness.class}`);
   }
 
+  // A structural close is not proof that the customer's request shipped.
+  // Declined, duplicate, and ambiguous outcomes always stay human-reviewed.
+  if (
+    witness.class === "entity_settled" &&
+    witness.outcome !== "delivered"
+  ) {
+    return deny(`entity_outcome_not_delivered:${witness.outcome ?? "missing"}`);
+  }
+
   // Resolving is the one finish the customer is owed a word about: it ends a
   // conversation they still believe is live. `abandoned` → Closed is exempt —
   // there is nobody left to tell, and a "closing for inactivity" note is a

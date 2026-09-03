@@ -5,6 +5,7 @@ import {
   STATUS_RESOLVED,
 } from "@workspace/schemas/signals";
 import type { Action, StatusWitnessClass } from "@workspace/schemas/signals";
+import type { ExternalEntityOutcome } from "@workspace/schemas/signals";
 import { describe, expect, it } from "vitest";
 
 import type { RunState } from "../run-state";
@@ -15,11 +16,14 @@ const run = {} as RunState;
 const setStatus = (
   status: number,
   witnessClass?: StatusWitnessClass,
-  sources: string[] = ["m1"]
+  sources: string[] = ["m1"],
+  outcome?: ExternalEntityOutcome
 ): Action => ({
   kind: "set_status",
   status,
-  ...(witnessClass ? { witness: { class: witnessClass, sources } } : {}),
+  ...(witnessClass
+    ? { witness: { class: witnessClass, sources, ...(outcome ? { outcome } : {}) } }
+    : {}),
 });
 
 const groundedReply: Action = {
@@ -113,9 +117,45 @@ describe(statusWitnessGate, () => {
       gate(setStatus(STATUS_RESOLVED, "customer_confirmed"), [groundedReply])
     ).resolves.toMatchObject({ allowed: true });
     await expect(
+      gate(
+        setStatus(
+          STATUS_RESOLVED,
+          "entity_settled",
+          ["https://pr/1"],
+          "delivered"
+        ),
+        [groundedReply]
+      )
+    ).resolves.toMatchObject({ allowed: true });
+  });
+
+  it("keeps non-delivered entity outcomes human-reviewed", async () => {
+    for (const outcome of ["declined", "superseded", "unknown"] as const) {
+      await expect(
+        gate(
+          setStatus(
+            STATUS_RESOLVED,
+            "entity_settled",
+            ["https://issue/1"],
+            outcome
+          ),
+          [groundedReply]
+        )
+      ).resolves.toMatchObject({
+        allowed: false,
+        reason: `entity_outcome_not_delivered:${outcome}`,
+      });
+    }
+  });
+
+  it("does not trust a legacy entity witness without an outcome", async () => {
+    await expect(
       gate(setStatus(STATUS_RESOLVED, "entity_settled", ["https://pr/1"]), [
         groundedReply,
       ])
-    ).resolves.toMatchObject({ allowed: true });
+    ).resolves.toMatchObject({
+      allowed: false,
+      reason: "entity_outcome_not_delivered:missing",
+    });
   });
 });

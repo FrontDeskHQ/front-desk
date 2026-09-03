@@ -3,10 +3,24 @@ import type {
   IssueIndexJobData,
   PrIndexJobData,
 } from "@workspace/schemas/signals";
+import {
+  invokeCapability,
+  RemoteInvokeError,
+  trackerReadOutcomeResultSchema,
+} from "@connectors/framework";
 import { ulid } from "ulid";
 import { z } from "zod";
 
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
+import {
+  buildEntityRef,
+  resolveEntityCapabilityTarget,
+} from "../../lib/capability-dispatch";
+import { connectorInvokeSecret } from "../../lib/connector-registry";
+import {
+  didExternalEntityFinish,
+  fanOutEntityFinished,
+} from "../../lib/entity-finished";
 import {
   enqueueGithubBackfill,
   enqueueIssueIndex,
@@ -18,6 +32,12 @@ import { schema } from "../schema";
 
 /** Thread statuses a push-side PR match may light up: Open (0), In progress (1). */
 const PR_MATCH_ACTIVE_STATUSES = new Set([0, 1]);
+
+const isTransientOutcomeReadError = (error: unknown): boolean =>
+  (error instanceof RemoteInvokeError && error.status >= 500) ||
+  error instanceof TypeError ||
+  (error instanceof Error &&
+    error.message.startsWith("CAPABILITY_INVOKE_TIMEOUT"));
 
 /**
  * Org-scoped mirror of external issues/PRs.
@@ -258,6 +278,75 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   }),
 
   /**
+   * Read the provider's current structural outcome for synthesis. This is a
+   * narrow capability read: current fields and duplicate successor, never
+   * comments. Transient connector failures retry locally, then degrade to an
+   * explicit unavailable result so the Agent can only suggest.
+   */
+  readOutcome: query(
+    z.object({
+      externalKey: z.string().min(1),
+      organizationId: z.string(),
+    })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+    const entity = Object.values(
+      await db.find(schema.externalEntity, {
+        where: {
+          deletedAt: null,
+          externalKey: req.input.externalKey,
+          organizationId: req.input.organizationId,
+        },
+      })
+    )[0];
+    if (!entity) {
+      return { status: "not_found" as const };
+    }
+
+    const capability =
+      entity.type === "issue" ? "issue-tracker" : "pr-tracker";
+    const target = await resolveEntityCapabilityTarget(
+      db,
+      req.input.organizationId,
+      entity,
+      capability
+    );
+    if (!target) {
+      return { status: "unavailable" as const };
+    }
+
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= 3; attempt += 1) {
+      try {
+        const raw = await invokeCapability(
+          target.entry.invokeUrl,
+          {
+            capability,
+            config: target.integration.configStr,
+            method: "readOutcome",
+            payload: { entity: buildEntityRef(entity) },
+          },
+          { secret: connectorInvokeSecret }
+        );
+        return {
+          result: trackerReadOutcomeResultSchema.parse(raw),
+          status: "ok" as const,
+        };
+      } catch (error) {
+        lastError = error;
+        if (!isTransientOutcomeReadError(error)) {
+          break;
+        }
+      }
+    }
+    console.error(
+      `Failed to read external outcome for ${entity.externalKey}:`,
+      lastError
+    );
+    return { status: "unavailable" as const };
+  }),
+
+  /**
    * Soft-delete the mirror row (issue deletion / transfer-out). No-op when the
    * entity was never mirrored.
    */
@@ -408,7 +497,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const { organizationId, externalKey } = req.input;
     const now = new Date();
 
-    const id = await db.transaction(async ({ trx }) => {
+    const write = await db.transaction(async ({ trx }) => {
       const existing = Object.values(
         await trx.find(schema.externalEntity, {
           where: { organizationId, externalKey },
@@ -421,7 +510,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           lastSyncedAt: now,
           deletedAt: null,
         });
-        return existing.id;
+        return { id: existing.id, previous: existing };
       }
 
       const newId = ulid().toLowerCase();
@@ -431,8 +520,18 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         lastSyncedAt: now,
         deletedAt: null,
       });
-      return newId;
+      return { id: newId, previous: null };
     });
+    const { id } = write;
+
+    if (didExternalEntityFinish(write.previous, req.input)) {
+      fanOutEntityFinished(db, req.input).catch((error) => {
+        console.error(
+          `Failed to fan out finished entity ${externalKey}:`,
+          error
+        );
+      });
+    }
 
     // Keep the PR vector index current on every mirror write (webhook,
     // backfill, reconcile). Index-only: the worker derives eligibility and

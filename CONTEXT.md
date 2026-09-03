@@ -74,15 +74,21 @@ A unit of work in the pipeline with declared dependencies, run in dependency ord
 
 ### Trigger
 
-One cause of a pipeline run, and an _orthogonal_ input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes a candidate [external pull request](#external-pull-request)), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: _what detectors found_ (hints) and _why I am running, with what_ (triggers). A thread-read job carries a collection of triggers so causes and multiple matched pull requests survive coalescing. Trigger kinds also drive which hints are invalidated and recomputed.
+One cause of a pipeline run, and an _orthogonal_ input to [synthesis](#synthesis) distinct from [read hints](#read-hint). Kinds: `message`, `pr_matched`, `entity_finished`, `sla`, `supersede`, `manual`. A trigger may carry a payload (e.g. `pr_matched` pushes a candidate [external pull request](#external-pull-request), while `entity_finished` identifies the finished [external entity](#entity-finished)), which reaches synthesis on its own **trigger-context channel** — synthesis reconciles two surfaces: _what detectors found_ (hints) and _why I am running, with what_ (triggers). A thread-read job carries a collection of triggers so causes and multiple matched external entities survive coalescing. Trigger kinds also drive which hints are invalidated and recomputed.
 
 Only an **inbound** message causes a run (see [message direction](#message-direction)). An outbound one enqueues `supersede` instead: the Agent's own output, and the team's, never re-enter as a cause of the Agent running. See ADR 0017.
 
 `pr_matched` is **not** an authoritative link. It fires when a newly observed [external pull request](#external-pull-request) is found similar to one or more [threads](#thread) (e.g. embedding search); synthesis still decides whether to propose `link_pr`. Deterministic linking (e.g. a FrontDesk thread URL already present on the PR) is a separate path that does not produce a [thread read](#thread-read).
 
+### Entity finished
+
+The external fact that a linked [external issue](#external-issue) closed or a linked [external pull request](#external-pull-request) merged, supplied to the Agent as an `entity_finished` [trigger](#trigger). It becomes a cause when a known entity transitions from unfinished to finished, or when a human links a live [thread](#thread) to an entity that is already finished; first observing finished entities during backfill does not fan out runs. It causes one [run](#run) per affected live thread, but does not assert that the customer's need was [settled](#witness); [synthesis](#synthesis) must read the current external outcome and make that judgment. _Avoid_: `entity_settled` for the trigger, treating any closed pull request as finished.
+
+If synthesis is unavailable, or the organization sets both `reply` and `set_status` to `off`, the transition leaves the linked thread live. If only one action is enabled, normal action policy still applies to that action, but autonomous resolution requires a sending reply and a `set_status` action with a valid witness. The transition itself adds no thread activity; the linked entity's state and any later Agent actions are the visible history.
+
 ### Synthesis
 
-The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](#trigger) context + thread state into a [thread read](#thread-read). It uses tools to investigate leads in depth, then emits one primary action set (possibly compound) and optional pick-one alternatives. Its action contract includes only kinds the organization has not set to `off` and that are [available](#action-availability) for the run, so `off` moves are never offered to the Agent. Synthesis owns _all_ substantive action decisions within that contract, including thread [status](#thread-status); the one thing it neither sees nor emits is a label. It does not persist the [thread read](#thread-read) itself — after the agent returns, the synthesis processor calls the [autonomy helper](#autonomy-stage) to apply policy and persist.
+The single tool-using LLM agent that turns [read hints](#read-hint) + [trigger](#trigger) context + thread state into a [thread read](#thread-read). Thread state includes the provider identities of its current external issue and pull-request links, so the Agent can distinguish a no-op link from an intentional relink; `read_thread` exposes the same identities for threads the Agent investigates. It uses tools to investigate leads in depth, then emits one primary action set (possibly compound) and optional pick-one alternatives. Its action contract includes only kinds the organization has not set to `off` and that are [available](#action-availability) for the run, so `off` moves are never offered to the Agent. Synthesis owns _all_ substantive action decisions within that contract, including thread [status](#thread-status); the one thing it neither sees nor emits is a label. It does not persist the [thread read](#thread-read) itself — after the agent returns, the synthesis processor calls the [autonomy helper](#autonomy-stage) to apply policy and persist.
 
 ### Autonomy stage
 
@@ -117,11 +123,13 @@ Grounding is a _named class_, not a score, and is deliberately not called "confi
 What justifies finishing a [thread](#thread), and the input to status's [action gate](#action-gate). One of four classes, each carrying its own evidence:
 
 - **`customer_confirmed`** — the customer said so in-thread. Justifies _Resolved_.
-- **`entity_settled`** — a linked [external pull request](#external-pull-request) merged, or a linked [external issue](#external-issue) closed, and that settles what was asked. Justifies _Resolved_.
+- **`entity_settled`** — a linked [external pull request](#external-pull-request) merged, or a linked [external issue](#external-issue) closed, and its verified outcome leaves no further update owed to the customer. Its evidence carries the provider-neutral [external outcome](#external-outcome). A delivered fix or final decision can qualify; a duplicate pointing to unfinished work does not. When the provider supplies an authoritative successor for a duplicate, the Agent relinks the thread to it; an unfinished successor keeps the thread live, while a finished successor is judged by its own outcome. Justifies _Resolved_.
 - **`abandoned`** — the thread went quiet: the team replied and the customer never returned. Justifies _Closed_.
 - **`inferred`** — everything else. Never finishes a thread on its own.
 
 Deliberately its own noun rather than an extension of [grounding](#grounding), which is a property of a _reply's prose_; a witness is a property of a _state change_. Both are named classes for the same reason: a self-reported score is uncheckable. Resolving additionally requires a reply that is itself sending, so a conversation never ends without the customer hearing about it. _Avoid_: "confidence" (see [grounding](#grounding)), "status score".
+
+An `entity_settled` witness earns autonomous resolution only for a `delivered` outcome, such as a completed fix or merged pull request. A `declined` outcome, such as work the provider marks not planned, may still support a human-approved reply and resolution. A `superseded` outcome remains inferred: the Agent follows its authoritative successor, and only that successor's verified outcome can settle the thread. `unknown` outcomes also remain inferred. An external entity reopening later does not reopen or message threads that its earlier outcome resolved.
 
 ### Autonomous action
 
@@ -169,6 +177,8 @@ An [organization](#organization)'s own secret for authenticating server-to-serve
 
 **External entity replay**: A [developer action](#developer-action) against an existing mirrored [external issue](#external-issue) or [external pull request](#external-pull-request) that re-fetches current upstream state and re-runs an explicitly selected internal reaction. The first use is replaying PR matching for an existing pull request so the AI pipeline can be exercised without creating a new pull request. It is not a historical webhook replay and does not create or mutate the external entity. _Avoid_: "replay webhook" unless the original payload is actually stored.
 
+Replaying `entity_finished` does not require a new upstream transition: the selected entity must currently be finished, and replay fans out fresh runs to its linked live threads through the same reaction as a real transition.
+
 **Example dialogue**:
 
 > **Dev**: Can I run the GitHub backfill in production for Acme?
@@ -206,6 +216,10 @@ Direction is coarser than the three author roles used to tag a transcript for [s
 ### External issue
 
 An issue in an external developer system (today only GitHub) that FrontDesk **mirrors** read-only. GitHub is authoritative; our copy is a downstream replica updated only from inbound webhooks/backfill, never written canonically from our side. Identified provider-agnostically as `provider:owner/repo#number` (see `formatGitHubId`). A [thread](#thread) may **link** to an external issue; the link is a reference, not ownership. _Avoid_: "GitHub issue" (we are provider-agnostic), "ticket".
+
+### External outcome
+
+The customer-impact result of a finished [external issue](#external-issue) or [external pull request](#external-pull-request), normalized as `delivered` (work completed or merged), `declined` (not planned or rejected), `superseded` (moved to an authoritative successor), or `unknown` (the provider supplied no usable reason). Providers keep their own state names behind this vocabulary. _Avoid_: carrying provider state reasons into Agent policy.
 
 ### External pull request
 

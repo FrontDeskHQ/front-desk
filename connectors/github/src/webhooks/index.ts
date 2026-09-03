@@ -1,20 +1,12 @@
-import { statusValues } from "@workspace/ui/components/indicator";
-
 import {
   buildIssueFields,
   buildPullRequestFields,
   upsertExternalEntity,
 } from "../lib/external-entity";
-import type { ExternalEntityFields } from "../lib/external-entity";
 import { app } from "../lib/github";
 import { fetchClient, store } from "../lib/live-state";
 import { enqueuePrMatch } from "../lib/queue";
-import {
-  STATUS_CLOSED,
-  STATUS_OPEN,
-  STATUS_RESOLVED,
-  sanitizeGithubInstallConfig,
-} from "../utils";
+import { sanitizeGithubInstallConfig } from "../utils";
 
 /**
  * Pull-request actions that warrant a push-side thread match (FRO-205): the PR
@@ -74,61 +66,6 @@ const resolveOrganizationId = (
  */
 const installationIdOf = (payload: unknown): number | undefined =>
   (payload as { installation?: { id?: number } | null }).installation?.id;
-
-/**
- * Reaction to the mirror moving into a closed/merged state: resolve any
- * FrontDesk threads linked to the issue/PR. This is the only bespoke behaviour
- * the integration still layers on top of the mirror upsert. Status changes are
- * marked `replicatedStr: { github: true }` so they don't sync back to GitHub.
- */
-const resolveLinkedThreads = (
-  fields: ExternalEntityFields,
-  meta: { merged?: boolean }
-) => {
-  const linkedThreads =
-    fields.type === "issue"
-      ? store.query.thread.where({ externalIssueId: fields.externalKey }).get()
-      : store.query.thread.where({ externalPrId: fields.externalKey }).get();
-
-  if (linkedThreads.length === 0) {
-    console.log(
-      `[GitHub] No threads linked to ${fields.type} ${fields.externalKey}`
-    );
-    return;
-  }
-
-  for (const thread of linkedThreads) {
-    if (thread.status === STATUS_RESOLVED || thread.status === STATUS_CLOSED) {
-      console.log(
-        `[GitHub] Thread ${thread.id} already ${statusValues[thread.status]?.label}, skipping status update`
-      );
-      continue;
-    }
-
-    const oldStatus = thread.status ?? STATUS_OPEN;
-    const newStatus = STATUS_RESOLVED;
-
-    console.log(
-      `[GitHub] Updating thread ${thread.id} status from ${statusValues[oldStatus]?.label} to ${statusValues[newStatus]?.label}`
-    );
-
-    store.mutate.thread.setStatus({
-      activityMetadata: {
-        repoFullName: fields.repoFullName,
-        ...(fields.type === "issue"
-          ? { issueNumber: fields.number }
-          : { prNumber: fields.number, merged: meta.merged }),
-      },
-      organizationId: thread.organizationId,
-      recordActivity: true,
-      replicatedStr: JSON.stringify({ github: true }),
-      source: "github",
-      status: newStatus,
-      threadId: thread.id,
-      userName: "GitHub Integration",
-    });
-  }
-};
 
 /**
  * Build a `RepoRef` from a webhook `repository` payload.
@@ -200,8 +137,8 @@ export const setupWebhooks = () => {
   });
 
   // Keep the mirror current on every issue-mutating event. `deleted` and
-  // `transferred` (transfer-out) soft-delete the source row; `closed` resolves
-  // linked threads as a reaction to the mirror change.
+  // `transferred` (transfer-out) soft-delete the source row. The core mirror
+  // owns unfinished→finished detection and close-loop fan-out.
   app.webhooks.on("issues", async ({ payload }) => {
     try {
       const { action } = payload;
@@ -228,17 +165,13 @@ export const setupWebhooks = () => {
       }
 
       await upsertExternalEntity(organizationId, fields);
-
-      if (action === "closed") {
-        resolveLinkedThreads(fields, {});
-      }
     } catch (error) {
       console.error("[GitHub] Error handling issues webhook:", error);
     }
   });
 
-  // Keep the mirror current on every pull-request-mutating event. `closed`
-  // (merged or not) resolves linked threads.
+  // Keep the mirror current on every pull-request-mutating event. The core
+  // treats only a merged PR as finished; closed-unmerged is not delivery.
   //
   // NOTE: resolves the `pr_matched` TODO context — the mirror upsert lives
   // here now. Re-enqueuing PR-matched synthesis stays out of scope.
@@ -260,10 +193,6 @@ export const setupWebhooks = () => {
       );
 
       await upsertExternalEntity(organizationId, fields);
-
-      if (action === "closed") {
-        resolveLinkedThreads(fields, { merged: fields.merged ?? false });
-      }
 
       // Push-side discovery (FRO-205): when an eligible (open, non-draft) PR
       // becomes newly matchable, embed it and fan out `pr_matched` reads to
