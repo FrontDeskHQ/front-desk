@@ -21,6 +21,7 @@ import { MOBILE_BREAKPOINT, useIsMobile } from "@workspace/ui/hooks/use-mobile";
 import { cn } from "@workspace/ui/lib/utils";
 import { cva } from "class-variance-authority";
 import type { VariantProps } from "class-variance-authority";
+import { animate } from "motion";
 import * as React from "react";
 
 function matchesMobileViewport() {
@@ -33,6 +34,11 @@ const DEFAULT_MIN_WIDTH = 196;
 const DEFAULT_MAX_WIDTH = 480;
 const PEEK_CLOSE_DELAY_MS = 400;
 const RESIZE_CLICK_THRESHOLD_PX = 4;
+const RESIZE_RUBBER_BAND = 0.18;
+const RESIZE_OVERSHOOT_CAP_PX = 12;
+const RESIZE_COLLAPSE_EDGE_PX = 12;
+const RESIZE_COLLAPSE_HOLD_PX = 48;
+const RESIZE_SPRING = { bounce: 0.2, duration: 0.35, type: "spring" as const };
 
 type SidebarSide = "left" | "right";
 type SidebarCollapseMode = "offcanvas" | "hover" | "none";
@@ -74,11 +80,93 @@ interface SidebarHandle {
   setWidth: (width: number | ((prev: number) => number)) => void;
   setPeeking: (peeking: boolean) => void;
   setResizing: (resizing: boolean) => void;
+  setDragCollapsed: (dragCollapsed: boolean) => void;
+  subscribeDragCollapsed: (listener: () => void) => () => void;
+  getDragCollapsed: () => boolean;
   toggle: () => void;
 }
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
+}
+
+function prefersReducedMotion() {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches
+  );
+}
+
+function rubberband(over: number, dimension: number, constant: number) {
+  if (over <= 0) {
+    return 0;
+  }
+  const size = Math.max(dimension, 1);
+  return (over * size * constant) / (size + constant * over);
+}
+
+function overshoot(over: number, dimension: number) {
+  return Math.min(
+    RESIZE_OVERSHOOT_CAP_PX,
+    rubberband(over, dimension, RESIZE_RUBBER_BAND)
+  );
+}
+
+function visualResizeWidth(value: number, min: number, max: number) {
+  if (value > max) {
+    return max + overshoot(value - max, max);
+  }
+  if (value < min) {
+    return min - overshoot(min - value, min);
+  }
+  return value;
+}
+
+interface SidebarResizeTargets {
+  gap: HTMLElement | null;
+  panel: HTMLElement;
+  wrapper: HTMLElement | null;
+}
+
+function getResizeTargets(
+  handleEl: HTMLElement
+): SidebarResizeTargets | null {
+  const container = handleEl.closest<HTMLElement>(
+    "[data-slot=sidebar-container]"
+  );
+  const sidebar = handleEl.closest<HTMLElement>("[data-slot=sidebar]");
+  const root = sidebar ?? container;
+  if (!root) {
+    return null;
+  }
+  const panel =
+    container ??
+    root.querySelector<HTMLElement>("[data-slot=sidebar-container]") ??
+    root;
+  return {
+    gap: root.querySelector<HTMLElement>("[data-slot=sidebar-gap]"),
+    panel,
+    wrapper: handleEl.closest<HTMLElement>("[data-slot=sidebar-wrapper]"),
+  };
+}
+
+function applyVisualWidth(
+  targets: SidebarResizeTargets,
+  width: number,
+  resizeGap: boolean
+) {
+  const px = `${width}px`;
+  targets.wrapper?.style.setProperty("--sidebar-width", px);
+  if (resizeGap && targets.gap) {
+    targets.gap.style.width = px;
+  }
+  targets.panel.style.width = px;
+}
+
+function resizeBoundsRect(targets: SidebarResizeTargets) {
+  return (
+    targets.wrapper ?? targets.panel.offsetParent ?? targets.panel
+  ).getBoundingClientRect();
 }
 
 function mapLegacyCollapsible(
@@ -155,9 +243,16 @@ function createSidebarHandle(
   };
 
   let snapshot = initial;
+  let dragCollapsed = false;
   const listeners = new Set<() => void>();
+  const dragListeners = new Set<() => void>();
   const emit = () => {
     for (const listener of listeners) {
+      listener();
+    }
+  };
+  const emitDrag = () => {
+    for (const listener of dragListeners) {
       listener();
     }
   };
@@ -174,12 +269,23 @@ function createSidebarHandle(
     maxWidth,
     minWidth,
     panelId: `sidebar-${options.id ?? ++handleSeq}`,
+    getDragCollapsed: () => dragCollapsed,
+    subscribeDragCollapsed: (listener) => {
+      dragListeners.add(listener);
+      return () => {
+        dragListeners.delete(listener);
+      };
+    },
     setOpen: (open) => {
       const next = typeof open === "function" ? open(snapshot.open) : open;
       if (snapshot.open === next && !snapshot.peeking) {
         return;
       }
       snapshot = { ...snapshot, open: next, peeking: false };
+      if (dragCollapsed) {
+        dragCollapsed = false;
+        emitDrag();
+      }
       persist();
       emit();
     },
@@ -201,10 +307,23 @@ function createSidebarHandle(
     },
     setResizing: (resizing) => {
       if (snapshot.resizing === resizing) {
-        return;
+        if (resizing || !dragCollapsed) {
+          return;
+        }
       }
       snapshot = { ...snapshot, resizing };
+      if (!resizing && dragCollapsed) {
+        dragCollapsed = false;
+        emitDrag();
+      }
       emit();
+    },
+    setDragCollapsed: (next) => {
+      if (dragCollapsed === next) {
+        return;
+      }
+      dragCollapsed = next;
+      emitDrag();
     },
     setWidth: (width) => {
       const next = clamp(
@@ -253,6 +372,7 @@ interface SidebarContextValue {
   setOpenMobile: (open: boolean | ((prev: boolean) => boolean)) => void;
   setPeeking: (peeking: boolean) => void;
   setResizing: (resizing: boolean) => void;
+  setDragCollapsed: (dragCollapsed: boolean) => void;
   setWidth: (width: number | ((prev: number) => number)) => void;
   state: "expanded" | "collapsed";
   toggleSidebar: () => void;
@@ -338,6 +458,7 @@ function bindHandle(
     setOpenMobile: handle.setOpenMobile,
     setPeeking: handle.setPeeking,
     setResizing: handle.setResizing,
+    setDragCollapsed: handle.setDragCollapsed,
     setWidth: handle.setWidth,
     state: snapshot.open ? "expanded" : "collapsed",
     toggleSidebar: handle.toggle,
@@ -469,6 +590,7 @@ function SidebarProvider({
       setOpenMobile,
       setPeeking: handle.setPeeking,
       setResizing: handle.setResizing,
+      setDragCollapsed: handle.setDragCollapsed,
       setWidth,
       state: snapshot.open ? "expanded" : "collapsed",
       toggleSidebar,
@@ -1078,10 +1200,15 @@ function SidebarTrigger({
     openMobile,
     toggleSidebar,
   } = useSidebar(handle);
+  const dragCollapsed = React.useSyncExternalStore(
+    resolvedHandle.subscribeDragCollapsed,
+    resolvedHandle.getDragCollapsed,
+    () => false
+  );
   const layout = React.use(SidebarLayoutContext);
   const side = sideProp ?? layout?.side ?? "left";
   const overlay = isMobile || matchesMobileViewport();
-  const expanded = overlay ? openMobile : open;
+  const expanded = overlay ? openMobile : open && !dragCollapsed;
 
   return (
     <Button
@@ -1121,8 +1248,10 @@ function SidebarResizeHandle({
     minWidth,
     open,
     peeking,
+    setOpen,
     setPeeking,
     setResizing,
+    setDragCollapsed,
     setWidth,
     toggleSidebar,
     width,
@@ -1130,6 +1259,14 @@ function SidebarResizeHandle({
   const layout = React.use(SidebarLayoutContext);
   const side = layout?.side ?? "left";
   const collapseMode = layout?.collapseMode ?? "offcanvas";
+  const springRef = React.useRef<ReturnType<typeof animate> | null>(null);
+
+  React.useEffect(
+    () => () => {
+      springRef.current?.stop();
+    },
+    []
+  );
 
   const onPointerDownHandle = React.useCallback(
     (event: React.PointerEvent<HTMLButtonElement>) => {
@@ -1139,15 +1276,99 @@ function SidebarResizeHandle({
       }
 
       event.preventDefault();
+      springRef.current?.stop();
+      springRef.current = null;
+
       const target = event.currentTarget;
+      const targets = getResizeTargets(target);
       const originX = event.clientX;
       const originWidth = width;
+      const reduceMotion = prefersReducedMotion();
+      const resizeGap = Boolean(targets?.gap && targets.gap.offsetWidth > 0);
       let dragged = false;
+      let lastPointerX = originX;
+      let unconstrained = originWidth;
+      let lastCommitted = originWidth;
+      let collapseLatched = false;
+      let currentVisual = originWidth;
+      let springId = 0;
 
-      target.setPointerCapture(event.pointerId);
+      try {
+        target.setPointerCapture(event.pointerId);
+      } catch {
+        // Untrusted/synthetic pointers cannot capture.
+      }
       setResizing(true);
 
+      const visualWidth = (next: number) => {
+        if (reduceMotion) {
+          return clamp(next, minWidth, maxWidth);
+        }
+        return visualResizeWidth(next, minWidth, maxWidth);
+      };
+
+      const paint = (next: number) => {
+        currentVisual = next;
+        if (!targets) {
+          return;
+        }
+        applyVisualWidth(targets, next, resizeGap);
+      };
+
+      const pointerInCollapseZone = () => {
+        if (collapseMode === "none" || !targets) {
+          return false;
+        }
+        const threshold = collapseLatched
+          ? RESIZE_COLLAPSE_HOLD_PX
+          : RESIZE_COLLAPSE_EDGE_PX;
+        const bounds = resizeBoundsRect(targets);
+        return side === "left"
+          ? lastPointerX <= bounds.left + threshold
+          : lastPointerX >= bounds.right - threshold;
+      };
+
+      const finishResize = () => {
+        setResizing(false);
+      };
+
+      const springTo = (from: number, to: number, onComplete?: () => void) => {
+        const id = ++springId;
+        springRef.current?.stop();
+        springRef.current = null;
+        if (!targets || reduceMotion || from === to) {
+          paint(to);
+          onComplete?.();
+          return;
+        }
+        let settled = false;
+        const settle = () => {
+          if (settled || id !== springId) {
+            return;
+          }
+          settled = true;
+          paint(to);
+          springRef.current = null;
+          onComplete?.();
+        };
+        const controls = animate(from, to === 0 ? 0.001 : to, {
+          ...RESIZE_SPRING,
+          onComplete: settle,
+          onUpdate: (latest) => {
+            if (id !== springId) {
+              return;
+            }
+            paint(to === 0 && latest < 0.5 ? 0 : latest);
+          },
+        });
+        springRef.current = controls;
+        if ("finished" in controls) {
+          void Promise.resolve(controls.finished).then(settle, settle);
+        }
+      };
+
       const onMove = (moveEvent: PointerEvent) => {
+        lastPointerX = moveEvent.clientX;
         const delta =
           side === "left"
             ? moveEvent.clientX - originX
@@ -1155,20 +1376,85 @@ function SidebarResizeHandle({
         if (Math.abs(delta) >= RESIZE_CLICK_THRESHOLD_PX) {
           dragged = true;
         }
-        if (open || peeking) {
-          setWidth(originWidth + delta);
+        if (!(open || peeking)) {
+          return;
         }
+        unconstrained = originWidth + delta;
+        if (unconstrained >= minWidth && unconstrained <= maxWidth) {
+          lastCommitted = unconstrained;
+        }
+
+        if (collapseMode !== "none") {
+          if (!collapseLatched && pointerInCollapseZone()) {
+            collapseLatched = true;
+            setDragCollapsed(true);
+            springTo(currentVisual, 0);
+            return;
+          }
+          if (collapseLatched && !pointerInCollapseZone()) {
+            collapseLatched = false;
+            setDragCollapsed(false);
+            springTo(currentVisual, visualWidth(unconstrained));
+            return;
+          }
+          if (collapseLatched) {
+            return;
+          }
+        }
+
+        if (springRef.current && unconstrained <= minWidth) {
+          return;
+        }
+
+        springId += 1;
+        springRef.current?.stop();
+        springRef.current = null;
+        paint(visualWidth(unconstrained));
       };
 
       const onUp = (upEvent: PointerEvent) => {
-        target.releasePointerCapture(upEvent.pointerId);
+        lastPointerX = upEvent.clientX;
+        try {
+          target.releasePointerCapture(upEvent.pointerId);
+        } catch {
+          // Capture may already be released or was never acquired.
+        }
         target.removeEventListener("pointermove", onMove);
         target.removeEventListener("pointerup", onUp);
         target.removeEventListener("pointercancel", onUp);
-        setResizing(false);
+
         if (!dragged) {
+          finishResize();
           toggleSidebar();
+          return;
         }
+
+        if (collapseMode !== "none" && pointerInCollapseZone()) {
+          collapseLatched = true;
+          setDragCollapsed(true);
+        }
+
+        if (collapseLatched) {
+          springTo(currentVisual, 0, () => {
+            setWidth(lastCommitted);
+            setOpen(false);
+            setPeeking(false);
+            finishResize();
+          });
+          return;
+        }
+
+        if (!(open || peeking) || !targets) {
+          finishResize();
+          return;
+        }
+
+        const next = clamp(unconstrained, minWidth, maxWidth);
+        lastCommitted = next;
+        springTo(currentVisual, next, () => {
+          setWidth(next);
+          finishResize();
+        });
       };
 
       target.addEventListener("pointermove", onMove);
@@ -1176,10 +1462,16 @@ function SidebarResizeHandle({
       target.addEventListener("pointercancel", onUp);
     },
     [
+      collapseMode,
+      maxWidth,
+      minWidth,
       onPointerDown,
       open,
       peeking,
+      setOpen,
+      setPeeking,
       setResizing,
+      setDragCollapsed,
       setWidth,
       side,
       toggleSidebar,
@@ -1202,7 +1494,13 @@ function SidebarResizeHandle({
       aria-valuemax={maxWidth}
       aria-valuenow={Math.round(width)}
       role="separator"
-      title={open ? "Drag to resize, click to collapse" : "Click to expand"}
+      title={
+        open
+          ? collapseMode === "none"
+            ? "Drag to resize"
+            : "Drag to resize, drag to the edge to collapse, click to collapse"
+          : "Click to expand"
+      }
       className={cn(
         "absolute inset-y-0 hidden w-3 cursor-col-resize touch-none items-center justify-center lg:flex",
         "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",

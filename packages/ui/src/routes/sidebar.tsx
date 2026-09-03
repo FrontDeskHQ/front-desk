@@ -120,7 +120,7 @@ function RouteComponent() {
     <DocPage meta={meta}>
       <DocSection
         title="Basic"
-        description="Left sidebars default to hover peek and a flush surface — no fill, no border. Drag the inner edge to resize; collapse, then hover the edge to peek."
+        description="Left sidebars default to hover peek and a flush surface — no fill, no border. Drag the inner edge to resize (it rubber-bands slightly past min/max, then springs back). Past min it sticks; drag to the outer edge to snap collapsed, drag back to min to snap open."
       >
         <Demo
           className="h-80 w-full overflow-hidden p-0"
@@ -504,7 +504,7 @@ function RouteComponent() {
             },
             {
               default: "196",
-              description: "Minimum resize width in pixels.",
+              description: "Minimum resize width in pixels. Dragging past this rubber-bands; dragging on to the outer edge collapses when collapseMode is not none.",
               name: "minWidth (Provider / handle)",
               type: "number",
             },
