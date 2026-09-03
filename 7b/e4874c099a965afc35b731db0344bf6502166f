@@ -1,0 +1,37 @@
+apps/worker/src/pipeline/core/gates/reply-gate.test.ts
+  s_bd7747a0d4dd31::t_ee371a292bcfec 20-21,33-34,36,117-145
+  s_bd7747a0d4dd31::t_d725226787c35c 35,47
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/entity-outcome-verification.ts
+  s_bd7747a0d4dd31::t_92ced5fe53ba90 81-85,134-138,175-176,231
+  s_bd7747a0d4dd31::t_e34ed09b0f48de 47-68,117-129,148,159
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/entity-outcome-verification.test.ts
+  s_bd7747a0d4dd31::t_064251f55a22a2 138,150,169,175,188,198,211,224,237,282
+  s_bd7747a0d4dd31::t_1d1fa680a2f0c6 81-100,102-112
+  s_bd7747a0d4dd31::t_d725226787c35c 76
+  s_bd7747a0d4dd31::t_81d1b79f1a5360 101
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/existing-link-verification.ts
+  s_bd7747a0d4dd31::t_1d1fa680a2f0c6 74-83
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/existing-link-verification.test.ts
+  s_bd7747a0d4dd31::t_1d1fa680a2f0c6 70-78
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7be4874c099a965afc35b731db0344bf6502166f",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_bd7747a0d4dd31": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06518-957d-7bc1-9177-1b5049d2e643",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
