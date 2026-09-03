@@ -67,4 +67,13 @@ describe(filterRedundantLinkActions, () => {
     expect(result.primary).toStrictEqual([]);
     expect(result.removedPrimary).toBeTruthy();
   });
+
+  it("does not hide an unhandled action behind a reply-only fallback", () => {
+    expect(
+      recommendationAfterRedundantLink([
+        { kind: "mark_duplicate", targetThreadId: "target-thread" },
+        reply,
+      ])
+    ).toBe("Review and apply the remaining proposed actions.");
+  });
 });

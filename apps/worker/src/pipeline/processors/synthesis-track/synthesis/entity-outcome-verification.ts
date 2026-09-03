@@ -44,6 +44,28 @@ const outputSchema = z.object({
   status: z.string(),
 });
 
+const readThreadOutputSchema = z.object({
+  found: z.literal(true),
+  thread: z.object({
+    linkedEntities: z.object({
+      issueExternalKey: z.string().nullable(),
+      pullRequestExternalKey: z.string().nullable(),
+    }),
+  }),
+});
+
+const addExternalEntityKeyTokens = (
+  tokens: Set<string>,
+  externalKey: string
+): void => {
+  tokens.add(externalKey);
+  const parsedKey = /^[^:]+:(.+)#(\d+)$/.exec(externalKey);
+  if (parsedKey?.[1] && parsedKey[2]) {
+    tokens.add(`${parsedKey[1]}#${parsedKey[2]}`);
+    tokens.add(`#${parsedKey[2]}`);
+  }
+};
+
 /** Outcomes that crossed the connector trust boundary in this synthesis run. */
 export const collectVerifiedEntityOutcomes = (
   steps: ToolStep[],
@@ -56,7 +78,11 @@ export const collectVerifiedEntityOutcomes = (
         continue;
       }
       const parsed = outputSchema.safeParse(toolResult.output);
-      if (!parsed.success || parsed.data.status !== "ok" || !parsed.data.result) {
+      if (
+        !parsed.success ||
+        parsed.data.status !== "ok" ||
+        !parsed.data.result
+      ) {
         continue;
       }
       if (
@@ -88,11 +114,28 @@ export const collectExternalReferenceTokens = (
   const tokens = new Set<string>();
   for (const step of steps) {
     for (const toolResult of step.toolResults) {
+      if (toolResult.toolName === "read_thread") {
+        const parsed = readThreadOutputSchema.safeParse(toolResult.output);
+        if (!parsed.success) {
+          continue;
+        }
+        const linkedEntityKeys = Object.values(
+          parsed.data.thread.linkedEntities
+        ).filter((key): key is string => key !== null);
+        for (const key of linkedEntityKeys) {
+          addExternalEntityKeyTokens(tokens, key);
+        }
+        continue;
+      }
       if (toolResult.toolName !== "read_external_entity") {
         continue;
       }
       const parsed = outputSchema.safeParse(toolResult.output);
-      if (!parsed.success || parsed.data.status !== "ok" || !parsed.data.result) {
+      if (
+        !parsed.success ||
+        parsed.data.status !== "ok" ||
+        !parsed.data.result
+      ) {
         continue;
       }
       const refs = [
@@ -102,9 +145,7 @@ export const collectExternalReferenceTokens = (
       for (const ref of refs) {
         if (!ref) continue;
         tokens.add(ref.url);
-        tokens.add(ref.externalKey);
-        tokens.add(`${ref.repoFullName}#${ref.number}`);
-        tokens.add(`#${ref.number}`);
+        addExternalEntityKeyTokens(tokens, ref.externalKey);
       }
     }
   }
@@ -115,13 +156,8 @@ export const addExternalEntityReferenceTokens = (
   tokens: Set<string>,
   entity: { externalKey: string; url: string }
 ): void => {
-  tokens.add(entity.externalKey);
+  addExternalEntityKeyTokens(tokens, entity.externalKey);
   tokens.add(entity.url);
-  const parsedKey = /^[^:]+:(.+)#(\d+)$/.exec(entity.externalKey);
-  if (parsedKey?.[1] && parsedKey[2]) {
-    tokens.add(`${parsedKey[1]}#${parsedKey[2]}`);
-    tokens.add(`#${parsedKey[2]}`);
-  }
 };
 
 const trackerReferenceFromUrl = (value: string): string | null => {
@@ -136,7 +172,8 @@ const trackerReferenceFromUrl = (value: string): string | null => {
         index >= 1 &&
         ["issues", "merge_requests", "pull", "pulls"].includes(
           segment.toLowerCase()
-        ) && /^\d+$/.test(segments[index + 1] ?? "")
+        ) &&
+        /^\d+$/.test(segments[index + 1] ?? "")
     );
     const number = segments[entityIndex + 1];
     if (entityIndex < 1 || !number || !/^\d+$/.test(number)) {
@@ -191,9 +228,7 @@ export const replyContainsExternalReference = (
     (token) => token.length > 0 && action.draftMarkdown.includes(token)
   ) ||
     containsEquivalentTrackerUrl(action.draftMarkdown, tokens) ||
-    /\b(?:issue|pull\s+request|pr)\s*#?\s*\d+\b/i.test(
-      action.draftMarkdown
-    ));
+    /\b(?:issue|pull\s+request|pr)\s*#?\s*\d+\b/i.test(action.draftMarkdown));
 
 /**
  * Do not let model-authored outcome labels grant autonomy. Entity witnesses

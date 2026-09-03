@@ -17,6 +17,8 @@ vi.mock(import("../../../lib/database/client"), () => ({
 
 const issueUrl = "https://github.com/acme/app/issues/42";
 const issueKey = "github:acme/app#42";
+const prUrl = "https://github.com/acme/app/pull/43";
+const prKey = "github:acme/app#43";
 const grounding = {
   class: "state_report",
   entityUrl: issueUrl,
@@ -28,7 +30,10 @@ const reply: Action = {
   kind: "reply",
 };
 
-const makeRun = (stateFingerprint: string | null = null) =>
+const makeRun = (
+  stateFingerprint: string | null = null,
+  links?: { externalIssueId?: string; externalPrId?: string }
+) =>
   ({
     authors: async () => ({
       names: new Map(),
@@ -39,7 +44,7 @@ const makeRun = (stateFingerprint: string | null = null) =>
     organizationId: "org-a",
     thread: {
       assignedUserId: "user-1",
-      externalIssueId: issueKey,
+      ...(links ?? { externalIssueId: issueKey }),
       messages: [
         {
           authorId: "teammate-1",
@@ -108,5 +113,35 @@ describe(replyGate, () => {
       allowed: false,
       reason: "no_new_state_since_last_reply",
     });
+  });
+
+  it("allows a follow-up when a linked pull request becomes merged", async () => {
+    const prGrounding = {
+      class: "state_report",
+      entityUrl: prUrl,
+      sources: [],
+    } satisfies ReplyGrounding;
+    vi.mocked(fetchMirroredPrByUrl).mockResolvedValue({
+      externalKey: prKey,
+      merged: true,
+      state: "open",
+    } as Awaited<ReturnType<typeof fetchMirroredPrByUrl>>);
+
+    await expect(
+      replyGate(
+        { ...reply, grounding: prGrounding },
+        {
+          autoSiblings: [],
+          run: makeRun(replyStateFingerprint(prGrounding, "open"), {
+            externalPrId: prKey,
+          }),
+          verifiedDeliveredEntityUrls: new Set([prUrl]),
+        }
+      )
+    ).resolves.toMatchObject({
+      allowed: true,
+      stateFingerprint: replyStateFingerprint(prGrounding, "open+merged"),
+    });
+    expect(fetchMirroredIssueByUrl).not.toHaveBeenCalled();
   });
 });

@@ -71,6 +71,16 @@ export const recommendationAfterRedundantLink = (primary: Action[]): string => {
     return "No substantive move is justified yet.";
   }
 
+  const hasUnhandledAction = primary.some(
+    (action) =>
+      action.kind !== "link_pr" &&
+      action.kind !== "reply" &&
+      action.kind !== "set_status"
+  );
+  if (hasUnhandledAction) {
+    return "Review and apply the remaining proposed actions.";
+  }
+
   const hasReply = primary.some((action) => action.kind === "reply");
   const status = primary.find(
     (action): action is Extract<Action, { kind: "set_status" }> =>

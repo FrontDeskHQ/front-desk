@@ -73,8 +73,40 @@ describe("entity outcome verification", () => {
         ],
       },
     ]);
-    expect(tokens).toEqual(
+    expect(tokens).toStrictEqual(
       new Set([url, "github:acme/app#1", "acme/app#1", "#1"])
+    );
+  });
+
+  it("collects external keys exposed by a successful thread read", () => {
+    const tokens = collectExternalReferenceTokens([
+      {
+        toolResults: [
+          {
+            toolName: "read_thread",
+            output: {
+              found: true,
+              thread: {
+                linkedEntities: {
+                  issueExternalKey: "github:acme/app#42",
+                  pullRequestExternalKey: "github:acme/app#43",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ]);
+
+    expect(tokens).toStrictEqual(
+      new Set([
+        "github:acme/app#42",
+        "acme/app#42",
+        "#42",
+        "github:acme/app#43",
+        "acme/app#43",
+        "#43",
+      ])
     );
   });
 
@@ -103,7 +135,7 @@ describe("entity outcome verification", () => {
       },
     ];
 
-    expect(collectVerifiedEntityOutcomes(steps, new Set([url]))).toEqual(
+    expect(collectVerifiedEntityOutcomes(steps, new Set([url]))).toStrictEqual(
       new Map()
     );
   });
@@ -115,7 +147,7 @@ describe("entity outcome verification", () => {
       url: "https://github.com/acme/app/issues/42",
     });
 
-    expect(tokens).toEqual(
+    expect(tokens).toStrictEqual(
       new Set([
         "github:acme/app#42",
         "https://github.com/acme/app/issues/42",
@@ -134,13 +166,13 @@ describe("entity outcome verification", () => {
         },
         new Set()
       )
-    ).toBe(true);
+    ).toBeTruthy();
     expect(
       replyContainsExternalReference(
         { draftMarkdown: "PR #42 has merged.", kind: "reply" },
         new Set()
       )
-    ).toBe(true);
+    ).toBeTruthy();
   });
 
   it("blocks normalized variants of verified tracker links", () => {
@@ -153,7 +185,7 @@ describe("entity outcome verification", () => {
         },
         new Set(["https://github.com/acme/app/issues/42"])
       )
-    ).toBe(true);
+    ).toBeTruthy();
     expect(
       replyContainsExternalReference(
         {
@@ -163,7 +195,7 @@ describe("entity outcome verification", () => {
         },
         new Set(["https://github.com/acme/app/issues/42"])
       )
-    ).toBe(false);
+    ).toBeFalsy();
   });
 
   it("blocks protocol-relative tracker links", () => {
@@ -176,7 +208,7 @@ describe("entity outcome verification", () => {
         },
         new Set(["https://github.com/acme/app/issues/42"])
       )
-    ).toBe(true);
+    ).toBeTruthy();
   });
 
   it("does not confuse repository names with tracker route segments", () => {
@@ -189,7 +221,7 @@ describe("entity outcome verification", () => {
         },
         new Set(["https://github.com/issues/app/issues/42"])
       )
-    ).toBe(true);
+    ).toBeTruthy();
   });
 
   it("continues past a route-like owner and numeric repository", () => {
@@ -202,7 +234,7 @@ describe("entity outcome verification", () => {
         },
         new Set(["https://github.com/issues/123/issues/42"])
       )
-    ).toBe(true);
+    ).toBeTruthy();
   });
 
   it("downgrades an unverified delivered witness and triggered reply", () => {
@@ -247,7 +279,7 @@ describe("entity outcome verification", () => {
         new Map([[url, "delivered"]]),
         new Set([url])
       )
-    ).toEqual([action]);
+    ).toStrictEqual([action]);
   });
 
   it("downgrades a witness when any cited source conflicts", () => {
