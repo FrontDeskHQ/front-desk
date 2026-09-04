@@ -1,0 +1,24 @@
+apps/docs/package.json
+  s_62f5d8e42ea833::t_9aeeb73c886182 35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "2e74db90122ccbb386075ce088015bc1da5a7c3d",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_62f5d8e42ea833": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "43502e8c-f05f-4567-8109-51f239d5e800",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
