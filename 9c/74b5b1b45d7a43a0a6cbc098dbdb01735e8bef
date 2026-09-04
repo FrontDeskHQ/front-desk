@@ -1,0 +1,53 @@
+apps/worker/tsconfig.json
+  s_291af9636c6f71::t_bc7fea61b82562 16
+apps/web/src/fontsource.d.ts
+  s_291af9636c6f71::t_f85754fb1b6466 1-2
+connectors/framework/tsconfig.json
+  s_291af9636c6f71::t_5faa0d9d0597d2 17
+apps/cli/tsconfig.json
+  s_291af9636c6f71::t_2b5e66e7071d47 16
+apps/docs/package.json
+  s_291af9636c6f71::t_298915fed5c51e 35
+packages/utils/package.json
+  s_291af9636c6f71::t_4f2c801ca5716d 31
+apps/worker/package.json
+  s_291af9636c6f71::t_5924b5dec829ea 42
+packages/ui/package.json
+  s_291af9636c6f71::t_5a7502ca325c4e 105
+.vscode/settings.json
+  s_291af9636c6f71::t_afafe74e4c4ed1 7-11
+connectors/framework/package.json
+  s_291af9636c6f71::t_95a6f271c19a17 23
+apps/web/tsconfig.json
+  s_291af9636c6f71::t_8008c345485f26 20
+apps/docs/tsconfig.json
+  s_291af9636c6f71::t_7e0d582e3a7613 19
+.vscode/extensions.json
+  s_291af9636c6f71::t_55255f3713eb44 2
+apps/web/package.json
+  s_291af9636c6f71::t_aa4f681e018725 80
+package.json
+  s_291af9636c6f71::t_1ccdad0cc26dc5 22
+  s_291af9636c6f71::t_1d05431123a30c 47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9c74b5b1b45d7a43a0a6cbc098dbdb01735e8bef",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_291af9636c6f71": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "85528ba5-3ad5-4c69-8509-35b6669aebc6",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
