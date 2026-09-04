@@ -1,0 +1,92 @@
+apps/worker/src/lib/qdrant/messages.ts
+  s_c136b4b2523158::t_7ad70fbf3201cb 17
+connectors/framework/src/capabilities.ts
+  s_c136b4b2523158::t_0d43f48901d73d 232
+apps/api/src/lib/thread-url.ts
+  s_c136b4b2523158::t_ff80e101ecdde4 1,5-9
+apps/web/src/routes/app/route.tsx
+  s_c136b4b2523158::t_2f9e3518f92f78 17,31-32
+apps/api/src/lib/issue-tracker.ts
+  s_c136b4b2523158::t_ff80e101ecdde4 14,186-190,229
+apps/api/src/lib/signals/handlers/link-pr.ts
+  s_c136b4b2523158::t_ff80e101ecdde4 10,56-59
+apps/web/src/routes/app/_workspace/settings/organization/index.tsx
+  s_c136b4b2523158::t_911dbd225f5d52 303-314
+apps/api/src/live-state/router/threads.ts
+  s_c136b4b2523158::t_16c14d3bd0d645 130
+  s_c136b4b2523158::t_38f110a0cbd31c 193-195,238-241,243-245
+  s_c136b4b2523158::t_dec800648669f4 16
+apps/api/src/lib/authorize.ts
+  s_c136b4b2523158::t_710b9237e5c352 152-153,159,259
+apps/web/src/components/landing-page/picks-up-section/index.tsx
+  s_c136b4b2523158::t_151ce541895214 12
+apps/web/src/routes/_public/route.tsx
+  s_c136b4b2523158::t_326464b3ec0b0f 120
+apps/web/src/routes/sign-in.tsx
+  s_c136b4b2523158::t_2f9e3518f92f78 2,17-19,23-26,29
+apps/api/src/index.ts
+  s_c136b4b2523158::t_b9a0e4f47503c4 152-156,167
+apps/api/src/lib/organization-membership.ts
+  s_c136b4b2523158::t_7ad70fbf3201cb 10-12
+CONTEXT.md
+  s_c136b4b2523158::t_7ad70fbf3201cb 190,210
+CLAUDE.md
+  s_c136b4b2523158::t_8924d6d67abe59 124
+packages/schemas/src/message-roles.ts
+  s_c136b4b2523158::t_7ad70fbf3201cb 26-27,68-69,71-72
+apps/web/src/routes/app/onboarding/new.tsx
+  s_c136b4b2523158::t_911dbd225f5d52 193
+apps/web/src/components/markdown/tiptap-link-renderer.tsx
+  s_c136b4b2523158::t_7ad70fbf3201cb 19-21
+apps/api/src/live-state/router/message.ts
+  s_c136b4b2523158::t_16c14d3bd0d645 9,154,170-173
+apps/web/src/router.tsx
+  s_c136b4b2523158::t_92c49f8498fb77 27
+apps/docs/content/docs/basics/organizations.mdx
+  s_c136b4b2523158::t_151ce541895214 28-29
+connectors/discord/src/index.ts
+  s_c136b4b2523158::t_e532f117233d35 1
+  s_c136b4b2523158::t_a86ef66fc1c53e 507
+apps/web/src/components/auth.tsx
+  s_c136b4b2523158::t_dec800648669f4 24-28,84-87
+  s_c136b4b2523158::t_2f9e3518f92f78 44
+apps/api/src/live-state/router.ts
+  s_c136b4b2523158::t_7ad70fbf3201cb 922-923
+connectors/slack/src/index.ts
+  s_c136b4b2523158::t_dec800648669f4 814-816
+  s_c136b4b2523158::t_c0316664ecc098 2
+  s_c136b4b2523158::t_4f1becfce5e61e 27
+apps/api/src/lib/authorize.test.ts
+  s_c136b4b2523158::t_dec800648669f4 229,265-271
+  s_c136b4b2523158::t_37a9cedcdcc074 222-228,230-264,272-280
+apps/api/src/lib/thread-url.test.ts
+  s_c136b4b2523158::t_e1e57f3a63e51f 5
+  s_c136b4b2523158::t_ff80e101ecdde4 1,3,6-9,12-19
+apps/web/src/routes/support/$.ts
+  s_c136b4b2523158::t_81cdfaf659430e 3-11,13,16-17
+apps/docs/content/docs/index.mdx
+  s_c136b4b2523158::t_326464b3ec0b0f 10
+apps/web/src/routeTree.gen.ts
+  s_c136b4b2523158::t_430546a41ff70f 20,103-107,358,408,454,507,557,602,655,716-722,1246
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6525938d3a0b1315eb20a9f5c8e1ac259606b374",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_c136b4b2523158": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a069dc-bee8-7581-8170-0af06d34bd2e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
