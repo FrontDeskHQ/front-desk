@@ -1,8 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { buildWorkspaceThreadUrl } from "./thread-url";
+import { buildWorkspaceThreadUrl, requireFrontendBaseUrl } from "./thread-url";
 
 describe("workspace thread URLs", () => {
+  it("requires a configured frontend base URL", () => {
+    expect(() => requireFrontendBaseUrl(undefined)).toThrow(
+      "MISSING_BASE_FRONTEND_URL"
+    );
+    expect(() => requireFrontendBaseUrl("")).toThrow(
+      "MISSING_BASE_FRONTEND_URL"
+    );
+    expect(requireFrontendBaseUrl("https://tryfrontdesk.app")).toBe(
+      "https://tryfrontdesk.app"
+    );
+  });
+
   it("builds a private workspace thread URL", () => {
     expect(
       buildWorkspaceThreadUrl("https://tryfrontdesk.app", "thread-123")

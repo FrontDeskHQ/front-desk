@@ -8,6 +8,7 @@ import {
   authorize,
   authorizeDeveloperAction,
   authorizeThreadCreate,
+  getAuthorizedOrganizationIds,
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
@@ -216,11 +217,25 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const { id, shortId, organizationId, onlyDeleted, deletedBefore } =
       req.input;
 
+    if (!req.context?.internalApiKey && !req.context?.orgUsers?.length) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    if (organizationId !== undefined) {
+      authorize(req, { organizationId });
+    }
+
+    const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
+
     const rows = await db.thread
       .where({
         ...(id === undefined ? {} : { id }),
         ...(shortId === undefined ? {} : { shortId }),
-        ...(organizationId === undefined ? {} : { organizationId }),
+        ...(organizationId === undefined
+          ? authorizedOrganizationIds === null
+            ? {}
+            : { organizationId: { $in: authorizedOrganizationIds } }
+          : { organizationId }),
         deletedAt: onlyDeleted
           ? { $not: null, ...(deletedBefore ? { $lt: deletedBefore } : {}) }
           : null,
@@ -240,7 +255,9 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       return undefined;
     }
 
-    authorize(req, { organizationId: thread.organizationId });
+    if (organizationId === undefined) {
+      authorize(req, { organizationId: thread.organizationId });
+    }
     return thread;
   }),
 

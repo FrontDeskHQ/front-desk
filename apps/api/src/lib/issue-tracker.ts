@@ -11,7 +11,7 @@ import { z } from "zod";
 
 import { schema } from "../live-state/schema";
 import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
-import { buildWorkspaceThreadUrl } from "./thread-url";
+import { buildWorkspaceThreadUrl, requireFrontendBaseUrl } from "./thread-url";
 import { runRecordActivity } from "./update-mutations";
 
 type OrganizationRow = InferLiveObject<typeof schema.organization>;
@@ -185,7 +185,7 @@ export const resolveEffectiveDefaultIssueTarget = async (
  */
 const threadFooter = (threadId: string): string =>
   `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${buildWorkspaceThreadUrl(
-    process.env.BASE_FRONTEND_URL ?? "http://localhost:3000",
+    requireFrontendBaseUrl(),
     threadId
   )}).`;
 
