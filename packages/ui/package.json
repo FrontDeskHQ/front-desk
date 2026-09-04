@@ -102,7 +102,7 @@
     "@vitejs/plugin-react": "^5.0.4",
     "colorjs.io": "^0.6.1",
     "jsdom": "^27.0.0",
-    "typescript": "^5.9.3",
+    "typescript": "catalog:",
     "vite": "^7.1.7",
     "vitest": "^3.0.5",
     "web-vitals": "^5.1.0"

@@ -14,7 +14,6 @@
     "verbatimModuleSyntax": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "baseUrl": ".",
     "paths": {
       "~/*": ["./src/*"],
       "@workspace/ui/*": ["../../packages/ui/src/*"]
