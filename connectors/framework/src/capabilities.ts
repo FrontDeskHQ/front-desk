@@ -229,7 +229,7 @@ export const prTrackerLinkPayloadSchema = z.object({
   entity: capabilityEntityRefSchema,
   thread: z.object({
     title: z.string().default(""),
-    /** Portal URL of the linked thread, for the back-reference. */
+    /** Authenticated FrontDesk URL of the linked thread. */
     url: z.string(),
   }),
 });

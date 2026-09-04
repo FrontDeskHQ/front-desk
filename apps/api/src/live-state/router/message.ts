@@ -6,7 +6,7 @@ import z from "zod";
 import {
   assertIntegrationAuthor,
   authorize,
-  getCallerUserId,
+  getWorkspaceUserId,
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
@@ -69,7 +69,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
   create: mutation(messageCreateInputSchema).handler(async ({ req, db }) => {
     authorize(req, {
-      allowPortalUser: true,
       allowPublicApiKey: true,
       organizationId: req.input.organizationId,
     });
@@ -152,7 +151,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       messageId: z.string(),
     })
   ).handler(async ({ req, db }) => {
-    const callerUserId = getCallerUserId(req);
+    const callerUserId = getWorkspaceUserId(req.context ?? {});
 
     if (!req.context?.internalApiKey && !callerUserId) {
       throw new Error("UNAUTHORIZED");
@@ -168,15 +167,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       throw new Error("THREAD_NOT_FOUND");
     }
 
-    if (!req.context?.internalApiKey && callerUserId) {
-      const threadAuthor = await db.author.one(thread.authorId).get();
-      const isThreadAuthor = threadAuthor?.userId === callerUserId;
-
-      if (!isThreadAuthor) {
-        authorize(req, {
-          organizationId: thread.organizationId,
-        });
-      }
+    if (!req.context?.internalApiKey) {
+      authorize(req, {
+        organizationId: thread.organizationId,
+      });
     }
 
     const existingAnswers = Object.values(

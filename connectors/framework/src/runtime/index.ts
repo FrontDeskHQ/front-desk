@@ -13,7 +13,6 @@ export {
   type OutboundUpdate,
   startOutboundReplication,
 } from "./outbound";
-export { buildPortalThreadUrl } from "./portal";
 export {
   createQueue,
   createRedisConnection,

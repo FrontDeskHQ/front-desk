@@ -23,8 +23,8 @@ export type MessageRole = "customer" | "teammate" | "unknown";
  * the read it came from.
  *
  * A *subset* of the column, not its full range: connector ingest writes the
- * provider name there (`"discord"`, …) and a message typed in the app or
- * posted from the portal writes nothing. So the column stays a free string —
+ * provider name there (`"discord"`, …) and a message typed in the app writes
+ * nothing. So the column stays a free string —
  * parse against this to ask "did we send it?", never to validate the field.
  */
 export const messageOriginSchema = z.enum(["agent_read", "agent_auto"]);
@@ -65,11 +65,11 @@ export interface ResolvedMessageAuthors {
 }
 
 /**
- * - customer — the thread's opener, checked first so a portal customer stays
- *   the customer whatever else is true of them
+ * - customer — the thread's opener, checked first so they stay the customer
+ *   whatever else is true of them
  * - teammate — an author whose user belongs to the organization. Membership,
- *   not `userId`: portal customers and teammates share the `user` table, so
- *   "has a user id" only says the author authenticated.
+ *   not `userId`: historical customer authors can share the `user` table with
+ *   teammates, so "has a user id" only says the author authenticated.
  * - unknown — anyone we cannot place, which is every connector-relayed
  *   identity: a teammate answering in Discord and a second customer joining
  *   the thread arrive as the same row.

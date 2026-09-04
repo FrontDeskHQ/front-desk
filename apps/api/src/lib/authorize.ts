@@ -13,11 +13,6 @@ const getRoleLevel = (role: string): number | undefined => {
   return level;
 };
 
-export interface PortalSession {
-  session?: { userId?: string; userName?: string } | null;
-  user?: { id?: string; name?: string } | null;
-}
-
 /** Context injected by live-state (sessions, API keys). */
 export interface AuthorizationContext {
   internalApiKey?: unknown;
@@ -30,9 +25,6 @@ export interface AuthorizationContext {
     emailVerified?: boolean;
     name?: string;
   } | null;
-  portalSession?: PortalSession | null;
-  /** Organization resolved from the portal request origin (subdomain or /support/{slug}). */
-  portalOrganizationId?: string;
 }
 
 /** Request-like shape that carries credential context (e.g. mutation/query `req`). */
@@ -44,8 +36,6 @@ export interface AuthorizeOptions {
   organizationId?: string;
   role?: string;
   allowPublicApiKey?: boolean;
-  /** Portal customer sessions (no org membership) may call org-scoped procedures. */
-  allowPortalUser?: boolean;
   /**
    * When `true` (default), callers with {@link AuthorizationContext.internalApiKey}
    * are authorized without org membership checks. Set to `false` to enforce the
@@ -159,15 +149,14 @@ export const authorizeDeveloperAction = (
     throw new Error("UNAUTHORIZED");
   };
 
-  // Developer actions are for workspace users, not connector keys, public
-  // API keys, or portal customer sessions. Keeping this check explicit also
+  // Developer actions are for workspace users, not connector or public API
+  // keys. Keeping this check explicit also
   // prevents an internal bot key from bypassing the production predicate.
   if (
     !actorUserId ||
     context.internalApiKey ||
     context.privateApiKey ||
-    context.publicApiKey ||
-    getPortalUserId(context) !== undefined
+    context.publicApiKey
   ) {
     deny("missing_session");
   }
@@ -206,15 +195,7 @@ export type ThreadCreateAuthFlow =
   | "integration"
   | "private"
   | "public"
-  | "portal"
   | "workspace";
-
-export const getPortalUserId = (
-  ctx: AuthorizationContext
-): string | undefined =>
-  ctx.portalSession?.session?.userId ??
-  ctx.portalSession?.user?.id ??
-  undefined;
 
 export const getWorkspaceUserId = (
   ctx: AuthorizationContext
@@ -242,40 +223,10 @@ export const getWorkspaceActor = (
   };
 };
 
-export const getPortalAuthor = (
-  req: AuthorizeReq,
-  input: { userName?: string } = {}
-): { userId: string; userName: string } => {
-  const ctx = req.context ?? {};
-  const userId = getPortalUserId(ctx);
-  if (!userId) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  const userName =
-    input.userName ??
-    ctx.portalSession?.session?.userName ??
-    ctx.portalSession?.user?.name ??
-    "Unknown User";
-
-  return { userId, userName };
-};
-
-export const getCallerUserId = (req: AuthorizeReq): string | undefined => {
-  const ctx = req.context ?? {};
-  return getPortalUserId(ctx) ?? getWorkspaceUserId(ctx);
-};
-
 export const resolveHumanAuthor = (
   req: AuthorizeReq,
   input: { userName?: string } = {}
 ): { userId: string; userName: string } => {
-  const ctx = req.context ?? {};
-
-  if (getPortalUserId(ctx) !== undefined) {
-    return getPortalAuthor(req, input);
-  }
-
   const actor = getWorkspaceActor(req);
   const userName = input.userName ?? actor.userName;
   if (!userName) {
@@ -303,26 +254,14 @@ export const authorizeThreadCreate = (
   const hasPrivateKey = !!ctx.privateApiKey;
   const hasPublicKey = !!ctx.publicApiKey;
   const hasApiKey = !!ctx.internalApiKey || hasPrivateKey || hasPublicKey;
-  const portalUserId = getPortalUserId(ctx);
-  const hasPortalSession = portalUserId !== undefined;
   const hasWorkspaceSession = getWorkspaceUserId(ctx) !== undefined;
 
-  if (!hasApiKey && !hasPortalSession && !hasWorkspaceSession) {
+  if (!hasApiKey && !hasWorkspaceSession) {
     throw new Error("UNAUTHORIZED");
   }
 
   if (!hasApiKey && input.hasIntegrationOnlyFields) {
     throw new Error("UNAUTHORIZED");
-  }
-
-  if (hasPortalSession) {
-    if (input.inputUserId && input.inputUserId !== portalUserId) {
-      throw new Error("UNAUTHORIZED");
-    }
-    if (ctx.portalOrganizationId !== input.organizationId) {
-      throw new Error("UNAUTHORIZED");
-    }
-    return "portal";
   }
 
   if (hasWorkspaceSession && !hasApiKey) {
@@ -471,12 +410,6 @@ export const isAuthorized = (
     return false;
   }
 
-  if (opts.allowPortalUser && getPortalUserId(ctx) !== undefined) {
-    return (
-      !!opts.organizationId && ctx.portalOrganizationId === opts.organizationId
-    );
-  }
-
   if (ctx.orgUsers && opts.organizationId) {
     const orgUser = ctx.orgUsers.find(
       (ou) => ou.organizationId === opts.organizationId
@@ -516,50 +449,4 @@ export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
   }
 
   throw new Error("UNAUTHORIZED");
-};
-
-/** Resolve portal tenant slug from forwarded browser origin (subdomain or /support/{slug}). */
-export const parsePortalOrganizationSlug = (
-  headers: Record<string, string>
-): string | undefined => {
-  const baseHostname = new URL(
-    process.env.BASE_FRONTEND_URL ?? "http://localhost:3000"
-  ).hostname.toLowerCase();
-
-  const candidates = [
-    headers.origin,
-    headers.referer,
-    headers["x-forwarded-host"]
-      ? `https://${headers["x-forwarded-host"]}`
-      : undefined,
-    headers.host ? `https://${headers.host}` : undefined,
-  ].filter((value): value is string => !!value);
-
-  for (const candidate of candidates) {
-    try {
-      const url = new URL(candidate);
-      const hostname = url.hostname.toLowerCase();
-      const isBaseHost = hostname === baseHostname;
-      const isBaseSubdomain = hostname.endsWith(`.${baseHostname}`);
-
-      if (!isBaseHost && !isBaseSubdomain) {
-        continue;
-      }
-
-      if (isBaseHost) {
-        const pathMatch = url.pathname.match(/^\/support\/([^/]+)/);
-        if (pathMatch?.[1]) {
-          return pathMatch[1];
-        }
-      }
-
-      if (isBaseSubdomain) {
-        return hostname.slice(0, -(baseHostname.length + 1));
-      }
-    } catch {
-      continue;
-    }
-  }
-
-  return undefined;
 };

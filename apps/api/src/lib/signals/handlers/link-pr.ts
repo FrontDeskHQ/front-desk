@@ -7,6 +7,7 @@ import {
   resolveEntityCapabilityTarget,
 } from "../../capability-dispatch";
 import { connectorInvokeSecret } from "../../connector-registry";
+import { buildWorkspaceThreadUrl } from "../../thread-url";
 import { runRecordActivity } from "../../update-mutations";
 import type { ActionHandler } from "../types";
 
@@ -52,16 +53,10 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       throw new Error("PR_TRACKER_NOT_CONFIGURED");
     }
 
-    const organization = Object.values(
-      await ctx.db.find(schema.organization, {
-        where: { id: ctx.organizationId },
-      })
-    )[0];
-    if (!organization) {
-      throw new Error("ORGANIZATION_NOT_FOUND");
-    }
-
-    const threadUrl = `https://${organization.slug}.tryfrontdesk.app/threads/${ctx.threadId}`;
+    const threadUrl = buildWorkspaceThreadUrl(
+      process.env.BASE_FRONTEND_URL ?? "http://localhost:3000",
+      ctx.threadId
+    );
 
     // Post the back-reference on the PR before recording the link locally, so a
     // failed comment doesn't leave a link with no trace on the external side.

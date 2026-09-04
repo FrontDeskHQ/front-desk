@@ -1,8 +1,5 @@
 import "./env";
-import {
-  buildPortalThreadUrl,
-  startOutboundReplication,
-} from "@connectors/framework/runtime";
+import { startOutboundReplication } from "@connectors/framework/runtime";
 import type {
   OutboundMessage,
   OutboundUpdate,
@@ -27,10 +24,7 @@ import { closeDigestWorker, initializeDigestWorker } from "./lib/digest-queue";
 import { reflagClient } from "./lib/feature-flag";
 import { installationStore } from "./lib/installation-store";
 import { fetchClient, store } from "./lib/live-state";
-import {
-  formatSlackOutboundText,
-  sanitizeSlackLinkLabel,
-} from "./lib/markdown-to-mrkdwn";
+import { formatSlackOutboundText } from "./lib/markdown-to-mrkdwn";
 import { resolveSlackTargetPrerequisites } from "./lib/outbound-target";
 import type { SlackTargetPrerequisiteFailureReason } from "./lib/outbound-target";
 import type { BackfillChannelResult } from "./lib/queue";
@@ -280,71 +274,6 @@ app.processEvent = async (event) => {
     throw error;
   }
 };
-
-interface RelatedThreadLink {
-  threadId: string;
-  name: string | null;
-  url: string;
-}
-
-const RELATED_THREADS_INITIAL_DELAY_MS = 30_000;
-
-const sleep = (ms: number) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
-// TODO(signals-overhaul): related-threads polling used the dropped `suggestion`
-// table. Rebuild on the new pipeline before re-enabling the related-threads
-// section of the portal bot reply.
-const getRelatedThreadLinks = async (_args: {
-  organizationId: string;
-  organizationSlug: string;
-  threadId: string;
-  baseUrl: string;
-}): Promise<RelatedThreadLink[]> => [];
-
-const buildPortalBotText = ({
-  portalUrl,
-  relatedThreadLinks,
-}: {
-  portalUrl: string;
-  relatedThreadLinks: RelatedThreadLink[];
-}) => {
-  const lines = [
-    `This thread is also being tracked in our community portal: <${portalUrl}|${sanitizeSlackLinkLabel("Open in portal")}>`,
-  ];
-
-  if (relatedThreadLinks.length > 0) {
-    lines.push("", "Related threads on the portal:");
-    for (const link of relatedThreadLinks) {
-      if (link.name) {
-        const sanitizedName = sanitizeSlackLinkLabel(link.name);
-        lines.push(`• <${link.url}|${sanitizedName}>`);
-      } else {
-        lines.push(`• <${link.url}>`);
-      }
-    }
-  }
-
-  return lines.join("\n");
-};
-
-const buildPortalBotBlocks = ({
-  portalUrl,
-  relatedThreadLinks,
-}: {
-  portalUrl: string;
-  relatedThreadLinks: RelatedThreadLink[];
-}) => [
-  {
-    text: {
-      text: buildPortalBotText({ portalUrl, relatedThreadLinks }),
-      type: "mrkdwn",
-    },
-    type: "section",
-  },
-];
 
 type SlackClientResolution =
   | { client: WebClient; ok: true }
@@ -850,7 +779,6 @@ app.message(
   async ({
     message,
     ack,
-    say,
     client,
     context,
   }: SlackEventMiddlewareArgs<"message"> & AllMiddlewareArgs) => {
@@ -883,7 +811,9 @@ app.message(
       }
 
       if (!("user" in message) || !message.user) {
-        requestLog.set({ ingest: { outcome: "skipped", reason: "missing_user" } });
+        requestLog.set({
+          ingest: { outcome: "skipped", reason: "missing_user" },
+        });
         return;
       }
 
@@ -1023,90 +953,6 @@ app.message(
         thread: { id: threadId },
         integration: { id: integration.id },
       });
-
-      // The portal-link reply is posted once, when the thread is first created.
-      if (!created) {
-        return;
-      }
-
-      try {
-        const organization = await fetchClient.query.organization.byId({
-          id: integration.organizationId,
-        });
-
-        if (organization?.slug) {
-          const showPortalMessage =
-            integrationSettings?.showPortalMessage !== false;
-
-          if (showPortalMessage) {
-            const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-            const portalUrl = buildPortalThreadUrl(
-              baseUrl,
-              organization.slug,
-              threadId
-            );
-            const portalText = buildPortalBotText({
-              portalUrl,
-              relatedThreadLinks: [],
-            });
-            const portalBlocks = buildPortalBotBlocks({
-              portalUrl,
-              relatedThreadLinks: [],
-            });
-
-            const postResult = await say({
-              text: portalText,
-              blocks: portalBlocks,
-              channel: message.channel,
-              // Nest under the root, not this event's `ts`: when a reply bootstraps
-              // the thread, `message.ts` is the reply — the portal message must
-              // still thread onto the root (`externalThreadId`).
-              thread_ts: externalThreadId,
-            });
-
-            void (async () => {
-              try {
-                await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
-
-                const relatedThreadLinks = await getRelatedThreadLinks({
-                  baseUrl,
-                  organizationId: integration.organizationId,
-                  organizationSlug: organization.slug,
-                  threadId,
-                });
-
-                if (relatedThreadLinks.length === 0) {
-                  return;
-                }
-
-                const updatedText = buildPortalBotText({
-                  portalUrl,
-                  relatedThreadLinks,
-                });
-                const updatedBlocks = buildPortalBotBlocks({
-                  portalUrl,
-                  relatedThreadLinks,
-                });
-
-                if (!postResult?.ts) {
-                  return;
-                }
-
-                await client.chat.update({
-                  blocks: updatedBlocks,
-                  channel: message.channel,
-                  text: updatedText,
-                  ts: postResult.ts,
-                });
-              } catch (error) {
-                console.error("Error updating portal link message:", error);
-              }
-            })();
-          }
-        }
-      } catch (error) {
-        console.error("Error sending portal link message:", error);
-      }
     } catch (error) {
       status = 500;
       requestLog.set({ ingest: { outcome: "failed" } });

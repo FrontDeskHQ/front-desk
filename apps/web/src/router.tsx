@@ -24,8 +24,7 @@ export function getRouter() {
       return qs.parse(search.slice(1));
     },
     rewrite: {
-      // Rewrite incoming URLs so that subdomains for orgs become path segments
-      // e.g. acme-inc.tryfrontdesk.app -> tryfrontdesk.app/support/acme-inc/threads
+      // Send retired organization subdomains to the permanent 410 handler.
       input: ({ url }) => {
         const hostname = url.hostname;
 
@@ -35,23 +34,6 @@ export function getRouter() {
 
         url.hostname = baseHostname;
         url.pathname = `/support/${subdomain}${url.pathname}`;
-
-        return url;
-      },
-      output: ({ url }) => {
-        // Rewrite outgoing URLs so that path segments for orgs become subdomains
-        // e.g. tryfrontdesk.app/support/acme-inc/threads -> acme-inc.tryfrontdesk.app
-        // e.g. tryfrontdesk.app/support/acme-inc/threads/01k98em74mj13jzafk4efs8pj8 -> acme-inc.tryfrontdesk.app/threads/01k98em74mj13jzafk4efs8pj8
-        const pathParts = url.pathname.split("/");
-        const isSupportPath = pathParts[1] === "support";
-        if (!isSupportPath) return;
-
-        const subdomain = pathParts[2];
-        if (!subdomain) return;
-        const restOfPath = pathParts.slice(3).join("/");
-
-        url.hostname = `${subdomain}.${baseHostname}`;
-        url.pathname = `/${restOfPath}`;
 
         return url;
       },
