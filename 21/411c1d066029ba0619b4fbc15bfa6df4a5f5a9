@@ -1,0 +1,25 @@
+apps/api/src/lib/signals/handlers/link-pr.ts
+  s_bed24c76f1f82b::t_c7955fe314b700 10-13
+  s_bed24c76f1f82b::t_c59b86829a7b8e 60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "21411c1d066029ba0619b4fbc15bfa6df4a5f5a9",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_bed24c76f1f82b": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "1821ebaa-6596-4b06-8132-268438580506",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
