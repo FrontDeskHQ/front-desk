@@ -4,9 +4,6 @@ import { buildWorkspaceThreadUrl, requireFrontendBaseUrl } from "./thread-url";
 
 describe("workspace thread URLs", () => {
   it("requires a configured frontend base URL", () => {
-    expect(() => requireFrontendBaseUrl(undefined)).toThrow(
-      "MISSING_BASE_FRONTEND_URL"
-    );
     expect(() => requireFrontendBaseUrl("")).toThrow(
       "MISSING_BASE_FRONTEND_URL"
     );

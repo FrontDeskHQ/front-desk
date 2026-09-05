@@ -7,7 +7,10 @@ import {
   resolveEntityCapabilityTarget,
 } from "../../capability-dispatch";
 import { connectorInvokeSecret } from "../../connector-registry";
-import { buildWorkspaceThreadUrl } from "../../thread-url";
+import {
+  buildWorkspaceThreadUrl,
+  requireFrontendBaseUrl,
+} from "../../thread-url";
 import { runRecordActivity } from "../../update-mutations";
 import type { ActionHandler } from "../types";
 
@@ -54,7 +57,7 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
     }
 
     const threadUrl = buildWorkspaceThreadUrl(
-      process.env.BASE_FRONTEND_URL ?? "http://localhost:3000",
+      requireFrontendBaseUrl(),
       ctx.threadId
     );
 
