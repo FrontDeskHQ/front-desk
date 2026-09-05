@@ -18,9 +18,6 @@
       "import": "./src/live-state/schema.ts",
       "default": "./src/live-state/schema.ts"
     },
-    "./plugins/subdomain-oauth": {
-      "types": "./src/lib/plugins/subdomain-oauth.ts"
-    },
     "./feature-flag": {
       "types": "./src/lib/feature-flag.ts",
       "import": "./src/lib/feature-flag.ts",

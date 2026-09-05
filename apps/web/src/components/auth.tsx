@@ -21,7 +21,11 @@ const signInFormSchema = z.object({
   password: z.string(),
 });
 
-export const SignInForm = () => {
+export const SignInForm = ({
+  callbackURL = "/app",
+}: {
+  callbackURL?: string;
+}) => {
   const posthog = usePostHog();
   const oauthClick = () => {
     posthog?.capture("auth:oauth_button_click");
@@ -37,7 +41,7 @@ export const SignInForm = () => {
         {
           email: value.email,
           password: value.password,
-          callbackURL: "/app",
+          callbackURL,
         },
         {
           onRequest: () => {
@@ -77,7 +81,10 @@ export const SignInForm = () => {
           onClick={() => {
             oauthClick();
             authClient.signIn.social({
-              callbackURL: `${window.location.origin}/app`,
+              callbackURL: new URL(
+                callbackURL,
+                window.location.origin
+              ).toString(),
               provider: "google",
             });
           }}

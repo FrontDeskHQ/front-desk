@@ -179,7 +179,6 @@ function RouteComponent() {
                     <ul className="lex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
                       <li>Unlimited support tickets</li>
                       <li>Unlimited customers</li>
-                      <li>Public support portal</li>
                       <li>2 support channels</li>
                     </ul>
                   </div>
@@ -290,7 +289,6 @@ function RouteComponent() {
                     <ul className="lex flex-col gap-2 [&>li]:relative [&>li]:pl-5 [&>li]:before:content-['✓'] [&>li]:before:absolute [&>li]:before:left-0 [&>li]:before:text-primary [&>li]:before:font-thin [&>li]:before:text-xs [&>li]:before:top-1/2 [&>li]:before:-translate-y-1/2">
                       <li>Unlimited support tickets</li>
                       <li>Unlimited customers</li>
-                      <li>Public support portal with custom domain</li>
                       <li>Unlimited support channels</li>
                     </ul>
                   </div>

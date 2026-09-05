@@ -219,3 +219,62 @@ describe("private API key authorization", () => {
     ).toThrow("UNAUTHORIZED");
   });
 });
+
+describe("workspace organization authorization", () => {
+  it("allows members and internal callers for their organization", () => {
+    expect(() =>
+      authorize(workspaceRequest(), { organizationId })
+    ).not.toThrow();
+    expect(() =>
+      authorize({ context: { internalApiKey: true } }, { organizationId })
+    ).not.toThrow();
+  });
+
+  it("denies anonymous and cross-organization callers", () => {
+    expect(() => authorize({}, { organizationId })).toThrow("UNAUTHORIZED");
+    expect(() =>
+      authorize(workspaceRequest(), { organizationId: "org-b" })
+    ).toThrow("UNAUTHORIZED");
+  });
+});
+
+describe("thread creation authorization", () => {
+  it("keeps workspace, connector, and public widget flows", () => {
+    expect(
+      authorizeThreadCreate(workspaceRequest(), {
+        hasIntegrationOnlyFields: false,
+        organizationId,
+      })
+    ).toBe("workspace");
+    expect(
+      authorizeThreadCreate(
+        { context: { internalApiKey: true } },
+        { hasIntegrationOnlyFields: true, organizationId }
+      )
+    ).toBe("integration");
+    expect(
+      authorizeThreadCreate(
+        { context: { publicApiKey: { ownerId: organizationId } } },
+        { hasIntegrationOnlyFields: false, organizationId }
+      )
+    ).toBe("public");
+  });
+
+  it("denies anonymous and cross-organization widget creation", () => {
+    expect(() =>
+      authorizeThreadCreate(
+        {},
+        {
+          hasIntegrationOnlyFields: false,
+          organizationId,
+        }
+      )
+    ).toThrow("UNAUTHORIZED");
+    expect(() =>
+      authorizeThreadCreate(
+        { context: { publicApiKey: { ownerId: organizationId } } },
+        { hasIntegrationOnlyFields: false, organizationId: "org-b" }
+      )
+    ).toThrow("UNAUTHORIZED");
+  });
+});

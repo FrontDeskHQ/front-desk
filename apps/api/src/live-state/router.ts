@@ -93,15 +93,6 @@ export const router = createRouter({
   schema,
   routes: {
     organization: publicRoute.withProcedures(({ mutation, query }) => ({
-      /** Single organization by slug — public portal shell. */
-      bySlug: query(z.object({ slug: z.string() })).handler(
-        async ({ db, req }) =>
-          Object.values(
-            await db.find(schema.organization, {
-              where: { slug: req.input.slug.toLowerCase() },
-            })
-          )[0]
-      ),
       /** Single organization by id — cli, worker, integration bots. */
       byId: query(z.object({ id: z.string() })).handler(async ({ db, req }) =>
         db.organization.one(req.input.id).get()
@@ -146,10 +137,6 @@ export const router = createRouter({
           create_issue: target !== null,
         } satisfies ActionAvailability;
       }),
-      /** All organizations — cli listing and public sitemap generation. */
-      list: query().handler(async ({ db }) =>
-        Object.values(await db.find(schema.organization, {}))
-      ),
       // Un-executed query returned to integration clients (discord/slack/
       // github), which load it via `client.load`. The whole-tree read has no
       // per-resource backstop now (live-state 1.0), so it is gated to internal
@@ -456,7 +443,6 @@ export const router = createRouter({
               })
               .optional(),
             logoUrl: z.string().nullable().optional(),
-            socials: z.string().nullable().optional(),
             customInstructions: z.string().nullable().optional(),
             // `capabilityPrimary` is intentionally excluded: it must go through
             // `setCapabilityPrimary`, which validates the capability and that the
@@ -492,7 +478,6 @@ export const router = createRouter({
           name,
           slug,
           logoUrl,
-          socials,
           customInstructions,
           settings,
         } = req.input;
@@ -508,7 +493,6 @@ export const router = createRouter({
           ...(name === undefined ? {} : { name }),
           ...(slug === undefined ? {} : { slug }),
           ...(logoUrl === undefined ? {} : { logoUrl }),
-          ...(socials === undefined ? {} : { socials }),
           ...(customInstructions === undefined ? {} : { customInstructions }),
           ...(settings === undefined
             ? {}
@@ -935,8 +919,8 @@ export const router = createRouter({
       /**
        * Authors by id (batch) — worker message-role resolution. Each row
        * carries `isOrganizationMember`, resolved here because that, not
-       * `userId`, is what makes an author one of ours (ADR 0017): portal
-       * customers and teammates share the `user` table.
+       * `userId`, is what makes an author one of ours (ADR 0017). Historical
+       * customer authors may still reference rows in the shared `user` table.
        */
       byIds: query(
         z.object({ ids: z.array(z.string()), organizationId: z.string() })

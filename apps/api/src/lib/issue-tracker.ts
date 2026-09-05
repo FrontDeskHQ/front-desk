@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import { schema } from "../live-state/schema";
 import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
+import { buildWorkspaceThreadUrl, requireFrontendBaseUrl } from "./thread-url";
 import { runRecordActivity } from "./update-mutations";
 
 type OrganizationRow = InferLiveObject<typeof schema.organization>;
@@ -182,8 +183,11 @@ export const resolveEffectiveDefaultIssueTarget = async (
  * deliberately carry no reporter identity, since an issue may land in a public
  * repo.
  */
-const threadFooter = (orgSlug: string, threadId: string): string =>
-  `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](https://${orgSlug}.tryfrontdesk.app/threads/${threadId}).`;
+const threadFooter = (threadId: string): string =>
+  `\n\n---\n\nIssue created using FrontDesk. [Click to view thread](${buildWorkspaceThreadUrl(
+    requireFrontendBaseUrl(),
+    threadId
+  )}).`;
 
 /**
  * Dispatch an issue-tracker `create` and record the `issue_created` activity.
@@ -215,11 +219,6 @@ export const runCreateIssue = async (
     throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
   }
 
-  const orgSlug = target.organization.slug;
-  if (!orgSlug) {
-    throw new Error("ORGANIZATION_NOT_FOUND");
-  }
-
   const { entity } = await invokeCapability<{ entity: NormalizedIssue }>(
     target.invokeUrl,
     {
@@ -227,7 +226,7 @@ export const runCreateIssue = async (
       config: target.integration.configStr,
       method: "create",
       payload: {
-        body: (args.body ?? "") + threadFooter(orgSlug, args.threadId),
+        body: (args.body ?? "") + threadFooter(args.threadId),
         target: args.target,
         title: args.title,
       },

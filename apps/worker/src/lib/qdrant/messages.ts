@@ -14,7 +14,7 @@ export interface MessagePayload {
 }
 
 /**
- * Hybrid index over individual messages, backing the portal/agent message
+ * Hybrid index over individual messages, backing the Agent message
  * search. Point identity is the message's own ULID reinterpreted as a UUID —
  * message ids are already globally unique, so no organization prefix is needed.
  * A malformed ULID yields `null`; callers use `pointIdFor` to skip those with a

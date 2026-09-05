@@ -121,12 +121,11 @@ Thread ingestion runs in 3 stages:
 
 ### Multi-Tenancy
 
-Subdomain-based routing: `{org}.tryfrontdesk.app` rewrites to `/support/{org}/...` internally. All database queries filter by `organizationId` from auth context.
+Organizations are private workspaces. Organization-scoped operations authorize the current workspace member and filter by `organizationId`.
 
 ### Authentication Tiers
 
 - **User sessions**: Better-Auth with email/password or Google OAuth
-- **Portal sessions**: Separate auth instance for customer portal (`cookiePrefix: "portal-auth"`)
 - **Public API keys**: Keypal-managed keys for external API access
 - **Internal bot keys**: Discord/Slack bot authentication headers
 

@@ -15,7 +15,6 @@ export const slackIntegrationSchema = z.object({
   csrfToken: z.string().optional(),
   installation: z.any().optional(),
   selectedChannels: z.array(slackChannelRefSchema).optional(),
-  showPortalMessage: z.boolean().optional().default(true),
   syncedChannels: z.array(z.string()).optional(),
   teamId: z.coerce.string().optional(),
 });

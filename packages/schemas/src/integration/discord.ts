@@ -7,6 +7,5 @@ export const discordIntegrationSchema = z.object({
   csrfToken: z.string().optional(),
   guildId: z.coerce.string().optional(),
   selectedChannels: z.array(z.string()).optional(),
-  showPortalMessage: z.boolean().optional().default(true),
   syncedChannels: z.array(z.string()).optional(),
 });

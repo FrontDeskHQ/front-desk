@@ -4,13 +4,12 @@
 
 import { NarrativeSection } from "../shared/narrative-section";
 import type { NarrativeTopic } from "../shared/narrative-section";
-
 import { ThreadsListVisual } from "./threads-list-visual";
 
 const TOPICS: readonly NarrativeTopic[] = [
   {
     lead: "Native to every channel.",
-    body: "Slack, Discord, email, and GitHub — plus a portal of your own, for customers who'd rather have one.",
+    body: "Slack, Discord, email, and GitHub, where your customers already ask for help.",
   },
   {
     lead: "Triaged before you open it.",

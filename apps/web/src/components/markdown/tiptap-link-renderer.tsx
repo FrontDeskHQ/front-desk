@@ -16,9 +16,9 @@ import type { ParsedThreadParam } from "~/utils/thread";
 const THREAD_LINK_PREFIX = "thread:";
 
 /**
- * Matches an internal thread URL (e.g.
- * `https://app.example.com/app/threads/14-some-slug` or a portal
- * `/support/acme/threads/<param>`) and returns the parsed thread param.
+ * Matches an internal thread URL such as
+ * `https://app.example.com/app/threads/14-some-slug` and returns the parsed
+ * thread param.
  */
 function parseThreadUrl(href: string): ParsedThreadParam | null {
   if (typeof window === "undefined") {
