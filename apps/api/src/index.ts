@@ -16,9 +16,7 @@ import {
   resolveWebSocketApiCredential,
 } from "./lib/api-credential";
 import { auth } from "./lib/auth";
-import { parsePortalOrganizationSlug } from "./lib/authorize";
 import { initializeFeatureFlags, reflagClient } from "./lib/feature-flag";
-import { portalAuth } from "./lib/portal-auth";
 import { liveStateHooks } from "./live-state/hooks";
 import { runMigrations } from "./live-state/migrations";
 import { router } from "./live-state/router";
@@ -27,28 +25,6 @@ import { storage } from "./live-state/storage";
 import { exchangeConnectionToken } from "./routes/connection-token";
 
 const { app } = expressWs(express() as unknown as Express);
-
-const resolvePortalOrganizationId = async (
-  headers: Record<string, string>,
-  portalSession: unknown
-): Promise<string | undefined> => {
-  if (!portalSession) {
-    return undefined;
-  }
-
-  const slug = parsePortalOrganizationSlug(headers);
-  if (!slug) {
-    return undefined;
-  }
-
-  const organization = Object.values(
-    await storage.find(schema.organization, {
-      where: { slug },
-    })
-  )[0];
-
-  return organization?.id;
-};
 
 const corsOptions = {
   allowedHeaders: [
@@ -173,18 +149,11 @@ const lsServer = server({
 
     const headersParse = new Headers(headers);
 
-    const [session, portalSession] = await Promise.all([
-      auth.api
-        .getSession({
-          headers: headersParse,
-        })
-        .catch(() => null),
-      portalAuth.api
-        .getSession({
-          headers: headersParse,
-        })
-        .catch(() => null),
-    ]);
+    const session = await auth.api
+      .getSession({
+        headers: headersParse,
+      })
+      .catch(() => null);
 
     if (session?.user) {
       const orgUsers = Object.values(
@@ -195,16 +164,7 @@ const lsServer = server({
       return { ...session, orgUsers };
     }
 
-    const portalOrganizationId = await resolvePortalOrganizationId(
-      headers,
-      portalSession
-    );
-
-    return {
-      ...session,
-      portalSession,
-      portalOrganizationId,
-    };
+    return session ?? undefined;
   },
   hooks: liveStateHooks,
   router,
@@ -213,8 +173,6 @@ const lsServer = server({
 });
 
 app.all("/api/auth/*", toNodeHandler(auth));
-
-app.all("/api/portal-auth/*", toNodeHandler(portalAuth));
 
 app.use(express.json());
 

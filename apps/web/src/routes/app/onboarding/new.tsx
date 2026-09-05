@@ -190,8 +190,7 @@ function OnboardingForm() {
               </FormControl>
               <FormMessage />
               <p className="text-xs text-muted-foreground">
-                This will be your help center URL:{" "}
-                {field.state.value || "your-org"}.tryfrontdesk.app
+                Used as your organization identifier in FrontDesk.
               </p>
             </FormItem>
           )}

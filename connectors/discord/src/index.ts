@@ -1,7 +1,4 @@
-import {
-  buildPortalThreadUrl,
-  startOutboundReplication,
-} from "@connectors/framework/runtime";
+import { startOutboundReplication } from "@connectors/framework/runtime";
 import type {
   OutboundMessage,
   OutboundUpdate,
@@ -44,56 +41,6 @@ const ensureThreadTitle = (title: string) =>
   title.length >= 3 ? title : title.padEnd(3, ".");
 
 const token = process.env.DISCORD_TOKEN;
-
-interface RelatedThreadLink {
-  threadId: string;
-  name: string | null;
-  url: string;
-}
-
-const RELATED_THREADS_INITIAL_DELAY_MS = 30_000;
-
-const sleep = (ms: number) =>
-  new Promise((resolve) => {
-    setTimeout(resolve, ms);
-  });
-
-// TODO(signals-overhaul): related-threads polling used the dropped `suggestion`
-// table. Rebuild on top of the new pipeline (issue 06 synthesis or a fresh
-// related-threads source) before re-enabling the bot's related-threads embed.
-const getRelatedThreadLinks = async (_args: {
-  organizationId: string;
-  organizationSlug: string;
-  threadId: string;
-  baseUrl: string;
-}): Promise<RelatedThreadLink[]> => [];
-
-const buildPortalBotEmbed = ({
-  portalUrl,
-  relatedThreadLinks,
-}: {
-  portalUrl: string;
-  relatedThreadLinks: RelatedThreadLink[];
-}) => {
-  const lines = [
-    `This thread is also being tracked in our community portal: <${portalUrl}>`,
-  ];
-
-  if (relatedThreadLinks.length > 0) {
-    lines.push("", "Related threads:");
-    for (const link of relatedThreadLinks) {
-      if (link.name) {
-        lines.push(`- [${link.name}](${link.url})`);
-      } else {
-        lines.push(`- ${link.url}`);
-      }
-    }
-  }
-
-  return {
-    description: lines.join("\n"),
-  };
-};
 
 const client = new Client({
   intents: [
@@ -557,89 +504,12 @@ client.on("messageCreate", async (message) => {
 
   // One idempotent ingest call: the core creates the thread on the first message
   // for this channel and appends thereafter (no timing heuristic, no dedup here).
-  const { thread, created } = await ingestDiscordMessage({
+  await ingestDiscordMessage({
     externalThreadId: message.channel.id,
     message,
     organizationId: integration.organizationId,
     title: message.channel.name,
   });
-
-  if (!thread) {
-    return;
-  }
-  const threadId = thread.id;
-
-  // The portal-link embed is posted once, when the thread is first created.
-  let portalMessageOrgSlug: string | null = null;
-  if (created) {
-    try {
-      const organization = await fetchClient.query.organization.byId({
-        id: integration.organizationId,
-      });
-
-      if (organization?.slug) {
-        const showPortalMessage =
-          integrationSettings?.showPortalMessage !== false;
-
-        if (showPortalMessage) {
-          portalMessageOrgSlug = organization.slug;
-        } else {
-          console.log("Skipping sending portal link message");
-        }
-      }
-    } catch (error) {
-      console.error("Error sending portal link message:", error);
-    }
-  }
-
-  if (portalMessageOrgSlug) {
-    const baseUrl = process.env.BASE_URL ?? "https://tryfrontdesk.app";
-    const portalUrl = buildPortalThreadUrl(
-      baseUrl,
-      portalMessageOrgSlug,
-      threadId
-    );
-    const portalEmbed = buildPortalBotEmbed({
-      portalUrl,
-      relatedThreadLinks: [],
-    });
-
-    try {
-      const botMessage = await message.channel.send({
-        embeds: [portalEmbed],
-      });
-
-      void (async () => {
-        try {
-          await sleep(RELATED_THREADS_INITIAL_DELAY_MS);
-
-          const relatedThreadLinks = await getRelatedThreadLinks({
-            baseUrl,
-            organizationId: integration.organizationId,
-            organizationSlug: portalMessageOrgSlug,
-            threadId,
-          });
-
-          if (relatedThreadLinks.length === 0) {
-            return;
-          }
-
-          const updatedEmbed = buildPortalBotEmbed({
-            portalUrl,
-            relatedThreadLinks,
-          });
-
-          await botMessage.edit({
-            embeds: [updatedEmbed],
-          });
-        } catch (error) {
-          console.error("Error updating portal link message:", error);
-        }
-      })();
-    } catch (error) {
-      console.error("Error sending portal link message:", error);
-    }
-  }
 });
 
 /**

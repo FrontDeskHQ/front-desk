@@ -8,13 +8,13 @@ import {
   authorize,
   authorizeDeveloperAction,
   authorizeThreadCreate,
-  getPortalAuthor,
+  getAuthorizedOrganizationIds,
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
 import { ensureExternalAuthor } from "../../lib/external-author";
-import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { runCreateIssue } from "../../lib/issue-tracker";
+import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { enqueueThreadRead } from "../../lib/queue";
 import {
   acceptInlineSuggestionInputSchema,
@@ -128,34 +128,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     await db.transaction(async ({ trx }) => {
       let authorId: string | undefined;
 
-      // Determine author based on context
-      if (createFlow === "portal") {
-        const { userId, userName } = getPortalAuthor(req, {
-          userName: req.input.userName,
-        });
-
-        const existingAuthor = Object.values(
-          await trx.find(schema.author, {
-            where: {
-              organizationId,
-              userId,
-            },
-          })
-        );
-
-        authorId = existingAuthor[0]?.id;
-
-        if (!authorId) {
-          authorId = ulid().toLowerCase();
-          await trx.insert(schema.author, {
-            id: authorId,
-            metaId: null,
-            name: userName,
-            organizationId,
-            userId,
-          });
-        }
-      } else if (req.input.author) {
+      if (req.input.author) {
         authorId = await ensureExternalAuthor(trx, {
           metaId: req.input.author.id,
           name: req.input.author.name,
@@ -217,74 +190,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     return thread;
   }),
-  list: query(
-    z.object({
-      assignedUserId: z.string().nullable().optional(),
-      cursor: z.string().optional(),
-      direction: z.enum(["asc", "desc"]).default("desc"),
-      limit: z.number().min(1).max(50).default(10),
-      organizationId: z.string(),
-      priority: z.number().optional(),
-      status: z.number().optional(),
-    })
-  ).handler(async ({ req, db }) => {
-    const {
-      organizationId,
-      status,
-      priority,
-      assignedUserId,
-      cursor,
-      limit,
-      direction,
-    } = req.input;
-
-    // authorize(req, { organizationId });
-
-    let threadQuery = db.thread.where({
-      deletedAt: null,
-      organizationId,
-    });
-
-    if (status !== undefined) {
-      threadQuery = threadQuery.where({ status });
-    }
-    if (priority !== undefined) {
-      threadQuery = threadQuery.where({ priority });
-    }
-    if (assignedUserId !== undefined) {
-      threadQuery = threadQuery.where({ assignedUserId });
-    }
-
-    if (cursor) {
-      const op = direction === "desc" ? "$lt" : "$gt";
-      threadQuery = threadQuery.where({ id: { [op]: cursor } });
-    }
-
-    const rows = await threadQuery
-      .include({
-        assignedUser: true,
-        author: true,
-        labels: { include: { label: true } },
-        messages: { include: { author: true } },
-      })
-      .orderBy("id", direction)
-      .limit(limit + 1)
-      .get();
-
-    const hasMore = rows.length > limit;
-    const threads = hasMore ? rows.slice(0, limit) : rows;
-
-    const nextCursor =
-      hasMore && threads.length > 0 ? (threads.at(-1)?.id ?? null) : null;
-
-    return { nextCursor, threads };
-  }),
-
   /**
-   * Single thread with its full relation tree — portal thread page, workspace
-   * archive view, and devtools. Public, matching the old open `read` on
-   * threads. `onlyDeleted`/`deletedBefore` serve the archive (soft-deleted,
-   * pre-purge-window) lookups.
+   * Single thread with its full relation tree for the workspace archive and
+   * developer tools. `onlyDeleted`/`deletedBefore` serve the archive
+   * (soft-deleted, pre-purge-window) lookups.
    */
   detail: query(
     z
@@ -308,11 +217,25 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const { id, shortId, organizationId, onlyDeleted, deletedBefore } =
       req.input;
 
+    if (!req.context?.internalApiKey && !req.context?.orgUsers?.length) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    if (organizationId !== undefined) {
+      authorize(req, { organizationId });
+    }
+
+    const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
+
     const rows = await db.thread
       .where({
         ...(id === undefined ? {} : { id }),
         ...(shortId === undefined ? {} : { shortId }),
-        ...(organizationId === undefined ? {} : { organizationId }),
+        ...(organizationId === undefined
+          ? authorizedOrganizationIds === null
+            ? {}
+            : { organizationId: { $in: authorizedOrganizationIds } }
+          : { organizationId }),
         deletedAt: onlyDeleted
           ? { $not: null, ...(deletedBefore ? { $lt: deletedBefore } : {}) }
           : null,
@@ -327,16 +250,16 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       })
       .get();
 
-    return rows[0];
-  }),
+    const thread = rows[0];
+    if (!thread) {
+      return undefined;
+    }
 
-  /** All threads with their org — sitemap generation. Public (open read). */
-  listAll: query().handler(async ({ db }) =>
-    db.thread
-      .where({ deletedAt: null })
-      .include({ messages: true, organization: true })
-      .get()
-  ),
+    if (organizationId === undefined) {
+      authorize(req, { organizationId: thread.organizationId });
+    }
+    return thread;
+  }),
 
   /** Thread lookup by external (platform) id — integration bot dedupe. */
   byExternalId: query(
@@ -379,15 +302,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     }
   ),
 
-  // TODO(signals-overhaul issue 10): rewrite against thread.agentRead /
-  // thread.inlineSuggestions (or replace with a new related-threads source).
-  // The suggestion table backing this was dropped in issue 02; returns [] now.
-  fetchRelatedThreads: mutation(
-    z.object({
-      organizationId: z.string(),
-      threadId: z.string(),
-    })
-  ).handler(async () => []),
   /**
    * @deprecated The web client now reads issues reactively from the
    * org-scoped `externalEntity` mirror (synced via Live-State). This on-demand

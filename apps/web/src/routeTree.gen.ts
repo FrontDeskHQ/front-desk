@@ -17,14 +17,11 @@ import { Route as NowAllowedRouteImport } from "./routes/now-allowed"
 import { Route as AppRouteRouteImport } from "./routes/app/route"
 import { Route as PublicRouteRouteImport } from "./routes/_public/route"
 import { Route as PublicIndexRouteImport } from "./routes/_public/index"
+import { Route as SupportSplatRouteImport } from "./routes/support/$"
 import { Route as ApiSplatRouteImport } from "./routes/api/$"
-import { Route as SupportSlugRouteRouteImport } from "./routes/support/$slug/route"
 import { Route as AppWorkspaceRouteRouteImport } from "./routes/app/_workspace/route"
-import { Route as SupportSlugIndexRouteImport } from "./routes/support/$slug/index"
 import { Route as AppOnboardingIndexRouteImport } from "./routes/app/onboarding/index"
 import { Route as PublicUpdatesIndexRouteImport } from "./routes/_public/updates/index"
-import { Route as SupportSlugSitemapDotxmlRouteImport } from "./routes/support/$slug/sitemap[.]xml"
-import { Route as SupportSlugRobotsDottxtRouteImport } from "./routes/support/$slug/robots[.]txt"
 import { Route as AppOnboardingNewRouteImport } from "./routes/app/onboarding/new"
 import { Route as AppOnboardingConnectRouteImport } from "./routes/app/onboarding/connect"
 import { Route as AppInvitationIdRouteImport } from "./routes/app/invitation.$id"
@@ -32,11 +29,8 @@ import { Route as PublicLegalTermsOfServiceRouteImport } from "./routes/_public/
 import { Route as PublicLegalPrivacyPolicyRouteImport } from "./routes/_public/legal/privacy-policy"
 import { Route as AppWorkspaceSettingsRouteRouteImport } from "./routes/app/_workspace/settings/route"
 import { Route as AppWorkspaceMainRouteRouteImport } from "./routes/app/_workspace/_main/route"
-import { Route as SupportSlugThreadsIndexRouteImport } from "./routes/support/$slug/threads/index"
 import { Route as AppWorkspaceSettingsIndexRouteImport } from "./routes/app/_workspace/settings/index"
 import { Route as AppWorkspaceMainIndexRouteImport } from "./routes/app/_workspace/_main/index"
-import { Route as SupportSlugThreadsIdRouteImport } from "./routes/support/$slug/threads/$id"
-import { Route as SupportSlugApiSplatRouteImport } from "./routes/support/$slug/api/$"
 import { Route as AppWorkspaceSettingsUserRouteRouteImport } from "./routes/app/_workspace/settings/user/route"
 import { Route as AppWorkspaceSettingsOrganizationRouteRouteImport } from "./routes/app/_workspace/settings/organization/route"
 import { Route as AppWorkspaceMainThreadsRouteRouteImport } from "./routes/app/_workspace/_main/threads/route"
@@ -106,24 +100,19 @@ const PublicIndexRoute = PublicIndexRouteImport.update({
   path: "/",
   getParentRoute: () => PublicRouteRoute,
 } as any)
+const SupportSplatRoute = SupportSplatRouteImport.update({
+  id: "/support/$",
+  path: "/support/$",
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSplatRoute = ApiSplatRouteImport.update({
   id: "/api/$",
   path: "/api/$",
   getParentRoute: () => rootRouteImport,
 } as any)
-const SupportSlugRouteRoute = SupportSlugRouteRouteImport.update({
-  id: "/support/$slug",
-  path: "/support/$slug",
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AppWorkspaceRouteRoute = AppWorkspaceRouteRouteImport.update({
   id: "/_workspace",
   getParentRoute: () => AppRouteRoute,
-} as any)
-const SupportSlugIndexRoute = SupportSlugIndexRouteImport.update({
-  id: "/",
-  path: "/",
-  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppOnboardingIndexRoute = AppOnboardingIndexRouteImport.update({
   id: "/onboarding/",
@@ -134,17 +123,6 @@ const PublicUpdatesIndexRoute = PublicUpdatesIndexRouteImport.update({
   id: "/updates/",
   path: "/updates/",
   getParentRoute: () => PublicRouteRoute,
-} as any)
-const SupportSlugSitemapDotxmlRoute =
-  SupportSlugSitemapDotxmlRouteImport.update({
-    id: "/sitemap.xml",
-    path: "/sitemap.xml",
-    getParentRoute: () => SupportSlugRouteRoute,
-  } as any)
-const SupportSlugRobotsDottxtRoute = SupportSlugRobotsDottxtRouteImport.update({
-  id: "/robots.txt",
-  path: "/robots.txt",
-  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppOnboardingNewRoute = AppOnboardingNewRouteImport.update({
   id: "/onboarding/new",
@@ -183,11 +161,6 @@ const AppWorkspaceMainRouteRoute = AppWorkspaceMainRouteRouteImport.update({
   id: "/_main",
   getParentRoute: () => AppWorkspaceRouteRoute,
 } as any)
-const SupportSlugThreadsIndexRoute = SupportSlugThreadsIndexRouteImport.update({
-  id: "/threads/",
-  path: "/threads/",
-  getParentRoute: () => SupportSlugRouteRoute,
-} as any)
 const AppWorkspaceSettingsIndexRoute =
   AppWorkspaceSettingsIndexRouteImport.update({
     id: "/",
@@ -198,16 +171,6 @@ const AppWorkspaceMainIndexRoute = AppWorkspaceMainIndexRouteImport.update({
   id: "/",
   path: "/",
   getParentRoute: () => AppWorkspaceMainRouteRoute,
-} as any)
-const SupportSlugThreadsIdRoute = SupportSlugThreadsIdRouteImport.update({
-  id: "/threads/$id",
-  path: "/threads/$id",
-  getParentRoute: () => SupportSlugRouteRoute,
-} as any)
-const SupportSlugApiSplatRoute = SupportSlugApiSplatRouteImport.update({
-  id: "/api/$",
-  path: "/api/$",
-  getParentRoute: () => SupportSlugRouteRoute,
 } as any)
 const AppWorkspaceSettingsUserRouteRoute =
   AppWorkspaceSettingsUserRouteRouteImport.update({
@@ -391,8 +354,8 @@ export interface FileRoutesByFullPath {
   "/sign-in": typeof SignInRoute
   "/sign-up": typeof SignUpRoute
   "/sitemap.xml": typeof SitemapDotxmlRoute
-  "/support/$slug": typeof SupportSlugRouteRouteWithChildren
   "/api/$": typeof ApiSplatRoute
+  "/support/$": typeof SupportSplatRoute
   "/": typeof PublicIndexRoute
   "/app/settings": typeof AppWorkspaceSettingsRouteRouteWithChildren
   "/legal/privacy-policy": typeof PublicLegalPrivacyPolicyRoute
@@ -400,19 +363,13 @@ export interface FileRoutesByFullPath {
   "/app/invitation/$id": typeof AppInvitationIdRoute
   "/app/onboarding/connect": typeof AppOnboardingConnectRoute
   "/app/onboarding/new": typeof AppOnboardingNewRoute
-  "/support/$slug/robots.txt": typeof SupportSlugRobotsDottxtRoute
-  "/support/$slug/sitemap.xml": typeof SupportSlugSitemapDotxmlRoute
   "/updates": typeof PublicUpdatesIndexRoute
   "/app/onboarding": typeof AppOnboardingIndexRoute
-  "/support/$slug/": typeof SupportSlugIndexRoute
   "/app/threads": typeof AppWorkspaceMainThreadsRouteRouteWithChildren
   "/app/settings/organization": typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
   "/app/settings/user": typeof AppWorkspaceSettingsUserRouteRouteWithChildren
-  "/support/$slug/api/$": typeof SupportSlugApiSplatRoute
-  "/support/$slug/threads/$id": typeof SupportSlugThreadsIdRoute
   "/app/": typeof AppWorkspaceMainIndexRoute
   "/app/settings/": typeof AppWorkspaceSettingsIndexRoute
-  "/support/$slug/threads": typeof SupportSlugThreadsIndexRoute
   "/app/threads/archive": typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
   "/app/settings/organization/integration": typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
   "/app/playground/rich-markdown": typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
@@ -448,21 +405,16 @@ export interface FileRoutesByTo {
   "/sign-up": typeof SignUpRoute
   "/sitemap.xml": typeof SitemapDotxmlRoute
   "/api/$": typeof ApiSplatRoute
+  "/support/$": typeof SupportSplatRoute
   "/": typeof PublicIndexRoute
   "/legal/privacy-policy": typeof PublicLegalPrivacyPolicyRoute
   "/legal/terms-of-service": typeof PublicLegalTermsOfServiceRoute
   "/app/invitation/$id": typeof AppInvitationIdRoute
   "/app/onboarding/connect": typeof AppOnboardingConnectRoute
   "/app/onboarding/new": typeof AppOnboardingNewRoute
-  "/support/$slug/robots.txt": typeof SupportSlugRobotsDottxtRoute
-  "/support/$slug/sitemap.xml": typeof SupportSlugSitemapDotxmlRoute
   "/updates": typeof PublicUpdatesIndexRoute
   "/app/onboarding": typeof AppOnboardingIndexRoute
-  "/support/$slug": typeof SupportSlugIndexRoute
-  "/support/$slug/api/$": typeof SupportSlugApiSplatRoute
-  "/support/$slug/threads/$id": typeof SupportSlugThreadsIdRoute
   "/app/settings": typeof AppWorkspaceSettingsIndexRoute
-  "/support/$slug/threads": typeof SupportSlugThreadsIndexRoute
   "/app/playground/rich-markdown": typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
   "/app/threads/assigned": typeof AppWorkspaceMainThreadsAssignedRoute
   "/app/threads/open": typeof AppWorkspaceMainThreadsOpenRoute
@@ -498,8 +450,8 @@ export interface FileRoutesById {
   "/sign-up": typeof SignUpRoute
   "/sitemap.xml": typeof SitemapDotxmlRoute
   "/app/_workspace": typeof AppWorkspaceRouteRouteWithChildren
-  "/support/$slug": typeof SupportSlugRouteRouteWithChildren
   "/api/$": typeof ApiSplatRoute
+  "/support/$": typeof SupportSplatRoute
   "/_public/": typeof PublicIndexRoute
   "/app/_workspace/_main": typeof AppWorkspaceMainRouteRouteWithChildren
   "/app/_workspace/settings": typeof AppWorkspaceSettingsRouteRouteWithChildren
@@ -508,19 +460,13 @@ export interface FileRoutesById {
   "/app/invitation/$id": typeof AppInvitationIdRoute
   "/app/onboarding/connect": typeof AppOnboardingConnectRoute
   "/app/onboarding/new": typeof AppOnboardingNewRoute
-  "/support/$slug/robots.txt": typeof SupportSlugRobotsDottxtRoute
-  "/support/$slug/sitemap.xml": typeof SupportSlugSitemapDotxmlRoute
   "/_public/updates/": typeof PublicUpdatesIndexRoute
   "/app/onboarding/": typeof AppOnboardingIndexRoute
-  "/support/$slug/": typeof SupportSlugIndexRoute
   "/app/_workspace/_main/threads": typeof AppWorkspaceMainThreadsRouteRouteWithChildren
   "/app/_workspace/settings/organization": typeof AppWorkspaceSettingsOrganizationRouteRouteWithChildren
   "/app/_workspace/settings/user": typeof AppWorkspaceSettingsUserRouteRouteWithChildren
-  "/support/$slug/api/$": typeof SupportSlugApiSplatRoute
-  "/support/$slug/threads/$id": typeof SupportSlugThreadsIdRoute
   "/app/_workspace/_main/": typeof AppWorkspaceMainIndexRoute
   "/app/_workspace/settings/": typeof AppWorkspaceSettingsIndexRoute
-  "/support/$slug/threads/": typeof SupportSlugThreadsIndexRoute
   "/app/_workspace/_main/threads/archive": typeof AppWorkspaceMainThreadsArchiveRouteRouteWithChildren
   "/app/_workspace/settings/organization/integration": typeof AppWorkspaceSettingsOrganizationIntegrationRouteRouteWithChildren
   "/app/_workspace/_main/playground/rich-markdown": typeof AppWorkspaceMainPlaygroundRichMarkdownRoute
@@ -557,8 +503,8 @@ export interface FileRouteTypes {
     | "/sign-in"
     | "/sign-up"
     | "/sitemap.xml"
-    | "/support/$slug"
     | "/api/$"
+    | "/support/$"
     | "/"
     | "/app/settings"
     | "/legal/privacy-policy"
@@ -566,19 +512,13 @@ export interface FileRouteTypes {
     | "/app/invitation/$id"
     | "/app/onboarding/connect"
     | "/app/onboarding/new"
-    | "/support/$slug/robots.txt"
-    | "/support/$slug/sitemap.xml"
     | "/updates"
     | "/app/onboarding"
-    | "/support/$slug/"
     | "/app/threads"
     | "/app/settings/organization"
     | "/app/settings/user"
-    | "/support/$slug/api/$"
-    | "/support/$slug/threads/$id"
     | "/app/"
     | "/app/settings/"
-    | "/support/$slug/threads"
     | "/app/threads/archive"
     | "/app/settings/organization/integration"
     | "/app/playground/rich-markdown"
@@ -614,21 +554,16 @@ export interface FileRouteTypes {
     | "/sign-up"
     | "/sitemap.xml"
     | "/api/$"
+    | "/support/$"
     | "/"
     | "/legal/privacy-policy"
     | "/legal/terms-of-service"
     | "/app/invitation/$id"
     | "/app/onboarding/connect"
     | "/app/onboarding/new"
-    | "/support/$slug/robots.txt"
-    | "/support/$slug/sitemap.xml"
     | "/updates"
     | "/app/onboarding"
-    | "/support/$slug"
-    | "/support/$slug/api/$"
-    | "/support/$slug/threads/$id"
     | "/app/settings"
-    | "/support/$slug/threads"
     | "/app/playground/rich-markdown"
     | "/app/threads/assigned"
     | "/app/threads/open"
@@ -663,8 +598,8 @@ export interface FileRouteTypes {
     | "/sign-up"
     | "/sitemap.xml"
     | "/app/_workspace"
-    | "/support/$slug"
     | "/api/$"
+    | "/support/$"
     | "/_public/"
     | "/app/_workspace/_main"
     | "/app/_workspace/settings"
@@ -673,19 +608,13 @@ export interface FileRouteTypes {
     | "/app/invitation/$id"
     | "/app/onboarding/connect"
     | "/app/onboarding/new"
-    | "/support/$slug/robots.txt"
-    | "/support/$slug/sitemap.xml"
     | "/_public/updates/"
     | "/app/onboarding/"
-    | "/support/$slug/"
     | "/app/_workspace/_main/threads"
     | "/app/_workspace/settings/organization"
     | "/app/_workspace/settings/user"
-    | "/support/$slug/api/$"
-    | "/support/$slug/threads/$id"
     | "/app/_workspace/_main/"
     | "/app/_workspace/settings/"
-    | "/support/$slug/threads/"
     | "/app/_workspace/_main/threads/archive"
     | "/app/_workspace/settings/organization/integration"
     | "/app/_workspace/_main/playground/rich-markdown"
@@ -722,8 +651,8 @@ export interface RootRouteChildren {
   SignInRoute: typeof SignInRoute
   SignUpRoute: typeof SignUpRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  SupportSlugRouteRoute: typeof SupportSlugRouteRouteWithChildren
   ApiSplatRoute: typeof ApiSplatRoute
+  SupportSplatRoute: typeof SupportSplatRoute
 }
 
 declare module "@tanstack/react-router" {
@@ -784,18 +713,18 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof PublicIndexRouteImport
       parentRoute: typeof PublicRouteRoute
     }
+    "/support/$": {
+      id: "/support/$"
+      path: "/support/$"
+      fullPath: "/support/$"
+      preLoaderRoute: typeof SupportSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     "/api/$": {
       id: "/api/$"
       path: "/api/$"
       fullPath: "/api/$"
       preLoaderRoute: typeof ApiSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    "/support/$slug": {
-      id: "/support/$slug"
-      path: "/support/$slug"
-      fullPath: "/support/$slug"
-      preLoaderRoute: typeof SupportSlugRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     "/app/_workspace": {
@@ -804,13 +733,6 @@ declare module "@tanstack/react-router" {
       fullPath: "/app"
       preLoaderRoute: typeof AppWorkspaceRouteRouteImport
       parentRoute: typeof AppRouteRoute
-    }
-    "/support/$slug/": {
-      id: "/support/$slug/"
-      path: "/"
-      fullPath: "/support/$slug/"
-      preLoaderRoute: typeof SupportSlugIndexRouteImport
-      parentRoute: typeof SupportSlugRouteRoute
     }
     "/app/onboarding/": {
       id: "/app/onboarding/"
@@ -825,20 +747,6 @@ declare module "@tanstack/react-router" {
       fullPath: "/updates"
       preLoaderRoute: typeof PublicUpdatesIndexRouteImport
       parentRoute: typeof PublicRouteRoute
-    }
-    "/support/$slug/sitemap.xml": {
-      id: "/support/$slug/sitemap.xml"
-      path: "/sitemap.xml"
-      fullPath: "/support/$slug/sitemap.xml"
-      preLoaderRoute: typeof SupportSlugSitemapDotxmlRouteImport
-      parentRoute: typeof SupportSlugRouteRoute
-    }
-    "/support/$slug/robots.txt": {
-      id: "/support/$slug/robots.txt"
-      path: "/robots.txt"
-      fullPath: "/support/$slug/robots.txt"
-      preLoaderRoute: typeof SupportSlugRobotsDottxtRouteImport
-      parentRoute: typeof SupportSlugRouteRoute
     }
     "/app/onboarding/new": {
       id: "/app/onboarding/new"
@@ -889,13 +797,6 @@ declare module "@tanstack/react-router" {
       preLoaderRoute: typeof AppWorkspaceMainRouteRouteImport
       parentRoute: typeof AppWorkspaceRouteRoute
     }
-    "/support/$slug/threads/": {
-      id: "/support/$slug/threads/"
-      path: "/threads"
-      fullPath: "/support/$slug/threads"
-      preLoaderRoute: typeof SupportSlugThreadsIndexRouteImport
-      parentRoute: typeof SupportSlugRouteRoute
-    }
     "/app/_workspace/settings/": {
       id: "/app/_workspace/settings/"
       path: "/"
@@ -909,20 +810,6 @@ declare module "@tanstack/react-router" {
       fullPath: "/app/"
       preLoaderRoute: typeof AppWorkspaceMainIndexRouteImport
       parentRoute: typeof AppWorkspaceMainRouteRoute
-    }
-    "/support/$slug/threads/$id": {
-      id: "/support/$slug/threads/$id"
-      path: "/threads/$id"
-      fullPath: "/support/$slug/threads/$id"
-      preLoaderRoute: typeof SupportSlugThreadsIdRouteImport
-      parentRoute: typeof SupportSlugRouteRoute
-    }
-    "/support/$slug/api/$": {
-      id: "/support/$slug/api/$"
-      path: "/api/$"
-      fullPath: "/support/$slug/api/$"
-      preLoaderRoute: typeof SupportSlugApiSplatRouteImport
-      parentRoute: typeof SupportSlugRouteRoute
     }
     "/app/_workspace/settings/user": {
       id: "/app/_workspace/settings/user"
@@ -1347,27 +1234,6 @@ const AppRouteRouteWithChildren = AppRouteRoute._addFileChildren(
   AppRouteRouteChildren,
 )
 
-interface SupportSlugRouteRouteChildren {
-  SupportSlugRobotsDottxtRoute: typeof SupportSlugRobotsDottxtRoute
-  SupportSlugSitemapDotxmlRoute: typeof SupportSlugSitemapDotxmlRoute
-  SupportSlugIndexRoute: typeof SupportSlugIndexRoute
-  SupportSlugApiSplatRoute: typeof SupportSlugApiSplatRoute
-  SupportSlugThreadsIdRoute: typeof SupportSlugThreadsIdRoute
-  SupportSlugThreadsIndexRoute: typeof SupportSlugThreadsIndexRoute
-}
-
-const SupportSlugRouteRouteChildren: SupportSlugRouteRouteChildren = {
-  SupportSlugRobotsDottxtRoute: SupportSlugRobotsDottxtRoute,
-  SupportSlugSitemapDotxmlRoute: SupportSlugSitemapDotxmlRoute,
-  SupportSlugIndexRoute: SupportSlugIndexRoute,
-  SupportSlugApiSplatRoute: SupportSlugApiSplatRoute,
-  SupportSlugThreadsIdRoute: SupportSlugThreadsIdRoute,
-  SupportSlugThreadsIndexRoute: SupportSlugThreadsIndexRoute,
-}
-
-const SupportSlugRouteRouteWithChildren =
-  SupportSlugRouteRoute._addFileChildren(SupportSlugRouteRouteChildren)
-
 const rootRouteChildren: RootRouteChildren = {
   PublicRouteRoute: PublicRouteRouteWithChildren,
   AppRouteRoute: AppRouteRouteWithChildren,
@@ -1376,8 +1242,8 @@ const rootRouteChildren: RootRouteChildren = {
   SignInRoute: SignInRoute,
   SignUpRoute: SignUpRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
-  SupportSlugRouteRoute: SupportSlugRouteRouteWithChildren,
   ApiSplatRoute: ApiSplatRoute,
+  SupportSplatRoute: SupportSplatRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

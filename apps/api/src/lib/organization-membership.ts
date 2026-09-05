@@ -7,10 +7,9 @@ type MembershipDb = Pick<ServerDB<typeof schema>, "find">;
 /**
  * Which of `userIds` belong to the organization.
  *
- * Membership — not `author.userId` — is what makes someone one of ours. Portal
- * customers authenticate through a separate Better-Auth instance backed by the
- * same `user` table, so "has a user id" is true of the customer too. See
- * ADR 0017.
+ * Membership — not `author.userId` — is what makes someone one of ours.
+ * Historical customer authors may still reference the shared `user` table, so
+ * "has a user id" is not proof of organization membership. See ADR 0017.
  */
 export const organizationMemberUserIds = async (
   db: MembershipDb,

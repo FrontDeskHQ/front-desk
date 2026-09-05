@@ -187,7 +187,7 @@ Replaying `entity_finished` does not require a new upstream transition: the sele
 
 ### Thread
 
-The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record _where it came from_ (Discord channel, Slack message, portal) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).
+The unit of customer conversation in FrontDesk: a single stream of messages carrying its own state (status, labels, assignee) and the surface the Agent reads and acts on. A thread originates from one place — its `externalId` / `externalOrigin` record _where it came from_ (for example, Discord or Slack) — and may **link** to an [external issue](#external-issue) or [external pull request](#external-pull-request) without owning it. Stored in `thread`; the Agent's output for one lives on `thread.agentRead` (see [thread read](#thread-read)).
 
 ### Thread status
 
@@ -207,7 +207,7 @@ _Avoid_: treating "closed" as the umbrella for all finished states (that is what
 
 Which side of a [thread](#thread) a message came from, derived from its author rather than stored on it. **Inbound** is the customer's side; **outbound** is the organization's. Direction is what decides whether a message is a [trigger](#trigger): only inbound messages cause a run.
 
-Outbound means the author is a **member of the thread's organization** — membership, not merely an authenticated account. A portal customer and a teammate are both rows in the same `user` table, so "has a user id" answers the wrong question and would silence the Agent for any portal participant who did not open the thread.
+Outbound means the author is a **member of the thread's organization** — membership, not merely an authenticated account. Historical customer authors may still reference rows in the shared `user` table, so "has a user id" answers the wrong question. Membership remains the authoritative test.
 
 An author FrontDesk cannot place — a connector-relayed identity, which arrives with an external id and no membership — is **unknown**, and unknown counts as inbound. The two errors are not symmetrical: counting unknown as outbound would silence a colleague of the customer adding real evidence to a thread, invisibly; counting it as inbound means a teammate answering in Discord produces one redundant [thread read](#thread-read), which is visible and self-limiting. The consequence to hold on to is that the causality rule is only enforced for replies sent **through FrontDesk**.
 

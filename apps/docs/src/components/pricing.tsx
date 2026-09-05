@@ -16,7 +16,6 @@ const defaultPlans: PricingPlan[] = [
     features: [
       "Unlimited support tickets",
       "Unlimited customers",
-      "Public support portal",
       "2 support channels",
     ],
     name: "Starter",
@@ -27,7 +26,6 @@ const defaultPlans: PricingPlan[] = [
     features: [
       "Unlimited team members",
       "Unlimited support channels",
-      "Custom domain for your support portal",
       "Priority support",
     ],
     highlight: true,

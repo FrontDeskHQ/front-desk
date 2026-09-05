@@ -8,7 +8,6 @@ import {
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
-import { Switch } from "@workspace/ui/components/switch";
 import { useAtomValue } from "jotai/react";
 import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
@@ -242,22 +241,6 @@ function RouteComponent() {
                     }}
                   />
                 </div>
-                <div className="flex gap-8 items-center justify-between">
-                  <div className="flex flex-col">
-                    <div>Send portal link on new threads</div>
-                    <div className="text-muted-foreground">
-                      Send a message in Slack with a link to the same thread in
-                      the portal
-                    </div>
-                  </div>
-                  <Switch
-                    checked={parsedConfig?.data?.showPortalMessage !== false}
-                    onCheckedChange={(checked) => {
-                      updateIntegration({ showPortalMessage: checked });
-                    }}
-                  />
-                </div>
-
                 <Separator />
                 <div className="flex gap-5 items-center">
                   Disable integration

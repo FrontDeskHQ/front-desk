@@ -14,7 +14,7 @@ export type WindowWithCachedSession = Window & {
 };
 
 export const Route = createFileRoute("/app")({
-  beforeLoad: async () => {
+  beforeLoad: async ({ location }) => {
     let sessionData =
       typeof window === "undefined"
         ? undefined
@@ -28,7 +28,8 @@ export const Route = createFileRoute("/app")({
 
     if (!sessionData) {
       throw redirect({
-        to: "/",
+        search: { redirect: location.href },
+        to: "/sign-in",
       });
     }
 

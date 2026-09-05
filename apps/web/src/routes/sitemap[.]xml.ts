@@ -1,8 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { XMLBuilder } from "fast-xml-parser";
 
-import { fetchClient } from "~/lib/live-state";
-
 export const Route = createFileRoute("/sitemap.xml")({
   server: {
     handlers: {
@@ -37,23 +35,6 @@ export const Route = createFileRoute("/sitemap.xml")({
             priority: 0.5,
           },
         ];
-
-        const organizations = await fetchClient.query.organization.list();
-
-        const baseUrlObj = new URL(baseUrl);
-
-        routes.push(
-          ...organizations.map((org) => {
-            const tempUrlObj = new URL(baseUrlObj.toString());
-            tempUrlObj.hostname = `${org.slug}.${baseUrlObj.hostname}`;
-
-            return {
-              changefreq: "daily",
-              loc: tempUrlObj.toString(),
-              priority: 0.9,
-            };
-          })
-        );
 
         const builder = new XMLBuilder({
           format: true,
