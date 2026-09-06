@@ -1367,8 +1367,16 @@ function SidebarResizeHandle({
         }
       };
 
+      let ended = false;
       const onMove = (moveEvent: PointerEvent) => {
         lastPointerX = moveEvent.clientX;
+        if (ended) {
+          return;
+        }
+        if (moveEvent.buttons === 0) {
+          onUp(moveEvent);
+          return;
+        }
         const delta =
           side === "left"
             ? moveEvent.clientX - originX
@@ -1412,16 +1420,25 @@ function SidebarResizeHandle({
         paint(visualWidth(unconstrained));
       };
 
+      const stopListening = () => {
+        window.removeEventListener("pointermove", onMove, true);
+        window.removeEventListener("pointerup", onUp, true);
+        window.removeEventListener("pointercancel", onUp, true);
+        target.removeEventListener("lostpointercapture", onUp);
+      };
+
       const onUp = (upEvent: PointerEvent) => {
+        if (ended) {
+          return;
+        }
+        ended = true;
         lastPointerX = upEvent.clientX;
         try {
           target.releasePointerCapture(upEvent.pointerId);
         } catch {
           // Capture may already be released or was never acquired.
         }
-        target.removeEventListener("pointermove", onMove);
-        target.removeEventListener("pointerup", onUp);
-        target.removeEventListener("pointercancel", onUp);
+        stopListening();
 
         if (!dragged) {
           finishResize();
@@ -1457,9 +1474,10 @@ function SidebarResizeHandle({
         });
       };
 
-      target.addEventListener("pointermove", onMove);
-      target.addEventListener("pointerup", onUp);
-      target.addEventListener("pointercancel", onUp);
+      window.addEventListener("pointermove", onMove, true);
+      window.addEventListener("pointerup", onUp, true);
+      window.addEventListener("pointercancel", onUp, true);
+      target.addEventListener("lostpointercapture", onUp);
     },
     [
       collapseMode,
