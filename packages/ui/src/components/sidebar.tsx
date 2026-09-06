@@ -1423,7 +1423,7 @@ function SidebarResizeHandle({
         window.removeEventListener("pointermove", onMove, true);
         window.removeEventListener("pointerup", onUp, true);
         window.removeEventListener("pointercancel", onUp, true);
-        target.removeEventListener("lostpointercapture", onUp);
+        target.removeEventListener("lostpointercapture", onLostCapture);
       };
 
       const onUp = (upEvent: PointerEvent) => {
@@ -1473,10 +1473,16 @@ function SidebarResizeHandle({
         });
       };
 
+      const onLostCapture = (lostEvent: PointerEvent) => {
+        if (lostEvent.buttons === 0) {
+          onUp(lostEvent);
+        }
+      };
+
       window.addEventListener("pointermove", onMove, true);
       window.addEventListener("pointerup", onUp, true);
       window.addEventListener("pointercancel", onUp, true);
-      target.addEventListener("lostpointercapture", onUp);
+      target.addEventListener("lostpointercapture", onLostCapture);
     },
     [
       collapseMode,
