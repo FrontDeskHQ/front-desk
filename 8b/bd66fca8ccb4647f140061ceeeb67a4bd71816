@@ -1,0 +1,32 @@
+apps/web/src/components/sidebar/workspace-nav.ts
+  s_0aa0fa61ea3380::t_23c19df76b4b14 5
+  s_0aa0fa61ea3380::t_960d13d80cf63e 6
+packages/ui/src/components/sidebar.tsx
+  s_0aa0fa61ea3380::t_a6e5299955ba33 109-110,115,118
+  s_0aa0fa61ea3380::t_dc907b9eb04fec 1249
+  s_0aa0fa61ea3380::t_68e3827446c5bc 1503-1509,1541-1552
+  h_79bcdd5201702b 1522-1523
+  s_0aa0fa61ea3380::t_009d644d30aebf 1524-1526
+  s_0aa0fa61ea3380::t_e3cd07fd1c0eae 39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "8bbd66fca8ccb4647f140061ceeeb67a4bd71816",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_0aa0fa61ea3380": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "ed9bfd95-f618-4879-a157-611f4cf50a96",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
