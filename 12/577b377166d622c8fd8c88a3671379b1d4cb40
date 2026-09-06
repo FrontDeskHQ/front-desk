@@ -1,0 +1,26 @@
+packages/ui/src/routes/button.tsx
+  s_96047c3b280149::t_89309acd23d49e 36
+packages/ui/src/components/button.tsx
+  s_96047c3b280149::t_89309acd23d49e 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "12577b377166d622c8fd8c88a3671379b1d4cb40",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_96047c3b280149": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06f87-1a93-73c0-bd0b-28ed6f094e81",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
