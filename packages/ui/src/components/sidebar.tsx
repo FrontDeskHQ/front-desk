@@ -36,6 +36,7 @@ const PEEK_CLOSE_DELAY_MS = 400;
 const RESIZE_CLICK_THRESHOLD_PX = 4;
 const RESIZE_RUBBER_BAND = 0.18;
 const RESIZE_OVERSHOOT_CAP_PX = 12;
+const RESIZE_OVERSHOOT_CAP_MAX_PX = 28;
 const RESIZE_COLLAPSE_EDGE_PX = 12;
 const RESIZE_COLLAPSE_HOLD_PX = 48;
 const RESIZE_SPRING = { bounce: 0.2, duration: 0.35, type: "spring" as const };
@@ -105,19 +106,16 @@ function rubberband(over: number, dimension: number, constant: number) {
   return (over * size * constant) / (size + constant * over);
 }
 
-function overshoot(over: number, dimension: number) {
-  return Math.min(
-    RESIZE_OVERSHOOT_CAP_PX,
-    rubberband(over, dimension, RESIZE_RUBBER_BAND)
-  );
+function overshoot(over: number, dimension: number, cap: number) {
+  return Math.min(cap, rubberband(over, dimension, RESIZE_RUBBER_BAND));
 }
 
 function visualResizeWidth(value: number, min: number, max: number) {
   if (value > max) {
-    return max + overshoot(value - max, max);
+    return max + overshoot(value - max, max, RESIZE_OVERSHOOT_CAP_MAX_PX);
   }
   if (value < min) {
-    return min - overshoot(min - value, min);
+    return min - overshoot(min - value, min, RESIZE_OVERSHOOT_CAP_PX);
   }
   return value;
 }
@@ -128,9 +126,7 @@ interface SidebarResizeTargets {
   wrapper: HTMLElement | null;
 }
 
-function getResizeTargets(
-  handleEl: HTMLElement
-): SidebarResizeTargets | null {
+function getResizeTargets(handleEl: HTMLElement): SidebarResizeTargets | null {
   const container = handleEl.closest<HTMLElement>(
     "[data-slot=sidebar-container]"
   );
@@ -165,7 +161,9 @@ function applyVisualWidth(
 
 function resizeBoundsRect(targets: SidebarResizeTargets) {
   return (
-    targets.wrapper ?? targets.panel.offsetParent ?? targets.panel
+    targets.wrapper ??
+    targets.panel.offsetParent ??
+    targets.panel
   ).getBoundingClientRect();
 }
 
@@ -1248,6 +1246,7 @@ function SidebarResizeHandle({
     minWidth,
     open,
     peeking,
+    resizing,
     setOpen,
     setPeeking,
     setResizing,
@@ -1501,7 +1500,13 @@ function SidebarResizeHandle({
     return null;
   }
 
-  return (
+  const tooltip = open
+    ? collapseMode === "none"
+      ? "Drag to resize"
+      : "Drag to resize, drag to the edge to collapse, click to collapse"
+    : "Click to expand";
+
+  const handle = (
     <button
       type="button"
       data-sidebar="rail"
@@ -1512,17 +1517,13 @@ function SidebarResizeHandle({
       aria-valuemax={maxWidth}
       aria-valuenow={Math.round(width)}
       role="separator"
-      title={
-        open
-          ? collapseMode === "none"
-            ? "Drag to resize"
-            : "Drag to resize, drag to the edge to collapse, click to collapse"
-          : "Click to expand"
-      }
       className={cn(
         "absolute inset-y-0 hidden w-3 cursor-col-resize touch-none items-center justify-center lg:flex",
-        "after:absolute after:inset-y-0 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
-        "hover:after:bg-foreground-tertiary focus-visible:after:bg-ring",
+        "after:absolute after:inset-y-4 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
+        "after:mask-[linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-0.5rem),transparent)]",
+        "after:transition-colors after:duration-150 after:ease after:delay-0",
+        "hover:after:bg-foreground-tertiary hover:after:delay-200",
+        "focus-visible:after:bg-ring focus-visible:after:delay-0",
         "focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]",
         "group-data-[side=left]/sidebar:right-0 group-data-[side=left]/sidebar:translate-x-1/2",
         "group-data-[side=right]/sidebar:left-0 group-data-[side=right]/sidebar:-translate-x-1/2",
@@ -1536,6 +1537,19 @@ function SidebarResizeHandle({
       }}
       {...props}
     />
+  );
+
+  return (
+    <Tooltip disabled={resizing} trackCursorAxis="y">
+      <TooltipTrigger render={handle} />
+      <TooltipContent
+        className="mb-0"
+        side={side === "left" ? "right" : "left"}
+        sideOffset={8}
+      >
+        {tooltip}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
