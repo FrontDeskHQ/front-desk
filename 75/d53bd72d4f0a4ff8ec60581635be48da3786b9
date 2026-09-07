@@ -1,0 +1,32 @@
+apps/api/src/live-state/router.ts
+  s_4f48628af1a0f5::t_b25fa6085b611d 279-284,307
+  s_4f48628af1a0f5::t_ff1489e5279144 285
+  s_4f48628af1a0f5::t_146caf8ce9d456 19
+  s_4f48628af1a0f5::t_b10bb2d75441f4 269-271
+apps/web/src/routes/app/_workspace/settings/organization/support-intelligence.tsx
+  s_4f48628af1a0f5::t_9e1fbc70867c99 220-235
+  s_4f48628af1a0f5::t_06ec79341a395b 30
+  s_4f48628af1a0f5::t_f2636b1cd93e9b 219
+  s_4f48628af1a0f5::t_4197d85e44a64a 249,252-255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "75d53bd72d4f0a4ff8ec60581635be48da3786b9",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_4f48628af1a0f5": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "f2b79698-56ae-4699-97de-953e707bf10e",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
