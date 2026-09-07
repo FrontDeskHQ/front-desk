@@ -13,10 +13,18 @@ type SegmentedControlSize = "sm" | "md" | "lg";
 const SegmentedControlContext = React.createContext<{
   size: SegmentedControlSize;
   selectedValue?: string;
+  orientation: "horizontal" | "vertical";
   // Shared layoutId so the highlight animates between segments; unique per
   // control instance so multiple controls on a page don't fight over it.
   layoutId: string;
-}>({ layoutId: "segmented-control", size: "md" });
+}>({ layoutId: "segmented-control", orientation: "horizontal", size: "md" });
+
+const HIGHLIGHT_SNAP = { duration: 0 } as const;
+const HIGHLIGHT_SLIDE = {
+  bounce: 0.15,
+  duration: 0.25,
+  type: "spring",
+} as const;
 
 const segmentedControlVariants = cva(
   "inline-flex w-fit items-center justify-center gap-0.5 rounded-md border bg-muted p-0.5 text-muted-foreground data-[orientation=vertical]:flex-col data-[orientation=vertical]:items-stretch",
@@ -89,6 +97,7 @@ function SegmentedControl({
   value,
   defaultValue,
   onValueChange,
+  orientation = "horizontal",
   ...props
 }: SegmentedControlProps) {
   const [current, setCurrent] = useControllableValue(value, defaultValue);
@@ -96,7 +105,12 @@ function SegmentedControl({
 
   return (
     <SegmentedControlContext.Provider
-      value={{ layoutId, selectedValue: current, size: size ?? "md" }}
+      value={{
+        layoutId,
+        orientation,
+        selectedValue: current,
+        size: size ?? "md",
+      }}
     >
       <BaseToggleGroup
         data-slot="segmented-control"
@@ -112,6 +126,7 @@ function SegmentedControl({
           setCurrent(next);
           onValueChange?.(next, details);
         }}
+        orientation={orientation}
         className={cn(segmentedControlVariants({ className, size }))}
         {...props}
       />
@@ -127,11 +142,18 @@ function SegmentedControlItem({
   value: itemValue,
   ...props
 }: SegmentedControlItemProps) {
-  const { size, selectedValue, layoutId } = React.useContext(
+  const { size, selectedValue, layoutId, orientation } = React.useContext(
     SegmentedControlContext
   );
   const isSelected = itemValue !== undefined && itemValue === selectedValue;
   const shouldReduceMotion = useReducedMotion();
+  // Slide along the control's axis; snap the cross-axis so a vertical layout
+  // shift (or subpixel height difference) doesn't send the pill on a diagonal.
+  const highlightTransition = shouldReduceMotion
+    ? HIGHLIGHT_SNAP
+    : orientation === "vertical"
+      ? { ...HIGHLIGHT_SLIDE, scaleX: HIGHLIGHT_SNAP, x: HIGHLIGHT_SNAP }
+      : { ...HIGHLIGHT_SLIDE, scaleY: HIGHLIGHT_SNAP, y: HIGHLIGHT_SNAP };
 
   return (
     <BaseToggle
@@ -145,16 +167,14 @@ function SegmentedControlItem({
       {isSelected && (
         <motion.span
           layoutId={layoutId}
+          // Skip layout projection unless the selected value changed, so a
+          // reflow of the control (sibling content, page shift) doesn't slide
+          // the pill. Presence changes still animate between segments.
+          layoutDependency={selectedValue}
+          initial={false}
           aria-hidden
           className="absolute inset-0 z-0 rounded-sm bg-background-primary shadow-sm dark:bg-input/50"
-          // The highlight is already on screen and moving between segments, so
-          // a subtle spring (low bounce) reads as native. Snap instantly when
-          // the user prefers reduced motion.
-          transition={
-            shouldReduceMotion
-              ? { duration: 0 }
-              : { bounce: 0.15, duration: 0.25, type: "spring" }
-          }
+          transition={highlightTransition}
         />
       )}
       <span className="relative z-10 inline-flex items-center justify-center gap-1.5">
