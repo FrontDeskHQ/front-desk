@@ -27,7 +27,7 @@ import {
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
 import { useAtomValue } from "jotai/react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -216,6 +216,23 @@ function AutomationCard({
 
   const dirty = Object.keys(pending).length > 0;
 
+  useEffect(() => {
+    setPending((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [actionKind, level] of Object.entries(prev) as [
+        ActionKind,
+        AutonomyLevel,
+      ][]) {
+        if (initial[actionKind] === level) {
+          delete next[actionKind];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [initial]);
+
   const handleChange = (actionKind: ActionKind, level: AutonomyLevel) => {
     setPending((prev) => {
       const next = { ...prev };
@@ -229,20 +246,13 @@ function AutomationCard({
   };
 
   const handleSave = () => {
-    if (!organizationId) {
+    if (!organizationId || Object.keys(pending).length === 0) {
       return;
     }
-    for (const [actionKind, level] of Object.entries(pending) as [
-      ActionKind,
-      AutonomyLevel,
-    ][]) {
-      mutate.organization.setActionAutonomy({
-        actionKind,
-        level,
-        organizationId,
-      });
-    }
-    setPending({});
+    mutate.organization.setActionAutonomy({
+      changes: pending,
+      organizationId,
+    });
   };
 
   const valueFor = (k: ActionKind): AutonomyLevel => pending[k] ?? initial[k];

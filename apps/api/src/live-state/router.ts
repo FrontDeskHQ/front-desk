@@ -10,14 +10,13 @@ import {
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
   actionAutonomyMapSchema,
-  actionKindSchema,
   AUTO_CAPABLE_ACTIONS,
-  autonomyLevelSchema,
   getDefaultActionAutonomy,
 } from "@workspace/schemas/signals";
 import type {
   ActionAutonomyMap,
   ActionAvailability,
+  ActionKind,
 } from "@workspace/schemas/signals";
 import { addDays, addYears } from "date-fns";
 import { ulid } from "ulid";
@@ -267,8 +266,9 @@ export const router = createRouter({
       setActionAutonomy: mutation(
         z.object({
           organizationId: z.string(),
-          actionKind: actionKindSchema,
-          level: autonomyLevelSchema,
+          changes: actionAutonomyMapSchema.refine(
+            (changes) => Object.keys(changes).length > 0
+          ),
         })
       ).handler(async ({ req, db }) => {
         authorize(req, {
@@ -276,11 +276,13 @@ export const router = createRouter({
           role: "owner",
         });
 
-        if (
-          req.input.level === "auto" &&
-          !AUTO_CAPABLE_ACTIONS.has(req.input.actionKind)
-        ) {
-          throw new Error("ACTION_KIND_LOCKED_FROM_AUTO");
+        for (const [actionKind, level] of Object.entries(req.input.changes)) {
+          if (
+            level === "auto" &&
+            !AUTO_CAPABLE_ACTIONS.has(actionKind as ActionKind)
+          ) {
+            throw new Error("ACTION_KIND_LOCKED_FROM_AUTO");
+          }
         }
 
         const org = await db.organization.one(req.input.organizationId).get();
@@ -302,7 +304,7 @@ export const router = createRouter({
         const nextAutonomy: ActionAutonomyMap = {
           ...getDefaultActionAutonomy(),
           ...(parsedAutonomy.success ? parsedAutonomy.data : {}),
-          [req.input.actionKind]: req.input.level,
+          ...req.input.changes,
         };
 
         return db.organization.update(org.id, {
