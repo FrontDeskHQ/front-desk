@@ -1,0 +1,30 @@
+packages/ui/src/components/segmented-control.tsx
+  s_f95556ebe47a9e::t_5c126417655557 170-172
+  s_f95556ebe47a9e::t_c83984aab7f8f9 173-174
+  s_f95556ebe47a9e::t_f0943c839cc2d5 177
+  s_f95556ebe47a9e::t_169d54a1de7cae 100,108-113
+  s_f95556ebe47a9e::t_6aaa28ba286a6d 16,20-27
+  s_f95556ebe47a9e::t_360d2c34044ad2 129
+  s_f95556ebe47a9e::t_7d93d642feb0f3 145,150-156
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "dc2297eb35c93d55a62ddb3aca2d63e2f84a5597",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_f95556ebe47a9e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "da3e7b56-fa3f-41f6-9bba-8a0d8375f77e",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
