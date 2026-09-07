@@ -151,43 +151,91 @@ function RouteComponent() {
   );
 }
 
-const HIDDEN_ACTION_KINDS: ReadonlySet<ActionKind> = new Set();
-
 const AUTONOMY_LEVELS: AutonomyLevel[] = ["off", "suggest", "auto"];
 
-// Mode-neutral labels for the autonomy settings, keyed on the Action
-// vocabulary. "Closing threads" folded into "Status changes" with ADR 0014 —
-// closing was always a status write, and it is one row now.
-const AUTONOMY_ACTION_LABEL: Record<ActionKind, string> = {
-  apply_label: "Thread labeling",
-  create_issue: "Filing issues",
-  link_issue: "Issue linking",
-  link_pr: "PR linking",
-  mark_duplicate: "Duplicate threads",
-  reply: "Reply drafting",
-  set_status: "Status changes",
-};
-
-/** Extra caveats shown under a row whose consequences aren't self-evident. */
-const AUTONOMY_ACTION_HELP: Partial<Record<ActionKind, string>> = {
-  create_issue:
-    "Filing an issue can't be undone, and the issue may be visible to anyone who can see the repository. Requires a connected issue tracker (and defaults to the first target when none is pinned).",
+type AutonomyCopy = {
+  /** Mode-neutral row title, keyed on the Action vocabulary. */
+  label: string;
+  /**
+   * What the action does, in one sentence and mode-neutral. What each level
+   * does with it is said once, in {@link AUTONOMY_LEVEL_COPY}, so a row never
+   * has to re-explain the ladder.
+   */
+  description: string;
+  /**
+   * Set on kinds outside `AUTO_CAPABLE_ACTIONS`, where `auto` is locked. Says
+   * why, in the same voice as the level copy.
+   */
+  locked?: string;
 };
 
 /**
- * Shown only while a row sits at `auto`, for kinds where "auto" is narrower
- * than it sounds. Reply is gated, so the honest place to say so is next to the
- * choice at the moment it's made — not in permanent help text under a control
- * that's switched off.
+ * The ladder, explained once above the rows. Every per-action caveat that used
+ * to live in a row is a restatement of one of these three, and the evidence
+ * rule in `auto` is the honest general form of every kind's action gate.
  */
-const AUTONOMY_AUTO_NOTICE: Partial<Record<ActionKind, string>> = {
-  apply_label:
-    "The Agent applies a label on its own only when the classification is a confident one; anything less still comes to you. Labelling happens once, when the thread arrives.",
-  set_status:
-    "The Agent moves a thread between open and in progress on its own. It only resolves a thread when the customer has confirmed it or a linked pull request or issue settled it — and always alongside a reply, so nobody's conversation ends silently. It only closes a thread that has gone quiet after your team replied. Anything less certain still comes to you for review.",
-  reply:
-    "The Agent sends a reply on its own only when the draft is backed by your documentation, or reports the state of work already linked to the thread. Anything else still comes to you for review — with no documentation connected, that means only status updates send on their own.",
+const AUTONOMY_LEVEL_COPY: Record<AutonomyLevel, string> = {
+  auto: "The Agent acts on its own when it has evidence behind it. Anything less certain still arrives as a suggestion.",
+  off: "The Agent leaves the action alone. Nothing is proposed and nothing runs.",
+  suggest:
+    "The Agent proposes the action and waits. Nothing happens until someone on your team accepts it.",
 };
+
+// "Closing threads" folded into "Status changes" with ADR 0014 — closing was
+// always a status write, and it is one row now.
+const AUTONOMY_COPY: Record<ActionKind, AutonomyCopy> = {
+  apply_label: {
+    description: "Labels a thread by topic, once, when it arrives in the inbox.",
+    label: "Thread labeling",
+  },
+  create_issue: {
+    description:
+      "Files a new issue in your connected tracker and links it to the thread. Filing can't be undone.",
+    label: "Filing issues",
+  },
+  link_issue: {
+    description:
+      "Points a thread at an issue FrontDesk already tracks, without posting to your tracker.",
+    label: "Issue linking",
+  },
+  link_pr: {
+    description:
+      "Points a thread at a pull request and leaves a back-reference comment on it.",
+    label: "PR linking",
+    locked:
+      "Linking writes a comment to your repository and can't be undone, so this action stops at Suggest.",
+  },
+  mark_duplicate: {
+    description:
+      "Marks a repeat thread as a duplicate of the thread already tracking it.",
+    label: "Duplicate threads",
+  },
+  reply: {
+    description: "Writes a reply to the customer in the thread's composer.",
+    label: "Reply drafting",
+  },
+  set_status: {
+    description:
+      "Moves a thread between open, in progress, resolved, and closed.",
+    label: "Status changes",
+  },
+};
+
+/**
+ * Display order, least consequential first, so the rows a team is most likely
+ * to raise sit at the top and the ones that write outside FrontDesk sit at the
+ * bottom. Explicit rather than `Object.keys`, which would order the rows by
+ * however the defaults happen to be declared.
+ */
+const AUTONOMY_ORDER: ActionKind[] = [
+  "apply_label",
+  "set_status",
+  "mark_duplicate",
+  "link_issue",
+  "reply",
+  "create_issue",
+  "link_pr",
+];
 
 /**
  * Mode-neutral autonomy settings for Support Intelligence signals.
@@ -210,9 +258,7 @@ function AutomationCard({
     Partial<Record<ActionKind, AutonomyLevel>>
   >({});
 
-  const visibleTypes = (Object.keys(initial) as ActionKind[]).filter(
-    (k) => !HIDDEN_ACTION_KINDS.has(k)
-  );
+  const visibleTypes = AUTONOMY_ORDER;
 
   const dirty = Object.keys(pending).length > 0;
 
@@ -269,30 +315,38 @@ function AutomationCard({
               handling each signal.
             </span>
           </div>
-          <div
-            className="grid items-center gap-y-2 gap-x-4 text-sm"
-            style={{ gridTemplateColumns: "1fr auto" }}
-          >
+          <div className="grid gap-3.5 sm:grid-cols-3">
+            {AUTONOMY_LEVELS.map((lvl) => (
+              <div
+                key={lvl}
+                className="flex flex-col gap-1.5 rounded-md border border-border/60 bg-muted/30 p-3.5"
+              >
+                <span className="font-medium text-foreground text-xs capitalize">
+                  {lvl}
+                </span>
+                <span className="text-muted-foreground text-xs leading-relaxed">
+                  {AUTONOMY_LEVEL_COPY[lvl]}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="flex flex-col gap-6">
             {visibleTypes.map((t) => {
               // Not `!REVERSIBLE_ACTIONS.has(t)`: create_issue is
               // non-reversible but still offers the full ladder (auto mode has
               // a deterministic destination in the default issue target).
               const locked = !AUTO_CAPABLE_ACTIONS.has(t);
               const current = valueFor(t);
-              const help = AUTONOMY_ACTION_HELP[t];
-              const autoNotice =
-                current === "auto" ? AUTONOMY_AUTO_NOTICE[t] : undefined;
+              const copy = AUTONOMY_COPY[t];
               return (
-                <div key={t} className="contents">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-foreground">
-                      {AUTONOMY_ACTION_LABEL[t]}
+                <div key={t} className="flex items-start justify-between gap-8">
+                  <div className="flex flex-col gap-1">
+                    <span className="text-foreground text-sm">
+                      {copy.label}
                     </span>
-                    {help ? (
-                      <span className="text-xs text-muted-foreground">
-                        {help}
-                      </span>
-                    ) : null}
+                    <span className="text-muted-foreground text-xs leading-relaxed">
+                      {copy.description}
+                    </span>
                   </div>
                   <SegmentedControl
                     value={current}
@@ -303,6 +357,7 @@ function AutomationCard({
                       handleChange(t, next as AutonomyLevel);
                     }}
                     disabled={!isUserOwner}
+                    className="shrink-0"
                   >
                     {AUTONOMY_LEVELS.map((lvl) => {
                       const lockedAuto = lvl === "auto" && locked;
@@ -316,7 +371,7 @@ function AutomationCard({
                           // truly-disabled element.
                           disabled={!isUserOwner && !lockedAuto}
                           aria-disabled={lockedAuto || undefined}
-                          aria-label={`${AUTONOMY_ACTION_LABEL[t]} ${lvl}`}
+                          aria-label={`${copy.label} ${lvl}`}
                           className="capitalize aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
                         >
                           {lvl}
@@ -326,9 +381,8 @@ function AutomationCard({
                         return (
                           <Tooltip key={lvl}>
                             <TooltipTrigger render={item} />
-                            <TooltipContent>
-                              Destructive or customer-facing — locked to Suggest
-                              at most.
+                            <TooltipContent className="max-w-64">
+                              {copy.locked}
                             </TooltipContent>
                           </Tooltip>
                         );
@@ -336,11 +390,6 @@ function AutomationCard({
                       return item;
                     })}
                   </SegmentedControl>
-                  {autoNotice ? (
-                    <span className="col-span-2 rounded-md border border-border/60 bg-muted/30 px-3 py-2 text-xs text-muted-foreground">
-                      {autoNotice}
-                    </span>
-                  ) : null}
                 </div>
               );
             })}
