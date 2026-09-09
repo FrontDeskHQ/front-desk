@@ -4,7 +4,7 @@ export const Route = createFileRoute("/app/_workspace/_main/")({
   component: RouteComponent,
   loader: () => {
     throw redirect({
-      to: "/app/threads",
+      to: "/app/signal",
     });
   },
 });
