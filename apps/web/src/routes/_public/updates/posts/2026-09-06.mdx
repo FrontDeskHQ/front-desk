@@ -1,0 +1,81 @@
+---
+title: "Support for busy teams"
+publishedAt: "2026-09-09"
+---
+
+# Support for busy teams
+
+FrontDesk started with community support. We brought conversations from your community into one place, helping your team keep track of questions and get customers answers.
+
+Since then, how we think about FrontDesk has changed. We're building for teams where the people answering customer questions are also building the product, fixing bugs, and running the business. Support is part of your day, but it can't take all of it.
+
+That focus has shaped this update. FrontDesk is becoming a support teammate that helps move conversations forward, with your team in control. Finding an answer, connecting a customer issue to engineering work, and following up when there's progress are all part of the job.
+
+Today, we're introducing the biggest update to FrontDesk yet.
+
+## Meet Support Intelligence
+
+Support Intelligence used to wait for you to ask for help. You could open a conversation, ask a question, and get a draft reply. Now, it's an autonomous support agent that can pick up customer conversations and handle them through to resolution.
+
+It reads incoming messages, finds answers in your documentation and past conversations, and responds within the permissions you've set. Support keeps moving while your team is busy elsewhere, without someone having to prompt it at every step.
+
+![A thread read with a customer question, a short summary, and a proposed reply referencing documentation](https://public-files.tryfrontdesk.app/changelogs/2026-09-06/thread-read-card.png)
+
+Knowing when to involve you is part of the job. When it doesn't have enough information or a conversation needs human judgment, Support Intelligence brings it back to your team with context and a suggested next step. You can review its reasoning, edit a proposed reply, or take over the conversation.
+
+### Decide what Support Intelligence handles
+
+You choose how much to delegate. Set each type of action to Off, Suggest, or Auto. Let Support Intelligence organize threads and update statuses on its own while keeping replies for review, or let it send supported answers directly to customers.
+
+![Support Intelligence settings showing a mix of Off, Suggest, and Auto, alongside a completed action in the activity log](https://public-files.tryfrontdesk.app/changelogs/2026-09-06/support-intelligence-settings.png)
+
+Auto still has boundaries. Replies backed by your documentation and updates about linked engineering work can go out automatically. Anything that needs more context stays with your team for review.
+
+Start with suggestions and enable more automation as you get comfortable. The activity log shows what Support Intelligence has done, so you can keep up with the work you've delegated.
+
+## A clearer view of what needs you
+
+The redesigned Signals page brings the conversations that need your input into one place. Each recommendation includes a summary of what's happening, why Support Intelligence is suggesting a next step, and the actions ready for your review.
+
+![Signals with a thread read expanded to show its reply and selectable actions](https://public-files.tryfrontdesk.app/changelogs/2026-09-06/signals-card.png)
+
+A reply and its accompanying status change now appear together, so you can review them in context. Choose which actions to accept, adjust the draft, and move the conversation forward without working through separate suggestions one by one.
+
+You can also review recommendations inside the thread itself, with quick label suggestions available directly in the toolbar.
+
+## Connect customer problems to engineering work
+
+When a customer reports a bug, the fix may already be underway. Support Intelligence can find relevant GitHub pull requests and suggest linking them to the conversation, helping your team see what's being worked on before starting another investigation.
+
+It can also suggest linking an existing issue or filing a new one when the problem needs engineering attention. The issue stays connected to the original conversation, giving your team the customer context behind the work.
+
+![A customer thread with a suggested issue link and a linked pull request showing its current status](https://public-files.tryfrontdesk.app/changelogs/2026-09-06/linked-issue-and-pull-request.png)
+
+Linked issues and pull requests show their current details alongside the thread. Check their status and preview the work without leaving the conversation.
+
+## Follow up when the fix lands
+
+Shipping a fix is only part of closing a customer conversation. Someone still needs to go back and tell them.
+
+When a linked pull request merges or an issue is completed, Support Intelligence revisits the conversation and prepares a follow-up based on the outcome. Depending on your settings, it can send the update and resolve the thread on its own, or leave both actions ready for review.
+
+![A merged pull request alongside Support Intelligence's customer follow-up and resolution actions](https://public-files.tryfrontdesk.app/changelogs/2026-09-06/merged-pull-request-and-follow-up.png)
+
+A closed issue doesn't always mean the problem was fixed. If the work was declined or the outcome is unclear, Support Intelligence brings it to your team for review. The customer gets a reply before the thread is resolved.
+
+## Sunsetting the public support portal
+
+We've disabled the public support portal so we can focus on what adds the most value for busy teams handling support. Maintaining the portal alongside the rest of FrontDesk would spread our efforts across more of the product, reducing the quality and care we can put into each part.
+
+For now, we're focusing on support through connected channels and the embedded widget. The portal may return if we find that it adds value to this direction.
+
+Customers can no longer view, create, or reply to conversations through the portal. Conversations in FrontDesk are private to your workspace. Connected support channels and the widget remain available, with visibility in Discord and Slack determined by those channels' settings.
+
+Existing public portal links now show a retirement notice. If you've linked to the portal from your website or documentation, update those links to point customers to your support channel or in-app widget.
+
+## Other improvements
+
+- Thread, issue, and pull request links now appear as readable chips, with previews where available, in conversations and the editor.
+- Slack replies now format links correctly, and synced conversations show updated author names and profile photos.
+- Improved automatic reconnection helps your workspace recover from interrupted connections. Timestamp fixes keep conversation times consistent across time zones.
+- Private API keys let you authenticate access to workspace data for your own tools and integrations.
