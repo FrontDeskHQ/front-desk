@@ -1524,7 +1524,11 @@ function SidebarResizeHandle({
       aria-valuenow={Math.round(width)}
       role="separator"
       className={cn(
-        "absolute inset-y-0 hidden w-3 cursor-col-resize touch-none items-center justify-center lg:flex",
+        "absolute inset-y-0 hidden w-3 touch-none items-center justify-center lg:flex",
+        "transition-[cursor] duration-0 delay-0",
+        resizing
+          ? "cursor-col-resize"
+          : "cursor-default hover:cursor-col-resize hover:delay-[350ms]",
         "after:absolute after:inset-y-4 after:left-1/2 after:w-px after:-translate-x-1/2 after:bg-transparent",
         "after:mask-[linear-gradient(to_bottom,transparent,black_1rem,black_calc(100%-0.5rem),transparent)]",
         "after:transition-colors after:duration-150 after:ease after:delay-0",
