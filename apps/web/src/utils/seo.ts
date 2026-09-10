@@ -25,6 +25,9 @@ export const seo = ({
     locale?: string;
   };
 }) => {
+  const imageType = openGraph?.image
+    ? getImageMimeType(openGraph.image)
+    : undefined;
   const tags = [
     // Basic meta tags
     { title },
@@ -61,7 +64,7 @@ export const seo = ({
             ? [
                 { content: openGraph.image, property: "og:image" },
                 { content: openGraph.image, property: "og:image:secure_url" },
-                { content: "image/png", property: "og:image:type" },
+                { content: imageType, property: "og:image:type" },
                 { content: "1200", property: "og:image:width" },
                 { content: "630", property: "og:image:height" },
                 { content: openGraph.title ?? title, property: "og:image:alt" },
@@ -122,4 +125,14 @@ export const seo = ({
   ];
 
   return tags;
+};
+
+const getImageMimeType = (image: string) => {
+  const path = image.split(/[?#]/, 1)[0]?.toLowerCase();
+
+  if (path?.endsWith(".gif")) return "image/gif";
+  if (path?.endsWith(".jpg") || path?.endsWith(".jpeg")) return "image/jpeg";
+  if (path?.endsWith(".webp")) return "image/webp";
+
+  return "image/png";
 };
