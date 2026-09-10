@@ -1,0 +1,36 @@
+apps/web/src/utils/seo.ts
+  s_8e38a7e4c91d9c::t_47ec6e48fc8e66 28-30,67,129-137
+apps/web/src/routes/_public/updates/index.tsx
+  s_6a6cf9e4b0548e::t_d1c31687aac2af 110-118
+  s_8e38a7e4c91d9c::t_30655494d4d246 56-61,66-67,69-70
+  s_8e38a7e4c91d9c::t_edd2764428c012 68
+  s_8e38a7e4c91d9c::t_b137673ab80b08 76,90
+  s_8e38a7e4c91d9c::t_f8880ef47ca5c0 3-8,123-138,140-144,146-160,162-182,184-185,188-192,194
+  s_8e38a7e4c91d9c::t_78d5b3c27be7b8 36,78
+  s_8e38a7e4c91d9c::t_a51ed7779f74e2 10,13-14,16-18,71-75,77,79-89,91-106,145,183
+  s_6a6cf9e4b0548e::t_db6e5bf5a84081 161
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7a819884038e20d3bc495393ece74c4d303df7c8",
+  "prompts": {},
+  "sessions": {
+    "s_6a6cf9e4b0548e": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "6943a7a4-a33a-4b4b-85e1-3fb2e2a3a671",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_8e38a7e4c91d9c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08b7d-bfee-77d3-9ff3-c23e250aa17b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
