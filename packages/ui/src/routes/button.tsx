@@ -7,7 +7,7 @@ import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "An accessible action control with size and variant styles. Primary, secondary, and destructive use Surface Frame chrome. Outline uses a real border to keep its fill transparent.",
+    "An accessible action control with size and variant styles. Primary, secondary, destructive, and outline use inset-ring Surface Frame chrome, including transparent and translucent fills.",
   import: 'import { Button } from "@workspace/ui/components/button";',
   name: "Button",
   related: ["ActionButton", "Surface Frame", "Badge"],
@@ -33,7 +33,7 @@ function RouteComponent() {
     <DocPage meta={meta}>
       <DocSection
         title="Variants"
-        description="Primary uses the strong Surface Frame bevel for contrast against blue. Secondary and destructive use the subtle bevel. All three use elevation-xs; outline uses a real border and a small shadow so its fill stays transparent. Ghost and link stay flat."
+        description="Primary uses the strong Surface Frame bevel for contrast against blue. Secondary and destructive use the subtle bevel. All four framed variants use elevation-xs; outline has no bevel and uses transparent or translucent chrome. In dark mode, its hover fill brightens slightly and its pressed fill darkens to keep the border distinct. Ghost and link stay flat."
       >
         <Demo
           code={`<Button variant="primary">Primary</Button>
@@ -126,7 +126,7 @@ function RouteComponent() {
             {
               default: '"primary"',
               description:
-                "Visual style. primary / secondary / destructive use Surface Frame; outline uses a real border; ghost and link stay flat.",
+                "Visual style. primary / secondary / destructive / outline use inset-ring Surface Frame; ghost and link stay flat.",
               name: "variant",
               type: '"primary" | "secondary" | "outline" | "ghost" | "link" | "destructive"',
             },

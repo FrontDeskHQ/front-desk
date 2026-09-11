@@ -7,7 +7,7 @@ import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "A faux-border surface with inset chrome, stacked elevation, a mode-aware bevel, and an optional detached halo. Available as utilities or a SurfaceFrame wrapper.",
+    "An inset-ring faux-border surface with inset chrome, stacked elevation, a mode-aware bevel, and an optional detached halo. Available as utilities or a SurfaceFrame wrapper.",
   import:
     'import { SurfaceFrame } from "@workspace/ui/components/surface-frame";',
   name: "Surface Frame",
@@ -51,8 +51,8 @@ function RouteComponent() {
       </DocSection>
 
       <DocSection
-        title="Sizing parity with a real border"
-        description="A transparent 1px border reserves layout space. The root background paints the faux edge, while an inset pseudo-element supplies the fill and casts elevation. A framed element occupies the same space as a bordered one. Stacked flush, the two edges stay collinear; at equal height and width, the two boxes render identically sized."
+        title="Edge and box sizing"
+        description="A transparent root paints a 1px inset shadow ring. Chrome and elevation sit 1px inside it. Default padding is 1px; caller padding replaces it. Explicit widths and heights still match bordered boxes, but content-sized frames no longer include an extra 2px of border."
       >
         <Demo
           code={`<div className="flex flex-col">
@@ -178,7 +178,7 @@ function RouteComponent() {
 
       <DocSection
         title="Transparent halo gap"
-        description="The stripes remain visible through the halo gap. Elevation is disabled here so you can inspect the gap without a shadow. Opaque chrome fills cover the root tint; translucent fills allow that tint to show through."
+        description="The stripes remain visible through the halo gap. Elevation is disabled here so you can inspect the gap without a shadow. The root paints only its edge, so transparent and translucent chrome preserve the backdrop without adding a border-colored tint."
       >
         <Demo
           code={`<div className="w-full bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
@@ -194,6 +194,30 @@ function RouteComponent() {
               className="before:bg-background-secondary p-6"
             >
               Background visible through the gap
+            </SurfaceFrame>
+          </div>
+        </Demo>
+      </DocSection>
+
+      <DocSection
+        title="Transparent chrome"
+        description="Use before:bg-transparent or a background token with opacity. The inset border ring paints only the edge. Elevation can still darken the edge, especially at the bottom; this approach does not mask the shadow."
+      >
+        <Demo
+          code={`<div className="flex gap-8 bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
+  <SurfaceFrame halo="default" className="before:bg-transparent p-6">Transparent</SurfaceFrame>
+  <SurfaceFrame halo="default" className="before:bg-background-secondary/50 p-6">Translucent</SurfaceFrame>
+</div>`}
+        >
+          <div className="flex gap-8 bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
+            <SurfaceFrame halo="default" className="before:bg-transparent p-6">
+              Transparent
+            </SurfaceFrame>
+            <SurfaceFrame
+              halo="default"
+              className="before:bg-background-secondary/50 p-6"
+            >
+              Translucent
             </SurfaceFrame>
           </div>
         </Demo>

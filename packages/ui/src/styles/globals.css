@@ -299,20 +299,23 @@
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
   --surface-frame-elevation: var(--surface-frame-elevation-default);
 
-  /* The transparent border reserves 1px without competing with caller padding.
-   * The exposed root background paints the faux edge. Only the inset chrome
-   * casts elevation, keeping its near field beneath that edge. */
+  /* Paint only the edge so translucent chrome does not inherit a root tint.
+   * Padding reserves the edge by default; caller spacing utilities override it. */
   position: relative;
   z-index: 0;
-  border: var(--surface-frame-ring-spread) solid transparent;
-  background-color: var(--surface-frame-ring-color);
-  background-clip: border-box;
+  border-width: 0;
+  padding: var(--surface-frame-ring-spread);
+  background-color: transparent;
+  box-shadow:
+    inset 0 0 0 var(--surface-frame-ring-spread) var(--surface-frame-ring-color),
+    var(--tw-ring-offset-shadow, 0 0 transparent),
+    var(--tw-ring-shadow, 0 0 transparent);
 
   &::before,
   &::after {
     content: "";
     position: absolute;
-    inset: 0;
+    inset: var(--surface-frame-ring-spread);
     border-radius: max(
       0px,
       calc(var(--surface-frame-radius, 0px) - var(--surface-frame-ring-spread))
