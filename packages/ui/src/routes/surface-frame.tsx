@@ -7,19 +7,20 @@ import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "A Tailwind utility recipe for smooth stacked shadows, an inner bevel, a 1px edge, an optional halo, and a SurfaceFrame wrapper for component APIs.",
+    "An inset-ring faux-border surface with inset chrome, stacked elevation, a mode-aware bevel, and an optional detached halo. Available as utilities or a SurfaceFrame wrapper.",
   import:
     'import { SurfaceFrame } from "@workspace/ui/components/surface-frame";',
   name: "Surface Frame",
   status: "beta",
   whenNotToUse: [
+    "Both pseudo-elements are reserved. Set the fill with before:bg-*; do not apply a root background utility.",
     "Use a plain border or shadow when the element is not a new surface in its local composition.",
     "Do not add a separate border or ring to the same element; SurfaceFrame already supplies its edge treatment.",
     "Use the SurfaceFrame component only when utility classes are not enough for the composition.",
   ],
   whenToUse: [
     "Use it when declaring a new surface: any element you decide should read as its own visual layer.",
-    "Pair it with a background utility from the Colors foundation, such as bg-background-secondary or bg-background-tertiary, to establish fill and visual distinction.",
+    "Pair it with a before: background utility from the Colors foundation, such as before:bg-background-secondary or before:bg-background-tertiary, to establish fill and visual distinction.",
     "Start with the surface-frame utility classes, and choose SurfaceFrame only when the frame needs a component API or Base UI render prop.",
   ],
   related: ["Colors", "Card"],
@@ -36,22 +37,22 @@ function RouteComponent() {
     <DocPage meta={meta}>
       <DocSection
         title="Declare a new surface"
-        description="Use Surface Frame when you declare a new surface—any element you decide should read as its own visual layer. The consuming feature defines that boundary. Pair the utility with a background color from the Colors foundation; the frame supplies edge treatment while bg-background-* establishes the surface fill and visual distinction."
+        description="Use Surface Frame for an element that should read as its own visual layer. The consuming feature defines that boundary. Pair the utility with a background color from the Colors foundation; the frame supplies edge treatment while before:bg-background-* establishes the surface fill and visual distinction."
       >
         <Demo
-          code={`<div className="surface-frame rounded-xl bg-background-secondary min-h-24 w-64 p-4 text-sm">
+          code={`<div className="surface-frame rounded-xl before:bg-background-secondary min-h-24 w-64 p-4 text-sm">
   New surface
 </div>`}
         >
-          <div className="surface-frame rounded-xl bg-background-secondary min-h-24 w-64 p-4 text-sm">
+          <div className="surface-frame rounded-xl before:bg-background-secondary min-h-24 w-64 p-4 text-sm">
             New surface
           </div>
         </Demo>
       </DocSection>
 
       <DocSection
-        title="Sizing parity with a real border"
-        description="The frame is painted on a pseudo-element inside the box, not as a shadow spreading out of it, so a framed element occupies exactly the space a bordered one does. Stacked flush, the two edges stay collinear; at equal height and width, the two boxes render identically sized."
+        title="Edge and box sizing"
+        description="A transparent root paints a 1px inset shadow ring. Chrome and elevation sit 1px inside it. Default padding is 1px; caller padding replaces it. Explicit widths and heights still match bordered boxes, but content-sized frames no longer include an extra 2px of border."
       >
         <Demo
           code={`<div className="flex flex-col">
@@ -73,7 +74,7 @@ function RouteComponent() {
 </div>`}
         >
           <div className="flex flex-col">
-            <div className="surface-frame surface-frame-bevel-none rounded-none flex h-9 w-56 items-center px-3 text-xs">
+            <div className="surface-frame surface-frame-bevel-none flex h-9 w-56 items-center rounded-none px-3 text-xs">
               surface-frame
             </div>
             <div className="border border-border-primary rounded-none flex h-9 w-56 items-center px-3 text-xs">
@@ -96,55 +97,55 @@ function RouteComponent() {
         description="Use the elevation utility to control the smooth stacked shadow. The scale is adapted from flornkm/shadow-plugin and can use Tailwind shadow colors through --tw-shadow-color."
       >
         <Demo
-          code={`<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-none min-h-20 w-28 p-3 text-xs">None</div>
-<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-xs min-h-20 w-28 p-3 text-xs">Extra small</div>
-<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-sm min-h-20 w-28 p-3 text-xs">Small</div>
-<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-md min-h-20 w-28 p-3 text-xs">Medium</div>
-<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-lg min-h-20 w-28 p-3 text-xs">Large</div>
-<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-xl min-h-20 w-28 p-3 text-xs">Extra large</div>
-<div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-2xl min-h-20 w-28 p-3 text-xs">2XL</div>`}
+          code={`<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-none min-h-20 w-28 p-3 text-xs">None</div>
+<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-xs min-h-20 w-28 p-3 text-xs">Extra small</div>
+<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-sm min-h-20 w-28 p-3 text-xs">Small</div>
+<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-md min-h-20 w-28 p-3 text-xs">Medium</div>
+<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-lg min-h-20 w-28 p-3 text-xs">Large</div>
+<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-xl min-h-20 w-28 p-3 text-xs">Extra large</div>
+<div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-2xl min-h-20 w-28 p-3 text-xs">2XL</div>`}
           className="py-48"
         >
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-none min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-none min-h-20 w-28 p-3 text-xs">
             None
           </div>
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-xs min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-xs min-h-20 w-28 p-3 text-xs">
             Extra small
           </div>
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-sm min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-sm min-h-20 w-28 p-3 text-xs">
             Small
           </div>
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-md min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-md min-h-20 w-28 p-3 text-xs">
             Medium
           </div>
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-lg min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-lg min-h-20 w-28 p-3 text-xs">
             Large
           </div>
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-xl min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-xl min-h-20 w-28 p-3 text-xs">
             Extra large
           </div>
-          <div className="surface-frame rounded-xl bg-background-secondary surface-frame-elevation-2xl min-h-20 w-28 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-secondary surface-frame-elevation-2xl min-h-20 w-28 p-3 text-xs">
             2XL
           </div>
         </Demo>
       </DocSection>
 
       <DocSection
-        title="Inner bevel"
-        description="Bevel adds an inset edge highlight. The direction flips with the color mode, and dark mode uses a stronger token opacity so the highlight remains visible on dark surfaces."
+        title="Edge bevel"
+        description="Bevel adds a crisp bottom edge in light mode and a top highlight in dark mode. A separate pseudo-element draws it without moving the chrome or elevation shadow."
       >
         <Demo
-          code={`<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-bevel-none min-h-20 w-40 p-3 text-xs">None</div>
-<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-bevel-subtle min-h-20 w-40 p-3 text-xs">Subtle</div>
-<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-bevel-strong min-h-20 w-40 p-3 text-xs">Strong</div>`}
+          code={`<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-none min-h-20 w-40 p-3 text-xs">None</div>
+<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-subtle min-h-20 w-40 p-3 text-xs">Subtle</div>
+<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-strong min-h-20 w-40 p-3 text-xs">Strong</div>`}
         >
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-bevel-none min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-none min-h-20 w-40 p-3 text-xs">
             None
           </div>
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-bevel-subtle min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-subtle min-h-20 w-40 p-3 text-xs">
             Subtle
           </div>
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-bevel-strong min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-bevel-strong min-h-20 w-40 p-3 text-xs">
             Strong
           </div>
         </Demo>
@@ -152,36 +153,83 @@ function RouteComponent() {
 
       <DocSection
         title="Optional halo"
-        description="Halo controls the detached outer ring and is always opt-in. The base 1px edge remains present at every halo setting."
+        description="Halo adds an outline with a transparent gap and is always opt-in. No backdrop color is painted between the edge and halo; the background and elevation shadow remain visible through the gap."
       >
         <Demo
-          code={`<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-none min-h-20 w-40 p-3 text-xs">None</div>
-<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-subtle min-h-20 w-40 p-3 text-xs">Subtle</div>
-<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-default min-h-20 w-40 p-3 text-xs">Default</div>
-<div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-strong min-h-20 w-40 p-3 text-xs">Strong</div>`}
+          code={`<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-none min-h-20 w-40 p-3 text-xs">None</div>
+<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-subtle min-h-20 w-40 p-3 text-xs">Subtle</div>
+<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-default min-h-20 w-40 p-3 text-xs">Default</div>
+<div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-strong min-h-20 w-40 p-3 text-xs">Strong</div>`}
         >
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-none min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-none min-h-20 w-40 p-3 text-xs">
             None
           </div>
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-subtle min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-subtle min-h-20 w-40 p-3 text-xs">
             Subtle
           </div>
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-default min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-default min-h-20 w-40 p-3 text-xs">
             Default
           </div>
-          <div className="surface-frame rounded-xl bg-background-tertiary surface-frame-halo-strong min-h-20 w-40 p-3 text-xs">
+          <div className="surface-frame rounded-xl before:bg-background-tertiary surface-frame-halo-strong min-h-20 w-40 p-3 text-xs">
             Strong
           </div>
         </Demo>
       </DocSection>
 
       <DocSection
+        title="Transparent halo gap"
+        description="The stripes remain visible through the halo gap. Elevation is disabled here so you can inspect the gap without a shadow. The root paints only its edge, so transparent and translucent chrome preserve the backdrop without adding a border-colored tint."
+      >
+        <Demo
+          code={`<div className="w-full bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
+  <SurfaceFrame elevation="none" halo="default" className="before:bg-background-secondary p-6">
+    Background visible through the gap
+  </SurfaceFrame>
+</div>`}
+        >
+          <div className="w-full bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
+            <SurfaceFrame
+              elevation="none"
+              halo="default"
+              className="before:bg-background-secondary p-6"
+            >
+              Background visible through the gap
+            </SurfaceFrame>
+          </div>
+        </Demo>
+      </DocSection>
+
+      <DocSection
+        title="Transparent chrome"
+        description="Use before:bg-transparent or a background token with opacity. The inset border ring paints only the edge. Elevation can still darken the edge, especially at the bottom; this approach does not mask the shadow."
+      >
+        <Demo
+          code={`<div className="flex gap-8 bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
+  <SurfaceFrame halo="default" className="before:bg-transparent p-6">Transparent</SurfaceFrame>
+  <SurfaceFrame halo="default" className="before:bg-background-secondary/50 p-6">Translucent</SurfaceFrame>
+</div>`}
+        >
+          <div className="flex gap-8 bg-[repeating-linear-gradient(135deg,var(--color-background-primary)_0_12px,var(--color-background-tertiary)_12px_24px)] p-10">
+            <SurfaceFrame halo="default" className="before:bg-transparent p-6">
+              Transparent
+            </SurfaceFrame>
+            <SurfaceFrame
+              halo="default"
+              className="before:bg-background-secondary/50 p-6"
+            >
+              Translucent
+            </SurfaceFrame>
+          </div>
+        </Demo>
+      </DocSection>
+
+      <DocSection
         title="Custom halo values"
-        description="Use --surface-frame-halo-color for exceptional halo colors and --surface-frame-backdrop to match a halo gap to its surrounding surface; prefer named utility variants for normal usage."
+        description="Use --surface-frame-halo-color for exceptional halo colors. The gap is transparent and needs no backdrop token. Prefer named utility variants for normal usage."
       >
         <Demo
           code={`<div
-  className="surface-frame rounded-xl bg-background-secondary surface-frame-halo-default min-h-20 w-64 p-4 text-sm"
+  className="surface-frame rounded-xl before:bg-background-secondary surface-frame-halo-default min-h-20 w-64 p-4 text-sm"
   style={
     {
       "--surface-frame-halo-color": "var(--color-border-tertiary)",
@@ -192,7 +240,7 @@ function RouteComponent() {
 </div>`}
         >
           <div
-            className="surface-frame rounded-xl bg-background-secondary surface-frame-halo-default min-h-20 w-64 p-4 text-sm"
+            className="surface-frame rounded-xl before:bg-background-secondary surface-frame-halo-default min-h-20 w-64 p-4 text-sm"
             style={
               {
                 "--surface-frame-halo-color": "var(--color-border-tertiary)",
@@ -212,7 +260,7 @@ function RouteComponent() {
           code={`<SurfaceFrame
   elevation="md"
   halo="default"
-  className="bg-background-secondary min-h-24 w-64 p-4 text-sm"
+  className="before:bg-background-secondary min-h-24 w-64 p-4 text-sm"
 >
   Component wrapper
 </SurfaceFrame>`}
@@ -220,7 +268,7 @@ function RouteComponent() {
           <SurfaceFrame
             elevation="md"
             halo="default"
-            className="bg-background-secondary min-h-24 w-64 p-4 text-sm"
+            className="before:bg-background-secondary min-h-24 w-64 p-4 text-sm"
           >
             Component wrapper
           </SurfaceFrame>
@@ -236,7 +284,7 @@ function RouteComponent() {
             {
               default: '"sm"',
               description:
-                "Base utility that applies the smooth stacked shadow, inner bevel, 1px edge, and halo variables; pair it with a bg-background-* utility for the surface fill.",
+                "Base utility that applies the inset chrome, stacked shadow, mode-aware bevel, faux edge, and halo variables; pair it with a before:bg-background-* utility for the surface fill.",
               name: "surface-frame",
               type: "class",
             },
@@ -256,7 +304,7 @@ function RouteComponent() {
             {
               default: '"subtle"',
               description:
-                "Utility suffix controls the inset edge highlight. Its direction and opacity adapt to the color mode.",
+                "Utility suffix controls the crisp edge bevel. Its direction and opacity adapt to the color mode.",
               name: "surface-frame-bevel-*",
               type: '"none" | "subtle" | "strong"',
             },
@@ -276,7 +324,7 @@ function RouteComponent() {
             {
               default: '"subtle"',
               description:
-                "SurfaceFrame prop for the inset edge highlight. It adapts to the color mode.",
+                "SurfaceFrame prop for the crisp edge bevel. It adapts to the color mode.",
               name: "bevel",
               type: '"none" | "subtle" | "strong"',
             },

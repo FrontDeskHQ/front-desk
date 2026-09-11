@@ -11,7 +11,7 @@
 :root {
   --background-primary: oklch(95% 0 none);
   --brand: oklch(0.5088 0.1783 265.68);
-  --surface-frame-bevel-y: -1px;
+  --surface-frame-bevel-y: 1px;
   --surface-frame-bevel-subtle-opacity: 4%;
   --surface-frame-bevel-strong-opacity: 8%;
 
@@ -155,8 +155,8 @@
 
 .dark {
   --background-primary: oklch(14.5% 0 none);
-  --surface-frame-bevel-y: 1px;
-  --surface-frame-bevel-subtle-opacity: 8%;
+  --surface-frame-bevel-y: -1px;
+  --surface-frame-bevel-subtle-opacity: 6%;
   --surface-frame-bevel-strong-opacity: 12%;
 
   --step-multiplier: 1;
@@ -273,10 +273,8 @@
  */
 /* stylelint-disable scss/at-rule-no-unknown -- Tailwind CSS v4 provides @utility. */
 @utility surface-frame {
-  --surface-frame-backdrop: var(--background-primary);
   --surface-frame-ring-color: var(--color-border-primary);
   --surface-frame-ring-spread: 1px;
-  --surface-frame-halo-spacer: transparent;
   --surface-frame-halo-gap: 0px;
   --surface-frame-halo-spread: 0px;
   --surface-frame-halo-color: transparent;
@@ -301,81 +299,61 @@
       color-mix(in srgb, var(--surface-frame-shadow-color) 1%, transparent);
   --surface-frame-elevation: var(--surface-frame-elevation-default);
 
-  /*
-   * An outset box-shadow spread renders outside the border box, so a ring
-   * drawn that way makes the element paint 1px larger than its layout box on
-   * every side, misaligning it with real-bordered elements of the same size.
-   * The transparent border below reserves that ring of space inside the border
-   * box instead, and the frame is painted into it by two pseudo-elements —
-   * they need different reference boxes, and one element only has two:
-   *
-   *   border box   radius r    the ring and the halo, on ::before
-   *   padding box  radius r-1  the fill, the bevel, and the elevation ::after
-   *                            casts, which has to originate here so its near
-   *                            field lands under the ring rather than outside
-   *                            it
-   *
-   * Those two are parallel offsets of each other, so the ring, the fill and
-   * the bevel stay concentric. ::after is the one approximation: it sits on
-   * the padding box but inherits radius r, since CSS gives no way to name r-1,
-   * leaving it a fraction of a pixel over the fill at the corners — which only
-   * a blur is soft enough to get away with.
-   */
+  /* Paint only the edge so translucent chrome does not inherit a root tint.
+   * Padding reserves the edge by default; caller spacing utilities override it. */
   position: relative;
-  border: var(--surface-frame-ring-spread) solid transparent;
-  /* Keep the fill ending where the ring begins: ring colors are translucent,
-   * and a background would otherwise paint under the transparent border and
-   * tint them with the element's own fill. */
-  background-clip: padding-box;
-  /* The bevel stays on the element: an inset shadow is clipped to the padding
-   * box, which is already the fill, at a radius the browser derives from the
-   * border width — so the highlight hugs the fill's corners with no radius
-   * math, and paints under the content the way it always has. Declaring the
-   * property here also keeps ring/shadow utilities inert on surface-frame
-   * elements, as they were when the whole frame lived on this declaration. */
+  z-index: 0;
+  border-width: 0;
+  padding: var(--surface-frame-ring-spread);
+  background-color: transparent;
   box-shadow:
-    inset 0 var(--surface-frame-bevel-y) 0 -0.5px
-      var(--surface-frame-bevel-color) !important;
+    inset 0 0 0 var(--surface-frame-ring-spread) var(--surface-frame-ring-color),
+    var(--tw-ring-offset-shadow, 0 0 transparent),
+    var(--tw-ring-shadow, 0 0 transparent);
 
-  /* The ring, lining the reserved border from the border box inwards: outer
-   * edge on the element's own radius, inner edge on the padding box's, which
-   * is where the fill and the bevel end. The halo rides along because it needs
-   * the same exact box — its spacer is opaque, so the fraction of a pixel that
-   * ::after can be off by would paint the backdrop over the fill's corners and
-   * scrub the bevel out of them. Measured from the outer edge, which the ring
-   * no longer extends past, the halo gives back the ring's width. */
-  &::before {
-    content: "";
-    position: absolute;
-    inset: calc(-1 * var(--surface-frame-ring-spread));
-    border-radius: inherit;
-    pointer-events: none;
-    box-shadow:
-      0 0 0
-        calc(var(--surface-frame-halo-gap) - var(--surface-frame-ring-spread))
-        var(--surface-frame-halo-spacer),
-      0 0 0
-        calc(var(--surface-frame-halo-spread) - var(--surface-frame-ring-spread))
-        var(--surface-frame-halo-color),
-      inset 0 0 0 var(--surface-frame-ring-spread)
-        var(--surface-frame-ring-color);
-  }
-
-  /* Elevation, cast from the padding box so its near field falls under the ring
-   * the way it always did — cast from the outer edge instead, it piles up just
-   * outside the ring and the edge stops reading as a line. An outset shadow is
-   * clipped to its caster's border box, so this is the only way to get it in
-   * there; no amount of spread moves a shadow inside the box casting it. Last
-   * of the two pseudo-elements, so it still paints over the ring and over the
-   * halo's opaque spacer, as it did when the frame was one shadow stack. */
+  &::before,
   &::after {
     content: "";
     position: absolute;
-    inset: 0;
-    border-radius: inherit;
+    inset: var(--surface-frame-ring-spread);
+    border-radius: max(
+      0px,
+      calc(var(--surface-frame-radius, 0px) - var(--surface-frame-ring-spread))
+    );
+    z-index: -1;
     pointer-events: none;
+  }
+
+  &::before {
+    background-color: var(--background-primary);
     box-shadow: var(--surface-frame-elevation);
   }
+
+  /* The bevel overlays the chrome edge. The outline paints only the halo;
+   * its gap stays transparent even over gradients or patterned backgrounds.
+   * Keeping it here leaves the root outline available for keyboard focus. */
+  &::after {
+    box-shadow: 0 var(--surface-frame-bevel-y) 0
+      var(--surface-frame-bevel-color);
+    outline: calc(
+        var(--surface-frame-halo-spread) - var(--surface-frame-halo-gap)
+      )
+      solid var(--surface-frame-halo-color);
+    outline-offset: var(--surface-frame-halo-gap);
+  }
+}
+
+/* Track the caller's radius for concentric chrome without a second radius API. */
+@utility rounded-* {
+  --surface-frame-radius: --value(--radius-*, [length], [percentage]);
+}
+
+@utility rounded-none {
+  --surface-frame-radius: 0px;
+}
+
+@utility rounded-full {
+  --surface-frame-radius: 9999px;
 }
 
 @utility surface-frame-elevation-none {
@@ -470,12 +448,10 @@
 @utility surface-frame-halo-none {
   --surface-frame-halo-color: transparent;
   --surface-frame-halo-gap: 0px;
-  --surface-frame-halo-spacer: transparent;
   --surface-frame-halo-spread: 0px;
 }
 
 @utility surface-frame-halo-subtle {
-  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
   --surface-frame-halo-color: color-mix(
     in oklch,
     var(--color-border-primary) 40%,
@@ -486,7 +462,6 @@
 }
 
 @utility surface-frame-halo-default {
-  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
   --surface-frame-halo-color: color-mix(
     in oklch,
     var(--color-border-primary) 64%,
@@ -497,7 +472,6 @@
 }
 
 @utility surface-frame-halo-strong {
-  --surface-frame-halo-spacer: var(--surface-frame-backdrop);
   --surface-frame-halo-color: color-mix(
     in oklch,
     var(--color-border-primary) 80%,

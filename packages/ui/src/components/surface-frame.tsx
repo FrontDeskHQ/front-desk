@@ -5,7 +5,7 @@ import type { VariantProps } from "class-variance-authority";
 import * as React from "react";
 
 const surfaceFrameVariants = cva(
-  "surface-frame relative bg-background-primary text-foreground-primary",
+  "surface-frame relative before:bg-background-primary text-foreground-primary",
   {
     defaultVariants: {
       bevel: "subtle",
