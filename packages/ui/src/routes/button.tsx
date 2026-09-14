@@ -2,17 +2,12 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Plus } from "lucide-react";
 
-import {
-  Demo,
-  DocPage,
-  DocSection,
-  PropsTable,
-} from "./-components/doc-kit";
+import { Demo, DocPage, DocSection, PropsTable } from "./-components/doc-kit";
 import type { ComponentMeta } from "./-components/doc-kit";
 
 export const meta: ComponentMeta = {
   description:
-    "An accessible action control with size and variant styles. Primary, secondary, outline, and destructive use the Surface Frame edge recipe.",
+    "An accessible action control with size and variant styles. Primary, secondary, destructive, and outline use inset-ring Surface Frame chrome, including transparent and translucent fills.",
   import: 'import { Button } from "@workspace/ui/components/button";',
   name: "Button",
   related: ["ActionButton", "Surface Frame", "Badge"],
@@ -24,8 +19,8 @@ export const meta: ComponentMeta = {
   ],
   whenToUse: [
     "Triggering an immediate action (submit, apply, dismiss, open a dialog).",
-    "One primary call-to-action per screen or dialog (variant=\"primary\").",
-    "Toolbar or dense actions where size=\"sm\" or icon sizes fit the layout.",
+    'One primary call-to-action per screen or dialog (variant="primary").',
+    'Toolbar or dense actions where size="sm" or icon sizes fit the layout.',
   ],
 };
 
@@ -38,7 +33,7 @@ function RouteComponent() {
     <DocPage meta={meta}>
       <DocSection
         title="Variants"
-        description="Primary, secondary, and destructive use Surface Frame with bevel + elevation-xs; outline uses the frame edge without bevel. Ghost and link stay flat."
+        description="Primary uses the strong Surface Frame bevel for contrast against blue. Secondary and destructive use the subtle bevel. All four framed variants use elevation-xs; outline has no bevel and uses transparent or translucent chrome. In dark mode, its hover fill brightens slightly and its pressed fill darkens to keep the border distinct. Ghost and link stay flat."
       >
         <Demo
           code={`<Button variant="primary">Primary</Button>
@@ -131,7 +126,7 @@ function RouteComponent() {
             {
               default: '"primary"',
               description:
-                "Visual style. primary / secondary / outline / destructive use Surface Frame; ghost and link stay flat.",
+                "Visual style. primary / secondary / destructive / outline use inset-ring Surface Frame; ghost and link stay flat.",
               name: "variant",
               type: '"primary" | "secondary" | "outline" | "ghost" | "link" | "destructive"',
             },
