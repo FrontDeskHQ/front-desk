@@ -327,13 +327,16 @@
   &::before {
     background-color: var(--background-primary);
     box-shadow: var(--surface-frame-elevation);
+    transition-property: background-color;
+    transition-duration: 150ms;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  /* The bevel overlays the chrome edge. The outline paints only the halo;
-   * its gap stays transparent even over gradients or patterned backgrounds.
-   * Keeping it here leaves the root outline available for keyboard focus. */
+  /* Inset bevel so a transparent ::after does not paint a full-box silhouette.
+   * Negative spread keeps it a 1px edge. Outline paints only the halo; its gap
+   * stays transparent over gradients. Root outline stays free for focus. */
   &::after {
-    box-shadow: 0 var(--surface-frame-bevel-y) 0
+    box-shadow: inset 0 var(--surface-frame-bevel-y) 0 -0.5px
       var(--surface-frame-bevel-color);
     outline: calc(
         var(--surface-frame-halo-spread) - var(--surface-frame-halo-gap)

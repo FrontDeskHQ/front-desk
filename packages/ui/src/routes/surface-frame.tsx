@@ -52,7 +52,7 @@ function RouteComponent() {
 
       <DocSection
         title="Edge and box sizing"
-        description="A transparent root paints a 1px inset shadow ring. Chrome and elevation sit 1px inside it. Default padding is 1px; caller padding replaces it. Explicit widths and heights still match bordered boxes, but content-sized frames no longer include an extra 2px of border."
+        description="A transparent root paints a 1px inset shadow ring. Chrome and elevation sit 1px inside it. Default padding is 1px; caller padding replaces it. Explicit widths and heights still match bordered boxes. Content-sized frames retain 2px of edge space as padding instead of border."
       >
         <Demo
           code={`<div className="flex flex-col">
