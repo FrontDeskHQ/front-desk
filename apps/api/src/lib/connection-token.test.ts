@@ -68,4 +68,29 @@ describe("connection tokens", () => {
     now = new Date(now.getTime() + CONNECTION_TOKEN_TTL_MS);
     await expect(service.consume(expired.token)).resolves.toBeNull();
   });
+
+  it("round-trips a widget principal without using an internal user id", async () => {
+    const now = new Date("2026-01-01T00:00:00.000Z");
+    const { store } = createMemoryStore();
+    const service = createConnectionTokens(store, {
+      now: () => now,
+      randomToken: () => "widget-token",
+    });
+
+    const minted = await service.mint({
+      email: "ada@example.com",
+      name: "Ada Lovelace",
+      organizationId: "org-a",
+      type: "widget",
+      userId: "customer-1",
+    });
+
+    await expect(service.consume(minted.token)).resolves.toStrictEqual({
+      email: "ada@example.com",
+      name: "Ada Lovelace",
+      organizationId: "org-a",
+      type: "widget",
+      userId: "customer-1",
+    });
+  });
 });

@@ -499,11 +499,14 @@ const connectionToken = object("connectionToken", {
   apiKeyId: string().nullable(),
   consumedAt: timestamp().nullable(),
   createdAt: timestamp(),
+  email: string().nullable(),
   expiresAt: timestamp().index(),
   id: id(),
+  name: string().nullable(),
   organizationId: string().nullable(),
   principalType: string(),
   tokenHash: string().unique().index(),
+  userId: string().nullable(),
 });
 
 export const schema = createSchema({

@@ -8,17 +8,27 @@ export const CONNECTION_TOKEN_TTL_MS = 60_000;
 
 export type ConnectionPrincipal =
   | { type: "internal" }
-  | { apiKeyId: string; organizationId: string; type: "private" };
+  | { apiKeyId: string; organizationId: string; type: "private" }
+  | {
+      email: string | null;
+      name: string;
+      organizationId: string;
+      type: "widget";
+      userId: string;
+    };
 
 export interface StoredConnectionToken {
   apiKeyId: string | null;
   consumedAt: Date | null;
   createdAt: Date;
+  email: string | null;
   expiresAt: Date;
   id: string;
+  name: string | null;
   organizationId: string | null;
   principalType: ConnectionPrincipal["type"];
   tokenHash: string;
+  userId: string | null;
 }
 
 export interface ConnectionTokenStore {
@@ -80,7 +90,22 @@ export const createConnectionTokens = (
         !row.apiKeyId ||
         !row.organizationId
       ) {
-        return null;
+        if (
+          row.principalType !== "widget" ||
+          !row.organizationId ||
+          !row.userId ||
+          !row.name
+        ) {
+          return null;
+        }
+
+        return {
+          email: row.email,
+          name: row.name,
+          organizationId: row.organizationId,
+          type: "widget",
+          userId: row.userId,
+        };
       }
 
       return {
@@ -102,12 +127,17 @@ export const createConnectionTokens = (
         apiKeyId: principal.type === "private" ? principal.apiKeyId : null,
         consumedAt: null,
         createdAt,
+        email: principal.type === "widget" ? principal.email : null,
         expiresAt,
         id: ulid().toLowerCase(),
+        name: principal.type === "widget" ? principal.name : null,
         organizationId:
-          principal.type === "private" ? principal.organizationId : null,
+          principal.type === "private" || principal.type === "widget"
+            ? principal.organizationId
+            : null,
         principalType: principal.type,
         tokenHash: hashToken(token),
+        userId: principal.type === "widget" ? principal.userId : null,
       });
 
       return { expiresAt: expiresAt.toISOString(), token };

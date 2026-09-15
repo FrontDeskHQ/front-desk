@@ -47,6 +47,17 @@ export const defaultIssueTargetSchema = z.object({
 
 export type DefaultIssueTarget = z.infer<typeof defaultIssueTargetSchema>;
 
+/**
+ * Non-secret widget identity settings. Signing keys are derived from the API's
+ * master key and these version numbers, so this object is safe to sync to
+ * workspace clients.
+ */
+export const widgetIdentitySettingsSchema = z.object({
+  allowedOrigins: z.array(z.string().min(1)).max(100).default([]),
+  currentKeyVersion: z.number().int().positive().default(1),
+  previousKeyVersion: z.number().int().positive().nullable().default(null),
+});
+
 export const organizationSettingsSchema = z.object({
   timezone: z.string().default("UTC"),
   digest: digestSettingsSchema.default(digestSettingsDefaults),
@@ -69,6 +80,7 @@ export const organizationSettingsSchema = z.object({
   // dependency. The API validates the capability and integration on write.
   capabilityPrimary: z.record(z.string(), z.string()).optional(),
   defaultIssueTarget: defaultIssueTargetSchema.nullish(),
+  widgetIdentity: widgetIdentitySettingsSchema.optional(),
 });
 
 export type OrganizationSettings = z.infer<typeof organizationSettingsSchema>;

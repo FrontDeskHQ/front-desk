@@ -2,6 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   ensureExternalAuthor,
+  ensureWidgetAuthor,
+  widgetAuthorMetaId,
   UNRESOLVED_EXTERNAL_AUTHOR_NAME,
 } from "./external-author";
 
@@ -20,7 +22,7 @@ const mockDb = (existing: { id: string; name: string } | null) => {
   return { db, first, insert, update };
 };
 
-describe("ensureExternalAuthor", () => {
+describe(ensureExternalAuthor, () => {
   it("creates an author when none exists for the metaId", async () => {
     const { db, insert, update } = mockDb(null);
 
@@ -88,5 +90,29 @@ describe("ensureExternalAuthor", () => {
     });
 
     expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe(ensureWidgetAuthor, () => {
+  it("stores an external subject in the namespaced meta id", async () => {
+    const { db, first, insert } = mockDb(null);
+
+    const id = await ensureWidgetAuthor(db, {
+      name: "Ada Lovelace",
+      organizationId,
+      userId: "customer-1",
+    });
+
+    expect(first).toHaveBeenCalledWith({
+      metaId: widgetAuthorMetaId("customer-1"),
+      organizationId,
+    });
+    expect(insert).toHaveBeenCalledWith({
+      id,
+      metaId: widgetAuthorMetaId("customer-1"),
+      name: "Ada Lovelace",
+      organizationId,
+      userId: null,
+    });
   });
 });

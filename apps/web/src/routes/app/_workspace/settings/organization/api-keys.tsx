@@ -14,7 +14,13 @@ import {
 } from "@workspace/ui/components/alert-dialog";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
-import { Card, CardContent } from "@workspace/ui/components/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@workspace/ui/components/card";
 import { CopyInput } from "@workspace/ui/components/copy-value";
 import {
   Dialog,
@@ -40,10 +46,11 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
+import { Textarea } from "@workspace/ui/components/textarea";
 import { addDays, addYears, format } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -67,6 +74,13 @@ function RouteComponent() {
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
   const [apiKeyType, setApiKeyType] = useState<"private" | "public">("public");
   const [apiKeyName, setApiKeyName] = useState("");
+  const [allowedOrigins, setAllowedOrigins] = useState("");
+  const [isRotateDialogOpen, setIsRotateDialogOpen] = useState(false);
+  const [isWidgetSecretDisplayDialogOpen, setIsWidgetSecretDisplayDialogOpen] =
+    useState(false);
+  const [widgetSecret, setWidgetSecret] = useState<string | null>(null);
+  const [isSavingWidgetSettings, setIsSavingWidgetSettings] = useState(false);
+  const [isRotatingWidgetSecret, setIsRotatingWidgetSecret] = useState(false);
   const [expiresAt, setExpiresAt] = useState(() =>
     format(addYears(new Date(), 1), "yyyy-MM-dd")
   );
@@ -81,6 +95,84 @@ function RouteComponent() {
     },
     queryKey: ["organization", "api-keys", currentOrg?.id],
   });
+
+  const { data: widgetIdentitySettings, isLoading: isWidgetSettingsLoading } =
+    useQuery({
+      enabled: currentOrg !== undefined,
+      queryFn: () => {
+        if (!currentOrg) return null;
+
+        return fetchClient.query.organization.widgetIdentitySettings({
+          organizationId: currentOrg.id,
+        });
+      },
+      queryKey: ["organization", "widget-identity", currentOrg?.id],
+    });
+
+  useEffect(() => {
+    setAllowedOrigins(widgetIdentitySettings?.allowedOrigins.join("\n") ?? "");
+  }, [widgetIdentitySettings]);
+
+  const getAllowedOrigins = (): string[] =>
+    Array.from(
+      new Set(
+        allowedOrigins
+          .split(/\r?\n/u)
+          .map((origin) => origin.trim())
+          .filter(Boolean)
+      )
+    );
+
+  const handleSaveWidgetSettings = async () => {
+    if (!currentOrg) return;
+
+    setIsSavingWidgetSettings(true);
+    try {
+      await fetchClient.mutate.organization.updateWidgetIdentity({
+        allowedOrigins: getAllowedOrigins(),
+        organizationId: currentOrg.id,
+      });
+      await queryClient.invalidateQueries({
+        queryKey: ["organization", "widget-identity", currentOrg.id],
+      });
+      toast.success("Widget identity settings saved");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to save widget identity settings. Please try again."
+      );
+    } finally {
+      setIsSavingWidgetSettings(false);
+    }
+  };
+
+  const handleRotateWidgetSecret = async () => {
+    if (!currentOrg) return;
+
+    setIsRotateDialogOpen(false);
+    setIsRotatingWidgetSecret(true);
+    try {
+      const result =
+        await fetchClient.mutate.organization.rotateWidgetSigningSecret({
+          allowedOrigins: getAllowedOrigins(),
+          organizationId: currentOrg.id,
+        });
+      setWidgetSecret(result.secret);
+      setIsWidgetSecretDisplayDialogOpen(true);
+      await queryClient.invalidateQueries({
+        queryKey: ["organization", "widget-identity", currentOrg.id],
+      });
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Failed to rotate the widget signing secret. Please try again."
+      );
+    } finally {
+      setIsRotatingWidgetSecret(false);
+    }
+  };
 
   const handleRevoke = async (apiKeyId: string, type: "private" | "public") => {
     if (!currentOrg) {
@@ -401,6 +493,124 @@ function RouteComponent() {
           )}
         </CardContent>
       </Card>
+      <Card className="bg-[#27272A]/30">
+        <CardHeader>
+          <CardTitle>Widget identity</CardTitle>
+          <CardDescription>
+            Configure signed-in users for the FrontDesk widget. The signing
+            secret is shown only when it is generated or rotated.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isWidgetSettingsLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="widget-allowed-origins">
+                  Allowed origins (optional)
+                </Label>
+                <Textarea
+                  id="widget-allowed-origins"
+                  placeholder="https://app.example.com"
+                  value={allowedOrigins}
+                  onChange={(event) => setAllowedOrigins(event.target.value)}
+                  rows={4}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Enter one exact site origin per line. Leave empty to allow
+                  requests from any origin.
+                </p>
+              </div>
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={handleSaveWidgetSettings}
+                  disabled={isSavingWidgetSettings || isRotatingWidgetSecret}
+                >
+                  {isSavingWidgetSettings ? "Saving…" : "Save origins"}
+                </Button>
+                <AlertDialog
+                  open={isRotateDialogOpen}
+                  onOpenChange={setIsRotateDialogOpen}
+                >
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      disabled={
+                        isSavingWidgetSettings || isRotatingWidgetSecret
+                      }
+                    >
+                      {isRotatingWidgetSecret
+                        ? "Rotating…"
+                        : widgetIdentitySettings?.configured
+                          ? "Rotate signing secret"
+                          : "Generate signing secret"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>
+                        Rotate the widget signing secret?
+                      </AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Existing tokens signed with the previous secret remain
+                        valid briefly. Update your server environment with the
+                        new secret as soon as it is shown.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleRotateWidgetSecret}>
+                        Rotate secret
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      <Dialog
+        open={isWidgetSecretDisplayDialogOpen}
+        onOpenChange={(open) => {
+          if (!open) return;
+          setIsWidgetSecretDisplayDialogOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-lg" showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Widget signing secret</DialogTitle>
+            <DialogDescription>
+              Copy this value into your backend's{" "}
+              <code>FRONTDESK_SECRET_KEY</code> environment variable. It will
+              not be shown again.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-4">
+            <CopyInput
+              value={widgetSecret ?? ""}
+              label="Your widget signing secret"
+              inputClassName="font-mono text-sm"
+              buttonAriaLabel="Copy widget signing secret"
+            />
+            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm text-destructive">
+              <strong>Warning:</strong> Never expose this secret in browser code
+              or commit it to source control.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => {
+                setIsWidgetSecretDisplayDialogOpen(false);
+                setWidgetSecret(null);
+              }}
+            >
+              I've copied it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

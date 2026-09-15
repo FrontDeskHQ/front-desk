@@ -12,7 +12,11 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
-import { ensureExternalAuthor } from "../../lib/external-author";
+import {
+  ensureExternalAuthor,
+  ensureWidgetAuthor,
+  widgetAuthorMetaId,
+} from "../../lib/external-author";
 import { runCreateIssue } from "../../lib/issue-tracker";
 import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { enqueueThreadRead } from "../../lib/queue";
@@ -90,9 +94,82 @@ const threadCreateInputSchema = z.object({
   userName: z.string().optional(),
 });
 
+const threadListInputSchema = z.object({
+  customerId: z.string().optional(),
+  includeMessages: z.boolean().optional().default(false),
+});
+
 export default publicRoute.withProcedures(({ mutation, query }) => ({
+  /**
+   * Widget thread reads are custom queries so authorization can be applied
+   * before Live-State builds the SQL query. A publishable key alone never
+   * grants access to customer conversations.
+   */
+  list: query(threadListInputSchema).handler(({ req, db }) => {
+    const widgetIdentity = req.context?.widgetIdentity;
+    if (widgetIdentity) {
+      if (
+        req.input.customerId !== undefined &&
+        req.input.customerId !== widgetIdentity.userId
+      ) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      authorize(req, {
+        allowPublicApiKey: true,
+        organizationId: widgetIdentity.organizationId,
+      });
+
+      const threadQuery = db.thread.where({
+        author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
+        deletedAt: null,
+        organizationId: widgetIdentity.organizationId,
+      });
+
+      return req.input.includeMessages
+        ? threadQuery
+            .include({ messages: { include: { author: true } } })
+            .orderBy("createdAt", "desc")
+        : threadQuery.orderBy("createdAt", "desc");
+    }
+
+    // The unsigned public-key path is intentionally not a customer lookup.
+    // Otherwise anyone with the publishable key could enumerate another
+    // user's history by changing `customerId`.
+    if (req.context?.publicApiKey) {
+      throw new Error("IDENTITY_TOKEN_REQUIRED");
+    }
+
+    const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
+    if (!req.context?.internalApiKey && !authorizedOrganizationIds?.length) {
+      throw new Error("UNAUTHORIZED");
+    }
+
+    const threadQuery = db.thread.where({
+      deletedAt: null,
+      ...(authorizedOrganizationIds === null
+        ? {}
+        : { organizationId: { $in: authorizedOrganizationIds } }),
+    });
+
+    return req.input.includeMessages
+      ? threadQuery
+          .include({ messages: { include: { author: true } } })
+          .orderBy("createdAt", "desc")
+      : threadQuery.orderBy("createdAt", "desc");
+  }),
   create: mutation(threadCreateInputSchema).handler(async ({ req, db }) => {
+    const widgetOrganizationId = req.context?.widgetIdentity?.organizationId;
+    if (
+      widgetOrganizationId &&
+      req.input.organizationId !== undefined &&
+      req.input.organizationId !== widgetOrganizationId
+    ) {
+      throw new Error("UNAUTHORIZED");
+    }
+
     const organizationId =
+      widgetOrganizationId ??
       req.context?.privateApiKey?.ownerId ??
       req.context?.publicApiKey?.ownerId ??
       req.input.organizationId;
@@ -120,6 +197,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       throw new Error("MISSING_AUTHOR_INFO");
     }
 
+    if (createFlow === "public") {
+      throw new Error("IDENTITY_TOKEN_REQUIRED");
+    }
+
     const content = serializeMessageContent(req.input.message);
 
     const threadId = req.input.id ?? ulid().toLowerCase();
@@ -128,7 +209,13 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     await db.transaction(async ({ trx }) => {
       let authorId: string | undefined;
 
-      if (req.input.author) {
+      if (createFlow === "widget" && req.context?.widgetIdentity) {
+        authorId = await ensureWidgetAuthor(trx, {
+          name: req.context.widgetIdentity.name,
+          organizationId,
+          userId: req.context.widgetIdentity.userId,
+        });
+      } else if (req.input.author) {
         authorId = await ensureExternalAuthor(trx, {
           metaId: req.input.author.id,
           name: req.input.author.name,
@@ -217,7 +304,11 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const { id, shortId, organizationId, onlyDeleted, deletedBefore } =
       req.input;
 
-    if (!req.context?.internalApiKey && !req.context?.orgUsers?.length) {
+    if (
+      !req.context?.internalApiKey &&
+      !req.context?.orgUsers?.length &&
+      !req.context?.widgetIdentity
+    ) {
       throw new Error("UNAUTHORIZED");
     }
 
@@ -252,6 +343,14 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     const thread = rows[0];
     if (!thread) {
+      return undefined;
+    }
+
+    if (
+      req.context?.widgetIdentity &&
+      thread.author?.metaId !==
+        widgetAuthorMetaId(req.context.widgetIdentity.userId)
+    ) {
       return undefined;
     }
 

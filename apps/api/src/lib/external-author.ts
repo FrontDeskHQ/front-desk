@@ -11,11 +11,21 @@ type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author">;
  */
 export const UNRESOLVED_EXTERNAL_AUTHOR_NAME = "Unknown";
 
-export type EnsureExternalAuthorInput = {
+export interface EnsureExternalAuthorInput {
   metaId: string;
   name: string;
   organizationId: string;
-};
+}
+
+export interface EnsureWidgetAuthorInput {
+  name: string;
+  organizationId: string;
+  userId: string;
+}
+
+/** Namespace widget subjects so they cannot collide with connector author ids. */
+export const widgetAuthorMetaId = (userId: string): string =>
+  `widget:${userId}`;
 
 /**
  * Find-or-create the connector-relayed author for `(organizationId, metaId)`,
@@ -39,6 +49,42 @@ export const ensureExternalAuthor = async (
     await db.author.insert({
       id,
       metaId: input.metaId,
+      name: input.name,
+      organizationId: input.organizationId,
+      userId: null,
+    });
+    return id;
+  }
+
+  if (shouldRefreshExternalAuthorName(existing.name, input.name)) {
+    await db.author.update(existing.id, { name: input.name });
+  }
+
+  return existing.id;
+};
+
+/**
+ * Find-or-create the authenticated widget contact for `(organizationId, sub)`.
+ * The signed subject is the key; the browser-supplied display id is never used
+ * to select a contact. Widget subjects are stored in metaId because author.userId
+ * references FrontDesk's internal user table.
+ */
+export const ensureWidgetAuthor = async (
+  db: ExternalAuthorDb,
+  input: EnsureWidgetAuthorInput
+): Promise<string> => {
+  const existing = await db.author
+    .first({
+      metaId: widgetAuthorMetaId(input.userId),
+      organizationId: input.organizationId,
+    })
+    .get();
+
+  if (!existing) {
+    const id = ulid().toLowerCase();
+    await db.author.insert({
+      id,
+      metaId: widgetAuthorMetaId(input.userId),
       name: input.name,
       organizationId: input.organizationId,
       userId: null,
