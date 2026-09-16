@@ -5,6 +5,7 @@ import {
   authorize,
   authorizeDeveloperAction,
   authorizeThreadCreate,
+  getAuthorizedOrganizationIds,
   isInternalDeveloperEmail,
 } from "./authorize";
 
@@ -234,6 +235,36 @@ describe("workspace organization authorization", () => {
     expect(() => authorize({}, { organizationId })).toThrow("UNAUTHORIZED");
     expect(() =>
       authorize(workspaceRequest(), { organizationId: "org-b" })
+    ).toThrow("UNAUTHORIZED");
+  });
+
+  it("does not treat widget identities as workspace organization access", () => {
+    expect(
+      getAuthorizedOrganizationIds({
+        context: {
+          publicApiKey: { ownerId: organizationId },
+          widgetIdentity: {
+            name: "Ada Lovelace",
+            organizationId,
+            userId: "customer-1",
+          },
+        },
+      })
+    ).toStrictEqual([]);
+
+    expect(() =>
+      authorize(
+        {
+          context: {
+            widgetIdentity: {
+              name: "Ada Lovelace",
+              organizationId,
+              userId: "customer-1",
+            },
+          },
+        },
+        { organizationId, role: "owner" }
+      )
     ).toThrow("UNAUTHORIZED");
   });
 });

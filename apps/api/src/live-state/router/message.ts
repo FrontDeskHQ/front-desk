@@ -10,7 +10,11 @@ import {
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
-import { ensureExternalAuthor } from "../../lib/external-author";
+import {
+  ensureExternalAuthor,
+  ensureWidgetAuthor,
+  widgetAuthorMetaId,
+} from "../../lib/external-author";
 // Retired with `messages-v1` (FRO-224); see the commented search handler below.
 // import { searchMessages } from "../../lib/search/qdrant";
 import { serializeMessageContent } from "../../lib/tiptap-content";
@@ -31,7 +35,7 @@ const messageCreateInputSchema = z.object({
   externalMessageId: z.string().nullable().optional(),
   id: z.string().optional(),
   isBackfill: z.boolean().optional(),
-  organizationId: z.string(),
+  organizationId: z.string().optional(),
   origin: callerOriginSchema,
   threadId: z.string(),
   userId: z.string().optional(),
@@ -67,23 +71,131 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       )[0]
   ),
 
-  create: mutation(messageCreateInputSchema).handler(async ({ req, db }) => {
-    authorize(req, {
-      allowPublicApiKey: true,
-      organizationId: req.input.organizationId,
-    });
+  /** Authenticated widget message stream for one of the caller's threads. */
+  forThread: query(z.object({ threadId: z.string() })).handler(
+    async ({ req, db }) => {
+      const context = req.context ?? {};
+      const credentialOrganizationId =
+        context.widgetIdentity?.organizationId ??
+        context.publicApiKey?.ownerId ??
+        context.privateApiKey?.ownerId;
+      const organizationIds = context.internalApiKey
+        ? null
+        : credentialOrganizationId
+          ? [credentialOrganizationId]
+          : [
+              ...new Set(
+                context.orgUsers?.map(
+                  (orgUser: { organizationId: string }) =>
+                    orgUser.organizationId
+                ) ?? []
+              ),
+            ];
 
-    const hasIntegrationAuthor = !!req.input.author;
-    if (hasIntegrationAuthor) {
-      assertIntegrationAuthor(req);
+      if (organizationIds !== null && organizationIds.length === 0) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const threads = await db.thread
+        .where({
+          id: req.input.threadId,
+          ...(organizationIds === null
+            ? {}
+            : { organizationId: { $in: organizationIds } }),
+          ...(context.widgetIdentity ? { deletedAt: null } : {}),
+        })
+        .include({ author: true })
+        .get();
+      const thread = threads[0];
+
+      if (!thread) {
+        if (context.widgetIdentity) {
+          throw new Error("UNAUTHORIZED");
+        }
+        throw new Error("THREAD_NOT_FOUND");
+      }
+
+      if (context.widgetIdentity) {
+        authorize(req, {
+          organizationId: context.widgetIdentity.organizationId,
+        });
+        if (
+          thread.organizationId !== context.widgetIdentity.organizationId ||
+          thread.author?.metaId !==
+            widgetAuthorMetaId(context.widgetIdentity.userId)
+        ) {
+          throw new Error("UNAUTHORIZED");
+        }
+      } else {
+        if (req.context?.publicApiKey) {
+          throw new Error("IDENTITY_TOKEN_REQUIRED");
+        }
+        authorize(req, { organizationId: thread.organizationId });
+      }
+
+      return db.message
+        .where({ threadId: thread.id })
+        .include({ author: true })
+        .orderBy("createdAt", "asc");
+    }
+  ),
+
+  create: mutation(messageCreateInputSchema).handler(async ({ req, db }) => {
+    const widgetIdentity = req.context?.widgetIdentity;
+    const organizationId =
+      widgetIdentity?.organizationId ?? req.input.organizationId;
+
+    if (!organizationId) {
+      throw new Error("MISSING_ORGANIZATION_ID");
+    }
+    if (
+      widgetIdentity &&
+      req.input.organizationId !== undefined &&
+      req.input.organizationId !== widgetIdentity.organizationId
+    ) {
+      throw new Error("UNAUTHORIZED");
+    }
+    if (
+      widgetIdentity &&
+      req.input.userId !== undefined &&
+      req.input.userId !== widgetIdentity.userId
+    ) {
+      throw new Error("UNAUTHORIZED");
     }
 
-    const humanAuthor = hasIntegrationAuthor ? null : resolveHumanAuthor(req);
+    authorize(req, {
+      allowPublicApiKey: true,
+      organizationId,
+    });
+
+    const hasIntegrationAuthor = !widgetIdentity && !!req.input.author;
+    if (hasIntegrationAuthor) {
+      assertIntegrationAuthor(req);
+      if (req.context?.publicApiKey) {
+        throw new Error("IDENTITY_TOKEN_REQUIRED");
+      }
+    }
+
+    const humanAuthor =
+      hasIntegrationAuthor || widgetIdentity ? null : resolveHumanAuthor(req);
 
     const thread = await db.thread.one(req.input.threadId).get();
 
-    if (!thread || thread.organizationId !== req.input.organizationId) {
+    if (!thread || thread.organizationId !== organizationId) {
+      if (widgetIdentity) {
+        throw new Error("UNAUTHORIZED");
+      }
       throw new Error("THREAD_NOT_FOUND");
+    }
+
+    if (widgetIdentity) {
+      const threadAuthor = await db.author.one(thread.authorId).get();
+      if (
+        threadAuthor?.organizationId !== organizationId ||
+        threadAuthor?.metaId !== widgetAuthorMetaId(widgetIdentity.userId)
+      ) {
+        throw new Error("UNAUTHORIZED");
+      }
     }
 
     const content = serializeMessageContent(req.input.content);
@@ -96,7 +208,13 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         authorId = await ensureExternalAuthor(trx, {
           metaId: req.input.author.id,
           name: req.input.author.name,
-          organizationId: req.input.organizationId,
+          organizationId,
+        });
+      } else if (widgetIdentity) {
+        authorId = await ensureWidgetAuthor(trx, {
+          name: widgetIdentity.name,
+          organizationId,
+          userId: widgetIdentity.userId,
         });
       } else {
         if (!humanAuthor) {
@@ -105,10 +223,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         const { userId: actualUserId, userName: actualUserName } = humanAuthor;
 
         const existingAuthor = await trx.author
-          .first({
-            organizationId: req.input.organizationId,
-            userId: actualUserId,
-          })
+          .first({ organizationId, userId: actualUserId })
           .get();
 
         authorId = existingAuthor?.id;
@@ -119,7 +234,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
             id: authorId,
             metaId: null,
             name: actualUserName,
-            organizationId: req.input.organizationId,
+            organizationId,
             userId: actualUserId,
           });
         }

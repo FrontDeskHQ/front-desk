@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
+
 import type { ServerDB } from "@live-state/sync/server";
 import { ulid } from "ulid";
 
 import type { schema } from "../live-state/schema";
 
-type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author">;
+type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author" | "transaction">;
 
 /**
  * Connectors send this when the provider lookup fails (Slack `users.info`,
@@ -11,10 +13,93 @@ type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author">;
  */
 export const UNRESOLVED_EXTERNAL_AUTHOR_NAME = "Unknown";
 
-export type EnsureExternalAuthorInput = {
+export interface EnsureExternalAuthorInput {
   metaId: string;
   name: string;
   organizationId: string;
+}
+
+export interface EnsureWidgetAuthorInput {
+  name: string;
+  organizationId: string;
+  userId: string;
+}
+
+/** Namespace widget subjects so they cannot collide with connector author ids. */
+export const widgetAuthorMetaId = (userId: string): string =>
+  `widget:${userId}`;
+
+/** Stable, collision-free key for an external author within an organization. */
+export const externalAuthorIdentityKey = (
+  organizationId: string,
+  metaId: string
+): string =>
+  createHash("sha256")
+    .update(JSON.stringify([organizationId, metaId]))
+    .digest("hex");
+
+const isUniqueViolation = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  (error as { code?: unknown }).code === "23505";
+
+const refreshAuthorName = async (
+  db: ExternalAuthorDb,
+  existing: { id: string; name: string },
+  incomingName: string
+): Promise<string> => {
+  if (shouldRefreshExternalAuthorName(existing.name, incomingName)) {
+    await db.author.update(existing.id, { name: incomingName });
+  }
+
+  return existing.id;
+};
+
+const ensureAuthor = async (
+  db: ExternalAuthorDb,
+  input: EnsureExternalAuthorInput
+): Promise<string> => {
+  const existing = await db.author
+    .first({ metaId: input.metaId, organizationId: input.organizationId })
+    .get();
+
+  if (!existing) {
+    const id = ulid().toLowerCase();
+    try {
+      // Keep the insert in a savepoint so a unique conflict does not abort an
+      // outer thread/message transaction before we re-read the winner.
+      await db.transaction(async ({ trx }) => {
+        await trx.author.insert({
+          id,
+          identityKey: externalAuthorIdentityKey(
+            input.organizationId,
+            input.metaId
+          ),
+          metaId: input.metaId,
+          name: input.name,
+          organizationId: input.organizationId,
+          userId: null,
+        });
+      });
+      return id;
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const raced = await db.author
+        .first({ metaId: input.metaId, organizationId: input.organizationId })
+        .get();
+      if (!raced) {
+        throw error;
+      }
+
+      return refreshAuthorName(db, raced, input.name);
+    }
+  }
+
+  return refreshAuthorName(db, existing, input.name);
 };
 
 /**
@@ -30,28 +115,28 @@ export const ensureExternalAuthor = async (
   db: ExternalAuthorDb,
   input: EnsureExternalAuthorInput
 ): Promise<string> => {
-  const existing = await db.author
-    .first({ metaId: input.metaId, organizationId: input.organizationId })
-    .get();
-
-  if (!existing) {
-    const id = ulid().toLowerCase();
-    await db.author.insert({
-      id,
-      metaId: input.metaId,
-      name: input.name,
-      organizationId: input.organizationId,
-      userId: null,
-    });
-    return id;
+  if (input.metaId.startsWith("widget:")) {
+    throw new Error("RESERVED_WIDGET_AUTHOR_META_ID");
   }
 
-  if (shouldRefreshExternalAuthorName(existing.name, input.name)) {
-    await db.author.update(existing.id, { name: input.name });
-  }
-
-  return existing.id;
+  return ensureAuthor(db, input);
 };
+
+/**
+ * Find-or-create the authenticated widget contact for `(organizationId, sub)`.
+ * The signed subject is the key; the browser-supplied display id is never used
+ * to select a contact. Widget subjects are stored in metaId because author.userId
+ * references FrontDesk's internal user table.
+ */
+export const ensureWidgetAuthor = async (
+  db: ExternalAuthorDb,
+  input: EnsureWidgetAuthorInput
+): Promise<string> =>
+  ensureAuthor(db, {
+    metaId: widgetAuthorMetaId(input.userId),
+    name: input.name,
+    organizationId: input.organizationId,
+  });
 
 const shouldRefreshExternalAuthorName = (
   current: string,

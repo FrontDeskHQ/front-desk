@@ -9,12 +9,16 @@ import {
 const ERROR_STATUS: Record<string, number> = {
   CONFLICTING_API_CREDENTIALS: 400,
   INVALID_API_CREDENTIAL: 401,
+  INVALID_WIDGET_IDENTITY_SETTINGS: 401,
+  INVALID_WIDGET_TOKEN: 401,
+  WIDGET_ORIGIN_NOT_ALLOWED: 401,
+  WIDGET_ORGANIZATION_MISMATCH: 401,
   UNAUTHORIZED: 401,
 };
 
 /**
- * Trade a long-lived API key for a one-time WebSocket token, so the key itself
- * never reaches a connection URL. See docs/adr/0016.
+ * Trade an HTTP credential for a one-time WebSocket token, so API keys and
+ * widget JWTs never reach a connection URL. See docs/adr/0016.
  */
 export const exchangeConnectionToken: RequestHandler = (req, res) => {
   void handleExchange(req, res);

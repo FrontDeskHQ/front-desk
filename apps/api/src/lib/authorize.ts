@@ -17,7 +17,8 @@ const getRoleLevel = (role: string): number | undefined => {
 export interface AuthorizationContext {
   internalApiKey?: unknown;
   privateApiKey?: { id: string; ownerId: string };
-  publicApiKey?: { ownerId: string };
+  publicApiKey?: { id?: string; ownerId: string };
+  widgetIdentity?: WidgetIdentity;
   orgUsers?: { organizationId: string; role: string }[];
   session?: { userId?: string } | null;
   user?: {
@@ -25,6 +26,14 @@ export interface AuthorizationContext {
     emailVerified?: boolean;
     name?: string;
   } | null;
+}
+
+/** Identity authenticated by a signed widget assertion. */
+export interface WidgetIdentity {
+  organizationId: string;
+  userId: string;
+  name: string;
+  email?: string;
 }
 
 /** Request-like shape that carries credential context (e.g. mutation/query `req`). */
@@ -195,6 +204,7 @@ export type ThreadCreateAuthFlow =
   | "integration"
   | "private"
   | "public"
+  | "widget"
   | "workspace";
 
 export const getWorkspaceUserId = (
@@ -262,6 +272,19 @@ export const authorizeThreadCreate = (
 
   if (!hasApiKey && input.hasIntegrationOnlyFields) {
     throw new Error("UNAUTHORIZED");
+  }
+
+  if (ctx.widgetIdentity) {
+    if (ctx.widgetIdentity.organizationId !== input.organizationId) {
+      throw new Error("UNAUTHORIZED");
+    }
+    if (input.inputUserId && input.inputUserId !== ctx.widgetIdentity.userId) {
+      throw new Error("UNAUTHORIZED");
+    }
+    if (input.hasIntegrationOnlyFields) {
+      throw new Error("UNAUTHORIZED");
+    }
+    return "widget";
   }
 
   if (hasWorkspaceSession && !hasApiKey) {
@@ -370,6 +393,12 @@ export const getAuthorizedOrganizationIds = (
     return null;
   }
 
+  if (ctx.widgetIdentity) {
+    // Widget identities use customer-scoped procedures for conversation access.
+    // Generic organization procedures must not treat them like workspace keys.
+    return [];
+  }
+
   if (ctx.publicApiKey) {
     return [ctx.publicApiKey.ownerId];
   }
@@ -395,6 +424,13 @@ export const isAuthorized = (
 
   if (!!ctx.internalApiKey && opts.allowInternalApiKey !== false) {
     return true;
+  }
+
+  if (ctx.widgetIdentity) {
+    return (
+      opts.role === undefined &&
+      ctx.widgetIdentity.organizationId === opts.organizationId
+    );
   }
 
   if (ctx.publicApiKey) {

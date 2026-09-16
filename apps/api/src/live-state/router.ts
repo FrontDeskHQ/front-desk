@@ -1,11 +1,16 @@
 // TODO refactor with new live-state mental model
 import { isCapability } from "@connectors/framework";
-import { router as createRouter } from "@live-state/sync/server";
+import {
+  createServerDB,
+  router as createRouter,
+} from "@live-state/sync/server";
+import type { ServerDB, SQLStorage } from "@live-state/sync/server";
 import { InviteUserEmail } from "@workspace/emails/transactional/org-invitation";
 import { earlyAccessRequestSchema } from "@workspace/schemas/early-access";
 import {
   defaultIssueTargetSchema,
   organizationSettingsSchema,
+  widgetOriginSchema,
 } from "@workspace/schemas/organization";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
@@ -45,6 +50,10 @@ import { organizationMemberUserIds } from "../lib/organization-membership";
 import { dodopayments } from "../lib/payment";
 import { resend } from "../lib/resend";
 import { notifyWaitlistSignup } from "../lib/waitlist-discord";
+import {
+  deriveWidgetSigningSecret,
+  readWidgetIdentitySettings,
+} from "../lib/widget-identity";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
 import { agentChatRoute } from "./router/agent-chat";
@@ -62,6 +71,7 @@ import { pipelineRoutes } from "./router/pipeline";
 import threadsRoute from "./router/threads";
 import updateRoute from "./router/update";
 import { schema } from "./schema";
+import { storage } from "./storage";
 
 const RESERVED_ORG_SLUGS: ReadonlySet<string> = new Set([
   "support",
@@ -88,6 +98,28 @@ const RESERVED_ORG_SLUGS: ReadonlySet<string> = new Set([
   "legal",
 ]);
 
+const asSettingsRecord = (settings: unknown): Record<string, unknown> =>
+  settings && typeof settings === "object" && !Array.isArray(settings)
+    ? (settings as Record<string, unknown>)
+    : {};
+
+const withLockedOrganizationSettings = async <T>(
+  organizationId: string,
+  handler: (db: ServerDB<typeof schema>) => Promise<T>
+): Promise<T> =>
+  storage.transaction(async ({ trx }) => {
+    await (
+      trx as unknown as { internalDB: SQLStorage["internalDB"] }
+    ).internalDB
+      .selectFrom("organization")
+      .select("id")
+      .where("id", "=", organizationId)
+      .forUpdate()
+      .executeTakeFirst();
+
+    return handler(createServerDB(trx, schema));
+  });
+
 export const router = createRouter({
   schema,
   routes: {
@@ -96,6 +128,137 @@ export const router = createRouter({
       byId: query(z.object({ id: z.string() })).handler(async ({ db, req }) =>
         db.organization.one(req.input.id).get()
       ),
+      widgetIdentitySettings: query(
+        z.object({ organizationId: z.string() })
+      ).handler(async ({ req, db }) => {
+        authorize(req, {
+          allowInternalApiKey: false,
+          organizationId: req.input.organizationId,
+          role: "owner",
+        });
+
+        const organization = await db.organization
+          .one(req.input.organizationId)
+          .get();
+        if (!organization) {
+          throw new Error("ORGANIZATION_NOT_FOUND");
+        }
+
+        return {
+          ...readWidgetIdentitySettings(organization.settings, {
+            fallbackToDefaults: true,
+          }),
+          configured:
+            asSettingsRecord(organization.settings).widgetIdentity !==
+            undefined,
+        };
+      }),
+      updateWidgetIdentity: mutation(
+        z.object({
+          allowedOrigins: z.array(widgetOriginSchema).max(100),
+          organizationId: z.string(),
+        })
+      ).handler(async ({ req }) => {
+        authorize(req, {
+          allowInternalApiKey: false,
+          organizationId: req.input.organizationId,
+          role: "owner",
+        });
+
+        return withLockedOrganizationSettings(
+          req.input.organizationId,
+          async (db) => {
+            const organization = await db.organization
+              .one(req.input.organizationId)
+              .get();
+            if (!organization) {
+              throw new Error("ORGANIZATION_NOT_FOUND");
+            }
+
+            const rawSettings = asSettingsRecord(organization.settings);
+            const existing = readWidgetIdentitySettings(organization.settings, {
+              fallbackToDefaults: true,
+            });
+            const widgetIdentity = {
+              ...existing,
+              allowedOrigins: req.input.allowedOrigins,
+            };
+
+            await db.organization.update(organization.id, {
+              settings: {
+                ...rawSettings,
+                widgetIdentity,
+              } as OrganizationSettings,
+            });
+
+            return widgetIdentity;
+          }
+        );
+      }),
+      rotateWidgetSigningSecret: mutation(
+        z.object({
+          allowedOrigins: z.array(widgetOriginSchema).max(100).optional(),
+          organizationId: z.string(),
+        })
+      ).handler(async ({ req }) => {
+        authorize(req, {
+          allowInternalApiKey: false,
+          organizationId: req.input.organizationId,
+          role: "owner",
+        });
+
+        const masterKey = process.env.FRONTDESK_WIDGET_SIGNING_MASTER_KEY;
+        if (!masterKey?.trim()) {
+          throw new Error("WIDGET_SIGNING_MASTER_KEY_REQUIRED");
+        }
+
+        return withLockedOrganizationSettings(
+          req.input.organizationId,
+          async (db) => {
+            const organization = await db.organization
+              .one(req.input.organizationId)
+              .get();
+            if (!organization) {
+              throw new Error("ORGANIZATION_NOT_FOUND");
+            }
+
+            const rawSettings = asSettingsRecord(organization.settings);
+            const existing = readWidgetIdentitySettings(organization.settings, {
+              fallbackToDefaults: true,
+            });
+            const hasExistingConfiguration =
+              rawSettings.widgetIdentity !== undefined;
+            const currentKeyVersion = hasExistingConfiguration
+              ? existing.currentKeyVersion
+              : 0;
+            const nextKeyVersion = currentKeyVersion + 1;
+            const widgetIdentity = {
+              allowedOrigins:
+                req.input.allowedOrigins ?? existing.allowedOrigins,
+              currentKeyVersion: nextKeyVersion,
+              previousKeyVersion:
+                currentKeyVersion > 0 ? currentKeyVersion : null,
+            };
+
+            await db.organization.update(organization.id, {
+              settings: {
+                ...rawSettings,
+                widgetIdentity,
+              } as OrganizationSettings,
+            });
+
+            return {
+              allowedOrigins: widgetIdentity.allowedOrigins,
+              secret: deriveWidgetSigningSecret({
+                masterKey,
+                organizationId: organization.id,
+                version: nextKeyVersion,
+              }),
+              version: nextKeyVersion,
+            };
+          }
+        );
+      }),
       /**
        * [Action availability](../../CONTEXT.md) for the org: what it is *able*
        * to do, as opposed to what it has permitted the Agent to do. The worker
@@ -453,7 +616,7 @@ export const router = createRouter({
             // defaults (timezone, digest, plan) and silently reset existing
             // settings — only the keys actually sent are merged.
             settings: organizationSettingsSchema
-              .omit({ capabilityPrimary: true })
+              .omit({ capabilityPrimary: true, widgetIdentity: true })
               .partial()
               .optional(),
           })
