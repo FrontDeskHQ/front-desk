@@ -74,26 +74,51 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
   /** Authenticated widget message stream for one of the caller's threads. */
   forThread: query(z.object({ threadId: z.string() })).handler(
     async ({ req, db }) => {
-      const thread = await db.thread
-        .one(req.input.threadId)
+      const context = req.context ?? {};
+      const credentialOrganizationId =
+        context.widgetIdentity?.organizationId ??
+        context.publicApiKey?.ownerId ??
+        context.privateApiKey?.ownerId;
+      const organizationIds = context.internalApiKey
+        ? null
+        : credentialOrganizationId
+          ? [credentialOrganizationId]
+          : [
+              ...new Set(
+                context.orgUsers?.map(
+                  (orgUser: { organizationId: string }) =>
+                    orgUser.organizationId
+                ) ?? []
+              ),
+            ];
+
+      const threads = await db.thread
+        .where({
+          id: req.input.threadId,
+          ...(organizationIds === null
+            ? {}
+            : { organizationId: { $in: organizationIds } }),
+          ...(context.widgetIdentity ? { deletedAt: null } : {}),
+        })
         .include({ author: true })
         .get();
+      const thread = threads[0];
 
       if (!thread) {
-        if (req.context?.widgetIdentity) {
+        if (context.widgetIdentity) {
           throw new Error("UNAUTHORIZED");
         }
         throw new Error("THREAD_NOT_FOUND");
       }
 
-      if (req.context?.widgetIdentity) {
+      if (context.widgetIdentity) {
         authorize(req, {
-          organizationId: req.context.widgetIdentity.organizationId,
+          organizationId: context.widgetIdentity.organizationId,
         });
         if (
-          thread.organizationId !== req.context.widgetIdentity.organizationId ||
+          thread.organizationId !== context.widgetIdentity.organizationId ||
           thread.author?.metaId !==
-            widgetAuthorMetaId(req.context.widgetIdentity.userId)
+            widgetAuthorMetaId(context.widgetIdentity.userId)
         ) {
           throw new Error("UNAUTHORIZED");
         }

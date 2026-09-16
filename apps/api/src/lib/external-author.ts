@@ -27,16 +27,7 @@ export interface EnsureWidgetAuthorInput {
 export const widgetAuthorMetaId = (userId: string): string =>
   `widget:${userId}`;
 
-/**
- * Find-or-create the connector-relayed author for `(organizationId, metaId)`,
- * and refresh `name` when the provider sent a new one.
- *
- * Connector identities are keyed by the provider's stable user id (`metaId`),
- * not by display name — a Slack/Discord rename is the same author with a new
- * name, not a new author. Failed lookups that come through as `Unknown` do
- * not erase a name we already have.
- */
-export const ensureExternalAuthor = async (
+const ensureAuthor = async (
   db: ExternalAuthorDb,
   input: EnsureExternalAuthorInput
 ): Promise<string> => {
@@ -64,6 +55,26 @@ export const ensureExternalAuthor = async (
 };
 
 /**
+ * Find-or-create the connector-relayed author for `(organizationId, metaId)`,
+ * and refresh `name` when the provider sent a new one.
+ *
+ * Connector identities are keyed by the provider's stable user id (`metaId`),
+ * not by display name — a Slack/Discord rename is the same author with a new
+ * name, not a new author. Failed lookups that come through as `Unknown` do
+ * not erase a name we already have.
+ */
+export const ensureExternalAuthor = async (
+  db: ExternalAuthorDb,
+  input: EnsureExternalAuthorInput
+): Promise<string> => {
+  if (input.metaId.startsWith("widget:")) {
+    throw new Error("RESERVED_WIDGET_AUTHOR_META_ID");
+  }
+
+  return ensureAuthor(db, input);
+};
+
+/**
  * Find-or-create the authenticated widget contact for `(organizationId, sub)`.
  * The signed subject is the key; the browser-supplied display id is never used
  * to select a contact. Widget subjects are stored in metaId because author.userId
@@ -72,32 +83,12 @@ export const ensureExternalAuthor = async (
 export const ensureWidgetAuthor = async (
   db: ExternalAuthorDb,
   input: EnsureWidgetAuthorInput
-): Promise<string> => {
-  const existing = await db.author
-    .first({
-      metaId: widgetAuthorMetaId(input.userId),
-      organizationId: input.organizationId,
-    })
-    .get();
-
-  if (!existing) {
-    const id = ulid().toLowerCase();
-    await db.author.insert({
-      id,
-      metaId: widgetAuthorMetaId(input.userId),
-      name: input.name,
-      organizationId: input.organizationId,
-      userId: null,
-    });
-    return id;
-  }
-
-  if (shouldRefreshExternalAuthorName(existing.name, input.name)) {
-    await db.author.update(existing.id, { name: input.name });
-  }
-
-  return existing.id;
-};
+): Promise<string> =>
+  ensureAuthor(db, {
+    metaId: widgetAuthorMetaId(input.userId),
+    name: input.name,
+    organizationId: input.organizationId,
+  });
 
 const shouldRefreshExternalAuthorName = (
   current: string,

@@ -17,7 +17,7 @@ const getRoleLevel = (role: string): number | undefined => {
 export interface AuthorizationContext {
   internalApiKey?: unknown;
   privateApiKey?: { id: string; ownerId: string };
-  publicApiKey?: { ownerId: string };
+  publicApiKey?: { id?: string; ownerId: string };
   widgetIdentity?: WidgetIdentity;
   orgUsers?: { organizationId: string; role: string }[];
   session?: { userId?: string } | null;
@@ -393,12 +393,14 @@ export const getAuthorizedOrganizationIds = (
     return null;
   }
 
-  if (ctx.publicApiKey) {
-    return [ctx.publicApiKey.ownerId];
+  if (ctx.widgetIdentity) {
+    // Widget identities use customer-scoped procedures for conversation access.
+    // Generic organization procedures must not treat them like workspace keys.
+    return [];
   }
 
-  if (ctx.widgetIdentity) {
-    return [ctx.widgetIdentity.organizationId];
+  if (ctx.publicApiKey) {
+    return [ctx.publicApiKey.ownerId];
   }
 
   if (ctx.privateApiKey) {
@@ -425,7 +427,10 @@ export const isAuthorized = (
   }
 
   if (ctx.widgetIdentity) {
-    return ctx.widgetIdentity.organizationId === opts.organizationId;
+    return (
+      opts.role === undefined &&
+      ctx.widgetIdentity.organizationId === opts.organizationId
+    );
   }
 
   if (ctx.publicApiKey) {

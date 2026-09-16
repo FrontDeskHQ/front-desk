@@ -11,9 +11,11 @@ const organizationId = "org-a";
 const metaId = "slack:U123";
 
 const mockDb = (existing: { id: string; name: string } | null) => {
-  const insert = vi.fn();
-  const update = vi.fn();
-  const first = vi.fn(() => ({
+  const insert = vi.fn<(row: unknown) => void>();
+  const update = vi.fn<(id: string, patch: { name: string }) => void>();
+  const first = vi.fn<
+    () => { get: () => Promise<{ id: string; name: string } | null> }
+  >(() => ({
     get: async () => existing,
   }));
   const db = {
@@ -91,6 +93,21 @@ describe(ensureExternalAuthor, () => {
 
     expect(update).not.toHaveBeenCalled();
   });
+
+  it("rejects the reserved widget namespace", async () => {
+    const { db, first, insert } = mockDb(null);
+
+    await expect(
+      ensureExternalAuthor(db, {
+        metaId: widgetAuthorMetaId("customer-1"),
+        name: "Ada Lovelace",
+        organizationId,
+      })
+    ).rejects.toThrow("RESERVED_WIDGET_AUTHOR_META_ID");
+
+    expect(first).not.toHaveBeenCalled();
+    expect(insert).not.toHaveBeenCalled();
+  });
 });
 
 describe(ensureWidgetAuthor, () => {
@@ -114,5 +131,54 @@ describe(ensureWidgetAuthor, () => {
       organizationId,
       userId: null,
     });
+  });
+
+  it("refreshes an existing widget author's name", async () => {
+    const { db, insert, update } = mockDb({
+      id: "author-1",
+      name: "Ada",
+    });
+
+    await expect(
+      ensureWidgetAuthor(db, {
+        name: "Ada Lovelace",
+        organizationId,
+        userId: "customer-1",
+      })
+    ).resolves.toBe("author-1");
+
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).toHaveBeenCalledWith("author-1", { name: "Ada Lovelace" });
+  });
+
+  it("leaves an unchanged widget author alone", async () => {
+    const { db, insert, update } = mockDb({
+      id: "author-1",
+      name: "Ada Lovelace",
+    });
+
+    await ensureWidgetAuthor(db, {
+      name: "Ada Lovelace",
+      organizationId,
+      userId: "customer-1",
+    });
+
+    expect(insert).not.toHaveBeenCalled();
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("does not overwrite a widget author's name with an unresolved lookup", async () => {
+    const { db, update } = mockDb({
+      id: "author-1",
+      name: "Ada Lovelace",
+    });
+
+    await ensureWidgetAuthor(db, {
+      name: UNRESOLVED_EXTERNAL_AUTHOR_NAME,
+      organizationId,
+      userId: "customer-1",
+    });
+
+    expect(update).not.toHaveBeenCalled();
   });
 });

@@ -40,20 +40,24 @@ export const isWidgetToken = (value: string): boolean =>
 export const readWidgetIdentitySettings = (
   settings: unknown
 ): WidgetIdentitySettings => {
+  const settingsRecord =
+    settings && typeof settings === "object" && !Array.isArray(settings)
+      ? (settings as Record<string, unknown>)
+      : undefined;
+
+  if (!settingsRecord || !Object.hasOwn(settingsRecord, "widgetIdentity")) {
+    return widgetIdentitySettingsSchema.parse({});
+  }
+
   const parsed = widgetIdentitySettingsSchema.safeParse(
-    settings &&
-      typeof settings === "object" &&
-      !Array.isArray(settings) &&
-      "widgetIdentity" in settings
-      ? (settings as { widgetIdentity?: unknown }).widgetIdentity
-      : undefined
+    settingsRecord.widgetIdentity
   );
 
   if (parsed.success) {
     return parsed.data;
   }
 
-  return widgetIdentitySettingsSchema.parse({});
+  throw new Error("INVALID_WIDGET_IDENTITY_SETTINGS");
 };
 
 export const deriveWidgetSigningSecret = (input: {
@@ -197,11 +201,17 @@ export const verifyWidgetToken = async (
         throw new Error("INVALID_WIDGET_TOKEN");
       }
 
-      const tokenOrganizationId = payload.org ?? payload.organizationId;
+      const tokenOrganizationIds = [payload.org, payload.organizationId].filter(
+        (value) => value !== undefined
+      );
+      const tokenOrganizationId = tokenOrganizationIds[0];
       if (
-        tokenOrganizationId !== undefined &&
-        (typeof tokenOrganizationId !== "string" ||
-          tokenOrganizationId !== options.organizationId)
+        tokenOrganizationIds.length === 0 ||
+        typeof tokenOrganizationId !== "string" ||
+        tokenOrganizationIds.some(
+          (value) =>
+            typeof value !== "string" || value !== options.organizationId
+        )
       ) {
         throw new Error("WIDGET_ORGANIZATION_MISMATCH");
       }
@@ -214,7 +224,7 @@ export const verifyWidgetToken = async (
       return {
         ...(email === undefined ? {} : { email }),
         name,
-        organizationId: options.organizationId,
+        organizationId: tokenOrganizationId,
         userId,
       };
     } catch (error) {

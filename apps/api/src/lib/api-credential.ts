@@ -68,7 +68,10 @@ export const resolveHttpApiCredential = async (
       throw new Error("INVALID_API_CREDENTIAL");
     }
 
-    const publicApiKey = { ownerId: record.metadata.ownerId };
+    const publicApiKey = {
+      id: record.id,
+      ownerId: record.metadata.ownerId,
+    };
     if (authorization !== undefined) {
       if (!bearer || !isWidgetToken(bearer)) {
         throw new Error("CONFLICTING_API_CREDENTIALS");
@@ -133,7 +136,9 @@ export const resolveWebSocketApiCredential = async (
     if (!record) {
       throw new Error("INVALID_API_CREDENTIAL");
     }
-    return { publicApiKey: { ownerId: record.metadata.ownerId } };
+    return {
+      publicApiKey: { id: record.id, ownerId: record.metadata.ownerId },
+    };
   }
 
   if (!queryParams.token) {
@@ -155,7 +160,13 @@ export const mintApiConnectionToken = async (
   }
 
   if (credential.widgetIdentity && credential.publicApiKey) {
+    const apiKeyId = credential.publicApiKey.id;
+    if (!apiKeyId) {
+      throw new Error("PUBLIC_API_KEY_ID_REQUIRED");
+    }
+
     return connectionTokens.mint({
+      apiKeyId,
       email: credential.widgetIdentity.email ?? null,
       name: credential.widgetIdentity.name,
       organizationId: credential.widgetIdentity.organizationId,
@@ -178,15 +189,26 @@ export const mintApiConnectionToken = async (
 export const resolveConnectionPrincipal = async (
   principal: ConnectionPrincipal,
   findPrivateKey: (id: string) => Promise<ApiKeyRecord | null> = (id) =>
-    privateKeys.findById(id)
+    privateKeys.findById(id),
+  findPublicKey: (id: string) => Promise<ApiKeyRecord | null> = (id) =>
+    publicKeys.findById(id)
 ): Promise<ApiCredentialContext | null> => {
   if (principal.type === "internal") {
     return { internalApiKey: true };
   }
 
   if (principal.type === "widget") {
+    const record = await findPublicKey(principal.apiKeyId);
+    if (
+      !record ||
+      record.metadata.ownerId !== principal.organizationId ||
+      !isUsable(record)
+    ) {
+      return null;
+    }
+
     return {
-      publicApiKey: { ownerId: principal.organizationId },
+      publicApiKey: { id: record.id, ownerId: record.metadata.ownerId },
       widgetIdentity: {
         email: principal.email ?? undefined,
         name: principal.name,

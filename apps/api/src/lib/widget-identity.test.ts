@@ -1,7 +1,11 @@
 import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 
-import { isWidgetOriginAllowed, verifyWidgetToken } from "./widget-identity";
+import {
+  isWidgetOriginAllowed,
+  readWidgetIdentitySettings,
+  verifyWidgetToken,
+} from "./widget-identity";
 
 const secret = "widget-test-secret";
 const now = 1_700_000_000;
@@ -11,11 +15,16 @@ const makeToken = async (options: {
   exp?: number;
   name?: string;
   org?: string;
+  organizationId?: string;
+  secret?: string;
   sub?: string;
 }) =>
   new SignJWT({
     name: options.name ?? "Ada Lovelace",
     ...(options.org ? { org: options.org } : {}),
+    ...(options.organizationId
+      ? { organizationId: options.organizationId }
+      : {}),
   })
     .setProtectedHeader({ alg: options.alg ?? "HS256", typ: "JWT" })
     .setIssuer("frontdesk")
@@ -23,7 +32,7 @@ const makeToken = async (options: {
     .setIssuedAt(now)
     .setExpirationTime(options.exp ?? now + 600)
     .setSubject(options.sub ?? "user-1")
-    .sign(new TextEncoder().encode(secret));
+    .sign(new TextEncoder().encode(options.secret ?? secret));
 
 describe("widget identity verification", () => {
   it("accepts the current HS256 contract and returns signed identity fields", async () => {
@@ -72,6 +81,65 @@ describe("widget identity verification", () => {
         secrets: [secret],
       })
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+  });
+
+  it("requires every supplied organization claim to match", async () => {
+    const missingClaim = await makeToken({});
+    const conflictingClaims = await makeToken({
+      org: "org-a",
+      organizationId: "org-b",
+    });
+
+    await expect(
+      verifyWidgetToken(missingClaim, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        secrets: [secret],
+      })
+    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+    await expect(
+      verifyWidgetToken(conflictingClaims, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        secrets: [secret],
+      })
+    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+  });
+
+  it("accepts a previous signing secret and rethrows a current-key organization mismatch", async () => {
+    const currentSecret = "current-widget-secret";
+    const previousSecret = "previous-widget-secret";
+    const previousToken = await makeToken({
+      org: "org-a",
+      secret: previousSecret,
+    });
+    const mismatchedToken = await makeToken({
+      org: "org-b",
+      secret: currentSecret,
+    });
+
+    await expect(
+      verifyWidgetToken(previousToken, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        secrets: [currentSecret, previousSecret],
+      })
+    ).resolves.toMatchObject({ organizationId: "org-a" });
+    await expect(
+      verifyWidgetToken(mismatchedToken, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        secrets: [currentSecret, previousSecret],
+      })
+    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+  });
+
+  it("fails closed for a present but invalid settings object", () => {
+    expect(() =>
+      readWidgetIdentitySettings({
+        widgetIdentity: { allowedOrigins: ["app.example.com"] },
+      })
+    ).toThrow("INVALID_WIDGET_IDENTITY_SETTINGS");
   });
 
   it("matches configured origins exactly", () => {

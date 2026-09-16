@@ -10,6 +10,7 @@ export type ConnectionPrincipal =
   | { type: "internal" }
   | { apiKeyId: string; organizationId: string; type: "private" }
   | {
+      apiKeyId: string;
       email: string | null;
       name: string;
       organizationId: string;
@@ -92,6 +93,7 @@ export const createConnectionTokens = (
       ) {
         if (
           row.principalType !== "widget" ||
+          !row.apiKeyId ||
           !row.organizationId ||
           !row.userId ||
           !row.name
@@ -100,6 +102,7 @@ export const createConnectionTokens = (
         }
 
         return {
+          apiKeyId: row.apiKeyId,
           email: row.email,
           name: row.name,
           organizationId: row.organizationId,
@@ -124,7 +127,10 @@ export const createConnectionTokens = (
       const expiresAt = new Date(createdAt.getTime() + CONNECTION_TOKEN_TTL_MS);
 
       await store.insert({
-        apiKeyId: principal.type === "private" ? principal.apiKeyId : null,
+        apiKeyId:
+          principal.type === "private" || principal.type === "widget"
+            ? principal.apiKeyId
+            : null,
         consumedAt: null,
         createdAt,
         email: principal.type === "widget" ? principal.email : null,

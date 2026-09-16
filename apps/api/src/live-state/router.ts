@@ -6,6 +6,7 @@ import { earlyAccessRequestSchema } from "@workspace/schemas/early-access";
 import {
   defaultIssueTargetSchema,
   organizationSettingsSchema,
+  widgetOriginSchema,
 } from "@workspace/schemas/organization";
 import type { OrganizationSettings } from "@workspace/schemas/organization";
 import {
@@ -130,7 +131,7 @@ export const router = createRouter({
       }),
       updateWidgetIdentity: mutation(
         z.object({
-          allowedOrigins: z.array(z.string().trim().min(1)).max(100),
+          allowedOrigins: z.array(widgetOriginSchema).max(100),
           organizationId: z.string(),
         })
       ).handler(async ({ req, db }) => {
@@ -165,7 +166,7 @@ export const router = createRouter({
       }),
       rotateWidgetSigningSecret: mutation(
         z.object({
-          allowedOrigins: z.array(z.string().trim().min(1)).max(100).optional(),
+          allowedOrigins: z.array(widgetOriginSchema).max(100).optional(),
           organizationId: z.string(),
         })
       ).handler(async ({ req, db }) => {

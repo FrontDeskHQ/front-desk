@@ -316,6 +316,32 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       authorize(req, { organizationId });
     }
 
+    const widgetIdentity = req.context?.widgetIdentity;
+    if (widgetIdentity) {
+      authorize(req, { organizationId: widgetIdentity.organizationId });
+
+      if (onlyDeleted || deletedBefore !== undefined) {
+        throw new Error("UNAUTHORIZED");
+      }
+
+      const rows = await db.thread
+        .where({
+          ...(id === undefined ? {} : { id }),
+          ...(shortId === undefined ? {} : { shortId }),
+          author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
+          deletedAt: null,
+          organizationId: widgetIdentity.organizationId,
+        })
+        .include({
+          author: true,
+          labels: { include: { label: true } },
+          messages: { include: { author: true } },
+        })
+        .get();
+
+      return rows[0];
+    }
+
     const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
 
     const rows = await db.thread

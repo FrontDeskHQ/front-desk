@@ -50,7 +50,7 @@ import { Textarea } from "@workspace/ui/components/textarea";
 import { addDays, addYears, format } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { Plus, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -81,6 +81,10 @@ function RouteComponent() {
   const [widgetSecret, setWidgetSecret] = useState<string | null>(null);
   const [isSavingWidgetSettings, setIsSavingWidgetSettings] = useState(false);
   const [isRotatingWidgetSecret, setIsRotatingWidgetSecret] = useState(false);
+  const [dirtyWidgetOrganizationId, setDirtyWidgetOrganizationId] = useState<
+    string | null
+  >(null);
+  const hydratedWidgetOrganizationId = useRef<string | null>(null);
   const [expiresAt, setExpiresAt] = useState(() =>
     format(addYears(new Date(), 1), "yyyy-MM-dd")
   );
@@ -108,10 +112,21 @@ function RouteComponent() {
       },
       queryKey: ["organization", "widget-identity", currentOrg?.id],
     });
+  const currentOrgId = currentOrg?.id;
 
   useEffect(() => {
-    setAllowedOrigins(widgetIdentitySettings?.allowedOrigins.join("\n") ?? "");
-  }, [widgetIdentitySettings]);
+    if (!currentOrgId || !widgetIdentitySettings) return;
+    if (
+      hydratedWidgetOrganizationId.current === currentOrgId ||
+      dirtyWidgetOrganizationId === currentOrgId
+    ) {
+      return;
+    }
+
+    setAllowedOrigins(widgetIdentitySettings.allowedOrigins.join("\n"));
+    setDirtyWidgetOrganizationId(null);
+    hydratedWidgetOrganizationId.current = currentOrgId;
+  }, [currentOrgId, dirtyWidgetOrganizationId, widgetIdentitySettings]);
 
   const getAllowedOrigins = (): string[] =>
     Array.from(
@@ -124,7 +139,7 @@ function RouteComponent() {
     );
 
   const handleSaveWidgetSettings = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg || !widgetIdentitySettings) return;
 
     setIsSavingWidgetSettings(true);
     try {
@@ -135,6 +150,7 @@ function RouteComponent() {
       await queryClient.invalidateQueries({
         queryKey: ["organization", "widget-identity", currentOrg.id],
       });
+      setDirtyWidgetOrganizationId(null);
       toast.success("Widget identity settings saved");
     } catch (error) {
       toast.error(
@@ -148,7 +164,7 @@ function RouteComponent() {
   };
 
   const handleRotateWidgetSecret = async () => {
-    if (!currentOrg) return;
+    if (!currentOrg || !widgetIdentitySettings) return;
 
     setIsRotateDialogOpen(false);
     setIsRotatingWidgetSecret(true);
@@ -163,6 +179,7 @@ function RouteComponent() {
       await queryClient.invalidateQueries({
         queryKey: ["organization", "widget-identity", currentOrg.id],
       });
+      setDirtyWidgetOrganizationId(null);
     } catch (error) {
       toast.error(
         error instanceof Error
@@ -514,7 +531,10 @@ function RouteComponent() {
                   id="widget-allowed-origins"
                   placeholder="https://app.example.com"
                   value={allowedOrigins}
-                  onChange={(event) => setAllowedOrigins(event.target.value)}
+                  onChange={(event) => {
+                    setAllowedOrigins(event.target.value);
+                    setDirtyWidgetOrganizationId(currentOrg?.id ?? null);
+                  }}
                   rows={4}
                 />
                 <p className="text-muted-foreground text-xs">
@@ -526,7 +546,11 @@ function RouteComponent() {
                 <Button
                   variant="outline"
                   onClick={handleSaveWidgetSettings}
-                  disabled={isSavingWidgetSettings || isRotatingWidgetSecret}
+                  disabled={
+                    !widgetIdentitySettings ||
+                    isSavingWidgetSettings ||
+                    isRotatingWidgetSecret
+                  }
                 >
                   {isSavingWidgetSettings ? "Saving…" : "Save origins"}
                 </Button>
@@ -537,7 +561,9 @@ function RouteComponent() {
                   <AlertDialogTrigger asChild>
                     <Button
                       disabled={
-                        isSavingWidgetSettings || isRotatingWidgetSecret
+                        !widgetIdentitySettings ||
+                        isSavingWidgetSettings ||
+                        isRotatingWidgetSecret
                       }
                     >
                       {isRotatingWidgetSecret

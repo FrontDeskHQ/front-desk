@@ -78,6 +78,7 @@ describe("connection tokens", () => {
     });
 
     const minted = await service.mint({
+      apiKeyId: "public-a",
       email: "ada@example.com",
       name: "Ada Lovelace",
       organizationId: "org-a",
@@ -86,6 +87,7 @@ describe("connection tokens", () => {
     });
 
     await expect(service.consume(minted.token)).resolves.toStrictEqual({
+      apiKeyId: "public-a",
       email: "ada@example.com",
       name: "Ada Lovelace",
       organizationId: "org-a",
