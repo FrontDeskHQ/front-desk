@@ -1,0 +1,55 @@
+apps/api/src/live-state/router/threads.ts
+  s_d99c012a28e332::t_12b0d71ff0d657 319-344
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_d99c012a28e332::t_d468c550ee76c6 115,118,120-121,128
+  s_d99c012a28e332::t_b956a0e2ec2b72 53,84-87,119,122-127,142,153,167,182,534-537,549-553,564
+  s_d99c012a28e332::t_94446ebb41aea8 129,565-566
+apps/api/src/lib/external-author.test.ts
+  s_d99c012a28e332::t_f60b366daa44d6 96-110,135-182
+  s_d99c012a28e332::t_d468c550ee76c6 14-18
+apps/api/src/lib/authorize.test.ts
+  s_d99c012a28e332::t_d70a04965415da 8,240-267
+apps/api/src/lib/external-author.ts
+  s_d99c012a28e332::t_b434010138f9d2 30,57-76,86-91
+apps/api/src/lib/api-credential.test.ts
+  s_d99c012a28e332::t_08b07e3ac5b256 55-57
+  s_d99c012a28e332::t_6ca4ed9c91cb0a 111,158-195,220-222
+apps/api/src/lib/widget-identity.test.ts
+  s_d99c012a28e332::t_c143ddff25d88f 4-8,18-19,25-27,35,86-142
+apps/api/src/lib/api-credential.ts
+  s_d99c012a28e332::t_f62149e71aaf55 71-74,139-141,163-167,169,192-194,201-209,211
+apps/api/src/lib/connection-token.test.ts
+  s_d99c012a28e332::t_6ca4ed9c91cb0a 81,90
+packages/schemas/src/organization.ts
+  s_d99c012a28e332::t_61855f606c2770 55-56,62-64
+  s_d99c012a28e332::t_df297de53486d1 57-61,65-67,69
+apps/api/src/live-state/router/message.ts
+  s_d99c012a28e332::t_5be8cb9da9ffcc 77-87,92-94,96-102,108,114,116,119,121
+  s_d99c012a28e332::t_4a2550855b9b1a 88-91,95,105
+apps/api/src/lib/widget-identity.ts
+  s_d99c012a28e332::t_94446ebb41aea8 48,204-206
+  s_d99c012a28e332::t_c269959f7b164d 43-47,49-51,53,60,207,209-214,227
+apps/api/src/lib/authorize.ts
+  s_d99c012a28e332::t_85e946b462b0eb 396-399,402-403,430-433
+  s_d99c012a28e332::t_f62149e71aaf55 20
+apps/api/src/live-state/router.ts
+  s_d99c012a28e332::t_df297de53486d1 9,134,169
+apps/api/src/lib/connection-token.ts
+  s_d99c012a28e332::t_f62149e71aaf55 13,96,105,130-133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "224438240e18909d81cde2ed8568cdc992ec48b0",
+  "prompts": {},
+  "sessions": {
+    "s_d99c012a28e332": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a795-2ac2-74c2-bd38-f2c65384f807",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
