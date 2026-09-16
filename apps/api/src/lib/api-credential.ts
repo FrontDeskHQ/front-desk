@@ -3,19 +3,25 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import type { ApiKeyRecord } from "keypal";
 
 import { privateKeys, publicKeys } from "./api-key";
-import type { AuthorizationContext } from "./authorize";
+import type { AuthorizationContext, WidgetIdentity } from "./authorize";
 import { connectionTokens } from "./connection-token";
 import type { ConnectionPrincipal } from "./connection-token";
+import { isWidgetToken, resolveWidgetIdentity } from "./widget-identity";
 
 type ApiCredentialContext = Pick<
   AuthorizationContext,
-  "internalApiKey" | "privateApiKey" | "publicApiKey"
+  "internalApiKey" | "privateApiKey" | "publicApiKey" | "widgetIdentity"
 >;
 
-interface CredentialDependencies {
+export interface CredentialDependencies {
   internalKey?: string;
   verifyPrivate: (key: string) => Promise<ApiKeyRecord | null>;
   verifyPublic: (key: string) => Promise<ApiKeyRecord | null>;
+  verifyWidget?: (
+    token: string,
+    organizationId: string,
+    origin?: string
+  ) => Promise<WidgetIdentity | null>;
 }
 
 /** Name of the credential failure, for logging and HTTP status mapping. */
@@ -30,11 +36,19 @@ export const resolveHttpApiCredential = async (
   const internalKey = headers["x-discord-bot-key"];
   const publicKey = headers["x-public-api-key"];
   const authorization = headers.authorization;
+  const bearer = authorization
+    ? /^Bearer\s+(\S+)$/i.exec(authorization.trim())?.[1]
+    : undefined;
+  const isWidgetBearer =
+    internalKey === undefined &&
+    publicKey !== undefined &&
+    bearer !== undefined &&
+    isWidgetToken(bearer);
 
   const explicit = [internalKey, publicKey, authorization].filter(
     (value) => value !== undefined
   );
-  if (explicit.length > 1) {
+  if (explicit.length > 1 && !isWidgetBearer) {
     throw new Error("CONFLICTING_API_CREDENTIALS");
   }
 
@@ -53,12 +67,37 @@ export const resolveHttpApiCredential = async (
     if (!record) {
       throw new Error("INVALID_API_CREDENTIAL");
     }
-    return { publicApiKey: { ownerId: record.metadata.ownerId } };
+
+    const publicApiKey = {
+      id: record.id,
+      ownerId: record.metadata.ownerId,
+    };
+    if (authorization !== undefined) {
+      if (!bearer || !isWidgetToken(bearer)) {
+        throw new Error("CONFLICTING_API_CREDENTIALS");
+      }
+      const identity = await dependencies.verifyWidget?.(
+        bearer,
+        publicApiKey.ownerId,
+        headers.origin
+      );
+      if (!identity || identity.organizationId !== publicApiKey.ownerId) {
+        throw new Error("INVALID_API_CREDENTIAL");
+      }
+      return { publicApiKey, widgetIdentity: identity };
+    }
+
+    return { publicApiKey };
   }
 
   if (authorization !== undefined) {
-    const bearer = /^Bearer\s+(\S+)$/i.exec(authorization.trim())?.[1];
     if (!bearer) {
+      throw new Error("INVALID_API_CREDENTIAL");
+    }
+
+    // A JWT without the publishable key cannot identify an organization, so
+    // it is never treated as a private API key or accepted on its own.
+    if (isWidgetToken(bearer)) {
       throw new Error("INVALID_API_CREDENTIAL");
     }
 
@@ -66,7 +105,9 @@ export const resolveHttpApiCredential = async (
     if (!record) {
       throw new Error("INVALID_API_CREDENTIAL");
     }
-    return { privateApiKey: { id: record.id, ownerId: record.metadata.ownerId } };
+    return {
+      privateApiKey: { id: record.id, ownerId: record.metadata.ownerId },
+    };
   }
 
   return null;
@@ -95,7 +136,9 @@ export const resolveWebSocketApiCredential = async (
     if (!record) {
       throw new Error("INVALID_API_CREDENTIAL");
     }
-    return { publicApiKey: { ownerId: record.metadata.ownerId } };
+    return {
+      publicApiKey: { id: record.id, ownerId: record.metadata.ownerId },
+    };
   }
 
   if (!queryParams.token) {
@@ -116,6 +159,22 @@ export const mintApiConnectionToken = async (
     });
   }
 
+  if (credential.widgetIdentity && credential.publicApiKey) {
+    const apiKeyId = credential.publicApiKey.id;
+    if (!apiKeyId) {
+      throw new Error("PUBLIC_API_KEY_ID_REQUIRED");
+    }
+
+    return connectionTokens.mint({
+      apiKeyId,
+      email: credential.widgetIdentity.email ?? null,
+      name: credential.widgetIdentity.name,
+      organizationId: credential.widgetIdentity.organizationId,
+      type: "widget",
+      userId: credential.widgetIdentity.userId,
+    });
+  }
+
   if (credential.internalApiKey) {
     return connectionTokens.mint({ type: "internal" });
   }
@@ -130,10 +189,33 @@ export const mintApiConnectionToken = async (
 export const resolveConnectionPrincipal = async (
   principal: ConnectionPrincipal,
   findPrivateKey: (id: string) => Promise<ApiKeyRecord | null> = (id) =>
-    privateKeys.findById(id)
+    privateKeys.findById(id),
+  findPublicKey: (id: string) => Promise<ApiKeyRecord | null> = (id) =>
+    publicKeys.findById(id)
 ): Promise<ApiCredentialContext | null> => {
   if (principal.type === "internal") {
     return { internalApiKey: true };
+  }
+
+  if (principal.type === "widget") {
+    const record = await findPublicKey(principal.apiKeyId);
+    if (
+      !record ||
+      record.metadata.ownerId !== principal.organizationId ||
+      !isUsable(record)
+    ) {
+      return null;
+    }
+
+    return {
+      publicApiKey: { id: record.id, ownerId: record.metadata.ownerId },
+      widgetIdentity: {
+        email: principal.email ?? undefined,
+        name: principal.name,
+        organizationId: principal.organizationId,
+        userId: principal.userId,
+      },
+    };
   }
 
   const record = await findPrivateKey(principal.apiKeyId);
@@ -182,4 +264,10 @@ const defaultDependencies: CredentialDependencies = {
   internalKey: process.env.DISCORD_BOT_KEY,
   verifyPrivate: (key) => verifyKey(privateKeys, key),
   verifyPublic: (key) => verifyKey(publicKeys, key),
+  verifyWidget: (token, organizationId, origin) =>
+    resolveWidgetIdentity({
+      organizationId,
+      origin,
+      token,
+    }),
 };

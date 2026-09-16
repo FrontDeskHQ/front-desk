@@ -27,6 +27,14 @@ const dependencies = {
     key === "private-secret" ? record("private-a", "org-a") : null,
   verifyPublic: async (key: string) =>
     key === "public-secret" ? record("public-a", "org-a") : null,
+  verifyWidget: async (token: string, organizationId: string) =>
+    token === "header.payload.signature"
+      ? {
+          name: "Ada Lovelace",
+          organizationId,
+          userId: "user-1",
+        }
+      : null,
 };
 
 describe("HTTP API credential resolution", () => {
@@ -44,7 +52,9 @@ describe("HTTP API credential resolution", () => {
         { "x-public-api-key": "public-secret" },
         dependencies
       )
-    ).resolves.toStrictEqual({ publicApiKey: { ownerId: "org-a" } });
+    ).resolves.toStrictEqual({
+      publicApiKey: { id: "public-a", ownerId: "org-a" },
+    });
     await expect(
       resolveHttpApiCredential(
         { "x-discord-bot-key": "internal-secret" },
@@ -75,6 +85,36 @@ describe("HTTP API credential resolution", () => {
     await expect(
       resolveHttpApiCredential({ authorization: "Basic abc" }, dependencies)
     ).rejects.toThrow("INVALID_API_CREDENTIAL");
+    await expect(
+      resolveHttpApiCredential(
+        {
+          authorization: "Bearer header.payload.signature",
+          "x-discord-bot-key": "internal-secret",
+          "x-public-api-key": "public-secret",
+        },
+        dependencies
+      )
+    ).rejects.toThrow("CONFLICTING_API_CREDENTIALS");
+  });
+
+  it("accepts a public key plus a verified widget JWT", async () => {
+    await expect(
+      resolveHttpApiCredential(
+        {
+          authorization: "Bearer header.payload.signature",
+          origin: "https://app.example.com",
+          "x-public-api-key": "public-secret",
+        },
+        dependencies
+      )
+    ).resolves.toStrictEqual({
+      publicApiKey: { id: "public-a", ownerId: "org-a" },
+      widgetIdentity: {
+        name: "Ada Lovelace",
+        organizationId: "org-a",
+        userId: "user-1",
+      },
+    });
   });
 });
 
@@ -115,6 +155,44 @@ describe("connection principal reconstruction", () => {
       )
     ).resolves.toBeNull();
   });
+
+  it("rechecks the public key for widget connection principals", async () => {
+    const principal = {
+      apiKeyId: "public-a",
+      email: "ada@example.com",
+      name: "Ada Lovelace",
+      organizationId: "org-a",
+      type: "widget" as const,
+      userId: "user-1",
+    };
+
+    await expect(
+      resolveConnectionPrincipal(
+        principal,
+        async () => null,
+        async () => record("public-a", "org-a")
+      )
+    ).resolves.toStrictEqual({
+      publicApiKey: { id: "public-a", ownerId: "org-a" },
+      widgetIdentity: {
+        email: "ada@example.com",
+        name: "Ada Lovelace",
+        organizationId: "org-a",
+        userId: "user-1",
+      },
+    });
+
+    await expect(
+      resolveConnectionPrincipal(
+        principal,
+        async () => null,
+        async () =>
+          record("public-a", "org-a", {
+            revokedAt: "2026-01-01T00:00:00.000Z",
+          })
+      )
+    ).resolves.toBeNull();
+  });
 });
 
 describe("WebSocket API credential resolution", () => {
@@ -139,7 +217,9 @@ describe("WebSocket API credential resolution", () => {
         { publicApiKey: "public-secret" },
         { verifyPublic: dependencies.verifyPublic }
       )
-    ).resolves.toStrictEqual({ publicApiKey: { ownerId: "org-a" } });
+    ).resolves.toStrictEqual({
+      publicApiKey: { id: "public-a", ownerId: "org-a" },
+    });
     await expect(
       resolveWebSocketApiCredential({ discordBotKey: "internal-secret" })
     ).resolves.toBeNull();
