@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ensureExternalAuthor,
   ensureWidgetAuthor,
+  externalAuthorIdentityKey,
   widgetAuthorMetaId,
   UNRESOLVED_EXTERNAL_AUTHOR_NAME,
 } from "./external-author";
@@ -20,6 +21,11 @@ const mockDb = (existing: { id: string; name: string } | null) => {
   }));
   const db = {
     author: { first, insert, update },
+    transaction: async (
+      callback: (options: {
+        trx: Parameters<typeof ensureExternalAuthor>[0];
+      }) => Promise<unknown>
+    ) => callback({ trx: db as Parameters<typeof ensureExternalAuthor>[0] }),
   } as unknown as Parameters<typeof ensureExternalAuthor>[0];
   return { db, first, insert, update };
 };
@@ -37,6 +43,7 @@ describe(ensureExternalAuthor, () => {
     expect(id).toMatch(/^[0-9a-z]{26}$/);
     expect(insert).toHaveBeenCalledWith({
       id,
+      identityKey: externalAuthorIdentityKey(organizationId, metaId),
       metaId,
       name: "Ada Lovelace",
       organizationId,
@@ -126,6 +133,10 @@ describe(ensureWidgetAuthor, () => {
     });
     expect(insert).toHaveBeenCalledWith({
       id,
+      identityKey: externalAuthorIdentityKey(
+        organizationId,
+        widgetAuthorMetaId("customer-1")
+      ),
       metaId: widgetAuthorMetaId("customer-1"),
       name: "Ada Lovelace",
       organizationId,
@@ -180,5 +191,35 @@ describe(ensureWidgetAuthor, () => {
     });
 
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it("re-reads the winner after a unique identity conflict", async () => {
+    const insert = vi.fn<(row: unknown) => void>().mockRejectedValue({
+      code: "23505",
+    });
+    const first = vi
+      .fn<() => { get: () => Promise<{ id: string; name: string } | null> }>()
+      .mockReturnValueOnce({ get: async () => null })
+      .mockReturnValueOnce({
+        get: async () => ({ id: "author-2", name: "Ada Lovelace" }),
+      });
+    const update = vi.fn<(id: string, patch: { name: string }) => void>();
+    const db = {
+      author: { first, insert, update },
+      transaction: async (
+        callback: (options: {
+          trx: Parameters<typeof ensureWidgetAuthor>[0];
+        }) => Promise<unknown>
+      ) => callback({ trx: db as Parameters<typeof ensureWidgetAuthor>[0] }),
+    } as unknown as Parameters<typeof ensureWidgetAuthor>[0];
+
+    await expect(
+      ensureWidgetAuthor(db, {
+        name: "Ada Lovelace",
+        organizationId,
+        userId: "customer-1",
+      })
+    ).resolves.toBe("author-2");
+    expect(first).toHaveBeenCalledTimes(2);
   });
 });

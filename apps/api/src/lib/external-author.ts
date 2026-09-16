@@ -1,9 +1,11 @@
+import { createHash } from "node:crypto";
+
 import type { ServerDB } from "@live-state/sync/server";
 import { ulid } from "ulid";
 
 import type { schema } from "../live-state/schema";
 
-type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author">;
+type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author" | "transaction">;
 
 /**
  * Connectors send this when the provider lookup fails (Slack `users.info`,
@@ -27,6 +29,33 @@ export interface EnsureWidgetAuthorInput {
 export const widgetAuthorMetaId = (userId: string): string =>
   `widget:${userId}`;
 
+/** Stable, collision-free key for an external author within an organization. */
+export const externalAuthorIdentityKey = (
+  organizationId: string,
+  metaId: string
+): string =>
+  createHash("sha256")
+    .update(JSON.stringify([organizationId, metaId]))
+    .digest("hex");
+
+const isUniqueViolation = (error: unknown): boolean =>
+  typeof error === "object" &&
+  error !== null &&
+  "code" in error &&
+  (error as { code?: unknown }).code === "23505";
+
+const refreshAuthorName = async (
+  db: ExternalAuthorDb,
+  existing: { id: string; name: string },
+  incomingName: string
+): Promise<string> => {
+  if (shouldRefreshExternalAuthorName(existing.name, incomingName)) {
+    await db.author.update(existing.id, { name: incomingName });
+  }
+
+  return existing.id;
+};
+
 const ensureAuthor = async (
   db: ExternalAuthorDb,
   input: EnsureExternalAuthorInput
@@ -37,21 +66,40 @@ const ensureAuthor = async (
 
   if (!existing) {
     const id = ulid().toLowerCase();
-    await db.author.insert({
-      id,
-      metaId: input.metaId,
-      name: input.name,
-      organizationId: input.organizationId,
-      userId: null,
-    });
-    return id;
+    try {
+      // Keep the insert in a savepoint so a unique conflict does not abort an
+      // outer thread/message transaction before we re-read the winner.
+      await db.transaction(async ({ trx }) => {
+        await trx.author.insert({
+          id,
+          identityKey: externalAuthorIdentityKey(
+            input.organizationId,
+            input.metaId
+          ),
+          metaId: input.metaId,
+          name: input.name,
+          organizationId: input.organizationId,
+          userId: null,
+        });
+      });
+      return id;
+    } catch (error) {
+      if (!isUniqueViolation(error)) {
+        throw error;
+      }
+
+      const raced = await db.author
+        .first({ metaId: input.metaId, organizationId: input.organizationId })
+        .get();
+      if (!raced) {
+        throw error;
+      }
+
+      return refreshAuthorName(db, raced, input.name);
+    }
   }
 
-  if (shouldRefreshExternalAuthorName(existing.name, input.name)) {
-    await db.author.update(existing.id, { name: input.name });
-  }
-
-  return existing.id;
+  return refreshAuthorName(db, existing, input.name);
 };
 
 /**

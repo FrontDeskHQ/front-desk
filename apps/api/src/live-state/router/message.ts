@@ -92,6 +92,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
               ),
             ];
 
+      if (organizationIds !== null && organizationIds.length === 0) {
+        throw new Error("UNAUTHORIZED");
+      }
+
       const threads = await db.thread
         .where({
           id: req.input.threadId,

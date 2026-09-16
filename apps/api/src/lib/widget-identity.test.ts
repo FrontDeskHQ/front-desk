@@ -142,6 +142,19 @@ describe("widget identity verification", () => {
     ).toThrow("INVALID_WIDGET_IDENTITY_SETTINGS");
   });
 
+  it("can fall back to defaults for owner settings recovery", () => {
+    expect(
+      readWidgetIdentitySettings(
+        { widgetIdentity: { allowedOrigins: ["app.example.com"] } },
+        { fallbackToDefaults: true }
+      )
+    ).toStrictEqual({
+      allowedOrigins: [],
+      currentKeyVersion: 1,
+      previousKeyVersion: null,
+    });
+  });
+
   it("matches configured origins exactly", () => {
     expect(
       isWidgetOriginAllowed("https://app.example.com/path", [

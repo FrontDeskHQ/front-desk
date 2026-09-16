@@ -32,12 +32,17 @@ export interface WidgetIdentitySettings {
   previousKeyVersion: number | null;
 }
 
+export interface ReadWidgetIdentitySettingsOptions {
+  fallbackToDefaults?: boolean;
+}
+
 /** JWT-looking bearer values must not fall through to private-key auth. */
 export const isWidgetToken = (value: string): boolean =>
   value.split(".").length === 3;
 
 export const readWidgetIdentitySettings = (
-  settings: unknown
+  settings: unknown,
+  options: ReadWidgetIdentitySettingsOptions = {}
 ): WidgetIdentitySettings => {
   const settingsRecord =
     settings && typeof settings === "object" && !Array.isArray(settings)
@@ -54,6 +59,10 @@ export const readWidgetIdentitySettings = (
 
   if (parsed.success) {
     return parsed.data;
+  }
+
+  if (options.fallbackToDefaults) {
+    return widgetIdentitySettingsSchema.parse({});
   }
 
   throw new Error("INVALID_WIDGET_IDENTITY_SETTINGS");

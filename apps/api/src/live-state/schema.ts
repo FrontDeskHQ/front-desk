@@ -95,6 +95,9 @@ const message = object("message", {
 
 const author = object("author", {
   id: id(),
+  // Hash of the organization and external metaId pair for conflict-safe
+  // find-or-create operations. Nullable for legacy and human-authored rows.
+  identityKey: string().unique().index().nullable().default(null),
   name: string(),
   // TODO make this required after migration
   organizationId: reference("organization.id").nullable(),
