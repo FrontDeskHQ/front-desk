@@ -12,7 +12,6 @@ export const WIDGET_TOKEN_CLOCK_SKEW_SECONDS = 60;
 export const WIDGET_TOKEN_MAX_TTL_SECONDS = 15 * 60;
 
 const MASTER_KEY_ENVIRONMENT_VARIABLE = "FRONTDESK_WIDGET_SIGNING_MASTER_KEY";
-const DIRECT_KEY_ENVIRONMENT_VARIABLE = "FRONTDESK_SECRET_KEY";
 
 export interface WidgetIdentity {
   organizationId: string;
@@ -92,14 +91,7 @@ export const getWidgetSigningSecrets = (input: {
   organizationId: string;
   settings?: unknown;
   masterKey?: string;
-  directSecret?: string;
 }): string[] => {
-  const directSecret =
-    input.directSecret ?? process.env[DIRECT_KEY_ENVIRONMENT_VARIABLE];
-  if (directSecret?.trim()) {
-    return [directSecret];
-  }
-
   const masterKey =
     input.masterKey ?? process.env[MASTER_KEY_ENVIRONMENT_VARIABLE];
   if (!masterKey?.trim()) {
