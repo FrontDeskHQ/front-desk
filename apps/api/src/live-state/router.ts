@@ -53,6 +53,7 @@ import { notifyWaitlistSignup } from "../lib/waitlist-discord";
 import {
   deriveWidgetSigningSecret,
   readWidgetIdentitySettings,
+  rotateWidgetIdentitySettings,
 } from "../lib/widget-identity";
 import { sendWelcomeEmail } from "../trigger/send-welcome-email";
 import { privateRoute, publicRoute } from "./factories";
@@ -199,6 +200,7 @@ export const router = createRouter({
         z.object({
           allowedOrigins: z.array(widgetOriginSchema).max(100).optional(),
           organizationId: z.string(),
+          revokePreviousImmediately: z.boolean().optional(),
         })
       ).handler(async ({ req }) => {
         authorize(req, {
@@ -228,17 +230,13 @@ export const router = createRouter({
             });
             const hasExistingConfiguration =
               rawSettings.widgetIdentity !== undefined;
-            const currentKeyVersion = hasExistingConfiguration
-              ? existing.currentKeyVersion
-              : 0;
-            const nextKeyVersion = currentKeyVersion + 1;
-            const widgetIdentity = {
-              allowedOrigins:
-                req.input.allowedOrigins ?? existing.allowedOrigins,
-              currentKeyVersion: nextKeyVersion,
-              previousKeyVersion:
-                currentKeyVersion > 0 ? currentKeyVersion : null,
-            };
+            const widgetIdentity = rotateWidgetIdentitySettings({
+              allowedOrigins: req.input.allowedOrigins,
+              existing,
+              hasExistingConfiguration,
+              revokePreviousImmediately:
+                req.input.revokePreviousImmediately ?? false,
+            });
 
             await db.organization.update(organization.id, {
               settings: {
@@ -252,9 +250,9 @@ export const router = createRouter({
               secret: deriveWidgetSigningSecret({
                 masterKey,
                 organizationId: organization.id,
-                version: nextKeyVersion,
+                version: widgetIdentity.currentKeyVersion,
               }),
-              version: nextKeyVersion,
+              version: widgetIdentity.currentKeyVersion,
             };
           }
         );

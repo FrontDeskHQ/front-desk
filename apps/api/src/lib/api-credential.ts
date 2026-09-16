@@ -6,7 +6,11 @@ import { privateKeys, publicKeys } from "./api-key";
 import type { AuthorizationContext, WidgetIdentity } from "./authorize";
 import { connectionTokens } from "./connection-token";
 import type { ConnectionPrincipal } from "./connection-token";
-import { isWidgetToken, resolveWidgetIdentity } from "./widget-identity";
+import {
+  isWidgetIdentityActive,
+  isWidgetToken,
+  resolveWidgetIdentity,
+} from "./widget-identity";
 
 type ApiCredentialContext = Pick<
   AuthorizationContext,
@@ -172,6 +176,7 @@ export const mintApiConnectionToken = async (
       organizationId: credential.widgetIdentity.organizationId,
       type: "widget",
       userId: credential.widgetIdentity.userId,
+      widgetKeyVersion: credential.widgetIdentity.keyVersion,
     });
   }
 
@@ -191,7 +196,10 @@ export const resolveConnectionPrincipal = async (
   findPrivateKey: (id: string) => Promise<ApiKeyRecord | null> = (id) =>
     privateKeys.findById(id),
   findPublicKey: (id: string) => Promise<ApiKeyRecord | null> = (id) =>
-    publicKeys.findById(id)
+    publicKeys.findById(id),
+  widgetIdentityIsActive: (
+    identity: Pick<WidgetIdentity, "keyVersion" | "organizationId">
+  ) => Promise<boolean> = isWidgetIdentityActive
 ): Promise<ApiCredentialContext | null> => {
   if (principal.type === "internal") {
     return { internalApiKey: true };
@@ -202,7 +210,11 @@ export const resolveConnectionPrincipal = async (
     if (
       !record ||
       record.metadata.ownerId !== principal.organizationId ||
-      !isUsable(record)
+      !isUsable(record) ||
+      !(await widgetIdentityIsActive({
+        keyVersion: principal.widgetKeyVersion,
+        organizationId: principal.organizationId,
+      }))
     ) {
       return null;
     }
@@ -211,6 +223,7 @@ export const resolveConnectionPrincipal = async (
       publicApiKey: { id: record.id, ownerId: record.metadata.ownerId },
       widgetIdentity: {
         email: principal.email ?? undefined,
+        keyVersion: principal.widgetKeyVersion,
         name: principal.name,
         organizationId: principal.organizationId,
         userId: principal.userId,

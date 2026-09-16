@@ -4,14 +4,29 @@ import {
   isOutbound,
 } from "@workspace/schemas/message-roles";
 
+import {
+  syncCustomerAuthor,
+  syncCustomerMessage,
+  syncCustomerThread,
+} from "../lib/customer-response";
 import { areWorkerJobsEnabled } from "../lib/feature-flag";
 import { isOrganizationMember } from "../lib/organization-membership";
 import { enqueueThreadRead } from "../lib/queue";
 import { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
+  author: {
+    afterUpdate: async ({ db, value }) => {
+      const existing = await db.findOne(schema.customerAuthor, value.id);
+      if (existing) {
+        await syncCustomerAuthor(db, value.id);
+      }
+    },
+  },
   message: {
-    afterInsert: ({ db, value }) => {
+    afterInsert: async ({ db, value }) => {
+      await syncCustomerMessage(db, value.id);
+
       (async () => {
         try {
           // A message FrontDesk itself composed enqueues nothing at all: it
@@ -99,6 +114,17 @@ export const liveStateHooks = defineHooks<typeof schema>({
           );
         }
       })();
+    },
+    afterUpdate: async ({ db, value }) => {
+      await syncCustomerMessage(db, value.id);
+    },
+  },
+  thread: {
+    afterInsert: async ({ db, value }) => {
+      await syncCustomerThread(db, value.id);
+    },
+    afterUpdate: async ({ db, value }) => {
+      await syncCustomerThread(db, value.id);
     },
   },
 });

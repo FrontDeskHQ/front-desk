@@ -10,10 +10,12 @@ export const WIDGET_TOKEN_AUDIENCE = "frontdesk-widget";
 export const WIDGET_TOKEN_ISSUER = "frontdesk";
 export const WIDGET_TOKEN_CLOCK_SKEW_SECONDS = 60;
 export const WIDGET_TOKEN_MAX_TTL_SECONDS = 15 * 60;
+export const WIDGET_PREVIOUS_KEY_GRACE_MS = 15 * 60 * 1000;
 
 const MASTER_KEY_ENVIRONMENT_VARIABLE = "FRONTDESK_WIDGET_SIGNING_MASTER_KEY";
 
 export interface WidgetIdentity {
+  keyVersion: number;
   organizationId: string;
   userId: string;
   name: string;
@@ -22,13 +24,20 @@ export interface WidgetIdentity {
 
 export interface VerifyWidgetTokenOptions {
   organizationId: string;
-  secrets: readonly string[];
+  keys: readonly WidgetSigningKey[];
   now?: () => number;
+}
+
+export interface WidgetSigningKey {
+  expiresAt: string | null;
+  secret: string;
+  version: number;
 }
 
 export interface WidgetIdentitySettings {
   allowedOrigins: string[];
   currentKeyVersion: number;
+  previousKeyExpiresAt: string | null;
   previousKeyVersion: number | null;
 }
 
@@ -96,11 +105,11 @@ export const deriveWidgetSigningSecret = (input: {
   return `fd_wsk_${Buffer.from(derived).toString("base64url")}`;
 };
 
-export const getWidgetSigningSecrets = (input: {
+export const getWidgetSigningKeys = (input: {
   organizationId: string;
   settings?: unknown;
   masterKey?: string;
-}): string[] => {
+}): WidgetSigningKey[] => {
   const masterKey =
     input.masterKey ?? process.env[MASTER_KEY_ENVIRONMENT_VARIABLE];
   if (!masterKey?.trim()) {
@@ -108,18 +117,84 @@ export const getWidgetSigningSecrets = (input: {
   }
 
   const settings = readWidgetIdentitySettings(input.settings);
-  const versions = [
-    settings.currentKeyVersion,
-    settings.previousKeyVersion,
-  ].filter((version): version is number => version !== null);
+  const keys: WidgetSigningKey[] = [
+    {
+      expiresAt: null,
+      version: settings.currentKeyVersion,
+      secret: deriveWidgetSigningSecret({
+        masterKey,
+        organizationId: input.organizationId,
+        version: settings.currentKeyVersion,
+      }),
+    },
+  ];
 
-  return [...new Set(versions)].map((version) =>
-    deriveWidgetSigningSecret({
-      masterKey,
-      organizationId: input.organizationId,
-      version,
-    })
+  if (
+    settings.previousKeyVersion !== null &&
+    settings.previousKeyExpiresAt !== null
+  ) {
+    keys.push({
+      expiresAt: settings.previousKeyExpiresAt,
+      version: settings.previousKeyVersion,
+      secret: deriveWidgetSigningSecret({
+        masterKey,
+        organizationId: input.organizationId,
+        version: settings.previousKeyVersion,
+      }),
+    });
+  }
+
+  return keys;
+};
+
+export const isWidgetKeyVersionActive = (
+  settings: WidgetIdentitySettings,
+  keyVersion: number,
+  now = Date.now()
+): boolean => {
+  if (keyVersion === settings.currentKeyVersion) {
+    return true;
+  }
+
+  if (
+    keyVersion !== settings.previousKeyVersion ||
+    !settings.previousKeyExpiresAt
+  ) {
+    return false;
+  }
+
+  const expiresAt = new Date(settings.previousKeyExpiresAt).getTime();
+  return (
+    Number.isFinite(expiresAt) &&
+    now <= expiresAt + WIDGET_TOKEN_CLOCK_SKEW_SECONDS * 1000
   );
+};
+
+export const rotateWidgetIdentitySettings = (input: {
+  allowedOrigins?: string[];
+  existing: WidgetIdentitySettings;
+  hasExistingConfiguration: boolean;
+  now?: number;
+  revokePreviousImmediately: boolean;
+}): WidgetIdentitySettings => {
+  const currentKeyVersion = input.hasExistingConfiguration
+    ? input.existing.currentKeyVersion
+    : 0;
+
+  return {
+    allowedOrigins: input.allowedOrigins ?? input.existing.allowedOrigins,
+    currentKeyVersion: currentKeyVersion + 1,
+    previousKeyExpiresAt:
+      currentKeyVersion > 0 && !input.revokePreviousImmediately
+        ? new Date(
+            (input.now ?? Date.now()) + WIDGET_PREVIOUS_KEY_GRACE_MS
+          ).toISOString()
+        : null,
+    previousKeyVersion:
+      currentKeyVersion > 0 && !input.revokePreviousImmediately
+        ? currentKeyVersion
+        : null,
+  };
 };
 
 export const isWidgetOriginAllowed = (
@@ -148,18 +223,27 @@ export const verifyWidgetToken = async (
   token: string,
   options: VerifyWidgetTokenOptions
 ): Promise<WidgetIdentity> => {
-  if (!isWidgetToken(token) || options.secrets.length === 0) {
+  if (!isWidgetToken(token) || options.keys.length === 0) {
     throw new Error("INVALID_WIDGET_TOKEN");
   }
 
   const now = options.now ?? (() => Date.now());
   const nowSeconds = Math.floor(now() / 1000);
 
-  for (const secret of options.secrets) {
+  for (const key of options.keys) {
+    if (
+      key.expiresAt !== null &&
+      now() >
+        new Date(key.expiresAt).getTime() +
+          WIDGET_TOKEN_CLOCK_SKEW_SECONDS * 1000
+    ) {
+      continue;
+    }
+
     try {
       const { payload } = await jwtVerify(
         token,
-        new TextEncoder().encode(secret),
+        new TextEncoder().encode(key.secret),
         {
           algorithms: ["HS256"],
           audience: WIDGET_TOKEN_AUDIENCE,
@@ -224,6 +308,7 @@ export const verifyWidgetToken = async (
 
       return {
         ...(email === undefined ? {} : { email }),
+        keyVersion: key.version,
         name,
         organizationId: tokenOrganizationId,
         userId,
@@ -263,14 +348,31 @@ export const resolveWidgetIdentity = async (input: {
     throw new Error("WIDGET_ORIGIN_NOT_ALLOWED");
   }
 
-  const secrets = getWidgetSigningSecrets({
+  const keys = getWidgetSigningKeys({
     organizationId: input.organizationId,
     settings: organization.settings,
   });
   return verifyWidgetToken(input.token, {
     organizationId: input.organizationId,
-    secrets,
+    keys,
   });
+};
+
+export const isWidgetIdentityActive = async (
+  identity: Pick<WidgetIdentity, "keyVersion" | "organizationId">,
+  now = Date.now()
+): Promise<boolean> => {
+  const organization = Object.values(
+    await storage.find(schema.organization, {
+      where: { id: identity.organizationId },
+    })
+  )[0];
+  if (!organization) {
+    return false;
+  }
+
+  const settings = readWidgetIdentitySettings(organization.settings);
+  return isWidgetKeyVersionActive(settings, identity.keyVersion, now);
 };
 
 const normalizeOrigin = (origin: string): string => {

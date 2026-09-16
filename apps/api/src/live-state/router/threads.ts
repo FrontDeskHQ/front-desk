@@ -8,10 +8,12 @@ import {
   authorize,
   authorizeDeveloperAction,
   authorizeThreadCreate,
+  authorizeWidgetCustomer,
   getAuthorizedOrganizationIds,
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
+import { toCustomerThread } from "../../lib/customer-response";
 import {
   ensureExternalAuthor,
   ensureWidgetAuthor,
@@ -115,20 +117,23 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         throw new Error("UNAUTHORIZED");
       }
 
-      authorize(req, {
-        allowPublicApiKey: true,
+      authorizeWidgetCustomer(req, {
         organizationId: widgetIdentity.organizationId,
+        userId: req.input.customerId,
       });
 
-      const threadQuery = db.thread.where({
-        author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
+      const threadQuery = db.customerThread.where({
+        customerId: widgetIdentity.userId,
         deletedAt: null,
         organizationId: widgetIdentity.organizationId,
       });
 
       return req.input.includeMessages
         ? threadQuery
-            .include({ messages: { include: { author: true } } })
+            .include({
+              author: true,
+              messages: { include: { author: true } },
+            })
             .orderBy("createdAt", "desc")
         : threadQuery.orderBy("createdAt", "desc");
     }
@@ -275,7 +280,11 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       })
     )[0];
 
-    return thread;
+    return createFlow === "widget" && thread
+      ? (toCustomerThread(
+          thread as unknown as Record<string, unknown>
+        ) as unknown as typeof thread)
+      : thread;
   }),
   /**
    * Single thread with its full relation tree for the workspace archive and
@@ -318,28 +327,31 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     const widgetIdentity = req.context?.widgetIdentity;
     if (widgetIdentity) {
-      authorize(req, { organizationId: widgetIdentity.organizationId });
+      authorizeWidgetCustomer(req, {
+        organizationId: widgetIdentity.organizationId,
+      });
 
-      if (onlyDeleted || deletedBefore !== undefined) {
+      if (shortId !== undefined || onlyDeleted || deletedBefore !== undefined) {
         throw new Error("UNAUTHORIZED");
       }
 
-      const rows = await db.thread
-        .where({
+      const customerThread = await db.customerThread
+        .first({
           ...(id === undefined ? {} : { id }),
-          ...(shortId === undefined ? {} : { shortId }),
-          author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
+          customerId: widgetIdentity.userId,
           deletedAt: null,
           organizationId: widgetIdentity.organizationId,
         })
         .include({
           author: true,
-          labels: { include: { label: true } },
           messages: { include: { author: true } },
         })
         .get();
 
-      return rows[0];
+      // The caller's credential selects the runtime response shape. Keep the
+      // established internal detail type for workspace code while the widget
+      // receives the narrower customer model.
+      return customerThread as never;
     }
 
     const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
@@ -396,6 +408,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       externalOrigin: z.string().optional(),
     })
   ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+
     const { externalId, organizationId, externalOrigin } = req.input;
     return Object.values(
       await db.find(schema.thread, {
@@ -414,6 +428,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
    */
   byIds: query(z.object({ ids: z.array(z.string()) })).handler(
     async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+
       if (req.input.ids.length === 0) {
         return [];
       }

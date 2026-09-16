@@ -109,6 +109,36 @@ const author = object("author", {
   userId: reference("user.id").nullable(),
 });
 
+// Widget queries use dedicated models because Live-State subscriptions send
+// every field declared on a model. These tables contain only customer-safe
+// fields, so both initial query results and later deltas share the same
+// allowlist without changing the internal thread, message, or author shapes.
+const customerAuthor = object("customerAuthor", {
+  id: id(),
+  name: string(),
+});
+
+const customerThread = object("customerThread", {
+  authorId: reference("customerAuthor.id"),
+  createdAt: timestamp(),
+  customerId: string().index(),
+  deletedAt: timestamp().nullable(),
+  id: id(),
+  name: string(),
+  organizationId: string().index(),
+  status: number().default(0),
+});
+
+const customerMessage = object("customerMessage", {
+  authorId: reference("customerAuthor.id"),
+  content: string(),
+  createdAt: timestamp(),
+  id: id(),
+  markedAsAnswer: boolean().default(false),
+  origin: string().nullable(),
+  threadId: reference("customerThread.id").index(),
+});
+
 const user = object("user", {
   createdAt: timestamp(),
   email: string(),
@@ -306,6 +336,22 @@ const messageRelations = createRelations(message, ({ one }) => ({
 const authorRelations = createRelations(author, ({ one }) => ({
   user: one(user, "userId", false),
 }));
+
+const customerThreadRelations = createRelations(
+  customerThread,
+  ({ one, many }) => ({
+    author: one(customerAuthor, "authorId"),
+    messages: many(customerMessage, "threadId"),
+  })
+);
+
+const customerMessageRelations = createRelations(
+  customerMessage,
+  ({ one }) => ({
+    author: one(customerAuthor, "authorId"),
+    thread: one(customerThread, "threadId"),
+  })
+);
 
 const inviteRelations = createRelations(invite, ({ one }) => ({
   creator: one(user, "creatorId"),
@@ -510,6 +556,7 @@ const connectionToken = object("connectionToken", {
   principalType: string(),
   tokenHash: string().unique().index(),
   userId: string().nullable(),
+  widgetKeyVersion: number().nullable(),
 });
 
 export const schema = createSchema({
@@ -517,6 +564,9 @@ export const schema = createSchema({
   organization,
   subscription,
   author,
+  customerAuthor,
+  customerThread,
+  customerMessage,
   organizationUser,
   thread,
   message,
@@ -547,6 +597,8 @@ export const schema = createSchema({
   threadRelations,
   messageRelations,
   authorRelations,
+  customerThreadRelations,
+  customerMessageRelations,
   inviteRelations,
   integrationRelations,
   subscriptionRelations,

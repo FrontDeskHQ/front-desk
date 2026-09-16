@@ -84,6 +84,7 @@ describe("connection tokens", () => {
       organizationId: "org-a",
       type: "widget",
       userId: "customer-1",
+      widgetKeyVersion: 2,
     });
 
     await expect(service.consume(minted.token)).resolves.toStrictEqual({
@@ -93,6 +94,7 @@ describe("connection tokens", () => {
       organizationId: "org-a",
       type: "widget",
       userId: "customer-1",
+      widgetKeyVersion: 2,
     });
   });
 });
