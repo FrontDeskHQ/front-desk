@@ -1,0 +1,40 @@
+apps/api/src/live-state/router.ts
+  s_b88ac7017aff98::t_33e233dafc4040 203,215-223,225,229-241,243-260
+  s_b88ac7017aff98::t_607c0cf5494310 161,168-176,178,182-185,187-192,194-196
+  s_b88ac7017aff98::t_034c794c7d0ef8 148-150
+  s_b88ac7017aff98::t_ec3053abfbaccd 111-114,179-181,226-228
+  s_b88ac7017aff98::t_498ae486d029c9 3-7,74,106-110,115-121
+apps/api/src/lib/widget-identity.ts
+  s_b88ac7017aff98::t_c699a4d7b51e08 35-38,44-45,64-65
+apps/api/src/lib/external-author.ts
+  s_b88ac7017aff98::t_8d11747673c2b8 1-2,32-58,69-96,98-99,102
+  s_b88ac7017aff98::t_ec3053abfbaccd 8
+apps/api/src/lib/external-author.test.ts
+  s_b88ac7017aff98::t_c8533e56c6a4e1 6,24-28,46,136-139,195-200,202-223
+  s_b88ac7017aff98::t_ec3053abfbaccd 201
+apps/api/src/live-state/router/message.ts
+  s_b88ac7017aff98::t_1373d2e1bb469c 95-98
+apps/api/src/routes/connection-token.ts
+  s_b88ac7017aff98::t_b7ef76f0128eb8 12
+apps/api/src/live-state/schema.ts
+  s_b88ac7017aff98::t_cda5eaaaf408e8 98-99
+  s_b88ac7017aff98::t_0c070372dfa9d6 100
+apps/api/src/lib/widget-identity.test.ts
+  s_b88ac7017aff98::t_8e3d6c22831729 145-157
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a86bedb36b798ed32d2a022230304f9a4877fd82",
+  "prompts": {},
+  "sessions": {
+    "s_b88ac7017aff98": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a7c4-ceec-7361-afc8-079107cff8c5",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
