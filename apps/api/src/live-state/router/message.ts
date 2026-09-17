@@ -51,8 +51,8 @@ const setExternalMessageIdInputSchema = z.object({
 
 export default publicRoute.withProcedures(({ mutation, query }) => ({
   /**
-   * Existence/lookup of a message by its external (platform) id — dedupe
-   * checks in the integration bots. Public: mirrors the old open read.
+   * Internal lookup of a message by its external platform id for connector
+   * deduplication.
    */
   byExternalId: query(
     z.object({
@@ -95,7 +95,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         }
 
         return db.customerMessage
-          .where({ threadId: thread.id })
+          .where({ deletedAt: null, threadId: thread.id })
           .include({ author: true })
           .orderBy("createdAt", "asc");
       }

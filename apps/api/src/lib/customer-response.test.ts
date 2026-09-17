@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
+import type { Storage } from "@live-state/sync/server";
+import { describe, expect, it, vi } from "vitest";
 
 import { schema } from "../live-state/schema";
-import { toCustomerMessage, toCustomerThread } from "./customer-response";
+import {
+  syncCustomerAuthor,
+  syncCustomerMessage,
+  syncCustomerThread,
+  toCustomerMessage,
+  toCustomerThread,
+} from "./customer-response";
 
 describe("widget customer response allowlist", () => {
   it("uses allowlisted models for reactive subscription data", () => {
@@ -19,6 +26,7 @@ describe("widget customer response allowlist", () => {
       "authorId",
       "content",
       "createdAt",
+      "deletedAt",
       "id",
       "markedAsAnswer",
       "origin",
@@ -94,5 +102,82 @@ describe("widget customer response allowlist", () => {
     expect(response).not.toHaveProperty("externalMessageId");
     expect(response).not.toHaveProperty("isBackfill");
     expect(response.author).toStrictEqual({ id: "author-1", name: "Ada" });
+  });
+
+  it("hides a mirrored thread when its source author is no longer widget-owned", async () => {
+    const update = vi.fn(async () => ({}));
+    const db = {
+      findOne: vi.fn(async (model: unknown) => {
+        if (model === schema.thread) {
+          return { authorId: "author-1", id: "thread-1" };
+        }
+        if (model === schema.author) {
+          return { metaId: "discord:user-1" };
+        }
+        if (model === schema.customerThread) {
+          return { deletedAt: null, id: "thread-1" };
+        }
+      }),
+      update,
+    } as unknown as Storage;
+
+    await expect(syncCustomerThread(db, "thread-1")).resolves.toBeFalsy();
+    expect(update).toHaveBeenCalledWith(
+      schema.customerThread,
+      "thread-1",
+      { deletedAt: expect.any(Date) }
+    );
+  });
+
+  it("hides a mirrored message after it leaves a customer thread", async () => {
+    const update = vi.fn(async () => ({}));
+    const db = {
+      findOne: vi.fn(async (model: unknown) => {
+        if (model === schema.message) {
+          return { id: "message-1", threadId: "thread-2" };
+        }
+        if (model === schema.customerMessage) {
+          return { deletedAt: null, id: "message-1" };
+        }
+      }),
+      update,
+    } as unknown as Storage;
+
+    await expect(syncCustomerMessage(db, "message-1")).resolves.toBeFalsy();
+    expect(update).toHaveBeenCalledWith(
+      schema.customerMessage,
+      "message-1",
+      { deletedAt: expect.any(Date) }
+    );
+  });
+
+  it("recovers when a concurrent hook wins a projection insert", async () => {
+    const insert = vi.fn(async () => {
+      throw new Error("duplicate key");
+    });
+    const update = vi.fn(async () => ({}));
+    let customerAuthorReads = 0;
+    const db = {
+      findOne: vi.fn(async (model: unknown) => {
+        if (model === schema.author) {
+          return { id: "author-1", name: "Ada" };
+        }
+        if (model === schema.customerAuthor) {
+          customerAuthorReads += 1;
+          return customerAuthorReads === 1
+            ? undefined
+            : { id: "author-1", name: "Old name" };
+        }
+      }),
+      insert,
+      transaction: async (handler: (input: { trx: Storage }) => unknown) =>
+        handler({ trx: db as unknown as Storage }),
+      update,
+    } as unknown as Storage;
+
+    await expect(syncCustomerAuthor(db, "author-1")).resolves.toBeTruthy();
+    expect(update).toHaveBeenCalledWith(schema.customerAuthor, "author-1", {
+      name: "Ada",
+    });
   });
 });

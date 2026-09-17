@@ -8,12 +8,20 @@ export const guardWidgetSubscription = <T>(
     identity: Pick<WidgetIdentity, "keyVersion" | "organizationId">
   ) => Promise<boolean> = isWidgetIdentityActive
 ): ((value: T) => void) => {
-  let pending = Promise.resolve();
+  let revalidation: Promise<boolean> | undefined;
 
   return (value) => {
-    pending = pending
-      .then(async () => {
-        if (await isActive(identity)) {
+    const current =
+      revalidation ??
+      (revalidation = isActive(identity).finally(() => {
+        if (revalidation === current) {
+          revalidation = undefined;
+        }
+      }));
+
+    current
+      .then((active) => {
+        if (active) {
           forward(value);
         }
       })

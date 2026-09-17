@@ -58,6 +58,7 @@ const migration: Migration = {
         authorId: message.authorId,
         content: message.content,
         createdAt: message.createdAt,
+        deletedAt: null,
         id: message.id,
         markedAsAnswer: message.markedAsAnswer,
         origin: message.origin,

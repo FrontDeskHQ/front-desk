@@ -231,13 +231,14 @@ export const verifyWidgetToken = async (
   const nowSeconds = Math.floor(now() / 1000);
 
   for (const key of options.keys) {
-    if (
-      key.expiresAt !== null &&
-      now() >
-        new Date(key.expiresAt).getTime() +
-          WIDGET_TOKEN_CLOCK_SKEW_SECONDS * 1000
-    ) {
-      continue;
+    if (key.expiresAt !== null) {
+      const expiresAt = new Date(key.expiresAt).getTime();
+      if (
+        !Number.isFinite(expiresAt) ||
+        now() > expiresAt + WIDGET_TOKEN_CLOCK_SKEW_SECONDS * 1000
+      ) {
+        continue;
+      }
     }
 
     try {

@@ -17,7 +17,24 @@ const upsert = async <T extends { id: string }>(
     return;
   }
 
-  await db.insert(model, value);
+  try {
+    // Isolate a possible unique-key conflict in its own transaction/savepoint.
+    // PostgreSQL will otherwise leave the caller's transaction aborted before
+    // we can re-read the concurrently inserted row.
+    await db.transaction(async ({ trx }) => {
+      await trx.insert(model, value);
+    });
+  } catch (error) {
+    // Another lifecycle hook may have inserted the projection after our read.
+    // Only treat the failure as that race when the row now exists.
+    const concurrent = await db.findOne(model, value.id);
+    if (!concurrent) {
+      throw error;
+    }
+
+    const { id, ...fields } = value;
+    await db.update(model, id, fields);
+  }
 };
 
 export const syncCustomerAuthor = async (
@@ -47,6 +64,12 @@ export const syncCustomerThread = async (
 
   const author = await db.findOne(schema.author, thread.authorId);
   if (!author || !isWidgetAuthor(author) || !author.metaId) {
+    const existing = await db.findOne(schema.customerThread, thread.id);
+    if (existing && existing.deletedAt === null) {
+      await db.update(schema.customerThread, thread.id, {
+        deletedAt: new Date(),
+      });
+    }
     return false;
   }
 
@@ -77,7 +100,13 @@ export const syncCustomerMessage = async (
     schema.customerThread,
     message.threadId
   );
-  if (!customerThread) {
+  if (!customerThread || customerThread.deletedAt !== null) {
+    const existing = await db.findOne(schema.customerMessage, message.id);
+    if (existing && existing.deletedAt === null) {
+      await db.update(schema.customerMessage, message.id, {
+        deletedAt: new Date(),
+      });
+    }
     return false;
   }
 
@@ -89,6 +118,7 @@ export const syncCustomerMessage = async (
     authorId: message.authorId,
     content: message.content,
     createdAt: message.createdAt,
+    deletedAt: null,
     id: message.id,
     markedAsAnswer: message.markedAsAnswer,
     origin: message.origin,
@@ -110,6 +140,7 @@ export const toCustomerMessage = (message: Record<string, unknown>) => ({
   authorId: message.authorId,
   content: message.content,
   createdAt: message.createdAt,
+  deletedAt: message.deletedAt ?? null,
   id: message.id,
   markedAsAnswer: message.markedAsAnswer,
   origin: message.origin,

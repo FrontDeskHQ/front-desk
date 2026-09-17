@@ -133,6 +133,7 @@ const customerMessage = object("customerMessage", {
   authorId: reference("customerAuthor.id"),
   content: string(),
   createdAt: timestamp(),
+  deletedAt: timestamp().nullable(),
   id: id(),
   markedAsAnswer: boolean().default(false),
   origin: string().nullable(),

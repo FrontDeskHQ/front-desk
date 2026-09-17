@@ -132,7 +132,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         ? threadQuery
             .include({
               author: true,
-              messages: { include: { author: true } },
+              messages: {
+                include: { author: true },
+                where: { deletedAt: null },
+              },
             })
             .orderBy("createdAt", "desc")
         : threadQuery.orderBy("createdAt", "desc");
@@ -282,7 +285,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     return createFlow === "widget" && thread
       ? (toCustomerThread(
-          thread as unknown as Record<string, unknown>
+          {
+            ...thread,
+            customerId: req.context?.widgetIdentity?.userId,
+          } as unknown as Record<string, unknown>
         ) as unknown as typeof thread)
       : thread;
   }),
@@ -321,14 +327,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       throw new Error("UNAUTHORIZED");
     }
 
-    if (organizationId !== undefined) {
-      authorize(req, { organizationId });
-    }
-
     const widgetIdentity = req.context?.widgetIdentity;
     if (widgetIdentity) {
       authorizeWidgetCustomer(req, {
-        organizationId: widgetIdentity.organizationId,
+        organizationId: organizationId ?? widgetIdentity.organizationId,
       });
 
       if (shortId !== undefined || onlyDeleted || deletedBefore !== undefined) {
@@ -344,14 +346,18 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         })
         .include({
           author: true,
-          messages: { include: { author: true } },
+          messages: {
+            include: { author: true },
+            where: { deletedAt: null },
+          },
         })
         .get();
 
-      // The caller's credential selects the runtime response shape. Keep the
-      // established internal detail type for workspace code while the widget
-      // receives the narrower customer model.
-      return customerThread as never;
+      return customerThread;
+    }
+
+    if (organizationId !== undefined) {
+      authorize(req, { organizationId });
     }
 
     const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);

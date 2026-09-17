@@ -233,6 +233,57 @@ describe("widget identity verification", () => {
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
   });
 
+  it("enforces previous-key expiry during token verification", async () => {
+    const previousSecret = "previous-widget-secret";
+    const token = await makeToken({ org: "org-a", secret: previousSecret });
+
+    await expect(
+      verifyWidgetToken(token, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        keys: [
+          {
+            expiresAt: new Date(
+              now * 1000 + 5 * 60 * 1000
+            ).toISOString(),
+            secret: previousSecret,
+            version: 1,
+          },
+        ],
+      })
+    ).resolves.toMatchObject({ keyVersion: 1 });
+
+    await expect(
+      verifyWidgetToken(token, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        keys: [
+          {
+            expiresAt: new Date(
+              now * 1000 - 60 * 1000 - 1
+            ).toISOString(),
+            secret: previousSecret,
+            version: 1,
+          },
+        ],
+      })
+    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+
+    await expect(
+      verifyWidgetToken(token, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        keys: [
+          {
+            expiresAt: "not-a-date",
+            secret: previousSecret,
+            version: 1,
+          },
+        ],
+      })
+    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+  });
+
   it("fails closed for a present but invalid settings object", () => {
     expect(() =>
       readWidgetIdentitySettings({

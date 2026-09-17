@@ -60,6 +60,14 @@ describe("security remediation route authorization", () => {
       deletedAt: null,
       organizationId: "org-a",
     });
+    expect(builder.include).toHaveBeenCalledWith({
+      author: true,
+      messages: {
+        include: { author: true },
+        where: { deletedAt: null },
+      },
+    });
+    expect(builder.orderBy).toHaveBeenCalledWith("createdAt", "desc");
   });
 
   it("does not let widget identities invoke workspace label mutations", async () => {
@@ -126,5 +134,9 @@ describe("security remediation route authorization", () => {
         { thread }
       )
     ).resolves.toStrictEqual([internalThread]);
+    expect(builder.include).toHaveBeenCalledWith({
+      labels: { include: { label: true } },
+      messages: true,
+    });
   });
 });
