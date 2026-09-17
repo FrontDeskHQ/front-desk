@@ -11,7 +11,6 @@ import {
   requireInternalApiKey,
   resolveHumanAuthor,
 } from "../../lib/authorize";
-import { toCustomerMessage } from "../../lib/customer-response";
 import {
   ensureExternalAuthor,
   ensureWidgetAuthor,
@@ -82,20 +81,25 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         const identity = authorizeWidgetCustomer(req, {
           organizationId: context.widgetIdentity.organizationId,
         });
-        const thread = await db.customerThread
-          .first({
-            customerId: identity.userId,
+        const threads = await db.thread
+          .where({
+            author: { metaId: widgetAuthorMetaId(identity.userId) },
             deletedAt: null,
             id: req.input.threadId,
             organizationId: identity.organizationId,
           })
+          .include({ author: true })
           .get();
+        const thread = threads[0];
         if (!thread) {
           throw new Error("UNAUTHORIZED");
         }
 
-        return db.customerMessage
-          .where({ deletedAt: null, threadId: thread.id })
+        // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220): use
+        // `.select()` here and on the author include so widget subscriptions
+        // receive only customer-safe fields without projection tables.
+        return db.message
+          .where({ threadId: thread.id })
           .include({ author: true })
           .orderBy("createdAt", "asc");
       }
@@ -272,11 +276,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       })
       .get();
 
-    return widgetIdentity && message
-      ? (toCustomerMessage(
-          message as unknown as Record<string, unknown>
-        ) as unknown as typeof message)
-      : message;
+    return message;
   }),
   markAsAnswer: mutation(
     z.object({

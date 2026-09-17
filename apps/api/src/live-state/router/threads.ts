@@ -13,7 +13,6 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
-import { toCustomerThread } from "../../lib/customer-response";
 import {
   ensureExternalAuthor,
   ensureWidgetAuthor,
@@ -122,21 +121,19 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         userId: req.input.customerId,
       });
 
-      const threadQuery = db.customerThread.where({
-        customerId: widgetIdentity.userId,
+      // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220):
+      // Select only customer-safe thread, message, and author fields once
+      // tracked queries support `.select()`. Keep the source-model query until
+      // then so widget subscriptions remain operational.
+      const threadQuery = db.thread.where({
+        author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
         deletedAt: null,
         organizationId: widgetIdentity.organizationId,
       });
 
       return req.input.includeMessages
         ? threadQuery
-            .include({
-              author: true,
-              messages: {
-                include: { author: true },
-                where: { deletedAt: null },
-              },
-            })
+            .include({ messages: { include: { author: true } } })
             .orderBy("createdAt", "desc")
         : threadQuery.orderBy("createdAt", "desc");
     }
@@ -283,14 +280,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       })
     )[0];
 
-    return createFlow === "widget" && thread
-      ? (toCustomerThread(
-          {
-            ...thread,
-            customerId: req.context?.widgetIdentity?.userId,
-          } as unknown as Record<string, unknown>
-        ) as unknown as typeof thread)
-      : thread;
+    return thread;
   }),
   /**
    * Single thread with its full relation tree for the workspace archive and
@@ -337,23 +327,24 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         throw new Error("UNAUTHORIZED");
       }
 
-      const customerThread = await db.customerThread
-        .first({
+      // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220): use
+      // `.select()` to keep widget detail subscriptions on the source model
+      // while limiting both initial rows and later deltas to customer fields.
+      const rows = await db.thread
+        .where({
           ...(id === undefined ? {} : { id }),
-          customerId: widgetIdentity.userId,
+          author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
           deletedAt: null,
           organizationId: widgetIdentity.organizationId,
         })
         .include({
           author: true,
-          messages: {
-            include: { author: true },
-            where: { deletedAt: null },
-          },
+          labels: { include: { label: true } },
+          messages: { include: { author: true } },
         })
         .get();
 
-      return customerThread;
+      return rows[0];
     }
 
     if (organizationId !== undefined) {

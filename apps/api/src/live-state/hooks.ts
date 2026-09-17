@@ -4,45 +4,14 @@ import {
   isOutbound,
 } from "@workspace/schemas/message-roles";
 
-import {
-  syncCustomerAuthor,
-  syncCustomerMessage,
-  syncCustomerThread,
-} from "../lib/customer-response";
 import { areWorkerJobsEnabled } from "../lib/feature-flag";
 import { isOrganizationMember } from "../lib/organization-membership";
 import { enqueueThreadRead } from "../lib/queue";
 import { schema } from "./schema";
 
 export const liveStateHooks = defineHooks<typeof schema>({
-  author: {
-    afterUpdate: async ({ db, previousValue, value }) => {
-      const existing = await db.findOne(schema.customerAuthor, value.id);
-      if (existing) {
-        await syncCustomerAuthor(db, value.id);
-      }
-
-      if (previousValue?.metaId !== value.metaId) {
-        const threads = await db.find(schema.thread, {
-          where: { authorId: value.id },
-        });
-        await Promise.all(
-          threads.map((thread) => syncCustomerThread(db, thread.id))
-        );
-      }
-    },
-  },
   message: {
-    afterInsert: async ({ db, value }) => {
-      try {
-        await syncCustomerMessage(db, value.id);
-      } catch (error) {
-        console.error(
-          `Failed to sync customer message ${value.id}; continuing thread-read enqueue`,
-          error
-        );
-      }
-
+    afterInsert: ({ db, value }) => {
       (async () => {
         try {
           // A message FrontDesk itself composed enqueues nothing at all: it
@@ -130,17 +99,6 @@ export const liveStateHooks = defineHooks<typeof schema>({
           );
         }
       })();
-    },
-    afterUpdate: async ({ db, value }) => {
-      await syncCustomerMessage(db, value.id);
-    },
-  },
-  thread: {
-    afterInsert: async ({ db, value }) => {
-      await syncCustomerThread(db, value.id);
-    },
-    afterUpdate: async ({ db, value }) => {
-      await syncCustomerThread(db, value.id);
     },
   },
 });

@@ -36,14 +36,14 @@ describe("security remediation route authorization", () => {
     ).rejects.toThrow("UNAUTHORIZED");
   });
 
-  it("routes widget subscriptions through the customer-safe models", async () => {
+  it("scopes widget subscriptions to customer-owned source threads", async () => {
     const builder = {
       include: vi.fn<(value: unknown) => unknown>(),
       orderBy: vi.fn<(field: string, direction: string) => unknown>(),
     };
     builder.include.mockReturnValue(builder);
     builder.orderBy.mockReturnValue(builder);
-    const customerThread = {
+    const thread = {
       where: vi.fn<(value: unknown) => typeof builder>(() => builder),
     };
 
@@ -52,20 +52,16 @@ describe("security remediation route authorization", () => {
         threadsRoute.customQueries.list.handler,
         { customerId: "customer-a", includeMessages: true },
         widgetContext,
-        { customerThread }
+        { thread }
       )
     ).resolves.toBe(builder);
-    expect(customerThread.where).toHaveBeenCalledWith({
-      customerId: "customer-a",
+    expect(thread.where).toHaveBeenCalledWith({
+      author: { metaId: "widget:customer-a" },
       deletedAt: null,
       organizationId: "org-a",
     });
     expect(builder.include).toHaveBeenCalledWith({
-      author: true,
-      messages: {
-        include: { author: true },
-        where: { deletedAt: null },
-      },
+      messages: { include: { author: true } },
     });
     expect(builder.orderBy).toHaveBeenCalledWith("createdAt", "desc");
   });

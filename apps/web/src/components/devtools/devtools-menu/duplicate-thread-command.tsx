@@ -73,11 +73,9 @@ export const duplicateThreadFromParam = async ({
     const firstMessage = sortedMessages[0];
 
     const authorName = thread.author?.name ?? "Unknown";
-    const workspaceAuthor =
-      thread.author && "metaId" in thread.author ? thread.author : undefined;
     const authorMetaId =
-      workspaceAuthor?.metaId ??
-      workspaceAuthor?.userId ??
+      thread.author?.metaId ??
+      thread.author?.userId ??
       `duplicate-${thread.authorId}`;
 
     const newThread = await fetchClient.mutate.thread.create({
