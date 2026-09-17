@@ -17,7 +17,6 @@ import {
 } from "./lib/api-credential";
 import { auth } from "./lib/auth";
 import { initializeFeatureFlags, reflagClient } from "./lib/feature-flag";
-import { guardWidgetSubscription } from "./lib/widget-subscription";
 import { liveStateHooks } from "./live-state/hooks";
 import { runMigrations } from "./live-state/migrations";
 import { router } from "./live-state/router";
@@ -109,6 +108,10 @@ const lsServer = server({
         throw new Error("UNAUTHORIZED", { cause: error });
       }
       if (apiCredential) {
+        // TODO(FrontDeskHQ/front-desk#389): Widget key revocation does not
+        // invalidate an established Live-State subscription. Add a supported
+        // socket/subscription revocation hook with end-to-end coverage instead
+        // of replacing methods on the Live-State server instance.
         return apiCredential;
       }
 
@@ -172,20 +175,6 @@ const lsServer = server({
   schema,
   storage,
 });
-
-const handleCustomQuery = lsServer.handleCustomQuery.bind(lsServer);
-lsServer.handleCustomQuery = (request) => {
-  const identity = request.req.context?.widgetIdentity;
-  const subscription = request.subscription;
-  if (!identity || !subscription) {
-    return handleCustomQuery(request);
-  }
-
-  return handleCustomQuery({
-    ...request,
-    subscription: guardWidgetSubscription(identity, subscription),
-  });
-};
 
 app.all("/api/auth/*", toNodeHandler(auth));
 
