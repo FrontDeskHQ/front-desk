@@ -1,0 +1,90 @@
+apps/api/src/lib/api-credential.ts
+  s_710655d3f51384::t_fba3757ce038cf 9-13,179,199-202,213-217,226
+apps/api/src/lib/api-credential.test.ts
+  s_710655d3f51384::t_4e26fa84e0b162 33,114,169,183
+  s_710655d3f51384::t_e26c2c90414f35 176-177,197-198
+  s_710655d3f51384::t_8575269317fee8 199-207
+apps/api/src/live-state/factories.ts
+  s_710655d3f51384::t_90d3d22f7aa996 3,6-15
+apps/api/src/lib/authorize.ts
+  s_710655d3f51384::t_15686b52778f6a 33,314-333,451
+apps/api/src/lib/customer-response.ts
+  s_710655d3f51384::t_157bb747860fb0 1-48,50-56,58-125,127-137
+  s_710655d3f51384::t_34e92d849262a4 49
+  s_710655d3f51384::t_68e4131026dbf2 57,126
+apps/api/src/live-state/router.ts
+  s_710655d3f51384::t_bf202de47e5aed 203
+  s_710655d3f51384::t_1d260016dfd088 56,233-239,253,255
+apps/api/src/lib/widget-identity.ts
+  s_710655d3f51384::t_1d260016dfd088 173-199
+  s_710655d3f51384::t_8d31c679762475 132-135
+  s_710655d3f51384::t_07cd0786a289c8 13,18,27,31-36,40,108,112,120-131,136-139,142-169,226,233-242,246,311,351,357,361-375
+  s_710655d3f51384::t_99918bb3345100 140-141
+apps/api/src/lib/customer-response.test.ts
+  s_710655d3f51384::t_6a92c54190ea9e 3,7-28
+  s_710655d3f51384::t_0b2f81beadca44 1-2,4-6,29-63,76-98
+  s_710655d3f51384::t_2c21d9dc9ae945 64-75
+apps/api/src/lib/authorize.test.ts
+  s_710655d3f51384::t_4e26fa84e0b162 247,261,268
+packages/schemas/src/organization.ts
+  s_710655d3f51384::t_15686b52778f6a 71
+apps/api/src/live-state/router/threads.ts
+  s_710655d3f51384::t_4d5829e259673c 334
+  s_710655d3f51384::t_a02c84566c2198 284-286
+  s_710655d3f51384::t_4a7c785936ee25 11,16,120,122,125-126,133-136,283,287,330-332,339,341,411-412,431-432
+  s_710655d3f51384::t_bf202de47e5aed 338,351-354
+apps/api/src/live-state/migrations/files/index.ts
+  s_710655d3f51384::t_d1d8f9e9274276 5,7
+apps/api/src/live-state/migrations/files/004_backfill_customer_responses.ts
+  s_710655d3f51384::t_d1d8f9e9274276 1-6,8-26,31-35,37-50,52-70
+  s_710655d3f51384::t_68e4131026dbf2 7,27-30,36,51
+apps/api/src/live-state/schema.ts
+  s_710655d3f51384::t_68e4131026dbf2 124
+  s_710655d3f51384::t_a1e871baa8e22f 112-123,125-141,340-355,559,567-569,600-601
+apps/api/src/index.ts
+  s_710655d3f51384::t_58de3f57c9db4d 20,176-188
+apps/api/src/lib/connection-token.test.ts
+  s_710655d3f51384::t_4e26fa84e0b162 87,97
+apps/api/src/lib/widget-identity.test.ts
+  s_710655d3f51384::t_4aefb954fa214a 111
+  s_710655d3f51384::t_f7a39d34366878 5,41-56
+  s_710655d3f51384::t_bbc22c6bf7b192 137,140,155,162,174,190,197,218-221,228-231,253
+  s_710655d3f51384::t_34847726563741 7,57-90,128-129
+  s_710655d3f51384::t_1d260016dfd088 9,91-110,112-127
+apps/api/src/lib/connection-token.ts
+  s_710655d3f51384::t_fba3757ce038cf 19,34,101-102,114,151-152
+apps/api/src/live-state/hooks.ts
+  s_710655d3f51384::t_02acdcd45bcb98 7-11,18-25,27-29,118-127
+apps/api/src/live-state/router/message.ts
+  s_710655d3f51384::t_fd27ab14cefd3e 9,14,64,81-102,104,137-138,140,275,279
+  s_710655d3f51384::t_a489eb8536d072 172-182
+  s_710655d3f51384::t_a02c84566c2198 276-278
+  s_710655d3f51384::t_99918bb3345100 62-63,65-75
+apps/api/src/lib/widget-subscription.ts
+  s_710655d3f51384::t_58de3f57c9db4d 1-24
+apps/api/src/lib/widget-subscription.test.ts
+  s_710655d3f51384::t_2c21d9dc9ae945 14,28
+  s_710655d3f51384::t_0b2f81beadca44 1-13,20-21,25-27,34-39
+  s_710655d3f51384::t_99918bb3345100 15-19,22-24,29-33
+apps/api/src/live-state/router/security-remediation.test.ts
+  s_710655d3f51384::t_8649df0bf506a4 39-40,43-45,49-64
+  s_710655d3f51384::t_2c21d9dc9ae945 41-42,46-48,111-114,117-119
+  s_710655d3f51384::t_99918bb3345100 81-85
+  s_710655d3f51384::t_4607b076ba13c5 1-38,65-80,86-110,115-116,120-130
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f1967166daed393039e7db842d448837268b4d41",
+  "prompts": {},
+  "sessions": {
+    "s_710655d3f51384": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a7d7-a8ce-78e0-8333-bd56b3b6cdd7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
