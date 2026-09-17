@@ -1,0 +1,29 @@
+apps/api/src/live-state/router/threads.ts
+  s_fd6488d77830be::t_2b05498c40314d 124-129,136,283,330-334,336,342-343,347
+apps/api/src/live-state/router/message.ts
+  s_fd6488d77830be::t_2b05498c40314d 84-86,91,93,98-102,279
+apps/api/src/live-state/router/security-remediation.test.ts
+  s_fd6488d77830be::t_ceefcd1e352945 39,46,55,58-59,64
+apps/web/src/components/devtools/devtools-menu/duplicate-thread-command.tsx
+  s_fd6488d77830be::t_a351708baf4f9e 77-78
+apps/api/src/live-state/hooks.ts
+  s_fd6488d77830be::t_a351708baf4f9e 14
+apps/api/src/live-state/migrations/files/index.ts
+  s_fd6488d77830be::t_a351708baf4f9e 6
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "b39c352dbe07c09727c6f45852b8d1a47c3a6f76",
+  "prompts": {},
+  "sessions": {
+    "s_fd6488d77830be": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b0a3-11b7-78d3-9cb8-7b40396fab09",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
