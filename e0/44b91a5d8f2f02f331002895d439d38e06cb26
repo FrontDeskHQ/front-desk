@@ -1,0 +1,43 @@
+apps/api/src/live-state/router/security-remediation.test.ts
+  s_fd6488d77830be::t_a63c7759cf560c 63-70,137-140
+apps/api/src/live-state/schema.ts
+  s_fd6488d77830be::t_e30e5066fba513 136
+apps/api/src/live-state/router/message.ts
+  s_fd6488d77830be::t_cfb5f4ca07f2fd 54-55,98
+apps/api/src/live-state/router/threads.ts
+  s_fd6488d77830be::t_cfb5f4ca07f2fd 135-138,288-291,333,349-352,356-360
+apps/api/src/lib/widget-subscription.test.ts
+  s_fd6488d77830be::t_a63c7759cf560c 29-32,36,39-42,44-64
+apps/api/src/lib/widget-identity.test.ts
+  s_fd6488d77830be::t_a63c7759cf560c 236-286
+apps/api/src/lib/customer-response.ts
+  s_fd6488d77830be::t_e30e5066fba513 20,27-37,67-72,103-109,121,143
+  s_fd6488d77830be::t_675c155117b201 21-26
+apps/api/src/lib/widget-identity.ts
+  s_fd6488d77830be::t_e30e5066fba513 234-241
+apps/api/src/live-state/hooks.ts
+  s_fd6488d77830be::t_e30e5066fba513 19,24-32,37-44
+apps/api/src/lib/customer-response.test.ts
+  s_fd6488d77830be::t_a63c7759cf560c 29
+  s_fd6488d77830be::t_31cbe76e8c93e3 1-2,5-11,106-181
+apps/api/src/lib/widget-subscription.ts
+  s_fd6488d77830be::t_e30e5066fba513 11,14-24
+apps/api/src/live-state/migrations/files/004_backfill_customer_responses.ts
+  s_fd6488d77830be::t_e30e5066fba513 61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e044b91a5d8f2f02f331002895d439d38e06cb26",
+  "prompts": {},
+  "sessions": {
+    "s_fd6488d77830be": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0b0a3-11b7-78d3-9cb8-7b40396fab09",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
