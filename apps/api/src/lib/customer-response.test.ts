@@ -136,6 +136,9 @@ describe("widget customer response allowlist", () => {
         if (model === schema.message) {
           return { id: "message-1", threadId: "thread-2" };
         }
+        if (model === schema.customerThread) {
+          return { deletedAt: new Date(), id: "thread-2" };
+        }
         if (model === schema.customerMessage) {
           return { deletedAt: null, id: "message-1" };
         }
@@ -179,5 +182,66 @@ describe("widget customer response allowlist", () => {
     expect(update).toHaveBeenCalledWith(schema.customerAuthor, "author-1", {
       name: "Ada",
     });
+  });
+
+  it("restores message projections when a customer thread becomes visible again", async () => {
+    let customerThreadDeletedAt: Date | null = new Date();
+    const update = vi.fn(
+      async (model: unknown, _id: string, fields: Record<string, unknown>) => {
+        if (model === schema.customerThread && "deletedAt" in fields) {
+          customerThreadDeletedAt = fields.deletedAt as Date | null;
+        }
+        return {};
+      }
+    );
+    const db = {
+      find: vi.fn(async (model: unknown) =>
+        model === schema.message ? [{ id: "message-1" }] : []
+      ),
+      findOne: vi.fn(async (model: unknown) => {
+        if (model === schema.thread) {
+          return {
+            authorId: "author-1",
+            createdAt: new Date(),
+            deletedAt: null,
+            id: "thread-1",
+            name: "Help",
+            organizationId: "org-a",
+            status: 0,
+          };
+        }
+        if (model === schema.author) {
+          return { id: "author-1", metaId: "widget:customer-1", name: "Ada" };
+        }
+        if (model === schema.customerAuthor) {
+          return { id: "author-1", name: "Ada" };
+        }
+        if (model === schema.customerThread) {
+          return { deletedAt: customerThreadDeletedAt, id: "thread-1" };
+        }
+        if (model === schema.message) {
+          return {
+            authorId: "author-1",
+            content: "Hello",
+            createdAt: new Date(),
+            id: "message-1",
+            markedAsAnswer: false,
+            origin: "widget",
+            threadId: "thread-1",
+          };
+        }
+        if (model === schema.customerMessage) {
+          return { deletedAt: new Date(), id: "message-1" };
+        }
+      }),
+      update,
+    } as unknown as Storage;
+
+    await expect(syncCustomerThread(db, "thread-1")).resolves.toBeTruthy();
+    expect(update).toHaveBeenCalledWith(
+      schema.customerMessage,
+      "message-1",
+      expect.objectContaining({ deletedAt: null })
+    );
   });
 });

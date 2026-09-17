@@ -45,15 +45,18 @@ describe("widget subscription authorization", () => {
     expect(forward).not.toHaveBeenCalledWith({ id: "private-delta" });
   });
 
-  it("shares one revalidation across updates that arrive together", async () => {
+  it("revalidates updates that arrive while a check is in flight", async () => {
     const forward = vi.fn<(value: { id: string }) => void>();
     let finish: ((active: boolean) => void) | undefined;
-    const isActive = vi.fn(
-      () =>
-        new Promise<boolean>((resolve) => {
-          finish = resolve;
-        })
-    );
+    const isActive = vi
+      .fn<() => Promise<boolean>>()
+      .mockImplementationOnce(
+        () =>
+          new Promise<boolean>((resolve) => {
+            finish = resolve;
+          })
+      )
+      .mockResolvedValue(false);
     const guarded = guardWidgetSubscription(identity, forward, isActive);
 
     guarded({ id: "delta-1" });
@@ -61,6 +64,27 @@ describe("widget subscription authorization", () => {
     expect(isActive).toHaveBeenCalledTimes(1);
 
     finish?.(true);
-    await vi.waitFor(() => expect(forward).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(isActive).toHaveBeenCalledTimes(2));
+    expect(forward).toHaveBeenCalledWith({ id: "delta-1" });
+    expect(forward).not.toHaveBeenCalledWith({ id: "delta-2" });
+  });
+
+  it("bounds updates waiting behind a slow revalidation", () => {
+    const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const forward = vi.fn<(value: { id: string }) => void>();
+    const guarded = guardWidgetSubscription(
+      identity,
+      forward,
+      () => new Promise<boolean>(() => {})
+    );
+
+    for (let index = 0; index < 102; index += 1) {
+      guarded({ id: `delta-${index}` });
+    }
+
+    expect(warning).toHaveBeenCalledWith(
+      "[auth] Widget subscription update buffer is full"
+    );
+    warning.mockRestore();
   });
 });

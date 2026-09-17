@@ -62,9 +62,9 @@ export const syncCustomerThread = async (
     return false;
   }
 
+  const existing = await db.findOne(schema.customerThread, thread.id);
   const author = await db.findOne(schema.author, thread.authorId);
   if (!author || !isWidgetAuthor(author) || !author.metaId) {
-    const existing = await db.findOne(schema.customerThread, thread.id);
     if (existing && existing.deletedAt === null) {
       await db.update(schema.customerThread, thread.id, {
         deletedAt: new Date(),
@@ -84,6 +84,15 @@ export const syncCustomerThread = async (
     organizationId: thread.organizationId,
     status: thread.status,
   });
+
+  if (existing && existing.deletedAt !== null && thread.deletedAt === null) {
+    const messages = await db.find(schema.message, {
+      where: { threadId: thread.id },
+    });
+    for (const message of messages) {
+      await syncCustomerMessage(db, message.id);
+    }
+  }
   return true;
 };
 
