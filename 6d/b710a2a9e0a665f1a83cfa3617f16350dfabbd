@@ -1,0 +1,21 @@
+apps/web/src/components/landing-page/keep-caring-section/index.tsx
+  s_7b555f306492eb::t_fe4297796fb884 32
+apps/web/src/components/landing-page/one-liner-section/index.tsx
+  s_7b555f306492eb::t_c4e8c9dd32c53b 183
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6db710a2a9e0a665f1a83cfa3617f16350dfabbd",
+  "prompts": {},
+  "sessions": {
+    "s_7b555f306492eb": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "736695cc-6bea-4062-acd4-6c90aad0bfae",
+        "model": "grok-4.6"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
