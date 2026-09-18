@@ -1,0 +1,58 @@
+apps/api/src/lib/widget-identity.test.ts
+  s_fbe64192d44e35::t_28e0f7729ce738 5-6
+  s_fbe64192d44e35::t_382c950d3ebf61 311-323
+apps/api/src/live-state/router.ts
+  s_fbe64192d44e35::t_bb8927bcc17936 55
+  s_fbe64192d44e35::t_e7f8c5fa3d7537 149-155,157-168
+apps/web/src/routes/app/_workspace/settings/organization/api-keys.tsx
+  s_fbe64192d44e35::t_45431bd0d0c192 32
+  s_fbe64192d44e35::t_b26ed8407bb13e 81
+  s_fbe64192d44e35::t_4e1afe87f579e2 132
+  s_fbe64192d44e35::t_941041bc85ee5c 271,280,284-289,291-298,326-332
+  s_fbe64192d44e35::t_7dc3a459573e05 299-325
+  s_fbe64192d44e35::t_c3685c6051436f 357-358,360
+  s_fbe64192d44e35::t_fd7857e8493a4e 19,21-22
+  s_fbe64192d44e35::t_90c487ffec93d5 120-122
+  s_fbe64192d44e35::t_222e095ce4d330 264,270,272-277,279,281,333-356,361-363
+  s_fbe64192d44e35::t_cfc04f7890f12e 278
+  s_fbe64192d44e35::t_6cbcd2a91def54 56
+  s_fbe64192d44e35::t_43cf5b4cb7ca03 290
+  s_fbe64192d44e35::t_5da456a58d725b 359
+  s_fbe64192d44e35::t_911e0ec7b2f144 48-53
+  s_fbe64192d44e35::t_20f13b86316a2e 139
+  s_fbe64192d44e35::t_dbe57943de149f 141
+  s_fbe64192d44e35::t_08b183a05f86e6 364-365,368-369,374
+  s_fbe64192d44e35::t_89cf47d0b744e4 38
+  s_fbe64192d44e35::t_9755d22ac3f411 262-263,265-269,366-367,370-373,375-381
+  s_fbe64192d44e35::t_a8e76bc5ca99d6 282-283
+  s_fbe64192d44e35::t_40002398dfde53 396
+  s_fbe64192d44e35::t_b5bb9003b4f24b 382-392,394-395
+  s_fbe64192d44e35::t_dde626e2f0640c 20
+packages/ui/src/components/copy-value.tsx
+  s_fbe64192d44e35::t_3a68f2d6b4dad0 128-137
+  s_fbe64192d44e35::t_3fefcb038873c4 35
+  s_fbe64192d44e35::t_7facd9caa64c6f 16-18
+  s_fbe64192d44e35::t_5fe16cd732b033 104,113
+  s_fbe64192d44e35::t_fcf7df0b37727a 19-21
+  s_fbe64192d44e35::t_3a814d84bf2280 121,126,138
+  s_fbe64192d44e35::t_acbbc7c8447ace 4
+  s_fbe64192d44e35::t_bab6878f83adf1 14-15,25,34,40,43-44,46-52,56-57,59-70,75,93
+apps/api/src/lib/widget-identity.ts
+  s_fbe64192d44e35::t_d5008970af9dfb 108-113
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cd557fb897b089f222333e6599d0052b00ca32a0",
+  "prompts": {},
+  "sessions": {
+    "s_fbe64192d44e35": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "106fe26d-f9d9-41d9-8013-7088a307f3ed",
+        "model": "composer-2.5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
