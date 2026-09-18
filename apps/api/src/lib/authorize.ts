@@ -30,6 +30,7 @@ export interface AuthorizationContext {
 
 /** Identity authenticated by a signed widget assertion. */
 export interface WidgetIdentity {
+  keyVersion: number;
   organizationId: string;
   userId: string;
   name: string;
@@ -310,6 +311,26 @@ export const authorizeThreadCreate = (
   return "integration";
 };
 
+export const authorizeWidgetCustomer = (
+  req: AuthorizeReq,
+  input: { organizationId: string; userId?: string }
+): WidgetIdentity => {
+  const context = req.context ?? {};
+  const identity = context.widgetIdentity;
+
+  if (
+    !identity ||
+    !context.publicApiKey ||
+    context.publicApiKey.ownerId !== input.organizationId ||
+    identity.organizationId !== input.organizationId ||
+    (input.userId !== undefined && identity.userId !== input.userId)
+  ) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  return identity;
+};
+
 export const assertInternalKeyForIntegrationFields = (
   req: AuthorizeReq,
   fields: {
@@ -427,10 +448,7 @@ export const isAuthorized = (
   }
 
   if (ctx.widgetIdentity) {
-    return (
-      opts.role === undefined &&
-      ctx.widgetIdentity.organizationId === opts.organizationId
-    );
+    return false;
   }
 
   if (ctx.publicApiKey) {

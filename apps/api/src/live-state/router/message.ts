@@ -6,6 +6,7 @@ import z from "zod";
 import {
   assertIntegrationAuthor,
   authorize,
+  authorizeWidgetCustomer,
   getWorkspaceUserId,
   requireInternalApiKey,
   resolveHumanAuthor,
@@ -49,36 +50,62 @@ const setExternalMessageIdInputSchema = z.object({
 
 export default publicRoute.withProcedures(({ mutation, query }) => ({
   /**
-   * Existence/lookup of a message by its external (platform) id — dedupe
-   * checks in the integration bots. Public: mirrors the old open read.
+   * Internal lookup of a message by its external platform id for connector
+   * deduplication.
    */
   byExternalId: query(
     z.object({
       externalMessageId: z.string(),
       threadId: z.string().optional(),
     })
-  ).handler(
-    async ({ req, db }) =>
-      Object.values(
-        await db.find(schema.message, {
-          where: {
-            externalMessageId: req.input.externalMessageId,
-            ...(req.input.threadId === undefined
-              ? {}
-              : { threadId: req.input.threadId }),
-          },
-        })
-      )[0]
-  ),
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+
+    return Object.values(
+      await db.find(schema.message, {
+        where: {
+          externalMessageId: req.input.externalMessageId,
+          ...(req.input.threadId === undefined
+            ? {}
+            : { threadId: req.input.threadId }),
+        },
+      })
+    )[0];
+  }),
 
   /** Authenticated widget message stream for one of the caller's threads. */
   forThread: query(z.object({ threadId: z.string() })).handler(
     async ({ req, db }) => {
       const context = req.context ?? {};
+      if (context.widgetIdentity) {
+        const identity = authorizeWidgetCustomer(req, {
+          organizationId: context.widgetIdentity.organizationId,
+        });
+        const threads = await db.thread
+          .where({
+            author: { metaId: widgetAuthorMetaId(identity.userId) },
+            deletedAt: null,
+            id: req.input.threadId,
+            organizationId: identity.organizationId,
+          })
+          .include({ author: true })
+          .get();
+        const thread = threads[0];
+        if (!thread) {
+          throw new Error("UNAUTHORIZED");
+        }
+
+        // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220): use
+        // `.select()` here and on the author include so widget subscriptions
+        // receive only customer-safe fields without projection tables.
+        return db.message
+          .where({ threadId: thread.id })
+          .include({ author: true })
+          .orderBy("createdAt", "asc");
+      }
+
       const credentialOrganizationId =
-        context.widgetIdentity?.organizationId ??
-        context.publicApiKey?.ownerId ??
-        context.privateApiKey?.ownerId;
+        context.publicApiKey?.ownerId ?? context.privateApiKey?.ownerId;
       const organizationIds = context.internalApiKey
         ? null
         : credentialOrganizationId
@@ -102,36 +129,19 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           ...(organizationIds === null
             ? {}
             : { organizationId: { $in: organizationIds } }),
-          ...(context.widgetIdentity ? { deletedAt: null } : {}),
         })
         .include({ author: true })
         .get();
       const thread = threads[0];
 
       if (!thread) {
-        if (context.widgetIdentity) {
-          throw new Error("UNAUTHORIZED");
-        }
         throw new Error("THREAD_NOT_FOUND");
       }
 
-      if (context.widgetIdentity) {
-        authorize(req, {
-          organizationId: context.widgetIdentity.organizationId,
-        });
-        if (
-          thread.organizationId !== context.widgetIdentity.organizationId ||
-          thread.author?.metaId !==
-            widgetAuthorMetaId(context.widgetIdentity.userId)
-        ) {
-          throw new Error("UNAUTHORIZED");
-        }
-      } else {
-        if (req.context?.publicApiKey) {
-          throw new Error("IDENTITY_TOKEN_REQUIRED");
-        }
-        authorize(req, { organizationId: thread.organizationId });
+      if (req.context?.publicApiKey) {
+        throw new Error("IDENTITY_TOKEN_REQUIRED");
       }
+      authorize(req, { organizationId: thread.organizationId });
 
       return db.message
         .where({ threadId: thread.id })
@@ -163,10 +173,17 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       throw new Error("UNAUTHORIZED");
     }
 
-    authorize(req, {
-      allowPublicApiKey: true,
-      organizationId,
-    });
+    if (widgetIdentity) {
+      authorizeWidgetCustomer(req, {
+        organizationId,
+        userId: req.input.userId,
+      });
+    } else {
+      authorize(req, {
+        allowPublicApiKey: true,
+        organizationId,
+      });
+    }
 
     const hasIntegrationAuthor = !widgetIdentity && !!req.input.author;
     if (hasIntegrationAuthor) {

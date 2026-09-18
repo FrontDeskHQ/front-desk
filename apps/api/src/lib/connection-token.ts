@@ -16,6 +16,7 @@ export type ConnectionPrincipal =
       organizationId: string;
       type: "widget";
       userId: string;
+      widgetKeyVersion: number;
     };
 
 export interface StoredConnectionToken {
@@ -30,6 +31,7 @@ export interface StoredConnectionToken {
   principalType: ConnectionPrincipal["type"];
   tokenHash: string;
   userId: string | null;
+  widgetKeyVersion: number | null;
 }
 
 export interface ConnectionTokenStore {
@@ -96,7 +98,8 @@ export const createConnectionTokens = (
           !row.apiKeyId ||
           !row.organizationId ||
           !row.userId ||
-          !row.name
+          !row.name ||
+          !row.widgetKeyVersion
         ) {
           return null;
         }
@@ -108,6 +111,7 @@ export const createConnectionTokens = (
           organizationId: row.organizationId,
           type: "widget",
           userId: row.userId,
+          widgetKeyVersion: row.widgetKeyVersion,
         };
       }
 
@@ -144,6 +148,8 @@ export const createConnectionTokens = (
         principalType: principal.type,
         tokenHash: hashToken(token),
         userId: principal.type === "widget" ? principal.userId : null,
+        widgetKeyVersion:
+          principal.type === "widget" ? principal.widgetKeyVersion : null,
       });
 
       return { expiresAt: expiresAt.toISOString(), token };

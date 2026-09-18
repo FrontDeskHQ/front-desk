@@ -8,6 +8,7 @@ import {
   authorize,
   authorizeDeveloperAction,
   authorizeThreadCreate,
+  authorizeWidgetCustomer,
   getAuthorizedOrganizationIds,
   getWorkspaceActor,
   requireInternalApiKey,
@@ -115,11 +116,15 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         throw new Error("UNAUTHORIZED");
       }
 
-      authorize(req, {
-        allowPublicApiKey: true,
+      authorizeWidgetCustomer(req, {
         organizationId: widgetIdentity.organizationId,
+        userId: req.input.customerId,
       });
 
+      // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220):
+      // Select only customer-safe thread, message, and author fields once
+      // tracked queries support `.select()`. Keep the source-model query until
+      // then so widget subscriptions remain operational.
       const threadQuery = db.thread.where({
         author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
         deletedAt: null,
@@ -312,22 +317,22 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       throw new Error("UNAUTHORIZED");
     }
 
-    if (organizationId !== undefined) {
-      authorize(req, { organizationId });
-    }
-
     const widgetIdentity = req.context?.widgetIdentity;
     if (widgetIdentity) {
-      authorize(req, { organizationId: widgetIdentity.organizationId });
+      authorizeWidgetCustomer(req, {
+        organizationId: organizationId ?? widgetIdentity.organizationId,
+      });
 
-      if (onlyDeleted || deletedBefore !== undefined) {
+      if (shortId !== undefined || onlyDeleted || deletedBefore !== undefined) {
         throw new Error("UNAUTHORIZED");
       }
 
+      // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220): use
+      // `.select()` to keep widget detail subscriptions on the source model
+      // while limiting both initial rows and later deltas to customer fields.
       const rows = await db.thread
         .where({
           ...(id === undefined ? {} : { id }),
-          ...(shortId === undefined ? {} : { shortId }),
           author: { metaId: widgetAuthorMetaId(widgetIdentity.userId) },
           deletedAt: null,
           organizationId: widgetIdentity.organizationId,
@@ -340,6 +345,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         .get();
 
       return rows[0];
+    }
+
+    if (organizationId !== undefined) {
+      authorize(req, { organizationId });
     }
 
     const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
@@ -396,6 +405,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       externalOrigin: z.string().optional(),
     })
   ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+
     const { externalId, organizationId, externalOrigin } = req.input;
     return Object.values(
       await db.find(schema.thread, {
@@ -414,6 +425,8 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
    */
   byIds: query(z.object({ ids: z.array(z.string()) })).handler(
     async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+
       if (req.input.ids.length === 0) {
         return [];
       }

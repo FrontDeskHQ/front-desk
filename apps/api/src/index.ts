@@ -108,6 +108,10 @@ const lsServer = server({
         throw new Error("UNAUTHORIZED", { cause: error });
       }
       if (apiCredential) {
+        // TODO(FrontDeskHQ/front-desk#389): Widget key revocation does not
+        // invalidate an established Live-State subscription. Add a supported
+        // socket/subscription revocation hook with end-to-end coverage instead
+        // of replacing methods on the Live-State server instance.
         return apiCredential;
       }
 

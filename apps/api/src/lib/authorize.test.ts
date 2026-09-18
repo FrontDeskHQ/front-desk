@@ -244,6 +244,7 @@ describe("workspace organization authorization", () => {
         context: {
           publicApiKey: { ownerId: organizationId },
           widgetIdentity: {
+            keyVersion: 1,
             name: "Ada Lovelace",
             organizationId,
             userId: "customer-1",
@@ -257,13 +258,14 @@ describe("workspace organization authorization", () => {
         {
           context: {
             widgetIdentity: {
+              keyVersion: 1,
               name: "Ada Lovelace",
               organizationId,
               userId: "customer-1",
             },
           },
         },
-        { organizationId, role: "owner" }
+        { organizationId }
       )
     ).toThrow("UNAUTHORIZED");
   });

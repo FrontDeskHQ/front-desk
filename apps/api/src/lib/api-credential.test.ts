@@ -30,6 +30,7 @@ const dependencies = {
   verifyWidget: async (token: string, organizationId: string) =>
     token === "header.payload.signature"
       ? {
+          keyVersion: 1,
           name: "Ada Lovelace",
           organizationId,
           userId: "user-1",
@@ -110,6 +111,7 @@ describe("HTTP API credential resolution", () => {
     ).resolves.toStrictEqual({
       publicApiKey: { id: "public-a", ownerId: "org-a" },
       widgetIdentity: {
+        keyVersion: 1,
         name: "Ada Lovelace",
         organizationId: "org-a",
         userId: "user-1",
@@ -164,18 +166,21 @@ describe("connection principal reconstruction", () => {
       organizationId: "org-a",
       type: "widget" as const,
       userId: "user-1",
+      widgetKeyVersion: 1,
     };
 
     await expect(
       resolveConnectionPrincipal(
         principal,
         async () => null,
-        async () => record("public-a", "org-a")
+        async () => record("public-a", "org-a"),
+        async () => true
       )
     ).resolves.toStrictEqual({
       publicApiKey: { id: "public-a", ownerId: "org-a" },
       widgetIdentity: {
         email: "ada@example.com",
+        keyVersion: 1,
         name: "Ada Lovelace",
         organizationId: "org-a",
         userId: "user-1",
@@ -189,7 +194,17 @@ describe("connection principal reconstruction", () => {
         async () =>
           record("public-a", "org-a", {
             revokedAt: "2026-01-01T00:00:00.000Z",
-          })
+          }),
+        async () => true
+      )
+    ).resolves.toBeNull();
+
+    await expect(
+      resolveConnectionPrincipal(
+        principal,
+        async () => null,
+        async () => record("public-a", "org-a"),
+        async () => false
       )
     ).resolves.toBeNull();
   });

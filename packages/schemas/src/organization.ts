@@ -68,6 +68,7 @@ export const widgetOriginSchema = z
 export const widgetIdentitySettingsSchema = z.object({
   allowedOrigins: z.array(widgetOriginSchema).max(100).default([]),
   currentKeyVersion: z.number().int().positive().default(1),
+  previousKeyExpiresAt: z.string().datetime().nullable().default(null),
   previousKeyVersion: z.number().int().positive().nullable().default(null),
 });
 

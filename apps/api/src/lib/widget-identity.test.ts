@@ -2,8 +2,11 @@ import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 
 import {
+  getWidgetSigningKeys,
   isWidgetOriginAllowed,
+  isWidgetKeyVersionActive,
   readWidgetIdentitySettings,
+  rotateWidgetIdentitySettings,
   verifyWidgetToken,
 } from "./widget-identity";
 
@@ -35,6 +38,95 @@ const makeToken = async (options: {
     .sign(new TextEncoder().encode(options.secret ?? secret));
 
 describe("widget identity verification", () => {
+  it("does not accept an undated legacy previous key", () => {
+    expect(
+      getWidgetSigningKeys({
+        masterKey: "master-key",
+        organizationId: "org-a",
+        settings: {
+          widgetIdentity: {
+            allowedOrigins: [],
+            currentKeyVersion: 2,
+            previousKeyVersion: 1,
+          },
+        },
+      }).map((key) => key.version)
+    ).toStrictEqual([2]);
+  });
+
+  it("bounds previous-key acceptance and supports immediate revocation", () => {
+    const settings = {
+      allowedOrigins: [],
+      currentKeyVersion: 2,
+      previousKeyExpiresAt: new Date(now * 1000 + 15 * 60 * 1000).toISOString(),
+      previousKeyVersion: 1,
+    };
+
+    expect(isWidgetKeyVersionActive(settings, 1, now * 1000)).toBeTruthy();
+    expect(
+      isWidgetKeyVersionActive(
+        settings,
+        1,
+        now * 1000 + 15 * 60 * 1000 + 60 * 1000
+      )
+    ).toBeTruthy();
+    expect(
+      isWidgetKeyVersionActive(
+        settings,
+        1,
+        now * 1000 + 15 * 60 * 1000 + 60 * 1000 + 1
+      )
+    ).toBeFalsy();
+    expect(
+      isWidgetKeyVersionActive(
+        {
+          ...settings,
+          previousKeyExpiresAt: null,
+          previousKeyVersion: null,
+        },
+        1,
+        now * 1000
+      )
+    ).toBeFalsy();
+  });
+
+  it("writes a 15-minute retirement deadline or revokes the old key immediately", () => {
+    const existing = {
+      allowedOrigins: ["https://app.example.com"],
+      currentKeyVersion: 2,
+      previousKeyExpiresAt: null,
+      previousKeyVersion: null,
+    };
+
+    expect(
+      rotateWidgetIdentitySettings({
+        existing,
+        hasExistingConfiguration: true,
+        now: now * 1000,
+        revokePreviousImmediately: false,
+      })
+    ).toStrictEqual({
+      allowedOrigins: ["https://app.example.com"],
+      currentKeyVersion: 3,
+      previousKeyExpiresAt: new Date(now * 1000 + 15 * 60 * 1000).toISOString(),
+      previousKeyVersion: 2,
+    });
+
+    expect(
+      rotateWidgetIdentitySettings({
+        existing,
+        hasExistingConfiguration: true,
+        now: now * 1000,
+        revokePreviousImmediately: true,
+      })
+    ).toStrictEqual({
+      allowedOrigins: ["https://app.example.com"],
+      currentKeyVersion: 3,
+      previousKeyExpiresAt: null,
+      previousKeyVersion: null,
+    });
+  });
+
   it("accepts the current HS256 contract and returns signed identity fields", async () => {
     const token = await makeToken({ org: "org-a" });
 
@@ -42,9 +134,10 @@ describe("widget identity verification", () => {
       verifyWidgetToken(token, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [secret],
+        keys: [{ expiresAt: null, secret, version: 1 }],
       })
     ).resolves.toStrictEqual({
+      keyVersion: 1,
       name: "Ada Lovelace",
       organizationId: "org-a",
       userId: "user-1",
@@ -59,14 +152,14 @@ describe("widget identity verification", () => {
       verifyWidgetToken(wrongAlgorithm, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [secret],
+        keys: [{ expiresAt: null, secret, version: 1 }],
       })
     ).rejects.toThrow("INVALID_WIDGET_TOKEN");
     await expect(
       verifyWidgetToken(overlong, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [secret],
+        keys: [{ expiresAt: null, secret, version: 1 }],
       })
     ).rejects.toThrow("INVALID_WIDGET_TOKEN");
   });
@@ -78,7 +171,7 @@ describe("widget identity verification", () => {
       verifyWidgetToken(token, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [secret],
+        keys: [{ expiresAt: null, secret, version: 1 }],
       })
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
   });
@@ -94,14 +187,14 @@ describe("widget identity verification", () => {
       verifyWidgetToken(missingClaim, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [secret],
+        keys: [{ expiresAt: null, secret, version: 1 }],
       })
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
     await expect(
       verifyWidgetToken(conflictingClaims, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [secret],
+        keys: [{ expiresAt: null, secret, version: 1 }],
       })
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
   });
@@ -122,16 +215,73 @@ describe("widget identity verification", () => {
       verifyWidgetToken(previousToken, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [currentSecret, previousSecret],
+        keys: [
+          { expiresAt: null, secret: currentSecret, version: 2 },
+          { expiresAt: null, secret: previousSecret, version: 1 },
+        ],
       })
     ).resolves.toMatchObject({ organizationId: "org-a" });
     await expect(
       verifyWidgetToken(mismatchedToken, {
         now: () => now * 1000,
         organizationId: "org-a",
-        secrets: [currentSecret, previousSecret],
+        keys: [
+          { expiresAt: null, secret: currentSecret, version: 2 },
+          { expiresAt: null, secret: previousSecret, version: 1 },
+        ],
       })
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+  });
+
+  it("enforces previous-key expiry during token verification", async () => {
+    const previousSecret = "previous-widget-secret";
+    const token = await makeToken({ org: "org-a", secret: previousSecret });
+
+    await expect(
+      verifyWidgetToken(token, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        keys: [
+          {
+            expiresAt: new Date(
+              now * 1000 + 5 * 60 * 1000
+            ).toISOString(),
+            secret: previousSecret,
+            version: 1,
+          },
+        ],
+      })
+    ).resolves.toMatchObject({ keyVersion: 1 });
+
+    await expect(
+      verifyWidgetToken(token, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        keys: [
+          {
+            expiresAt: new Date(
+              now * 1000 - 60 * 1000 - 1
+            ).toISOString(),
+            secret: previousSecret,
+            version: 1,
+          },
+        ],
+      })
+    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+
+    await expect(
+      verifyWidgetToken(token, {
+        now: () => now * 1000,
+        organizationId: "org-a",
+        keys: [
+          {
+            expiresAt: "not-a-date",
+            secret: previousSecret,
+            version: 1,
+          },
+        ],
+      })
+    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
   });
 
   it("fails closed for a present but invalid settings object", () => {
@@ -151,6 +301,7 @@ describe("widget identity verification", () => {
     ).toStrictEqual({
       allowedOrigins: [],
       currentKeyVersion: 1,
+      previousKeyExpiresAt: null,
       previousKeyVersion: null,
     });
   });

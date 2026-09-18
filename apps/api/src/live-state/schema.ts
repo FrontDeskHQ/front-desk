@@ -510,6 +510,7 @@ const connectionToken = object("connectionToken", {
   principalType: string(),
   tokenHash: string().unique().index(),
   userId: string().nullable(),
+  widgetKeyVersion: number().nullable(),
 });
 
 export const schema = createSchema({
