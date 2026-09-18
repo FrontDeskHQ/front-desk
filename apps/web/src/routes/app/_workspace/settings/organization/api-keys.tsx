@@ -14,14 +14,12 @@ import {
 } from "@workspace/ui/components/alert-dialog";
 import { Badge } from "@workspace/ui/components/badge";
 import { Button } from "@workspace/ui/components/button";
+import { Card, CardContent } from "@workspace/ui/components/card";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@workspace/ui/components/card";
-import { CopyInput } from "@workspace/ui/components/copy-value";
+  COPY_INPUT_ACTION_BUTTON_CLASSNAME,
+  COPY_INPUT_ACTION_POSITION_CLASSNAME,
+  CopyInput,
+} from "@workspace/ui/components/copy-value";
 import {
   Dialog,
   DialogContent,
@@ -31,12 +29,13 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@workspace/ui/components/dialog";
-import { Input } from "@workspace/ui/components/input";
+import { Input, InputWithSeparator } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import {
   RadioGroup,
   RadioGroupItem,
 } from "@workspace/ui/components/radio-group";
+import { Separator } from "@workspace/ui/components/separator";
 import { Skeleton } from "@workspace/ui/components/skeleton";
 import {
   Table,
@@ -46,10 +45,15 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
-import { Textarea } from "@workspace/ui/components/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@workspace/ui/components/tooltip";
 import { addDays, addYears, format } from "date-fns";
 import { useAtomValue } from "jotai/react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, RefreshCw, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -74,10 +78,8 @@ function RouteComponent() {
   const [createdApiKey, setCreatedApiKey] = useState<string | null>(null);
   const [apiKeyType, setApiKeyType] = useState<"private" | "public">("public");
   const [apiKeyName, setApiKeyName] = useState("");
-  const [allowedOrigins, setAllowedOrigins] = useState("");
+  const [allowedOrigins, setAllowedOrigins] = useState<string[]>([]);
   const [isRotateDialogOpen, setIsRotateDialogOpen] = useState(false);
-  const [isWidgetSecretDisplayDialogOpen, setIsWidgetSecretDisplayDialogOpen] =
-    useState(false);
   const [widgetSecret, setWidgetSecret] = useState<string | null>(null);
   const [isSavingWidgetSettings, setIsSavingWidgetSettings] = useState(false);
   const [isRotatingWidgetSecret, setIsRotatingWidgetSecret] = useState(false);
@@ -115,6 +117,10 @@ function RouteComponent() {
   const currentOrgId = currentOrg?.id;
 
   useEffect(() => {
+    setWidgetSecret(null);
+  }, [currentOrgId]);
+
+  useEffect(() => {
     if (!currentOrgId || !widgetIdentitySettings) return;
     if (
       hydratedWidgetOrganizationId.current === currentOrgId ||
@@ -123,20 +129,16 @@ function RouteComponent() {
       return;
     }
 
-    setAllowedOrigins(widgetIdentitySettings.allowedOrigins.join("\n"));
+    setAllowedOrigins(widgetIdentitySettings.allowedOrigins);
     setDirtyWidgetOrganizationId(null);
     hydratedWidgetOrganizationId.current = currentOrgId;
   }, [currentOrgId, dirtyWidgetOrganizationId, widgetIdentitySettings]);
 
   const getAllowedOrigins = (): string[] =>
     Array.from(
-      new Set(
-        allowedOrigins
-          .split(/\r?\n/u)
-          .map((origin) => origin.trim())
-          .filter(Boolean)
-      )
+      new Set(allowedOrigins.map((origin) => origin.trim()).filter(Boolean))
     );
+  const isOriginsDirty = dirtyWidgetOrganizationId === currentOrgId;
 
   const handleSaveWidgetSettings = async () => {
     if (!currentOrg || !widgetIdentitySettings) return;
@@ -175,7 +177,6 @@ function RouteComponent() {
           organizationId: currentOrg.id,
         });
       setWidgetSecret(result.secret);
-      setIsWidgetSecretDisplayDialogOpen(true);
       await queryClient.invalidateQueries({
         queryKey: ["organization", "widget-identity", currentOrg.id],
       });
@@ -258,6 +259,141 @@ function RouteComponent() {
 
   return (
     <div className="p-4 flex flex-col gap-4 w-full">
+      <h2 className="text-base">Widget</h2>
+      <Card className="bg-[#27272A]/30">
+        <CardContent className="gap-4">
+          {isWidgetSettingsLoading ? (
+            <Skeleton className="h-24 w-full" />
+          ) : (
+            <>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="widget-secret-key">Secret key</Label>
+                <div className="relative">
+                  <Input
+                    id="widget-secret-key"
+                    readOnly
+                    value={
+                      widgetSecret
+                        ? widgetSecret
+                        : `${widgetIdentitySettings?.secretPrefix ?? "fd_wsk_"}****`
+                    }
+                    className="pe-10 font-mono text-sm"
+                  />
+                  <div className={COPY_INPUT_ACTION_POSITION_CLASSNAME}>
+                    <div className="pointer-events-auto">
+                      {widgetSecret ? (
+                        <CopyInput.Button
+                          value={widgetSecret}
+                          ariaLabel="Copy secret key"
+                          tooltip="Copy"
+                          variant="ghost"
+                          className={COPY_INPUT_ACTION_BUTTON_CLASSNAME}
+                        />
+                      ) : (
+                        <AlertDialog
+                          open={isRotateDialogOpen}
+                          onOpenChange={setIsRotateDialogOpen}
+                        >
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger
+                                render={<span className="inline-flex" />}
+                              >
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className={
+                                      COPY_INPUT_ACTION_BUTTON_CLASSNAME
+                                    }
+                                    aria-label={
+                                      widgetIdentitySettings?.configured
+                                        ? "Rotate secret key"
+                                        : "Generate secret key"
+                                    }
+                                    disabled={
+                                      !widgetIdentitySettings ||
+                                      isSavingWidgetSettings ||
+                                      isRotatingWidgetSecret
+                                    }
+                                  >
+                                    <RefreshCw
+                                      className={`h-4 w-4 ${isRotatingWidgetSecret ? "animate-spin" : ""}`}
+                                    />
+                                  </Button>
+                                </AlertDialogTrigger>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                {widgetIdentitySettings?.configured
+                                  ? "Rotate secret key"
+                                  : "Generate secret key"}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                {widgetIdentitySettings?.configured
+                                  ? "Rotate the widget signing secret?"
+                                  : "Generate a widget signing secret?"}
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                {widgetIdentitySettings?.configured
+                                  ? "Existing tokens signed with the previous secret remain valid briefly. Update your server environment with the new secret as soon as it is shown."
+                                  : "A signing secret will be generated for widget identity verification. Copy it into your backend's FRONTDESK_SECRET_KEY environment variable."}
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                onClick={handleRotateWidgetSecret}
+                              >
+                                {widgetIdentitySettings?.configured
+                                  ? "Rotate secret"
+                                  : "Generate secret"}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label>Allowed origins (optional)</Label>
+                <InputWithSeparator
+                  placeholder="https://app.example.com"
+                  value={allowedOrigins}
+                  onValueChange={(value) => {
+                    setAllowedOrigins(value);
+                    setDirtyWidgetOrganizationId(currentOrg?.id ?? null);
+                  }}
+                />
+                <p className="text-muted-foreground text-xs">
+                  Add one exact site origin at a time. Leave empty to allow
+                  requests from any origin.
+                </p>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSaveWidgetSettings}
+          disabled={
+            !widgetIdentitySettings ||
+            !isOriginsDirty ||
+            isSavingWidgetSettings ||
+            isRotatingWidgetSecret ||
+            isWidgetSettingsLoading
+          }
+        >
+          {isSavingWidgetSettings ? "Saving…" : "Save"}
+        </Button>
+      </div>
+      <Separator className="my-6" />
       <div className="flex items-center justify-between">
         <h2 className="text-base">API keys</h2>
         <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
@@ -510,133 +646,6 @@ function RouteComponent() {
           )}
         </CardContent>
       </Card>
-      <Card className="bg-[#27272A]/30">
-        <CardHeader>
-          <CardTitle>Widget identity</CardTitle>
-          <CardDescription>
-            Configure signed-in users for the FrontDesk widget. The signing
-            secret is shown only when it is generated or rotated.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {isWidgetSettingsLoading ? (
-            <Skeleton className="h-24 w-full" />
-          ) : (
-            <>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="widget-allowed-origins">
-                  Allowed origins (optional)
-                </Label>
-                <Textarea
-                  id="widget-allowed-origins"
-                  placeholder="https://app.example.com"
-                  value={allowedOrigins}
-                  onChange={(event) => {
-                    setAllowedOrigins(event.target.value);
-                    setDirtyWidgetOrganizationId(currentOrg?.id ?? null);
-                  }}
-                  rows={4}
-                />
-                <p className="text-muted-foreground text-xs">
-                  Enter one exact site origin per line. Leave empty to allow
-                  requests from any origin.
-                </p>
-              </div>
-              <div className="flex flex-wrap justify-end gap-2">
-                <Button
-                  variant="outline"
-                  onClick={handleSaveWidgetSettings}
-                  disabled={
-                    !widgetIdentitySettings ||
-                    isSavingWidgetSettings ||
-                    isRotatingWidgetSecret
-                  }
-                >
-                  {isSavingWidgetSettings ? "Saving…" : "Save origins"}
-                </Button>
-                <AlertDialog
-                  open={isRotateDialogOpen}
-                  onOpenChange={setIsRotateDialogOpen}
-                >
-                  <AlertDialogTrigger asChild>
-                    <Button
-                      disabled={
-                        !widgetIdentitySettings ||
-                        isSavingWidgetSettings ||
-                        isRotatingWidgetSecret
-                      }
-                    >
-                      {isRotatingWidgetSecret
-                        ? "Rotating…"
-                        : widgetIdentitySettings?.configured
-                          ? "Rotate signing secret"
-                          : "Generate signing secret"}
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>
-                        Rotate the widget signing secret?
-                      </AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Existing tokens signed with the previous secret remain
-                        valid briefly. Update your server environment with the
-                        new secret as soon as it is shown.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleRotateWidgetSecret}>
-                        Rotate secret
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-      <Dialog
-        open={isWidgetSecretDisplayDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) return;
-          setIsWidgetSecretDisplayDialogOpen(open);
-        }}
-      >
-        <DialogContent className="sm:max-w-lg" showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>Widget signing secret</DialogTitle>
-            <DialogDescription>
-              Copy this value into your backend's{" "}
-              <code>FRONTDESK_SECRET_KEY</code> environment variable. It will
-              not be shown again.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col gap-4 py-4">
-            <CopyInput
-              value={widgetSecret ?? ""}
-              label="Your widget signing secret"
-              inputClassName="font-mono text-sm"
-              buttonAriaLabel="Copy widget signing secret"
-            />
-            <div className="bg-destructive/10 border border-destructive/20 rounded-md p-3 text-sm text-destructive">
-              <strong>Warning:</strong> Never expose this secret in browser code
-              or commit it to source control.
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={() => {
-                setIsWidgetSecretDisplayDialogOpen(false);
-                setWidgetSecret(null);
-              }}
-            >
-              I've copied it
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

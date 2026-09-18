@@ -2,6 +2,8 @@ import { SignJWT } from "jose";
 import { describe, expect, it } from "vitest";
 
 import {
+  deriveWidgetSigningSecret,
+  formatWidgetSigningSecretDisplayPrefix,
   getWidgetSigningKeys,
   isWidgetOriginAllowed,
   isWidgetKeyVersionActive,
@@ -304,6 +306,19 @@ describe("widget identity verification", () => {
       previousKeyExpiresAt: null,
       previousKeyVersion: null,
     });
+  });
+
+  it("formats the visible signing secret prefix", () => {
+    const secret = deriveWidgetSigningSecret({
+      masterKey: "master-key",
+      organizationId: "org-a",
+      version: 1,
+    });
+
+    expect(formatWidgetSigningSecretDisplayPrefix(secret)).toBe(
+      secret.slice(0, 12)
+    );
+    expect(formatWidgetSigningSecretDisplayPrefix(secret)).toMatch(/^fd_wsk_/u);
   });
 
   it("matches configured origins exactly", () => {

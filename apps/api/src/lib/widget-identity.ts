@@ -105,6 +105,12 @@ export const deriveWidgetSigningSecret = (input: {
   return `fd_wsk_${Buffer.from(derived).toString("base64url")}`;
 };
 
+export const WIDGET_SIGNING_SECRET_VISIBLE_PREFIX_LENGTH = 12;
+
+export const formatWidgetSigningSecretDisplayPrefix = (
+  secret: string
+): string => secret.slice(0, WIDGET_SIGNING_SECRET_VISIBLE_PREFIX_LENGTH);
+
 export const getWidgetSigningKeys = (input: {
   organizationId: string;
   settings?: unknown;

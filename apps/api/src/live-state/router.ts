@@ -52,6 +52,7 @@ import { resend } from "../lib/resend";
 import { notifyWaitlistSignup } from "../lib/waitlist-discord";
 import {
   deriveWidgetSigningSecret,
+  formatWidgetSigningSecretDisplayPrefix,
   readWidgetIdentitySettings,
   rotateWidgetIdentitySettings,
 } from "../lib/widget-identity";
@@ -145,13 +146,26 @@ export const router = createRouter({
           throw new Error("ORGANIZATION_NOT_FOUND");
         }
 
+        const widgetSettings = readWidgetIdentitySettings(organization.settings, {
+          fallbackToDefaults: true,
+        });
+        const configured =
+          asSettingsRecord(organization.settings).widgetIdentity !== undefined;
+        const masterKey = process.env.FRONTDESK_WIDGET_SIGNING_MASTER_KEY;
+
         return {
-          ...readWidgetIdentitySettings(organization.settings, {
-            fallbackToDefaults: true,
-          }),
-          configured:
-            asSettingsRecord(organization.settings).widgetIdentity !==
-            undefined,
+          ...widgetSettings,
+          configured,
+          secretPrefix:
+            configured && masterKey?.trim()
+              ? formatWidgetSigningSecretDisplayPrefix(
+                  deriveWidgetSigningSecret({
+                    masterKey,
+                    organizationId: organization.id,
+                    version: widgetSettings.currentKeyVersion,
+                  })
+                )
+              : null,
         };
       }),
       updateWidgetIdentity: mutation(
