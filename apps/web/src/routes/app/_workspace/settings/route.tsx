@@ -16,7 +16,7 @@ function RouteComponent() {
     <div className="w-screen h-full flex overflow-hidden">
       <SettingsSidebar />
       <Card className="flex-1 bg-muted/30 relative m-2 ml-0 h-auto min-h-0 overflow-y-auto p-4 max-lg:ml-2 lg:peer-data-[state=collapsed]:ml-2">
-        <CardHeader className="px-0 border-b-0 h-auto pb-4">
+        <CardHeader className="px-0 border-b-0 h-auto pb-4 bg-transparent">
           <WorkspaceBreadcrumbs />
         </CardHeader>
         <div className="max-w-3xl mx-auto w-full flex flex-col">

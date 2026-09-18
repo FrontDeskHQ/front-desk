@@ -1,5 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { discordIntegrationSchema } from "@workspace/schemas/integration/discord";
 import {
   RichText,
@@ -10,7 +10,6 @@ import { Card, CardContent } from "@workspace/ui/components/card";
 import { InputWithSeparator } from "@workspace/ui/components/input";
 import { Separator } from "@workspace/ui/components/separator";
 import { useAtomValue } from "jotai/react";
-import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { useCallback } from "react";
 import { ulid } from "ulid";
@@ -142,106 +141,94 @@ function RouteComponent() {
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        render={
-          <Link to="/app/settings/organization/integration">
-            <ArrowLeft />
-            Integrations
-          </Link>
-        }
-        className="absolute top-2 left-1"
-      />
-      <div className="flex flex-col gap-4 pt-12">
-        {integrations.hasReachedLimit && <LimitCallout className="mb-4" />}
-        {integration?.enabled &&
-          (!parsedConfig?.data?.selectedChannels ||
-            parsedConfig.data.selectedChannels.length === 0) && (
-            <IntegrationWarningCallout
-              title="No support channels configured."
-              subtitle="Add at least one channel for the integration to work."
-            />
-          )}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {integrationDetails.icon}
-            <div>
-              <h1 className="text-base">{integrationDetails.label}</h1>
-              <h2 className="text-muted-foreground">
-                {integrationDetails.description}
-              </h2>
-            </div>
-          </div>
-          {!integration?.enabled && (
-            <div className="flex gap-5 items-center">
-              <div>
-                <h3 className="text-muted-foreground">Built by</h3>
-                <p>FrontDesk</p>
-              </div>
-              <Button
-                onClick={handleEnableDiscord}
-                disabled={integrations.hasReachedLimit}
-              >
-                Enable
-              </Button>
-            </div>
-          )}
-        </div>
-        <Card className="bg-muted/30">
-          <CardContent>
-            {integration?.enabled ? (
-              <>
-                <div className="flex gap-8 items-center justify-between">
-                  <div className="flex flex-col">
-                    <div>Support channels</div>
-                    <div className="text-muted-foreground">
-                      Channels where support threads will be created
-                    </div>
-                  </div>
-                  <InputWithSeparator
-                    placeholder="support-channel, help-channel, ..."
-                    className="w-64"
-                    value={parsedConfig?.data?.selectedChannels ?? []}
-                    onValueChange={(value) => {
-                      updateIntegration({ selectedChannels: value });
-                    }}
-                  />
-                </div>
-                <Separator />
-                <div className="flex gap-5 items-center">
-                  Disable integration
-                  <Button
-                    variant="ghost"
-                    className="ml-auto text-red-700 dark:hover:text-red-500"
-                    onClick={() => {
-                      mutate.integration.updateInstallation({
-                        integrationId: integration?.id,
-                        enabled: false,
-                        updatedAt: new Date(),
-                      });
-                    }}
-                  >
-                    Disable
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <>
-                <TruncatedText>
-                  <RichText content={integrationDetails.fullDescription} />
-                </TruncatedText>
-              </>
-            )}
-          </CardContent>
-        </Card>
-        {integration?.enabled && (
-          <SyncStatus
-            backfill={parsedConfig?.data?.backfill}
-            integrationType="discord"
+    <div className="flex flex-col gap-4">
+      {integrations.hasReachedLimit && <LimitCallout className="mb-4" />}
+      {integration?.enabled &&
+        (!parsedConfig?.data?.selectedChannels ||
+          parsedConfig.data.selectedChannels.length === 0) && (
+          <IntegrationWarningCallout
+            title="No support channels configured."
+            subtitle="Add at least one channel for the integration to work."
           />
         )}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {integrationDetails.icon}
+          <div>
+            <h1 className="text-base">{integrationDetails.label}</h1>
+            <h2 className="text-muted-foreground">
+              {integrationDetails.description}
+            </h2>
+          </div>
+        </div>
+        {!integration?.enabled && (
+          <div className="flex gap-5 items-center">
+            <div>
+              <h3 className="text-muted-foreground">Built by</h3>
+              <p>FrontDesk</p>
+            </div>
+            <Button
+              onClick={handleEnableDiscord}
+              disabled={integrations.hasReachedLimit}
+            >
+              Enable
+            </Button>
+          </div>
+        )}
       </div>
-    </>
+      <Card className="bg-muted/30">
+        <CardContent>
+          {integration?.enabled ? (
+            <>
+              <div className="flex gap-8 items-center justify-between">
+                <div className="flex flex-col">
+                  <div>Support channels</div>
+                  <div className="text-muted-foreground">
+                    Channels where support threads will be created
+                  </div>
+                </div>
+                <InputWithSeparator
+                  placeholder="support-channel, help-channel, ..."
+                  className="w-64"
+                  value={parsedConfig?.data?.selectedChannels ?? []}
+                  onValueChange={(value) => {
+                    updateIntegration({ selectedChannels: value });
+                  }}
+                />
+              </div>
+              <Separator />
+              <div className="flex gap-5 items-center">
+                Disable integration
+                <Button
+                  variant="ghost"
+                  className="ml-auto text-red-700 dark:hover:text-red-500"
+                  onClick={() => {
+                    mutate.integration.updateInstallation({
+                      integrationId: integration?.id,
+                      enabled: false,
+                      updatedAt: new Date(),
+                    });
+                  }}
+                >
+                  Disable
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <TruncatedText>
+                <RichText content={integrationDetails.fullDescription} />
+              </TruncatedText>
+            </>
+          )}
+        </CardContent>
+      </Card>
+      {integration?.enabled && (
+        <SyncStatus
+          backfill={parsedConfig?.data?.backfill}
+          integrationType="discord"
+        />
+      )}
+    </div>
   );
 }

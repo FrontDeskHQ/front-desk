@@ -1,5 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { githubIntegrationSchema } from "@workspace/schemas/integration/github";
 import {
   RichText,
@@ -9,7 +9,6 @@ import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Separator } from "@workspace/ui/components/separator";
 import { useAtomValue } from "jotai/react";
-import { ArrowLeft } from "lucide-react";
 import { usePostHog } from "posthog-js/react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
@@ -184,91 +183,81 @@ function RouteComponent() {
   }
 
   return (
-    <>
-      <Button
-        variant="ghost"
-        render={<Link to="/app/settings/organization/integration" />}
-        className="absolute top-2 left-1"
-      >
-        <ArrowLeft />
-        Integrations
-      </Button>
-      <div className="flex flex-col gap-4 pt-12">
-        {integration?.enabled &&
-          (!parsedConfig?.data?.repos ||
-            parsedConfig.data.repos.length === 0) && (
-            <IntegrationWarningCallout
-              title="No repositories connected."
-              subtitle="Connect at least one repository for the integration to work."
-            />
-          )}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            {integrationDetails.icon}
-            <div>
-              <h1 className="text-base">{integrationDetails.label}</h1>
-              <h2 className="text-muted-foreground">
-                {integrationDetails.description}
-              </h2>
-            </div>
+    <div className="flex flex-col gap-4">
+      {integration?.enabled &&
+        (!parsedConfig?.data?.repos ||
+          parsedConfig.data.repos.length === 0) && (
+          <IntegrationWarningCallout
+            title="No repositories connected."
+            subtitle="Connect at least one repository for the integration to work."
+          />
+        )}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {integrationDetails.icon}
+          <div>
+            <h1 className="text-base">{integrationDetails.label}</h1>
+            <h2 className="text-muted-foreground">
+              {integrationDetails.description}
+            </h2>
           </div>
-          {!integration?.enabled && (
-            <div className="flex gap-5 items-center">
-              <div>
-                <h3 className="text-muted-foreground">Built by</h3>
-                <p>FrontDesk</p>
-              </div>
-              <Button onClick={handleEnableGitHub}>Enable</Button>
-            </div>
-          )}
         </div>
-        <Card className="bg-muted/30">
-          <CardContent>
-            {integration?.enabled ? (
-              <>
-                <div className="flex flex-col gap-2">
-                  <div>Connected Repositories</div>
-                  <div className="text-muted-foreground">
-                    {parsedConfig?.data?.repos &&
-                    parsedConfig.data.repos.length > 0 ? (
-                      <ul className="list-disc list-inside space-y-1">
-                        {parsedConfig.data.repos.map((repo) => (
-                          <li key={repo.fullName}>{repo.fullName}</li>
-                        ))}
-                      </ul>
-                    ) : (
-                      "No repositories connected"
-                    )}
-                  </div>
-                </div>
-
-                <Separator />
-                <div className="flex gap-5 items-center">
-                  Disable integration
-                  <Button
-                    variant="ghost"
-                    className="ml-auto text-red-700 dark:hover:text-red-500"
-                    onClick={() => {
-                      mutate.integration.updateInstallation({
-                        integrationId: integration.id,
-                        enabled: false,
-                        updatedAt: new Date(),
-                      });
-                    }}
-                  >
-                    Disable
-                  </Button>
-                </div>
-              </>
-            ) : (
-              <TruncatedText>
-                <RichText content={integrationDetails.fullDescription} />
-              </TruncatedText>
-            )}
-          </CardContent>
-        </Card>
-        {/* SyncStatus omitted: GitHub integration does not support backfill */}
+        {!integration?.enabled && (
+          <div className="flex gap-5 items-center">
+            <div>
+              <h3 className="text-muted-foreground">Built by</h3>
+              <p>FrontDesk</p>
+            </div>
+            <Button onClick={handleEnableGitHub}>Enable</Button>
+          </div>
+        )}
       </div>
-    </>
+      <Card className="bg-muted/30">
+        <CardContent>
+          {integration?.enabled ? (
+            <>
+              <div className="flex flex-col gap-2">
+                <div>Connected Repositories</div>
+                <div className="text-muted-foreground">
+                  {parsedConfig?.data?.repos &&
+                  parsedConfig.data.repos.length > 0 ? (
+                    <ul className="list-disc list-inside space-y-1">
+                      {parsedConfig.data.repos.map((repo) => (
+                        <li key={repo.fullName}>{repo.fullName}</li>
+                      ))}
+                    </ul>
+                  ) : (
+                    "No repositories connected"
+                  )}
+                </div>
+              </div>
+
+              <Separator />
+              <div className="flex gap-5 items-center">
+                Disable integration
+                <Button
+                  variant="ghost"
+                  className="ml-auto text-red-700 dark:hover:text-red-500"
+                  onClick={() => {
+                    mutate.integration.updateInstallation({
+                      integrationId: integration.id,
+                      enabled: false,
+                      updatedAt: new Date(),
+                    });
+                  }}
+                >
+                  Disable
+                </Button>
+              </div>
+            </>
+          ) : (
+            <TruncatedText>
+              <RichText content={integrationDetails.fullDescription} />
+            </TruncatedText>
+          )}
+        </CardContent>
+      </Card>
+      {/* SyncStatus omitted: GitHub integration does not support backfill */}
+    </div>
   );
 }
