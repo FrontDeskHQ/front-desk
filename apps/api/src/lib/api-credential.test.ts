@@ -98,6 +98,22 @@ describe("HTTP API credential resolution", () => {
     ).rejects.toThrow("CONFLICTING_API_CREDENTIALS");
   });
 
+  it("requires an active public key alongside a widget JWT", async () => {
+    for (const publicKey of [undefined, "revoked-public-key"]) {
+      await expect(
+        resolveHttpApiCredential(
+          {
+            authorization: "Bearer header.payload.signature",
+            ...(publicKey === undefined
+              ? {}
+              : { "x-public-api-key": publicKey }),
+          },
+          dependencies
+        )
+      ).rejects.toThrow("INVALID_API_CREDENTIAL");
+    }
+  });
+
   it("accepts a public key plus a verified widget JWT", async () => {
     await expect(
       resolveHttpApiCredential(
