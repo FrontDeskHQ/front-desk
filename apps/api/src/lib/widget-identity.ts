@@ -296,10 +296,9 @@ export const verifyWidgetToken = async (
       const tokenOrganizationIds = [payload.org, payload.organizationId].filter(
         (value) => value !== undefined
       );
-      const tokenOrganizationId = tokenOrganizationIds[0];
+      // The publishable key selects the organization and its signing secrets.
+      // Optional claims must agree with that verified organization context.
       if (
-        tokenOrganizationIds.length === 0 ||
-        typeof tokenOrganizationId !== "string" ||
         tokenOrganizationIds.some(
           (value) =>
             typeof value !== "string" || value !== options.organizationId
@@ -317,7 +316,7 @@ export const verifyWidgetToken = async (
         ...(email === undefined ? {} : { email }),
         keyVersion: key.version,
         name,
-        organizationId: tokenOrganizationId,
+        organizationId: options.organizationId,
         userId,
       };
     } catch (error) {

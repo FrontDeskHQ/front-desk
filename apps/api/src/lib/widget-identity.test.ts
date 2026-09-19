@@ -19,15 +19,15 @@ const makeToken = async (options: {
   alg?: "HS256" | "HS384";
   exp?: number;
   name?: string;
-  org?: string;
-  organizationId?: string;
+  org?: unknown;
+  organizationId?: unknown;
   secret?: string;
   sub?: string;
 }) =>
   new SignJWT({
     name: options.name ?? "Ada Lovelace",
-    ...(options.org ? { org: options.org } : {}),
-    ...(options.organizationId
+    ...(options.org !== undefined ? { org: options.org } : {}),
+    ...(options.organizationId !== undefined
       ? { organizationId: options.organizationId }
       : {}),
   })
@@ -178,27 +178,68 @@ describe("widget identity verification", () => {
     ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
   });
 
-  it("requires every supplied organization claim to match", async () => {
-    const missingClaim = await makeToken({});
-    const conflictingClaims = await makeToken({
-      org: "org-a",
-      organizationId: "org-b",
-    });
+  it.each([
+    {},
+    { organizationId: "org-a" },
+    { org: "org-a", organizationId: "org-a" },
+  ])(
+    "resolves the organization from the verification context for %j",
+    async (claims) => {
+      const token = await makeToken(claims);
+      await expect(
+        verifyWidgetToken(token, {
+          now: () => now * 1000,
+          organizationId: "org-a",
+          keys: [{ expiresAt: null, secret, version: 1 }],
+        })
+      ).resolves.toMatchObject({ organizationId: "org-a", userId: "user-1" });
+    }
+  );
+
+  it.each([
+    { org: "org-a", organizationId: "org-b" },
+    { organizationId: "org-b" },
+    { org: null },
+    { org: 123 },
+    { org: "" },
+    { org: "org-a", organizationId: null },
+  ])(
+    "rejects conflicting or malformed organization claims %j",
+    async (claims) => {
+      const token = await makeToken(claims);
+      await expect(
+        verifyWidgetToken(token, {
+          now: () => now * 1000,
+          organizationId: "org-a",
+          keys: [{ expiresAt: null, secret, version: 1 }],
+        })
+      ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+    }
+  );
+
+  it("rejects a claimless token signed for another organization", async () => {
+    const keysFor = (organizationId: string) =>
+      getWidgetSigningKeys({
+        masterKey: "master-key",
+        organizationId,
+        settings: {},
+      });
+    const token = await makeToken({ secret: keysFor("org-a")[0].secret });
 
     await expect(
-      verifyWidgetToken(missingClaim, {
+      verifyWidgetToken(token, {
         now: () => now * 1000,
         organizationId: "org-a",
-        keys: [{ expiresAt: null, secret, version: 1 }],
+        keys: keysFor("org-a"),
       })
-    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+    ).resolves.toMatchObject({ organizationId: "org-a" });
     await expect(
-      verifyWidgetToken(conflictingClaims, {
+      verifyWidgetToken(token, {
         now: () => now * 1000,
-        organizationId: "org-a",
-        keys: [{ expiresAt: null, secret, version: 1 }],
+        organizationId: "org-b",
+        keys: keysFor("org-b"),
       })
-    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
   });
 
   it("accepts a previous signing secret and rethrows a current-key organization mismatch", async () => {
@@ -245,9 +286,7 @@ describe("widget identity verification", () => {
         organizationId: "org-a",
         keys: [
           {
-            expiresAt: new Date(
-              now * 1000 + 5 * 60 * 1000
-            ).toISOString(),
+            expiresAt: new Date(now * 1000 + 5 * 60 * 1000).toISOString(),
             secret: previousSecret,
             version: 1,
           },
@@ -261,9 +300,7 @@ describe("widget identity verification", () => {
         organizationId: "org-a",
         keys: [
           {
-            expiresAt: new Date(
-              now * 1000 - 60 * 1000 - 1
-            ).toISOString(),
+            expiresAt: new Date(now * 1000 - 60 * 1000 - 1).toISOString(),
             secret: previousSecret,
             version: 1,
           },
