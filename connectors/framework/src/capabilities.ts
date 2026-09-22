@@ -124,28 +124,82 @@ export type IssueTrackerCreatePayload = z.infer<
 >;
 
 /**
+ * Provider-neutral parent that locates an issue for humans. `externalId` is
+ * stable provider identity; `label` is mutable display text. Core may display
+ * and filter these fields but never interprets them for provider calls.
+ */
+export const externalEntityContainerSchema = z.object({
+  externalId: z.string().min(1),
+  kind: z.string().min(1),
+  label: z.string().min(1),
+});
+
+export type ExternalEntityContainer = z.infer<
+  typeof externalEntityContainerSchema
+>;
+
+/**
  * Normalized entity returned by an issue-tracker `create`. Provider-neutral:
  * `id` is a stable external key, `label` a human-readable reference.
  */
-export interface NormalizedIssue {
+export const normalizedIssueSchema = z.object({
   /** Stable, provider-scoped external key (e.g. `github:owner/repo#123`). */
-  id: string;
+  id: z.string().min(1),
   /**
    * Provider-local short reference, as a string so any tracker fits (GitHub
    * `"123"`, Jira `"PROJ-123"`, Linear `"ENG-456"`).
    */
-  shortId: string;
-  title: string;
-  body: string;
-  state: string;
-  url: string;
+  shortId: z.string().min(1),
+  title: z.string(),
+  body: z.string(),
+  state: z.string().min(1),
+  url: z.string().min(1),
   /** Human-readable reference, e.g. `owner/repo#123`. */
-  label: string;
-}
+  label: z.string().min(1),
+  /** Additive during the GitHub mirror migration; required after cutover. */
+  container: externalEntityContainerSchema.optional(),
+  /** Opaque provider address. Only the owning connector may interpret it. */
+  externalRef: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type NormalizedIssue = z.infer<typeof normalizedIssueSchema>;
 
 export interface IssueTrackerCreateResult {
   entity: NormalizedIssue;
 }
+
+/** One provider-owned destination where a new issue can be created. */
+export const issueTrackerTargetSchema = z.object({
+  label: z.string().min(1),
+  target: z.record(z.string(), z.unknown()),
+});
+
+export type IssueTrackerTarget = z.infer<typeof issueTrackerTargetSchema>;
+
+export const issueTrackerListTargetsResultSchema = z.object({
+  targets: z.array(issueTrackerTargetSchema),
+});
+
+export type IssueTrackerListTargetsResult = z.infer<
+  typeof issueTrackerListTargetsResultSchema
+>;
+
+/** Exact provider reference, such as a canonical URL or `ENG-456`. */
+export const issueTrackerLookupPayloadSchema = z.object({
+  reference: z.string().trim().min(1),
+});
+
+export type IssueTrackerLookupPayload = z.infer<
+  typeof issueTrackerLookupPayloadSchema
+>;
+
+export const issueTrackerLookupResultSchema = z.object({
+  entity: normalizedIssueSchema.nullable(),
+});
+
+export type IssueTrackerLookupResult = z.infer<
+  typeof issueTrackerLookupResultSchema
+>;
 
 /**
  * Provider-neutral reference to an already-mirrored external entity that the
@@ -163,6 +217,12 @@ export const capabilityEntityRefSchema = z.object({
   repoFullName: z.string().min(1),
   /** Canonical external URL of the entity. */
   url: z.string(),
+  /** Additive during mirror migration; core never parses this value. */
+  externalRef: z.record(z.string(), z.unknown()).optional(),
+  /** Mutable provider-local reference used for display. */
+  shortId: z.string().min(1).optional(),
+  /** Provider-neutral parent used for display and filtering. */
+  container: externalEntityContainerSchema.optional(),
 });
 
 export type CapabilityEntityRef = z.infer<typeof capabilityEntityRefSchema>;
