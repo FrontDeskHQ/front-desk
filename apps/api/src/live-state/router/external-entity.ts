@@ -70,9 +70,13 @@ const externalEntityFields = z.object({
   baseRef: z.string().nullable(),
   body: z.string().nullable(),
   closedAt: z.coerce.date().nullable(),
+  containerId: z.string().min(1),
+  containerKind: z.string().min(1),
+  containerLabel: z.string().min(1),
   draft: z.boolean().nullable(),
   externalCreatedAt: z.coerce.date(),
   externalKey: z.string(),
+  externalRef: z.record(z.string(), z.unknown()),
   externalUpdatedAt: z.coerce.date(),
   headRef: z.string().nullable(),
   labels: z.array(z.string()),
@@ -82,6 +86,7 @@ const externalEntityFields = z.object({
   organizationId: z.string(),
   provider: z.string(),
   repoFullName: z.string(),
+  shortId: z.string().min(1),
   state: z.string(),
   title: z.string(),
   type: z.enum(["issue", "pull_request"]),
@@ -510,8 +515,17 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   upsert: mutation(externalEntityFields).handler(async ({ req, db }) => {
     requireInternalApiKey(req.context);
 
-    const { organizationId, externalKey } = req.input;
+    const { organizationId, externalKey, provider } = req.input;
     const now = new Date();
+    const integration = Object.values(
+      await db.find(schema.integration, {
+        where: { organizationId, type: provider },
+      })
+    )[0];
+    const normalizedInput = {
+      ...req.input,
+      integrationId: integration?.id ?? null,
+    };
 
     const write = await db.transaction(async ({ trx }) => {
       const existing = Object.values(
@@ -522,7 +536,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
 
       if (existing) {
         await trx.update(schema.externalEntity, existing.id, {
-          ...req.input,
+          ...normalizedInput,
           lastSyncedAt: now,
           deletedAt: null,
         });
@@ -532,7 +546,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       const newId = ulid().toLowerCase();
       await trx.insert(schema.externalEntity, {
         id: newId,
-        ...req.input,
+        ...normalizedInput,
         lastSyncedAt: now,
         deletedAt: null,
       });
