@@ -64,11 +64,21 @@ export const slackManifest: ConnectorManifest = {
   type: "slack",
 };
 
+/** Linear is a simple invoked connector hosted by the shared connector host. */
+export const linearManifest: ConnectorManifest = {
+  baseUrlEnv: "BASE_LINEAR_CONNECTOR_URL",
+  capabilities: ["issue-tracker"],
+  defaultBaseUrl: "http://localhost:3336/linear",
+  supportsConnectionProbe: true,
+  type: "linear",
+};
+
 /** All known connector manifests. */
 export const manifests: ConnectorManifest[] = [
   githubManifest,
   discordManifest,
   slackManifest,
+  linearManifest,
 ];
 
 /**
