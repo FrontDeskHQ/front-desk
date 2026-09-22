@@ -147,16 +147,30 @@ const pullRequest = (overrides: Record<string, unknown> = {}) => ({
 });
 
 const replayTarget = {
+  container: {
+    externalId: "owner/repo",
+    kind: "repository",
+    label: "owner/repo",
+  },
   externalKey: "github:owner/repo#123",
+  externalRef: { number: 123, owner: "owner", repo: "repo" },
   number: 123,
   repoFullName: "owner/repo",
+  shortId: "123",
   url: "https://github.com/owner/repo/pull/123",
 };
 
 const issueTarget = {
+  container: {
+    externalId: "owner/repo",
+    kind: "repository",
+    label: "owner/repo",
+  },
   externalKey: "github:owner/repo#124",
+  externalRef: { number: 124, owner: "owner", repo: "repo" },
   number: 124,
   repoFullName: "owner/repo",
+  shortId: "124",
   url: "https://github.com/owner/repo/issues/124",
 };
 

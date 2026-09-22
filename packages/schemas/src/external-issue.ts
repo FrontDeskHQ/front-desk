@@ -81,6 +81,26 @@ export const parseExternalId = (
 export const isGitHubId = (externalId: string): boolean =>
   externalId.startsWith("github:");
 
+export interface ExternalEntityDisplayRef {
+  containerKind?: string | null;
+  containerLabel?: string | null;
+  number?: number | null;
+  repoFullName?: string | null;
+  shortId?: string | null;
+}
+
+/** Human reference for provider-neutral external-entity surfaces. */
+export const formatExternalEntityLabel = (
+  entity: ExternalEntityDisplayRef
+): string => {
+  const shortId = entity.shortId ?? String(entity.number ?? "");
+  const containerLabel = entity.containerLabel ?? entity.repoFullName;
+  if (entity.containerKind === "repository" || !entity.containerKind) {
+    return containerLabel ? `${containerLabel}#${shortId}` : shortId;
+  }
+  return shortId;
+};
+
 /**
  * Extracts the numeric ID from a formatted external ID
  * Returns the original string if it's not in the expected format (for backward compatibility)

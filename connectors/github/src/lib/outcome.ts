@@ -40,9 +40,16 @@ const refForNode = (
     return null;
   }
   return {
+    container: {
+      externalId: node.repository.nameWithOwner,
+      kind: "repository",
+      label: node.repository.nameWithOwner,
+    },
     externalKey: formatGitHubId(node.databaseId, owner, repo),
+    externalRef: { number: node.number, owner, repo },
     number: node.number,
     repoFullName: node.repository.nameWithOwner,
+    shortId: String(node.number),
     url: node.url,
   };
 };

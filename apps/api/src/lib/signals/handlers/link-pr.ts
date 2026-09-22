@@ -1,3 +1,4 @@
+import { formatExternalEntityLabel } from "@workspace/schemas/external-issue";
 import type { LinkPrAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
@@ -84,7 +85,7 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       externalPrId: entity.externalKey,
     });
 
-    const newPrLabel = `${entity.repoFullName}#${entity.number}`;
+    const newPrLabel = formatExternalEntityLabel(entity);
     await runRecordActivity(ctx.db, {
       metadata: {
         newPrId: entity.externalKey,

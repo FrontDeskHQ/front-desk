@@ -150,7 +150,8 @@ const replayPullRequest = async (
     !parsedExternalKey ||
     parsedExternalKey.provider !== "github" ||
     parsedExternalKey.owner !== repo.owner ||
-    parsedExternalKey.repo !== repo.name
+    parsedExternalKey.repo !== repo.name ||
+    !target.number
   ) {
     return result(400, "INVALID_TARGET");
   }
@@ -261,7 +262,8 @@ const replayFinishedEntity = async (
     !parsedExternalKey ||
     parsedExternalKey.provider !== "github" ||
     parsedExternalKey.owner !== repo.owner ||
-    parsedExternalKey.repo !== repo.name
+    parsedExternalKey.repo !== repo.name ||
+    !target.number
   ) {
     return result(400, repo ? "INVALID_TARGET" : "REPOSITORY_NOT_CONNECTED");
   }
@@ -288,7 +290,6 @@ const replayFinishedEntity = async (
             ),
             repoRef(repo)
           );
-
   } catch {
     return result(502, "UPSTREAM_UNAVAILABLE");
   }

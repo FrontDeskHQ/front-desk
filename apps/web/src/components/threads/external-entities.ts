@@ -6,6 +6,7 @@
  */
 
 import { useLiveQuery } from "@live-state/sync/client";
+import { formatExternalEntityLabel } from "@workspace/schemas/external-issue";
 import { useAtomValue } from "jotai/react";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
@@ -21,6 +22,10 @@ export interface MirrorEntity {
   type: string;
   number: number;
   repoFullName: string;
+  shortId: string | null;
+  containerId: string | null;
+  containerLabel: string | null;
+  containerKind: string | null;
   url: string;
   title: string;
   body: string | null;
@@ -62,10 +67,12 @@ export const entityMatchesQuery = (
   entity: Pick<
     MirrorEntity,
     | "number"
+    | "shortId"
     | "title"
     | "body"
     | "state"
     | "repoFullName"
+    | "containerLabel"
     | "authorLogin"
     | "labels"
     | "assignees"
@@ -78,11 +85,11 @@ export const entityMatchesQuery = (
   }
 
   const haystack = [
-    `#${entity.number}`,
+    entity.shortId ?? `#${entity.number}`,
     entity.title,
     entity.body ?? "",
     entity.state,
-    entity.repoFullName,
+    entity.containerLabel ?? entity.repoFullName,
     entity.authorLogin ?? "",
     ...entity.labels,
     ...entity.assignees,
@@ -107,6 +114,10 @@ type MirrorEntityRow = Pick<
   | "type"
   | "number"
   | "repoFullName"
+  | "shortId"
+  | "containerId"
+  | "containerLabel"
+  | "containerKind"
   | "url"
   | "title"
   | "body"
@@ -132,6 +143,10 @@ const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
   labels: row.labels,
   merged: row.merged,
   number: row.number,
+  shortId: row.shortId,
+  containerId: row.containerId,
+  containerLabel: row.containerLabel,
+  containerKind: row.containerKind,
   repoFullName: row.repoFullName,
   state: row.state,
   title: row.title,
@@ -189,8 +204,11 @@ export const useMirrorEntityByRef = (
 
 /** Display label for a mirrored issue or PR (`owner/repo#number`). */
 export const formatMirrorEntityLabel = (
-  entity: Pick<MirrorEntity, "repoFullName" | "number">
-): string => `${entity.repoFullName}#${entity.number}`;
+  entity: Pick<
+    MirrorEntity,
+    "repoFullName" | "number" | "shortId" | "containerLabel" | "containerKind"
+  >
+): string => formatExternalEntityLabel(entity);
 
 /** Prefer a live mirror label; fall back to the baked snapshot when absent. */
 export const resolveMirrorEntityLabel = (

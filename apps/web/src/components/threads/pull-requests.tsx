@@ -17,7 +17,10 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { mutate, query } from "~/lib/live-state";
 
-import { entityMatchesQuery } from "./external-entities";
+import {
+  entityMatchesQuery,
+  formatMirrorEntityLabel,
+} from "./external-entities";
 import type { MirrorEntity } from "./external-entities";
 import { LinkedPrSuggestionsSection } from "./linked-pr-suggestions-section";
 
@@ -59,7 +62,7 @@ export function PullRequestsSection({
   const openPullRequests = pullRequests.filter((pr) => pr.state === "open");
 
   const comboboxItems = openPullRequests.map((pr) => ({
-    label: `${pr.repoFullName}#${pr.number} ${pr.title}`,
+    label: `${formatMirrorEntityLabel(pr)} ${pr.title}`,
     pr,
     value: pr.externalKey,
   }));
@@ -98,108 +101,108 @@ export function PullRequestsSection({
       <div className="flex flex-col gap-1.5">
         <div className="flex gap-1 items-center group w-full max-w-76 min-w-0">
           <div className="min-w-0 max-w-full overflow-hidden">
-          <Combobox
-            items={comboboxItems}
-            value={linkedPr?.externalKey ?? ""}
-            filter={(item, q) => {
-              const it = item as { pr?: MirrorEntity };
-              if (!it.pr) {
-                return true;
-              }
-              return entityMatchesQuery(it.pr, q);
-            }}
-            onValueChange={(value) => {
-              if (!currentOrg) {
-                return;
-              }
+            <Combobox
+              items={comboboxItems}
+              value={linkedPr?.externalKey ?? ""}
+              filter={(item, q) => {
+                const it = item as { pr?: MirrorEntity };
+                if (!it.pr) {
+                  return true;
+                }
+                return entityMatchesQuery(it.pr, q);
+              }}
+              onValueChange={(value) => {
+                if (!currentOrg) {
+                  return;
+                }
 
-              const oldPrId = externalPrId ?? null;
-              const oldPr = pullRequests.find(
-                (pr) => pr.externalKey === oldPrId
-              );
-              // If clicking the same PR, unlink it
-              const newPrId = oldPrId === value ? null : value || null;
-              const newPr = newPrId
-                ? pullRequests.find((pr) => pr.externalKey === newPrId)
-                : undefined;
+                const oldPrId = externalPrId ?? null;
+                const oldPr = pullRequests.find(
+                  (pr) => pr.externalKey === oldPrId
+                );
+                // If clicking the same PR, unlink it
+                const newPrId = oldPrId === value ? null : value || null;
+                const newPr = newPrId
+                  ? pullRequests.find((pr) => pr.externalKey === newPrId)
+                  : undefined;
 
-              if (newPrId) {
-                mutate.thread.linkPullRequest({
-                  externalPrId: newPrId,
-                  organizationId: currentOrg.id,
-                  threadId,
-                  userId: user.id,
-                  userName: user.name,
-                });
+                if (newPrId) {
+                  mutate.thread.linkPullRequest({
+                    externalPrId: newPrId,
+                    organizationId: currentOrg.id,
+                    threadId,
+                    userId: user.id,
+                    userName: user.name,
+                  });
 
-                captureThreadEvent("thread:pr_link", {
-                  new_pr_id: newPrId,
-                  new_pr_number: newPr?.number,
-                  old_pr_id: oldPrId,
-                  old_pr_number: oldPr?.number,
-                  repository: newPr?.repoFullName,
-                });
-              } else {
-                mutate.thread.unlinkPullRequest({
-                  organizationId: currentOrg.id,
-                  threadId,
-                  userId: user.id,
-                  userName: user.name,
-                });
+                  captureThreadEvent("thread:pr_link", {
+                    new_pr_id: newPrId,
+                    new_pr_number: newPr?.number,
+                    old_pr_id: oldPrId,
+                    old_pr_number: oldPr?.number,
+                    repository: newPr?.repoFullName,
+                  });
+                } else {
+                  mutate.thread.unlinkPullRequest({
+                    organizationId: currentOrg.id,
+                    threadId,
+                    userId: user.id,
+                    userName: user.name,
+                  });
 
-                captureThreadEvent("thread:pr_unlink", {
-                  old_pr_id: oldPrId,
-                  old_pr_number: oldPr?.number,
-                  repository: oldPr?.repoFullName,
-                });
-              }
-            }}
-          >
-            <ComboboxTrigger
-              variant="unstyled"
-              render={
-                <ActionButton
-                  size="sm"
-                  variant="ghost"
-                  className="justify-start text-sm w-fit min-w-0 max-w-full overflow-hidden p-0 has-[>svg]:px-2 h-7"
-                  tooltip="Link pull request"
-                  keybind="shift+p"
-                >
-                  {linkedPr ? (
-                    <>
-                      <GitPullRequest className="size-4 shrink-0" />
-                      <span className="truncate shrink grow text-left">
-                        #{linkedPr.number} {linkedPr.title}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <GitPullRequest className="size-4 text-foreground-secondary" />
-                      <span className="text-foreground-secondary">
-                        Link pull request
-                      </span>
-                    </>
-                  )}
-                </ActionButton>
-              }
-            />
-            <ComboboxContent className="w-60" side="left">
-              <ComboboxInput
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                  captureThreadEvent("thread:pr_unlink", {
+                    old_pr_id: oldPrId,
+                    old_pr_number: oldPr?.number,
+                    repository: oldPr?.repoFullName,
+                  });
+                }
+              }}
+            >
+              <ComboboxTrigger
+                variant="unstyled"
+                render={
+                  <ActionButton
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start text-sm w-fit min-w-0 max-w-full overflow-hidden p-0 has-[>svg]:px-2 h-7"
+                    tooltip="Link pull request"
+                    keybind="shift+p"
+                  >
+                    {linkedPr ? (
+                      <>
+                        <GitPullRequest className="size-4 shrink-0" />
+                        <span className="truncate shrink grow text-left">
+                          #{linkedPr.number} {linkedPr.title}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <GitPullRequest className="size-4 text-foreground-secondary" />
+                        <span className="text-foreground-secondary">
+                          Link pull request
+                        </span>
+                      </>
+                    )}
+                  </ActionButton>
+                }
               />
-              <ComboboxEmpty>No pull requests found</ComboboxEmpty>
-              <ComboboxList>
-                {(item: PRItem) => (
-                  <ComboboxItem key={item.value} value={item.value}>
-                    <span>#{item.pr.number}</span>
-                    <span className="truncate">{item.pr.title}</span>
-                  </ComboboxItem>
-                )}
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
+              <ComboboxContent className="w-60" side="left">
+                <ComboboxInput
+                  placeholder="Search..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <ComboboxEmpty>No pull requests found</ComboboxEmpty>
+                <ComboboxList>
+                  {(item: PRItem) => (
+                    <ComboboxItem key={item.value} value={item.value}>
+                      <span>#{item.pr.number}</span>
+                      <span className="truncate">{item.pr.title}</span>
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </div>
           {linkedPr?.url && (
             <ActionButton
