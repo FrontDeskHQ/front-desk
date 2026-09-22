@@ -4,6 +4,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   createServerDB: vi.fn<(...args: unknown[]) => unknown>(),
+  credentialTransaction:
+    vi.fn<
+      (
+        handler: (input: { trx: unknown }) => Promise<unknown>
+      ) => Promise<unknown>
+    >(),
   lockOwnedIntegration: vi.fn<(...args: unknown[]) => Promise<void>>(),
   writeCredential: vi.fn<(...args: unknown[]) => Promise<void>>(),
 }));
@@ -14,6 +20,11 @@ vi.mock(import("@live-state/sync/server"), () => ({
 vi.mock(import("../lib/integration-credential"), () => ({
   lockOwnedIntegration: mocks.lockOwnedIntegration,
   writeIntegrationCredentialInTransaction: mocks.writeCredential,
+}));
+vi.mock(import("../lib/integration-credential-storage"), () => ({
+  integrationCredentialStorage: {
+    transaction: mocks.credentialTransaction,
+  },
 }));
 vi.mock(import("../live-state/storage"), () => ({ storage: {} }));
 
@@ -110,6 +121,10 @@ const database = ({
       handler({ trx })
     ),
   };
+  mocks.credentialTransaction.mockImplementation(
+    async (handler: (input: { trx: unknown }) => Promise<unknown>) =>
+      handler({ trx })
+  );
   mocks.createServerDB.mockReturnValue(db);
   return { integrationUpdate, stateUpdate, trx };
 };

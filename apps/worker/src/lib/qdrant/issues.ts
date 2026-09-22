@@ -30,7 +30,9 @@ export interface IssuePayload {
   externalEntityId: string;
   organizationId: string;
   provider: string;
+  containerLabel?: string;
   repoFullName: string;
+  shortId?: string;
   number: number;
   url: string;
   title: string;
@@ -56,5 +58,6 @@ export const issueIndex = defineIndex<
     { field: "organizationId", schema: "keyword" },
     { field: "externalKey", schema: "keyword" },
     { field: "repoFullName", schema: "keyword" },
+    { field: "containerLabel", schema: "keyword" },
   ],
 });

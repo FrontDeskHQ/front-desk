@@ -94,6 +94,21 @@ const externalEntityFields = z.object({
 });
 
 export default privateRoute.withProcedures(({ mutation, query }) => ({
+  /** Provider reconciliation inventory; internal connectors only. */
+  listForIntegration: query(
+    z.object({ integrationId: z.string(), organizationId: z.string() })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+    return Object.values(
+      await db.find(schema.externalEntity, {
+        where: {
+          integrationId: req.input.integrationId,
+          organizationId: req.input.organizationId,
+        },
+      })
+    );
+  }),
+
   /**
    * Fan out `pr_matched` thread reads for a push-side PR match (FRO-205). The
    * worker's `match-pr` job passes the similar-thread candidates it found in
@@ -591,11 +606,13 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     // there is no `issue_matched` push trigger, so this never fans out reads.
     if (req.input.type === "issue") {
       const jobData: IssueIndexJobData = {
+        containerLabel: req.input.containerLabel,
         organizationId,
         externalEntityId: id,
         externalKey,
         provider: req.input.provider,
         repoFullName: req.input.repoFullName,
+        shortId: req.input.shortId,
         number: req.input.number,
         url: req.input.url,
         title: req.input.title,

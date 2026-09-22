@@ -1,0 +1,113 @@
+import type { LiveStateFetchClient } from "@connectors/framework/runtime";
+import { describe, expect, it, vi } from "vitest";
+
+import { buildLinearIssueFields, createLinearSync } from "./linear-sync";
+import type { LinearIssue } from "./linear-sync";
+
+const issue = (overrides: Partial<LinearIssue> = {}): LinearIssue => ({
+  archivedAt: null,
+  assignee: { name: "Ada" },
+  canceledAt: null,
+  completedAt: null,
+  createdAt: "2026-09-20T12:00:00.000Z",
+  creator: { name: "Grace" },
+  description: "The settings page fails to load",
+  id: "linear-issue-id",
+  identifier: "ENG-42",
+  labels: { nodes: [{ name: "bug" }] },
+  number: 42,
+  state: { name: "In Progress", type: "started" },
+  team: { id: "team-id", key: "ENG", name: "Engineering" },
+  title: "Fix settings",
+  updatedAt: "2026-09-21T12:00:00.000Z",
+  url: "https://linear.app/acme/issue/ENG-42/fix-settings",
+  ...overrides,
+});
+
+describe(buildLinearIssueFields, () => {
+  it("maps a Linear issue onto provider-neutral mirror fields", () => {
+    expect(buildLinearIssueFields(issue())).toMatchObject({
+      containerId: "team-id",
+      containerKind: "team",
+      containerLabel: "ENG",
+      externalKey: "linear:linear-issue-id",
+      externalRef: {
+        id: "linear-issue-id",
+        identifier: "ENG-42",
+        teamId: "team-id",
+      },
+      provider: "linear",
+      shortId: "ENG-42",
+      state: "started",
+      type: "issue",
+    });
+  });
+});
+
+describe(createLinearSync, () => {
+  it("pages all issues and soft-deletes mirror rows missing upstream", async () => {
+    const upsert = vi.fn<() => Promise<string>>().mockResolvedValue("row-id");
+    const softDelete = vi
+      .fn<() => Promise<string>>()
+      .mockResolvedValue("row-id");
+    const listForIntegration = vi
+      .fn<() => Promise<unknown[]>>()
+      .mockResolvedValue([
+        { deletedAt: null, externalKey: "linear:missing" },
+        { deletedAt: null, externalKey: "linear:linear-issue-id" },
+      ]);
+    const fetchClient = {
+      mutate: { externalEntity: { softDelete, upsert } },
+      query: {
+        externalEntity: { listForIntegration },
+        integration: { listByType: vi.fn<() => Promise<unknown[]>>() },
+      },
+    } as unknown as LiveStateFetchClient;
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "token",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "refresh",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer",
+          },
+          organizationId: "frontdesk-org",
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            issues: {
+              nodes: [issue()],
+              pageInfo: { endCursor: null, hasNextPage: false },
+            },
+          },
+        })
+      );
+    const sync = createLinearSync({
+      environment: {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client",
+        clientSecret: "secret",
+        connectorSecret: "connector",
+      },
+      fetchClient,
+      fetcher,
+    });
+
+    await expect(sync.syncIntegration("integration-id")).resolves.toStrictEqual(
+      {
+        mirrored: 1,
+      }
+    );
+    expect(upsert).toHaveBeenCalledOnce();
+    expect(softDelete).toHaveBeenCalledExactlyOnceWith({
+      externalKey: "linear:missing",
+      organizationId: "frontdesk-org",
+    });
+  });
+});
