@@ -1,0 +1,42 @@
+connectors/framework/src/invoke.ts
+  s_38931219be2f43::t_fc3ba335efb328 35,50
+  s_38931219be2f43::t_ba4d6e1b1aeeae 121-124
+connectors/host/src/index.ts
+  s_38931219be2f43::t_7cb095304438f4 5,34
+connectors/host/src/linear.ts
+  s_38931219be2f43::t_7cb095304438f4 1-4,6,9-11,13-65,68,76-150,156-158
+connectors/host/src/linear-client.ts
+  s_38931219be2f43::t_fc3ba335efb328 106-107,116
+connectors/host/src/host.ts
+  s_38931219be2f43::t_fc3ba335efb328 27
+apps/web/src/components/threads/issues.tsx
+  s_38931219be2f43::t_4f98e3a097350f 52,98,107,161,169-170,174-175,184-185,193,208-211,217-218,222-224,226,228,245,262,266-269,275-276,494-497,500,508-510,558
+  s_38931219be2f43::t_cefbf69ff00351 200-205
+  s_38931219be2f43::t_ba4d6e1b1aeeae 225
+connectors/host/src/linear.test.ts
+  s_38931219be2f43::t_d8b0d5123af869 127-172
+  s_38931219be2f43::t_6cf4d4c57b0e02 1-126,173
+apps/api/src/lib/issue-tracker.ts
+  s_38931219be2f43::t_fc3ba335efb328 238
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cc0253d1bc6a467e19ba0ce14bf572eebe8804d6",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
