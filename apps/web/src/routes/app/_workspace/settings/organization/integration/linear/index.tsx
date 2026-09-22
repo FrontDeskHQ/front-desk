@@ -1,0 +1,217 @@
+import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
+import { createFileRoute } from "@tanstack/react-router";
+import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
+import { Button } from "@workspace/ui/components/button";
+import { Card, CardContent } from "@workspace/ui/components/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
+import { Separator } from "@workspace/ui/components/separator";
+import { useAtomValue } from "jotai/react";
+import { usePostHog } from "posthog-js/react";
+import { toast } from "sonner";
+import { ulid } from "ulid";
+
+import { activeOrganizationAtom } from "~/lib/atoms";
+import { fetchClient, mutate, query } from "~/lib/live-state";
+import { seo } from "~/utils/seo";
+
+import { requireIntegrationOption } from "..";
+
+export const Route = createFileRoute(
+  "/app/_workspace/settings/organization/integration/linear/"
+)({
+  component: RouteComponent,
+  staticData: { breadcrumb: "Linear" },
+  head: () => ({
+    meta: [
+      ...seo({
+        description: "Configure the Linear integration",
+        title: "Linear Integration - FrontDesk",
+      }),
+    ],
+  }),
+});
+
+const details = requireIntegrationOption("linear");
+
+const generateStateToken = (): string => {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
+};
+
+function RouteComponent() {
+  const { isEnabled } = useFlag("linear-integration");
+  const organization = useAtomValue(activeOrganizationAtom);
+  const posthog = usePostHog();
+  const integration = useLiveQuery(
+    query.integration.first({
+      organizationId: organization?.id,
+      type: "linear",
+    })
+  );
+
+  if (!(isEnabled && organization)) {
+    return null;
+  }
+
+  const parsed = (() => {
+    if (!integration?.configStr) return null;
+    try {
+      return linearIntegrationSchema.safeParse(
+        JSON.parse(integration.configStr)
+      );
+    } catch {
+      return null;
+    }
+  })();
+  const config = parsed?.success ? parsed.data : null;
+
+  const connect = async () => {
+    const clientId = import.meta.env.VITE_LINEAR_CLIENT_ID;
+    const connectorBaseUrl =
+      import.meta.env.VITE_BASE_LINEAR_CONNECTOR_URL ??
+      "http://localhost:3336/linear";
+    if (!clientId) {
+      toast.error("Linear OAuth is not configured.");
+      return;
+    }
+
+    const integrationId = integration?.id ?? ulid().toLowerCase();
+    const csrfToken = generateStateToken();
+    const nextConfig = JSON.stringify({
+      ...config,
+      csrfToken,
+    });
+    if (integration) {
+      await fetchClient.mutate.integration.updateInstallation({
+        configStr: nextConfig,
+        enabled: false,
+        integrationId,
+        updatedAt: new Date(),
+      });
+    } else {
+      await fetchClient.mutate.integration.connectInstallation({
+        configStr: nextConfig,
+        createdAt: new Date(),
+        enabled: false,
+        id: integrationId,
+        organizationId: organization.id,
+        type: "linear",
+        updatedAt: new Date(),
+      });
+    }
+
+    const redirectUri = `${connectorBaseUrl}/api/oauth/callback`;
+    const params = new URLSearchParams({
+      actor: "app",
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "read,issues:create",
+      state: `${integrationId}.${csrfToken}`,
+    });
+    posthog?.capture("integration_enable", { integration_type: "linear" });
+    window.location.href = `https://linear.app/oauth/authorize?${params.toString()}`;
+  };
+
+  const setDefaultTeam = (teamId: string) => {
+    if (!(integration && config)) return;
+    mutate.integration.updateInstallation({
+      configStr: JSON.stringify({ ...config, defaultTeamId: teamId }),
+      integrationId: integration.id,
+      updatedAt: new Date(),
+    });
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          {details.icon}
+          <div>
+            <h1 className="text-base">{details.label}</h1>
+            <h2 className="text-muted-foreground">{details.description}</h2>
+          </div>
+        </div>
+        {!integration?.enabled && (
+          <Button onClick={connect}>Connect Linear</Button>
+        )}
+      </div>
+      <Card className="bg-muted/30">
+        <CardContent className="flex flex-col gap-4">
+          {integration?.enabled && config ? (
+            <>
+              <div>
+                <div>Connected workspace</div>
+                <div className="text-sm text-muted-foreground">
+                  {config.workspaceName}
+                </div>
+              </div>
+              <div className="flex flex-col gap-2">
+                <div>Default team</div>
+                <div className="text-sm text-muted-foreground">
+                  Support Intelligence creates Linear issues in this team.
+                </div>
+                <Select
+                  value={config.defaultTeamId ?? config.teams[0]?.id ?? null}
+                  items={config.teams.map((team) => ({
+                    label: `${team.key} — ${team.name}`,
+                    value: team.id,
+                  }))}
+                  onValueChange={(value) => setDefaultTeam(value as string)}
+                >
+                  <SelectTrigger
+                    className="w-72"
+                    aria-label="Default Linear team"
+                  >
+                    <SelectValue placeholder="Select a team" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {config.teams.map((team) => (
+                      <SelectItem key={team.id} value={team.id}>
+                        {team.key} — {team.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Separator />
+              <div className="flex items-center gap-3">
+                <Button variant="outline" onClick={connect}>
+                  Reconnect
+                </Button>
+                <Button
+                  className="ml-auto text-red-700 dark:hover:text-red-500"
+                  variant="ghost"
+                  onClick={() =>
+                    mutate.integration.updateInstallation({
+                      enabled: false,
+                      integrationId: integration.id,
+                      updatedAt: new Date(),
+                    })
+                  }
+                >
+                  Disable
+                </Button>
+              </div>
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Connect one Linear workspace with read access and permission to
+              create issues. FrontDesk will not change Linear issue statuses.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}

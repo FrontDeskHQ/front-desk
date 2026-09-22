@@ -120,13 +120,13 @@ export const decryptIntegrationCredential = <T>(
   return JSON.parse(plaintext) as T;
 };
 
-type CredentialDB = Pick<
+export type IntegrationCredentialDB = Pick<
   ServerDB<typeof schema>,
   "integration" | "integrationCredential" | "transaction"
 >;
 
 const requireOwnedIntegration = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   organizationId: string,
   integrationId: string
 ) => {
@@ -137,7 +137,7 @@ const requireOwnedIntegration = async (
 };
 
 const lockOwnedIntegration = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   organizationId: string,
   integrationId: string
 ): Promise<void> => {
@@ -155,7 +155,7 @@ const lockOwnedIntegration = async (
 };
 
 export const writeIntegrationCredential = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   input: {
     integrationId: string;
     organizationId: string;
@@ -197,7 +197,7 @@ export const writeIntegrationCredential = async (
 };
 
 export const readIntegrationCredential = async <T>(
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   input: { integrationId: string; organizationId: string },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
 ): Promise<T | null> => {
@@ -222,7 +222,7 @@ export const readIntegrationCredential = async <T>(
 };
 
 export const clearIntegrationCredential = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   input: { integrationId: string; organizationId: string }
 ): Promise<void> => {
   await db.transaction(async ({ trx }) => {

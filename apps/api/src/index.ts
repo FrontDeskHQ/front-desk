@@ -23,6 +23,7 @@ import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
 import { exchangeConnectionToken } from "./routes/connection-token";
+import { completeLinearOAuthRoute } from "./routes/linear-oauth-complete";
 
 const { app } = expressWs(express() as unknown as Express);
 
@@ -181,6 +182,10 @@ app.all("/api/auth/*", toNodeHandler(auth));
 app.use(express.json());
 
 app.post("/api/ls/connection-token", exchangeConnectionToken);
+app.post(
+  "/api/internal/integrations/linear/oauth-complete",
+  completeLinearOAuthRoute
+);
 
 process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(

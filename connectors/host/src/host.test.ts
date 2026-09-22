@@ -154,4 +154,34 @@ describe(createConnectorHost, () => {
       error.mockRestore();
     }
   );
+
+  it("rejects malformed Linear OAuth callbacks before exchanging a code", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const oauthApp = createConnectorHost({
+      connectors: [linearConnector],
+      fetcher,
+      linearOAuthEnvironment: {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        connectorSecret: "connector-secret",
+        frontendBaseUrl: "https://frontdesk.test",
+        redirectUri:
+          "https://connectors.frontdesk.test/linear/api/oauth/callback",
+      },
+      secret: "connector-secret",
+    });
+
+    const response = await oauthApp.handle(
+      new Request(
+        "http://localhost/linear/api/oauth/callback?code=code&state=bad"
+      )
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "https://frontdesk.test/app/settings/organization/integration/linear?error=invalid_state"
+    );
+    expect(fetcher).not.toHaveBeenCalled();
+  });
 });
