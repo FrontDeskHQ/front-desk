@@ -225,7 +225,8 @@ export const linearGraphql = async <T>(
   accessToken: string,
   query: string,
   variables: Record<string, unknown>,
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  options: { signal?: AbortSignal } = {}
 ): Promise<T> => {
   const response = await fetcher("https://api.linear.app/graphql", {
     body: JSON.stringify({ query, variables }),
@@ -235,7 +236,12 @@ export const linearGraphql = async <T>(
     },
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
+    signal: options.signal
+      ? AbortSignal.any([
+          options.signal,
+          AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
+        ])
+      : AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error("LINEAR_GRAPHQL_REQUEST_FAILED");
   const body = (await response.json()) as { data?: T; errors?: unknown[] };
