@@ -284,6 +284,7 @@
       "version": "0.0.0",
       "dependencies": {
         "@connectors/framework": "workspace:*",
+        "@workspace/schemas": "workspace:*",
         "api": "workspace:*",
         "dotenv": "^16.5.0",
         "elysia": "^1.4.21",

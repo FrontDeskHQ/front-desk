@@ -1,6 +1,7 @@
 import type { NormalizedIssue } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
+import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import type { DefaultIssueTarget } from "@workspace/schemas/organization";
 import {
   readCapabilityPrimary,
@@ -152,17 +153,27 @@ export const resolveEffectiveDefaultIssueTarget = async (
     return null;
   }
 
-  // Only GitHub exposes listable targets today; other trackers must set an
-  // explicit default until they grow a config surface we can read.
-  if (resolved.integration.type !== "github") {
-    return null;
-  }
-
   let parsed: unknown;
   try {
     parsed = JSON.parse(resolved.integration.configStr);
   } catch {
     return null;
+  }
+
+  if (resolved.integration.type === "linear") {
+    const config = linearIntegrationSchema.safeParse(parsed);
+    const selected = config.success
+      ? (config.data.teams.find(
+          (team) => team.id === config.data.defaultTeamId
+        ) ?? config.data.teams[0])
+      : undefined;
+    return selected
+      ? {
+          integrationId: resolved.integration.id,
+          label: `${selected.key} — ${selected.name}`,
+          target: { teamId: selected.id },
+        }
+      : null;
   }
 
   const config = githubIssueTargetConfigSchema.safeParse(parsed);

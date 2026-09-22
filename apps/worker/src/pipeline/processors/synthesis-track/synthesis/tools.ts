@@ -175,8 +175,12 @@ export const createSynthesisTools = (options: CreateSynthesisToolsOptions) => {
           found: true,
           issue: {
             ...(issue.externalKey ? { externalKey: issue.externalKey } : {}),
+            ...(issue.containerLabel
+              ? { containerLabel: issue.containerLabel }
+              : {}),
             url: issue.url,
             repoFullName: issue.repoFullName,
+            ...(issue.shortId ? { shortId: issue.shortId } : {}),
             number: issue.number,
             title: issue.title,
             body: issue.body,
