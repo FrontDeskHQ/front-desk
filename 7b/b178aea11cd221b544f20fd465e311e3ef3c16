@@ -1,0 +1,32 @@
+apps/api/src/live-state/schema.ts
+  s_38931219be2f43::t_817d9e6b0f2c77 227,238-239,241,245-253
+connectors/github/src/lib/external-entity.test.ts
+  s_38931219be2f43::t_817d9e6b0f2c77 1-2,5-76
+  s_38931219be2f43::t_b862999570560c 3
+  s_38931219be2f43::t_a66217aeed82b0 4
+connectors/github/src/lib/external-entity.ts
+  s_38931219be2f43::t_817d9e6b0f2c77 10-17,20,111-113,117-121,132,155-157,161-165,176
+apps/api/src/live-state/migrations/files/index.ts
+  s_38931219be2f43::t_817d9e6b0f2c77 5,7
+apps/api/src/live-state/migrations/files/004_backfill_external_entity_addressing.ts
+  s_38931219be2f43::t_817d9e6b0f2c77 1-37
+apps/api/src/live-state/router/external-entity.ts
+  s_38931219be2f43::t_87656d99d247f7 8-12,313
+  s_38931219be2f43::t_817d9e6b0f2c77 73-75,79,89,518,520-528,539,549
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7bb178aea11cd221b544f20fd465e311e3ef3c16",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
