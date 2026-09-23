@@ -7,8 +7,17 @@ import { fetchClient } from "./live-state";
  * fills in itself (`id`, `organizationId`, `lastSyncedAt`).
  */
 export interface ExternalEntityFields {
+  containerId: string;
+  containerKind: "repository";
+  containerLabel: string;
+  externalRef: {
+    number: number;
+    owner: string;
+    repo: string;
+  };
   provider: string;
   externalKey: string;
+  shortId: string;
   type: "issue" | "pull_request";
   number: number;
   repoFullName: string;
@@ -99,9 +108,17 @@ export const buildIssueFields = (
   baseRef: null,
   body: issue.body ?? null,
   closedAt: issue.closed_at ? new Date(issue.closed_at) : null,
+  containerId: repo.fullName,
+  containerKind: "repository",
+  containerLabel: repo.fullName,
   draft: null,
   externalCreatedAt: new Date(issue.created_at),
   externalKey: formatGitHubId(issue.id, repo.owner, repo.name),
+  externalRef: {
+    number: issue.number,
+    owner: repo.owner,
+    repo: repo.name,
+  },
   externalUpdatedAt: new Date(issue.updated_at),
   headRef: null,
   labels: (issue.labels ?? [])
@@ -112,6 +129,7 @@ export const buildIssueFields = (
   number: issue.number,
   provider: "github",
   repoFullName: repo.fullName,
+  shortId: String(issue.number),
   state: issue.state ?? "open",
   title: issue.title,
   type: "issue",
@@ -134,9 +152,17 @@ export const buildPullRequestFields = (
   baseRef: pr.base.ref,
   body: pr.body ?? null,
   closedAt: pr.closed_at ? new Date(pr.closed_at) : null,
+  containerId: repo.fullName,
+  containerKind: "repository",
+  containerLabel: repo.fullName,
   draft: pr.draft ?? false,
   externalCreatedAt: new Date(pr.created_at),
   externalKey: formatGitHubId(pr.id, repo.owner, repo.name),
+  externalRef: {
+    number: pr.number,
+    owner: repo.owner,
+    repo: repo.name,
+  },
   externalUpdatedAt: new Date(pr.updated_at),
   headRef: pr.head.ref,
   labels: (pr.labels ?? [])
@@ -147,6 +173,7 @@ export const buildPullRequestFields = (
   number: pr.number,
   provider: "github",
   repoFullName: repo.fullName,
+  shortId: String(pr.number),
   state: pr.state,
   title: pr.title,
   type: "pull_request",
