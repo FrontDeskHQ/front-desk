@@ -61,6 +61,46 @@ const migration: Migration = {
         `[migrations] 004_backfill_external_entity_addressing: backfilled ${processed} entities`
       );
     }
+
+    const enabledIntegrations = await db.integration
+      .where({ enabled: true, type: "github" })
+      .orderBy("id", "asc")
+      .get();
+    const integrationIdByOrganization = new Map<string, string>();
+
+    for (const integration of enabledIntegrations) {
+      if (!integrationIdByOrganization.has(integration.organizationId)) {
+        integrationIdByOrganization.set(
+          integration.organizationId,
+          integration.id
+        );
+      }
+    }
+
+    for (const [organizationId, integrationId] of integrationIdByOrganization) {
+      while (true) {
+        const entities = await db.externalEntity
+          .where({ integrationId: null, organizationId, provider: "github" })
+          .orderBy("id", "asc")
+          .limit(BATCH_SIZE)
+          .get();
+
+        if (entities.length === 0) {
+          break;
+        }
+
+        await db.transaction(async ({ trx }) => {
+          for (const entity of entities) {
+            await trx.externalEntity.update(entity.id, { integrationId });
+          }
+        });
+
+        processed += entities.length;
+        console.log(
+          `[migrations] 004_backfill_external_entity_addressing: backfilled ${processed} entities`
+        );
+      }
+    }
   },
 };
 

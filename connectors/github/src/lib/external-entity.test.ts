@@ -29,16 +29,32 @@ describe("GitHub external-entity addressing", () => {
       repo
     );
 
-    expect(fields).toMatchObject({
+    expect(fields).toStrictEqual({
+      assignees: [],
+      authorLogin: "octocat",
+      baseRef: null,
+      body: "Body",
+      closedAt: null,
       containerId: "frontdesk/app",
       containerKind: "repository",
       containerLabel: "frontdesk/app",
+      draft: null,
+      externalCreatedAt: new Date("2026-09-20T00:00:00.000Z"),
       externalKey: "github:frontdesk/app#4200",
       externalRef: { number: 42, owner: "frontdesk", repo: "app" },
+      externalUpdatedAt: new Date("2026-09-21T00:00:00.000Z"),
+      headRef: null,
+      labels: [],
+      merged: null,
+      mergedAt: null,
       number: 42,
       provider: "github",
       repoFullName: "frontdesk/app",
       shortId: "42",
+      state: "open",
+      title: "Issue",
+      type: "issue",
+      url: "https://github.com/frontdesk/app/issues/42",
     });
   });
 
@@ -65,16 +81,32 @@ describe("GitHub external-entity addressing", () => {
       repo
     );
 
-    expect(fields).toMatchObject({
+    expect(fields).toStrictEqual({
+      assignees: [],
+      authorLogin: "octocat",
+      baseRef: "main",
+      body: "Body",
+      closedAt: null,
       containerId: "frontdesk/app",
       containerKind: "repository",
       containerLabel: "frontdesk/app",
+      draft: false,
+      externalCreatedAt: new Date("2026-09-20T00:00:00.000Z"),
       externalKey: "github:frontdesk/app#4300",
       externalRef: { number: 43, owner: "frontdesk", repo: "app" },
+      externalUpdatedAt: new Date("2026-09-21T00:00:00.000Z"),
+      headRef: "fix/export",
+      labels: [],
+      merged: false,
+      mergedAt: null,
       number: 43,
       provider: "github",
       repoFullName: "frontdesk/app",
       shortId: "43",
+      state: "open",
+      title: "Fix export",
+      type: "pull_request",
+      url: "https://github.com/frontdesk/app/pull/43",
     });
   });
 });
