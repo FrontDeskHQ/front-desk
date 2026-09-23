@@ -140,6 +140,20 @@ const integration = object("integration", {
   configStr: string().nullable(),
 });
 
+// Encrypted connector authorization. Server-only: no route or organization
+// relation exposes these rows to Live-State clients.
+const integrationCredential = object("integrationCredential", {
+  createdAt: timestamp(),
+  encryptedPayload: string().nullable(),
+  id: id(),
+  integrationId: reference("integration.id").unique().index(),
+  keyId: string(),
+  organizationId: reference("organization.id"),
+  revokedAt: timestamp().nullable(),
+  updatedAt: timestamp(),
+  version: number().default(1),
+});
+
 const update = object("update", {
   id: id(),
   threadId: reference("thread.id"),
@@ -535,6 +549,7 @@ export const schema = createSchema({
   user,
   invite,
   integration,
+  integrationCredential,
   update,
   allowlist,
   earlyAccessRequest,
