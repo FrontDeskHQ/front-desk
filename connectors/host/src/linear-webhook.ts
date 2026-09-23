@@ -67,7 +67,7 @@ export const handleLinearWebhook = async (
   dependencies: LinearWebhookDependencies
 ): Promise<void> => {
   const event = parseLinearWebhook(rawBody);
-  if (event.type !== "Issue") return;
+  if (event.type !== "Issue" && event.type !== "OAuthApp") return;
 
   const integrations =
     await dependencies.fetchClient.query.integration.listByType({
@@ -88,6 +88,19 @@ export const handleLinearWebhook = async (
   };
   const matchingIntegrations = integrations.filter(matchesWorkspace);
   if (matchingIntegrations.length === 0) return;
+
+  if (event.type === "OAuthApp") {
+    if (event.action === "revoked") {
+      await Promise.all(
+        matchingIntegrations.map((integration) =>
+          dependencies.fetchClient.mutate.integration.markLinearRevoked({
+            integrationId: integration.id,
+          })
+        )
+      );
+    }
+    return;
+  }
 
   const issue = issueWebhookDataSchema.parse(event.data);
   await Promise.all(

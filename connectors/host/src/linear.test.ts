@@ -10,6 +10,13 @@ const config = JSON.stringify({
 });
 
 describe(createLinearConnector, () => {
+  const environment = {
+    apiBaseUrl: "https://api.frontdesk.test",
+    clientId: "client-id",
+    clientSecret: "client-secret",
+    connectorSecret: "connector-secret",
+  };
+
   const outcomePayload = {
     entity: {
       container: { externalId: "team-1", kind: "team", label: "ENG" },
@@ -173,6 +180,69 @@ describe(createLinearConnector, () => {
         title: "Broken settings",
       },
     });
+  });
+
+  it("probes the live credential against Linear", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "access-token",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "refresh-token",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer-id",
+          },
+          organizationId: "organization-id",
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({ data: { viewer: { id: "viewer-id" } } })
+      );
+    const connector = createLinearConnector({ environment, fetcher });
+
+    await expect(
+      connector.probe(config, "integration-id")
+    ).resolves.toStrictEqual({ live: true });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  it("revokes the current access token on disconnect", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "access-token",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "refresh-token",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer-id",
+          },
+          organizationId: "organization-id",
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    const connector = createLinearConnector({ environment, fetcher });
+
+    await expect(
+      connector.invoke({
+        capability: "issue-tracker",
+        config,
+        integrationId: "integration-id",
+        method: "disconnect",
+        payload: {},
+      })
+    ).resolves.toStrictEqual({ body: { ok: true }, status: 200 });
+    expect(fetcher.mock.calls[1]?.[0]).toBe(
+      "https://api.linear.app/oauth/revoke"
+    );
+    expect(String(fetcher.mock.calls[1]?.[1]?.body)).toBe(
+      "token=access-token&token_type_hint=access_token"
+    );
   });
 
   it("rejects a team outside the connected workspace config", async () => {

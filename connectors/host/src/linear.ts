@@ -42,6 +42,12 @@ const CREATE_MUTATION = `mutation FrontDeskIssueCreate($input: IssueCreateInput!
 
 const LINEAR_OPERATION_TIMEOUT_MS = 8_000;
 
+const VIEWER_QUERY = `query FrontDeskViewerProbe { viewer { id } }`;
+
+const viewerResponseSchema = z.object({
+  viewer: z.object({ id: z.string() }),
+});
+
 const OUTCOME_QUERY = `query FrontDeskIssueOutcome($id: String!, $after: String) {
   issue(id: $id) {
     id identifier title url
@@ -134,6 +140,39 @@ export const createLinearConnector = (
     if (capability !== "issue-tracker") {
       return { body: { error: "METHOD_NOT_IMPLEMENTED" }, status: 501 };
     }
+    if (method === "disconnect") {
+      if (!(integrationId && dependencies.environment)) {
+        return { body: { error: "LINEAR_NOT_CONFIGURED" }, status: 503 };
+      }
+      try {
+        const { credential } = await getLinearCredential(
+          integrationId,
+          dependencies.environment,
+          dependencies.fetcher
+        );
+        const response = await (dependencies.fetcher ?? fetch)(
+          "https://api.linear.app/oauth/revoke",
+          {
+            body: new URLSearchParams({
+              token: credential.accessToken,
+              token_type_hint: "access_token",
+            }),
+            headers: { "content-type": "application/x-www-form-urlencoded" },
+            method: "POST",
+          }
+        );
+        // Linear returns 400 for an already-revoked token and 401 when the
+        // token can no longer authenticate. Both satisfy disconnect intent.
+        if (![200, 400, 401].includes(response.status)) {
+          return { body: { error: "LINEAR_REVOKE_FAILED" }, status: 503 };
+        }
+        return { body: { ok: true }, status: 200 };
+      } catch (error) {
+        console.error("[Linear] Disconnect failed:", error);
+        return { body: { error: "LINEAR_REVOKE_FAILED" }, status: 503 };
+      }
+    }
+
     if (!config) return { body: { error: "MISSING_CONFIG" }, status: 400 };
     let parsedJson: unknown;
     try {
@@ -319,8 +358,28 @@ export const createLinearConnector = (
       return { body: { error: "LINEAR_CREATE_FAILED" }, status: 502 };
     }
   },
-  async probe() {
-    return { live: false };
+  async probe(_config, integrationId) {
+    if (!(integrationId && dependencies.environment)) {
+      return { live: false };
+    }
+    try {
+      const { credential } = await getLinearCredential(
+        integrationId,
+        dependencies.environment,
+        dependencies.fetcher
+      );
+      const raw = await linearGraphql<unknown>(
+        credential.accessToken,
+        VIEWER_QUERY,
+        {},
+        dependencies.fetcher
+      );
+      viewerResponseSchema.parse(raw);
+      return { live: true };
+    } catch (error) {
+      console.error("[Linear] Connection probe failed:", error);
+      return { live: false };
+    }
   },
   type: "linear",
 });

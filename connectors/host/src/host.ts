@@ -31,7 +31,10 @@ export interface HostedConnector {
     method: string;
     payload: unknown;
   }): Promise<HostedConnectorResult>;
-  probe(config: string | null): Promise<{ configStr?: string; live: boolean }>;
+  probe(
+    config: string | null,
+    integrationId?: string
+  ): Promise<{ configStr?: string; live: boolean }>;
   type: string;
 }
 
@@ -180,7 +183,10 @@ export const createConnectorHost = ({
           return { error: "INVALID_PROBE_REQUEST" };
         }
         try {
-          return await connector.probe(parsed.data.config);
+          return await connector.probe(
+            parsed.data.config,
+            parsed.data.integrationId
+          );
         } catch (error) {
           console.error("[connector-host] probe failed", error);
           set.status = 500;
