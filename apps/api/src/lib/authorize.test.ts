@@ -9,10 +9,10 @@ import {
   isInternalDeveloperEmail,
 } from "./authorize";
 
-/** Denied either as unauthenticated (401) or as not permitted (403). */
-const accessDenied = expect.objectContaining({
-  code: expect.stringMatching(/^(UNAUTHORIZED|FORBIDDEN)$/),
-});
+/** No credential was presented (401). */
+const unauthorized = expect.objectContaining({ code: "UNAUTHORIZED" });
+/** A credential was presented but does not grant the action (403). */
+const forbidden = expect.objectContaining({ code: "FORBIDDEN" });
 
 const organizationId = "org-a";
 
@@ -33,7 +33,8 @@ const workspaceRequest = (
 
 const expectDenied = (
   req: AuthorizeReq,
-  options: Parameters<typeof authorizeDeveloperAction>[2] = {}
+  options: Parameters<typeof authorizeDeveloperAction>[2] = {},
+  expected: typeof unauthorized = forbidden
 ): DeveloperActionDeniedEvent => {
   let event: DeveloperActionDeniedEvent | undefined;
 
@@ -44,7 +45,7 @@ const expectDenied = (
         event = denial;
       },
     })
-  ).toThrow(accessDenied);
+  ).toThrow(expected);
 
   expect(event).toBeDefined();
   return event as DeveloperActionDeniedEvent;
@@ -155,7 +156,8 @@ describe("developer-action authorization gate", () => {
   it("denies unauthenticated and non-member requests", () => {
     const unauthenticated = expectDenied(
       { context: { orgUsers: [] } },
-      { environment: "production" }
+      { environment: "production" },
+      unauthorized
     );
     expect(unauthenticated.reason).toBe("missing_session");
 
@@ -211,7 +213,7 @@ describe("private API key authorization", () => {
           organizationId: "org-b",
         }
       )
-    ).toThrow(accessDenied);
+    ).toThrow(forbidden);
   });
 
   it("does not grant private keys the internal-key bypass elsewhere", () => {
@@ -222,7 +224,7 @@ describe("private API key authorization", () => {
         },
         { organizationId }
       )
-    ).toThrow(accessDenied);
+    ).toThrow(forbidden);
   });
 });
 
@@ -237,10 +239,10 @@ describe("workspace organization authorization", () => {
   });
 
   it("denies anonymous and cross-organization callers", () => {
-    expect(() => authorize({}, { organizationId })).toThrow(accessDenied);
+    expect(() => authorize({}, { organizationId })).toThrow(unauthorized);
     expect(() =>
       authorize(workspaceRequest(), { organizationId: "org-b" })
-    ).toThrow(accessDenied);
+    ).toThrow(forbidden);
   });
 
   it("does not treat widget identities as workspace organization access", () => {
@@ -272,7 +274,7 @@ describe("workspace organization authorization", () => {
         },
         { organizationId }
       )
-    ).toThrow(accessDenied);
+    ).toThrow(forbidden);
   });
 });
 
@@ -307,12 +309,12 @@ describe("thread creation authorization", () => {
           organizationId,
         }
       )
-    ).toThrow(accessDenied);
+    ).toThrow(unauthorized);
     expect(() =>
       authorizeThreadCreate(
         { context: { publicApiKey: { ownerId: organizationId } } },
         { hasIntegrationOnlyFields: false, organizationId: "org-b" }
       )
-    ).toThrow(accessDenied);
+    ).toThrow(forbidden);
   });
 });

@@ -91,19 +91,28 @@ export class RemoteInvokeTimeoutError extends Error {
   }
 }
 
-const CONNECTOR_REASON_PATTERN = /^[A-Z][A-Z0-9_]*$/;
+/** The connector could not be reached (DNS, refused connection, TLS, reset). */
+export class RemoteInvokeTransportError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "RemoteInvokeTransportError";
+  }
+}
+
+const connectorErrorBodySchema = z.object({
+  error: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+});
 
 /** Pull a SCREAMING_SNAKE `error` code out of a connector error body. */
 const readConnectorReason = (detail: string): string | undefined => {
+  let body: unknown;
   try {
-    const body = JSON.parse(detail) as { error?: unknown };
-    return typeof body.error === "string" &&
-      CONNECTOR_REASON_PATTERN.test(body.error)
-      ? body.error
-      : undefined;
+    body = JSON.parse(detail);
   } catch {
     return undefined;
   }
+  const parsed = connectorErrorBodySchema.safeParse(body);
+  return parsed.success ? parsed.data.error : undefined;
 };
 
 const assertSecretTransport = (invokeUrl: string): void => {
@@ -130,10 +139,12 @@ const invokeRemote = async <Result = unknown>(
     headers[CAPABILITY_INVOKE_SECRET_HEADER] = options.secret;
   }
 
+  const body = JSON.stringify(envelope);
+
   let response: Response;
   try {
     response = await fetch(invokeUrl, {
-      body: JSON.stringify(envelope),
+      body,
       headers,
       method: "POST",
       redirect: options.redirect ?? (options.secret ? "error" : "follow"),
@@ -145,7 +156,9 @@ const invokeRemote = async <Result = unknown>(
         cause: error,
       });
     }
-    throw error;
+    throw new RemoteInvokeTransportError("CONNECTOR_UNREACHABLE", {
+      cause: error,
+    });
   }
 
   if (!response.ok) {

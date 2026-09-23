@@ -164,18 +164,17 @@ export const errors = {
 };
 
 /** Whether `error` (or any error in its `cause` chain) is a Postgres unique violation. */
-export const isUniqueViolation = (error: unknown): boolean => {
-  if (typeof error !== "object" || error === null) {
+export const isUniqueViolation = (
+  error: unknown,
+  seen = new WeakSet<object>()
+): boolean => {
+  if (typeof error !== "object" || error === null || seen.has(error)) {
     return false;
   }
+  seen.add(error);
 
   const candidate = error as { cause?: unknown; code?: unknown };
-  return (
-    candidate.code === "23505" ||
-    (candidate.cause !== undefined &&
-      candidate.cause !== error &&
-      isUniqueViolation(candidate.cause))
-  );
+  return candidate.code === "23505" || isUniqueViolation(candidate.cause, seen);
 };
 
 // --- Client helpers ---------------------------------------------------------
@@ -186,7 +185,10 @@ export const isUniqueViolation = (error: unknown): boolean => {
 
 export { isPublicError, PublicError };
 
-/** The error's `details.reason`, falling back to its code. */
+/**
+ * The error's `details.reason`, falling back to its code. Masked internal
+ * errors have no reason: `INTERNAL_SERVER_ERROR` is not a specific cause.
+ */
 export const getErrorReason = (error: unknown): string | undefined => {
   if (!isPublicError(error)) {
     return undefined;
@@ -200,7 +202,7 @@ export const getErrorReason = (error: unknown): string | undefined => {
   ) {
     return details.reason;
   }
-  return error.code;
+  return error.code === "INTERNAL_SERVER_ERROR" ? undefined : error.code;
 };
 
 export const hasErrorReason = (error: unknown, reason: string): boolean =>

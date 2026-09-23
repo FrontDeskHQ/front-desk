@@ -63,7 +63,7 @@ export const accessDenied = (
 ) =>
   hasCredential(ctx ?? {})
     ? errors.forbidden(reason, message)
-    : errors.unauthorized();
+    : errors.unauthorized(reason, message);
 
 export interface AuthorizeOptions {
   organizationId?: string;

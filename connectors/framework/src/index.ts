@@ -39,6 +39,7 @@ export {
   type InvokeEnvelope,
   RemoteInvokeError,
   RemoteInvokeTimeoutError,
+  RemoteInvokeTransportError,
   invokeDeveloperAction,
   invokeCapability,
   invokeEnvelopeSchema,

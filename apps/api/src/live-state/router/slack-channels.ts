@@ -37,6 +37,16 @@ const slackChannelsFailed = (cause: unknown) =>
     { cause }
   );
 
+const isTimeout = (error: unknown): boolean =>
+  error instanceof DOMException && error.name === "TimeoutError";
+
+const slackChannelsTimeout = (cause: unknown) =>
+  errors.gatewayTimeout(
+    "SLACK_CHANNELS_TIMEOUT",
+    "Slack took too long to respond. Try again in a moment.",
+    { cause }
+  );
+
 const fetchSlackChannelsFromService = async (
   input: FetchSlackChannelsInput
 ): Promise<{ channels: SlackChannel[] }> => {
@@ -52,14 +62,9 @@ const fetchSlackChannelsFromService = async (
       signal: AbortSignal.timeout(SLACK_CHANNELS_FETCH_TIMEOUT_MS),
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw errors.gatewayTimeout(
-        "SLACK_CHANNELS_TIMEOUT",
-        "Slack took too long to respond. Try again in a moment.",
-        { cause: error }
-      );
-    }
-    throw slackChannelsFailed(error);
+    throw isTimeout(error)
+      ? slackChannelsTimeout(error)
+      : slackChannelsFailed(error);
   }
 
   if (!response.ok) {
@@ -74,6 +79,9 @@ const fetchSlackChannelsFromService = async (
   try {
     body = await response.json();
   } catch (error) {
+    if (isTimeout(error)) {
+      throw slackChannelsTimeout(error);
+    }
     throw slackChannelsFailed(
       new Error("Slack channels response was not valid JSON", { cause: error })
     );

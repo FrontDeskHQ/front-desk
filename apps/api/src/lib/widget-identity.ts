@@ -75,10 +75,7 @@ export const readWidgetIdentitySettings = (
     return widgetIdentitySettingsSchema.parse({});
   }
 
-  throw errors.preconditionFailed(
-    "INVALID_WIDGET_IDENTITY_SETTINGS",
-    "The workspace's widget identity settings are invalid"
-  );
+  throw new Error("INVALID_WIDGET_IDENTITY_SETTINGS");
 };
 
 export const deriveWidgetSigningSecret = (input: {

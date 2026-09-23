@@ -12,10 +12,8 @@ import type { DeveloperActionError } from "./developer-action-dispatch";
 import { dispatchDeveloperAction } from "./developer-action-dispatch";
 import { fanOutEntityFinished } from "./entity-finished";
 
-/** Denied either as unauthenticated (401) or as not permitted (403). */
-const accessDenied = expect.objectContaining({
-  code: expect.stringMatching(/^(UNAUTHORIZED|FORBIDDEN)$/),
-});
+/** A credential was presented but does not grant the action (403). */
+const forbidden = expect.objectContaining({ code: "FORBIDDEN" });
 
 vi.mock("./entity-finished", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./entity-finished")>()),
@@ -153,7 +151,7 @@ describe("developer-action transport", () => {
           }),
           actionInput()
         )
-      ).rejects.toThrow(accessDenied);
+      ).rejects.toThrow(forbidden);
       expect(find).not.toHaveBeenCalled();
     } finally {
       if (nodeEnvBeforeProduction === undefined) {

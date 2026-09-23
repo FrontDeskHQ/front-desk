@@ -2,6 +2,7 @@ import {
   invokeCapability,
   RemoteInvokeError,
   RemoteInvokeTimeoutError,
+  RemoteInvokeTransportError,
 } from "@connectors/framework";
 import type {
   Capability,
@@ -12,7 +13,10 @@ import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 
 import { schema } from "../live-state/schema";
-import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
+import {
+  connectorRegistry,
+  getConnectorInvokeSecret,
+} from "./connector-registry";
 import { errors, isPublicError } from "./errors";
 
 type ExternalEntityRow = InferLiveObject<typeof schema.externalEntity>;
@@ -51,8 +55,7 @@ export const toConnectorError = (error: unknown): unknown => {
     );
   }
 
-  // `fetch` rejects with a TypeError when the connector is unreachable.
-  if (error instanceof TypeError) {
+  if (error instanceof RemoteInvokeTransportError) {
     return errors.badGateway(
       "CONNECTOR_UNREACHABLE",
       "The integration is unreachable. Try again in a moment.",
@@ -73,7 +76,7 @@ export const dispatchCapability = async <Result = unknown>(
 ): Promise<Result> => {
   try {
     return await invokeCapability<Result>(invokeUrl, envelope, {
-      secret: connectorInvokeSecret,
+      secret: getConnectorInvokeSecret(),
     });
   } catch (error) {
     throw toConnectorError(error);
@@ -173,7 +176,7 @@ export const syncLinkedIssueState = async (
         method: "setState",
         payload: { entity: buildEntityRef(entity), state },
       },
-      { secret: connectorInvokeSecret }
+      { secret: getConnectorInvokeSecret() }
     );
   } catch (error) {
     console.error("Failed to sync linked issue state:", error);

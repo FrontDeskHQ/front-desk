@@ -3,6 +3,7 @@ import { z } from "zod";
 import {
   CAPABILITY_INVOKE_SECRET_HEADER,
   CAPABILITY_INVOKE_TIMEOUT_MS,
+  RemoteInvokeTimeoutError,
 } from "./invoke";
 
 /** Standardized HTTP path every probe-capable connector host exposes. */
@@ -78,7 +79,7 @@ export async function probeConnection(
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new Error(
+      throw new RemoteInvokeTimeoutError(
         `CONNECTION_PROBE_TIMEOUT: no response after ${CONNECTION_PROBE_TIMEOUT_MS}ms`,
         { cause: error }
       );

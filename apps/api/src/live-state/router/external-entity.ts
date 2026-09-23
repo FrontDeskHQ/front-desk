@@ -2,6 +2,7 @@ import {
   invokeCapability,
   RemoteInvokeError,
   RemoteInvokeTimeoutError,
+  RemoteInvokeTransportError,
   trackerReadOutcomeResultSchema,
 } from "@connectors/framework";
 // TODO refactor with new live-state mental model
@@ -37,7 +38,7 @@ const PR_MATCH_ACTIVE_STATUSES = new Set([0, 1]);
 
 const isTransientOutcomeReadError = (error: unknown): boolean =>
   (error instanceof RemoteInvokeError && error.status >= 500) ||
-  error instanceof TypeError ||
+  error instanceof RemoteInvokeTransportError ||
   error instanceof RemoteInvokeTimeoutError;
 
 /**

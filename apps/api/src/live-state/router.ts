@@ -233,10 +233,7 @@ export const router = createRouter({
 
         const masterKey = process.env.FRONTDESK_WIDGET_SIGNING_MASTER_KEY;
         if (!masterKey?.trim()) {
-          throw errors.serviceUnavailable(
-            "WIDGET_SIGNING_NOT_CONFIGURED",
-            "Widget identity signing isn't configured on this server"
-          );
+          throw new Error("WIDGET_SIGNING_MASTER_KEY_REQUIRED");
         }
 
         return withLockedOrganizationSettings(

@@ -210,9 +210,6 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const thread = await db.thread.one(req.input.threadId).get();
 
     if (!thread || thread.organizationId !== organizationId) {
-      if (widgetIdentity) {
-        throw errors.notFound("thread");
-      }
       throw errors.notFound("thread");
     }
 

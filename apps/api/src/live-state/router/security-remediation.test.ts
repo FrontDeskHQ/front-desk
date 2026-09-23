@@ -4,10 +4,10 @@ import labelsRoute from "./labels";
 import messageRoute from "./message";
 import threadsRoute from "./threads";
 
-/** Denied either as unauthenticated (401) or as not permitted (403). */
-const accessDenied = expect.objectContaining({
-  code: expect.stringMatching(/^(UNAUTHORIZED|FORBIDDEN)$/),
-});
+/** No credential was presented (401). */
+const unauthorized = expect.objectContaining({ code: "UNAUTHORIZED" });
+/** A credential was presented but does not grant the action (403). */
+const forbidden = expect.objectContaining({ code: "FORBIDDEN" });
 
 const widgetContext = {
   publicApiKey: { id: "public-a", ownerId: "org-a" },
@@ -38,7 +38,7 @@ describe("security remediation route authorization", () => {
         { customerId: "customer-b", includeMessages: true },
         widgetContext
       )
-    ).rejects.toThrow(accessDenied);
+    ).rejects.toThrow(forbidden);
   });
 
   it("scopes widget subscriptions to customer-owned source threads", async () => {
@@ -82,7 +82,7 @@ describe("security remediation route authorization", () => {
         },
         widgetContext
       )
-    ).rejects.toThrow(accessDenied);
+    ).rejects.toThrow(forbidden);
   });
 
   it("requires internal credentials for worker and connector lookups", async () => {
@@ -92,21 +92,21 @@ describe("security remediation route authorization", () => {
         { ids: ["thread-1"] },
         {}
       )
-    ).rejects.toThrow(accessDenied);
+    ).rejects.toThrow(unauthorized);
     await expect(
       invoke(
         threadsRoute.customQueries.byExternalId.handler,
         { externalId: "external-1", organizationId: "org-a" },
         widgetContext
       )
-    ).rejects.toThrow(accessDenied);
+    ).rejects.toThrow(forbidden);
     await expect(
       invoke(
         messageRoute.customQueries.byExternalId.handler,
         { externalMessageId: "external-message-1" },
         widgetContext
       )
-    ).rejects.toThrow(accessDenied);
+    ).rejects.toThrow(forbidden);
   });
 
   it("keeps the complete worker thread shape", async () => {

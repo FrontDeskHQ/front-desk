@@ -10,7 +10,7 @@ Procedures threw `new Error("SOME_CODE")`. Live-State `1.0.0-canary-7` only expo
 
 Throw `AppError` (from `apps/api/src/lib/errors.ts`, exported as `api/errors`) for every failure the caller should see. It has three parts:
 
-- **`code`**: one of a small set of canonical codes tied to an HTTP status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PRECONDITION_FAILED`, `TOO_MANY_REQUESTS`, `BAD_GATEWAY`, `SERVICE_UNAVAILABLE`, `GATEWAY_TIMEOUT`, plus Live-State's `VALIDATION_ERROR`). Clients use it for generic handling such as retrying, re-authenticating, or showing the message.
+- **`code`**: one of a small set of canonical codes tied to an HTTP status (`BAD_REQUEST`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`, `PRECONDITION_FAILED`, `TOO_MANY_REQUESTS`, `BAD_GATEWAY`, `SERVICE_UNAVAILABLE`, `GATEWAY_TIMEOUT`, plus Live-State's `VALIDATION_ERROR` and the masked `INTERNAL_SERVER_ERROR`). Clients use it for generic handling such as retrying, re-authenticating, or showing the message.
 - **`details.reason`**: a stable SCREAMING_SNAKE identifier for the specific cause (`THREAD_NOT_FOUND`, `STALE_AGENT_READ`, `REPOSITORY_NOT_CONNECTED`). Clients branch on the reason, never on the message. `details` can also carry context such as `resource`, `id`, or the failing `action`.
 - **`message`**: a sentence written for end users. It is shown in toasts as-is, so it never contains secrets or raw upstream responses.
 

@@ -310,13 +310,15 @@ export const runAcceptInlineSuggestion = async (
 
   const result = await executeBundle([suggestion.action], registry, ctx);
 
-  if (!result.failed) {
-    await removeInlineSuggestionAtomically(db, {
-      organizationId: input.organizationId,
-      suggestionId: suggestion.id,
-      threadId: input.threadId,
-    });
+  if (result.failed) {
+    throw actionFailed(result.failed.action.kind, result.failed.error);
   }
+
+  await removeInlineSuggestionAtomically(db, {
+    organizationId: input.organizationId,
+    suggestionId: suggestion.id,
+    threadId: input.threadId,
+  });
 
   return result;
 };

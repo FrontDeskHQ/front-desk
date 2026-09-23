@@ -344,9 +344,7 @@ describe("widget identity verification", () => {
       readWidgetIdentitySettings({
         widgetIdentity: { allowedOrigins: ["app.example.com"] },
       })
-    ).toThrow(
-      expect.objectContaining({ reason: "INVALID_WIDGET_IDENTITY_SETTINGS" })
-    );
+    ).toThrow("INVALID_WIDGET_IDENTITY_SETTINGS");
   });
 
   it("can fall back to defaults for owner settings recovery", () => {

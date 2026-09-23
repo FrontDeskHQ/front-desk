@@ -1,4 +1,7 @@
-import { probeConnection } from "@connectors/framework";
+import {
+  probeConnection,
+  RemoteInvokeTimeoutError,
+} from "@connectors/framework";
 import { ulid } from "ulid";
 import { z } from "zod";
 
@@ -278,8 +281,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       { config: probedConfigStr },
       { secret: connectorInvokeSecret }
     ).catch((error: unknown) => {
-      throw error instanceof Error &&
-        error.message.startsWith("CONNECTION_PROBE_TIMEOUT")
+      throw error instanceof RemoteInvokeTimeoutError
         ? errors.gatewayTimeout(
             "CONNECTION_PROBE_TIMEOUT",
             "The integration took too long to respond. Try again in a moment.",

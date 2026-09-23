@@ -92,7 +92,7 @@ const resolveSender = async (
 
   const assignee = await ctx.db.user.one(assignedUserId).get();
   if (!assignee) {
-    throw replyRequiresSender();
+    throw new Error("REPLY_ASSIGNEE_NOT_FOUND");
   }
 
   return { userId: assignedUserId, userName: assignee.name };
