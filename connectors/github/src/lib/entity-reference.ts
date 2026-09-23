@@ -31,5 +31,10 @@ export const resolveGitHubEntityReference = (
     return null;
   }
 
-  return { number: entity.number, owner: parts[0], repo: parts[1] };
+  const legacy = githubEntityRefSchema.safeParse({
+    number: entity.number,
+    owner: parts[0],
+    repo: parts[1],
+  });
+  return legacy.success ? legacy.data : null;
 };
