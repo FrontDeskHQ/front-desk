@@ -1,0 +1,59 @@
+connectors/framework/src/capabilities.ts
+  s_38931219be2f43::t_a4462ae24aee0f 215,217,221,223,225
+connectors/github/src/routes/capabilities.ts
+  s_38931219be2f43::t_a4462ae24aee0f 62-67,90-110,140-149,176-177,180,187,207-208,211,220,238-239,242,252,261
+  s_38931219be2f43::t_47c95b34421fec 265-268
+apps/api/src/lib/capability-dispatch.ts
+  s_38931219be2f43::t_a4462ae24aee0f 90-94,96-99,102
+connectors/github/src/routes/actions.test.ts
+  s_38931219be2f43::t_749ecae669093e 150-154,156,159,164-168,170,173
+packages/schemas/src/external-issue.ts
+  s_38931219be2f43::t_a4462ae24aee0f 84-103
+packages/schemas/src/external-issue.test.ts
+  s_38931219be2f43::t_aec1717da64e54 1-4,6-31
+  s_38931219be2f43::t_437d5bcbc92012 5
+apps/web/src/components/threads/external-entities.ts
+  s_38931219be2f43::t_a4462ae24aee0f 9,25-28,70,75,88,92,117-120,146-149,207-208,210-211
+  s_38931219be2f43::t_47c95b34421fec 209
+connectors/github/src/lib/developer-actions.ts
+  s_38931219be2f43::t_d9f82881278bab 153-154,265-266
+apps/api/src/lib/signals/handlers/link-issue.ts
+  s_38931219be2f43::t_a4462ae24aee0f 1,89
+connectors/github/src/lib/outcome.ts
+  s_38931219be2f43::t_d9f82881278bab 43-47,49,52
+apps/api/src/lib/thread-mutations.ts
+  s_38931219be2f43::t_a4462ae24aee0f 3,388
+apps/web/src/components/threads/issues.tsx
+  s_38931219be2f43::t_fdf546c76cac60 55-58,64-71,146
+  s_38931219be2f43::t_bbb3478a0bfa46 224-225,232
+  s_38931219be2f43::t_47c95b34421fec 312-331,333-401,403-427,429-444
+connectors/github/src/lib/outcome.test.ts
+  s_38931219be2f43::t_d9f82881278bab 10-14,16,19
+  s_38931219be2f43::t_47c95b34421fec 36-38
+connectors/framework/src/capabilities.test.ts
+  s_38931219be2f43::t_56d60f3c92f960 35,38-42,44-45,49-53,55-56
+apps/web/src/lib/live-state.ts
+  s_38931219be2f43::t_47c95b34421fec 8
+  s_38931219be2f43::t_fdf546c76cac60 46-52,120
+apps/web/src/components/threads/pull-requests.tsx
+  s_38931219be2f43::t_fdf546c76cac60 20-23,65
+  s_38931219be2f43::t_47c95b34421fec 104-187,189-205
+apps/api/src/lib/signals/handlers/link-pr.ts
+  s_38931219be2f43::t_a4462ae24aee0f 1,88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cd94fc7aa14b0eb6338b68465b96c1ee102f6c74",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
