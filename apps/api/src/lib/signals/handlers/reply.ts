@@ -3,18 +3,23 @@ import type { ReplyAction } from "@workspace/schemas/signals";
 import { parse } from "@workspace/utils/md-tiptap";
 import { ulid } from "ulid";
 
+import { errors } from "../../errors";
 import type { ActionHandler, ExecutionContext } from "../types";
+
+const replyRequiresSender = (
+  message = "Assign this thread to a teammate so the Agent can reply on their behalf"
+) => errors.preconditionFailed("REPLY_REQUIRES_SENDER", message);
 
 export const replyHandler: ActionHandler<ReplyAction> = {
   async apply(action, ctx) {
     const thread = await ctx.db.thread.one(ctx.threadId).get();
     if (!thread || thread.organizationId !== ctx.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     const draft = action.draftMarkdown.trim();
     if (draft.length === 0) {
-      throw new Error("REPLY_DRAFT_EMPTY");
+      throw errors.badRequest("REPLY_DRAFT_EMPTY", "The reply can't be empty");
     }
 
     const sender = await resolveSender(ctx, thread.assignedUserId);
@@ -76,18 +81,18 @@ const resolveSender = async (
       (await ctx.db.user.one(ctx.actorUserId).get())?.name ??
       null;
     if (!userName) {
-      throw new Error("REPLY_REQUIRES_SENDER");
+      throw replyRequiresSender("Add a name to your profile before replying");
     }
     return { userId: ctx.actorUserId, userName };
   }
 
   if (!assignedUserId) {
-    throw new Error("REPLY_REQUIRES_SENDER");
+    throw replyRequiresSender();
   }
 
   const assignee = await ctx.db.user.one(assignedUserId).get();
   if (!assignee) {
-    throw new Error("REPLY_REQUIRES_SENDER");
+    throw new Error("REPLY_ASSIGNEE_NOT_FOUND");
   }
 
   return { userId: assignedUserId, userName: assignee.name };

@@ -4,6 +4,7 @@ import { ulid } from "ulid";
 import { z } from "zod";
 
 import type { schema } from "../live-state/schema";
+import { errors } from "./errors";
 
 export const attachLabelToThreadInputSchema = z.object({
   labelId: z.string(),
@@ -47,7 +48,7 @@ export const runAttachLabelToThread = async (
     thread.id !== input.threadId ||
     thread.organizationId !== input.organizationId
   ) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const label =
@@ -63,11 +64,14 @@ export const runAttachLabelToThread = async (
     label.id !== input.labelId ||
     label.organizationId !== input.organizationId
   ) {
-    throw new Error("LABEL_NOT_FOUND");
+    throw errors.notFound("label");
   }
 
   if (label.organizationId !== thread.organizationId) {
-    throw new Error("LABEL_THREAD_ORGANIZATION_MISMATCH");
+    throw errors.badRequest(
+      "LABEL_THREAD_ORGANIZATION_MISMATCH",
+      "The label and thread belong to different workspaces"
+    );
   }
 
   const threadLabelId = input.threadLabelId ?? ulid().toLowerCase();
@@ -82,11 +86,14 @@ export const runAttachLabelToThread = async (
         .get();
 
       if (!current) {
-        throw new Error("LABEL_NOT_FOUND");
+        throw errors.notFound("label");
       }
 
       if (!current.enabled) {
-        throw new Error("LABEL_DISABLED");
+        throw errors.preconditionFailed(
+          "LABEL_DISABLED",
+          "This label is disabled"
+        );
       }
     }
 

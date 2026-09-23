@@ -1,20 +1,11 @@
+import { isPublicError } from "@live-state/sync";
 import type { Request, RequestHandler, Response } from "express";
 
 import {
-  credentialErrorMessage,
   mintApiConnectionToken,
   resolveHttpApiCredential,
 } from "../lib/api-credential";
-
-const ERROR_STATUS: Record<string, number> = {
-  CONFLICTING_API_CREDENTIALS: 400,
-  INVALID_API_CREDENTIAL: 401,
-  INVALID_WIDGET_IDENTITY_SETTINGS: 401,
-  INVALID_WIDGET_TOKEN: 401,
-  WIDGET_ORIGIN_NOT_ALLOWED: 401,
-  WIDGET_ORGANIZATION_MISMATCH: 401,
-  UNAUTHORIZED: 401,
-};
+import { errors, toErrorResponse } from "../lib/errors";
 
 /**
  * Trade an HTTP credential for a one-time WebSocket token, so API keys and
@@ -35,21 +26,16 @@ const handleExchange = async (req: Request, res: Response): Promise<void> => {
     const credential = await resolveHttpApiCredential(headers);
 
     if (!credential) {
-      res.status(401).json({ error: "UNAUTHORIZED" });
-      return;
+      throw errors.unauthorized();
     }
 
     res.json(await mintApiConnectionToken(credential));
   } catch (error) {
-    const message = credentialErrorMessage(error);
-    const status = ERROR_STATUS[message];
-
-    if (status === undefined) {
+    if (!isPublicError(error)) {
       console.error("connection_token.mint_failed", error);
-      res.status(500).json({ error: "INTERNAL_ERROR" });
-      return;
     }
 
-    res.status(status).json({ error: message });
+    const { body, status } = toErrorResponse(error);
+    res.status(status).json(body);
   }
 };

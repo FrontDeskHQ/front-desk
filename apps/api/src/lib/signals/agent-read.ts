@@ -4,6 +4,8 @@ import {
 } from "@workspace/schemas/signals";
 import type { Action, ThreadRead } from "@workspace/schemas/signals";
 
+import { errors } from "../errors";
+
 export { nextAgentReadAfterExecution };
 
 export type ReadSelection =
@@ -21,7 +23,10 @@ export const assertReadFingerprint = (
   readFingerprint: string
 ): void => {
   if (fingerprintAgentRead(read) !== readFingerprint) {
-    throw new Error("STALE_AGENT_READ");
+    throw errors.conflict(
+      "STALE_AGENT_READ",
+      "This signal changed in the background. Refresh and try again."
+    );
   }
 };
 
@@ -37,12 +42,18 @@ export const resolveBundleFromSelection = (
   } else if ("alternativeIndex" in selection) {
     const alternative = read.alternatives?.[selection.alternativeIndex];
     if (!alternative) {
-      throw new Error("INVALID_SELECTION");
+      throw errors.badRequest(
+        "INVALID_SELECTION",
+        "The selected actions don't match this signal"
+      );
     }
     bundle = [alternative];
   } else {
     if (selection.primaryActionIndices.length === 0) {
-      throw new Error("INVALID_SELECTION");
+      throw errors.badRequest(
+        "INVALID_SELECTION",
+        "The selected actions don't match this signal"
+      );
     }
     // Normalize so duplicate or reordered indices can't replay or reorder a
     // primary action's side effects.
@@ -52,7 +63,10 @@ export const resolveBundleFromSelection = (
     bundle = normalizedIndices.map((index) => {
       const action = read.primary[index];
       if (!action) {
-        throw new Error("INVALID_SELECTION");
+        throw errors.badRequest(
+          "INVALID_SELECTION",
+          "The selected actions don't match this signal"
+        );
       }
       return action;
     });

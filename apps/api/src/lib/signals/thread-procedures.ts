@@ -14,6 +14,7 @@ import { z } from "zod";
 import { schema } from "../../live-state/schema";
 import type { AuthorizeReq } from "../authorize";
 import { authorize, getWorkspaceActor } from "../authorize";
+import { AppError, errors, isPublicError, PublicError } from "../errors";
 import {
   assertReadFingerprint,
   nextAgentReadAfterExecution,
@@ -82,9 +83,38 @@ const loadThread = async (
 ) => {
   const thread = await db.thread.one(threadId).get();
   if (!thread || thread.organizationId !== organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
   return thread;
+};
+
+/**
+ * The public error for a bundle action that failed. A handler's own public
+ * error (e.g. `REPOSITORY_NOT_CONNECTED`) keeps its code, reason, and message,
+ * tagged with the failing action; anything else stays opaque.
+ */
+const actionFailed = (kind: string, error: unknown): PublicError => {
+  if (isPublicError(error)) {
+    const details =
+      error.details &&
+      typeof error.details === "object" &&
+      !Array.isArray(error.details)
+        ? error.details
+        : {};
+    return new PublicError({
+      code: error.code,
+      details: { reason: error.code, ...details, action: kind },
+      message: error.message,
+      status: error.status,
+    });
+  }
+
+  return new AppError(
+    "INTERNAL_SERVER_ERROR",
+    "ACTION_FAILED",
+    "Couldn't apply this action. Try again.",
+    { cause: error, details: { action: kind } }
+  );
 };
 
 const buildExecutionContext = (
@@ -132,7 +162,7 @@ const removeInlineSuggestionAtomically = async (
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, args.threadId);
     if (!thread || thread.organizationId !== args.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
     const current = thread.inlineSuggestions ?? [];
     existed = current.some((s) => s.id === args.suggestionId);
@@ -176,7 +206,7 @@ export const runAcceptRead = async (
 
   const thread = await loadThread(db, input.threadId, input.organizationId);
   if (!thread.agentRead) {
-    throw new Error("NO_AGENT_READ");
+    throw errors.conflict("NO_AGENT_READ", "This thread has no pending signal");
   }
 
   assertReadFingerprint(thread.agentRead, input.readFingerprint);
@@ -230,11 +260,7 @@ export const runAcceptRead = async (
   await persistAgentRead(db, input.threadId, nextRead);
 
   if (result.failed) {
-    const message =
-      result.failed.error instanceof Error
-        ? result.failed.error.message
-        : String(result.failed.error);
-    throw new Error(`ACTION_FAILED:${result.failed.action.kind}:${message}`);
+    throw actionFailed(result.failed.action.kind, result.failed.error);
   }
 
   return result;
@@ -271,7 +297,7 @@ export const runAcceptInlineSuggestion = async (
   const suggestions = thread.inlineSuggestions ?? [];
   const suggestion = suggestions.find((s) => s.id === input.suggestionId);
   if (!suggestion) {
-    throw new Error("INLINE_SUGGESTION_NOT_FOUND");
+    throw errors.notFound("inline suggestion");
   }
 
   const registry = createActionHandlerRegistry();
@@ -284,13 +310,15 @@ export const runAcceptInlineSuggestion = async (
 
   const result = await executeBundle([suggestion.action], registry, ctx);
 
-  if (!result.failed) {
-    await removeInlineSuggestionAtomically(db, {
-      organizationId: input.organizationId,
-      suggestionId: suggestion.id,
-      threadId: input.threadId,
-    });
+  if (result.failed) {
+    throw actionFailed(result.failed.action.kind, result.failed.error);
   }
+
+  await removeInlineSuggestionAtomically(db, {
+    organizationId: input.organizationId,
+    suggestionId: suggestion.id,
+    threadId: input.threadId,
+  });
 
   return result;
 };
@@ -308,7 +336,7 @@ export const runDismissInlineSuggestion = async (
     threadId: input.threadId,
   });
   if (!existed) {
-    throw new Error("INLINE_SUGGESTION_NOT_FOUND");
+    throw errors.notFound("inline suggestion");
   }
 
   return { dismissed: true };
@@ -339,7 +367,7 @@ export const runUpsertInlineSuggestion = async (
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, input.threadId);
     if (!thread || thread.organizationId !== input.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     const current = thread.inlineSuggestions ?? [];
@@ -391,7 +419,7 @@ export const runWriteHintSlot = async (
   await db.transaction(async ({ trx }) => {
     const thread = await trx.findOne(schema.thread, input.threadId);
     if (!thread || thread.organizationId !== input.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     const current = thread.hints ?? {};

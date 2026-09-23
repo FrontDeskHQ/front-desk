@@ -3,6 +3,7 @@ import { ulid } from "ulid";
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
+import { errors } from "./errors";
 
 const replicatedStrSchema = z.string().refine(
   (value) => {
@@ -34,10 +35,7 @@ export const markReplicatedInputSchema = z.object({
 });
 
 type RecordActivityDb = Pick<ServerDB<typeof schema>, "thread" | "insert">;
-type MarkReplicatedDb = Pick<
-  ServerDB<typeof schema>,
-  "findOne" | "update"
->;
+type MarkReplicatedDb = Pick<ServerDB<typeof schema>, "findOne" | "update">;
 
 export const runMarkReplicated = async (
   db: MarkReplicatedDb,
@@ -48,7 +46,7 @@ export const runMarkReplicated = async (
   // Upstream issue: https://github.com/pedroscosta/live-state/issues/211
   const update = await db.findOne(schema.update, input.updateId);
   if (!update) {
-    throw new Error("UPDATE_NOT_FOUND");
+    throw errors.notFound("update");
   }
 
   await db.update(schema.update, input.updateId, {
@@ -67,7 +65,7 @@ export const runRecordActivity = async (
 ) => {
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const metadata: Record<string, unknown> = {

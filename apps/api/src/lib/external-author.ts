@@ -4,6 +4,7 @@ import type { ServerDB } from "@live-state/sync/server";
 import { ulid } from "ulid";
 
 import type { schema } from "../live-state/schema";
+import { errors, isUniqueViolation } from "./errors";
 
 type ExternalAuthorDb = Pick<ServerDB<typeof schema>, "author" | "transaction">;
 
@@ -37,12 +38,6 @@ export const externalAuthorIdentityKey = (
   createHash("sha256")
     .update(JSON.stringify([organizationId, metaId]))
     .digest("hex");
-
-const isUniqueViolation = (error: unknown): boolean =>
-  typeof error === "object" &&
-  error !== null &&
-  "code" in error &&
-  (error as { code?: unknown }).code === "23505";
 
 const refreshAuthorName = async (
   db: ExternalAuthorDb,
@@ -116,7 +111,10 @@ export const ensureExternalAuthor = async (
   input: EnsureExternalAuthorInput
 ): Promise<string> => {
   if (input.metaId.startsWith("widget:")) {
-    throw new Error("RESERVED_WIDGET_AUTHOR_META_ID");
+    throw errors.badRequest(
+      "RESERVED_WIDGET_AUTHOR_META_ID",
+      "This author ID is reserved for widget users"
+    );
   }
 
   return ensureAuthor(db, input);

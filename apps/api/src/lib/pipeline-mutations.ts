@@ -3,6 +3,7 @@ import { ulid } from "ulid";
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
+import { errors } from "./errors";
 
 const jsonObjectStringSchema = z.string().refine(
   (value) => {
@@ -184,7 +185,7 @@ export const runPatchPipelineJob = async (
 ) => {
   const existing = await db.pipelineJob.one(input.jobId).get();
   if (!existing) {
-    throw new Error("PIPELINE_JOB_NOT_FOUND");
+    throw errors.notFound("pipeline job");
   }
 
   const currentMetadata = existing.metadataStr

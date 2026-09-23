@@ -12,15 +12,12 @@ import { schema } from "../live-state/schema";
 export const connectorRegistry = buildRegistry();
 
 /**
- * Shared internal secret the core sends when invoking a connector capability,
- * so the connector can authenticate the caller. Reuses the existing core↔
- * connector bot key (`DISCORD_BOT_KEY`) — same trust boundary.
+ * Shared internal secret the core sends when invoking a connector, so the
+ * connector can authenticate the caller. Reuses the existing core↔connector
+ * bot key (`DISCORD_BOT_KEY`) — same trust boundary. Read at dispatch time so
+ * tests and hosts that initialize environment configuration after module
+ * loading use the same fail-closed value as the connector itself.
  */
-export const connectorInvokeSecret = process.env.DISCORD_BOT_KEY ?? null;
-
-/** Read the shared connector secret at dispatch time so tests and hosts that
- * initialize environment configuration after module loading use the same
- * fail-closed value as the connector itself. */
 export const getConnectorInvokeSecret = (): string | null =>
   process.env.DISCORD_BOT_KEY ?? null;
 

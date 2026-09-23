@@ -3,6 +3,7 @@ import { ulid } from "ulid";
 import z from "zod";
 
 import { authorize, getAuthorizedOrganizationIds } from "../../lib/authorize";
+import { errors } from "../../lib/errors";
 import { runAttachLabelToThread } from "../../lib/label-mutations";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
@@ -102,7 +103,7 @@ export default {
       );
 
       if (!label) {
-        throw new Error("LABEL_NOT_FOUND");
+        throw errors.notFound("label");
       }
 
       const thread = await findThreadForAuthorizedOrganizations(
@@ -112,11 +113,14 @@ export default {
       );
 
       if (!thread) {
-        throw new Error("THREAD_NOT_FOUND");
+        throw errors.notFound("thread");
       }
 
       if (label.organizationId !== thread.organizationId) {
-        throw new Error("LABEL_THREAD_ORGANIZATION_MISMATCH");
+        throw errors.badRequest(
+          "LABEL_THREAD_ORGANIZATION_MISMATCH",
+          "The label and thread belong to different workspaces"
+        );
       }
 
       authorize(req, {
@@ -188,7 +192,7 @@ export default {
       const thread = await db.thread.one(req.input.threadId).get();
 
       if (!thread || thread.organizationId !== req.input.organizationId) {
-        throw new Error("THREAD_NOT_FOUND");
+        throw errors.notFound("thread");
       }
 
       const threadLabelId = req.input.threadLabelId ?? ulid().toLowerCase();
@@ -232,20 +236,20 @@ export default {
         .get();
 
       if (!tl) {
-        throw new Error("THREAD_LABEL_NOT_FOUND");
+        throw errors.notFound("thread label");
       }
 
       const thread = tl.thread;
 
       if (!thread) {
-        throw new Error("THREAD_NOT_FOUND");
+        throw errors.notFound("thread");
       }
 
       if (
         authorizedOrganizationIds &&
         !authorizedOrganizationIds.includes(thread.organizationId)
       ) {
-        throw new Error("THREAD_LABEL_NOT_FOUND");
+        throw errors.notFound("thread label");
       }
 
       authorize(req, {
@@ -300,7 +304,7 @@ export default {
       const label = await db.label.one(req.input.labelId).get();
 
       if (!label) {
-        throw new Error("LABEL_NOT_FOUND");
+        throw errors.notFound("label");
       }
 
       authorize(req, {

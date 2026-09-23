@@ -1,6 +1,7 @@
 import type { CreateIssueAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
+import { errors } from "../../errors";
 import {
   resolveEffectiveDefaultIssueTarget,
   runCreateIssue,
@@ -28,10 +29,13 @@ export const createIssueHandler: ActionHandler<CreateIssueAction> = {
       .first({ id: ctx.threadId, organizationId: ctx.organizationId })
       .get();
     if (!thread) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
     if (thread.externalIssueId) {
-      throw new Error("ALREADY_LINKED");
+      throw errors.conflict(
+        "ALREADY_LINKED",
+        "This thread is already linked to an issue"
+      );
     }
 
     const organization = Object.values(
@@ -40,7 +44,7 @@ export const createIssueHandler: ActionHandler<CreateIssueAction> = {
       })
     )[0];
     if (!organization) {
-      throw new Error("ORGANIZATION_NOT_FOUND");
+      throw errors.notFound("organization");
     }
 
     // The Agent never picks a destination. `auto` mode gets the org's default
@@ -54,7 +58,10 @@ export const createIssueHandler: ActionHandler<CreateIssueAction> = {
         organization.settings
       ));
     if (!target) {
-      throw new Error("DEFAULT_ISSUE_TARGET_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "DEFAULT_ISSUE_TARGET_NOT_CONFIGURED",
+        "No issue target is configured. Connect a repository in Integrations settings."
+      );
     }
 
     const entity = await runCreateIssue(ctx.db, {

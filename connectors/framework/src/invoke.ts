@@ -58,7 +58,9 @@ export const actionInvokeEnvelopeSchema = z.object({
 });
 
 interface RemoteInvokeOptions {
-  failure: (response: Response) => Promise<string>;
+  failure: (
+    response: Response
+  ) => Promise<{ message: string; reason?: string }>;
   redirect?: "error" | "follow" | "manual";
   secret?: string | null;
   timeoutMs: number;
@@ -67,13 +69,74 @@ interface RemoteInvokeOptions {
 
 export class RemoteInvokeError extends Error {
   readonly status: number;
+  /**
+   * The connector's machine-readable failure code (its `{ error }` body), e.g.
+   * `REPOSITORY_NOT_CONNECTED`. Absent when the body carried none.
+   */
+  readonly reason?: string;
 
-  constructor(message: string, status: number) {
+  constructor(message: string, status: number, reason?: string) {
     super(message);
     this.name = "RemoteInvokeError";
     this.status = status;
+    this.reason = reason;
   }
 }
+
+/** The connector did not answer before the invoke deadline. */
+export class RemoteInvokeTimeoutError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "RemoteInvokeTimeoutError";
+  }
+}
+
+/** The connector could not be reached (DNS, refused connection, TLS, reset). */
+export class RemoteInvokeTransportError extends Error {
+  constructor(message: string, options?: { cause?: unknown }) {
+    super(message, options);
+    this.name = "RemoteInvokeTransportError";
+  }
+}
+
+const isTimeoutError = (error: unknown): boolean =>
+  error instanceof DOMException && error.name === "TimeoutError";
+
+/**
+ * Classify a failure while reading a response body: the deadline firing
+ * mid-body is a timeout, and a dropped connection (`TypeError`) is a transport
+ * failure. Anything else, such as malformed JSON, is returned unchanged.
+ */
+export const toBodyReadError = (
+  error: unknown,
+  timeoutMessage: string
+): unknown => {
+  if (isTimeoutError(error)) {
+    return new RemoteInvokeTimeoutError(timeoutMessage, { cause: error });
+  }
+  if (error instanceof TypeError) {
+    return new RemoteInvokeTransportError("CONNECTOR_UNREACHABLE", {
+      cause: error,
+    });
+  }
+  return error;
+};
+
+const connectorErrorBodySchema = z.object({
+  error: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
+});
+
+/** Pull a SCREAMING_SNAKE `error` code out of a connector error body. */
+const readConnectorReason = (detail: string): string | undefined => {
+  let body: unknown;
+  try {
+    body = JSON.parse(detail);
+  } catch {
+    return undefined;
+  }
+  const parsed = connectorErrorBodySchema.safeParse(body);
+  return parsed.success ? parsed.data.error : undefined;
+};
 
 const assertSecretTransport = (invokeUrl: string): void => {
   const url = new URL(invokeUrl);
@@ -99,27 +162,42 @@ const invokeRemote = async <Result = unknown>(
     headers[CAPABILITY_INVOKE_SECRET_HEADER] = options.secret;
   }
 
+  const body = JSON.stringify(envelope);
+
   let response: Response;
   try {
     response = await fetch(invokeUrl, {
-      body: JSON.stringify(envelope),
+      body,
       headers,
       method: "POST",
       redirect: options.redirect ?? (options.secret ? "error" : "follow"),
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new Error(options.timeoutMessage, { cause: error });
+    if (isTimeoutError(error)) {
+      throw new RemoteInvokeTimeoutError(options.timeoutMessage, {
+        cause: error,
+      });
     }
-    throw error;
+    throw new RemoteInvokeTransportError("CONNECTOR_UNREACHABLE", {
+      cause: error,
+    });
   }
 
   if (!response.ok) {
-    throw new RemoteInvokeError(await options.failure(response), response.status);
+    const failure = await options.failure(response);
+    throw new RemoteInvokeError(
+      failure.message,
+      response.status,
+      failure.reason
+    );
   }
 
-  return (await response.json()) as Result;
+  try {
+    return (await response.json()) as Result;
+  } catch (error) {
+    throw toBodyReadError(error, options.timeoutMessage);
+  }
 };
 
 /**
@@ -139,7 +217,11 @@ export async function invokeCapability<Result = unknown>(
   return invokeRemote(invokeUrl, envelope, {
     failure: async (response) => {
       const detail = await response.text().catch(() => "");
-      return `CAPABILITY_INVOKE_FAILED: ${response.status} ${detail}`.trim();
+      return {
+        message:
+          `CAPABILITY_INVOKE_FAILED: ${response.status} ${detail}`.trim(),
+        reason: readConnectorReason(detail),
+      };
     },
     secret: options.secret,
     timeoutMs: CAPABILITY_INVOKE_TIMEOUT_MS,
@@ -158,8 +240,9 @@ export async function invokeDeveloperAction<Result = unknown>(
   options: { secret?: string | null } = {}
 ): Promise<Result> {
   return invokeRemote(invokeUrl, envelope, {
-    failure: async (response) =>
-      `DEVELOPER_ACTION_INVOKE_FAILED: ${response.status}`,
+    failure: async (response) => ({
+      message: `DEVELOPER_ACTION_INVOKE_FAILED: ${response.status}`,
+    }),
     redirect: "error",
     secret: options.secret,
     timeoutMs: ACTION_INVOKE_TIMEOUT_MS,

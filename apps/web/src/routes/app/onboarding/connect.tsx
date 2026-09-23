@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Button } from "@workspace/ui/components/button";
 import { Logo } from "@workspace/ui/components/logo";
 import { Spinner } from "@workspace/ui/components/spinner";
+import { getErrorMessage } from "api/errors";
 import { createStandardSchemaV1, parseAsString, useQueryState } from "nuqs";
 import { usePostHog } from "posthog-js/react";
 import { useEffect, useRef, useState } from "react";
@@ -77,10 +78,7 @@ function RouteComponent() {
         setOrgId(data.organization.id);
       })
       .catch((error: unknown) => {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Failed to create organization";
+        const message = getErrorMessage(error, "Failed to create organization");
         toast.error(message);
         navigate({ to: "/app/onboarding/new" });
       });
@@ -92,8 +90,7 @@ function RouteComponent() {
       return;
     }
     const showError = (err: unknown, label: string) => {
-      const message =
-        err instanceof Error ? err.message : `Failed to connect ${label}`;
+      const message = getErrorMessage(err, `Failed to connect ${label}`);
       toast.error(message);
     };
     const clearPending = () => setPendingConnect(null);
@@ -113,8 +110,7 @@ function RouteComponent() {
       try {
         await activateDiscord({ organizationId: orgId, posthog });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to connect Discord";
+        const message = getErrorMessage(error, "Failed to connect Discord");
         toast.error(message);
       }
     } else {
@@ -127,8 +123,7 @@ function RouteComponent() {
       try {
         await activateSlack({ organizationId: orgId, posthog });
       } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Failed to connect Slack";
+        const message = getErrorMessage(error, "Failed to connect Slack");
         toast.error(message);
       }
     } else {

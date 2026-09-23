@@ -21,6 +21,7 @@ import {
   runRecordAutonomousAction,
 } from "../../lib/autonomous-action-mutations";
 import { syncLinkedIssueState } from "../../lib/capability-dispatch";
+import { errors } from "../../lib/errors";
 import { runRecordActivity } from "../../lib/update-mutations";
 import { privateRoute } from "../factories";
 
@@ -28,7 +29,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   clearFake: mutation(z.object({ organizationId: z.string() })).handler(
     async ({ req, db }) => {
       if (process.env.NODE_ENV === "production") {
-        throw new Error("DEV_ONLY");
+        throw errors.devOnly();
       }
       authorize(req, { organizationId: req.input.organizationId });
 
@@ -89,7 +90,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     })
   ).handler(async ({ req, db }) => {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("DEV_ONLY");
+      throw errors.devOnly();
     }
     authorize(req, { organizationId: req.input.organizationId });
 
@@ -159,7 +160,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       })
       .get();
     const row = rows[0];
-    if (!row) throw new Error("AUTONOMOUS_ACTION_NOT_FOUND");
+    if (!row) throw errors.notFound("autonomous action");
     if (row.undoneAt) return row;
 
     const metadata = parseAutonomousActionMetadata(row.metadataStr);
@@ -168,7 +169,10 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     // be stamped `undoneAt`, claiming a retraction that never happened — and
     // taking the gate's record of what we last told this customer with it.
     if (!REVERSIBLE_ACTIONS.has(metadata.kind)) {
-      throw new Error("AUTONOMOUS_ACTION_NOT_UNDOABLE");
+      throw errors.preconditionFailed(
+        "AUTONOMOUS_ACTION_NOT_UNDOABLE",
+        "This action can't be undone"
+      );
     }
     const threadId = row.entityId;
     const now = new Date();

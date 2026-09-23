@@ -1,6 +1,7 @@
 import type { LinkIssueAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
+import { errors } from "../../errors";
 import { resolveExternalEntityLabel } from "../../thread-mutations";
 import { runRecordActivity } from "../../update-mutations";
 import {
@@ -28,7 +29,7 @@ export const linkIssueHandler: ActionHandler<LinkIssueAction> = {
       .first({ id: ctx.threadId, organizationId: ctx.organizationId })
       .get();
     if (!thread) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     // The issue must already be mirrored: the mirror row owns the canonical
@@ -45,7 +46,10 @@ export const linkIssueHandler: ActionHandler<LinkIssueAction> = {
       })
     )[0];
     if (!entity) {
-      throw new Error("LINK_ISSUE_ENTITY_NOT_MIRRORED");
+      throw errors.preconditionFailed(
+        "LINK_ISSUE_ENTITY_NOT_MIRRORED",
+        "This issue hasn't been synced yet"
+      );
     }
 
     // Already linked to this issue — no-op, mirroring the manual link mutation.

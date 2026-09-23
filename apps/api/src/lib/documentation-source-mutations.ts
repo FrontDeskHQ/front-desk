@@ -2,6 +2,7 @@ import type { ServerDB } from "@live-state/sync/server";
 import { z } from "zod";
 
 import type { schema } from "../live-state/schema";
+import { AppError, errors } from "./errors";
 
 const documentationSourceStatusSchema = z.enum([
   "pending",
@@ -40,11 +41,15 @@ export const runSyncCrawlProgress = async (
     .first({ id: input.id, organizationId: input.organizationId })
     .get();
   if (!source) {
-    throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
+    throw errors.notFound("documentation source");
   }
 
   if (source.status === "deleted") {
-    throw new Error("DOCUMENTATION_SOURCE_DELETED");
+    throw new AppError(
+      "NOT_FOUND",
+      "DOCUMENTATION_SOURCE_DELETED",
+      "This documentation source was deleted"
+    );
   }
 
   const { id, organizationId: _organizationId, ...updates } = input;

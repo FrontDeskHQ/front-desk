@@ -1,12 +1,12 @@
-import { invokeCapability } from "@connectors/framework";
 import type { LinkPrAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
 import {
   buildEntityRef,
+  dispatchCapability,
   resolveEntityCapabilityTarget,
 } from "../../capability-dispatch";
-import { connectorInvokeSecret } from "../../connector-registry";
+import { errors } from "../../errors";
 import {
   buildWorkspaceThreadUrl,
   requireFrontendBaseUrl,
@@ -20,7 +20,7 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       .first({ id: ctx.threadId, organizationId: ctx.organizationId })
       .get();
     if (!thread) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     // The PR must already be mirrored — that mirrored entity is what routes the
@@ -37,7 +37,10 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       })
     )[0];
     if (!entity) {
-      throw new Error("LINK_PR_ENTITY_NOT_MIRRORED");
+      throw errors.preconditionFailed(
+        "LINK_PR_ENTITY_NOT_MIRRORED",
+        "This pull request hasn't been synced yet"
+      );
     }
 
     // Already linked to this PR — no-op, mirroring the manual link mutation.
@@ -53,7 +56,10 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       "pr-tracker"
     );
     if (!target) {
-      throw new Error("PR_TRACKER_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "PR_TRACKER_NOT_CONFIGURED",
+        "This workspace has no pull request tracker configured"
+      );
     }
 
     const threadUrl = buildWorkspaceThreadUrl(
@@ -63,19 +69,15 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
 
     // Post the back-reference on the PR before recording the link locally, so a
     // failed comment doesn't leave a link with no trace on the external side.
-    await invokeCapability(
-      target.entry.invokeUrl,
-      {
-        capability: "pr-tracker",
-        config: target.integration.configStr,
-        method: "link",
-        payload: {
-          entity: buildEntityRef(entity),
-          thread: { title: thread.name, url: threadUrl },
-        },
+    await dispatchCapability(target.entry.invokeUrl, {
+      capability: "pr-tracker",
+      config: target.integration.configStr,
+      method: "link",
+      payload: {
+        entity: buildEntityRef(entity),
+        thread: { title: thread.name, url: threadUrl },
       },
-      { secret: connectorInvokeSecret }
-    );
+    });
 
     const oldPrId = thread.externalPrId ?? null;
     await ctx.db.thread.update(ctx.threadId, {

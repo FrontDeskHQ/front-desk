@@ -8,6 +8,7 @@ import {
   STATUS_RESOLVED,
 } from "@workspace/schemas/signals";
 import type { Action, ReplyAction } from "@workspace/schemas/signals";
+import { getErrorMessage, getErrorReason } from "api/errors";
 
 export interface SelectedAction {
   action: Action;
@@ -133,27 +134,33 @@ export function acceptToastMessage(actions: Action[]): string {
   return `${first} and ${actions.length - 1} other actions applied`;
 }
 
-export function formatErrorMessage(error: unknown): string {
-  const message = error instanceof Error ? error.message : "";
-  if (message.includes("STALE_AGENT_READ")) {
-    return "This signal changed in the background. Refresh and try again.";
+export function formatErrorMessage(
+  error: unknown,
+  fallback = "Could not apply this signal. Please try again."
+): string {
+  switch (getErrorReason(error)) {
+    case "STALE_AGENT_READ": {
+      return "This signal changed in the background. Refresh and try again.";
+    }
+    // A read can outlive the configuration it was built against: the org may
+    // have cleared its default issue target (or disabled the tracker) after
+    // synthesis proposed create_issue. Retrying will never work, so say what to
+    // change instead of offering the generic try-again.
+    case "DEFAULT_ISSUE_TARGET_NOT_CONFIGURED": {
+      return "No issue target is available. Connect a repository in Integrations settings.";
+    }
+    case "ISSUE_TRACKER_NOT_CONFIGURED": {
+      return "This organization has no configured issue tracker.";
+    }
+    // Raised by the connector, which owns target validation — core treats the
+    // integration config as opaque and cannot check the target up front.
+    case "REPOSITORY_NOT_CONNECTED": {
+      return "The configured issue target is no longer connected. Pick another in Integrations settings.";
+    }
+    default: {
+      return getErrorMessage(error, fallback);
+    }
   }
-  // A read can outlive the configuration it was built against: the org may have
-  // cleared its default issue target (or disabled the tracker) after synthesis
-  // proposed create_issue. Retrying will never work, so say what to change
-  // instead of offering the generic try-again.
-  if (message.includes("DEFAULT_ISSUE_TARGET_NOT_CONFIGURED")) {
-    return "No issue target is available. Connect a repository in Integrations settings.";
-  }
-  if (message.includes("ISSUE_TRACKER_NOT_CONFIGURED")) {
-    return "This organization has no configured issue tracker.";
-  }
-  // Raised by the connector, which owns target validation — core treats the
-  // integration config as opaque and cannot check the target up front.
-  if (message.includes("REPOSITORY_NOT_CONNECTED")) {
-    return "The configured issue target is no longer connected. Pick another in Integrations settings.";
-  }
-  return "Could not apply this signal. Please try again.";
 }
 
 /**

@@ -33,7 +33,9 @@ describe("private API key lifecycle", () => {
         expiresAt: "2028-01-01T00:00:00.000Z",
         now,
       })
-    ).toThrow("INVALID_PRIVATE_API_KEY_EXPIRATION");
+    ).toThrow(
+      expect.objectContaining({ reason: "INVALID_PRIVATE_API_KEY_EXPIRATION" })
+    );
   });
 
   it("accepts the one-year calendar date independent of the exact instant", () => {

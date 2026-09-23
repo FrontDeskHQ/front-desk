@@ -1,3 +1,5 @@
+import { errors } from "./errors";
+
 const ROLE_HIERARCHY: Record<string, number> = {
   owner: 1,
   user: 0,
@@ -41,6 +43,27 @@ export interface WidgetIdentity {
 export interface AuthorizeReq {
   context?: AuthorizationContext | null;
 }
+
+const hasCredential = (ctx: AuthorizationContext): boolean =>
+  !!ctx.session?.userId ||
+  !!ctx.internalApiKey ||
+  !!ctx.privateApiKey ||
+  !!ctx.publicApiKey ||
+  !!ctx.widgetIdentity;
+
+/**
+ * The error for a failed authorization check: `UNAUTHORIZED` when the caller
+ * presented no credential at all, `FORBIDDEN` when they did but it does not
+ * grant this action.
+ */
+export const accessDenied = (
+  ctx: AuthorizationContext | null | undefined,
+  reason?: string,
+  message?: string
+) =>
+  hasCredential(ctx ?? {})
+    ? errors.forbidden(reason, message)
+    : errors.unauthorized(reason, message);
 
 export interface AuthorizeOptions {
   organizationId?: string;
@@ -156,7 +179,9 @@ export const authorizeDeveloperAction = (
       },
       options.onDenied
     );
-    throw new Error("UNAUTHORIZED");
+    throw reason === "missing_session"
+      ? accessDenied(context, "WORKSPACE_SESSION_REQUIRED")
+      : errors.forbidden("DEVELOPER_ACTION_DENIED");
   };
 
   // Developer actions are for workspace users, not connector or public API
@@ -195,6 +220,12 @@ export const authorizeDeveloperAction = (
   return getWorkspaceActor(req);
 };
 
+const integrationFieldsNotAllowed = () =>
+  errors.forbidden(
+    "INTEGRATION_FIELDS_NOT_ALLOWED",
+    "Only integrations can set these fields"
+  );
+
 export interface ThreadCreateAuthInput {
   organizationId: string;
   inputUserId?: string;
@@ -216,7 +247,7 @@ export const requireInternalApiKey = (
   ctx: AuthorizationContext | null | undefined
 ): void => {
   if (!ctx?.internalApiKey) {
-    throw new Error("UNAUTHORIZED");
+    throw accessDenied(ctx, "INTERNAL_API_KEY_REQUIRED");
   }
 };
 
@@ -225,7 +256,11 @@ export const getWorkspaceActor = (
 ): { userId: string; userName: string | null } => {
   const userId = getWorkspaceUserId(req.context ?? {});
   if (!userId) {
-    throw new Error("UNAUTHORIZED");
+    throw accessDenied(
+      req.context,
+      "WORKSPACE_SESSION_REQUIRED",
+      "This action requires a signed-in workspace user"
+    );
   }
 
   return {
@@ -241,7 +276,7 @@ export const resolveHumanAuthor = (
   const actor = getWorkspaceActor(req);
   const userName = input.userName ?? actor.userName;
   if (!userName) {
-    throw new Error("MISSING_USER_ID_OR_NAME");
+    throw errors.badRequest("USER_NAME_REQUIRED", "A user name is required");
   }
 
   return {
@@ -253,7 +288,7 @@ export const resolveHumanAuthor = (
 export const assertIntegrationAuthor = (req: AuthorizeReq): void => {
   const ctx = req.context ?? {};
   if (!ctx.internalApiKey && !ctx.publicApiKey) {
-    throw new Error("UNAUTHORIZED");
+    throw accessDenied(ctx, "API_KEY_REQUIRED");
   }
 };
 
@@ -268,22 +303,22 @@ export const authorizeThreadCreate = (
   const hasWorkspaceSession = getWorkspaceUserId(ctx) !== undefined;
 
   if (!hasApiKey && !hasWorkspaceSession) {
-    throw new Error("UNAUTHORIZED");
+    throw errors.unauthorized();
   }
 
   if (!hasApiKey && input.hasIntegrationOnlyFields) {
-    throw new Error("UNAUTHORIZED");
+    throw integrationFieldsNotAllowed();
   }
 
   if (ctx.widgetIdentity) {
     if (ctx.widgetIdentity.organizationId !== input.organizationId) {
-      throw new Error("UNAUTHORIZED");
+      throw errors.forbidden();
     }
     if (input.inputUserId && input.inputUserId !== ctx.widgetIdentity.userId) {
-      throw new Error("UNAUTHORIZED");
+      throw errors.forbidden();
     }
     if (input.hasIntegrationOnlyFields) {
-      throw new Error("UNAUTHORIZED");
+      throw integrationFieldsNotAllowed();
     }
     return "widget";
   }
@@ -303,7 +338,7 @@ export const authorizeThreadCreate = (
 
   if (hasPrivateKey) {
     if (ctx.privateApiKey?.ownerId !== input.organizationId) {
-      throw new Error("UNAUTHORIZED");
+      throw errors.forbidden();
     }
     return "private";
   }
@@ -325,7 +360,7 @@ export const authorizeWidgetCustomer = (
     identity.organizationId !== input.organizationId ||
     (input.userId !== undefined && identity.userId !== input.userId)
   ) {
-    throw new Error("UNAUTHORIZED");
+    throw accessDenied(context, "WIDGET_IDENTITY_REQUIRED");
   }
 
   return identity;
@@ -348,7 +383,7 @@ export const assertInternalKeyForIntegrationFields = (
     fields.activityMetadata !== undefined ||
     fields.replicatedStr !== undefined
   ) {
-    throw new Error("UNAUTHORIZED");
+    throw integrationFieldsNotAllowed();
   }
 };
 
@@ -365,7 +400,7 @@ export const authorizeSelfOrInternal = (
     return;
   }
 
-  throw new Error("UNAUTHORIZED");
+  throw accessDenied(ctx);
 };
 
 export const authorizeWorkspaceOrgMember = (
@@ -387,7 +422,10 @@ export const authorizeOwnedAgentChat = (
   const actor = authorizeWorkspaceOrgMember(req, chat.organizationId);
 
   if (chat.userId !== actor.userId) {
-    throw new Error("UNAUTHORIZED");
+    throw errors.forbidden(
+      "AGENT_CHAT_NOT_OWNED",
+      "This Agent chat belongs to another user"
+    );
   }
 
   return actor;
@@ -399,7 +437,10 @@ export const assertInviteRecipient = (
 ): void => {
   const userEmail = req.context?.user?.email;
   if (!userEmail || userEmail.toLowerCase() !== inviteEmail.toLowerCase()) {
-    throw new Error("INVALID_USER");
+    throw errors.forbidden(
+      "INVITATION_RECIPIENT_MISMATCH",
+      "This invitation was sent to a different email address"
+    );
   }
 
   getWorkspaceActor(req);
@@ -494,13 +535,23 @@ export const authorize = (req: AuthorizeReq, opts: AuthorizeOptions): void => {
     return;
   }
 
+  const ctx = req.context ?? {};
+
   if (!opts.organizationId) {
-    throw new Error("UNAUTHORIZED");
+    throw accessDenied(ctx);
   }
 
-  if (isAuthorized(req.context ?? {}, opts)) {
+  if (isAuthorized(ctx, opts)) {
     return;
   }
 
-  throw new Error("UNAUTHORIZED");
+  if (opts.role && isAuthorized(ctx, { ...opts, role: undefined })) {
+    throw errors.forbidden(
+      "INSUFFICIENT_ROLE",
+      `This action requires the ${opts.role} role`,
+      { details: { requiredRole: opts.role } }
+    );
+  }
+
+  throw accessDenied(ctx);
 };

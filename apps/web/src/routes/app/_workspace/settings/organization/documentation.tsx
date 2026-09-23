@@ -22,6 +22,7 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { TooltipProvider } from "@workspace/ui/components/tooltip";
 import { cn, formatRelativeTime } from "@workspace/ui/lib/utils";
+import { getErrorMessage } from "api/errors";
 import type { schema } from "api/schema";
 import { useAtomValue } from "jotai/react";
 import {
@@ -113,10 +114,7 @@ function RouteComponent() {
     onError: (error) => {
       setValidation({
         status: "error",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Failed to add documentation source.",
+        error: getErrorMessage(error, "Failed to add documentation source."),
       });
     },
     onSuccess: () => {
@@ -135,9 +133,7 @@ function RouteComponent() {
       });
     },
     onError: (error) => {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to start recrawl."
-      );
+      toast.error(getErrorMessage(error, "Failed to start recrawl."));
     },
     onSuccess: () => {
       toast.success("Recrawl started.");
@@ -152,9 +148,7 @@ function RouteComponent() {
     },
     onError: (error) => {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete documentation source."
+        getErrorMessage(error, "Failed to delete documentation source.")
       );
     },
     onSuccess: () => {
@@ -201,10 +195,7 @@ function RouteComponent() {
     } catch (error) {
       setValidation({
         status: "error",
-        error:
-          error instanceof Error
-            ? error.message
-            : "Validation failed unexpectedly",
+        error: getErrorMessage(error, "Validation failed unexpectedly"),
       });
     }
   }, [currentOrg, name, baseUrl, addMutation, isSubmitting]);

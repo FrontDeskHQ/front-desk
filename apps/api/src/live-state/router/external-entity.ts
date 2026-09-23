@@ -1,13 +1,15 @@
+import {
+  invokeCapability,
+  RemoteInvokeError,
+  RemoteInvokeTimeoutError,
+  RemoteInvokeTransportError,
+  trackerReadOutcomeResultSchema,
+} from "@connectors/framework";
 // TODO refactor with new live-state mental model
 import type {
   IssueIndexJobData,
   PrIndexJobData,
 } from "@workspace/schemas/signals";
-import {
-  invokeCapability,
-  RemoteInvokeError,
-  trackerReadOutcomeResultSchema,
-} from "@connectors/framework";
 import { ulid } from "ulid";
 import { z } from "zod";
 
@@ -16,11 +18,12 @@ import {
   buildEntityRef,
   resolveEntityCapabilityTarget,
 } from "../../lib/capability-dispatch";
-import { connectorInvokeSecret } from "../../lib/connector-registry";
+import { getConnectorInvokeSecret } from "../../lib/connector-registry";
 import {
   didExternalEntityFinish,
   fanOutEntityFinished,
 } from "../../lib/entity-finished";
+import { errors } from "../../lib/errors";
 import {
   enqueueGithubBackfill,
   enqueueIssueIndex,
@@ -35,9 +38,8 @@ const PR_MATCH_ACTIVE_STATUSES = new Set([0, 1]);
 
 const isTransientOutcomeReadError = (error: unknown): boolean =>
   (error instanceof RemoteInvokeError && error.status >= 500) ||
-  error instanceof TypeError ||
-  (error instanceof Error &&
-    error.message.startsWith("CAPABILITY_INVOKE_TIMEOUT"));
+  error instanceof RemoteInvokeTransportError ||
+  error instanceof RemoteInvokeTimeoutError;
 
 /**
  * Org-scoped mirror of external issues/PRs.
@@ -303,8 +305,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       return { status: "not_found" as const };
     }
 
-    const capability =
-      entity.type === "issue" ? "issue-tracker" : "pr-tracker";
+    const capability = entity.type === "issue" ? "issue-tracker" : "pr-tracker";
     const target = await resolveEntityCapabilityTarget(
       db,
       req.input.organizationId,
@@ -326,7 +327,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
             method: "readOutcome",
             payload: { entity: buildEntityRef(entity) },
           },
-          { secret: connectorInvokeSecret }
+          { secret: getConnectorInvokeSecret() }
         );
         return {
           result: trackerReadOutcomeResultSchema.parse(raw),
@@ -429,7 +430,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     })
   ).handler(async ({ req, db }) => {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("DEV_ONLY");
+      throw errors.devOnly();
     }
 
     const { organizationId } = req.input;
@@ -442,25 +443,40 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       })
     )[0];
     if (!integration || !integration.configStr) {
-      throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "GITHUB_INTEGRATION_NOT_CONFIGURED",
+        "The GitHub integration isn't configured"
+      );
     }
 
     let rawConfig: unknown;
     try {
       rawConfig = JSON.parse(integration.configStr);
     } catch {
-      throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "GITHUB_INTEGRATION_NOT_CONFIGURED",
+        "The GitHub integration isn't configured"
+      );
     }
     const parsedConfig = githubBackfillConfigSchema.safeParse(rawConfig);
     if (!parsedConfig.success) {
-      throw new Error("GITHUB_INTEGRATION_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "GITHUB_INTEGRATION_NOT_CONFIGURED",
+        "The GitHub integration isn't configured"
+      );
     }
     const { repos, installationId } = parsedConfig.data;
     if (repos.length === 0) {
-      throw new Error("GITHUB_REPOSITORIES_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "GITHUB_REPOSITORIES_NOT_CONFIGURED",
+        "No GitHub repositories are connected"
+      );
     }
     if (!installationId) {
-      throw new Error("GITHUB_INSTALLATION_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "GITHUB_INSTALLATION_NOT_CONFIGURED",
+        "The GitHub app installation is missing"
+      );
     }
 
     const results = await Promise.allSettled(

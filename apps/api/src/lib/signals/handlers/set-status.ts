@@ -1,5 +1,6 @@
 import type { SetStatusAction } from "@workspace/schemas/signals";
 
+import { errors } from "../../errors";
 import { runSetThreadStatus } from "../../thread-mutations";
 import {
   clearCompensateSnapshot,
@@ -14,7 +15,7 @@ export const setStatusHandler: ActionHandler<SetStatusAction> = {
   async apply(action, ctx) {
     const thread = await ctx.db.thread.one(ctx.threadId).get();
     if (!thread || thread.organizationId !== ctx.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     const previousStatus = thread.status ?? 0;

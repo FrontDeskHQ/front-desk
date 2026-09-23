@@ -1,12 +1,16 @@
-import { probeConnection } from "@connectors/framework";
+import {
+  probeConnection,
+  RemoteInvokeTimeoutError,
+} from "@connectors/framework";
 import { ulid } from "ulid";
 import { z } from "zod";
 
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import {
-  connectorInvokeSecret,
   connectorRegistry,
+  getConnectorInvokeSecret,
 } from "../../lib/connector-registry";
+import { errors } from "../../lib/errors";
 import { enqueueGithubBackfill } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
@@ -53,9 +57,12 @@ const githubBackfillConfigSchema = z.object({
         })
         // `fullName` keys the job id while `owner`/`name` address the API
         // target, so a mismatch would dedupe against the wrong repo.
-        .refine(({ fullName, name, owner }) => fullName === `${owner}/${name}`, {
-          message: "fullName must match owner/name",
-        })
+        .refine(
+          ({ fullName, name, owner }) => fullName === `${owner}/${name}`,
+          {
+            message: "fullName must match owner/name",
+          }
+        )
     )
     .default([]),
 });
@@ -224,7 +231,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         .one(req.input.integrationId)
         .get();
       if (!integration) {
-        throw new Error("INTEGRATION_NOT_FOUND");
+        throw errors.notFound("integration");
       }
 
       authorize(req, {
@@ -255,7 +262,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   reenable: mutation(reenableInputSchema).handler(async ({ req, db }) => {
     const integration = await db.integration.one(req.input.integrationId).get();
     if (!integration) {
-      throw new Error("INTEGRATION_NOT_FOUND");
+      throw errors.notFound("integration");
     }
 
     authorize(req, {
@@ -272,15 +279,27 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const probeResult = await probeConnection(
       entry.probeUrl,
       { config: probedConfigStr },
-      { secret: connectorInvokeSecret }
-    );
+      { secret: getConnectorInvokeSecret() }
+    ).catch((error: unknown) => {
+      throw error instanceof RemoteInvokeTimeoutError
+        ? errors.gatewayTimeout(
+            "CONNECTION_PROBE_TIMEOUT",
+            "The integration took too long to respond. Try again in a moment.",
+            { cause: error }
+          )
+        : errors.badGateway(
+            "CONNECTION_PROBE_FAILED",
+            "Couldn't check the integration's connection. Try again in a moment.",
+            { cause: error }
+          );
+    });
 
     // Probe is a network round-trip — reconnect/setup or uninstall clearing may
     // have rewritten config (or flipped enabled) while we were waiting. Do not
     // apply a stale probe result over a newer install identity.
     const current = await db.integration.one(integration.id).get();
     if (!current) {
-      throw new Error("INTEGRATION_NOT_FOUND");
+      throw errors.notFound("integration");
     }
     if (current.configStr !== probedConfigStr) {
       return {
@@ -344,26 +363,38 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     )[0];
 
     if (!integration || !integration.configStr) {
-      throw new Error("SLACK_INTEGRATION_NOT_CONFIGURED");
+      throw errors.preconditionFailed(
+        "SLACK_INTEGRATION_NOT_CONFIGURED",
+        "The Slack integration isn't configured"
+      );
     }
 
     let config: { teamId?: unknown };
     try {
       config = JSON.parse(integration.configStr);
     } catch {
-      throw new Error("SLACK_INTEGRATION_CONFIG_INVALID");
+      throw errors.preconditionFailed(
+        "SLACK_INTEGRATION_CONFIG_INVALID",
+        "The Slack integration configuration is invalid. Reconnect Slack."
+      );
     }
     const teamId = config?.teamId;
 
     if (!teamId) {
-      throw new Error("SLACK_TEAM_ID_NOT_FOUND");
+      throw errors.preconditionFailed(
+        "SLACK_TEAM_ID_NOT_FOUND",
+        "The Slack integration has no workspace. Reconnect Slack."
+      );
     }
 
     if (
       requestedTeamId !== undefined &&
       String(teamId) !== String(requestedTeamId)
     ) {
-      throw new Error("SLACK_TEAM_MISMATCH");
+      throw errors.badRequest(
+        "SLACK_TEAM_MISMATCH",
+        "That channel belongs to a different Slack workspace"
+      );
     }
 
     return slackChannelsCache.get({

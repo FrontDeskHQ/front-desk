@@ -110,7 +110,9 @@ describe(ensureExternalAuthor, () => {
         name: "Ada Lovelace",
         organizationId,
       })
-    ).rejects.toThrow("RESERVED_WIDGET_AUTHOR_META_ID");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "RESERVED_WIDGET_AUTHOR_META_ID" })
+    );
 
     expect(first).not.toHaveBeenCalled();
     expect(insert).not.toHaveBeenCalled();

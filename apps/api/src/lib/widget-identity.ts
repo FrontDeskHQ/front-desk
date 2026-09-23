@@ -5,6 +5,7 @@ import { jwtVerify } from "jose";
 
 import { schema } from "../live-state/schema";
 import { storage } from "../live-state/storage";
+import { errors, hasErrorReason } from "./errors";
 
 export const WIDGET_TOKEN_AUDIENCE = "frontdesk-widget";
 export const WIDGET_TOKEN_ISSUER = "frontdesk";
@@ -230,7 +231,7 @@ export const verifyWidgetToken = async (
   options: VerifyWidgetTokenOptions
 ): Promise<WidgetIdentity> => {
   if (!isWidgetToken(token) || options.keys.length === 0) {
-    throw new Error("INVALID_WIDGET_TOKEN");
+    throw invalidWidgetToken();
   }
 
   const now = options.now ?? (() => Date.now());
@@ -267,21 +268,21 @@ export const verifyWidgetToken = async (
         payload.iat === undefined ? undefined : readIntegerClaim(payload.iat);
 
       if (payload.iat !== undefined && iat === undefined) {
-        throw new Error("INVALID_WIDGET_TOKEN");
+        throw invalidWidgetToken();
       }
 
       if (
         exp === undefined ||
         exp <= nowSeconds - WIDGET_TOKEN_CLOCK_SKEW_SECONDS
       ) {
-        throw new Error("INVALID_WIDGET_TOKEN");
+        throw invalidWidgetToken();
       }
       if (iat !== undefined) {
         if (iat > nowSeconds + WIDGET_TOKEN_CLOCK_SKEW_SECONDS) {
-          throw new Error("INVALID_WIDGET_TOKEN");
+          throw invalidWidgetToken();
         }
         if (exp - iat > WIDGET_TOKEN_MAX_TTL_SECONDS) {
-          throw new Error("INVALID_WIDGET_TOKEN");
+          throw invalidWidgetToken();
         }
       }
       if (
@@ -290,7 +291,7 @@ export const verifyWidgetToken = async (
           WIDGET_TOKEN_MAX_TTL_SECONDS +
           WIDGET_TOKEN_CLOCK_SKEW_SECONDS
       ) {
-        throw new Error("INVALID_WIDGET_TOKEN");
+        throw invalidWidgetToken();
       }
 
       const tokenOrganizationIds = [payload.org, payload.organizationId].filter(
@@ -304,12 +305,15 @@ export const verifyWidgetToken = async (
             typeof value !== "string" || value !== options.organizationId
         )
       ) {
-        throw new Error("WIDGET_ORGANIZATION_MISMATCH");
+        throw errors.unauthorized(
+          "WIDGET_ORGANIZATION_MISMATCH",
+          "The widget identity token belongs to a different workspace"
+        );
       }
 
       const email = payload.email;
       if (email !== undefined && typeof email !== "string") {
-        throw new Error("INVALID_WIDGET_TOKEN");
+        throw invalidWidgetToken();
       }
 
       return {
@@ -320,17 +324,14 @@ export const verifyWidgetToken = async (
         userId,
       };
     } catch (error) {
-      if (
-        error instanceof Error &&
-        error.message === "WIDGET_ORGANIZATION_MISMATCH"
-      ) {
+      if (hasErrorReason(error, "WIDGET_ORGANIZATION_MISMATCH")) {
         throw error;
       }
       // Try the previous live signing key before failing the assertion.
     }
   }
 
-  throw new Error("INVALID_WIDGET_TOKEN");
+  throw invalidWidgetToken();
 };
 
 /** Resolve and verify the assertion for the organization named by its public key. */
@@ -346,12 +347,15 @@ export const resolveWidgetIdentity = async (input: {
   );
   const organization = organizations[0];
   if (!organization) {
-    throw new Error("INVALID_WIDGET_TOKEN");
+    throw invalidWidgetToken();
   }
 
   const settings = readWidgetIdentitySettings(organization.settings);
   if (!isWidgetOriginAllowed(input.origin, settings.allowedOrigins)) {
-    throw new Error("WIDGET_ORIGIN_NOT_ALLOWED");
+    throw errors.forbidden(
+      "WIDGET_ORIGIN_NOT_ALLOWED",
+      "This origin is not allowed to use the widget"
+    );
   }
 
   const keys = getWidgetSigningKeys({
@@ -381,6 +385,12 @@ export const isWidgetIdentityActive = async (
   return isWidgetKeyVersionActive(settings, identity.keyVersion, now);
 };
 
+const invalidWidgetToken = () =>
+  errors.unauthorized(
+    "INVALID_WIDGET_TOKEN",
+    "The widget identity token is invalid or expired"
+  );
+
 const normalizeOrigin = (origin: string): string => {
   try {
     return new URL(origin).origin;
@@ -391,7 +401,7 @@ const normalizeOrigin = (origin: string): string => {
 
 const readRequiredClaim = (value: unknown): string => {
   if (typeof value !== "string" || value.trim().length === 0) {
-    throw new Error("INVALID_WIDGET_TOKEN");
+    throw invalidWidgetToken();
   }
   return value;
 };

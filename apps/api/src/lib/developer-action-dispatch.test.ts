@@ -12,6 +12,9 @@ import type { DeveloperActionError } from "./developer-action-dispatch";
 import { dispatchDeveloperAction } from "./developer-action-dispatch";
 import { fanOutEntityFinished } from "./entity-finished";
 
+/** A credential was presented but does not grant the action (403). */
+const forbidden = expect.objectContaining({ code: "FORBIDDEN" });
+
 vi.mock("./entity-finished", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./entity-finished")>()),
   fanOutEntityFinished: vi.fn(),
@@ -148,7 +151,7 @@ describe("developer-action transport", () => {
           }),
           actionInput()
         )
-      ).rejects.toThrow("UNAUTHORIZED");
+      ).rejects.toThrow(forbidden);
       expect(find).not.toHaveBeenCalled();
     } finally {
       if (nodeEnvBeforeProduction === undefined) {
@@ -252,15 +255,16 @@ describe("developer-action transport", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            accepted: true,
-            jobIds: [],
-            target: entity.externalKey,
-          }),
-          { status: 202 }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              accepted: true,
+              jobIds: [],
+              target: entity.externalKey,
+            }),
+            { status: 202 }
+          )
       )
     );
 
@@ -313,15 +317,16 @@ describe("developer-action transport", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            accepted: true,
-            jobIds: [],
-            target: entity.externalKey,
-          }),
-          { status: 202 }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              accepted: true,
+              jobIds: [],
+              target: entity.externalKey,
+            }),
+            { status: 202 }
+          )
       )
     );
 
@@ -367,15 +372,16 @@ describe("developer-action transport", () => {
     vi.spyOn(console, "error").mockReturnValue(undefined);
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            accepted: true,
-            jobIds: [],
-            target: entity.externalKey,
-          }),
-          { status: 202 }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              accepted: true,
+              jobIds: [],
+              target: entity.externalKey,
+            }),
+            { status: 202 }
+          )
       )
     );
 
@@ -417,15 +423,16 @@ describe("developer-action transport", () => {
     });
     vi.stubGlobal(
       "fetch",
-      vi.fn(async () =>
-        new Response(
-          JSON.stringify({
-            accepted: true,
-            jobIds: [],
-            target: entity.externalKey,
-          }),
-          { status: 202 }
-        )
+      vi.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              accepted: true,
+              jobIds: [],
+              target: entity.externalKey,
+            }),
+            { status: 202 }
+          )
       )
     );
 
@@ -460,7 +467,7 @@ describe("developer-action transport", () => {
         payload: { entityId: "missing-entity" },
       })
     ).rejects.toMatchObject<DeveloperActionError>({
-      code: "INVALID_DEVELOPER_ACTION_TARGET",
+      reason: "INVALID_DEVELOPER_ACTION_TARGET",
     });
     expect(fetchMock).not.toHaveBeenCalled();
   });
@@ -495,7 +502,7 @@ describe("developer-action transport", () => {
         payload: { entityId: "entity-a" },
       })
     ).rejects.toMatchObject<DeveloperActionError>({
-      code: "INVALID_DEVELOPER_ACTION_TARGET",
+      reason: "INVALID_DEVELOPER_ACTION_TARGET",
     });
     expect(find).toHaveBeenCalledTimes(2);
     expect(fetchMock).not.toHaveBeenCalled();
@@ -594,7 +601,9 @@ describe("developer-action transport", () => {
 
     await expect(
       runDeveloperAction(db, memberRequest(), actionInput())
-    ).rejects.toThrow("INTEGRATION_NOT_CONFIGURED");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INTEGRATION_NOT_CONFIGURED" })
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -615,7 +624,7 @@ describe("developer-action transport", () => {
         payload: {},
       })
     ).rejects.toMatchObject<DeveloperActionError>({
-      code: "UNKNOWN_DEVELOPER_ACTION",
+      reason: "UNKNOWN_DEVELOPER_ACTION",
     });
     expect(find).not.toHaveBeenCalled();
 
@@ -625,7 +634,7 @@ describe("developer-action transport", () => {
         payload: {},
       })
     ).rejects.toMatchObject<DeveloperActionError>({
-      code: "UNKNOWN_DEVELOPER_ACTION",
+      reason: "UNKNOWN_DEVELOPER_ACTION",
     });
     expect(find).not.toHaveBeenCalled();
   });
@@ -665,7 +674,9 @@ describe("developer-action transport", () => {
 
     await expect(
       runDeveloperAction(db, memberRequest(), actionInput())
-    ).rejects.toThrow("DEVELOPER_ACTION_FAILED");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "DEVELOPER_ACTION_FAILED" })
+    );
   });
 
   it("fails closed when the connector secret is not configured", async () => {
@@ -691,7 +702,11 @@ describe("developer-action transport", () => {
           payload: { repositories: ["owner/repo"] },
         })
       )
-    ).rejects.toThrow("CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED");
+    ).rejects.toThrow(
+      expect.objectContaining({
+        reason: "CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED",
+      })
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -726,7 +741,9 @@ describe("developer-action transport", () => {
           payload: { repositories: ["owner/repo"] },
         })
       )
-    ).rejects.toThrow("INSECURE_CONNECTOR_ACTION_URL");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INSECURE_CONNECTOR_ACTION_URL" })
+    );
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
