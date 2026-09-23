@@ -5,6 +5,7 @@ import {
 import { createClient as createFetchClient } from "@live-state/sync/client/fetch";
 import { createIsomorphicFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { formatExternalEntityLabel } from "@workspace/schemas/external-issue";
 import {
   parseAutonomousActionMetadata,
   PRIORITY_LABELS,
@@ -42,7 +43,13 @@ interface OptimisticExternalEntityStorage {
       externalKey: string;
       type: ExternalEntityKind;
     }) => {
-      get: () => { repoFullName: string; number: number }[];
+      get: () => {
+        containerKind: string | null;
+        containerLabel: string | null;
+        number: number;
+        repoFullName: string;
+        shortId: string | null;
+      }[];
     };
   };
   update: {
@@ -110,7 +117,7 @@ const resolveOptimisticExternalEntityLabel = (
     .where({ externalKey, organizationId, type })
     .get()[0];
 
-  return entity ? `${entity.repoFullName}#${entity.number}` : null;
+  return entity ? formatExternalEntityLabel(entity) : null;
 };
 
 const handleOptimisticLinkExternalEntity = ({

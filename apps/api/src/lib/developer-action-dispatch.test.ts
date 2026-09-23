@@ -198,9 +198,16 @@ describe("developer-action transport", () => {
         payload: {
           organizationId,
           target: {
+            container: {
+              externalId: "owner/repo",
+              kind: "repository",
+              label: "owner/repo",
+            },
             externalKey: "github:owner/repo#123",
+            externalRef: { number: 123, repoFullName: "owner/repo" },
             number: 123,
             repoFullName: "owner/repo",
+            shortId: "123",
             url: "https://github.com/owner/repo/pull/123",
           },
         },

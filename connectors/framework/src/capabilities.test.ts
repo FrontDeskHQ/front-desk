@@ -32,18 +32,28 @@ describe("issue-tracker contracts", () => {
     });
   });
 
-  it("keeps the legacy GitHub entity reference valid during migration", () => {
+  it("keeps provider addressing opaque to core", () => {
     expect(
       capabilityEntityRefSchema.parse({
+        container: {
+          externalId: "frontdesk/app",
+          kind: "repository",
+          label: "frontdesk/app",
+        },
         externalKey: "github:frontdesk/app#42",
-        number: 42,
-        repoFullName: "frontdesk/app",
+        externalRef: { number: 42, owner: "frontdesk", repo: "app" },
+        shortId: "42",
         url: "https://github.com/frontdesk/app/issues/42",
       })
     ).toStrictEqual({
+      container: {
+        externalId: "frontdesk/app",
+        kind: "repository",
+        label: "frontdesk/app",
+      },
       externalKey: "github:frontdesk/app#42",
-      number: 42,
-      repoFullName: "frontdesk/app",
+      externalRef: { number: 42, owner: "frontdesk", repo: "app" },
+      shortId: "42",
       url: "https://github.com/frontdesk/app/issues/42",
     });
   });

@@ -52,13 +52,23 @@ import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 
-import { entityMatchesQuery } from "./external-entities";
+import {
+  entityMatchesQuery,
+  formatMirrorEntityLabel,
+} from "./external-entities";
 import type { MirrorEntity } from "./external-entities";
 
 /** The facets the link UI needs to display a linked issue (mirror row subset). */
 type LinkedIssue = Pick<
   MirrorEntity,
-  "externalKey" | "number" | "title" | "repoFullName" | "url"
+  | "externalKey"
+  | "number"
+  | "title"
+  | "repoFullName"
+  | "url"
+  | "shortId"
+  | "containerLabel"
+  | "containerKind"
 >;
 
 interface IssuesSectionProps {
@@ -133,7 +143,7 @@ export function IssuesSection({
   const comboboxItems = prepareFooter(
     openIssues.map((issue) => ({
       issue,
-      label: `${issue.repoFullName}#${issue.number} ${issue.title}`,
+      label: `${formatMirrorEntityLabel(issue)} ${issue.title}`,
       value: issue.externalKey,
     })),
     [
@@ -211,12 +221,15 @@ export function IssuesSection({
       // Optimistic placeholder so the link shows immediately; the real mirror
       // row arrives shortly after via the GitHub webhook upsert.
       setOptimisticIssue({
+        containerKind: result.issue.container?.kind ?? "repository",
+        containerLabel: result.issue.container?.label ?? repo.fullName,
         externalKey: result.issue.id,
         // The mirror row is GitHub-shaped (numeric `number`); parse the neutral
         // `shortId` back to an int here in the GitHub-specific UI.
         number: Number(result.issue.shortId),
         title: result.issue.title || variables.title,
         repoFullName: repo.fullName,
+        shortId: result.issue.shortId,
         url: result.issue.url,
       });
 
@@ -296,137 +309,140 @@ export function IssuesSection({
       <div className="flex flex-col gap-1.5">
         <div className="flex gap-1 items-center group w-full max-w-76 min-w-0">
           <div className="min-w-0 max-w-full overflow-hidden">
-          <Combobox
-            items={comboboxItems}
-            value={linkedIssue?.externalKey ?? ""}
-            filter={(item, q) => {
-              const it = item as { value?: string; issue?: MirrorEntity };
-              if (
-                typeof it.value === "string" &&
-                it.value.startsWith("footer:")
-              ) {
-                return true;
-              }
-              if (!it.issue) {
-                return true;
-              }
-              return entityMatchesQuery(it.issue, q);
-            }}
-            onValueChange={(value) => {
-              if (value?.startsWith("footer:") || !currentOrg) {
-                return;
-              }
-
-              const oldIssueId = externalIssueId ?? null;
-              const oldIssue = issues.find(
-                (issue) => issue.externalKey === oldIssueId
-              );
-              // If clicking the same issue, unlink it
-              const newIssueId = oldIssueId === value ? null : value || null;
-              const newIssue = newIssueId
-                ? issues.find((issue) => issue.externalKey === newIssueId)
-                : undefined;
-
-              if (newIssueId) {
-                mutate.thread.linkIssue({
-                  externalIssueId: newIssueId,
-                  organizationId: currentOrg.id,
-                  threadId,
-                  userId: user.id,
-                  userName: user.name,
-                });
-
-                captureThreadEvent("thread:issue_link", {
-                  new_issue_id: newIssueId,
-                  new_issue_number: newIssue?.number,
-                  old_issue_id: oldIssueId,
-                  old_issue_number: oldIssue?.number,
-                  repository: newIssue?.repoFullName,
-                });
-              } else {
-                mutate.thread.unlinkIssue({
-                  organizationId: currentOrg.id,
-                  threadId,
-                  userId: user.id,
-                  userName: user.name,
-                });
-
-                captureThreadEvent("thread:issue_unlink", {
-                  old_issue_id: oldIssueId,
-                  old_issue_number: oldIssue?.number,
-                  repository: oldIssue?.repoFullName,
-                });
-              }
-            }}
-          >
-            <ComboboxTrigger
-              variant="unstyled"
-              render={
-                <ActionButton
-                  size="sm"
-                  variant="ghost"
-                  className="justify-start text-sm w-fit min-w-0 max-w-full overflow-hidden p-0 has-[>svg]:px-2 h-7"
-                  tooltip="Link issue"
-                  keybind="i"
-                >
-                  {linkedIssue ? (
-                    <>
-                      <Github className="size-4 shrink-0" />
-                      <span className="truncate shrink grow text-left">
-                        #{linkedIssue.number} {linkedIssue.title}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <Github className="size-4 text-foreground-secondary" />
-                      <span className="text-foreground-secondary">
-                        Link issue
-                      </span>
-                    </>
-                  )}
-                </ActionButton>
-              }
-            />
-            <ComboboxContent className="w-60 max-h-120" side="left">
-              <ComboboxInput
-                placeholder="Search..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <ComboboxEmpty>No issues found</ComboboxEmpty>
-              <ComboboxList className="overflow-hidden flex flex-col">
-                {(group: BaseItemGroup) =>
-                  group.footer ? (
-                    <ComboboxGroup key={group.value} items={group.items}>
-                      <ComboboxSeparator />
-                      <ComboboxItem
-                        value="footer:create_issue"
-                        onClick={handleOpenCreateDialog}
-                      >
-                        <Plus className="size-4" />
-                        Create issue
-                      </ComboboxItem>
-                    </ComboboxGroup>
-                  ) : (
-                    <ComboboxGroup
-                      key={group.value}
-                      items={group.items}
-                      className="overflow-auto grow shrink"
-                    >
-                      <ComboboxGroupContent>
-                        {(item: BaseItem & { issue: MirrorEntity }) => (
-                          <ComboboxItem key={item.value} value={item.value}>
-                            <span>#{item.issue.number}</span>
-                            <span className="truncate">{item.issue.title}</span>
-                          </ComboboxItem>
-                        )}
-                      </ComboboxGroupContent>
-                    </ComboboxGroup>
-                  )
+            <Combobox
+              items={comboboxItems}
+              value={linkedIssue?.externalKey ?? ""}
+              filter={(item, q) => {
+                const it = item as { value?: string; issue?: MirrorEntity };
+                if (
+                  typeof it.value === "string" &&
+                  it.value.startsWith("footer:")
+                ) {
+                  return true;
                 }
-              </ComboboxList>
-            </ComboboxContent>
-          </Combobox>
+                if (!it.issue) {
+                  return true;
+                }
+                return entityMatchesQuery(it.issue, q);
+              }}
+              onValueChange={(value) => {
+                if (value?.startsWith("footer:") || !currentOrg) {
+                  return;
+                }
+
+                const oldIssueId = externalIssueId ?? null;
+                const oldIssue = issues.find(
+                  (issue) => issue.externalKey === oldIssueId
+                );
+                // If clicking the same issue, unlink it
+                const newIssueId = oldIssueId === value ? null : value || null;
+                const newIssue = newIssueId
+                  ? issues.find((issue) => issue.externalKey === newIssueId)
+                  : undefined;
+
+                if (newIssueId) {
+                  mutate.thread.linkIssue({
+                    externalIssueId: newIssueId,
+                    organizationId: currentOrg.id,
+                    threadId,
+                    userId: user.id,
+                    userName: user.name,
+                  });
+
+                  captureThreadEvent("thread:issue_link", {
+                    new_issue_id: newIssueId,
+                    new_issue_number: newIssue?.number,
+                    old_issue_id: oldIssueId,
+                    old_issue_number: oldIssue?.number,
+                    repository: newIssue?.repoFullName,
+                  });
+                } else {
+                  mutate.thread.unlinkIssue({
+                    organizationId: currentOrg.id,
+                    threadId,
+                    userId: user.id,
+                    userName: user.name,
+                  });
+
+                  captureThreadEvent("thread:issue_unlink", {
+                    old_issue_id: oldIssueId,
+                    old_issue_number: oldIssue?.number,
+                    repository: oldIssue?.repoFullName,
+                  });
+                }
+              }}
+            >
+              <ComboboxTrigger
+                variant="unstyled"
+                render={
+                  <ActionButton
+                    size="sm"
+                    variant="ghost"
+                    className="justify-start text-sm w-fit min-w-0 max-w-full overflow-hidden p-0 has-[>svg]:px-2 h-7"
+                    tooltip="Link issue"
+                    keybind="i"
+                  >
+                    {linkedIssue ? (
+                      <>
+                        <Github className="size-4 shrink-0" />
+                        <span className="truncate shrink grow text-left">
+                          {formatMirrorEntityLabel(linkedIssue)}{" "}
+                          {linkedIssue.title}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Github className="size-4 text-foreground-secondary" />
+                        <span className="text-foreground-secondary">
+                          Link issue
+                        </span>
+                      </>
+                    )}
+                  </ActionButton>
+                }
+              />
+              <ComboboxContent className="w-60 max-h-120" side="left">
+                <ComboboxInput
+                  placeholder="Search..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <ComboboxEmpty>No issues found</ComboboxEmpty>
+                <ComboboxList className="overflow-hidden flex flex-col">
+                  {(group: BaseItemGroup) =>
+                    group.footer ? (
+                      <ComboboxGroup key={group.value} items={group.items}>
+                        <ComboboxSeparator />
+                        <ComboboxItem
+                          value="footer:create_issue"
+                          onClick={handleOpenCreateDialog}
+                        >
+                          <Plus className="size-4" />
+                          Create issue
+                        </ComboboxItem>
+                      </ComboboxGroup>
+                    ) : (
+                      <ComboboxGroup
+                        key={group.value}
+                        items={group.items}
+                        className="overflow-auto grow shrink"
+                      >
+                        <ComboboxGroupContent>
+                          {(item: BaseItem & { issue: MirrorEntity }) => (
+                            <ComboboxItem key={item.value} value={item.value}>
+                              <span>{formatMirrorEntityLabel(item.issue)}</span>
+                              <span className="truncate">
+                                {item.issue.title}
+                              </span>
+                            </ComboboxItem>
+                          )}
+                        </ComboboxGroupContent>
+                      </ComboboxGroup>
+                    )
+                  }
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
           </div>
           {linkedIssue?.url && (
             <ActionButton

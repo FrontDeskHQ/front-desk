@@ -1,3 +1,4 @@
+import { formatExternalEntityLabel } from "@workspace/schemas/external-issue";
 import type { LinkIssueAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
@@ -85,7 +86,7 @@ export const linkIssueHandler: ActionHandler<LinkIssueAction> = {
     await runRecordActivity(ctx.db, {
       metadata: {
         newIssueId: entity.externalKey,
-        newIssueLabel: `${entity.repoFullName}#${entity.number}`,
+        newIssueLabel: formatExternalEntityLabel(entity),
         oldIssueId,
         oldIssueLabel,
       },

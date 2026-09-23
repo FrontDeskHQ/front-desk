@@ -212,17 +212,17 @@ export const capabilityEntityRefSchema = z.object({
   /** Provider-agnostic key: `provider:owner/repo#id` (see formatGitHubId). */
   externalKey: z.string().min(1),
   /** Provider-local entity number (issue/PR number); always ≥ 1. */
-  number: z.number().int().positive(),
+  number: z.number().int().positive().optional(),
   /** Repository the entity lives in, e.g. `owner/repo`. */
-  repoFullName: z.string().min(1),
+  repoFullName: z.string().min(1).optional(),
   /** Canonical external URL of the entity. */
   url: z.string(),
   /** Additive during mirror migration; core never parses this value. */
-  externalRef: z.record(z.string(), z.unknown()).optional(),
+  externalRef: z.record(z.string(), z.unknown()),
   /** Mutable provider-local reference used for display. */
-  shortId: z.string().min(1).optional(),
+  shortId: z.string().min(1),
   /** Provider-neutral parent used for display and filtering. */
-  container: externalEntityContainerSchema.optional(),
+  container: externalEntityContainerSchema,
 });
 
 export type CapabilityEntityRef = z.infer<typeof capabilityEntityRefSchema>;

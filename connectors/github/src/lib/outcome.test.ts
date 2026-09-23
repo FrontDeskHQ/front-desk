@@ -7,9 +7,16 @@ import {
 } from "./outcome";
 
 const entity: CapabilityEntityRef = {
+  container: {
+    externalId: "acme/app",
+    kind: "repository",
+    label: "acme/app",
+  },
   externalKey: "github:acme/app#1",
+  externalRef: { number: 1, owner: "acme", repo: "app" },
   number: 1,
   repoFullName: "acme/app",
+  shortId: "1",
   url: "https://github.com/acme/app/issues/1",
 };
 
@@ -26,9 +33,9 @@ const issue = (stateReason: "COMPLETED" | "NOT_PLANNED" | "DUPLICATE") => ({
 
 describe("GitHub external outcomes", () => {
   it("maps completed and not-planned issues without reading comments", () => {
-    expect(normalizeGitHubIssueOutcome(issue("COMPLETED"), entity).outcome).toBe(
-      "delivered"
-    );
+    expect(
+      normalizeGitHubIssueOutcome(issue("COMPLETED"), entity).outcome
+    ).toBe("delivered");
     expect(
       normalizeGitHubIssueOutcome(issue("NOT_PLANNED"), entity).outcome
     ).toBe("declined");

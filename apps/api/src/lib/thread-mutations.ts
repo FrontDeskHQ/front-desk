@@ -1,5 +1,6 @@
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
+import { formatExternalEntityLabel } from "@workspace/schemas/external-issue";
 import {
   PRIORITY_LABELS,
   STATUS_DUPLICATED,
@@ -384,7 +385,7 @@ export const resolveExternalEntityLabel = async (
   if (!entity) {
     return null;
   }
-  return `${entity.repoFullName}#${entity.number}`;
+  return formatExternalEntityLabel(entity);
 };
 
 const runLinkExternalEntity = async (
