@@ -386,7 +386,8 @@ export function IssuesSection({
                       <>
                         <Github className="size-4 shrink-0" />
                         <span className="truncate shrink grow text-left">
-                          #{linkedIssue.number} {linkedIssue.title}
+                          {formatMirrorEntityLabel(linkedIssue)}{" "}
+                          {linkedIssue.title}
                         </span>
                       </>
                     ) : (
@@ -429,7 +430,7 @@ export function IssuesSection({
                         <ComboboxGroupContent>
                           {(item: BaseItem & { issue: MirrorEntity }) => (
                             <ComboboxItem key={item.value} value={item.value}>
-                              <span>#{item.issue.number}</span>
+                              <span>{formatMirrorEntityLabel(item.issue)}</span>
                               <span className="truncate">
                                 {item.issue.title}
                               </span>

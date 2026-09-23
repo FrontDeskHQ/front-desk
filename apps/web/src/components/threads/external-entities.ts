@@ -85,7 +85,8 @@ export const entityMatchesQuery = (
   }
 
   const haystack = [
-    entity.shortId ?? `#${entity.number}`,
+    entity.shortId,
+    `#${entity.number}`,
     entity.title,
     entity.body ?? "",
     entity.state,

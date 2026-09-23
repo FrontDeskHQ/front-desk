@@ -28,4 +28,13 @@ describe(formatExternalEntityLabel, () => {
       formatExternalEntityLabel({ number: 42, repoFullName: "frontdesk/app" })
     ).toBe("frontdesk/app#42");
   });
+
+  it("does not append a separator when an entity has no short ID", () => {
+    expect(
+      formatExternalEntityLabel({
+        containerKind: "repository",
+        containerLabel: "frontdesk/app",
+      })
+    ).toBe("frontdesk/app");
+  });
 });

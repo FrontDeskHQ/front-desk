@@ -172,7 +172,7 @@ export function PullRequestsSection({
                       <>
                         <GitPullRequest className="size-4 shrink-0" />
                         <span className="truncate shrink grow text-left">
-                          #{linkedPr.number} {linkedPr.title}
+                          {formatMirrorEntityLabel(linkedPr)} {linkedPr.title}
                         </span>
                       </>
                     ) : (
@@ -196,7 +196,7 @@ export function PullRequestsSection({
                 <ComboboxList>
                   {(item: PRItem) => (
                     <ComboboxItem key={item.value} value={item.value}>
-                      <span>#{item.pr.number}</span>
+                      <span>{formatMirrorEntityLabel(item.pr)}</span>
                       <span className="truncate">{item.pr.title}</span>
                     </ComboboxItem>
                   )}

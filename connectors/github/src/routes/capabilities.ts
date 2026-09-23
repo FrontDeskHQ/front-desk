@@ -93,11 +93,7 @@ const resolveEntityRepo = (
 ): { repo: GithubRepo; number: number } | null => {
   const opaque = githubEntityRefSchema.safeParse(entity.externalRef);
   if (opaque.success) {
-    const repo = config.repos.find(
-      (candidate) =>
-        candidate.owner === opaque.data.owner &&
-        candidate.name === opaque.data.repo
-    );
+    const repo = findRepo(config, `${opaque.data.owner}/${opaque.data.repo}`);
     return repo ? { number: opaque.data.number, repo } : null;
   }
 

@@ -1,5 +1,4 @@
 import { capabilityEntityRefSchema } from "@connectors/framework";
-import { parseExternalId } from "@workspace/schemas/external-issue";
 import { z } from "zod";
 
 import {
@@ -70,6 +69,12 @@ const githubConfigSchema = z.object({
   repos: z.array(githubRepoSchema).default([]),
 });
 
+const githubEntityRefSchema = z.object({
+  number: z.number().int().positive(),
+  owner: z.string().min(1),
+  repo: z.string().min(1),
+});
+
 const prMatchReplayPayloadSchema = z
   .object({
     organizationId: z.string().min(1),
@@ -138,22 +143,17 @@ const replayPullRequest = async (
   }
 
   const { organizationId, target } = parsedPayload.data;
+  const externalRef = githubEntityRefSchema.safeParse(target.externalRef);
+  if (!externalRef.success) {
+    return result(400, "INVALID_TARGET");
+  }
   const repo = config.repos.find(
-    (candidate) => candidate.fullName === target.repoFullName
+    (candidate) =>
+      candidate.owner === externalRef.data.owner &&
+      candidate.name === externalRef.data.repo
   );
   if (!repo) {
     return result(400, "REPOSITORY_NOT_CONNECTED");
-  }
-
-  const parsedExternalKey = parseExternalId(target.externalKey);
-  if (
-    !parsedExternalKey ||
-    parsedExternalKey.provider !== "github" ||
-    parsedExternalKey.owner !== repo.owner ||
-    parsedExternalKey.repo !== repo.name ||
-    !target.number
-  ) {
-    return result(400, "INVALID_TARGET");
   }
 
   let pullRequest: GitHubPullRequestLike;
@@ -162,7 +162,7 @@ const replayPullRequest = async (
       config.installationId,
       repo.owner,
       repo.name,
-      target.number
+      externalRef.data.number
     );
   } catch {
     logFailure({
@@ -253,19 +253,17 @@ const replayFinishedEntity = async (
   }
 
   const { organizationId, target, type } = parsedPayload.data;
+  const externalRef = githubEntityRefSchema.safeParse(target.externalRef);
+  if (!externalRef.success) {
+    return result(400, "INVALID_TARGET");
+  }
   const repo = config.repos.find(
-    (candidate) => candidate.fullName === target.repoFullName
+    (candidate) =>
+      candidate.owner === externalRef.data.owner &&
+      candidate.name === externalRef.data.repo
   );
-  const parsedExternalKey = parseExternalId(target.externalKey);
-  if (
-    !repo ||
-    !parsedExternalKey ||
-    parsedExternalKey.provider !== "github" ||
-    parsedExternalKey.owner !== repo.owner ||
-    parsedExternalKey.repo !== repo.name ||
-    !target.number
-  ) {
-    return result(400, repo ? "INVALID_TARGET" : "REPOSITORY_NOT_CONNECTED");
+  if (!repo) {
+    return result(400, "REPOSITORY_NOT_CONNECTED");
   }
 
   let fields: ExternalEntityFields;
@@ -277,7 +275,7 @@ const replayFinishedEntity = async (
               config.installationId,
               repo.owner,
               repo.name,
-              target.number
+              externalRef.data.number
             ),
             repoRef(repo)
           )
@@ -286,7 +284,7 @@ const replayFinishedEntity = async (
               config.installationId,
               repo.owner,
               repo.name,
-              target.number
+              externalRef.data.number
             ),
             repoRef(repo)
           );

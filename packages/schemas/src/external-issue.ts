@@ -96,7 +96,10 @@ export const formatExternalEntityLabel = (
   const shortId = entity.shortId ?? String(entity.number ?? "");
   const containerLabel = entity.containerLabel ?? entity.repoFullName;
   if (entity.containerKind === "repository" || !entity.containerKind) {
-    return containerLabel ? `${containerLabel}#${shortId}` : shortId;
+    if (!containerLabel) {
+      return shortId;
+    }
+    return shortId ? `${containerLabel}#${shortId}` : containerLabel;
   }
   return shortId;
 };
