@@ -1,0 +1,58 @@
+connectors/host/src/host.test.ts
+  s_38931219be2f43::t_93d06ec3ae95ec 1
+  s_38931219be2f43::t_fb5d547923be01 2-8,10-49,51-64,95
+  s_38931219be2f43::t_c77246cad14c7c 9,50
+  s_38931219be2f43::t_5db38cf41ec364 65-76,79-83,87-94
+  s_38931219be2f43::t_f5eed3cb3d3b36 77-78,84-86
+apps/api/src/lib/integration-credential.ts
+  s_38931219be2f43::t_4689993cfaf73e 1,204
+  s_38931219be2f43::t_de72923dba5dd9 2,4-6,9,11-64,66-80,82-105,114,116-118,120-121,127-128,130-132,144-147,155-157,159-166,187,192-193,195-199,201-203,205-224,226-227,248-249
+  s_38931219be2f43::t_db9cfae8dc2f4d 65,81,119
+  s_38931219be2f43::t_1ef3868e5564bb 122,129,158,200
+  s_38931219be2f43::t_030163708587a7 225
+apps/api/src/routes/linear-oauth-complete.ts
+  s_38931219be2f43::t_5abb65308bd839 2-5,7-20,26-42,48-64,66-70,72-82
+  s_38931219be2f43::t_cccd1adc870e0d 6,44-47,65,71
+  s_38931219be2f43::t_f5eed3cb3d3b36 21-25
+apps/web/src/routes/app/_workspace/settings/organization/integration/linear/index.tsx
+  s_38931219be2f43::t_3b03d4be7985bd 1-55,60-68,72-80,83-90,92-144,148-165,170-171,176-188,192-217
+  s_38931219be2f43::t_f5eed3cb3d3b36 56-59,69-71,81-82,91,145-147,166-169,172-175,189-191
+connectors/host/src/host.ts
+  s_38931219be2f43::t_fb5d547923be01 1-8,16-35,38-39,45-53,56-58,94-131
+  s_38931219be2f43::t_5abb65308bd839 9,36-37,40-44,54-55,59-71,73-77,79-86,88-89,91-92
+  s_38931219be2f43::t_38e11f65e26db6 11-14
+  s_38931219be2f43::t_be5a427d5c92c0 15
+  s_38931219be2f43::t_1be171ca8fdedb 72,78,87,90
+apps/web/src/routes/app/_workspace/settings/organization/integration/index.tsx
+  s_38931219be2f43::t_3b03d4be7985bd 3,122-138,422,430-432
+  s_38931219be2f43::t_f5eed3cb3d3b36 189,287
+apps/api/src/index.ts
+  s_38931219be2f43::t_5abb65308bd839 26,185-188
+connectors/host/src/linear-oauth.test.ts
+  s_38931219be2f43::t_5db38cf41ec364 1-2,5-31,35-47,51-86
+  s_38931219be2f43::t_f5da4f6f8240be 3-4
+  s_38931219be2f43::t_f5eed3cb3d3b36 32-34,48-50
+connectors/host/src/linear-oauth.ts
+  s_38931219be2f43::t_5abb65308bd839 1-36,40-98,102-111,115-134
+  s_38931219be2f43::t_f5eed3cb3d3b36 37-39,99-101,112-114
+apps/web/src/routeTree.gen.ts
+  s_38931219be2f43::t_0bd0a1868fe2b8 59,326-331,405,449,504,557,601,655,1002-1008,1130,1146-1147
+packages/schemas/src/integration/linear.ts
+  s_38931219be2f43::t_5abb65308bd839 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f7aeec0ac6aaf939ce2dc4de71e37591002abe57",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
