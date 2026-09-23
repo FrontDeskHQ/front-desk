@@ -10,6 +10,7 @@ import {
   authorizeOwnedAgentChat,
   authorizeWorkspaceOrgMember,
 } from "../../lib/authorize";
+import { errors } from "../../lib/errors";
 // Thread search is retired along with the `messages-v1` index (FRO-224); the
 // `searchThreads` tool is not declared to the model until it is rebuilt.
 import { searchDocumentation } from "../../lib/search/qdrant";
@@ -33,13 +34,16 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
   ).handler(async ({ req, db }) => {
     const chat = await db.findOne(schema.agentChat, req.input.chatId);
     if (!chat) {
-      throw new Error("CHAT_NOT_FOUND");
+      throw errors.notFound("Agent chat");
     }
 
     const actor = authorizeOwnedAgentChat(req, chat);
 
     if (!chat.draft || chat.draftStatus !== "active") {
-      throw new Error("NO_ACTIVE_DRAFT");
+      throw errors.preconditionFailed(
+        "NO_ACTIVE_DRAFT",
+        "There's no active draft in this chat"
+      );
     }
 
     // TODO: Move back inside transaction once live-state syncs trx.insert to clients
@@ -74,7 +78,10 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
       // Atomically claim the draft
       const currentChat = await trx.findOne(schema.agentChat, req.input.chatId);
       if (!currentChat?.draft || currentChat.draftStatus !== "active") {
-        throw new Error("NO_ACTIVE_DRAFT");
+        throw errors.preconditionFailed(
+          "NO_ACTIVE_DRAFT",
+          "There's no active draft in this chat"
+        );
       }
 
       // Convert markdown draft to tiptap JSONContent
@@ -118,7 +125,7 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
     )[0];
 
     if (!thread) {
-      throw new Error("UNAUTHORIZED");
+      throw errors.notFound("thread");
     }
 
     const id = ulid().toLowerCase();
@@ -142,7 +149,7 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
   ).handler(async ({ req, db }) => {
     const chat = await db.findOne(schema.agentChat, req.input.chatId);
     if (!chat) {
-      throw new Error("CHAT_NOT_FOUND");
+      throw errors.notFound("Agent chat");
     }
 
     authorizeOwnedAgentChat(req, chat);
@@ -163,7 +170,7 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
   ).handler(async ({ req, db }) => {
     const agentChat = await db.findOne(schema.agentChat, req.input.chatId);
     if (!agentChat) {
-      throw new Error("CHAT_NOT_FOUND");
+      throw errors.notFound("Agent chat");
     }
 
     const actor = authorizeOwnedAgentChat(req, agentChat);
@@ -657,13 +664,16 @@ export const agentChatRoute = privateRoute.withProcedures(({ mutation }) => ({
   ).handler(async ({ req, db }) => {
     const chat = await db.findOne(schema.agentChat, req.input.chatId);
     if (!chat) {
-      throw new Error("CHAT_NOT_FOUND");
+      throw errors.notFound("Agent chat");
     }
 
     authorizeOwnedAgentChat(req, chat);
 
     if (chat.draftStatus !== "active") {
-      throw new Error("NO_ACTIVE_DRAFT");
+      throw errors.preconditionFailed(
+        "NO_ACTIVE_DRAFT",
+        "There's no active draft in this chat"
+      );
     }
 
     await db.update(schema.agentChat, chat.id, {

@@ -1,4 +1,3 @@
-import { invokeCapability } from "@connectors/framework";
 import type { NormalizedIssue } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
@@ -10,7 +9,9 @@ import {
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
-import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
+import { dispatchCapability } from "./capability-dispatch";
+import { connectorRegistry } from "./connector-registry";
+import { errors } from "./errors";
 import { buildWorkspaceThreadUrl, requireFrontendBaseUrl } from "./thread-url";
 import { runRecordActivity } from "./update-mutations";
 
@@ -216,10 +217,13 @@ export const runCreateIssue = async (
     args.integrationId
   );
   if (!target) {
-    throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
+    throw errors.preconditionFailed(
+      "ISSUE_TRACKER_NOT_CONFIGURED",
+      "This workspace has no issue tracker configured"
+    );
   }
 
-  const { entity } = await invokeCapability<{ entity: NormalizedIssue }>(
+  const { entity } = await dispatchCapability<{ entity: NormalizedIssue }>(
     target.invokeUrl,
     {
       capability: "issue-tracker",
@@ -230,8 +234,7 @@ export const runCreateIssue = async (
         target: args.target,
         title: args.title,
       },
-    },
-    { secret: connectorInvokeSecret }
+    }
   );
 
   await runRecordActivity(db, {

@@ -15,6 +15,7 @@ import {
   fanOutEntityFinished,
   isExternalEntityFinished,
 } from "./entity-finished";
+import { errors } from "./errors";
 import { statusActivityMetadata } from "./signals/activity";
 import { runRecordActivity } from "./update-mutations";
 
@@ -200,7 +201,7 @@ export const runSetThreadStatus = async (
   const thread =
     options?.preloadedThread ?? (await db.thread.one(input.threadId).get());
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const oldStatus = thread.status ?? 0;
@@ -268,7 +269,7 @@ export const runSetThreadPriority = async (
 ) => {
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const oldPriority = thread.priority ?? 0;
@@ -303,7 +304,7 @@ export const runAssignThreadUser = async (
 ) => {
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const oldAssignedUserId = thread.assignedUserId ?? null;
@@ -321,7 +322,10 @@ export const runAssignThreadUser = async (
       })
       .get();
     if (!assignee) {
-      throw new Error("ASSIGNEE_NOT_IN_ORGANIZATION");
+      throw errors.badRequest(
+        "ASSIGNEE_NOT_IN_ORGANIZATION",
+        "The assignee isn't a member of this workspace"
+      );
     }
   }
 
@@ -399,7 +403,7 @@ const runLinkExternalEntity = async (
   const config = externalEntityLinkConfig[kind];
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const oldId = thread[config.threadField] ?? null;
@@ -491,7 +495,7 @@ const runUnlinkExternalEntity = async (
   const config = externalEntityLinkConfig[kind];
   const thread = await db.thread.one(input.threadId).get();
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const oldId = thread[config.threadField] ?? null;
@@ -618,7 +622,10 @@ export const runMarkDuplicate = async (
   }
 ) => {
   if (input.duplicateOfThreadId === input.threadId) {
-    throw new Error("CANNOT_MARK_DUPLICATE_OF_SELF");
+    throw errors.badRequest(
+      "CANNOT_MARK_DUPLICATE_OF_SELF",
+      "A thread can't be marked as a duplicate of itself"
+    );
   }
 
   const thread =
@@ -635,7 +642,7 @@ export const runMarkDuplicate = async (
     thread.organizationId !== input.organizationId ||
     (thread.deletedAt !== null && thread.deletedAt !== undefined)
   ) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   const target = await db.thread
@@ -646,7 +653,7 @@ export const runMarkDuplicate = async (
     })
     .get();
   if (!target) {
-    throw new Error("TARGET_THREAD_NOT_FOUND");
+    throw errors.notFound("target thread");
   }
 
   const oldStatus = thread.status ?? 0;
@@ -692,7 +699,7 @@ export const runArchiveThread = async (
       .first({ id: input.threadId, organizationId: input.organizationId })
       .get());
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   if (thread.deletedAt !== null && thread.deletedAt !== undefined) {
@@ -721,7 +728,7 @@ export const runRestoreThread = async (
       .first({ id: input.threadId, organizationId: input.organizationId })
       .get());
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   if (thread.deletedAt === null || thread.deletedAt === undefined) {
@@ -745,7 +752,7 @@ export const runSetAgentRead = async (
   const thread =
     options?.preloadedThread ?? (await db.thread.one(input.threadId).get());
   if (!thread || thread.organizationId !== input.organizationId) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   await db.thread.update(input.threadId, { agentRead: input.agentRead });

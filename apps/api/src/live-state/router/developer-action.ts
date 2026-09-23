@@ -13,6 +13,7 @@ import {
   isExternalEntityFinished,
   type ExternalEntityFinishState,
 } from "../../lib/entity-finished";
+import { getErrorReason, isPublicError } from "../../lib/errors";
 import { publicRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -41,9 +42,7 @@ export const developerActionInputSchema = z
 export type DeveloperActionInput = z.infer<typeof developerActionInputSchema>;
 
 const getErrorCode = (error: unknown): string =>
-  error instanceof DeveloperActionError
-    ? error.code
-    : "DEVELOPER_ACTION_FAILED";
+  getErrorReason(error) ?? "DEVELOPER_ACTION_FAILED";
 
 const logDeveloperActionEvent = (event: Record<string, unknown>): void => {
   console.info(JSON.stringify(event));
@@ -161,7 +160,9 @@ export const runDeveloperAction = async (
       event: "developer_action.failed",
       organizationId: input.organizationId,
     });
-    throw new Error(errorCode, { cause: error });
+    throw isPublicError(error)
+      ? error
+      : new DeveloperActionError("DEVELOPER_ACTION_FAILED", error);
   }
 };
 

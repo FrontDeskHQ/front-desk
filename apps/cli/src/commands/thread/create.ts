@@ -1,5 +1,7 @@
 import { readFile } from "node:fs/promises";
 
+import { getErrorReason } from "api/errors";
+
 import { fdAuthorMetaId } from "../../lib/author.js";
 import { loadProfile } from "../../lib/config.js";
 import {
@@ -75,6 +77,10 @@ const fixtureTitle = (raw: unknown): string => {
 };
 
 const formatError = (error: unknown): string => {
+  const reason = getErrorReason(error);
+  if (reason && error instanceof Error) {
+    return `${reason}: ${error.message}`;
+  }
   if (error instanceof Error) {
     return error.message;
   }

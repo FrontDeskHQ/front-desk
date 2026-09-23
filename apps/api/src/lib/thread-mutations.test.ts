@@ -18,16 +18,14 @@ describe("runMarkDuplicate", () => {
       name: "Deleted target",
       organizationId,
     };
-    const first = vi.fn(
-      (where: { deletedAt?: Date | null; id: string }) => ({
-        get: async () =>
-          where.id === source.id
-            ? source
-            : where.deletedAt === null
-              ? null
-              : deletedTarget,
-      })
-    );
+    const first = vi.fn((where: { deletedAt?: Date | null; id: string }) => ({
+      get: async () =>
+        where.id === source.id
+          ? source
+          : where.deletedAt === null
+            ? null
+            : deletedTarget,
+    }));
     const update = vi.fn();
     const db = {
       insert: vi.fn(),
@@ -44,7 +42,9 @@ describe("runMarkDuplicate", () => {
         },
         { userId: null, userName: null }
       )
-    ).rejects.toThrow("TARGET_THREAD_NOT_FOUND");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "TARGET_THREAD_NOT_FOUND" })
+    );
 
     expect(update).not.toHaveBeenCalled();
   });

@@ -156,14 +156,18 @@ describe("widget identity verification", () => {
         organizationId: "org-a",
         keys: [{ expiresAt: null, secret, version: 1 }],
       })
-    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INVALID_WIDGET_TOKEN" })
+    );
     await expect(
       verifyWidgetToken(overlong, {
         now: () => now * 1000,
         organizationId: "org-a",
         keys: [{ expiresAt: null, secret, version: 1 }],
       })
-    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INVALID_WIDGET_TOKEN" })
+    );
   });
 
   it("rejects a token explicitly issued for another organization", async () => {
@@ -175,7 +179,9 @@ describe("widget identity verification", () => {
         organizationId: "org-a",
         keys: [{ expiresAt: null, secret, version: 1 }],
       })
-    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "WIDGET_ORGANIZATION_MISMATCH" })
+    );
   });
 
   it.each([
@@ -213,7 +219,9 @@ describe("widget identity verification", () => {
           organizationId: "org-a",
           keys: [{ expiresAt: null, secret, version: 1 }],
         })
-      ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+      ).rejects.toThrow(
+        expect.objectContaining({ reason: "WIDGET_ORGANIZATION_MISMATCH" })
+      );
     }
   );
 
@@ -239,7 +247,9 @@ describe("widget identity verification", () => {
         organizationId: "org-b",
         keys: keysFor("org-b"),
       })
-    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INVALID_WIDGET_TOKEN" })
+    );
   });
 
   it("accepts a previous signing secret and rethrows a current-key organization mismatch", async () => {
@@ -273,7 +283,9 @@ describe("widget identity verification", () => {
           { expiresAt: null, secret: previousSecret, version: 1 },
         ],
       })
-    ).rejects.toThrow("WIDGET_ORGANIZATION_MISMATCH");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "WIDGET_ORGANIZATION_MISMATCH" })
+    );
   });
 
   it("enforces previous-key expiry during token verification", async () => {
@@ -306,7 +318,9 @@ describe("widget identity verification", () => {
           },
         ],
       })
-    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INVALID_WIDGET_TOKEN" })
+    );
 
     await expect(
       verifyWidgetToken(token, {
@@ -320,7 +334,9 @@ describe("widget identity verification", () => {
           },
         ],
       })
-    ).rejects.toThrow("INVALID_WIDGET_TOKEN");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INVALID_WIDGET_TOKEN" })
+    );
   });
 
   it("fails closed for a present but invalid settings object", () => {
@@ -328,7 +344,9 @@ describe("widget identity verification", () => {
       readWidgetIdentitySettings({
         widgetIdentity: { allowedOrigins: ["app.example.com"] },
       })
-    ).toThrow("INVALID_WIDGET_IDENTITY_SETTINGS");
+    ).toThrow(
+      expect.objectContaining({ reason: "INVALID_WIDGET_IDENTITY_SETTINGS" })
+    );
   });
 
   it("can fall back to defaults for owner settings recovery", () => {

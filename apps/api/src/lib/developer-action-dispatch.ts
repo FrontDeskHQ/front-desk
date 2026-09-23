@@ -10,6 +10,8 @@ import {
   connectorRegistry,
   getConnectorInvokeSecret,
 } from "./connector-registry";
+import { AppError } from "./errors";
+import type { ErrorCode } from "./errors";
 
 /**
  * Explicit developer actions known to the API. This is intentionally separate
@@ -24,12 +26,49 @@ export const isKnownDeveloperAction = (
   action: string
 ): boolean => DEVELOPER_ACTIONS[connectorType]?.includes(action) ?? false;
 
-export class DeveloperActionError extends Error {
-  readonly code: string;
+const DEVELOPER_ACTION_ERRORS = {
+  CONNECTOR_INVOKE_SECRET_NOT_CONFIGURED: [
+    "SERVICE_UNAVAILABLE",
+    "Connector invocation isn't configured on this server",
+  ],
+  DEVELOPER_ACTION_FAILED: [
+    "BAD_GATEWAY",
+    "The connector failed to run this action",
+  ],
+  DEVELOPER_ACTION_NOT_ACCEPTED: [
+    "BAD_GATEWAY",
+    "The connector didn't accept this action",
+  ],
+  INSECURE_CONNECTOR_ACTION_URL: [
+    "SERVICE_UNAVAILABLE",
+    "The connector's action endpoint is misconfigured",
+  ],
+  INTEGRATION_NOT_CONFIGURED: [
+    "PRECONDITION_FAILED",
+    "This integration hasn't been configured yet",
+  ],
+  INVALID_CONNECTOR_ACTION_URL: [
+    "SERVICE_UNAVAILABLE",
+    "The connector's action endpoint is misconfigured",
+  ],
+  INVALID_DEVELOPER_ACTION_INPUT: [
+    "BAD_REQUEST",
+    "Invalid developer action input",
+  ],
+  INVALID_DEVELOPER_ACTION_TARGET: [
+    "NOT_FOUND",
+    "Developer action target not found",
+  ],
+  UNKNOWN_CONNECTOR_TYPE: ["BAD_REQUEST", "Unknown connector type"],
+  UNKNOWN_DEVELOPER_ACTION: ["BAD_REQUEST", "Unknown developer action"],
+} as const satisfies Record<string, readonly [ErrorCode, string]>;
 
-  constructor(code: string) {
-    super(code);
-    this.code = code;
+export type DeveloperActionErrorReason = keyof typeof DEVELOPER_ACTION_ERRORS;
+
+export class DeveloperActionError extends AppError {
+  constructor(reason: DeveloperActionErrorReason, cause?: unknown) {
+    const [code, message] = DEVELOPER_ACTION_ERRORS[reason];
+    super(code, reason, message, { cause });
     this.name = "DeveloperActionError";
   }
 }
@@ -280,7 +319,7 @@ export const dispatchDeveloperAction = async (
     if (error instanceof DeveloperActionError) {
       throw error;
     }
-    throw new DeveloperActionError("DEVELOPER_ACTION_FAILED");
+    throw new DeveloperActionError("DEVELOPER_ACTION_FAILED", error);
   }
 
   const connectorSecret = getConnectorInvokeSecret();
@@ -297,8 +336,8 @@ export const dispatchDeveloperAction = async (
       },
       { secret: connectorSecret }
     );
-  } catch {
-    throw new DeveloperActionError("DEVELOPER_ACTION_FAILED");
+  } catch (error) {
+    throw new DeveloperActionError("DEVELOPER_ACTION_FAILED", error);
   }
 
   const result = developerActionAcceptedResultSchema.safeParse(rawResult);

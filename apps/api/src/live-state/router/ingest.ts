@@ -3,6 +3,7 @@ import { supportEntryPointIngestSchema } from "@connectors/framework";
 import { ulid } from "ulid";
 
 import { requireInternalApiKey } from "../../lib/authorize";
+import { errors } from "../../lib/errors";
 import { ensureExternalAuthor } from "../../lib/external-author";
 import { firstOrganizationAssigneeId } from "../../lib/organization-membership";
 import { nextThreadShortId } from "../../lib/thread-short-id";
@@ -96,7 +97,10 @@ export const ingestRoute = publicRoute.withProcedures(({ mutation }) => ({
 
         // Create path — refuse to create a titleless thread.
         if (!threadDescriptor) {
-          throw new Error("INGEST_UNKNOWN_THREAD_WITHOUT_DESCRIPTOR");
+          throw errors.badRequest(
+            "INGEST_UNKNOWN_THREAD_WITHOUT_DESCRIPTOR",
+            "A thread descriptor is required to ingest a message for an unknown thread"
+          );
         }
 
         const threadId = ulid().toLowerCase();

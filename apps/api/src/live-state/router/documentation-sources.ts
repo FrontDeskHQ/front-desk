@@ -9,6 +9,7 @@ import {
   runSyncCrawlProgress,
   syncCrawlProgressInputSchema,
 } from "../../lib/documentation-source-mutations";
+import { errors, isPublicError } from "../../lib/errors";
 import { reflagClient } from "../../lib/feature-flag";
 import { enqueueCrawlDocumentation } from "../../lib/queue";
 import { privateRoute } from "../factories";
@@ -66,23 +67,33 @@ function isPrivateIP(ip: string): boolean {
   return false;
 }
 
+const invalidUrl = (message: string) =>
+  errors.badRequest("INVALID_DOCUMENTATION_URL", message);
+
+const crawlQueueUnavailable = (cause?: unknown) =>
+  errors.serviceUnavailable(
+    "CRAWL_QUEUE_UNAVAILABLE",
+    "Couldn't schedule the crawl. Try again in a moment.",
+    { cause }
+  );
+
 async function assertPublicUrl(url: string): Promise<void> {
   const parsed = new URL(url);
   if (parsed.protocol !== "https:") {
-    throw new Error("Only HTTPS URLs are allowed");
+    throw invalidUrl("Only HTTPS URLs are allowed");
   }
   if (parsed.username || parsed.password) {
-    throw new Error("URLs with credentials are not allowed");
+    throw invalidUrl("URLs with credentials are not allowed");
   }
   const addresses = await dns.resolve4(parsed.hostname).catch(() => []);
   const addresses6 = await dns.resolve6(parsed.hostname).catch(() => []);
   const allAddresses = [...addresses, ...addresses6];
   if (allAddresses.length === 0) {
-    throw new Error(`Could not resolve hostname: ${parsed.hostname}`);
+    throw invalidUrl(`Could not resolve hostname: ${parsed.hostname}`);
   }
   for (const addr of allAddresses) {
     if (isPrivateIP(addr)) {
-      throw new Error(
+      throw invalidUrl(
         "URLs resolving to private or reserved IP addresses are not allowed"
       );
     }
@@ -181,7 +192,7 @@ const checkFeatureFlag = async (organizationId: string) => {
     .getFlag("documentation-crawler");
 
   if (!isEnabled) {
-    throw new Error("Feature not available");
+    throw errors.featureNotAvailable();
   }
 };
 
@@ -233,7 +244,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
         baseUrl,
       });
       if (!jobId) {
-        throw new Error("Queue unavailable: crawl job could not be scheduled");
+        throw crawlQueueUnavailable();
       }
     } catch (error) {
       await db.update(schema.documentationSource, id, {
@@ -242,7 +253,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
           error instanceof Error ? error.message : "Failed to schedule crawl",
         updatedAt: new Date(),
       });
-      throw error;
+      throw isPublicError(error) ? error : crawlQueueUnavailable(error);
     }
 
     return { id };
@@ -256,7 +267,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
 
     const source = await db.findOne(schema.documentationSource, id);
     if (!source) {
-      throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
+      throw errors.notFound("documentation source");
     }
 
     authorize(req, { organizationId: source.organizationId, role: "owner" });
@@ -280,7 +291,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
 
     const source = await db.findOne(schema.documentationSource, id);
     if (!source) {
-      throw new Error("DOCUMENTATION_SOURCE_NOT_FOUND");
+      throw errors.notFound("documentation source");
     }
 
     authorize(req, { organizationId: source.organizationId, role: "owner" });
@@ -306,7 +317,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
         baseUrl: source.baseUrl,
       });
       if (!jobId) {
-        throw new Error("Queue unavailable: crawl job could not be scheduled");
+        throw crawlQueueUnavailable();
       }
     } catch (error) {
       await db.update(schema.documentationSource, id, {
@@ -315,7 +326,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
           error instanceof Error ? error.message : "Failed to schedule crawl",
         updatedAt: new Date(),
       });
-      throw error;
+      throw isPublicError(error) ? error : crawlQueueUnavailable(error);
     }
 
     return { success: true };

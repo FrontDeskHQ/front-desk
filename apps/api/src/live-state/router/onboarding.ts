@@ -3,6 +3,7 @@ import { ulid } from "ulid";
 import { z } from "zod";
 
 import { authorize } from "../../lib/authorize";
+import { errors } from "../../lib/errors";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 
@@ -16,7 +17,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
 
     const onboarding = await db.findOne(schema.onboarding, onboardingId);
     if (!onboarding) {
-      throw new Error("ONBOARDING_NOT_FOUND");
+      throw errors.notFound("onboarding");
     }
 
     authorize(req, { organizationId: onboarding.organizationId });
@@ -39,7 +40,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
 
     const onboarding = await db.findOne(schema.onboarding, onboardingId);
     if (!onboarding) {
-      throw new Error("ONBOARDING_NOT_FOUND");
+      throw errors.notFound("onboarding");
     }
 
     authorize(req, { organizationId: onboarding.organizationId });
@@ -97,7 +98,7 @@ export default privateRoute.withProcedures(({ mutation }) => ({
 
     const onboarding = await db.findOne(schema.onboarding, onboardingId);
     if (!onboarding) {
-      throw new Error("ONBOARDING_NOT_FOUND");
+      throw errors.notFound("onboarding");
     }
 
     authorize(req, { organizationId: onboarding.organizationId });

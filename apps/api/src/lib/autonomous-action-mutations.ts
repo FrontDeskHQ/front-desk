@@ -8,6 +8,7 @@ import { ulid } from "ulid";
 import { z } from "zod";
 
 import type { schema } from "../live-state/schema";
+import { errors } from "./errors";
 
 export const recordAutonomousActionInputSchema = z
   .object({
@@ -36,7 +37,7 @@ export const runRecordAutonomousAction = async (
     .first({ id: input.entityId, organizationId: input.organizationId })
     .get();
   if (!thread) {
-    throw new Error("THREAD_NOT_FOUND");
+    throw errors.notFound("thread");
   }
 
   return db.autonomousAction.insert({

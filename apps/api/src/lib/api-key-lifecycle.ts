@@ -1,6 +1,8 @@
 import { addYears } from "date-fns";
 import type { ApiKeyRecord } from "keypal";
 
+import { errors } from "./errors";
+
 type ApiKeyType = "private" | "public";
 
 /** Defaults to a year out; anything later, past, or unparseable is rejected. */
@@ -20,7 +22,10 @@ export const resolvePrivateApiKeyExpiration = (input: {
     expiration <= now ||
     expiration.toISOString().slice(0, 10) > latest.toISOString().slice(0, 10)
   ) {
-    throw new Error("INVALID_PRIVATE_API_KEY_EXPIRATION");
+    throw errors.badRequest(
+      "INVALID_PRIVATE_API_KEY_EXPIRATION",
+      "The expiration date must be in the future and at most one year away"
+    );
   }
 
   return expiration;

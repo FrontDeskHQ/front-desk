@@ -9,6 +9,11 @@ import {
   isInternalDeveloperEmail,
 } from "./authorize";
 
+/** Denied either as unauthenticated (401) or as not permitted (403). */
+const accessDenied = expect.objectContaining({
+  code: expect.stringMatching(/^(UNAUTHORIZED|FORBIDDEN)$/),
+});
+
 const organizationId = "org-a";
 
 const workspaceRequest = (
@@ -39,7 +44,7 @@ const expectDenied = (
         event = denial;
       },
     })
-  ).toThrow("UNAUTHORIZED");
+  ).toThrow(accessDenied);
 
   expect(event).toBeDefined();
   return event as DeveloperActionDeniedEvent;
@@ -206,7 +211,7 @@ describe("private API key authorization", () => {
           organizationId: "org-b",
         }
       )
-    ).toThrow("UNAUTHORIZED");
+    ).toThrow(accessDenied);
   });
 
   it("does not grant private keys the internal-key bypass elsewhere", () => {
@@ -217,7 +222,7 @@ describe("private API key authorization", () => {
         },
         { organizationId }
       )
-    ).toThrow("UNAUTHORIZED");
+    ).toThrow(accessDenied);
   });
 });
 
@@ -232,10 +237,10 @@ describe("workspace organization authorization", () => {
   });
 
   it("denies anonymous and cross-organization callers", () => {
-    expect(() => authorize({}, { organizationId })).toThrow("UNAUTHORIZED");
+    expect(() => authorize({}, { organizationId })).toThrow(accessDenied);
     expect(() =>
       authorize(workspaceRequest(), { organizationId: "org-b" })
-    ).toThrow("UNAUTHORIZED");
+    ).toThrow(accessDenied);
   });
 
   it("does not treat widget identities as workspace organization access", () => {
@@ -267,7 +272,7 @@ describe("workspace organization authorization", () => {
         },
         { organizationId }
       )
-    ).toThrow("UNAUTHORIZED");
+    ).toThrow(accessDenied);
   });
 });
 
@@ -302,12 +307,12 @@ describe("thread creation authorization", () => {
           organizationId,
         }
       )
-    ).toThrow("UNAUTHORIZED");
+    ).toThrow(accessDenied);
     expect(() =>
       authorizeThreadCreate(
         { context: { publicApiKey: { ownerId: organizationId } } },
         { hasIntegrationOnlyFields: false, organizationId: "org-b" }
       )
-    ).toThrow("UNAUTHORIZED");
+    ).toThrow(accessDenied);
   });
 });

@@ -1,3 +1,4 @@
+import { isPublicError } from "@live-state/sync";
 import { createLogger } from "@workspace/utils/logging";
 import type { Job } from "bullmq";
 
@@ -155,7 +156,15 @@ export const errorFields = (
   };
 };
 
+/** API errors worth retrying: rate limits and upstream/availability failures. */
+const RETRYABLE_API_STATUSES = new Set([429, 502, 503, 504]);
+
 export const isRetryableError = (error: unknown): boolean => {
+  // Errors from the API carry an explicit status; trust it over message text.
+  if (isPublicError(error)) {
+    return RETRYABLE_API_STATUSES.has(error.status);
+  }
+
   const structuredError = getStructuredError(error);
   const errorName =
     error instanceof Error

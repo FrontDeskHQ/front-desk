@@ -105,7 +105,7 @@ const lsServer = server({
           "[auth] WebSocket API credential rejected",
           credentialErrorMessage(error)
         );
-        throw new Error("UNAUTHORIZED", { cause: error });
+        throw error;
       }
       if (apiCredential) {
         // TODO(FrontDeskHQ/front-desk#389): Widget key revocation does not
@@ -145,7 +145,7 @@ const lsServer = server({
       );
       // A bad explicit credential fails the request outright. It must not fall
       // through to a passive cookie session, nor to anonymous public routing.
-      throw new Error("UNAUTHORIZED", { cause: error });
+      throw error;
     }
     if (apiCredential) {
       return apiCredential;

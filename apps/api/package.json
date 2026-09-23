@@ -18,6 +18,11 @@
       "import": "./src/live-state/schema.ts",
       "default": "./src/live-state/schema.ts"
     },
+    "./errors": {
+      "types": "./src/lib/errors.ts",
+      "import": "./src/lib/errors.ts",
+      "default": "./src/lib/errors.ts"
+    },
     "./feature-flag": {
       "types": "./src/lib/feature-flag.ts",
       "import": "./src/lib/feature-flag.ts",

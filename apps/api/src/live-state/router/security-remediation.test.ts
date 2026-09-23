@@ -4,6 +4,11 @@ import labelsRoute from "./labels";
 import messageRoute from "./message";
 import threadsRoute from "./threads";
 
+/** Denied either as unauthenticated (401) or as not permitted (403). */
+const accessDenied = expect.objectContaining({
+  code: expect.stringMatching(/^(UNAUTHORIZED|FORBIDDEN)$/),
+});
+
 const widgetContext = {
   publicApiKey: { id: "public-a", ownerId: "org-a" },
   widgetIdentity: {
@@ -33,7 +38,7 @@ describe("security remediation route authorization", () => {
         { customerId: "customer-b", includeMessages: true },
         widgetContext
       )
-    ).rejects.toThrow("UNAUTHORIZED");
+    ).rejects.toThrow(accessDenied);
   });
 
   it("scopes widget subscriptions to customer-owned source threads", async () => {
@@ -77,7 +82,7 @@ describe("security remediation route authorization", () => {
         },
         widgetContext
       )
-    ).rejects.toThrow("UNAUTHORIZED");
+    ).rejects.toThrow(accessDenied);
   });
 
   it("requires internal credentials for worker and connector lookups", async () => {
@@ -87,21 +92,21 @@ describe("security remediation route authorization", () => {
         { ids: ["thread-1"] },
         {}
       )
-    ).rejects.toThrow("UNAUTHORIZED");
+    ).rejects.toThrow(accessDenied);
     await expect(
       invoke(
         threadsRoute.customQueries.byExternalId.handler,
         { externalId: "external-1", organizationId: "org-a" },
         widgetContext
       )
-    ).rejects.toThrow("UNAUTHORIZED");
+    ).rejects.toThrow(accessDenied);
     await expect(
       invoke(
         messageRoute.customQueries.byExternalId.handler,
         { externalMessageId: "external-message-1" },
         widgetContext
       )
-    ).rejects.toThrow("UNAUTHORIZED");
+    ).rejects.toThrow(accessDenied);
   });
 
   it("keeps the complete worker thread shape", async () => {

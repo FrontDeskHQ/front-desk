@@ -82,10 +82,14 @@ describe("HTTP API credential resolution", () => {
         },
         dependencies
       )
-    ).rejects.toThrow("CONFLICTING_API_CREDENTIALS");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "CONFLICTING_API_CREDENTIALS" })
+    );
     await expect(
       resolveHttpApiCredential({ authorization: "Basic abc" }, dependencies)
-    ).rejects.toThrow("INVALID_API_CREDENTIAL");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "INVALID_API_CREDENTIAL" })
+    );
     await expect(
       resolveHttpApiCredential(
         {
@@ -95,7 +99,9 @@ describe("HTTP API credential resolution", () => {
         },
         dependencies
       )
-    ).rejects.toThrow("CONFLICTING_API_CREDENTIALS");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "CONFLICTING_API_CREDENTIALS" })
+    );
   });
 
   it("requires an active public key alongside a widget JWT", async () => {
@@ -110,7 +116,9 @@ describe("HTTP API credential resolution", () => {
           },
           dependencies
         )
-      ).rejects.toThrow("INVALID_API_CREDENTIAL");
+      ).rejects.toThrow(
+        expect.objectContaining({ reason: "INVALID_API_CREDENTIAL" })
+      );
     }
   });
 
@@ -262,6 +270,8 @@ describe("WebSocket API credential resolution", () => {
         discordBotKey: "internal-secret",
         token: "connection-token",
       })
-    ).rejects.toThrow("CONFLICTING_API_CREDENTIALS");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "CONFLICTING_API_CREDENTIALS" })
+    );
   });
 });

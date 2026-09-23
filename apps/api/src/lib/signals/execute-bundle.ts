@@ -5,6 +5,7 @@ import {
 } from "@workspace/schemas/signals";
 import type { Action } from "@workspace/schemas/signals";
 
+import { errors } from "../errors";
 import type {
   ActionHandlerRegistry,
   ExecutionContext,
@@ -112,7 +113,7 @@ const runSequential = async (
 const assertBundleApplicable = (bundle: Action[]): void => {
   for (const action of bundle) {
     if (action.kind === "reply" && action.draftMarkdown.trim().length === 0) {
-      throw new Error("REPLY_DRAFT_EMPTY");
+      throw errors.badRequest("REPLY_DRAFT_EMPTY", "The reply can't be empty");
     }
   }
 
@@ -124,7 +125,10 @@ const assertBundleApplicable = (bundle: Action[]): void => {
   // the accept path, where a human composes the bundle from the card.
   const issueActions = bundle.filter(isIssueAction);
   if (issueActions.length > 1) {
-    throw new Error("MULTIPLE_ISSUE_ACTIONS");
+    throw errors.badRequest(
+      "MULTIPLE_ISSUE_ACTIONS",
+      "A signal can create or link at most one issue"
+    );
   }
 };
 

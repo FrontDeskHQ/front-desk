@@ -335,7 +335,9 @@ describe("agent run audit persistence", () => {
         startedAt,
         threadId: "thread-2",
       })
-    ).rejects.toThrow("AGENT_RUN_SCOPE_MISMATCH");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "AGENT_RUN_SCOPE_MISMATCH" })
+    );
 
     await expect(
       runAppendAgentRunEvents(db as never, {
@@ -355,7 +357,9 @@ describe("agent run audit persistence", () => {
           },
         ],
       })
-    ).rejects.toThrow("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "AGENT_RUN_EVENT_SCOPE_MISMATCH" })
+    );
   });
 
   it("handles concurrent run and attempt starts idempotently", async () => {
@@ -448,7 +452,9 @@ describe("agent run audit persistence", () => {
         runId: "run-1",
         status: "completed",
       })
-    ).rejects.toThrow("AGENT_RUN_ATTEMPT_NOT_FOUND");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "AGENT_RUN_ATTEMPT_NOT_FOUND" })
+    );
 
     await expect(
       runCompleteAgentRun(db as never, {
@@ -457,7 +463,9 @@ describe("agent run audit persistence", () => {
         runId: "run-2",
         status: "completed",
       })
-    ).rejects.toThrow("AGENT_RUN_NOT_FOUND");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "AGENT_RUN_NOT_FOUND" })
+    );
 
     rows.runs.delete("run-1");
     await expect(
@@ -467,6 +475,8 @@ describe("agent run audit persistence", () => {
         runId: "run-1",
         status: "completed",
       })
-    ).rejects.toThrow("AGENT_RUN_NOT_FOUND");
+    ).rejects.toThrow(
+      expect.objectContaining({ reason: "AGENT_RUN_NOT_FOUND" })
+    );
   });
 });

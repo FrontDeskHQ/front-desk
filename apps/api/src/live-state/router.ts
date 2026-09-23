@@ -41,6 +41,7 @@ import {
   requireInternalApiKey,
 } from "../lib/authorize";
 import { connectorRegistry } from "../lib/connector-registry";
+import { errors, isUniqueViolation } from "../lib/errors";
 import { isOrganizationFeatureEnabled } from "../lib/feature-flag";
 import {
   resolveEffectiveDefaultIssueTarget,
@@ -143,12 +144,17 @@ export const router = createRouter({
           .one(req.input.organizationId)
           .get();
         if (!organization) {
-          throw new Error("ORGANIZATION_NOT_FOUND");
+          throw errors.notFound("organization", {
+            id: req.input.organizationId,
+          });
         }
 
-        const widgetSettings = readWidgetIdentitySettings(organization.settings, {
-          fallbackToDefaults: true,
-        });
+        const widgetSettings = readWidgetIdentitySettings(
+          organization.settings,
+          {
+            fallbackToDefaults: true,
+          }
+        );
         const configured =
           asSettingsRecord(organization.settings).widgetIdentity !== undefined;
         const masterKey = process.env.FRONTDESK_WIDGET_SIGNING_MASTER_KEY;
@@ -187,7 +193,9 @@ export const router = createRouter({
               .one(req.input.organizationId)
               .get();
             if (!organization) {
-              throw new Error("ORGANIZATION_NOT_FOUND");
+              throw errors.notFound("organization", {
+                id: req.input.organizationId,
+              });
             }
 
             const rawSettings = asSettingsRecord(organization.settings);
@@ -225,7 +233,10 @@ export const router = createRouter({
 
         const masterKey = process.env.FRONTDESK_WIDGET_SIGNING_MASTER_KEY;
         if (!masterKey?.trim()) {
-          throw new Error("WIDGET_SIGNING_MASTER_KEY_REQUIRED");
+          throw errors.serviceUnavailable(
+            "WIDGET_SIGNING_NOT_CONFIGURED",
+            "Widget identity signing isn't configured on this server"
+          );
         }
 
         return withLockedOrganizationSettings(
@@ -235,7 +246,9 @@ export const router = createRouter({
               .one(req.input.organizationId)
               .get();
             if (!organization) {
-              throw new Error("ORGANIZATION_NOT_FOUND");
+              throw errors.notFound("organization", {
+                id: req.input.organizationId,
+              });
             }
 
             const rawSettings = asSettingsRecord(organization.settings);
@@ -366,28 +379,40 @@ export const router = createRouter({
           name: userName,
         });
 
-        const organization = await db.insert(schema.organization, {
-          id: organizationId,
-          name,
-          slug,
-          createdAt: new Date(),
-          logoUrl: null,
-          socials: null,
-          customInstructions: null,
-          settings: {
-            timezone: "UTC",
-            digest: {
-              pendingReplyThresholdMinutes: 30,
-              time: "09:00",
-              slackChannelId: null,
-              slackChannelName: null,
-              lastDigestSentAt: null,
+        let organization;
+        try {
+          organization = await db.insert(schema.organization, {
+            id: organizationId,
+            name,
+            slug,
+            createdAt: new Date(),
+            logoUrl: null,
+            socials: null,
+            customInstructions: null,
+            settings: {
+              timezone: "UTC",
+              digest: {
+                pendingReplyThresholdMinutes: 30,
+                time: "09:00",
+                slackChannelId: null,
+                slackChannelName: null,
+                lastDigestSentAt: null,
+              },
+              actionAutonomy: getDefaultActionAutonomy(),
+              plan: "trial",
+              subscriptionStatus: null,
             },
-            actionAutonomy: getDefaultActionAutonomy(),
-            plan: "trial",
-            subscriptionStatus: null,
-          },
-        });
+          });
+        } catch (error) {
+          if (isUniqueViolation(error)) {
+            throw errors.conflict(
+              "ORGANIZATION_SLUG_TAKEN",
+              "This workspace URL is already taken",
+              { details: { slug } }
+            );
+          }
+          throw error;
+        }
 
         await db.insert(schema.subscription, {
           id: ulid().toLowerCase(),
@@ -456,12 +481,19 @@ export const router = createRouter({
             level === "auto" &&
             !AUTO_CAPABLE_ACTIONS.has(actionKind as ActionKind)
           ) {
-            throw new Error("ACTION_KIND_LOCKED_FROM_AUTO");
+            throw errors.badRequest(
+              "ACTION_KIND_LOCKED_FROM_AUTO",
+              "This action can't be set to run automatically",
+              { details: { actionKind } }
+            );
           }
         }
 
         const org = await db.organization.one(req.input.organizationId).get();
-        if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+        if (!org)
+          throw errors.notFound("organization", {
+            id: req.input.organizationId,
+          });
 
         // Preserve raw settings — only touch actionAutonomy. Avoid
         // safeParseOrgSettings here because it returns the schema defaults
@@ -516,12 +548,18 @@ export const router = createRouter({
             req.input.target.integrationId
           );
           if (!resolved) {
-            throw new Error("ISSUE_TRACKER_NOT_CONFIGURED");
+            throw errors.preconditionFailed(
+              "ISSUE_TRACKER_NOT_CONFIGURED",
+              "This workspace has no issue tracker configured"
+            );
           }
         }
 
         const org = await db.organization.one(req.input.organizationId).get();
-        if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+        if (!org)
+          throw errors.notFound("organization", {
+            id: req.input.organizationId,
+          });
 
         // Preserve raw settings — only touch defaultIssueTarget (see
         // `setActionAutonomy` for why `safeParseOrgSettings` is avoided here).
@@ -553,7 +591,9 @@ export const router = createRouter({
 
         const { capability, integrationId } = req.input;
         if (!isCapability(capability)) {
-          throw new Error("UNKNOWN_CAPABILITY");
+          throw errors.badRequest("UNKNOWN_CAPABILITY", "Unknown capability", {
+            details: { capability },
+          });
         }
 
         // The pinned integration must belong to the org, be enabled, and its
@@ -564,21 +604,30 @@ export const router = createRouter({
           integration.organizationId !== req.input.organizationId ||
           !integration.enabled
         ) {
-          throw new Error("INTEGRATION_NOT_FOUND");
+          throw errors.notFound("integration", { id: integrationId });
         }
         // An integration can be enabled before it's configured; pinning an
         // unconfigured one would route agent creates to a target that fails at
         // dispatch, so require a config here too.
         if (!integration.configStr) {
-          throw new Error("INTEGRATION_NOT_CONFIGURED");
+          throw errors.preconditionFailed(
+            "INTEGRATION_NOT_CONFIGURED",
+            "This integration hasn't been configured yet"
+          );
         }
         const entry = connectorRegistry.getByType(integration.type);
         if (!entry?.manifest.capabilities.includes(capability)) {
-          throw new Error("CAPABILITY_NOT_PROVIDED");
+          throw errors.badRequest(
+            "CAPABILITY_NOT_PROVIDED",
+            "This integration doesn't support that capability"
+          );
         }
 
         const org = await db.organization.one(req.input.organizationId).get();
-        if (!org) throw new Error("ORGANIZATION_NOT_FOUND");
+        if (!org)
+          throw errors.notFound("organization", {
+            id: req.input.organizationId,
+          });
 
         // Preserve raw settings — only touch capabilityPrimary. Avoid
         // safeParseOrgSettings here because it returns schema defaults when
@@ -647,7 +696,9 @@ export const router = createRouter({
 
         const org = await db.organization.one(req.input.organizationId).get();
         if (!org) {
-          throw new Error("ORGANIZATION_NOT_FOUND");
+          throw errors.notFound("organization", {
+            id: req.input.organizationId,
+          });
         }
 
         const {
@@ -729,7 +780,7 @@ export const router = createRouter({
           !isLocalDevelopment() &&
           !isOrganizationFeatureEnabled(organizationId, "private-api-keys")
         ) {
-          throw new Error("FEATURE_NOT_AVAILABLE");
+          throw errors.featureNotAvailable();
         }
 
         const expiration = resolvePrivateApiKeyExpiration({
@@ -758,7 +809,7 @@ export const router = createRouter({
         const publicApiKey = await publicKeys.findById(req.input.id);
 
         if (!publicApiKey) {
-          throw new Error("PUBLIC_API_KEY_NOT_FOUND");
+          throw errors.notFound("public API key", { id: req.input.id });
         }
 
         authorize(req, {
@@ -769,7 +820,7 @@ export const router = createRouter({
 
         await publicKeys.revoke(publicApiKey.id).catch((error) => {
           console.error("Error revoking public API key", error);
-          throw new Error("FAILED_TO_REVOKE_PUBLIC_API_KEY");
+          throw new Error("FAILED_TO_REVOKE_PUBLIC_API_KEY", { cause: error });
         });
 
         return {
@@ -784,7 +835,7 @@ export const router = createRouter({
         const privateApiKey = await privateKeys.findById(req.input.id);
 
         if (!privateApiKey) {
-          throw new Error("PRIVATE_API_KEY_NOT_FOUND");
+          throw errors.notFound("private API key", { id: req.input.id });
         }
 
         authorize(req, {
@@ -795,7 +846,9 @@ export const router = createRouter({
 
         await privateKeys.revoke(privateApiKey.id).catch((error) => {
           console.error("Error revoking private API key", error);
-          throw new Error("FAILED_TO_REVOKE_PRIVATE_API_KEY");
+          throw new Error("FAILED_TO_REVOKE_PRIVATE_API_KEY", {
+            cause: error,
+          });
         });
 
         return { success: true };
@@ -832,7 +885,7 @@ export const router = createRouter({
       ).handler(async ({ req, db }) => {
         const userId = req.context?.session?.userId;
         if (!userId) {
-          throw new Error("UNAUTHORIZED");
+          throw errors.unauthorized();
         }
         return db.organizationUser
           .where({
@@ -856,7 +909,7 @@ export const router = createRouter({
       load: query().handler(({ req, db }) => {
         const userId = req.context?.session?.userId;
         if (!userId) {
-          throw new Error("UNAUTHORIZED");
+          throw errors.unauthorized();
         }
 
         return db.organizationUser.where({ userId }).include({
@@ -909,7 +962,7 @@ export const router = createRouter({
         const { organizationId, email: inviteEmails } = req.input;
         const sessionUserId = req.context?.session?.userId;
         if (!sessionUserId) {
-          throw new Error("UNAUTHORIZED");
+          throw errors.unauthorized();
         }
 
         authorize(req, {
@@ -932,7 +985,7 @@ export const router = createRouter({
         );
         const selfOrgUser = selfOrgUsers[0];
         if (!selfOrgUser) {
-          throw new Error("ORGANIZATION_USER_NOT_FOUND");
+          throw errors.notFound("organization user");
         }
 
         const existingMembers = Object.values(
@@ -1031,7 +1084,9 @@ export const router = createRouter({
           .one(req.input.organizationUserId)
           .get();
         if (!member) {
-          throw new Error("ORGANIZATION_USER_NOT_FOUND");
+          throw errors.notFound("organization user", {
+            id: req.input.organizationUserId,
+          });
         }
 
         authorize(req, {
@@ -1044,7 +1099,10 @@ export const router = createRouter({
           (req.input.enabled === false ||
             (req.input.role !== undefined && req.input.role !== member.role))
         ) {
-          throw new Error("CANNOT_UPDATE_SELF");
+          throw errors.forbidden(
+            "CANNOT_UPDATE_SELF",
+            "You can't change your own role or disable yourself"
+          );
         }
 
         const {
@@ -1080,7 +1138,7 @@ export const router = createRouter({
 
         const existing = await db.user.one(req.input.userId).get();
         if (!existing) {
-          throw new Error("USER_NOT_FOUND");
+          throw errors.notFound("user", { id: req.input.userId });
         }
 
         const { userId: _userId, name, email, image } = req.input;
@@ -1140,7 +1198,7 @@ export const router = createRouter({
             const invite = await trx.findOne(schema.invite, id);
 
             if (!invite) {
-              throw new Error("INVITATION_NOT_FOUND");
+              throw errors.notFound("invitation", { id: id });
             }
 
             assertInviteRecipient(req, invite.email);
@@ -1197,7 +1255,7 @@ export const router = createRouter({
           const invite = await db.findOne(schema.invite, id);
 
           if (!invite) {
-            throw new Error("INVITATION_NOT_FOUND");
+            throw errors.notFound("invitation", { id: id });
           }
 
           assertInviteRecipient(req, invite.email);
@@ -1222,7 +1280,7 @@ export const router = createRouter({
             !req.context?.internalApiKey &&
             req.context?.user?.email?.toLowerCase() !== email
           ) {
-            throw new Error("UNAUTHORIZED");
+            throw errors.forbidden();
           }
           return db.invite
             .where({
@@ -1237,7 +1295,8 @@ export const router = createRouter({
       revoke: mutation(z.object({ inviteId: z.string() })).handler(
         async ({ req, db }) => {
           const invite = await db.invite.one(req.input.inviteId).get();
-          if (!invite) throw new Error("INVITATION_NOT_FOUND");
+          if (!invite)
+            throw errors.notFound("invitation", { id: req.input.inviteId });
 
           authorize(req, {
             organizationId: invite.organizationId,
@@ -1259,7 +1318,7 @@ export const router = createRouter({
             !req.context?.internalApiKey &&
             req.context?.user?.email?.toLowerCase() !== email
           ) {
-            throw new Error("UNAUTHORIZED");
+            throw errors.forbidden();
           }
           return Object.values(
             await db.find(schema.allowlist, { where: { email } })

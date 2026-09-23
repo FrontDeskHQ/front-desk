@@ -1,12 +1,84 @@
-import { invokeCapability } from "@connectors/framework";
-import type { Capability, CapabilityEntityRef } from "@connectors/framework";
+import {
+  invokeCapability,
+  RemoteInvokeError,
+  RemoteInvokeTimeoutError,
+} from "@connectors/framework";
+import type {
+  Capability,
+  CapabilityEntityRef,
+  InvokeEnvelope,
+} from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
 
 import { schema } from "../live-state/schema";
 import { connectorInvokeSecret, connectorRegistry } from "./connector-registry";
+import { errors, isPublicError } from "./errors";
 
 type ExternalEntityRow = InferLiveObject<typeof schema.externalEntity>;
+
+/** User-facing copy for failure codes connectors are known to return. */
+const CONNECTOR_REASON_MESSAGES: Record<string, string> = {
+  REPOSITORY_NOT_CONNECTED:
+    "The configured repository is no longer connected. Pick another in Integrations settings.",
+};
+
+/**
+ * Translate a failed connector call into a public error. The connector's own
+ * failure code (e.g. `REPOSITORY_NOT_CONNECTED`) is kept as the reason so
+ * clients can explain it; the raw response body is never exposed.
+ */
+export const toConnectorError = (error: unknown): unknown => {
+  if (isPublicError(error)) {
+    return error;
+  }
+
+  if (error instanceof RemoteInvokeTimeoutError) {
+    return errors.gatewayTimeout(
+      "CONNECTOR_TIMEOUT",
+      "The integration took too long to respond. Try again in a moment.",
+      { cause: error }
+    );
+  }
+
+  if (error instanceof RemoteInvokeError) {
+    const reason = error.reason ?? "CONNECTOR_REQUEST_FAILED";
+    return errors.badGateway(
+      reason,
+      CONNECTOR_REASON_MESSAGES[reason] ??
+        "The integration couldn't complete this request",
+      { cause: error, details: { upstreamStatus: error.status } }
+    );
+  }
+
+  // `fetch` rejects with a TypeError when the connector is unreachable.
+  if (error instanceof TypeError) {
+    return errors.badGateway(
+      "CONNECTOR_UNREACHABLE",
+      "The integration is unreachable. Try again in a moment.",
+      { cause: error }
+    );
+  }
+
+  return error;
+};
+
+/**
+ * {@link invokeCapability} with the core's connector secret, rethrowing
+ * failures as public errors via {@link toConnectorError}.
+ */
+export const dispatchCapability = async <Result = unknown>(
+  invokeUrl: string,
+  envelope: InvokeEnvelope
+): Promise<Result> => {
+  try {
+    return await invokeCapability<Result>(invokeUrl, envelope, {
+      secret: connectorInvokeSecret,
+    });
+  } catch (error) {
+    throw toConnectorError(error);
+  }
+};
 
 /** Provider-neutral reference the connector acts on, straight from the mirror. */
 export const buildEntityRef = (

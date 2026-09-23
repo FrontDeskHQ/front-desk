@@ -1,4 +1,5 @@
 import type { ClientEvents } from "@live-state/sync/client";
+import { getErrorReason } from "api/errors";
 
 const BUCKET_DURATION_MS = 1000;
 const MAX_BUCKETS = 30;
@@ -204,6 +205,11 @@ export const createLiveStateDevtoolsStore = (
       case "MUTATION_REJECTED": {
         return {
           data: {
+            error: {
+              code: event.error.code,
+              message: event.error.message,
+              reason: getErrorReason(event.error),
+            },
             mutationId: event.mutationId,
             resource: event.resource,
           },

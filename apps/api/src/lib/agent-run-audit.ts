@@ -2,6 +2,7 @@ import type { ServerDB } from "@live-state/sync/server";
 import { z } from "zod";
 
 import { schema } from "../live-state/schema";
+import { errors, isUniqueViolation } from "./errors";
 
 const jsonStringSchema = z.string().refine(
   (value) => {
@@ -113,6 +114,12 @@ type LatestAgentRunInput = z.infer<typeof latestAgentRunInputSchema>;
 type ListAgentRunsInput = z.infer<typeof listAgentRunsInputSchema>;
 type AgentRunForThreadInput = z.infer<typeof agentRunForThreadInputSchema>;
 
+const scopeMismatch = (reason: string) =>
+  errors.badRequest(
+    reason,
+    "The Agent run, attempt, thread, and organization IDs don't match"
+  );
+
 const assertRunScope = (
   run: { organizationId: string; threadId: string },
   input: { organizationId: string; threadId: string }
@@ -121,7 +128,7 @@ const assertRunScope = (
     run.organizationId !== input.organizationId ||
     run.threadId !== input.threadId
   ) {
-    throw new Error("AGENT_RUN_SCOPE_MISMATCH");
+    throw scopeMismatch("AGENT_RUN_SCOPE_MISMATCH");
   }
 };
 
@@ -142,22 +149,8 @@ const assertAttemptScope = (
     attempt.organizationId !== input.organizationId ||
     attempt.threadId !== input.threadId
   ) {
-    throw new Error("AGENT_RUN_ATTEMPT_SCOPE_MISMATCH");
+    throw scopeMismatch("AGENT_RUN_ATTEMPT_SCOPE_MISMATCH");
   }
-};
-
-const isUniqueViolation = (error: unknown): boolean => {
-  if (typeof error !== "object" || error === null) {
-    return false;
-  }
-
-  const candidate = error as { cause?: unknown; code?: unknown };
-  return (
-    candidate.code === "23505" ||
-    (candidate.cause !== undefined &&
-      candidate.cause !== error &&
-      isUniqueViolation(candidate.cause))
-  );
 };
 
 const assertEventScope = (
@@ -186,7 +179,7 @@ const assertEventScope = (
     run.organizationId !== event.organizationId ||
     run.threadId !== event.threadId
   ) {
-    throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+    throw scopeMismatch("AGENT_RUN_EVENT_SCOPE_MISMATCH");
   }
 
   if (
@@ -196,7 +189,7 @@ const assertEventScope = (
     attempt.organizationId !== event.organizationId ||
     attempt.threadId !== event.threadId
   ) {
-    throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+    throw scopeMismatch("AGENT_RUN_EVENT_SCOPE_MISMATCH");
   }
 };
 
@@ -218,7 +211,7 @@ const assertStoredEventScope = (
     stored.organizationId !== event.organizationId ||
     stored.threadId !== event.threadId
   ) {
-    throw new Error("AGENT_RUN_EVENT_SCOPE_MISMATCH");
+    throw scopeMismatch("AGENT_RUN_EVENT_SCOPE_MISMATCH");
   }
 };
 
@@ -413,12 +406,12 @@ export const runCompleteAgentRun = async (
 ) => {
   const run = await db.agentRun.one(input.runId).get();
   if (!run) {
-    throw new Error("AGENT_RUN_NOT_FOUND");
+    throw errors.notFound("Agent run");
   }
 
   const attempt = await db.agentRunAttempt.one(input.attemptId).get();
   if (!attempt || attempt.agentRunId !== input.runId) {
-    throw new Error("AGENT_RUN_ATTEMPT_NOT_FOUND");
+    throw errors.notFound("Agent run attempt");
   }
 
   const timestamp = new Date();

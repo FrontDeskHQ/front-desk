@@ -6,6 +6,7 @@ import { privateKeys, publicKeys } from "./api-key";
 import type { AuthorizationContext, WidgetIdentity } from "./authorize";
 import { connectionTokens } from "./connection-token";
 import type { ConnectionPrincipal } from "./connection-token";
+import { errors, getErrorReason } from "./errors";
 import {
   isWidgetIdentityActive,
   isWidgetToken,
@@ -28,9 +29,24 @@ export interface CredentialDependencies {
   ) => Promise<WidgetIdentity | null>;
 }
 
-/** Name of the credential failure, for logging and HTTP status mapping. */
+// Revoked, expired, unknown, and wrong-environment keys all get the same
+// answer so the response does not reveal which keys exist.
+const invalidCredential = () =>
+  errors.unauthorized(
+    "INVALID_API_CREDENTIAL",
+    "The API credential is invalid, expired, or revoked"
+  );
+
+const conflictingCredentials = () =>
+  errors.unauthorized(
+    "CONFLICTING_API_CREDENTIALS",
+    "Send exactly one API credential per request"
+  );
+
+/** Name of the credential failure, for logging. */
 export const credentialErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : "UNKNOWN_ERROR";
+  getErrorReason(error) ??
+  (error instanceof Error ? error.message : "UNKNOWN_ERROR");
 
 /** Resolve at most one explicit HTTP API credential. Cookies are passive. */
 export const resolveHttpApiCredential = async (
@@ -53,7 +69,7 @@ export const resolveHttpApiCredential = async (
     (value) => value !== undefined
   );
   if (explicit.length > 1 && !isWidgetBearer) {
-    throw new Error("CONFLICTING_API_CREDENTIALS");
+    throw conflictingCredentials();
   }
 
   if (internalKey !== undefined) {
@@ -61,7 +77,7 @@ export const resolveHttpApiCredential = async (
       !dependencies.internalKey ||
       !secretsMatch(internalKey, dependencies.internalKey)
     ) {
-      throw new Error("INVALID_API_CREDENTIAL");
+      throw invalidCredential();
     }
     return { internalApiKey: true };
   }
@@ -69,7 +85,7 @@ export const resolveHttpApiCredential = async (
   if (publicKey !== undefined) {
     const record = await dependencies.verifyPublic(publicKey);
     if (!record) {
-      throw new Error("INVALID_API_CREDENTIAL");
+      throw invalidCredential();
     }
 
     const publicApiKey = {
@@ -78,7 +94,7 @@ export const resolveHttpApiCredential = async (
     };
     if (authorization !== undefined) {
       if (!bearer || !isWidgetToken(bearer)) {
-        throw new Error("CONFLICTING_API_CREDENTIALS");
+        throw conflictingCredentials();
       }
       const identity = await dependencies.verifyWidget?.(
         bearer,
@@ -86,7 +102,7 @@ export const resolveHttpApiCredential = async (
         headers.origin
       );
       if (!identity || identity.organizationId !== publicApiKey.ownerId) {
-        throw new Error("INVALID_API_CREDENTIAL");
+        throw invalidCredential();
       }
       return { publicApiKey, widgetIdentity: identity };
     }
@@ -96,18 +112,18 @@ export const resolveHttpApiCredential = async (
 
   if (authorization !== undefined) {
     if (!bearer) {
-      throw new Error("INVALID_API_CREDENTIAL");
+      throw invalidCredential();
     }
 
     // A JWT without the publishable key cannot identify an organization, so
     // it is never treated as a private API key or accepted on its own.
     if (isWidgetToken(bearer)) {
-      throw new Error("INVALID_API_CREDENTIAL");
+      throw invalidCredential();
     }
 
     const record = await dependencies.verifyPrivate(bearer);
     if (!record) {
-      throw new Error("INVALID_API_CREDENTIAL");
+      throw invalidCredential();
     }
     return {
       privateApiKey: { id: record.id, ownerId: record.metadata.ownerId },
@@ -132,13 +148,13 @@ export const resolveWebSocketApiCredential = async (
     queryParams.token &&
     (queryParams.discordBotKey || queryParams.publicApiKey)
   ) {
-    throw new Error("CONFLICTING_API_CREDENTIALS");
+    throw conflictingCredentials();
   }
 
   if (queryParams.publicApiKey) {
     const record = await verifyPublic(queryParams.publicApiKey);
     if (!record) {
-      throw new Error("INVALID_API_CREDENTIAL");
+      throw invalidCredential();
     }
     return {
       publicApiKey: { id: record.id, ownerId: record.metadata.ownerId },
@@ -184,7 +200,7 @@ export const mintApiConnectionToken = async (
     return connectionTokens.mint({ type: "internal" });
   }
 
-  throw new Error("UNAUTHORIZED");
+  throw errors.unauthorized();
 };
 
 /**

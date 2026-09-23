@@ -4,6 +4,7 @@ import { ulid } from "ulid";
 import z from "zod";
 
 import {
+  accessDenied,
   assertInternalKeyForIntegrationFields,
   authorize,
   authorizeDeveloperAction,
@@ -13,6 +14,7 @@ import {
   getWorkspaceActor,
   requireInternalApiKey,
 } from "../../lib/authorize";
+import { errors } from "../../lib/errors";
 import {
   ensureExternalAuthor,
   ensureWidgetAuthor,
@@ -113,7 +115,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
         req.input.customerId !== undefined &&
         req.input.customerId !== widgetIdentity.userId
       ) {
-        throw new Error("UNAUTHORIZED");
+        throw accessDenied(req.context);
       }
 
       authorizeWidgetCustomer(req, {
@@ -142,12 +144,15 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     // Otherwise anyone with the publishable key could enumerate another
     // user's history by changing `customerId`.
     if (req.context?.publicApiKey) {
-      throw new Error("IDENTITY_TOKEN_REQUIRED");
+      throw errors.unauthorized(
+        "IDENTITY_TOKEN_REQUIRED",
+        "A widget identity token is required"
+      );
     }
 
     const authorizedOrganizationIds = getAuthorizedOrganizationIds(req);
     if (!req.context?.internalApiKey && !authorizedOrganizationIds?.length) {
-      throw new Error("UNAUTHORIZED");
+      throw accessDenied(req.context);
     }
 
     const threadQuery = db.thread.where({
@@ -170,7 +175,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       req.input.organizationId !== undefined &&
       req.input.organizationId !== widgetOrganizationId
     ) {
-      throw new Error("UNAUTHORIZED");
+      throw accessDenied(req.context);
     }
 
     const organizationId =
@@ -180,7 +185,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       req.input.organizationId;
 
     if (!organizationId) {
-      throw new Error("MISSING_ORGANIZATION_ID");
+      throw errors.badRequest(
+        "ORGANIZATION_ID_REQUIRED",
+        "An organization ID is required"
+      );
     }
 
     const hasIntegrationOnlyFields =
@@ -199,11 +207,17 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     });
 
     if (createFlow === "workspace" && !req.input.author) {
-      throw new Error("MISSING_AUTHOR_INFO");
+      throw errors.badRequest(
+        "AUTHOR_REQUIRED",
+        "Author information is required"
+      );
     }
 
     if (createFlow === "public") {
-      throw new Error("IDENTITY_TOKEN_REQUIRED");
+      throw errors.unauthorized(
+        "IDENTITY_TOKEN_REQUIRED",
+        "A widget identity token is required"
+      );
     }
 
     const content = serializeMessageContent(req.input.message);
@@ -227,7 +241,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
           organizationId,
         });
       } else {
-        throw new Error("MISSING_AUTHOR_INFO");
+        throw errors.badRequest(
+          "AUTHOR_REQUIRED",
+          "Author information is required"
+        );
       }
 
       const shortId = await nextThreadShortId(trx, organizationId);
@@ -314,7 +331,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       !req.context?.orgUsers?.length &&
       !req.context?.widgetIdentity
     ) {
-      throw new Error("UNAUTHORIZED");
+      throw accessDenied(req.context);
     }
 
     const widgetIdentity = req.context?.widgetIdentity;
@@ -324,7 +341,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
       });
 
       if (shortId !== undefined || onlyDeleted || deletedBefore !== undefined) {
-        throw new Error("UNAUTHORIZED");
+        throw accessDenied(req.context);
       }
 
       // TODO(FrontDeskHQ/front-desk#388, pedroscosta/live-state#220): use
@@ -483,7 +500,10 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     const { organizationId } = req.input;
 
     if (!organizationId) {
-      throw new Error("MISSING_ORGANIZATION_ID");
+      throw errors.badRequest(
+        "ORGANIZATION_ID_REQUIRED",
+        "An organization ID is required"
+      );
     }
 
     authorize(req, { organizationId });
@@ -493,7 +513,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
     // Verify thread exists and belongs to the organization
     const thread = await db.findOne(schema.thread, req.input.threadId);
     if (!thread || thread.organizationId !== organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     // Client-orchestrated: this returns the created entity and the browser then
@@ -716,7 +736,7 @@ export default publicRoute.withProcedures(({ mutation, query }) => ({
 
     const thread = await db.findOne(schema.thread, req.input.threadId);
     if (!thread || thread.organizationId !== req.input.organizationId) {
-      throw new Error("THREAD_NOT_FOUND");
+      throw errors.notFound("thread");
     }
 
     return enqueueThreadRead(req.input.threadId, {

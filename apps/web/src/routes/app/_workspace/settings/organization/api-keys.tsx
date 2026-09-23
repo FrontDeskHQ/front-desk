@@ -51,6 +51,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@workspace/ui/components/tooltip";
+import { getErrorMessage } from "api/errors";
 import { addDays, addYears, format } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { Plus, RefreshCw, Trash2 } from "lucide-react";
@@ -156,9 +157,10 @@ function RouteComponent() {
       toast.success("Widget identity settings saved");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to save widget identity settings. Please try again."
+        getErrorMessage(
+          error,
+          "Failed to save widget identity settings. Please try again."
+        )
       );
     } finally {
       setIsSavingWidgetSettings(false);
@@ -183,9 +185,10 @@ function RouteComponent() {
       setDirtyWidgetOrganizationId(null);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to rotate the widget signing secret. Please try again."
+        getErrorMessage(
+          error,
+          "Failed to rotate the widget signing secret. Please try again."
+        )
       );
     } finally {
       setIsRotatingWidgetSecret(false);
@@ -213,9 +216,7 @@ function RouteComponent() {
       });
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to revoke API key. Please try again."
+        getErrorMessage(error, "Failed to revoke API key. Please try again.")
       );
     }
   };
@@ -250,9 +251,7 @@ function RouteComponent() {
       });
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create API key. Please try again."
+        getErrorMessage(error, "Failed to create API key. Please try again.")
       );
     }
   };

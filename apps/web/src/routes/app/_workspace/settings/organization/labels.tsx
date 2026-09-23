@@ -32,6 +32,7 @@ import {
   TableHeader,
   TableRow,
 } from "@workspace/ui/components/table";
+import { getErrorMessage } from "api/errors";
 import { format } from "date-fns";
 import { useAtomValue } from "jotai/react";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -103,9 +104,7 @@ function RouteComponent() {
       toast.success(`Label "${deletedLabelName}" deleted successfully`);
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to delete label. Please try again."
+        getErrorMessage(error, "Failed to delete label. Please try again.")
       );
     }
   };
@@ -132,9 +131,7 @@ function RouteComponent() {
       toast.success("Label created successfully");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to create label. Please try again."
+        getErrorMessage(error, "Failed to create label. Please try again.")
       );
     }
   };
@@ -161,9 +158,7 @@ function RouteComponent() {
       toast.success("Label updated successfully");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to update label. Please try again."
+        getErrorMessage(error, "Failed to update label. Please try again.")
       );
     }
   };
