@@ -33,8 +33,10 @@ describe("GitHub external-entity addressing", () => {
       containerId: "frontdesk/app",
       containerKind: "repository",
       containerLabel: "frontdesk/app",
+      externalKey: "github:frontdesk/app#4200",
       externalRef: { number: 42, owner: "frontdesk", repo: "app" },
       number: 42,
+      provider: "github",
       repoFullName: "frontdesk/app",
       shortId: "42",
     });
@@ -67,8 +69,10 @@ describe("GitHub external-entity addressing", () => {
       containerId: "frontdesk/app",
       containerKind: "repository",
       containerLabel: "frontdesk/app",
+      externalKey: "github:frontdesk/app#4300",
       externalRef: { number: 43, owner: "frontdesk", repo: "app" },
       number: 43,
+      provider: "github",
       repoFullName: "frontdesk/app",
       shortId: "43",
     });

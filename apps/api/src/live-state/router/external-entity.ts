@@ -519,9 +519,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const now = new Date();
     const integration = Object.values(
       await db.find(schema.integration, {
-        where: { organizationId, type: provider },
+        where: { enabled: true, organizationId, type: provider },
       })
-    )[0];
+    ).sort((left, right) => left.id.localeCompare(right.id))[0];
     const normalizedInput = {
       ...req.input,
       integrationId: integration?.id ?? null,
