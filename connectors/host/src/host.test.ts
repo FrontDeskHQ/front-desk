@@ -52,8 +52,21 @@ describe(createConnectorHost, () => {
   });
 
   it("passes through a connector's non-success status", async () => {
-    const response = await app.handle(
-      request("/linear/api/capabilities/invoke", {
+    const unsupportedConnector: HostedConnector = {
+      async invoke() {
+        return { body: { error: "METHOD_NOT_IMPLEMENTED" }, status: 501 };
+      },
+      async probe() {
+        return { live: false };
+      },
+      type: "unsupported",
+    };
+    const unsupportedApp = createConnectorHost({
+      connectors: [unsupportedConnector],
+      secret: "connector-secret",
+    });
+    const response = await unsupportedApp.handle(
+      request("/unsupported/api/capabilities/invoke", {
         capability: "issue-tracker",
         config: null,
         method: "unknown",
