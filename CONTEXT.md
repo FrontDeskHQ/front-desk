@@ -137,15 +137,19 @@ A receipt of work the Agent performed without human approval. Stored in `autonom
 
 ### Connector
 
-The reusable provider code (Discord, Slack, GitHub) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides; the FrontDesk core interacts with those capabilities generically and never references a named provider. Distinct from an [integration](#integration), which is _one org's installed instance_ of a connector. _Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
+The reusable provider code (Discord, Slack, GitHub, Linear) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides, and the FrontDesk core routes capability calls generically. A named provider may appear in core only where a documented product policy deliberately differs, such as Linear retaining engineering-state authority. Distinct from an [integration](#integration), which is _one org's installed instance_ of a connector. _Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
 
 ### Capability
 
-A role a [connector](#connector) can play, expressed as a typed interface (a bundle of methods) the connector opts into implementing. Planned kinds: support entry point, issue tracker, PR tracker, team notification center. A connector may implement any number of them (GitHub = issue tracker + PR tracker; Slack = support entry point + notification center; Discord = support entry point only). The core asks "does this org have an integration whose connector provides capability X?" rather than naming a provider.
+A role a [connector](#connector) can play, expressed as a typed interface (a bundle of methods) the connector opts into implementing. Kinds: support entry point, issue tracker, PR tracker, team notification center. A connector may implement any number of them (GitHub = issue tracker + PR tracker; Linear = issue tracker; Slack = support entry point + notification center; Discord = support entry point only). The core asks "does this org have an integration whose connector provides capability X?" rather than naming a provider.
 
 ### Integration
 
 One org's installed, configured instance of a [connector](#connector). A row in the `integration` table (`type`, `enabled`, `configStr`), scoped by `organizationId`. "Integration" is the _installed connection_, not the code that powers it (that is the [connector](#connector)) and not the role it plays (that is a [capability](#capability)). Distinct from the [external install](#external-install): `enabled` here is FrontDesk's local switch, not whether the install still exists on the other system.
+
+### Integration credential
+
+An [organization](#organization)-scoped secret that authorizes one [integration](#integration) to act in its external system, such as a rotating OAuth access/refresh-token pair. It is private authorization material, not organization-visible integration configuration. Distinct from an [internal API key](#internal-api-key), which authenticates FrontDesk-owned services rather than an organization's external install. _Avoid_: "integration config" when the secret specifically is meant.
 
 ### External install
 
@@ -199,7 +203,7 @@ Where a [thread](#thread) sits in its lifecycle. Two of the five statuses are **
 
 "Finished" is the distinction the system acts on: a finished thread has left the working set.
 
-Finishing a thread is also the one status move that reaches outside FrontDesk: a thread that becomes _Resolved_ or _Closed_ finishes its linked [external issue](#external-issue) too, because both mean the customer's need has been settled one way or the other. _Duplicated_ does **not** — the need moved to another thread rather than being settled, and the issue still tracks it. The sync is **one-way**: un-finishing a thread never reopens the issue upstream, since a customer writing back is not evidence the engineering work regressed.
+For connectors that support outbound issue-state synchronization, finishing a thread is also the one status move that reaches outside FrontDesk: a thread that becomes _Resolved_ or _Closed_ finishes its linked [external issue](#external-issue) too, because both mean the customer's need has been settled one way or the other. _Duplicated_ does **not** — the need moved to another thread rather than being settled, and the issue still tracks it. The sync is **one-way**: un-finishing a thread never reopens the issue upstream, since a customer writing back is not evidence the engineering work regressed. Linear deliberately does not support this outbound synchronization: engineering state remains authoritative there, while Linear completion can still cause the Agent to follow up and finish the customer thread.
 
 _Avoid_: treating "closed" as the umbrella for all finished states (that is what "finished" is for); reading the status numbering as a severity or progress ordering (it is a bare enumeration, and "finished" and "syncs upstream" are different subsets of it); and assuming a thread is resolved because its last message reads conclusively — see the forward-looking test above.
 
@@ -215,7 +219,7 @@ Direction is coarser than the three author roles used to tag a transcript for [s
 
 ### External issue
 
-An issue in an external developer system (today only GitHub) that FrontDesk **mirrors** read-only. GitHub is authoritative; our copy is a downstream replica updated only from inbound webhooks/backfill, never written canonically from our side. Identified provider-agnostically as `provider:owner/repo#number` (see `formatGitHubId`). A [thread](#thread) may **link** to an external issue; the link is a reference, not ownership. _Avoid_: "GitHub issue" (we are provider-agnostic), "ticket".
+An issue in an external developer system that FrontDesk **mirrors** read-only. The external system is authoritative; our copy is a downstream replica updated only from inbound webhooks/backfill, never written canonically from our side. It has a stable provider-scoped identity and a provider-local short reference (for example, GitHub `123` or Linear `ENG-456`). A [thread](#thread) may **link** to one external issue; the link is a reference, not ownership. _Avoid_: "GitHub issue" or "Linear issue" when the provider is immaterial, "ticket".
 
 ### External outcome
 
@@ -249,7 +253,7 @@ The [index](#index) of mirrored [external issues](#external-issue), the counterp
 
 ### Default issue target
 
-The [organization](#organization)-designated sub-resource (e.g. a repository) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default is set, it falls back to the first available target on the primary tracker (same "first when unset" rule as the primary itself). Issue creation is unavailable to [synthesis](#synthesis) only when no usable target exists. Humans remain free to pick any target, including when accepting an Agent proposal.
+The [organization](#organization)-designated sub-resource (e.g. a GitHub repository or Linear team) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default is set and the connector exposes available targets, FrontDesk falls back to the first one (the same "first when unset" rule as the primary integration). A tracker without target discovery requires an explicit default. Issue creation is unavailable to [synthesis](#synthesis) only when no usable target exists. Humans remain free to pick any target, including when accepting an Agent proposal.
 
 ### Flagged ambiguities
 
