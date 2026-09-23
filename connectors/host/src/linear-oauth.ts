@@ -8,16 +8,18 @@ const tokenResponseSchema = z.object({
   token_type: z.string().min(1),
 });
 
-const workspaceResponseSchema = z.object({
-  data: z.object({
-    organization: z.object({ id: z.string(), name: z.string() }),
-    teams: z.object({
-      nodes: z.array(
-        z.object({ id: z.string(), key: z.string(), name: z.string() })
-      ),
-    }),
-    viewer: z.object({ id: z.string() }),
+const workspaceDataSchema = z.object({
+  organization: z.object({ id: z.string(), name: z.string() }),
+  teams: z.object({
+    nodes: z.array(
+      z.object({ id: z.string(), key: z.string(), name: z.string() })
+    ),
   }),
+  viewer: z.object({ id: z.string() }),
+});
+
+const workspaceResponseSchema = z.object({
+  data: workspaceDataSchema.nullable().optional(),
   errors: z.array(z.object({ message: z.string() })).optional(),
 });
 
@@ -33,22 +35,57 @@ export interface LinearOAuthEnvironment {
 export const readLinearOAuthEnvironment = (
   env: NodeJS.ProcessEnv = process.env
 ): LinearOAuthEnvironment => {
+  const development = env.NODE_ENV === "development";
   const values = {
     apiBaseUrl:
       env.LIVE_STATE_API_URL?.replace(/\/api\/ls\/?$/, "") ??
-      "http://localhost:3333",
+      (development ? "http://localhost:3333" : undefined),
     clientId: env.LINEAR_CLIENT_ID,
     clientSecret: env.LINEAR_CLIENT_SECRET,
     connectorSecret: env.DISCORD_BOT_KEY,
-    frontendBaseUrl: env.BASE_FRONTEND_URL ?? "http://localhost:3000",
+    frontendBaseUrl:
+      env.BASE_FRONTEND_URL ??
+      (development ? "http://localhost:3000" : undefined),
     redirectUri:
       env.LINEAR_REDIRECT_URI ??
-      "http://localhost:3336/linear/api/oauth/callback",
+      (development
+        ? "http://localhost:3336/linear/api/oauth/callback"
+        : undefined),
   };
-  if (!(values.clientId && values.clientSecret && values.connectorSecret)) {
+  if (
+    !(
+      values.apiBaseUrl &&
+      values.clientId &&
+      values.clientSecret &&
+      values.connectorSecret &&
+      values.frontendBaseUrl &&
+      values.redirectUri
+    )
+  ) {
     throw new Error("LINEAR_OAUTH_ENVIRONMENT_REQUIRED");
   }
   return values as LinearOAuthEnvironment;
+};
+
+const fetchWithTimeout = async (
+  fetcher: typeof fetch,
+  input: string,
+  init: RequestInit
+): Promise<Response> => {
+  try {
+    return await fetcher(input, {
+      ...init,
+      signal: AbortSignal.timeout(10_000),
+    });
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      (error.name === "AbortError" || error.name === "TimeoutError")
+    ) {
+      throw new Error("LINEAR_CALLBACK_TIMEOUT", { cause: error });
+    }
+    throw error;
+  }
 };
 
 const requireOk = async (response: Response, code: string) => {
@@ -64,7 +101,7 @@ export const completeLinearOAuth = async (
   fetcher: typeof fetch = fetch
 ): Promise<void> => {
   const tokenResponse = await requireOk(
-    await fetcher("https://api.linear.app/oauth/token", {
+    await fetchWithTimeout(fetcher, "https://api.linear.app/oauth/token", {
       body: new URLSearchParams({
         client_id: environment.clientId,
         client_secret: environment.clientSecret,
@@ -80,12 +117,12 @@ export const completeLinearOAuth = async (
   const token = tokenResponseSchema.parse(await tokenResponse.json());
 
   const workspaceResponse = await requireOk(
-    await fetcher("https://api.linear.app/graphql", {
+    await fetchWithTimeout(fetcher, "https://api.linear.app/graphql", {
       body: JSON.stringify({
         query: `query FrontDeskWorkspaceSetup {
           viewer { id }
           organization { id name }
-          teams { nodes { id key name } }
+          teams(first: 100) { nodes { id key name } }
         }`,
       }),
       headers: {
@@ -96,14 +133,19 @@ export const completeLinearOAuth = async (
     }),
     "LINEAR_WORKSPACE_LOOKUP_FAILED"
   );
-  const workspace = workspaceResponseSchema.parse(
+  const workspace = workspaceResponseSchema.safeParse(
     await workspaceResponse.json()
   );
-  if (workspace.errors?.length) {
+  if (
+    !workspace.success ||
+    workspace.data.errors?.length ||
+    !workspace.data.data
+  ) {
     throw new Error("LINEAR_WORKSPACE_LOOKUP_FAILED");
   }
 
-  const completeResponse = await fetcher(
+  const completeResponse = await fetchWithTimeout(
+    fetcher,
     `${environment.apiBaseUrl}/api/internal/integrations/linear/oauth-complete`,
     {
       body: JSON.stringify({
@@ -115,13 +157,13 @@ export const completeLinearOAuth = async (
           refreshToken: token.refresh_token,
           scope: token.scope,
           tokenType: token.token_type,
-          viewerId: workspace.data.viewer.id,
+          viewerId: workspace.data.data.viewer.id,
         },
         integrationId: input.integrationId,
         state: input.state,
-        teams: workspace.data.teams.nodes,
-        workspaceId: workspace.data.organization.id,
-        workspaceName: workspace.data.organization.name,
+        teams: workspace.data.data.teams.nodes,
+        workspaceId: workspace.data.data.organization.id,
+        workspaceName: workspace.data.data.organization.name,
       }),
       headers: {
         "content-type": "application/json",

@@ -79,8 +79,8 @@ function RouteComponent() {
     const clientId = import.meta.env.VITE_LINEAR_CLIENT_ID;
     const connectorBaseUrl =
       import.meta.env.VITE_BASE_LINEAR_CONNECTOR_URL ??
-      "http://localhost:3336/linear";
-    if (!clientId) {
+      (import.meta.env.DEV ? "http://localhost:3336/linear" : undefined);
+    if (!(clientId && connectorBaseUrl)) {
       toast.error("Linear OAuth is not configured.");
       return;
     }
@@ -89,25 +89,31 @@ function RouteComponent() {
     const csrfToken = generateStateToken();
     const nextConfig = JSON.stringify({
       ...config,
+      defaultTeamId: undefined,
       csrfToken,
     });
-    if (integration) {
-      await fetchClient.mutate.integration.updateInstallation({
-        configStr: nextConfig,
-        enabled: false,
-        integrationId,
-        updatedAt: new Date(),
-      });
-    } else {
-      await fetchClient.mutate.integration.connectInstallation({
-        configStr: nextConfig,
-        createdAt: new Date(),
-        enabled: false,
-        id: integrationId,
-        organizationId: organization.id,
-        type: "linear",
-        updatedAt: new Date(),
-      });
+    try {
+      if (integration) {
+        await fetchClient.mutate.integration.updateInstallation({
+          configStr: nextConfig,
+          enabled: false,
+          integrationId,
+          updatedAt: new Date(),
+        });
+      } else {
+        await fetchClient.mutate.integration.connectInstallation({
+          configStr: nextConfig,
+          createdAt: new Date(),
+          enabled: false,
+          id: integrationId,
+          organizationId: organization.id,
+          type: "linear",
+          updatedAt: new Date(),
+        });
+      }
+    } catch {
+      toast.error("Could not start the Linear connection. Try again.");
+      return;
     }
 
     const redirectUri = `${connectorBaseUrl}/api/oauth/callback`;
@@ -120,16 +126,34 @@ function RouteComponent() {
       state: `${integrationId}.${csrfToken}`,
     });
     posthog?.capture("integration_enable", { integration_type: "linear" });
+    await new Promise((resolve) => setTimeout(resolve, 300));
     window.location.href = `https://linear.app/oauth/authorize?${params.toString()}`;
   };
 
-  const setDefaultTeam = (teamId: string) => {
+  const setDefaultTeam = async (teamId: string) => {
     if (!(integration && config)) return;
-    mutate.integration.updateInstallation({
-      configStr: JSON.stringify({ ...config, defaultTeamId: teamId }),
-      integrationId: integration.id,
-      updatedAt: new Date(),
-    });
+    try {
+      await mutate.integration.updateInstallation({
+        configStr: JSON.stringify({ ...config, defaultTeamId: teamId }),
+        integrationId: integration.id,
+        updatedAt: new Date(),
+      });
+    } catch {
+      toast.error("Could not update the default Linear team.");
+    }
+  };
+
+  const disable = async () => {
+    if (!integration) return;
+    try {
+      await mutate.integration.updateInstallation({
+        enabled: false,
+        integrationId: integration.id,
+        updatedAt: new Date(),
+      });
+    } catch {
+      toast.error("Could not disable the Linear integration.");
+    }
   };
 
   return (
@@ -167,7 +191,9 @@ function RouteComponent() {
                     label: `${team.key} — ${team.name}`,
                     value: team.id,
                   }))}
-                  onValueChange={(value) => setDefaultTeam(value as string)}
+                  onValueChange={(value) =>
+                    void setDefaultTeam(value as string)
+                  }
                 >
                   <SelectTrigger
                     className="w-72"
@@ -192,13 +218,7 @@ function RouteComponent() {
                 <Button
                   className="ml-auto text-red-700 dark:hover:text-red-500"
                   variant="ghost"
-                  onClick={() =>
-                    mutate.integration.updateInstallation({
-                      enabled: false,
-                      integrationId: integration.id,
-                      updatedAt: new Date(),
-                    })
-                  }
+                  onClick={() => void disable()}
                 >
                   Disable
                 </Button>

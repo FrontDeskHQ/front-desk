@@ -323,6 +323,7 @@ function IssueTrackingSection({
     (integration) =>
       integration.enabled &&
       integration.configStr &&
+      integration.type !== "linear" &&
       providerTypes.has(integration.type)
   );
 
