@@ -7,8 +7,8 @@ import { z } from "zod";
 
 import { authorize, requireInternalApiKey } from "../../lib/authorize";
 import {
-  connectorInvokeSecret,
   connectorRegistry,
+  getConnectorInvokeSecret,
 } from "../../lib/connector-registry";
 import { errors } from "../../lib/errors";
 import { enqueueGithubBackfill } from "../../lib/queue";
@@ -279,7 +279,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const probeResult = await probeConnection(
       entry.probeUrl,
       { config: probedConfigStr },
-      { secret: connectorInvokeSecret }
+      { secret: getConnectorInvokeSecret() }
     ).catch((error: unknown) => {
       throw error instanceof RemoteInvokeTimeoutError
         ? errors.gatewayTimeout(

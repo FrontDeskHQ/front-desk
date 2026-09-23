@@ -99,6 +99,29 @@ export class RemoteInvokeTransportError extends Error {
   }
 }
 
+const isTimeoutError = (error: unknown): boolean =>
+  error instanceof DOMException && error.name === "TimeoutError";
+
+/**
+ * Classify a failure while reading a response body: the deadline firing
+ * mid-body is a timeout, and a dropped connection (`TypeError`) is a transport
+ * failure. Anything else, such as malformed JSON, is returned unchanged.
+ */
+export const toBodyReadError = (
+  error: unknown,
+  timeoutMessage: string
+): unknown => {
+  if (isTimeoutError(error)) {
+    return new RemoteInvokeTimeoutError(timeoutMessage, { cause: error });
+  }
+  if (error instanceof TypeError) {
+    return new RemoteInvokeTransportError("CONNECTOR_UNREACHABLE", {
+      cause: error,
+    });
+  }
+  return error;
+};
+
 const connectorErrorBodySchema = z.object({
   error: z.string().regex(/^[A-Z][A-Z0-9_]*$/),
 });
@@ -151,7 +174,7 @@ const invokeRemote = async <Result = unknown>(
       signal: AbortSignal.timeout(options.timeoutMs),
     });
   } catch (error) {
-    if (error instanceof DOMException && error.name === "TimeoutError") {
+    if (isTimeoutError(error)) {
       throw new RemoteInvokeTimeoutError(options.timeoutMessage, {
         cause: error,
       });
@@ -170,7 +193,11 @@ const invokeRemote = async <Result = unknown>(
     );
   }
 
-  return (await response.json()) as Result;
+  try {
+    return (await response.json()) as Result;
+  } catch (error) {
+    throw toBodyReadError(error, options.timeoutMessage);
+  }
 };
 
 /**

@@ -4,6 +4,7 @@ import {
   CAPABILITY_INVOKE_SECRET_HEADER,
   CAPABILITY_INVOKE_TIMEOUT_MS,
   RemoteInvokeTimeoutError,
+  toBodyReadError,
 } from "./invoke";
 
 /** Standardized HTTP path every probe-capable connector host exposes. */
@@ -18,6 +19,8 @@ export const CONNECTION_PROBE_SECRET_HEADER = CAPABILITY_INVOKE_SECRET_HEADER;
 
 /** Same bounded deadline as capability invoke. */
 export const CONNECTION_PROBE_TIMEOUT_MS = CAPABILITY_INVOKE_TIMEOUT_MS;
+
+const PROBE_TIMEOUT_MESSAGE = `CONNECTION_PROBE_TIMEOUT: no response after ${CONNECTION_PROBE_TIMEOUT_MS}ms`;
 
 /**
  * Probe request body. `config` is the integration's opaque `configStr`,
@@ -79,10 +82,9 @@ export async function probeConnection(
     });
   } catch (error) {
     if (error instanceof DOMException && error.name === "TimeoutError") {
-      throw new RemoteInvokeTimeoutError(
-        `CONNECTION_PROBE_TIMEOUT: no response after ${CONNECTION_PROBE_TIMEOUT_MS}ms`,
-        { cause: error }
-      );
+      throw new RemoteInvokeTimeoutError(PROBE_TIMEOUT_MESSAGE, {
+        cause: error,
+      });
     }
     throw error;
   }
@@ -98,9 +100,12 @@ export async function probeConnection(
   try {
     json = await response.json();
   } catch (error) {
-    throw new Error("CONNECTION_PROBE_INVALID_RESPONSE: non-JSON body", {
-      cause: error,
-    });
+    const bodyReadError = toBodyReadError(error, PROBE_TIMEOUT_MESSAGE);
+    throw bodyReadError === error
+      ? new Error("CONNECTION_PROBE_INVALID_RESPONSE: non-JSON body", {
+          cause: error,
+        })
+      : bodyReadError;
   }
 
   const parsed = probeResultSchema.safeParse(json);

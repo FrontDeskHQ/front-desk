@@ -134,7 +134,10 @@ export function acceptToastMessage(actions: Action[]): string {
   return `${first} and ${actions.length - 1} other actions applied`;
 }
 
-export function formatErrorMessage(error: unknown): string {
+export function formatErrorMessage(
+  error: unknown,
+  fallback = "Could not apply this signal. Please try again."
+): string {
   switch (getErrorReason(error)) {
     case "STALE_AGENT_READ": {
       return "This signal changed in the background. Refresh and try again.";
@@ -155,10 +158,7 @@ export function formatErrorMessage(error: unknown): string {
       return "The configured issue target is no longer connected. Pick another in Integrations settings.";
     }
     default: {
-      return getErrorMessage(
-        error,
-        "Could not apply this signal. Please try again."
-      );
+      return getErrorMessage(error, fallback);
     }
   }
 }

@@ -18,7 +18,7 @@ import {
   buildEntityRef,
   resolveEntityCapabilityTarget,
 } from "../../lib/capability-dispatch";
-import { connectorInvokeSecret } from "../../lib/connector-registry";
+import { getConnectorInvokeSecret } from "../../lib/connector-registry";
 import {
   didExternalEntityFinish,
   fanOutEntityFinished,
@@ -327,7 +327,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
             method: "readOutcome",
             payload: { entity: buildEntityRef(entity) },
           },
-          { secret: connectorInvokeSecret }
+          { secret: getConnectorInvokeSecret() }
         );
         return {
           result: trackerReadOutcomeResultSchema.parse(raw),

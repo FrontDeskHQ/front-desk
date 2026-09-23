@@ -335,8 +335,10 @@ export function ThreadReadProvider({
         suggestion,
         threadId: thread.id,
       });
-    } catch {
-      toast.error("Could not apply this inline suggestion.");
+    } catch (error) {
+      toast.error(
+        formatErrorMessage(error, "Could not apply this inline suggestion.")
+      );
     } finally {
       setBusyKey(null);
     }
