@@ -1,0 +1,68 @@
+apps/web/.env.local.example
+  s_38931219be2f43::t_51df6aef858326 37-41,50
+apps/api/src/live-state/router/integration.ts
+  s_38931219be2f43::t_835786bce14e37 6-8,17,19,53-104,402-425,427-445
+  s_38931219be2f43::t_89ffab5e992f9f 117-122
+  s_38931219be2f43::t_08acfa5e87b80c 338
+apps/web/src/routes/app/_workspace/settings/organization/integration/linear/index.tsx
+  s_38931219be2f43::t_3b03d4be7985bd 1-4,16-66,71-79,83-88,90-91,94-101,103-136,177-195,201-218,223-224,229-241,245-257,284-296
+  s_38931219be2f43::t_c5c71ea8f97e63 5-15,89,137-174,242,258-283
+  s_38931219be2f43::t_f5eed3cb3d3b36 67-70,80-82,92-93,102,196,200,219-222,225-228,243-244
+  s_38931219be2f43::t_89ffab5e992f9f 197-199
+connectors/framework/src/probe.ts
+  s_38931219be2f43::t_08acfa5e87b80c 31,37
+connectors/host/README.md
+  s_38931219be2f43::t_51df6aef858326 1-27
+connectors/host/src/linear.ts
+  s_38931219be2f43::t_7cb095304438f4 1-3,6,9-11,13-42,117-128,162-184,186-189
+  s_38931219be2f43::t_27801f025ce437 4-5,49-101,107-116,185,191-212,215-231
+  s_38931219be2f43::t_fb5d547923be01 7
+  s_38931219be2f43::t_876ba49db4b1a3 8,12
+  s_38931219be2f43::t_cb02f430b881aa 43-48,129,133-159,302-323
+  s_38931219be2f43::t_672f4e46f7e1ca 102-106,213-214
+  s_38931219be2f43::t_2afa6619278540 130-132,160-161
+connectors/host/src/linear-webhook.ts
+  s_38931219be2f43::t_7c98f8ad444032 1-5,7-26,30-35,37-39,41,46-48,52-57,69-74,76
+  s_38931219be2f43::t_e65771035fcb77 6,36,67-68,75
+  s_38931219be2f43::t_f2b020af44bcbb 27-29,42-45,49-51
+  s_38931219be2f43::t_c13b3a6cc175f3 40,58-65
+connectors/host/src/linear-webhook.test.ts
+  s_38931219be2f43::t_e4f2c53abdd2c6 1-2,5,7-16
+  s_38931219be2f43::t_052329664b2ddb 3-4,6,17-19,23-26,44-54,60-64
+  s_38931219be2f43::t_304691d7f15ade 20,22,27-29,31-33,35-43,55-56,59
+  s_38931219be2f43::t_89ffab5e992f9f 21,30,34,57-58
+connectors/host/src/host.ts
+  s_38931219be2f43::t_fb5d547923be01 1-8,10,17-26,28-30,35-38,41,48-56,59-61
+  s_38931219be2f43::t_5abb65308bd839 9,39-40,57-58,62-65,67-74,76-80,82-89,91-92,94-95
+  s_38931219be2f43::t_38e11f65e26db6 11-14
+  s_38931219be2f43::t_be5a427d5c92c0 15
+  s_38931219be2f43::t_7c98f8ad444032 16,42-43,45-47,66,108-131
+  s_38931219be2f43::t_fc3ba335efb328 27
+  s_38931219be2f43::t_08acfa5e87b80c 31-34
+  s_38931219be2f43::t_e65771035fcb77 44,98-100
+  s_38931219be2f43::t_1be171ca8fdedb 75,81,90,93
+  s_38931219be2f43::t_89ffab5e992f9f 165
+connectors/host/src/linear.test.ts
+  s_38931219be2f43::t_6cf4d4c57b0e02 1-12,82-133,243
+  s_38931219be2f43::t_052329664b2ddb 13-19,166-186,190-226
+  s_38931219be2f43::t_9039dc697412a5 20-81,305-322,332,336-347
+  s_38931219be2f43::t_d8b0d5123af869 134-165,229-242
+  s_38931219be2f43::t_304691d7f15ade 187-189
+  s_38931219be2f43::t_672f4e46f7e1ca 323-331,333-335
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "488875a7be2772306e54e31010ceb8fbf1d8cedb",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
