@@ -1,0 +1,31 @@
+packages/schemas/src/external-issue.test.ts
+  s_2577b45ecb94e9::t_a76b2d2e98fce6 26-35
+connectors/github/src/routes/capabilities.ts
+  s_2577b45ecb94e9::t_a76b2d2e98fce6 89-90,93-94
+  s_2577b45ecb94e9::t_e84973e1d6f197 14
+connectors/github/src/lib/developer-actions.ts
+  s_2577b45ecb94e9::t_e84973e1d6f197 4,147-148,257-258
+  s_2577b45ecb94e9::t_a76b2d2e98fce6 141-142,160,251-252,273,282
+connectors/github/src/routes/actions.test.ts
+  s_2577b45ecb94e9::t_a76b2d2e98fce6 253-284,394-413
+packages/schemas/src/external-issue.ts
+  s_2577b45ecb94e9::t_a76b2d2e98fce6 96-99,101
+connectors/github/src/lib/entity-reference.ts
+  s_2577b45ecb94e9::t_a76b2d2e98fce6 1-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "22b6ca6f248703134fa87a33567d1ddddf45fbfa",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
