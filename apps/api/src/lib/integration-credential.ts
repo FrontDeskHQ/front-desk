@@ -118,7 +118,7 @@ export const decryptIntegrationCredential = <T>(
 
 type CredentialDB = Pick<
   ServerDB<typeof schema>,
-  "integration" | "integrationCredential"
+  "integration" | "integrationCredential" | "transaction"
 >;
 
 const requireOwnedIntegration = async (
@@ -132,6 +132,22 @@ const requireOwnedIntegration = async (
   }
 };
 
+const lockOwnedIntegration = async (
+  db: CredentialDB,
+  organizationId: string,
+  integrationId: string
+): Promise<void> => {
+  const integration = await db.integration.one(integrationId).get();
+  if (!integration || integration.organizationId !== organizationId) {
+    throw new Error("INTEGRATION_NOT_FOUND");
+  }
+
+  // Credential rows do not exist until the first write, so use their owning
+  // integration as the stable mutex. This update takes a row-level write lock
+  // for the transaction and makes writes, rotations, and clears serialize.
+  await db.integration.update(integrationId, { updatedAt: new Date() });
+};
+
 export const writeIntegrationCredential = async (
   db: CredentialDB,
   input: {
@@ -141,34 +157,36 @@ export const writeIntegrationCredential = async (
   },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
 ): Promise<void> => {
-  await requireOwnedIntegration(db, input.organizationId, input.integrationId);
   const encrypted = encryptIntegrationCredential(input.value, input, keyring);
-  const existing = (
-    await db.integrationCredential
-      .where({ integrationId: input.integrationId })
-      .get()
-  )[0];
-  const now = new Date();
+  await db.transaction(async ({ trx }) => {
+    await lockOwnedIntegration(trx, input.organizationId, input.integrationId);
+    const existing = (
+      await trx.integrationCredential
+        .where({ integrationId: input.integrationId })
+        .get()
+    )[0];
+    const now = new Date();
 
-  if (existing) {
-    await db.integrationCredential.update(existing.id, {
+    if (existing) {
+      await trx.integrationCredential.update(existing.id, {
+        ...encrypted,
+        revokedAt: null,
+        updatedAt: now,
+        version: existing.version + 1,
+      });
+      return;
+    }
+
+    await trx.integrationCredential.insert({
       ...encrypted,
+      createdAt: now,
+      id: ulid().toLowerCase(),
+      integrationId: input.integrationId,
+      organizationId: input.organizationId,
       revokedAt: null,
       updatedAt: now,
-      version: existing.version + 1,
+      version: 1,
     });
-    return;
-  }
-
-  await db.integrationCredential.insert({
-    ...encrypted,
-    createdAt: now,
-    id: ulid().toLowerCase(),
-    integrationId: input.integrationId,
-    organizationId: input.organizationId,
-    revokedAt: null,
-    updatedAt: now,
-    version: 1,
   });
 };
 
@@ -201,23 +219,25 @@ export const clearIntegrationCredential = async (
   db: CredentialDB,
   input: { integrationId: string; organizationId: string }
 ): Promise<void> => {
-  await requireOwnedIntegration(db, input.organizationId, input.integrationId);
-  const row = (
-    await db.integrationCredential
-      .where({
-        integrationId: input.integrationId,
-        organizationId: input.organizationId,
-      })
-      .get()
-  )[0];
-  if (!row) {
-    return;
-  }
-  const now = new Date();
-  await db.integrationCredential.update(row.id, {
-    encryptedPayload: null,
-    revokedAt: now,
-    updatedAt: now,
-    version: row.version + 1,
+  await db.transaction(async ({ trx }) => {
+    await lockOwnedIntegration(trx, input.organizationId, input.integrationId);
+    const row = (
+      await trx.integrationCredential
+        .where({
+          integrationId: input.integrationId,
+          organizationId: input.organizationId,
+        })
+        .get()
+    )[0];
+    if (!row) {
+      return;
+    }
+    const now = new Date();
+    await trx.integrationCredential.update(row.id, {
+      encryptedPayload: null,
+      revokedAt: now,
+      updatedAt: now,
+      version: row.version + 1,
+    });
   });
 };

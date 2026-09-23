@@ -53,6 +53,56 @@ describe("integration credential encryption", () => {
     ).toThrow("Unsupported state or unable to authenticate data");
   });
 
+  it("decrypts credentials written with a previous key version", () => {
+    const previousKey = randomBytes(32);
+    const currentKey = randomBytes(32);
+    const scope = { integrationId: "int-a", organizationId: "org-a" };
+    const encrypted = encryptIntegrationCredential(
+      { accessToken: "access" },
+      scope,
+      {
+        currentKeyId: "key-a",
+        keys: new Map([["key-a", previousKey]]),
+      }
+    );
+
+    expect(
+      decryptIntegrationCredential(
+        encrypted.encryptedPayload,
+        encrypted.keyId,
+        scope,
+        {
+          currentKeyId: "key-b",
+          keys: new Map([
+            ["key-a", previousKey],
+            ["key-b", currentKey],
+          ]),
+        }
+      )
+    ).toStrictEqual({ accessToken: "access" });
+  });
+
+  it("rejects credentials whose key version is unavailable", () => {
+    const scope = { integrationId: "int-a", organizationId: "org-a" };
+    const encrypted = encryptIntegrationCredential(
+      { accessToken: "access" },
+      scope,
+      keyring()
+    );
+
+    expect(() =>
+      decryptIntegrationCredential(
+        encrypted.encryptedPayload,
+        encrypted.keyId,
+        scope,
+        {
+          currentKeyId: "key-b",
+          keys: new Map([["key-b", randomBytes(32)]]),
+        }
+      )
+    ).toThrow("INTEGRATION_CREDENTIAL_KEY_NOT_FOUND");
+  });
+
   it("loads a versioned keyring from environment values", () => {
     const key = randomBytes(32).toString("base64");
     const parsed = readIntegrationCredentialKeyring({
