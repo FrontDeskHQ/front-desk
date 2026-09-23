@@ -1,0 +1,24 @@
+apps/api/src/lib/integration-credential.test.ts
+  s_673aabffdde7d2::t_55728d2bbc56f0 56-105
+apps/api/src/lib/integration-credential.ts
+  s_673aabffdde7d2::t_a59f8906608944 162,223
+  s_673aabffdde7d2::t_55728d2bbc56f0 121,135-150,161,163-180,182-185,188,222,224-241
+apps/api/.env.local.example
+  s_673aabffdde7d2::t_55728d2bbc56f0 13-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "46b71aaa499ef8d85534ac6fe370b47bacb95747",
+  "prompts": {},
+  "sessions": {
+    "s_673aabffdde7d2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d02d-ecce-7b70-bd94-66e649ed347b",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
