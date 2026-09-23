@@ -1,6 +1,7 @@
 import { capabilityEntityRefSchema } from "@connectors/framework";
 import { z } from "zod";
 
+import { resolveGitHubEntityReference } from "./entity-reference";
 import {
   buildIssueFields,
   buildPullRequestFields,
@@ -67,12 +68,6 @@ const githubRepoSchema = z
 const githubConfigSchema = z.object({
   installationId: z.coerce.number().int().positive(),
   repos: z.array(githubRepoSchema).default([]),
-});
-
-const githubEntityRefSchema = z.object({
-  number: z.number().int().positive(),
-  owner: z.string().min(1),
-  repo: z.string().min(1),
 });
 
 const prMatchReplayPayloadSchema = z
@@ -143,14 +138,14 @@ const replayPullRequest = async (
   }
 
   const { organizationId, target } = parsedPayload.data;
-  const externalRef = githubEntityRefSchema.safeParse(target.externalRef);
-  if (!externalRef.success) {
+  const externalRef = resolveGitHubEntityReference(target);
+  if (!externalRef) {
     return result(400, "INVALID_TARGET");
   }
   const repo = config.repos.find(
     (candidate) =>
-      candidate.owner === externalRef.data.owner &&
-      candidate.name === externalRef.data.repo
+      candidate.owner === externalRef.owner &&
+      candidate.name === externalRef.repo
   );
   if (!repo) {
     return result(400, "REPOSITORY_NOT_CONNECTED");
@@ -162,7 +157,7 @@ const replayPullRequest = async (
       config.installationId,
       repo.owner,
       repo.name,
-      externalRef.data.number
+      externalRef.number
     );
   } catch {
     logFailure({
@@ -253,14 +248,14 @@ const replayFinishedEntity = async (
   }
 
   const { organizationId, target, type } = parsedPayload.data;
-  const externalRef = githubEntityRefSchema.safeParse(target.externalRef);
-  if (!externalRef.success) {
+  const externalRef = resolveGitHubEntityReference(target);
+  if (!externalRef) {
     return result(400, "INVALID_TARGET");
   }
   const repo = config.repos.find(
     (candidate) =>
-      candidate.owner === externalRef.data.owner &&
-      candidate.name === externalRef.data.repo
+      candidate.owner === externalRef.owner &&
+      candidate.name === externalRef.repo
   );
   if (!repo) {
     return result(400, "REPOSITORY_NOT_CONNECTED");
@@ -275,7 +270,7 @@ const replayFinishedEntity = async (
               config.installationId,
               repo.owner,
               repo.name,
-              externalRef.data.number
+              externalRef.number
             ),
             repoRef(repo)
           )
@@ -284,7 +279,7 @@ const replayFinishedEntity = async (
               config.installationId,
               repo.owner,
               repo.name,
-              externalRef.data.number
+              externalRef.number
             ),
             repoRef(repo)
           );

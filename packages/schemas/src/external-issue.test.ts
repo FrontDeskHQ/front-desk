@@ -23,6 +23,16 @@ describe(formatExternalEntityLabel, () => {
     ).toBe("ENG-456");
   });
 
+  it("does not use a legacy repository number for a team-owned entity", () => {
+    expect(
+      formatExternalEntityLabel({
+        containerKind: "team",
+        containerLabel: "Engineering",
+        number: 42,
+      })
+    ).toBe("");
+  });
+
   it("falls back to legacy GitHub fields during migration", () => {
     expect(
       formatExternalEntityLabel({ number: 42, repoFullName: "frontdesk/app" })

@@ -250,6 +250,38 @@ describe("GitHub developer-action handlers", () => {
     expect(fetchIssue).toHaveBeenCalledWith(123, "owner", "repo", 124);
   });
 
+  it("replays a finished entity from its legacy repository reference", async () => {
+    const fetchIssue = vi
+      .fn<GithubDeveloperActionDependencies["fetchIssue"]>()
+      .mockResolvedValue({
+        created_at: "2026-08-03T00:00:00Z",
+        html_url: issueTarget.url,
+        id: 124,
+        number: 124,
+        state: "closed",
+        title: "Implement request",
+        updated_at: "2026-08-05T00:00:00Z",
+      });
+    const handlers = createGithubDeveloperActionHandlers({
+      fetchIssue,
+      upsertExternalEntity: vi
+        .fn<GithubDeveloperActionDependencies["upsertExternalEntity"]>()
+        .mockResolvedValue(undefined),
+    });
+
+    const response = await handlers.entity_finished_replay(githubConfig, {
+      organizationId: "org-a",
+      target: {
+        ...issueTarget,
+        externalRef: { number: 124, repoFullName: "owner/repo" },
+      },
+      type: "issue",
+    });
+
+    expect(response.status).toBe(202);
+    expect(fetchIssue).toHaveBeenCalledWith(123, "owner", "repo", 124);
+  });
+
   it("reports a finished replay mirror write failure as an action failure", async () => {
     const handlers = createGithubDeveloperActionHandlers({
       fetchIssue: vi
@@ -353,6 +385,32 @@ describe("GitHub developer-action handlers", () => {
     const response = await handlers.pr_match_replay(githubConfig, {
       organizationId: "org-a",
       target: neutralTarget,
+    });
+
+    expect(response.status).toBe(202);
+    expect(fetchPullRequest).toHaveBeenCalledWith(123, "owner", "repo", 123);
+  });
+
+  it("replays a PR from its legacy repository reference", async () => {
+    const fetchPullRequest = vi
+      .fn<GithubDeveloperActionDependencies["fetchPullRequest"]>()
+      .mockResolvedValue(pullRequest());
+    const handlers = createGithubDeveloperActionHandlers({
+      enqueuePrMatch: vi
+        .fn<GithubDeveloperActionDependencies["enqueuePrMatch"]>()
+        .mockResolvedValue("pr-match-job"),
+      fetchPullRequest,
+      upsertExternalEntity: vi
+        .fn<GithubDeveloperActionDependencies["upsertExternalEntity"]>()
+        .mockResolvedValue(undefined),
+    });
+
+    const response = await handlers.pr_match_replay(githubConfig, {
+      organizationId: "org-a",
+      target: {
+        ...replayTarget,
+        externalRef: { number: 123, repoFullName: "owner/repo" },
+      },
     });
 
     expect(response.status).toBe(202);

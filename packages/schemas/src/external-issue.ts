@@ -93,9 +93,12 @@ export interface ExternalEntityDisplayRef {
 export const formatExternalEntityLabel = (
   entity: ExternalEntityDisplayRef
 ): string => {
-  const shortId = entity.shortId ?? String(entity.number ?? "");
+  const isRepository =
+    entity.containerKind === "repository" || !entity.containerKind;
+  const shortId =
+    entity.shortId ?? (isRepository ? String(entity.number ?? "") : "");
   const containerLabel = entity.containerLabel ?? entity.repoFullName;
-  if (entity.containerKind === "repository" || !entity.containerKind) {
+  if (isRepository) {
     if (!containerLabel) {
       return shortId;
     }

@@ -11,6 +11,7 @@ import { formatGitHubId } from "@workspace/schemas/external-issue";
 import Elysia from "elysia";
 import { z } from "zod";
 
+import { resolveGitHubEntityReference } from "../lib/entity-reference";
 import {
   addComment,
   createIssue,
@@ -59,12 +60,6 @@ const setStatePayloadSchema = issueTrackerSetStatePayloadSchema;
 const linkPayloadSchema = prTrackerLinkPayloadSchema;
 const readOutcomePayloadSchema = trackerReadOutcomePayloadSchema;
 
-const githubEntityRefSchema = z.object({
-  number: z.number().int().positive(),
-  owner: z.string().min(1),
-  repo: z.string().min(1),
-});
-
 /** A handled response: an HTTP status plus the JSON body to return. */
 interface HandlerResult {
   status: number;
@@ -91,17 +86,12 @@ const resolveEntityRepo = (
   config: GithubConfig,
   entity: z.infer<typeof issueTrackerSetStatePayloadSchema>["entity"]
 ): { repo: GithubRepo; number: number } | null => {
-  const opaque = githubEntityRefSchema.safeParse(entity.externalRef);
-  if (opaque.success) {
-    const repo = findRepo(config, `${opaque.data.owner}/${opaque.data.repo}`);
-    return repo ? { number: opaque.data.number, repo } : null;
-  }
-
-  if (!(entity.repoFullName && entity.number)) {
+  const reference = resolveGitHubEntityReference(entity);
+  if (!reference) {
     return null;
   }
-  const repo = findRepo(config, entity.repoFullName);
-  return repo ? { number: entity.number, repo } : null;
+  const repo = findRepo(config, `${reference.owner}/${reference.repo}`);
+  return repo ? { number: reference.number, repo } : null;
 };
 
 const handleCreateIssue = async (
