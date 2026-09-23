@@ -1,0 +1,24 @@
+connectors/host/src/host.ts
+  s_2577b45ecb94e9::t_07e15e3083e27d 1-2,36-44,66-74,89-94
+connectors/host/src/host.test.ts
+  s_2577b45ecb94e9::t_07e15e3083e27d 1,4,41-42,46-69,95-143
+  s_2577b45ecb94e9::t_3f1f47601e38f6 43-45
+connectors/host/.env.local.example
+  s_2577b45ecb94e9::t_07e15e3083e27d 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "71955dff26daae2b35abd70ed420944bc81a59cd",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
