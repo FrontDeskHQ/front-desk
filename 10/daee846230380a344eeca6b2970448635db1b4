@@ -1,0 +1,46 @@
+connectors/host/src/linear-client.ts
+  s_2577b45ecb94e9::t_8c841f25b856cd 114,118-119
+  s_2577b45ecb94e9::t_c0f7d95a43adc1 121-122
+  s_2577b45ecb94e9::t_f53984176b3c20 27,45,104-113,115-117,120
+  s_2577b45ecb94e9::t_b47630fd9cb09c 26
+connectors/host/src/host.test.ts
+  s_2577b45ecb94e9::t_387400adde602f 210
+  s_2577b45ecb94e9::t_ecb9e943d4168e 1-3,24-35,202-209,211-250
+connectors/host/src/linear-webhook.test.ts
+  s_2577b45ecb94e9::t_8c841f25b856cd 3-4,6,15-109
+connectors/host/src/linear-sync.ts
+  s_2577b45ecb94e9::t_f53984176b3c20 69-71,101,129-133,195-197,199,204
+connectors/host/src/host.ts
+  s_2577b45ecb94e9::t_f53984176b3c20 132-137
+connectors/host/src/index.ts
+  s_2577b45ecb94e9::t_f53984176b3c20 28-29
+connectors/host/src/linear-client.test.ts
+  s_2577b45ecb94e9::t_8c841f25b856cd 1-43,45-53
+  s_2577b45ecb94e9::t_bcbbeaeeadfeb2 44
+connectors/host/src/linear-webhook.ts
+  s_2577b45ecb94e9::t_f53984176b3c20 21,24,44-45,54,58-65,68-72
+connectors/host/src/linear-sync.test.ts
+  s_2577b45ecb94e9::t_f53984176b3c20 41,45-56
+  s_2577b45ecb94e9::t_c0f7d95a43adc1 57,155
+  s_2577b45ecb94e9::t_8c841f25b856cd 121,127-154
+apps/api/src/routes/linear-credential.ts
+  s_2577b45ecb94e9::t_f53984176b3c20 1-2,30-34,38-42
+  s_2577b45ecb94e9::t_c0f7d95a43adc1 35,98
+  s_2577b45ecb94e9::t_bcbbeaeeadfeb2 3,36,83-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "10daee846230380a344eeca6b2970448635db1b4",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
