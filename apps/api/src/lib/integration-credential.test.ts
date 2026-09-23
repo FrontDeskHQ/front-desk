@@ -53,6 +53,33 @@ describe("integration credential encryption", () => {
     ).toThrow("Unsupported state or unable to authenticate data");
   });
 
+  it.each([
+    ["iv", 11],
+    ["authTag", 15],
+  ] as const)("rejects an invalid %s length", (field, bytes) => {
+    const keys = keyring();
+    const scope = { integrationId: "int-a", organizationId: "org-a" };
+    const encrypted = encryptIntegrationCredential(
+      { accessToken: "access" },
+      scope,
+      keys
+    );
+    const envelope = JSON.parse(encrypted.encryptedPayload) as Record<
+      string,
+      string
+    >;
+    envelope[field] = Buffer.alloc(bytes).toString("base64");
+
+    expect(() =>
+      decryptIntegrationCredential(
+        JSON.stringify(envelope),
+        encrypted.keyId,
+        scope,
+        keys
+      )
+    ).toThrow("INTEGRATION_CREDENTIAL_ENVELOPE_INVALID");
+  });
+
   it("decrypts credentials written with a previous key version", () => {
     const previousKey = randomBytes(32);
     const currentKey = randomBytes(32);

@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { schema } from "../live-state/schema";
 
 const ALGORITHM = "aes-256-gcm";
+const AUTH_TAG_BYTES = 16;
 const KEY_BYTES = 32;
 const IV_BYTES = 12;
 
@@ -102,13 +103,16 @@ export const decryptIntegrationCredential = <T>(
     throw new Error("INTEGRATION_CREDENTIAL_KEY_NOT_FOUND");
   }
   const envelope = storedEnvelopeSchema.parse(JSON.parse(encryptedPayload));
-  const decipher = createDecipheriv(
-    ALGORITHM,
-    key,
-    Buffer.from(envelope.iv, "base64")
-  );
+  const iv = Buffer.from(envelope.iv, "base64");
+  const authTag = Buffer.from(envelope.authTag, "base64");
+  if (iv.length !== IV_BYTES || authTag.length !== AUTH_TAG_BYTES) {
+    throw new Error("INTEGRATION_CREDENTIAL_ENVELOPE_INVALID");
+  }
+  const decipher = createDecipheriv(ALGORITHM, key, iv, {
+    authTagLength: AUTH_TAG_BYTES,
+  });
   decipher.setAAD(aad(scope.organizationId, scope.integrationId));
-  decipher.setAuthTag(Buffer.from(envelope.authTag, "base64"));
+  decipher.setAuthTag(authTag);
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(envelope.ciphertext, "base64")),
     decipher.final(),
@@ -143,9 +147,11 @@ const lockOwnedIntegration = async (
   }
 
   // Credential rows do not exist until the first write, so use their owning
-  // integration as the stable mutex. This update takes a row-level write lock
-  // for the transaction and makes writes, rotations, and clears serialize.
-  await db.integration.update(integrationId, { updatedAt: new Date() });
+  // integration as the stable mutex. Rewriting the existing timestamp takes a
+  // row-level write lock without making a no-op credential clear look public.
+  await db.integration.update(integrationId, {
+    updatedAt: integration.updatedAt,
+  });
 };
 
 export const writeIntegrationCredential = async (
