@@ -1,3 +1,5 @@
+import { createHash, timingSafeEqual } from "node:crypto";
+
 import {
   CAPABILITY_INVOKE_PATH,
   CAPABILITY_INVOKE_SECRET_HEADER,
@@ -31,8 +33,15 @@ interface ConnectorHostOptions {
 const authorized = (
   headers: Record<string, string | undefined>,
   secret: string | undefined
-): boolean =>
-  Boolean(secret) && headers[CAPABILITY_INVOKE_SECRET_HEADER] === secret;
+): boolean => {
+  const provided = headers[CAPABILITY_INVOKE_SECRET_HEADER];
+  if (!(provided && secret)) {
+    return false;
+  }
+  const providedDigest = createHash("sha256").update(provided).digest();
+  const expectedDigest = createHash("sha256").update(secret).digest();
+  return timingSafeEqual(providedDigest, expectedDigest);
+};
 
 export const createConnectorHost = ({
   connectors,
@@ -54,9 +63,15 @@ export const createConnectorHost = ({
           set.status = 400;
           return { error: "INVALID_INVOKE_ENVELOPE" };
         }
-        const result = await connector.invoke(parsed.data);
-        set.status = result.status;
-        return result.body;
+        try {
+          const result = await connector.invoke(parsed.data);
+          set.status = result.status;
+          return result.body;
+        } catch (error) {
+          console.error("[connector-host] invoke failed", error);
+          set.status = 500;
+          return { error: "INVOKE_FAILED" };
+        }
       }
     );
     app.post(
@@ -71,7 +86,13 @@ export const createConnectorHost = ({
           set.status = 400;
           return { error: "INVALID_PROBE_REQUEST" };
         }
-        return connector.probe(parsed.data.config);
+        try {
+          return await connector.probe(parsed.data.config);
+        } catch (error) {
+          console.error("[connector-host] probe failed", error);
+          set.status = 500;
+          return { error: "PROBE_FAILED" };
+        }
       }
     );
   }
