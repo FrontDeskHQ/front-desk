@@ -1,8 +1,16 @@
+import { invokeCapability } from "@connectors/framework";
 import type { ServerDB } from "@live-state/sync/server";
 import { describe, expect, it, vi } from "vitest";
 
 import type { schema } from "../live-state/schema";
 import { syncLinkedIssueState } from "./capability-dispatch";
+
+type InvokeCapability = typeof invokeCapability;
+
+vi.mock(import("@connectors/framework"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, invokeCapability: vi.fn<InvokeCapability>() };
+});
 
 describe(syncLinkedIssueState, () => {
   it("does not push FrontDesk state to Linear", async () => {
@@ -24,5 +32,6 @@ describe(syncLinkedIssueState, () => {
     });
 
     expect(find).toHaveBeenCalledOnce();
+    expect(invokeCapability).not.toHaveBeenCalled();
   });
 });

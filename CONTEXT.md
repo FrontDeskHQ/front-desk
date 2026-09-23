@@ -137,7 +137,7 @@ A receipt of work the Agent performed without human approval. Stored in `autonom
 
 ### Connector
 
-The reusable provider code (Discord, Slack, GitHub, Linear) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides; the FrontDesk core interacts with those capabilities generically and never references a named provider. Distinct from an [integration](#integration), which is _one org's installed instance_ of a connector. _Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
+The reusable provider code (Discord, Slack, GitHub, Linear) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides, and the FrontDesk core routes capability calls generically. A named provider may appear in core only where a documented product policy deliberately differs, such as Linear retaining engineering-state authority. Distinct from an [integration](#integration), which is _one org's installed instance_ of a connector. _Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
 
 ### Capability
 
