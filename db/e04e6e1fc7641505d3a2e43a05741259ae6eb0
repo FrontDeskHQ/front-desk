@@ -1,0 +1,50 @@
+connectors/host/src/linear.ts
+  s_38931219be2f43::t_cb02f430b881aa 43-48,129,133-159,302-323
+  s_38931219be2f43::t_2afa6619278540 130-132,160-161
+connectors/host/src/linear.test.ts
+  s_38931219be2f43::t_304691d7f15ade 187-189
+  s_38931219be2f43::t_052329664b2ddb 13-19,166-186,190-226
+apps/web/src/routes/app/_workspace/settings/organization/integration/linear/index.tsx
+  s_38931219be2f43::t_c5c71ea8f97e63 5-15,89,137-174,242,258-283
+  s_38931219be2f43::t_89ffab5e992f9f 197-199
+connectors/host/README.md
+  s_38931219be2f43::t_51df6aef858326 1-27
+connectors/host/src/host.ts
+  s_38931219be2f43::t_08acfa5e87b80c 31-34
+  s_38931219be2f43::t_89ffab5e992f9f 165
+apps/web/.env.local.example
+  s_38931219be2f43::t_51df6aef858326 37-41,50
+apps/api/src/live-state/router/integration.ts
+  s_38931219be2f43::t_89ffab5e992f9f 112-117
+  s_38931219be2f43::t_08acfa5e87b80c 333
+  s_38931219be2f43::t_835786bce14e37 1-4,13-14,48-99,385-428
+connectors/host/src/linear-webhook.ts
+  s_38931219be2f43::t_c13b3a6cc175f3 40,58-65
+connectors/framework/src/probe.ts
+  s_38931219be2f43::t_08acfa5e87b80c 27,33
+connectors/host/src/linear-webhook.test.ts
+  s_38931219be2f43::t_052329664b2ddb 3-4,6,17-19,23-26,44-54,60-64
+  s_38931219be2f43::t_304691d7f15ade 20,22,27-29,31-33,35-43,55-56,59
+  s_38931219be2f43::t_89ffab5e992f9f 21,30,34,57-58
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "dbe04e6e1fc7641505d3a2e43a05741259ae6eb0",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
