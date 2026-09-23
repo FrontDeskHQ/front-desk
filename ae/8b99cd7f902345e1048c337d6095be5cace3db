@@ -1,0 +1,47 @@
+connectors/host/src/linear.ts
+  s_38931219be2f43::t_fb5d547923be01 1-14
+connectors/host/src/index.ts
+  s_38931219be2f43::t_fb5d547923be01 1-16
+connectors/host/src/host.test.ts
+  s_38931219be2f43::t_fb5d547923be01 1-8,10-49,51-65
+  s_38931219be2f43::t_c77246cad14c7c 9,50
+connectors/host/src/host.ts
+  s_38931219be2f43::t_fb5d547923be01 1-80
+bun.lock
+  ai_agent 282-297,2390
+connectors/host/package.json
+  s_38931219be2f43::t_fb5d547923be01 1-20,22-26
+  s_38931219be2f43::t_7217e1a40aec4a 21
+connectors/host/tsconfig.json
+  s_38931219be2f43::t_fb5d547923be01 1-16
+connectors/framework/src/index.ts
+  s_38931219be2f43::t_fb5d547923be01 62
+connectors/host/.env.local.example
+  s_38931219be2f43::t_fb5d547923be01 1-3
+package.json
+  s_38931219be2f43::t_fb5d547923be01 32
+connectors/host/build.ts
+  s_38931219be2f43::t_fb5d547923be01 1-8
+connectors/framework/src/manifest.ts
+  s_38931219be2f43::t_fb5d547923be01 67-75,81
+connectors/host/.gitignore
+  s_38931219be2f43::t_fb5d547923be01 1-3
+connectors/framework/src/manifest.test.ts
+  s_38931219be2f43::t_09194984e09487 1-16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "ae8b99cd7f902345e1048c337d6095be5cace3db",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
