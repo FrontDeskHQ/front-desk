@@ -25,10 +25,8 @@ try {
     environment: oauthEnvironment,
     fetchClient: liveState.fetchClient,
   });
-} catch {
-  console.info(
-    "[Linear] OAuth is not configured; Linear integration is disabled"
-  );
+} catch (error) {
+  console.error("[Linear] Linear integration disabled:", error);
 }
 const app = createConnectorHost({
   connectors: [linearConnector],

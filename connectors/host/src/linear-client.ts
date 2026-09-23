@@ -23,6 +23,8 @@ export interface LinearClientEnvironment {
   connectorSecret: string;
 }
 
+const credentialLoads = new Map<string, Promise<LinearCredentialContext>>();
+
 const requestCredential = async (
   environment: LinearClientEnvironment,
   body: unknown,
@@ -40,7 +42,7 @@ const requestCredential = async (
     }
   );
 
-export const getLinearCredential = async (
+const loadLinearCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
   fetcher: typeof fetch = fetch
@@ -97,6 +99,25 @@ export const getLinearCredential = async (
   );
   if (!writeResponse.ok) throw new Error("LINEAR_CREDENTIAL_WRITE_FAILED");
   return { credential, organizationId: parsed.organizationId };
+};
+
+export const getLinearCredential = (
+  integrationId: string,
+  environment: LinearClientEnvironment,
+  fetcher: typeof fetch = fetch
+): Promise<LinearCredentialContext> => {
+  const active = credentialLoads.get(integrationId);
+  if (active) return active;
+
+  const load = loadLinearCredential(integrationId, environment, fetcher);
+  credentialLoads.set(integrationId, load);
+  const clear = () => {
+    if (credentialLoads.get(integrationId) === load) {
+      credentialLoads.delete(integrationId);
+    }
+  };
+  void load.then(clear, clear);
+  return load;
 };
 
 export const linearGraphql = async <T>(

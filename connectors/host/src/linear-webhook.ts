@@ -18,12 +18,10 @@ export const verifyLinearWebhook = (
   secret: string
 ): boolean => {
   const expected = createHmac("sha256", secret).update(rawBody).digest();
-  let received: Buffer;
-  try {
-    received = Buffer.from(signature, "hex");
-  } catch {
+  if (!/^[0-9a-f]{64}$/i.test(signature)) {
     return false;
   }
+  const received = Buffer.from(signature, "hex");
   return (
     received.length === expected.length && timingSafeEqual(received, expected)
   );
@@ -43,8 +41,8 @@ export const handleLinearWebhook = async (
     await dependencies.fetchClient.query.integration.listByType({
       type: "linear",
     });
-  const integration = integrations.find((candidate) => {
-    if (!candidate.configStr) return false;
+  const matchingIntegrations = integrations.filter((candidate) => {
+    if (!(candidate.enabled && candidate.configStr)) return false;
     try {
       return (
         JSON.parse(candidate.configStr).workspaceId === event.organizationId
@@ -53,15 +51,23 @@ export const handleLinearWebhook = async (
       return false;
     }
   });
-  if (!integration) throw new Error("LINEAR_INTEGRATION_NOT_FOUND");
+  if (matchingIntegrations.length === 0) return;
 
   const issue = z.object({ id: z.string() }).parse(event.data);
   if (event.action === "remove") {
-    await dependencies.fetchClient.mutate.externalEntity.softDelete({
-      externalKey: linearExternalKey(issue.id),
-      organizationId: integration.organizationId,
-    });
+    await Promise.all(
+      matchingIntegrations.map((integration) =>
+        dependencies.fetchClient.mutate.externalEntity.softDelete({
+          externalKey: linearExternalKey(issue.id),
+          organizationId: integration.organizationId,
+        })
+      )
+    );
     return;
   }
-  await dependencies.syncIssue(integration.id, issue.id);
+  await Promise.all(
+    matchingIntegrations.map((integration) =>
+      dependencies.syncIssue(integration.id, issue.id)
+    )
+  );
 };

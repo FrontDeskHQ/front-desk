@@ -66,6 +66,9 @@ const issueResponseSchema = z.object({ issue: linearIssueSchema.nullable() });
 
 export const linearExternalKey = (id: string) => `linear:${id}`;
 
+const linearState = (type: string): "closed" | "open" =>
+  type === "completed" || type === "canceled" ? "closed" : "open";
+
 export const buildLinearIssueFields = (issue: LinearIssue) => ({
   assignees: issue.assignee ? [issue.assignee.name] : [],
   authorLogin: issue.creator?.name ?? null,
@@ -95,7 +98,7 @@ export const buildLinearIssueFields = (issue: LinearIssue) => ({
   provider: "linear",
   repoFullName: issue.team.key,
   shortId: issue.identifier,
-  state: issue.state.type,
+  state: linearState(issue.state.type),
   title: issue.title,
   type: "issue" as const,
   url: issue.url,
@@ -123,6 +126,11 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
       dependencies.environment,
       fetcher
     );
+    const existing =
+      await dependencies.fetchClient.query.externalEntity.listForIntegration({
+        integrationId,
+        organizationId,
+      });
     const seen = new Set<string>();
     let after: string | null = null;
     do {
@@ -143,11 +151,6 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
       after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
     } while (after);
 
-    const existing =
-      await dependencies.fetchClient.query.externalEntity.listForIntegration({
-        integrationId,
-        organizationId,
-      });
     await Promise.all(
       existing
         .filter((entity) => !entity.deletedAt && !seen.has(entity.externalKey))
@@ -189,13 +192,16 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
       await dependencies.fetchClient.query.integration.listByType({
         type: "linear",
       });
+    const enabledIntegrations = integrations.filter(
+      (integration) => integration.enabled
+    );
     const results = await Promise.allSettled(
-      integrations.map((integration) => syncIntegration(integration.id))
+      enabledIntegrations.map((integration) => syncIntegration(integration.id))
     );
     for (const [index, result] of results.entries()) {
       if (result.status === "rejected") {
         console.error(
-          `[Linear] Reconciliation failed for ${integrations[index]?.id}:`,
+          `[Linear] Reconciliation failed for ${enabledIntegrations[index]?.id}:`,
           result.reason
         );
       }

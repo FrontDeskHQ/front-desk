@@ -129,8 +129,12 @@ export const createConnectorHost = ({
         return { ok: true };
       } catch (error) {
         console.error("[Linear] Webhook failed:", error);
-        set.status = 400;
-        return { error: "INVALID_WEBHOOK" };
+        if (error instanceof SyntaxError || error instanceof z.ZodError) {
+          set.status = 400;
+          return { error: "INVALID_WEBHOOK" };
+        }
+        set.status = 500;
+        return { error: "WEBHOOK_PROCESSING_FAILED" };
       }
     },
     { parse: "text" }

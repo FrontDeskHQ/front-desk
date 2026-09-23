@@ -1,4 +1,6 @@
-import type { Request, Response } from "express";
+import { createHash, timingSafeEqual } from "node:crypto";
+
+import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { z } from "zod";
 
 import {
@@ -25,9 +27,19 @@ const bodySchema = z.discriminatedUnion("operation", [
   }),
 ]);
 
-export const linearCredentialRoute = async (req: Request, res: Response) => {
+const secretsMatch = (provided: string, expected: string): boolean => {
+  const providedDigest = createHash("sha256").update(provided).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(providedDigest, expectedDigest);
+};
+
+const fulfillLinearCredentialRoute = async (req: Request, res: Response) => {
   const expectedSecret = process.env.DISCORD_BOT_KEY;
-  if (!expectedSecret || req.header("x-discord-bot-key") !== expectedSecret) {
+  const providedSecret = req.header("x-discord-bot-key");
+  if (
+    !(expectedSecret && providedSecret) ||
+    !secretsMatch(providedSecret, expectedSecret)
+  ) {
     res.status(401).json({ error: "UNAUTHORIZED" });
     return;
   }
@@ -67,4 +79,20 @@ export const linearCredentialRoute = async (req: Request, res: Response) => {
     return;
   }
   res.json({ credential, organizationId: integration.organizationId });
+};
+
+const handleLinearCredentialRoute = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    await fulfillLinearCredentialRoute(req, res);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const linearCredentialRoute: RequestHandler = (req, res, next) => {
+  void handleLinearCredentialRoute(req, res, next);
 };

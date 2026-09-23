@@ -38,9 +38,22 @@ describe(buildLinearIssueFields, () => {
       },
       provider: "linear",
       shortId: "ENG-42",
-      state: "started",
+      state: "open",
       type: "issue",
     });
+  });
+
+  it("normalizes terminal Linear states", () => {
+    expect(
+      buildLinearIssueFields(
+        issue({ state: { name: "Done", type: "completed" } })
+      ).state
+    ).toBe("closed");
+    expect(
+      buildLinearIssueFields(
+        issue({ state: { name: "Canceled", type: "canceled" } })
+      ).state
+    ).toBe("closed");
   });
 });
 
@@ -105,9 +118,39 @@ describe(createLinearSync, () => {
       }
     );
     expect(upsert).toHaveBeenCalledOnce();
+    expect(listForIntegration).toHaveBeenCalledBefore(upsert);
     expect(softDelete).toHaveBeenCalledExactlyOnceWith({
       externalKey: "linear:missing",
       organizationId: "frontdesk-org",
     });
+  });
+
+  it("skips disabled integrations during reconciliation", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const fetchClient = {
+      mutate: { externalEntity: {} },
+      query: {
+        externalEntity: {},
+        integration: {
+          listByType: vi
+            .fn<() => Promise<unknown[]>>()
+            .mockResolvedValue([{ enabled: false, id: "disabled" }]),
+        },
+      },
+    } as unknown as LiveStateFetchClient;
+    const sync = createLinearSync({
+      environment: {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client",
+        clientSecret: "secret",
+        connectorSecret: "connector",
+      },
+      fetchClient,
+      fetcher,
+    });
+
+    await sync.syncAll();
+
+    expect(fetcher).not.toHaveBeenCalled();
   });
 });

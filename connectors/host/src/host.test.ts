@@ -1,3 +1,6 @@
+import { createHmac } from "node:crypto";
+
+import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { describe, expect, it, vi } from "vitest";
 
 import { createConnectorHost } from "./host";
@@ -14,6 +17,18 @@ const request = (
     headers: {
       "content-type": "application/json",
       ...(secret ? { "x-connector-secret": secret } : {}),
+    },
+    method: "POST",
+  });
+
+const webhookRequest = (body: string) =>
+  new Request("http://localhost/linear/api/webhook", {
+    body,
+    headers: {
+      "content-type": "text/plain",
+      "linear-signature": createHmac("sha256", "webhook-secret")
+        .update(body)
+        .digest("hex"),
     },
     method: "POST",
   });
@@ -183,5 +198,55 @@ describe(createConnectorHost, () => {
       "https://frontdesk.test/app/settings/organization/integration/linear?error=invalid_state"
     );
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes malformed webhooks from processing failures", async () => {
+    const syncIssue = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValue(new Error("upstream unavailable"));
+    const fetchClient = {
+      query: {
+        integration: {
+          listByType: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([
+            {
+              configStr: JSON.stringify({ workspaceId: "workspace-1" }),
+              enabled: true,
+              id: "integration-1",
+              organizationId: "organization-1",
+            },
+          ]),
+        },
+      },
+    } as unknown as LiveStateFetchClient;
+    const webhookApp = createConnectorHost({
+      connectors: [linearConnector],
+      linearSync: {
+        fetchClient,
+        syncIntegration: vi.fn<() => Promise<void>>(),
+        syncIssue,
+        webhookSecret: "webhook-secret",
+      },
+      secret: "connector-secret",
+    });
+    const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+    const invalid = await webhookApp.handle(webhookRequest("{"));
+    const processingFailure = await webhookApp.handle(
+      webhookRequest(
+        JSON.stringify({
+          action: "update",
+          data: { id: "issue-1" },
+          organizationId: "workspace-1",
+          type: "Issue",
+        })
+      )
+    );
+
+    expect(invalid.status).toBe(400);
+    expect(processingFailure.status).toBe(500);
+    await expect(processingFailure.json()).resolves.toStrictEqual({
+      error: "WEBHOOK_PROCESSING_FAILED",
+    });
+    expect(error).toHaveBeenCalledTimes(2);
+    error.mockRestore();
   });
 });
