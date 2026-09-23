@@ -137,7 +137,7 @@ A receipt of work the Agent performed without human approval. Stored in `autonom
 
 ### Connector
 
-The reusable provider code (Discord, Slack, GitHub) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides; the FrontDesk core interacts with those capabilities generically and never references a named provider. Distinct from an [integration](#integration), which is _one org's installed instance_ of a connector. _Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
+The reusable provider code (Discord, Slack, GitHub, Linear) that adapts one external system to FrontDesk. A connector statically **declares** the set of [capabilities](#capability) it provides; the FrontDesk core interacts with those capabilities generically and never references a named provider. Distinct from an [integration](#integration), which is _one org's installed instance_ of a connector. _Avoid_: "provider" or "adapter" as the noun for this (reserve "provider" for the external system's name string, e.g. `provider: "github"`).
 
 ### Capability
 
@@ -253,7 +253,7 @@ The [index](#index) of mirrored [external issues](#external-issue), the counterp
 
 ### Default issue target
 
-The [organization](#organization)-designated sub-resource (e.g. a GitHub repository or Linear team) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default is set, it falls back to the first available target on the primary tracker (same "first when unset" rule as the primary itself). Issue creation is unavailable to [synthesis](#synthesis) only when no usable target exists. Humans remain free to pick any target, including when accepting an Agent proposal.
+The [organization](#organization)-designated sub-resource (e.g. a GitHub repository or Linear team) where **Agent-initiated** issue creation lands. Distinct from the primary [integration](#integration) for the issue-tracker [capability](#capability), which answers _which external system_; this answers _where inside it_. The Agent never chooses the target itself: when no default is set and the connector exposes available targets, FrontDesk falls back to the first one (the same "first when unset" rule as the primary integration). A tracker without target discovery requires an explicit default. Issue creation is unavailable to [synthesis](#synthesis) only when no usable target exists. Humans remain free to pick any target, including when accepting an Agent proposal.
 
 ### Flagged ambiguities
 
