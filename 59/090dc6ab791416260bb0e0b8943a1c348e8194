@@ -1,0 +1,36 @@
+apps/web/src/routes/app/_workspace/settings/organization/integration/linear/index.tsx
+  s_b8bfc9e0d4b6ee::t_5a0205eb3a3708 159-164
+connectors/host/README.md
+  s_b8bfc9e0d4b6ee::t_5a0205eb3a3708 16-17,25-28
+apps/api/src/live-state/router/integration.ts
+  s_b8bfc9e0d4b6ee::t_3eeacb554eeda6 472-475,486-503
+connectors/host/src/linear-client.ts
+  s_b8bfc9e0d4b6ee::t_5a0205eb3a3708 32,212-232
+connectors/host/src/linear.test.ts
+  s_b8bfc9e0d4b6ee::t_9c2418568da22a 214-216
+  s_b8bfc9e0d4b6ee::t_5a0205eb3a3708 218,223-236,275-293
+  s_b8bfc9e0d4b6ee::t_07bc5515f74425 212
+  s_b8bfc9e0d4b6ee::t_8cff8fe2404b66 209-211,213,217,219-222
+connectors/host/src/linear.ts
+  s_b8bfc9e0d4b6ee::t_5a0205eb3a3708 11-15,152-153,156-157,159-164,175,371-380
+  s_b8bfc9e0d4b6ee::t_7604b94f096add 165
+apps/api/src/live-state/router/external-entity.ts
+  s_b8bfc9e0d4b6ee::t_82d0e9591b729b 728
+  s_b8bfc9e0d4b6ee::t_cf57211f20f121 673-693
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "59090dc6ab791416260bb0e0b8943a1c348e8194",
+  "prompts": {},
+  "sessions": {
+    "s_b8bfc9e0d4b6ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d407-3d09-7593-b269-5541c7afb2c8",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
