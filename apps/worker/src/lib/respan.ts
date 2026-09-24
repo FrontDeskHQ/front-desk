@@ -85,3 +85,17 @@ export const respan = (): OpenAIProvider => {
 
 export const generationModel = (model: string = GENERATION_MODEL) =>
   respan().chat(model);
+
+export {
+  evaluateWithJev,
+  JEV_MODEL,
+  JEV_PROVIDER_MODEL,
+  JevEvaluationError,
+  RESPAN_TYPESAFE_SYSTEMONE_URL,
+} from "api/ai/jev";
+export type {
+  EvaluateWithJevInput,
+  JevAnswer,
+  JevEvaluation,
+  JevQuestion,
+} from "api/ai/jev";

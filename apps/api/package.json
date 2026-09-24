@@ -32,6 +32,11 @@
       "types": "./src/lib/queue.ts",
       "import": "./src/lib/queue.ts",
       "default": "./src/lib/queue.ts"
+    },
+    "./ai/jev": {
+      "types": "./src/lib/ai/jev.ts",
+      "import": "./src/lib/ai/jev.ts",
+      "default": "./src/lib/ai/jev.ts"
     }
   },
   "scripts": {
