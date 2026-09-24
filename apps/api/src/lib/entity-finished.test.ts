@@ -37,7 +37,7 @@ describe("external entity finish detection", () => {
   beforeEach(() => {
     vi.mocked(enqueueThreadRead).mockReset();
   });
-  it("recognizes closed issues and merged pull requests", () => {
+  it("recognizes terminal issues and merged pull requests", () => {
     expect(isExternalEntityFinished(issue("closed"))).toBeTruthy();
     expect(isExternalEntityFinished(issue("completed"))).toBeTruthy();
     expect(isExternalEntityFinished(issue("canceled"))).toBeTruthy();
