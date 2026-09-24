@@ -156,7 +156,12 @@ function RouteComponent() {
         return;
       }
     }
-    await startOAuth();
+    try {
+      await startOAuth();
+    } catch (error) {
+      console.error("[Linear] OAuth setup failed:", error);
+      toast.error("Couldn't start Linear connection. Try again in a moment.");
+    }
   };
 
   const disconnect = async () => {

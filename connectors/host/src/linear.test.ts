@@ -206,7 +206,34 @@ describe(createLinearConnector, () => {
     await expect(
       connector.probe(config, "integration-id")
     ).resolves.toStrictEqual({ live: true });
-    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect({
+      calls: fetcher.mock.calls.length,
+      method: fetcher.mock.calls[1]?.[1]?.method,
+      query: JSON.parse(String(fetcher.mock.calls[1]?.[1]?.body ?? "{}")).query,
+      url: fetcher.mock.calls[1]?.[0],
+      authorization: new Headers(fetcher.mock.calls[1]?.[1]?.headers).get(
+        "authorization"
+      ),
+    }).toStrictEqual({
+      authorization: "Bearer access-token",
+      calls: 2,
+      method: "POST",
+      query: "query FrontDeskViewerProbe { viewer { id } }",
+      url: "https://api.linear.app/graphql",
+    });
+  });
+
+  it("does not probe with missing or invalid Linear configuration", async () => {
+    const fetcher = vi.fn<typeof fetch>();
+    const connector = createLinearConnector({ environment, fetcher });
+
+    await expect(
+      connector.probe(null, "integration-id")
+    ).resolves.toStrictEqual({ live: false });
+    await expect(
+      connector.probe("{invalid", "integration-id")
+    ).resolves.toStrictEqual({ live: false });
+    expect(fetcher).not.toHaveBeenCalled();
   });
 
   it("revokes the current access token on disconnect", async () => {
@@ -243,6 +270,27 @@ describe(createLinearConnector, () => {
     expect(String(fetcher.mock.calls[1]?.[1]?.body)).toBe(
       "token=access-token&token_type_hint=access_token"
     );
+  });
+
+  it("treats a missing credential as an already-revoked disconnect", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 404 }));
+    const connector = createLinearConnector({ environment, fetcher });
+
+    await expect(
+      connector.invoke({
+        capability: "issue-tracker",
+        config,
+        integrationId: "integration-id",
+        method: "disconnect",
+        payload: {},
+      })
+    ).resolves.toStrictEqual({
+      body: { alreadyRevoked: true, ok: true },
+      status: 200,
+    });
+    expect(fetcher).toHaveBeenCalledOnce();
   });
 
   it("rejects a team outside the connected workspace config", async () => {

@@ -8,7 +8,11 @@ import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import { z } from "zod";
 
 import type { HostedConnector } from "./host";
-import { getLinearCredential, linearGraphql } from "./linear-client";
+import {
+  getLinearCredential,
+  linearGraphql,
+  readLinearCredential,
+} from "./linear-client";
 import type { LinearClientEnvironment } from "./linear-client";
 import { linearExternalKey } from "./linear-sync";
 
@@ -145,11 +149,20 @@ export const createLinearConnector = (
         return { body: { error: "LINEAR_NOT_CONFIGURED" }, status: 503 };
       }
       try {
-        const { credential } = await getLinearCredential(
+        const timeoutSignal = AbortSignal.timeout(LINEAR_OPERATION_TIMEOUT_MS);
+        const context = await readLinearCredential(
           integrationId,
           dependencies.environment,
-          dependencies.fetcher
+          dependencies.fetcher,
+          { signal: timeoutSignal }
         );
+        if (!context) {
+          return {
+            body: { alreadyRevoked: true, ok: true },
+            status: 200,
+          };
+        }
+        const { credential } = context;
         const response = await (dependencies.fetcher ?? fetch)(
           "https://api.linear.app/oauth/revoke",
           {
@@ -159,6 +172,7 @@ export const createLinearConnector = (
             }),
             headers: { "content-type": "application/x-www-form-urlencoded" },
             method: "POST",
+            signal: timeoutSignal,
           }
         );
         // Linear returns 400 for an already-revoked token and 401 when the
@@ -358,7 +372,16 @@ export const createLinearConnector = (
       return { body: { error: "LINEAR_CREATE_FAILED" }, status: 502 };
     }
   },
-  async probe(_config, integrationId) {
+  async probe(config, integrationId) {
+    let parsedConfig: unknown;
+    try {
+      parsedConfig = config ? JSON.parse(config) : null;
+    } catch {
+      return { live: false };
+    }
+    if (!linearIntegrationSchema.safeParse(parsedConfig).success) {
+      return { live: false };
+    }
     if (!(integrationId && dependencies.environment)) {
       return { live: false };
     }

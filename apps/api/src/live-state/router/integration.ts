@@ -469,7 +469,10 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
 
       const entry = connectorRegistry.getByType("linear");
       if (!entry) throw new Error("LINEAR_CONNECTOR_NOT_REGISTERED");
-      await invokeCapability(
+      const revokeResult = await invokeCapability<{
+        alreadyRevoked?: boolean;
+        ok: boolean;
+      }>(
         entry.invokeUrl,
         {
           capability: "issue-tracker",
@@ -480,7 +483,24 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         },
         { secret: getConnectorInvokeSecret() }
       );
-      await finalizeLinearDisconnect(db, integration);
+      if (!revokeResult.ok) {
+        throw new Error("LINEAR_REVOKE_FAILED");
+      }
+
+      // Revocation is a network round-trip. A reconnect can replace the
+      // credential and config while it is in flight; never finalize cleanup
+      // against that newer integration snapshot.
+      const current = await db.integration.one(integration.id).get();
+      if (!current) {
+        throw errors.notFound("integration");
+      }
+      if (
+        current.configStr !== integration.configStr ||
+        current.updatedAt.getTime() !== integration.updatedAt.getTime()
+      ) {
+        return { ok: true };
+      }
+      await finalizeLinearDisconnect(db, current);
       return { ok: true };
     }
   ),

@@ -247,6 +247,29 @@ const loadLinearCredential = async (
   );
 };
 
+/** Read the brokered credential without refreshing or rotating it. */
+export const readLinearCredential = async (
+  integrationId: string,
+  environment: LinearClientEnvironment,
+  fetcher: typeof fetch = fetch,
+  options: LinearRequestOptions = {}
+): Promise<LinearCredentialContext | null> => {
+  const pending = pendingCredentials.get(integrationId);
+  if (pending) return pending;
+
+  const response = await requestCredential(
+    environment,
+    { integrationId, operation: "read" },
+    fetcher,
+    options
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
+  return z
+    .object({ credential: credentialSchema, organizationId: z.string() })
+    .parse(await response.json());
+};
+
 export const getLinearCredential = (
   integrationId: string,
   environment: LinearClientEnvironment,
