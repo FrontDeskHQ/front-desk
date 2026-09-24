@@ -75,6 +75,7 @@ const fetchWithTimeout = async (
   try {
     return await fetcher(input, {
       ...init,
+      redirect: "error",
       signal: AbortSignal.timeout(10_000),
     });
   } catch (error) {

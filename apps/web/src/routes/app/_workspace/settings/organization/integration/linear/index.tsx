@@ -14,8 +14,10 @@ import {
 import { Separator } from "@workspace/ui/components/separator";
 import { useAtomValue } from "jotai/react";
 import { usePostHog } from "posthog-js/react";
+import { useEffect } from "react";
 import { toast } from "sonner";
 import { ulid } from "ulid";
+import { z } from "zod";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { fetchClient, mutate, query } from "~/lib/live-state";
@@ -27,6 +29,7 @@ export const Route = createFileRoute(
   "/app/_workspace/settings/organization/integration/linear/"
 )({
   component: RouteComponent,
+  validateSearch: z.object({ error: z.string().optional() }),
   staticData: { breadcrumb: "Linear" },
   head: () => ({
     meta: [
@@ -40,24 +43,23 @@ export const Route = createFileRoute(
 
 const details = requireIntegrationOption("linear");
 
-const generateStateToken = (): string => {
-  const bytes = new Uint8Array(32);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
-    ""
-  );
-};
-
 function RouteComponent() {
   const { isEnabled } = useFlag("linear-integration");
   const organization = useAtomValue(activeOrganizationAtom);
   const posthog = usePostHog();
+  const { error: oauthError } = Route.useSearch();
   const integration = useLiveQuery(
     query.integration.first({
       organizationId: organization?.id,
       type: "linear",
     })
   );
+
+  useEffect(() => {
+    if (oauthError) {
+      toast.error("Linear connection failed. Try again.");
+    }
+  }, [oauthError]);
 
   if (!(isEnabled && organization)) {
     return null;
@@ -86,23 +88,11 @@ function RouteComponent() {
     }
 
     const integrationId = integration?.id ?? ulid().toLowerCase();
-    const csrfToken = generateStateToken();
-    const nextConfig = JSON.stringify({
-      ...config,
-      defaultTeamId: undefined,
-      csrfToken,
-    });
+    let csrfToken: string;
     try {
-      if (integration) {
-        await fetchClient.mutate.integration.updateInstallation({
-          configStr: nextConfig,
-          enabled: false,
-          integrationId,
-          updatedAt: new Date(),
-        });
-      } else {
+      if (!integration) {
         await fetchClient.mutate.integration.connectInstallation({
-          configStr: nextConfig,
+          configStr: JSON.stringify(config ?? {}),
           createdAt: new Date(),
           enabled: false,
           id: integrationId,
@@ -111,6 +101,10 @@ function RouteComponent() {
           updatedAt: new Date(),
         });
       }
+      const pending = await fetchClient.mutate.integration.beginLinearOAuth({
+        integrationId,
+      });
+      csrfToken = pending.state;
     } catch {
       toast.error("Could not start the Linear connection. Try again.");
       return;

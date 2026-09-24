@@ -8,7 +8,6 @@ export const linearTeamSchema = z.object({
 
 export const linearIntegrationSchema = z
   .object({
-    csrfToken: z.string().optional(),
     defaultTeamId: z.string().min(1).optional(),
     teams: z.array(linearTeamSchema).default([]),
     workspaceId: z.string().min(1).optional(),

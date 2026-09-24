@@ -125,6 +125,11 @@ export type IntegrationCredentialDB = Pick<
   "integration" | "integrationCredential" | "transaction"
 >;
 
+export type IntegrationCredentialTransactionDB = Pick<
+  ServerDB<typeof schema>,
+  "integration" | "integrationCredential"
+>;
+
 const requireOwnedIntegration = async (
   db: IntegrationCredentialDB,
   organizationId: string,
@@ -136,8 +141,8 @@ const requireOwnedIntegration = async (
   }
 };
 
-const lockOwnedIntegration = async (
-  db: IntegrationCredentialDB,
+export const lockOwnedIntegration = async (
+  db: IntegrationCredentialTransactionDB,
   organizationId: string,
   integrationId: string
 ): Promise<void> => {
@@ -163,36 +168,48 @@ export const writeIntegrationCredential = async (
   },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
 ): Promise<void> => {
-  const encrypted = encryptIntegrationCredential(input.value, input, keyring);
   await db.transaction(async ({ trx }) => {
-    await lockOwnedIntegration(trx, input.organizationId, input.integrationId);
-    const existing = (
-      await trx.integrationCredential
-        .where({ integrationId: input.integrationId })
-        .get()
-    )[0];
-    const now = new Date();
+    await writeIntegrationCredentialInTransaction(trx, input, keyring);
+  });
+};
 
-    if (existing) {
-      await trx.integrationCredential.update(existing.id, {
-        ...encrypted,
-        revokedAt: null,
-        updatedAt: now,
-        version: existing.version + 1,
-      });
-      return;
-    }
+export const writeIntegrationCredentialInTransaction = async (
+  db: IntegrationCredentialTransactionDB,
+  input: {
+    integrationId: string;
+    organizationId: string;
+    value: unknown;
+  },
+  keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
+): Promise<void> => {
+  const encrypted = encryptIntegrationCredential(input.value, input, keyring);
+  await lockOwnedIntegration(db, input.organizationId, input.integrationId);
+  const existing = (
+    await db.integrationCredential
+      .where({ integrationId: input.integrationId })
+      .get()
+  )[0];
+  const now = new Date();
 
-    await trx.integrationCredential.insert({
+  if (existing) {
+    await db.integrationCredential.update(existing.id, {
       ...encrypted,
-      createdAt: now,
-      id: ulid().toLowerCase(),
-      integrationId: input.integrationId,
-      organizationId: input.organizationId,
       revokedAt: null,
       updatedAt: now,
-      version: 1,
+      version: existing.version + 1,
     });
+    return;
+  }
+
+  await db.integrationCredential.insert({
+    ...encrypted,
+    createdAt: now,
+    id: ulid().toLowerCase(),
+    integrationId: input.integrationId,
+    organizationId: input.organizationId,
+    revokedAt: null,
+    updatedAt: now,
+    version: 1,
   });
 };
 

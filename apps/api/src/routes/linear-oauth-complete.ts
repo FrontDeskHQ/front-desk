@@ -4,7 +4,10 @@ import { createServerDB } from "@live-state/sync/server";
 import type { Request, Response } from "express";
 import { z } from "zod";
 
-import { writeIntegrationCredential } from "../lib/integration-credential";
+import {
+  lockOwnedIntegration,
+  writeIntegrationCredentialInTransaction,
+} from "../lib/integration-credential";
 import { schema } from "../live-state/schema";
 import { storage } from "../live-state/storage";
 
@@ -39,6 +42,12 @@ const secretsMatch = (provided: string, expected: string): boolean => {
   return timingSafeEqual(providedDigest, expectedDigest);
 };
 
+const stateMatches = (provided: string, expectedHash: string): boolean =>
+  secretsMatch(
+    createHash("sha256").update(provided).digest("hex"),
+    expectedHash
+  );
+
 export const completeLinearOAuthRoute = async (req: Request, res: Response) => {
   const expectedSecret = process.env.DISCORD_BOT_KEY;
   const providedSecret = req.header("x-discord-bot-key");
@@ -57,52 +66,82 @@ export const completeLinearOAuthRoute = async (req: Request, res: Response) => {
 
   try {
     const credentialDb = createServerDB(storage, schema);
+    const outcome = await credentialDb.transaction(async ({ trx }) => {
+      const integration = await trx.integration
+        .one(parsed.data.integrationId)
+        .get();
+      if (!integration || integration.type !== "linear") {
+        return { error: "INTEGRATION_NOT_FOUND" as const, status: 404 };
+      }
 
-    const integration = await credentialDb.integration
-      .one(parsed.data.integrationId)
-      .get();
-    if (
-      !integration ||
-      integration.type !== "linear" ||
-      !integration.configStr
-    ) {
-      res.status(404).json({ error: "INTEGRATION_NOT_FOUND" });
-      return;
-    }
+      await lockOwnedIntegration(
+        trx,
+        integration.organizationId,
+        integration.id
+      );
+      const pendingState = (
+        await trx.integrationOAuthState
+          .where({ integrationId: integration.id })
+          .get()
+      )[0];
+      if (
+        !pendingState ||
+        pendingState.consumedAt ||
+        pendingState.expiresAt.getTime() <= Date.now() ||
+        !stateMatches(parsed.data.state, pendingState.stateHash)
+      ) {
+        return { error: "STATE_MISMATCH" as const, status: 403 };
+      }
 
-    let rawConfig: unknown;
-    try {
-      rawConfig = JSON.parse(integration.configStr);
-    } catch {
-      res.status(409).json({ error: "INVALID_INTEGRATION_CONFIG" });
-      return;
-    }
-    const config = z.record(z.string(), z.unknown()).safeParse(rawConfig);
-    if (!config.success) {
-      res.status(409).json({ error: "INVALID_INTEGRATION_CONFIG" });
-      return;
-    }
-    if (config.data.csrfToken !== parsed.data.state) {
-      res.status(403).json({ error: "STATE_MISMATCH" });
-      return;
-    }
+      let rawConfig: unknown;
+      try {
+        rawConfig = JSON.parse(integration.configStr ?? "{}");
+      } catch {
+        return {
+          error: "INVALID_INTEGRATION_CONFIG" as const,
+          status: 409,
+        };
+      }
+      const config = z.record(z.string(), z.unknown()).safeParse(rawConfig);
+      if (!config.success) {
+        return {
+          error: "INVALID_INTEGRATION_CONFIG" as const,
+          status: 409,
+        };
+      }
 
-    await writeIntegrationCredential(credentialDb, {
-      integrationId: integration.id,
-      organizationId: integration.organizationId,
-      value: parsed.data.credential,
+      await writeIntegrationCredentialInTransaction(trx, {
+        integrationId: integration.id,
+        organizationId: integration.organizationId,
+        value: parsed.data.credential,
+      });
+      const { defaultTeamId, ...rest } = config.data;
+      const selectedTeam = parsed.data.teams.some(
+        (team) => team.id === defaultTeamId
+      )
+        ? { defaultTeamId }
+        : {};
+      const now = new Date();
+      await trx.integration.update(integration.id, {
+        configStr: JSON.stringify({
+          ...rest,
+          ...selectedTeam,
+          teams: parsed.data.teams,
+          workspaceId: parsed.data.workspaceId,
+          workspaceName: parsed.data.workspaceName,
+        }),
+        enabled: true,
+        updatedAt: now,
+      });
+      await trx.integrationOAuthState.update(pendingState.id, {
+        consumedAt: now,
+      });
+      return null;
     });
-    const { csrfToken: _csrfToken, ...rest } = config.data;
-    await storage.update(schema.integration, integration.id, {
-      configStr: JSON.stringify({
-        ...rest,
-        teams: parsed.data.teams,
-        workspaceId: parsed.data.workspaceId,
-        workspaceName: parsed.data.workspaceName,
-      }),
-      enabled: true,
-      updatedAt: new Date(),
-    });
+    if (outcome) {
+      res.status(outcome.status).json({ error: outcome.error });
+      return;
+    }
     res.status(204).end();
   } catch (error) {
     console.error("[Linear] OAuth completion failed:", error);

@@ -45,6 +45,11 @@ const reenableInputSchema = z.object({
   integrationId: z.string(),
 });
 
+const LINEAR_OAUTH_STATE_TTL_MS = 10 * 60_000;
+
+const hashOAuthState = (state: string): string =>
+  createHash("sha256").update(state).digest("hex");
+
 const githubBackfillConfigSchema = z.object({
   installationId: z.number().int().positive().optional(),
   repos: z
@@ -249,6 +254,46 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     }
   ),
 
+  beginLinearOAuth: mutation(
+    z.object({ integrationId: z.string().min(1) })
+  ).handler(async ({ req, db }) => {
+    const integration = await db.integration.one(req.input.integrationId).get();
+    if (!integration || integration.type !== "linear") {
+      throw errors.notFound("linear integration");
+    }
+    authorize(req, {
+      organizationId: integration.organizationId,
+      role: "owner",
+    });
+
+    const state = randomBytes(32).toString("hex");
+    const now = new Date();
+    await db.transaction(async ({ trx }) => {
+      const existing = (
+        await trx.integrationOAuthState
+          .where({ integrationId: integration.id })
+          .get()
+      )[0];
+      const fields = {
+        consumedAt: null,
+        createdAt: now,
+        expiresAt: new Date(now.getTime() + LINEAR_OAUTH_STATE_TTL_MS),
+        organizationId: integration.organizationId,
+        stateHash: hashOAuthState(state),
+      };
+      if (existing) {
+        await trx.integrationOAuthState.update(existing.id, fields);
+        return;
+      }
+      await trx.integrationOAuthState.insert({
+        ...fields,
+        id: ulid().toLowerCase(),
+        integrationId: integration.id,
+      });
+    });
+    return { state };
+  }),
+
   /**
    * Re-enable a disabled integration after checking external install liveness
    * (ADR-0010). Opt-in per connector manifest (`supportsConnectionProbe`):
@@ -403,3 +448,4 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     });
   }),
 }));
+import { createHash, randomBytes } from "node:crypto";

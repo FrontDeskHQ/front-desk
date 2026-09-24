@@ -60,6 +60,7 @@ describe(completeLinearOAuth, () => {
         }),
         headers: { "content-type": "application/x-www-form-urlencoded" },
         method: "POST",
+        redirect: "error",
       },
     ]);
     const workspaceRequest = fetcher.mock.calls[1]?.[1];
@@ -68,13 +69,17 @@ describe(completeLinearOAuth, () => {
       {
         headers: { authorization: "Bearer access-token" },
         method: "POST",
+        redirect: "error",
       },
     ]);
     expect(String(workspaceRequest?.body)).toContain("teams(first: 100)");
     const completion = fetcher.mock.calls[2];
     expect(completion).toMatchObject([
       "https://api.frontdesk.test/api/internal/integrations/linear/oauth-complete",
-      { headers: { "x-discord-bot-key": "connector-secret" } },
+      {
+        headers: { "x-discord-bot-key": "connector-secret" },
+        redirect: "error",
+      },
     ]);
     expect(JSON.parse(String(completion?.[1]?.body))).toMatchObject({
       credential: {
