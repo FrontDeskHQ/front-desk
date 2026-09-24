@@ -1,0 +1,38 @@
+apps/api/src/live-state/router/external-entity.ts
+  s_b25aa271e92aa7::t_e6d264176d5e89 759-761
+  s_2577b45ecb94e9::t_51f75aef7fb222 99-133
+apps/worker/src/handlers/index-issue.ts
+  s_b25aa271e92aa7::t_33c1969ac87f42 6,54-57,60-61,64-65
+  s_2577b45ecb94e9::t_51f75aef7fb222 30,50-52,58-59,62-63,66-76
+apps/api/src/lib/queue.ts
+  s_b25aa271e92aa7::t_e6d264176d5e89 1-2,247-248,271-273,278-284
+apps/worker/src/handlers/index-issue.test.ts
+  s_b25aa271e92aa7::t_964b8a8e34340a 6-13,17-22,28,30-33,84-86
+  s_b25aa271e92aa7::t_769352d0a2cd2d 38,45,49
+  s_b25aa271e92aa7::t_29ebd0443c1c36 26-27
+  s_b25aa271e92aa7::t_9161c2fcd9e63e 1-5,14-16,23-25,29,34-37,39-44,46-48,50-83,87-114
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "fa8764d65af1e8239ac8bc5da469b421d5860252",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_b25aa271e92aa7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d36e-a9ce-7842-8261-f0bbb39a5b47",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
