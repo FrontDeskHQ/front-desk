@@ -18,7 +18,9 @@ export const isExternalEntityFinished = (
   entity: ExternalEntityFinishState
 ): boolean =>
   entity.type === "issue"
-    ? ["closed", "completed", "canceled"].includes(entity.state.toLowerCase())
+    ? ["closed", "completed", "canceled", "duplicate"].includes(
+        entity.state.toLowerCase()
+      )
     : entity.type === "pull_request" && entity.merged === true;
 
 /** Initial closed backfills are facts, not transitions, and do not fan out. */

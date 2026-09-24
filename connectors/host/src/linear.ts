@@ -190,24 +190,28 @@ export const createLinearConnector = (
         if (!issue) return { body: { error: "ISSUE_NOT_FOUND" }, status: 404 };
         const relationNodes = issue.relations.nodes;
         let pageInfo = issue.relations.pageInfo;
-        while (
-          !relationNodes.some((relation) => relation.type === "duplicate") &&
-          pageInfo.hasNextPage &&
-          pageInfo.endCursor
-        ) {
-          const next = outcomeResponseSchema.parse(
-            await linearGraphql<unknown>(
-              credential.accessToken,
-              OUTCOME_QUERY,
-              { after: pageInfo.endCursor, id: externalId.data },
-              dependencies.fetcher,
-              { signal: timeoutSignal }
-            )
-          ).issue;
-          if (!next) break;
-          relationNodes.push(...next.relations.nodes);
-          pageInfo = next.relations.pageInfo;
-          issue = next;
+        const mayHaveSuccessor =
+          issue.state.type === "canceled" || issue.state.type === "duplicate";
+        if (mayHaveSuccessor) {
+          while (
+            !relationNodes.some((relation) => relation.type === "duplicate") &&
+            pageInfo.hasNextPage &&
+            pageInfo.endCursor
+          ) {
+            const next = outcomeResponseSchema.parse(
+              await linearGraphql<unknown>(
+                credential.accessToken,
+                OUTCOME_QUERY,
+                { after: pageInfo.endCursor, id: externalId.data },
+                dependencies.fetcher,
+                { signal: timeoutSignal }
+              )
+            ).issue;
+            if (!next) break;
+            relationNodes.push(...next.relations.nodes);
+            pageInfo = next.relations.pageInfo;
+            issue = next;
+          }
         }
         const duplicate = relationNodes.find(
           (relation) => relation.type === "duplicate"

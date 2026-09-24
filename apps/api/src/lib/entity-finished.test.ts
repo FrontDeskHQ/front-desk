@@ -41,6 +41,7 @@ describe("external entity finish detection", () => {
     expect(isExternalEntityFinished(issue("closed"))).toBeTruthy();
     expect(isExternalEntityFinished(issue("completed"))).toBeTruthy();
     expect(isExternalEntityFinished(issue("canceled"))).toBeTruthy();
+    expect(isExternalEntityFinished(issue("duplicate"))).toBeTruthy();
     expect(isExternalEntityFinished(pullRequest("closed", true))).toBeTruthy();
   });
 
