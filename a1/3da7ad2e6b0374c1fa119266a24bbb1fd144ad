@@ -1,0 +1,40 @@
+apps/api/src/live-state/router/external-entity.ts
+  s_38931219be2f43::t_87656d99d247f7 8-12,379
+  s_38931219be2f43::t_817d9e6b0f2c77 73-75,79,90,585,587-595,639
+  s_38931219be2f43::t_22ffe4530a5299 98-99,111-112,114,120,140-144,176-177
+  s_38931219be2f43::t_27801f025ce437 413
+  s_38931219be2f43::t_65025c52cd8767 708,714
+connectors/host/src/linear.ts
+  s_38931219be2f43::t_7cb095304438f4 1-3,6,8,11-13,15-42,111-135,138,147-151,193-261,267-269
+  s_38931219be2f43::t_27801f025ce437 4-5,43-95,101-110,146,152-173,176-192
+  s_38931219be2f43::t_fb5d547923be01 7,9,145,262-266
+  s_38931219be2f43::t_876ba49db4b1a3 10,14,136-137,139-144
+  s_38931219be2f43::t_672f4e46f7e1ca 96-100,174-175
+connectors/host/src/linear.test.ts
+  s_38931219be2f43::t_6cf4d4c57b0e02 1-12,75-188,279
+  s_38931219be2f43::t_9039dc697412a5 13-74,235-252,262,266-277
+  s_38931219be2f43::t_d8b0d5123af869 189-234
+  s_38931219be2f43::t_672f4e46f7e1ca 253-261,263-265
+apps/api/src/lib/entity-finished.test.ts
+  s_38931219be2f43::t_9d63ad919f8ce9 8-9,11-13,67-72,77
+  s_38931219be2f43::t_672f4e46f7e1ca 41-44,48,55,86
+  s_38931219be2f43::t_df3e2ebdc58dc9 52-54,56-58
+apps/api/src/lib/entity-finished.ts
+  s_38931219be2f43::t_27801f025ce437 21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "a13da7ad2e6b0374c1fa119266a24bbb1fd144ad",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
