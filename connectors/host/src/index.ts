@@ -86,6 +86,7 @@ const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
   try {
+    await app.stop();
     await linearWebhookQueue?.close();
   } catch (error) {
     console.error("[Linear] Failed to close webhook queue:", error);

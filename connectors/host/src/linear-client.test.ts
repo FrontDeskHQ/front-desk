@@ -226,6 +226,7 @@ describe(getLinearCredential, () => {
       clientSecret: "secret",
       connectorSecret: "connector",
     };
+    vi.spyOn(console, "error").mockReturnValue(undefined);
 
     const first = await getLinearCredential(
       "integration-3",
