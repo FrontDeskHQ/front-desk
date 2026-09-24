@@ -1,0 +1,23 @@
+apps/web/src/components/threads/issues.tsx
+  s_b8bfc9e0d4b6ee::t_a2cb8c9628a36a 200
+connectors/host/src/linear.test.ts
+  s_b8bfc9e0d4b6ee::t_f59eec74170ffd 126-127
+connectors/host/src/linear-client.ts
+  s_b8bfc9e0d4b6ee::t_a2cb8c9628a36a 160,163
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bc3e1ba820db84eb6ad4884ee2c051fea6131109",
+  "prompts": {},
+  "sessions": {
+    "s_b8bfc9e0d4b6ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d407-3d09-7593-b269-5541c7afb2c8",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
