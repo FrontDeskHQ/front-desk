@@ -1,0 +1,37 @@
+apps/api/src/lib/integration-credential.ts
+  s_2577b45ecb94e9::t_502fc3b8cecf3d 128-132,144-145,172-195,199,201-212
+apps/api/src/live-state/router/integration.ts
+  s_2577b45ecb94e9::t_502fc3b8cecf3d 48-52,257-296,451
+connectors/host/src/linear-oauth.ts
+  s_2577b45ecb94e9::t_64e956057f0ace 78
+apps/api/src/routes/linear-oauth-complete.test.ts
+  s_2577b45ecb94e9::t_cb9e3dd470b8ea 59
+  s_2577b45ecb94e9::t_b1d3424c17445e 11,14,18,54-56,87-89,107-108
+  s_2577b45ecb94e9::t_2b24cbea7cdcdb 6-8,40-42,82-83,86,95-98,103-106
+  s_2577b45ecb94e9::t_df47d87078889d 1-5,9-10,12-13,15-17,19-39,43-53,57-58,60-81,84-85,90-94,99-102,109-195
+connectors/host/src/linear-oauth.test.ts
+  s_2577b45ecb94e9::t_2a6ee17d5e79a9 63,72,79-82
+apps/api/src/live-state/schema.ts
+  s_2577b45ecb94e9::t_502fc3b8cecf3d 157-168,565
+apps/api/src/routes/linear-oauth-complete.ts
+  s_2577b45ecb94e9::t_d2f2d82d653eb6 7-10,45-50,69-75,77-94,96-111,113-139,141-144
+apps/web/src/routes/app/_workspace/settings/organization/integration/linear/index.tsx
+  s_2577b45ecb94e9::t_d0d90d340693d5 17,20,32,50,91,93,95,104-107
+  s_2577b45ecb94e9::t_04b451812ac48d 58-63
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d222c56afeaded47d1f4bfec84ed38b60c9719c0",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
