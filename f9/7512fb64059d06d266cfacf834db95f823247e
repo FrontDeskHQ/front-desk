@@ -1,0 +1,36 @@
+connectors/host/src/linear-webhook.ts
+  s_b8bfc9e0d4b6ee::t_f04e07fc5b86b8 36-42
+  s_b8bfc9e0d4b6ee::t_4184753b76c005 14-15,44-48,92,135-137,144-145
+connectors/host/src/linear-webhook.test.ts
+  s_b8bfc9e0d4b6ee::t_b50432da63781f 6-11,136,140-142,144
+  s_b8bfc9e0d4b6ee::t_ba792c254ede96 145-147
+  s_b8bfc9e0d4b6ee::t_47e2184f7d34c8 137-138
+connectors/host/src/linear-client.ts
+  s_b8bfc9e0d4b6ee::t_47e2184f7d34c8 166-171,178-183
+  s_b8bfc9e0d4b6ee::t_1b9e4662a85d8b 139-150,157-162,165,172-173,176-177,184-192
+  s_b8bfc9e0d4b6ee::t_7a58957948099e 163-164
+connectors/host/src/linear-client.test.ts
+  s_b8bfc9e0d4b6ee::t_47e2184f7d34c8 247-248
+  s_b8bfc9e0d4b6ee::t_e22a1f1139fadc 180-246,249-256
+  s_b8bfc9e0d4b6ee::t_19926e81e836d1 126-138,173
+connectors/host/src/index.ts
+  s_b8bfc9e0d4b6ee::t_030923e86bf48c 84-98
+connectors/host/src/host.test.ts
+  s_b8bfc9e0d4b6ee::t_6df8c11475d6fd 241-251,267,273,296
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f97512fb64059d06d266cfacf834db95f823247e",
+  "prompts": {},
+  "sessions": {
+    "s_b8bfc9e0d4b6ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d407-3d09-7593-b269-5541c7afb2c8",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
