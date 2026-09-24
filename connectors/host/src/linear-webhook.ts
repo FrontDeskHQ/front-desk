@@ -73,11 +73,15 @@ export const handleLinearWebhook = async (
     await dependencies.fetchClient.query.integration.listByType({
       type: "linear",
     });
-  const matchesWorkspace = (candidate: {
-    configStr?: string | null;
-    enabled?: boolean;
-  }) => {
-    if (!(candidate.enabled && candidate.configStr)) return false;
+  const matchesWorkspace = (
+    candidate: {
+      configStr?: string | null;
+      enabled?: boolean;
+    },
+    requireEnabled: boolean
+  ) => {
+    if (!candidate.configStr) return false;
+    if (requireEnabled && !candidate.enabled) return false;
     try {
       return (
         JSON.parse(candidate.configStr).workspaceId === event.organizationId
@@ -86,17 +90,23 @@ export const handleLinearWebhook = async (
       return false;
     }
   };
-  const matchingIntegrations = integrations.filter(matchesWorkspace);
+  const matchingIntegrations = integrations.filter((integration) =>
+    matchesWorkspace(integration, event.type === "Issue")
+  );
   if (matchingIntegrations.length === 0) return;
 
   if (event.type === "OAuthApp") {
     if (event.action === "revoked") {
       await Promise.all(
-        matchingIntegrations.map((integration) =>
-          dependencies.fetchClient.mutate.integration.markLinearRevoked({
-            integrationId: integration.id,
-          })
-        )
+        matchingIntegrations.map(async (integration) => {
+          const latest = await dependencies.fetchClient.query.integration.byId({
+            id: integration.id,
+          });
+          if (!latest || !matchesWorkspace(latest, false)) return;
+          await dependencies.fetchClient.mutate.integration.markLinearRevoked({
+            integrationId: latest.id,
+          });
+        })
       );
     }
     return;
@@ -108,7 +118,7 @@ export const handleLinearWebhook = async (
       const latest = await dependencies.fetchClient.query.integration.byId({
         id: integration.id,
       });
-      if (!latest || !matchesWorkspace(latest)) return;
+      if (!latest || !matchesWorkspace(latest, true)) return;
       if (event.action === "remove") {
         await dependencies.removeIssue(
           latest.id,

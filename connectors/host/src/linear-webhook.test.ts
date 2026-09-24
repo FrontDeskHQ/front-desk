@@ -153,10 +153,17 @@ describe(handleLinearWebhook, () => {
     const markLinearRevoked = vi
       .fn<(input: { integrationId: string }) => Promise<{ ok: boolean }>>()
       .mockResolvedValue({ ok: true });
+    const integration = {
+      configStr: JSON.stringify({ workspaceId: "workspace-id" }),
+      enabled: true,
+      id: "integration-id",
+      organizationId: "organization-id",
+    };
     const fetchClient = {
       mutate: { integration: { markLinearRevoked } },
       query: {
         integration: {
+          byId: vi.fn<() => Promise<unknown>>().mockResolvedValue(integration),
           listByType: vi
             .fn<
               (input: { type: string }) => Promise<
@@ -168,14 +175,7 @@ describe(handleLinearWebhook, () => {
                 }[]
               >
             >()
-            .mockResolvedValue([
-              {
-                configStr: JSON.stringify({ workspaceId: "workspace-id" }),
-                enabled: true,
-                id: "integration-id",
-                organizationId: "organization-id",
-              },
-            ]),
+            .mockResolvedValue([integration]),
         },
       },
     } as unknown as LiveStateFetchClient;
