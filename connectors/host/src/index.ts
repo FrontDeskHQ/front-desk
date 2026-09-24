@@ -11,11 +11,17 @@ dotenv.config({ path: [".env.local", ".env"] });
 const port = Number.parseInt(process.env.PORT ?? "3336", 10);
 let oauthEnvironment: ReturnType<typeof readLinearOAuthEnvironment> | undefined;
 let linearSync: ReturnType<typeof createLinearSync> | undefined;
+let linearWebhookSecret: string | undefined;
 let linearFetchClient:
   | ReturnType<typeof createLiveStateClient>["fetchClient"]
   | undefined;
 try {
-  oauthEnvironment = readLinearOAuthEnvironment();
+  const configuredOAuthEnvironment = readLinearOAuthEnvironment();
+  linearWebhookSecret = process.env.LINEAR_WEBHOOK_SECRET?.trim();
+  if (!linearWebhookSecret) {
+    throw new Error("LINEAR_WEBHOOK_SECRET_REQUIRED");
+  }
+  oauthEnvironment = configuredOAuthEnvironment;
   const liveState = createLiveStateClient({
     botKey: process.env.DISCORD_BOT_KEY ?? "",
     label: "Linear",
@@ -36,15 +42,26 @@ const app = createConnectorHost({
       ? {
           ...linearSync,
           fetchClient: linearFetchClient,
-          webhookSecret: process.env.LINEAR_WEBHOOK_SECRET,
+          webhookSecret: linearWebhookSecret,
         }
       : undefined,
   secret: process.env.DISCORD_BOT_KEY,
 }).listen(port);
 
-linearSync?.syncAll().catch((error) => {
-  console.error("[Linear] Startup reconciliation failed:", error);
-});
+const startupRetryDelaysMs = [1000, 5000, 30_000];
+const runStartupReconciliation = (attempt = 0): void => {
+  linearSync?.syncAll().catch((error) => {
+    console.error("[Linear] Startup reconciliation failed:", error);
+    const retryDelay = startupRetryDelaysMs[attempt];
+    if (retryDelay !== undefined) {
+      setTimeout(
+        () => runStartupReconciliation(attempt + 1),
+        retryDelay
+      ).unref();
+    }
+  });
+};
+runStartupReconciliation();
 setInterval(
   () => {
     linearSync?.syncAll().catch((error) => {

@@ -21,12 +21,12 @@ const request = (
     method: "POST",
   });
 
-const webhookRequest = (body: string) =>
+const webhookRequest = (body: string, secret = "webhook-secret") =>
   new Request("http://localhost/linear/api/webhook", {
     body,
     headers: {
       "content-type": "text/plain",
-      "linear-signature": createHmac("sha256", "webhook-secret")
+      "linear-signature": createHmac("sha256", secret)
         .update(body)
         .digest("hex"),
     },
@@ -229,6 +229,9 @@ describe(createConnectorHost, () => {
       secret: "connector-secret",
     });
     const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+    const unauthorized = await webhookApp.handle(
+      webhookRequest("{}", "wrong-secret")
+    );
     const invalid = await webhookApp.handle(webhookRequest("{"));
     const processingFailure = await webhookApp.handle(
       webhookRequest(
@@ -241,8 +244,18 @@ describe(createConnectorHost, () => {
       )
     );
 
-    expect(invalid.status).toBe(400);
-    expect(processingFailure.status).toBe(500);
+    expect({
+      invalidStatus: invalid.status,
+      processingStatus: processingFailure.status,
+      unauthorizedStatus: unauthorized.status,
+    }).toStrictEqual({
+      invalidStatus: 400,
+      processingStatus: 500,
+      unauthorizedStatus: 401,
+    });
+    await expect(unauthorized.json()).resolves.toStrictEqual({
+      error: "INVALID_SIGNATURE",
+    });
     await expect(processingFailure.json()).resolves.toStrictEqual({
       error: "WEBHOOK_PROCESSING_FAILED",
     });

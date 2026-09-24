@@ -3,8 +3,6 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { z } from "zod";
 
-import { linearExternalKey } from "./linear-sync";
-
 const webhookSchema = z.object({
   action: z.string(),
   data: z.unknown(),
@@ -41,7 +39,10 @@ export const handleLinearWebhook = async (
     await dependencies.fetchClient.query.integration.listByType({
       type: "linear",
     });
-  const matchingIntegrations = integrations.filter((candidate) => {
+  const matchesWorkspace = (candidate: {
+    configStr?: string | null;
+    enabled?: boolean;
+  }) => {
     if (!(candidate.enabled && candidate.configStr)) return false;
     try {
       return (
@@ -50,24 +51,18 @@ export const handleLinearWebhook = async (
     } catch {
       return false;
     }
-  });
+  };
+  const matchingIntegrations = integrations.filter(matchesWorkspace);
   if (matchingIntegrations.length === 0) return;
 
   const issue = z.object({ id: z.string() }).parse(event.data);
-  if (event.action === "remove") {
-    await Promise.all(
-      matchingIntegrations.map((integration) =>
-        dependencies.fetchClient.mutate.externalEntity.softDelete({
-          externalKey: linearExternalKey(issue.id),
-          organizationId: integration.organizationId,
-        })
-      )
-    );
-    return;
-  }
   await Promise.all(
-    matchingIntegrations.map((integration) =>
-      dependencies.syncIssue(integration.id, issue.id)
-    )
+    matchingIntegrations.map(async (integration) => {
+      const latest = await dependencies.fetchClient.query.integration.byId({
+        id: integration.id,
+      });
+      if (!latest || !matchesWorkspace(latest)) return;
+      await dependencies.syncIssue(latest.id, issue.id);
+    })
   );
 };

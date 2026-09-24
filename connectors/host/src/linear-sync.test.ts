@@ -64,11 +64,23 @@ describe(createLinearSync, () => {
       .fn<() => Promise<string>>()
       .mockResolvedValue("row-id");
     const listForIntegration = vi
-      .fn<() => Promise<unknown[]>>()
-      .mockResolvedValue([
-        { deletedAt: null, externalKey: "linear:missing" },
-        { deletedAt: null, externalKey: "linear:linear-issue-id" },
-      ]);
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValueOnce({
+        items: [
+          { deletedAt: null, externalKey: "linear:missing", id: "row-1" },
+        ],
+        nextCursor: "row-1",
+      })
+      .mockResolvedValueOnce({
+        items: [
+          {
+            deletedAt: null,
+            externalKey: "linear:linear-issue-id-2",
+            id: "row-2",
+          },
+        ],
+        nextCursor: null,
+      });
     const fetchClient = {
       mutate: { externalEntity: { softDelete, upsert } },
       query: {
@@ -96,6 +108,22 @@ describe(createLinearSync, () => {
           data: {
             issues: {
               nodes: [issue()],
+              pageInfo: { endCursor: "cursor-1", hasNextPage: true },
+            },
+          },
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: {
+            issues: {
+              nodes: [
+                issue({
+                  id: "linear-issue-id-2",
+                  identifier: "ENG-43",
+                  number: 43,
+                }),
+              ],
               pageInfo: { endCursor: null, hasNextPage: false },
             },
           },
@@ -114,10 +142,16 @@ describe(createLinearSync, () => {
 
     await expect(sync.syncIntegration("integration-id")).resolves.toStrictEqual(
       {
-        mirrored: 1,
+        mirrored: 2,
       }
     );
-    expect(upsert).toHaveBeenCalledOnce();
+    expect({
+      inventoryPages: listForIntegration.mock.calls.length,
+      upserts: upsert.mock.calls.length,
+    }).toStrictEqual({ inventoryPages: 2, upserts: 2 });
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ integrationId: "integration-id" })
+    );
     expect(listForIntegration).toHaveBeenCalledBefore(upsert);
     expect(softDelete).toHaveBeenCalledExactlyOnceWith({
       externalKey: "linear:missing",

@@ -79,6 +79,7 @@ const externalEntityFields = z.object({
   externalRef: z.record(z.string(), z.unknown()),
   externalUpdatedAt: z.coerce.date(),
   headRef: z.string().nullable(),
+  integrationId: z.string().min(1).optional(),
   labels: z.array(z.string()),
   merged: z.boolean().nullable(),
   mergedAt: z.coerce.date().nullable(),
@@ -96,17 +97,82 @@ const externalEntityFields = z.object({
 export default privateRoute.withProcedures(({ mutation, query }) => ({
   /** Provider reconciliation inventory; internal connectors only. */
   listForIntegration: query(
-    z.object({ integrationId: z.string(), organizationId: z.string() })
+    z.object({
+      cursor: z
+        .object({
+          idsAtTimestamp: z.array(z.string()),
+          lastSyncedAt: z.coerce.date(),
+        })
+        .optional(),
+      integrationId: z.string(),
+      limit: z.number().int().min(1).max(200).default(200),
+      organizationId: z.string(),
+    })
   ).handler(async ({ req, db }) => {
     requireInternalApiKey(req.context);
-    return Object.values(
+    const rows = Object.values(
       await db.find(schema.externalEntity, {
+        limit: req.input.limit + 1,
+        sort: [
+          { direction: "asc", key: "lastSyncedAt" },
+          { direction: "asc", key: "id" },
+        ],
         where: {
+          ...(req.input.cursor
+            ? {
+                $or: [
+                  {
+                    lastSyncedAt: {
+                      $gt: req.input.cursor.lastSyncedAt,
+                    },
+                  },
+                  {
+                    id: {
+                      $not: { $in: req.input.cursor.idsAtTimestamp },
+                    },
+                    lastSyncedAt: {
+                      $eq: req.input.cursor.lastSyncedAt,
+                    },
+                  },
+                ],
+              }
+            : {}),
           integrationId: req.input.integrationId,
           organizationId: req.input.organizationId,
         },
       })
     );
+    const items = rows.slice(0, req.input.limit).map((entity) => ({
+      deletedAt: entity.deletedAt,
+      externalKey: entity.externalKey,
+      id: entity.id,
+    }));
+    const last =
+      rows.length > req.input.limit ? rows[req.input.limit - 1] : null;
+    const previousIds =
+      last &&
+      req.input.cursor?.lastSyncedAt.getTime() === last.lastSyncedAt.getTime()
+        ? req.input.cursor.idsAtTimestamp
+        : [];
+    return {
+      items,
+      nextCursor: last
+        ? {
+            idsAtTimestamp: [
+              ...previousIds,
+              ...rows
+                .slice(0, req.input.limit)
+                .filter(
+                  (entity) =>
+                    entity.lastSyncedAt.getTime() ===
+                    last.lastSyncedAt.getTime()
+                )
+                .map((entity) => entity.id),
+            ],
+            lastSyncedAt: last.lastSyncedAt,
+          }
+        : null,
+    };
   }),
 
   /**
@@ -530,15 +596,38 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
   upsert: mutation(externalEntityFields).handler(async ({ req, db }) => {
     requireInternalApiKey(req.context);
 
-    const { organizationId, externalKey, provider } = req.input;
+    const {
+      integrationId: requestedIntegrationId,
+      organizationId,
+      externalKey,
+      provider,
+      ...entityFields
+    } = req.input;
     const now = new Date();
-    const integration = Object.values(
-      await db.find(schema.integration, {
-        where: { enabled: true, organizationId, type: provider },
-      })
-    ).sort((left, right) => left.id.localeCompare(right.id))[0];
+    const integration = requestedIntegrationId
+      ? await db.integration.one(requestedIntegrationId).get()
+      : Object.values(
+          await db.find(schema.integration, {
+            where: { enabled: true, organizationId, type: provider },
+          })
+        ).sort((left, right) => left.id.localeCompare(right.id))[0];
+    if (
+      requestedIntegrationId &&
+      (!integration ||
+        !integration.enabled ||
+        integration.organizationId !== organizationId ||
+        integration.type !== provider)
+    ) {
+      throw errors.badRequest(
+        "INTEGRATION_NOT_AVAILABLE",
+        "The integration cannot own this external entity"
+      );
+    }
     const normalizedInput = {
-      ...req.input,
+      ...entityFields,
+      externalKey,
+      organizationId,
+      provider,
       integrationId: integration?.id ?? null,
     };
 
@@ -550,12 +639,20 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       )[0];
 
       if (existing) {
+        const incomingUpdatedAt = req.input.externalUpdatedAt.getTime();
+        const existingUpdatedAt = existing.externalUpdatedAt.getTime();
+        if (
+          incomingUpdatedAt < existingUpdatedAt ||
+          (existing.deletedAt && incomingUpdatedAt <= existingUpdatedAt)
+        ) {
+          return { applied: false, id: existing.id, previous: existing };
+        }
         await trx.update(schema.externalEntity, existing.id, {
           ...normalizedInput,
           lastSyncedAt: now,
           deletedAt: null,
         });
-        return { id: existing.id, previous: existing };
+        return { applied: true, id: existing.id, previous: existing };
       }
 
       const newId = ulid().toLowerCase();
@@ -565,9 +662,10 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         lastSyncedAt: now,
         deletedAt: null,
       });
-      return { id: newId, previous: null };
+      return { applied: true, id: newId, previous: null };
     });
     const { id } = write;
+    if (!write.applied) return id;
 
     if (didExternalEntityFinish(write.previous, req.input)) {
       fanOutEntityFinished(db, req.input).catch((error) => {

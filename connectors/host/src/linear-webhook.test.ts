@@ -28,36 +28,46 @@ const event = (overrides: Record<string, unknown> = {}) =>
   });
 
 const webhookDependencies = () => {
-  const softDelete = vi.fn<() => Promise<string>>().mockResolvedValue("row");
   const syncIssue = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+  const integrations = [
+    {
+      configStr: JSON.stringify({ workspaceId: "workspace-1" }),
+      enabled: true,
+      id: "integration-1",
+      organizationId: "organization-1",
+    },
+    {
+      configStr: JSON.stringify({ workspaceId: "workspace-1" }),
+      enabled: true,
+      id: "integration-2",
+      organizationId: "organization-2",
+    },
+    {
+      configStr: JSON.stringify({ workspaceId: "workspace-1" }),
+      enabled: false,
+      id: "disabled",
+      organizationId: "organization-3",
+    },
+  ];
   const fetchClient = {
-    mutate: { externalEntity: { softDelete } },
     query: {
       integration: {
-        listByType: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([
-          {
-            configStr: JSON.stringify({ workspaceId: "workspace-1" }),
-            enabled: true,
-            id: "integration-1",
-            organizationId: "organization-1",
-          },
-          {
-            configStr: JSON.stringify({ workspaceId: "workspace-1" }),
-            enabled: true,
-            id: "integration-2",
-            organizationId: "organization-2",
-          },
-          {
-            configStr: JSON.stringify({ workspaceId: "workspace-1" }),
-            enabled: false,
-            id: "disabled",
-            organizationId: "organization-3",
-          },
-        ]),
+        byId: vi
+          .fn<(input: { id: string }) => Promise<unknown>>()
+          .mockImplementation(async ({ id }) =>
+            integrations.find((integration) => integration.id === id)
+          ),
+        listByType: vi
+          .fn<() => Promise<unknown[]>>()
+          .mockResolvedValue(integrations),
       },
     },
   } as unknown as LiveStateFetchClient;
-  return { fetchClient, softDelete, syncIssue };
+  return {
+    byId: fetchClient.query.integration.byId,
+    fetchClient,
+    syncIssue,
+  };
 };
 
 describe(handleLinearWebhook, () => {
@@ -77,20 +87,21 @@ describe(handleLinearWebhook, () => {
     );
   });
 
-  it("soft-deletes every matching organization on remove", async () => {
+  it("authoritatively re-syncs every matching integration on remove", async () => {
     const dependencies = webhookDependencies();
 
     await handleLinearWebhook(event({ action: "remove" }), dependencies);
 
-    expect(dependencies.softDelete).toHaveBeenCalledTimes(2);
-    expect(dependencies.softDelete).toHaveBeenCalledWith({
-      externalKey: "linear:issue-1",
-      organizationId: "organization-1",
-    });
-    expect(dependencies.softDelete).toHaveBeenCalledWith({
-      externalKey: "linear:issue-1",
-      organizationId: "organization-2",
-    });
+    expect(dependencies.syncIssue).toHaveBeenCalledTimes(2);
+  });
+
+  it("skips a remove when the authoritative integration is no longer live", async () => {
+    const dependencies = webhookDependencies();
+    vi.mocked(dependencies.byId).mockResolvedValue(undefined);
+
+    await handleLinearWebhook(event({ action: "remove" }), dependencies);
+
+    expect(dependencies.syncIssue).not.toHaveBeenCalled();
   });
 
   it("acknowledges unrelated event types and unknown workspaces", async () => {
@@ -106,6 +117,5 @@ describe(handleLinearWebhook, () => {
       )
     ).resolves.toBeUndefined();
     expect(dependencies.syncIssue).not.toHaveBeenCalled();
-    expect(dependencies.softDelete).not.toHaveBeenCalled();
   });
 });

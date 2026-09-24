@@ -24,6 +24,7 @@ export interface LinearClientEnvironment {
 }
 
 const credentialLoads = new Map<string, Promise<LinearCredentialContext>>();
+const LINEAR_REQUEST_TIMEOUT_MS = 15_000;
 
 const requestCredential = async (
   environment: LinearClientEnvironment,
@@ -39,6 +40,8 @@ const requestCredential = async (
         "x-discord-bot-key": environment.connectorSecret,
       },
       method: "POST",
+      redirect: "error",
+      signal: AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
     }
   );
 
@@ -73,6 +76,8 @@ const loadLinearCredential = async (
     }),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
   });
   if (!refreshResponse.ok) throw new Error("LINEAR_TOKEN_REFRESH_FAILED");
   const refreshed = z
@@ -97,7 +102,11 @@ const loadLinearCredential = async (
     { credential, integrationId, operation: "write" },
     fetcher
   );
-  if (!writeResponse.ok) throw new Error("LINEAR_CREDENTIAL_WRITE_FAILED");
+  if (!writeResponse.ok) {
+    console.error(
+      `[Linear] Failed to persist refreshed credential for ${integrationId}`
+    );
+  }
   return { credential, organizationId: parsed.organizationId };
 };
 
@@ -133,6 +142,8 @@ export const linearGraphql = async <T>(
       "content-type": "application/json",
     },
     method: "POST",
+    redirect: "error",
+    signal: AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
   });
   if (!response.ok) throw new Error("LINEAR_GRAPHQL_REQUEST_FAILED");
   const body = (await response.json()) as { data?: T; errors?: unknown[] };

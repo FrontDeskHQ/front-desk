@@ -112,28 +112,67 @@ export interface LinearSyncDependencies {
 
 export const createLinearSync = (dependencies: LinearSyncDependencies) => {
   const fetcher = dependencies.fetcher ?? fetch;
+  const activeSyncs = new Map<string, Promise<void>>();
 
-  const upsertIssue = async (organizationId: string, issue: LinearIssue) => {
+  const runExclusive = async <T>(
+    integrationId: string,
+    operation: () => Promise<T>
+  ): Promise<T> => {
+    const previous = activeSyncs.get(integrationId) ?? Promise.resolve();
+    let release: () => void = () => undefined;
+    const turn = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const tail = previous.catch(() => undefined).then(() => turn);
+    activeSyncs.set(integrationId, tail);
+    await previous.catch(() => undefined);
+    try {
+      return await operation();
+    } finally {
+      release();
+      if (activeSyncs.get(integrationId) === tail) {
+        activeSyncs.delete(integrationId);
+      }
+    }
+  };
+
+  const upsertIssue = async (
+    integrationId: string,
+    organizationId: string,
+    issue: LinearIssue
+  ) => {
     await dependencies.fetchClient.mutate.externalEntity.upsert({
+      integrationId,
       organizationId,
       ...buildLinearIssueFields(issue),
     });
   };
 
-  const syncIntegration = async (integrationId: string) => {
+  const syncIntegrationUnlocked = async (integrationId: string) => {
     const { credential, organizationId } = await getLinearCredential(
       integrationId,
       dependencies.environment,
       fetcher
     );
-    const existing =
-      await dependencies.fetchClient.query.externalEntity.listForIntegration({
-        integrationId,
-        organizationId,
-      });
+    const existing: { deletedAt: Date | null; externalKey: string }[] = [];
+    let inventoryCursor:
+      | { idsAtTimestamp: string[]; lastSyncedAt: Date }
+      | undefined;
+    do {
+      const page =
+        await dependencies.fetchClient.query.externalEntity.listForIntegration({
+          cursor: inventoryCursor,
+          integrationId,
+          limit: 200,
+          organizationId,
+        });
+      existing.push(...page.items);
+      inventoryCursor = page.nextCursor ?? undefined;
+    } while (inventoryCursor);
+
     const seen = new Set<string>();
     let after: string | null = null;
-    do {
+    while (true) {
       const raw: unknown = await linearGraphql<unknown>(
         credential.accessToken,
         ISSUES_QUERY,
@@ -146,10 +185,16 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
         seen.add(linearExternalKey(issue.id));
       }
       await Promise.all(
-        page.nodes.map((issue) => upsertIssue(organizationId, issue))
+        page.nodes.map((issue) =>
+          upsertIssue(integrationId, organizationId, issue)
+        )
       );
-      after = page.pageInfo.hasNextPage ? page.pageInfo.endCursor : null;
-    } while (after);
+      if (!page.pageInfo.hasNextPage) break;
+      if (!page.pageInfo.endCursor || page.pageInfo.endCursor === after) {
+        throw new Error("LINEAR_PAGINATION_CURSOR_MISSING");
+      }
+      after = page.pageInfo.endCursor;
+    }
 
     await Promise.all(
       existing
@@ -164,7 +209,10 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
     return { mirrored: seen.size };
   };
 
-  const syncIssue = async (integrationId: string, issueId: string) => {
+  const syncIntegration = (integrationId: string) =>
+    runExclusive(integrationId, () => syncIntegrationUnlocked(integrationId));
+
+  const syncIssueUnlocked = async (integrationId: string, issueId: string) => {
     const { credential, organizationId } = await getLinearCredential(
       integrationId,
       dependencies.environment,
@@ -184,8 +232,13 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
       });
       return;
     }
-    await upsertIssue(organizationId, issue);
+    await upsertIssue(integrationId, organizationId, issue);
   };
+
+  const syncIssue = (integrationId: string, issueId: string) =>
+    runExclusive(integrationId, () =>
+      syncIssueUnlocked(integrationId, issueId)
+    );
 
   const syncAll = async () => {
     const integrations =
@@ -205,6 +258,15 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
           result.reason
         );
       }
+    }
+    const failures = results.filter(
+      (result): result is PromiseRejectedResult => result.status === "rejected"
+    );
+    if (failures.length > 0) {
+      throw new AggregateError(
+        failures.map((failure) => failure.reason),
+        "LINEAR_RECONCILIATION_FAILED"
+      );
     }
   };
 
