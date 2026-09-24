@@ -1,3 +1,4 @@
+import { typesSupportingIssueCreation } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
 import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import type { DefaultIssueTarget } from "@workspace/schemas/organization";
@@ -41,6 +42,8 @@ const githubConfigSchema = z.object({
     .default([]),
 });
 
+const issueCreationTypes = new Set(typesSupportingIssueCreation());
+
 /**
  * The sub-resources an issue can be filed into, as options ready to hand to
  * `setDefaultIssueTarget` or `acceptRead`. `target` is opaque to core — only the
@@ -78,7 +81,7 @@ export function useIssueTargetOptions(
   }
 
   const options: IssueTargetOption[] = [];
-  if (githubIntegration?.configStr) {
+  if (issueCreationTypes.has("github") && githubIntegration?.configStr) {
     try {
       const config = githubConfigSchema.safeParse(
         JSON.parse(githubIntegration.configStr)
@@ -96,7 +99,7 @@ export function useIssueTargetOptions(
       // Ignore malformed provider config; it cannot produce a safe target.
     }
   }
-  if (linearIntegration?.configStr) {
+  if (issueCreationTypes.has("linear") && linearIntegration?.configStr) {
     try {
       const config = linearIntegrationSchema.safeParse(
         JSON.parse(linearIntegration.configStr)

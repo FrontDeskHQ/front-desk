@@ -37,14 +37,31 @@ describe(resolveEffectiveDefaultIssueTarget, () => {
   });
 
   it("returns the saved target when one is set", async () => {
-    const db = makeDb([]);
+    const db = makeDb([
+      {
+        configStr: JSON.stringify({
+          installationId: 1,
+          repos: [githubRepo],
+        }),
+        enabled: true,
+        id: integrationId,
+        organization: { id: organizationId, settings: {}, slug: "acme" },
+        organizationId,
+        type: "github",
+      },
+    ]);
 
     await expect(
       resolveEffectiveDefaultIssueTarget(db, organizationId, {
         defaultIssueTarget: savedTarget,
       })
     ).resolves.toStrictEqual(savedTarget);
-    expect(db.find).not.toHaveBeenCalled();
+    expect(db.find).toHaveBeenCalledWith(
+      schema.integration,
+      expect.objectContaining({
+        where: { enabled: true, organizationId },
+      })
+    );
   });
 
   it("returns null when no issue tracker resolves", async () => {
@@ -96,7 +113,11 @@ describe(resolveEffectiveDefaultIssueTarget, () => {
     vi.spyOn(connectorRegistry, "providersOf").mockReturnValue([
       {
         invokeUrl: entry.invokeUrl,
-        manifest: { capabilities: ["issue-tracker"], type: "linear" },
+        manifest: {
+          capabilities: ["issue-tracker"],
+          supportsIssueCreation: true,
+          type: "linear",
+        },
       },
     ] as ReturnType<typeof connectorRegistry.providersOf>);
     vi.spyOn(connectorRegistry, "getByType").mockReturnValue({
@@ -139,6 +160,50 @@ describe(resolveEffectiveDefaultIssueTarget, () => {
         organization: { id: organizationId, settings: {}, slug: "acme" },
         organizationId,
         type: "github",
+      },
+    ]);
+
+    await expect(
+      resolveEffectiveDefaultIssueTarget(db, organizationId, {})
+    ).resolves.toBeNull();
+  });
+
+  it("does not fall back when a configured Linear team is stale", async () => {
+    const entry = connectorRegistry.getByType("github");
+    if (!entry) throw new Error("GitHub connector is not registered");
+    vi.spyOn(connectorRegistry, "providersOf").mockReturnValue([
+      {
+        invokeUrl: entry.invokeUrl,
+        manifest: {
+          capabilities: ["issue-tracker"],
+          supportsIssueCreation: true,
+          type: "linear",
+        },
+      },
+    ] as ReturnType<typeof connectorRegistry.providersOf>);
+    vi.spyOn(connectorRegistry, "getByType").mockReturnValue({
+      ...entry,
+      manifest: {
+        ...entry.manifest,
+        supportsIssueCreation: true,
+        type: "linear",
+      },
+    });
+    const db = makeDb([
+      {
+        configStr: JSON.stringify({
+          defaultTeamId: "missing-team",
+          teams: [
+            { id: "team-1", key: "ENG", name: "Engineering" },
+            { id: "team-2", key: "APP", name: "Applications" },
+          ],
+          workspaceId: "workspace-1",
+        }),
+        enabled: true,
+        id: integrationId,
+        organization: { id: organizationId, settings: {}, slug: "acme" },
+        organizationId,
+        type: "linear",
       },
     ]);
 

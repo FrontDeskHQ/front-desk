@@ -82,6 +82,7 @@ export const resolveIssueTrackerTarget = async (
   const providerTypes = new Set(
     connectorRegistry
       .providersOf("issue-tracker")
+      .filter((entry) => entry.manifest.supportsIssueCreation === true)
       .map((entry) => entry.manifest.type)
   );
 
@@ -145,7 +146,13 @@ export const resolveEffectiveDefaultIssueTarget = async (
 ): Promise<DefaultIssueTarget | null> => {
   const saved = readDefaultIssueTarget(settings);
   if (saved) {
-    return saved;
+    return (await resolveIssueTrackerTarget(
+      db,
+      organizationId,
+      saved.integrationId
+    ))
+      ? saved
+      : null;
   }
 
   const resolved = await resolveIssueTrackerTarget(db, organizationId);
@@ -163,9 +170,11 @@ export const resolveEffectiveDefaultIssueTarget = async (
   if (resolved.integration.type === "linear") {
     const config = linearIntegrationSchema.safeParse(parsed);
     const selected = config.success
-      ? (config.data.teams.find(
-          (team) => team.id === config.data.defaultTeamId
-        ) ?? config.data.teams[0])
+      ? config.data.defaultTeamId
+        ? config.data.teams.find(
+            (team) => team.id === config.data.defaultTeamId
+          )
+        : config.data.teams[0]
       : undefined;
     return selected
       ? {

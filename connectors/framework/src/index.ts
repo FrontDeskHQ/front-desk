@@ -64,6 +64,7 @@ export {
   slackManifest,
   typesHaveCapability,
   typesProvidingCapability,
+  typesSupportingIssueCreation,
 } from "./manifest";
 export {
   CONNECTION_PROBE_PATH,
