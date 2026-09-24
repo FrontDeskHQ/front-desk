@@ -1,3 +1,6 @@
+import { createHmac } from "node:crypto";
+
+import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { describe, expect, it, vi } from "vitest";
 
 import { createConnectorHost } from "./host";
@@ -14,6 +17,18 @@ const request = (
     headers: {
       "content-type": "application/json",
       ...(secret ? { "x-connector-secret": secret } : {}),
+    },
+    method: "POST",
+  });
+
+const webhookRequest = (body: string, secret = "webhook-secret") =>
+  new Request("http://localhost/linear/api/webhook", {
+    body,
+    headers: {
+      "content-type": "text/plain",
+      "linear-signature": createHmac("sha256", secret)
+        .update(body)
+        .digest("hex"),
     },
     method: "POST",
   });
@@ -183,5 +198,106 @@ describe(createConnectorHost, () => {
       "https://frontdesk.test/app/settings/organization/integration/linear?error=invalid_state"
     );
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("distinguishes malformed webhooks from processing failures", async () => {
+    const syncIssue = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const enqueueWebhook = vi
+      .fn<(rawBody: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const integration = {
+      configStr: JSON.stringify({ workspaceId: "workspace-1" }),
+      enabled: true,
+      id: "integration-1",
+      organizationId: "organization-1",
+    };
+    const fetchClient = {
+      query: {
+        integration: {
+          byId: vi.fn<() => Promise<unknown>>().mockResolvedValue(integration),
+          listByType: vi
+            .fn<() => Promise<unknown[]>>()
+            .mockResolvedValue([integration]),
+        },
+      },
+    } as unknown as LiveStateFetchClient;
+    const webhookApp = createConnectorHost({
+      connectors: [linearConnector],
+      linearSync: {
+        fetchClient,
+        removeIssue: vi.fn<() => Promise<void>>(),
+        enqueueWebhook,
+        syncIntegration: vi.fn<() => Promise<void>>(),
+        syncIssue,
+        webhookSecret: "webhook-secret",
+      },
+      secret: "connector-secret",
+    });
+    const error = vi.spyOn(console, "error").mockReturnValue(undefined);
+    const unauthorized = await webhookApp.handle(
+      webhookRequest("{}", "wrong-secret")
+    );
+    const invalid = await webhookApp.handle(webhookRequest("{"));
+    const invalidIssue = await webhookApp.handle(
+      webhookRequest(
+        JSON.stringify({
+          action: "update",
+          data: {},
+          organizationId: "workspace-1",
+          type: "Issue",
+          webhookTimestamp: Date.now(),
+        })
+      )
+    );
+    const acceptedBody = JSON.stringify({
+      action: "update",
+      data: { id: "issue-1" },
+      organizationId: "workspace-1",
+      type: "Issue",
+      webhookTimestamp: Date.now(),
+    });
+    const accepted = await webhookApp.handle(webhookRequest(acceptedBody));
+    enqueueWebhook.mockRejectedValueOnce(new Error("queue unavailable"));
+    const processingFailure = await webhookApp.handle(
+      webhookRequest(acceptedBody)
+    );
+
+    expect({
+      acceptedStatus: accepted.status,
+      invalidIssueStatus: invalidIssue.status,
+      invalidStatus: invalid.status,
+      processingStatus: processingFailure.status,
+      unauthorizedStatus: unauthorized.status,
+    }).toStrictEqual({
+      acceptedStatus: 200,
+      invalidIssueStatus: 400,
+      invalidStatus: 400,
+      processingStatus: 500,
+      unauthorizedStatus: 401,
+    });
+    const [unauthorizedBody, processingFailureBody, acceptedBodyResponse] =
+      await Promise.all([
+        unauthorized.json(),
+        processingFailure.json(),
+        accepted.json(),
+      ]);
+    expect({
+      acceptedBody: acceptedBodyResponse,
+      enqueuedBody: enqueueWebhook.mock.calls[0]?.[0],
+      enqueueCalls: enqueueWebhook.mock.calls.length,
+      errorCalls: error.mock.calls.length,
+      processingFailureBody,
+      syncCalls: syncIssue.mock.calls.length,
+      unauthorizedBody,
+    }).toStrictEqual({
+      acceptedBody: { ok: true },
+      enqueuedBody: acceptedBody,
+      enqueueCalls: 2,
+      errorCalls: 3,
+      processingFailureBody: { error: "WEBHOOK_PROCESSING_FAILED" },
+      syncCalls: 0,
+      unauthorizedBody: { error: "INVALID_SIGNATURE" },
+    });
+    error.mockRestore();
   });
 });

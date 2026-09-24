@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import type { IssueIndexJobData } from "@workspace/schemas/signals";
 import type { Job } from "bullmq";
 
+import { fetchClient } from "../lib/database/client";
 import {
   buildIssueEmbedText,
   generateIssueEmbedding,
@@ -26,7 +27,7 @@ const computeSha256 = (data: string): string =>
  * issue out of search. Re-embedding is skipped when title + body are unchanged.
  */
 export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
-  const { data } = job;
+  let { data } = job;
   const { externalKey, organizationId } = data;
   const requestLog = createWorkerJobLogger("issue-index", job, "issue.index", {
     issue: data.deleted
@@ -35,8 +36,10 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
           externalKey,
           organizationId,
           provider: data.provider,
+          containerLabel: data.containerLabel,
           repoFullName: data.repoFullName,
           number: data.number,
+          shortId: data.shortId,
           state: data.state,
           deleted: false,
         },
@@ -44,11 +47,33 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
   let status = 200;
 
   try {
-    // Mirror row removed: drop the vector and stop.
+    // A restore can race an already-active delete job whose replacement was
+    // deduplicated by BullMQ. Re-read before and after removal; if the mirror
+    // is live, continue through the normal upsert path in this same job.
     if (data.deleted) {
-      await issueIndex.remove({ externalKey, organizationId });
-      requestLog.set({ outcome: { action: "deleted", vectorDeleted: true } });
-      return { action: "deleted" as const, externalKey };
+      const before = await fetchClient.query.externalEntity.issueIndexSnapshot({
+        externalKey,
+        organizationId,
+      });
+      if (before.deleted) {
+        await issueIndex.remove({ externalKey, organizationId });
+        const after = await fetchClient.query.externalEntity.issueIndexSnapshot(
+          {
+            externalKey,
+            organizationId,
+          }
+        );
+        if (after.deleted) {
+          requestLog.set({
+            outcome: { action: "deleted", vectorDeleted: true },
+          });
+          return { action: "deleted" as const, externalKey };
+        }
+        data = after.data;
+      } else {
+        data = before.data;
+      }
+      requestLog.set({ issue: { restoredDuringDelete: true } });
     }
 
     const existing = await issueIndex.get({ externalKey, organizationId });
@@ -58,12 +83,18 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
     const contentHash = computeSha256(embedText);
     const now = Date.now();
 
-    // Content unchanged since the last index: no re-embed needed. Refresh the
-    // stored state (and updatedAt) on the existing point in place.
+    // Content unchanged since the last index: no re-embed needed. Refresh all
+    // mutable payload fields on the existing point in place. Null clears stale
+    // optional metadata when the mirror no longer provides it.
     if (existing && existing.contentHash === contentHash) {
       await issueIndex.patch(
         { externalKey, organizationId },
-        { state: data.state, updatedAt: now }
+        {
+          containerLabel: data.containerLabel ?? null,
+          shortId: data.shortId ?? null,
+          state: data.state,
+          updatedAt: now,
+        }
       );
       requestLog.set({
         outcome: {
@@ -84,12 +115,14 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
 
     const payload: IssuePayload = {
       contentHash,
+      containerLabel: data.containerLabel,
       externalEntityId: data.externalEntityId,
       externalKey,
       number: data.number,
       organizationId,
       provider: data.provider,
       repoFullName: data.repoFullName,
+      shortId: data.shortId,
       state: data.state,
       title: data.title,
       updatedAt: now,

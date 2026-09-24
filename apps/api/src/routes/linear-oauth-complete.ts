@@ -1,6 +1,5 @@
 import { createHash, timingSafeEqual } from "node:crypto";
 
-import { createServerDB } from "@live-state/sync/server";
 import type { Request, Response } from "express";
 import { z } from "zod";
 
@@ -8,8 +7,7 @@ import {
   lockOwnedIntegration,
   writeIntegrationCredentialInTransaction,
 } from "../lib/integration-credential";
-import { schema } from "../live-state/schema";
-import { storage } from "../live-state/storage";
+import { integrationCredentialStorage } from "../lib/integration-credential-storage";
 
 const bodySchema = z.object({
   credential: z.object({
@@ -49,8 +47,8 @@ const stateMatches = (provided: string, expectedHash: string): boolean =>
   );
 
 export const completeLinearOAuthRoute = async (req: Request, res: Response) => {
-  const expectedSecret = process.env.DISCORD_BOT_KEY;
-  const providedSecret = req.header("x-discord-bot-key");
+  const expectedSecret = process.env.CONNECTOR_HOST_SECRET;
+  const providedSecret = req.header("x-connector-host-key");
   if (
     !(expectedSecret && providedSecret) ||
     !secretsMatch(providedSecret, expectedSecret)
@@ -65,7 +63,7 @@ export const completeLinearOAuthRoute = async (req: Request, res: Response) => {
   }
 
   try {
-    const credentialDb = createServerDB(storage, schema);
+    const credentialDb = integrationCredentialStorage;
     const outcome = await credentialDb.transaction(async ({ trx }) => {
       const initialIntegration = await trx.integration
         .one(parsed.data.integrationId)
