@@ -29,10 +29,20 @@ const LINEAR_REQUEST_TIMEOUT_MS = 15_000;
 const CREDENTIAL_REFRESH_WINDOW_MS = 5 * 60_000;
 const CREDENTIAL_PERSIST_ATTEMPTS = 3;
 
+export interface LinearRequestOptions {
+  signal?: AbortSignal;
+}
+
+const requestSignal = (signal?: AbortSignal): AbortSignal =>
+  signal
+    ? AbortSignal.any([signal, AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS)])
+    : AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS);
+
 const requestCredential = async (
   environment: LinearClientEnvironment,
   body: unknown,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  options: LinearRequestOptions = {}
 ): Promise<Response> =>
   fetcher(
     `${environment.apiBaseUrl}/api/internal/integrations/linear/credential`,
@@ -44,7 +54,7 @@ const requestCredential = async (
       },
       method: "POST",
       redirect: "error",
-      signal: AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
+      signal: requestSignal(options.signal),
     }
   );
 
@@ -52,19 +62,22 @@ const persistCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
   context: LinearCredentialContext,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  options: LinearRequestOptions = {}
 ): Promise<boolean> => {
   for (let attempt = 0; attempt < CREDENTIAL_PERSIST_ATTEMPTS; attempt++) {
     try {
       const response = await requestCredential(
         environment,
         { credential: context.credential, integrationId, operation: "write" },
-        fetcher
+        fetcher,
+        options
       );
       if (response.ok) {
         return true;
       }
-    } catch {
+    } catch (error) {
+      if (options.signal?.aborted) throw error;
       // A later attempt may succeed; retain the refreshed value if the broker
       // remains unavailable after the bounded retry window.
     }
@@ -79,7 +92,8 @@ const persistCredential = async (
 const refreshLinearCredential = async (
   context: LinearCredentialContext,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext> => {
   const refreshResponse = await fetcher("https://api.linear.app/oauth/token", {
     body: new URLSearchParams({
@@ -91,7 +105,7 @@ const refreshLinearCredential = async (
     headers: { "content-type": "application/x-www-form-urlencoded" },
     method: "POST",
     redirect: "error",
-    signal: AbortSignal.timeout(LINEAR_REQUEST_TIMEOUT_MS),
+    signal: requestSignal(options.signal),
   });
   if (!refreshResponse.ok) throw new Error("LINEAR_TOKEN_REFRESH_FAILED");
   const refreshed = z
@@ -126,9 +140,18 @@ const persistOrRemember = async (
   integrationId: string,
   context: LinearCredentialContext,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext> => {
-  if (await persistCredential(integrationId, environment, context, fetcher)) {
+  if (
+    await persistCredential(
+      integrationId,
+      environment,
+      context,
+      fetcher,
+      options
+    )
+  ) {
     pendingCredentials.delete(integrationId);
   } else {
     pendingCredentials.set(integrationId, context);
@@ -140,18 +163,26 @@ const loadPendingCredential = async (
   integrationId: string,
   pending: LinearCredentialContext,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch
+  fetcher: typeof fetch,
+  options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext> => {
   const current = isCredentialUsable(pending)
     ? pending
-    : await refreshLinearCredential(pending, environment, fetcher);
-  return persistOrRemember(integrationId, current, environment, fetcher);
+    : await refreshLinearCredential(pending, environment, fetcher, options);
+  return persistOrRemember(
+    integrationId,
+    current,
+    environment,
+    fetcher,
+    options
+  );
 };
 
 const loadLinearCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext> => {
   const pending = pendingCredentials.get(integrationId);
   let response: Response;
@@ -159,7 +190,8 @@ const loadLinearCredential = async (
     response = await requestCredential(
       environment,
       { integrationId, operation: "read" },
-      fetcher
+      fetcher,
+      options
     );
   } catch (error) {
     if (pending) {
@@ -167,7 +199,8 @@ const loadLinearCredential = async (
         integrationId,
         pending,
         environment,
-        fetcher
+        fetcher,
+        options
       );
     }
     throw error;
@@ -179,7 +212,8 @@ const loadLinearCredential = async (
         integrationId,
         pending,
         environment,
-        fetcher
+        fetcher,
+        options
       );
     }
     pendingCredentials.delete(integrationId);
@@ -198,19 +232,36 @@ const loadLinearCredential = async (
     return parsed;
   }
 
-  const refreshed = await refreshLinearCredential(parsed, environment, fetcher);
-  return persistOrRemember(integrationId, refreshed, environment, fetcher);
+  const refreshed = await refreshLinearCredential(
+    parsed,
+    environment,
+    fetcher,
+    options
+  );
+  return persistOrRemember(
+    integrationId,
+    refreshed,
+    environment,
+    fetcher,
+    options
+  );
 };
 
 export const getLinearCredential = (
   integrationId: string,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch = fetch,
+  options: LinearRequestOptions = {}
 ): Promise<LinearCredentialContext> => {
   const active = credentialLoads.get(integrationId);
   if (active) return active;
 
-  const load = loadLinearCredential(integrationId, environment, fetcher);
+  const load = loadLinearCredential(
+    integrationId,
+    environment,
+    fetcher,
+    options
+  );
   credentialLoads.set(integrationId, load);
   const clear = () => {
     if (credentialLoads.get(integrationId) === load) {

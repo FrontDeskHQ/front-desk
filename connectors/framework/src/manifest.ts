@@ -73,6 +73,7 @@ export const linearManifest: ConnectorManifest = {
   capabilities: ["issue-tracker"],
   defaultBaseUrl: "http://localhost:3336/linear",
   supportsConnectionProbe: true,
+  supportsIssueCreation: true,
   type: "linear",
 };
 

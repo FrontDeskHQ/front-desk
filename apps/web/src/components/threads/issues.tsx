@@ -197,9 +197,19 @@ export function IssuesSection({
     },
     onError: (error) => {
       console.error("Failed to create issue:", error);
-      toast.error(
+      const reason =
         error instanceof Error &&
-          error.message.includes("CREATE_OUTCOME_UNKNOWN")
+        "details" in error &&
+        typeof error.details === "object" &&
+        error.details !== null &&
+        "reason" in error.details &&
+        typeof error.details.reason === "string"
+          ? error.details.reason
+          : error instanceof Error
+            ? error.message
+            : undefined;
+      toast.error(
+        reason === "CREATE_OUTCOME_UNKNOWN" || reason === "CONNECTOR_TIMEOUT"
           ? "Creation outcome unknown. Check your issue tracker before trying again."
           : "Failed to create issue"
       );

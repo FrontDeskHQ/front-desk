@@ -119,10 +119,106 @@ describe(createLinearConnector, () => {
     });
 
     expect(result).toStrictEqual({
-      body: { error: "TEAM_NOT_CONNECTED" },
+      body: { error: "REPOSITORY_NOT_CONNECTED" },
       status: 400,
     });
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("maps a provider-declared create failure to a bad gateway", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "access-token",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "refresh-token",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer-id",
+          },
+          organizationId: "organization-id",
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          data: { issueCreate: { issue: null, success: false } },
+        })
+      );
+    const connector = createLinearConnector({
+      environment: {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        connectorSecret: "connector-secret",
+      },
+      fetcher,
+    });
+
+    const result = await connector.invoke({
+      capability: "issue-tracker",
+      config,
+      integrationId: "integration-id",
+      method: "create",
+      payload: {
+        body: "Details",
+        target: { teamId: "team-1" },
+        title: "Broken settings",
+      },
+    });
+
+    expect(result).toStrictEqual({
+      body: { error: "LINEAR_CREATE_FAILED" },
+      status: 502,
+    });
+  });
+
+  it("maps a GraphQL error response to a bad gateway", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "access-token",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "refresh-token",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer-id",
+          },
+          organizationId: "organization-id",
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({ errors: [{ message: "denied" }] })
+      );
+    const connector = createLinearConnector({
+      environment: {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client-id",
+        clientSecret: "client-secret",
+        connectorSecret: "connector-secret",
+      },
+      fetcher,
+    });
+
+    const result = await connector.invoke({
+      capability: "issue-tracker",
+      config,
+      integrationId: "integration-id",
+      method: "create",
+      payload: {
+        body: "Details",
+        target: { teamId: "team-1" },
+        title: "Broken settings",
+      },
+    });
+
+    expect(result).toStrictEqual({
+      body: { error: "LINEAR_CREATE_FAILED" },
+      status: 502,
+    });
   });
 
   it("returns an unknown outcome without retrying an ambiguous timeout", async () => {

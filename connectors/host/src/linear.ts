@@ -38,6 +38,8 @@ const CREATE_MUTATION = `mutation FrontDeskIssueCreate($input: IssueCreateInput!
   }
 }`;
 
+const LINEAR_CREATE_TIMEOUT_MS = 8_000;
+
 export interface LinearConnectorDependencies {
   environment?: LinearClientEnvironment;
   fetcher?: typeof fetch;
@@ -87,14 +89,16 @@ export const createLinearConnector = (
       return { body: { error: "INVALID_CREATE_REQUEST" }, status: 400 };
     }
     if (!parsedConfig.data.teams.some((team) => team.id === teamId.data)) {
-      return { body: { error: "TEAM_NOT_CONNECTED" }, status: 400 };
+      return { body: { error: "REPOSITORY_NOT_CONNECTED" }, status: 400 };
     }
 
     try {
+      const timeoutSignal = AbortSignal.timeout(LINEAR_CREATE_TIMEOUT_MS);
       const { credential } = await getLinearCredential(
         integrationId,
         dependencies.environment,
-        dependencies.fetcher
+        dependencies.fetcher,
+        { signal: timeoutSignal }
       );
       const raw = await linearGraphql<unknown>(
         credential.accessToken,
@@ -107,7 +111,7 @@ export const createLinearConnector = (
           },
         },
         dependencies.fetcher,
-        { signal: AbortSignal.timeout(10_000) }
+        { signal: timeoutSignal }
       );
       const created = createResponseSchema.parse(raw).issueCreate;
       if (!(created.success && created.issue)) {
