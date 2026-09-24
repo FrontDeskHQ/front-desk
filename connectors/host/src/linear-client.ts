@@ -136,25 +136,60 @@ const persistOrRemember = async (
   return context;
 };
 
+const loadPendingCredential = async (
+  integrationId: string,
+  pending: LinearCredentialContext,
+  environment: LinearClientEnvironment,
+  fetcher: typeof fetch
+): Promise<LinearCredentialContext> => {
+  const current = isCredentialUsable(pending)
+    ? pending
+    : await refreshLinearCredential(pending, environment, fetcher);
+  return persistOrRemember(integrationId, current, environment, fetcher);
+};
+
 const loadLinearCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
   fetcher: typeof fetch = fetch
 ): Promise<LinearCredentialContext> => {
   const pending = pendingCredentials.get(integrationId);
-  if (pending) {
-    const current = isCredentialUsable(pending)
-      ? pending
-      : await refreshLinearCredential(pending, environment, fetcher);
-    return persistOrRemember(integrationId, current, environment, fetcher);
+  let response: Response;
+  try {
+    response = await requestCredential(
+      environment,
+      { integrationId, operation: "read" },
+      fetcher
+    );
+  } catch (error) {
+    if (pending) {
+      return loadPendingCredential(
+        integrationId,
+        pending,
+        environment,
+        fetcher
+      );
+    }
+    throw error;
   }
 
-  const response = await requestCredential(
-    environment,
-    { integrationId, operation: "read" },
-    fetcher
-  );
-  if (!response.ok) throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
+  if (!response.ok) {
+    if (response.status !== 404 && pending) {
+      return loadPendingCredential(
+        integrationId,
+        pending,
+        environment,
+        fetcher
+      );
+    }
+    pendingCredentials.delete(integrationId);
+    throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
+  }
+
+  // A successful broker read is authoritative. A pending value can be left
+  // behind by a failed persistence attempt, but it must never overwrite a
+  // credential that was replaced by a later OAuth completion.
+  pendingCredentials.delete(integrationId);
   const parsed = z
     .object({ credential: credentialSchema, organizationId: z.string() })
     .parse(await response.json());

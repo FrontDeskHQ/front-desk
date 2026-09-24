@@ -11,6 +11,8 @@ const webhookSchema = z.object({
   type: z.string(),
   webhookTimestamp: z.number(),
 });
+const issueWebhookDataSchema = z.object({ id: z.string().min(1) });
+const LINEAR_WEBHOOK_MAX_AGE_MS = 60_000;
 
 export type LinearWebhookEvent = z.infer<typeof webhookSchema>;
 
@@ -31,8 +33,19 @@ interface LinearWebhookJobData {
 const LINEAR_WEBHOOK_QUEUE = "linear-webhook";
 const LINEAR_WEBHOOK_JOB = "process-webhook";
 
-export const parseLinearWebhook = (rawBody: string): LinearWebhookEvent =>
-  webhookSchema.parse(JSON.parse(rawBody));
+export const parseLinearWebhook = (rawBody: string): LinearWebhookEvent => {
+  const event = webhookSchema.parse(JSON.parse(rawBody));
+  if (event.type === "Issue") {
+    issueWebhookDataSchema.parse(event.data);
+  }
+  return event;
+};
+
+export const isFreshLinearWebhook = (
+  event: LinearWebhookEvent,
+  now = Date.now()
+): boolean =>
+  Math.abs(now - event.webhookTimestamp) <= LINEAR_WEBHOOK_MAX_AGE_MS;
 
 export const verifyLinearWebhook = (
   rawBody: string,
@@ -54,7 +67,6 @@ export const handleLinearWebhook = async (
   dependencies: LinearWebhookDependencies
 ): Promise<void> => {
   const event = parseLinearWebhook(rawBody);
-  if (Math.abs(Date.now() - event.webhookTimestamp) > 60_000) return;
   if (event.type !== "Issue") return;
 
   const integrations =
@@ -77,7 +89,7 @@ export const handleLinearWebhook = async (
   const matchingIntegrations = integrations.filter(matchesWorkspace);
   if (matchingIntegrations.length === 0) return;
 
-  const issue = z.object({ id: z.string() }).parse(event.data);
+  const issue = issueWebhookDataSchema.parse(event.data);
   await Promise.all(
     matchingIntegrations.map(async (integration) => {
       const latest = await dependencies.fetchClient.query.integration.byId({
@@ -120,13 +132,17 @@ export const createLinearWebhookQueue = (
     },
     { concurrency: 4 }
   );
+  worker.on("error", (error) => {
+    console.error("[Linear] Webhook worker error:", error);
+  });
 
   return {
     close: async () => {
       await Promise.all([worker.close(), queue.close()]);
     },
     enqueue: async (rawBody: string) => {
-      parseLinearWebhook(rawBody);
+      const event = parseLinearWebhook(rawBody);
+      if (!isFreshLinearWebhook(event)) return null;
       const job = await queue.add(LINEAR_WEBHOOK_JOB, { rawBody });
       return job.id;
     },

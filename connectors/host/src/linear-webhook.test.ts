@@ -3,7 +3,12 @@ import { createHmac } from "node:crypto";
 import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { describe, expect, it, vi } from "vitest";
 
-import { handleLinearWebhook, verifyLinearWebhook } from "./linear-webhook";
+import {
+  handleLinearWebhook,
+  isFreshLinearWebhook,
+  parseLinearWebhook,
+  verifyLinearWebhook,
+} from "./linear-webhook";
 
 describe(verifyLinearWebhook, () => {
   it("accepts only the HMAC of the exact raw request body", () => {
@@ -128,15 +133,17 @@ describe(handleLinearWebhook, () => {
     expect(dependencies.syncIssue).not.toHaveBeenCalled();
   });
 
-  it("drops stale signed events before processing them", async () => {
-    const dependencies = webhookDependencies();
+  it("accepts only fresh events at queue ingress", () => {
+    const stale = parseLinearWebhook(event({ webhookTimestamp: 1_000 }));
+    const fresh = parseLinearWebhook(event({ webhookTimestamp: 59_000 }));
 
-    await handleLinearWebhook(
-      event({ webhookTimestamp: Date.now() - 61_000 }),
-      dependencies
+    expect(isFreshLinearWebhook(stale, 61_001)).toBeFalsy();
+    expect(isFreshLinearWebhook(fresh, 61_001)).toBeTruthy();
+  });
+
+  it("rejects an Issue event without an id before enqueueing", () => {
+    expect(() => parseLinearWebhook(event({ data: { id: "" } }))).toThrow(
+      "Too small"
     );
-
-    expect(dependencies.syncIssue).not.toHaveBeenCalled();
-    expect(dependencies.removeIssue).not.toHaveBeenCalled();
   });
 });

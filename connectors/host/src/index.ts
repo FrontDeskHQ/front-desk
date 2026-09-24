@@ -81,6 +81,21 @@ setInterval(
   24 * 60 * 60 * 1000
 ).unref();
 
+let shuttingDown = false;
+const shutdown = async () => {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  try {
+    await linearWebhookQueue?.close();
+  } catch (error) {
+    console.error("[Linear] Failed to close webhook queue:", error);
+  }
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
+
 console.log(`Connector host listening on port ${port}`);
 
 export type App = typeof app;

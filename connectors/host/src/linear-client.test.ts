@@ -123,7 +123,19 @@ describe(getLinearCredential, () => {
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
       .mockResolvedValueOnce(new Response(null, { status: 503 }))
-      .mockResolvedValueOnce(new Response(null, { status: 204 }));
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "usable-access",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "rotated-refresh",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer",
+          },
+          organizationId: "organization-2",
+        })
+      );
     const error = vi.spyOn(console, "error").mockReturnValue(undefined);
 
     const result = await getLinearCredential(
@@ -158,11 +170,88 @@ describe(getLinearCredential, () => {
       fetcher
     );
 
-    expect(recovered).toBe(result);
+    expect(recovered).not.toBe(result);
     expect(
       fetcher.mock.calls.filter(([url]) =>
         String(url).includes("/linear/credential")
       )
     ).toHaveLength(5);
+  });
+
+  it("prefers a broker credential after a pending persistence failure", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "old-access",
+            expiresAt: "2020-01-01T00:00:00.000Z",
+            refreshToken: "old-refresh",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer",
+          },
+          organizationId: "organization-3",
+        })
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          access_token: "pending-access",
+          expires_in: 3600,
+          refresh_token: "pending-refresh",
+          scope: "read issues:create",
+          token_type: "Bearer",
+        })
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(
+        Response.json({
+          credential: {
+            accessToken: "oauth-access",
+            expiresAt: "2099-01-01T00:00:00.000Z",
+            refreshToken: "oauth-refresh",
+            scope: "read issues:create",
+            tokenType: "Bearer",
+            viewerId: "viewer",
+          },
+          organizationId: "organization-3",
+        })
+      );
+
+    const environment = {
+      apiBaseUrl: "https://api.frontdesk.test",
+      clientId: "client",
+      clientSecret: "secret",
+      connectorSecret: "connector",
+    };
+
+    const first = await getLinearCredential(
+      "integration-3",
+      environment,
+      fetcher
+    );
+    const second = await getLinearCredential(
+      "integration-3",
+      environment,
+      fetcher
+    );
+
+    expect({
+      firstAccessToken: first.credential.accessToken,
+      secondAccessToken: second.credential.accessToken,
+      refreshes: fetcher.mock.calls.filter(
+        ([url]) => url === "https://api.linear.app/oauth/token"
+      ).length,
+      writes: fetcher.mock.calls.filter(([, init]) =>
+        String(init?.body).includes('"operation":"write"')
+      ).length,
+    }).toStrictEqual({
+      firstAccessToken: "pending-access",
+      refreshes: 1,
+      secondAccessToken: "oauth-access",
+      writes: 3,
+    });
   });
 });

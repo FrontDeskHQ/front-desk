@@ -238,6 +238,17 @@ describe(createConnectorHost, () => {
       webhookRequest("{}", "wrong-secret")
     );
     const invalid = await webhookApp.handle(webhookRequest("{"));
+    const invalidIssue = await webhookApp.handle(
+      webhookRequest(
+        JSON.stringify({
+          action: "update",
+          data: {},
+          organizationId: "workspace-1",
+          type: "Issue",
+          webhookTimestamp: Date.now(),
+        })
+      )
+    );
     const acceptedBody = JSON.stringify({
       action: "update",
       data: { id: "issue-1" },
@@ -253,11 +264,13 @@ describe(createConnectorHost, () => {
 
     expect({
       acceptedStatus: accepted.status,
+      invalidIssueStatus: invalidIssue.status,
       invalidStatus: invalid.status,
       processingStatus: processingFailure.status,
       unauthorizedStatus: unauthorized.status,
     }).toStrictEqual({
       acceptedStatus: 200,
+      invalidIssueStatus: 400,
       invalidStatus: 400,
       processingStatus: 500,
       unauthorizedStatus: 401,
@@ -280,7 +293,7 @@ describe(createConnectorHost, () => {
       acceptedBody: { ok: true },
       enqueuedBody: acceptedBody,
       enqueueCalls: 2,
-      errorCalls: 2,
+      errorCalls: 3,
       processingFailureBody: { error: "WEBHOOK_PROCESSING_FAILED" },
       syncCalls: 0,
       unauthorizedBody: { error: "INVALID_SIGNATURE" },
