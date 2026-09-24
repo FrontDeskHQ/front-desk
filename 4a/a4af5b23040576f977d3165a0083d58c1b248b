@@ -1,0 +1,19 @@
+connectors/host/src/linear-webhook.ts
+  s_2577b45ecb94e9::t_d8bd76066b2f69 45,58-64,69-73,77,87
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "4aa4af5b23040576f977d3165a0083d58c1b248b",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
