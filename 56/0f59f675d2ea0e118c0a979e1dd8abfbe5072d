@@ -1,0 +1,38 @@
+apps/worker/src/lib/respan.ts
+  s_cbd64f12f75f27::t_44a56d68a87baf 88-101
+apps/worker/.env.local.example
+  s_cbd64f12f75f27::t_a484f0fdf2ab3d 5,7-8
+apps/api/src/lib/ai/jev.ts
+  s_cbd64f12f75f27::t_6b7bf89329bca8 111,118,120
+  s_cbd64f12f75f27::t_6a781e31f4ab22 1-40,45-110,112-117,119,121-199
+  s_cbd64f12f75f27::t_34ead6a96a84d1 41-44
+apps/api/src/lib/ai/jev.test.ts
+  s_cbd64f12f75f27::t_515bce3c0720c5 35,41-43,48,51-53,57-62,67,81-83,87,94-96,109-112,117-119,122-125
+  s_cbd64f12f75f27::t_7f1b511f0793f6 1-34,44-47,49-50,54-56,63-66,68-80,84-86,88-93,97-108,113-116,120-121,126-131,136-142
+  s_cbd64f12f75f27::t_34ead6a96a84d1 36-40,132-135
+apps/api/.env.local.example
+  s_cbd64f12f75f27::t_e6bdae3fdee4c6 31,33-34
+apps/api/package.json
+  s_cbd64f12f75f27::t_e0ac0a213d18d8 35-39
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "560f59f675d2ea0e118c0a979e1dd8abfbe5072d",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_cbd64f12f75f27": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "fbb33ce4-72a3-47b8-b675-2549947e7e1e",
+        "model": "grok-4.7"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
