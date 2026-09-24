@@ -96,6 +96,41 @@ const externalEntityFields = z.object({
 });
 
 export default privateRoute.withProcedures(({ mutation, query }) => ({
+  /** Current issue-index payload used to make queued deletes race-safe. */
+  issueIndexSnapshot: query(
+    z.object({ externalKey: z.string(), organizationId: z.string() })
+  ).handler(async ({ req, db }) => {
+    requireInternalApiKey(req.context);
+    const entity = Object.values(
+      await db.find(schema.externalEntity, {
+        where: {
+          externalKey: req.input.externalKey,
+          organizationId: req.input.organizationId,
+        },
+      })
+    )[0];
+    if (!entity || entity.deletedAt || entity.type !== "issue") {
+      return { deleted: true as const };
+    }
+    return {
+      data: {
+        body: entity.body,
+        containerLabel: entity.containerLabel ?? undefined,
+        externalEntityId: entity.id,
+        externalKey: entity.externalKey,
+        number: entity.number,
+        organizationId: entity.organizationId,
+        provider: entity.provider,
+        repoFullName: entity.repoFullName,
+        shortId: entity.shortId ?? undefined,
+        state: entity.state,
+        title: entity.title,
+        url: entity.url,
+      } satisfies IssueIndexJobData,
+      deleted: false as const,
+    };
+  }),
+
   /** Provider reconciliation inventory; internal connectors only. */
   listForIntegration: query(
     z.object({
@@ -721,7 +756,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         body: req.input.body,
         state: req.input.state,
       };
-      enqueueIssueIndex(jobData).catch((error) => {
+      enqueueIssueIndex(jobData, {
+        followUp: Boolean(write.previous?.deletedAt),
+      }).catch((error) => {
         console.error(
           `Failed to enqueue issue index for ${externalKey}:`,
           error
