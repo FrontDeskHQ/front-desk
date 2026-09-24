@@ -11,6 +11,7 @@ import {
   getConnectorInvokeSecret,
 } from "../../lib/connector-registry";
 import { errors } from "../../lib/errors";
+import { lockOwnedIntegration } from "../../lib/integration-credential";
 import { enqueueGithubBackfill } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
@@ -269,6 +270,11 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const state = randomBytes(32).toString("hex");
     const now = new Date();
     await db.transaction(async ({ trx }) => {
+      await lockOwnedIntegration(
+        trx,
+        integration.organizationId,
+        integration.id
+      );
       const existing = (
         await trx.integrationOAuthState
           .where({ integrationId: integration.id })

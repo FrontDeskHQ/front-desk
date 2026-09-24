@@ -72,6 +72,7 @@ const database = ({
     type: string;
     updatedAt: Date;
   },
+  currentIntegration = integration,
   pendingState = {
     consumedAt: null,
     expiresAt: new Date("2099-01-01T00:00:00.000Z"),
@@ -86,7 +87,8 @@ const database = ({
       one: vi.fn<(id: string) => unknown>().mockReturnValue({
         get: vi
           .fn<() => Promise<typeof integration>>()
-          .mockResolvedValue(integration),
+          .mockResolvedValueOnce(integration)
+          .mockResolvedValue(currentIntegration),
       }),
       update: integrationUpdate,
     },
@@ -154,7 +156,7 @@ describe(completeLinearOAuthRoute, () => {
     });
   });
 
-  it("rejects a mismatched or consumed server-side state", async () => {
+  it("rejects a mismatched server-side state", async () => {
     const res = response();
     database({
       pendingState: {
@@ -162,6 +164,24 @@ describe(completeLinearOAuthRoute, () => {
         expiresAt: new Date("2099-01-01T00:00:00.000Z"),
         id: "pending-1",
         stateHash: "not-the-state-hash",
+      },
+    });
+
+    await completeLinearOAuthRoute(request(), res as never);
+
+    expect(res.status).toHaveBeenCalledWith(403);
+    expect(res.json).toHaveBeenCalledWith({ error: "STATE_MISMATCH" });
+    expect(mocks.writeCredential).not.toHaveBeenCalled();
+  });
+
+  it("rejects an already consumed server-side state", async () => {
+    const res = response();
+    database({
+      pendingState: {
+        consumedAt: new Date("2026-09-23T00:00:00.000Z"),
+        expiresAt: new Date("2099-01-01T00:00:00.000Z"),
+        id: "pending-1",
+        stateHash,
       },
     });
 
@@ -191,5 +211,28 @@ describe(completeLinearOAuthRoute, () => {
       expect.objectContaining({ consumedAt: expect.any(Date) })
     );
     expect(res.status).toHaveBeenCalledWith(204);
+  });
+
+  it("preserves config changes made before the integration lock", async () => {
+    const res = response();
+    const { integrationUpdate } = database({
+      currentIntegration: {
+        configStr: JSON.stringify({ customSetting: "current" }),
+        id: "integration-1",
+        organizationId: "organization-1",
+        type: "linear",
+        updatedAt: new Date(),
+      },
+    });
+
+    await completeLinearOAuthRoute(request(), res as never);
+
+    const update = integrationUpdate.mock.calls[0]?.[1] as {
+      configStr: string;
+    };
+    expect(JSON.parse(update.configStr)).toMatchObject({
+      customSetting: "current",
+      workspaceId: "workspace-1",
+    });
   });
 });

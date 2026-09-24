@@ -67,18 +67,24 @@ export const completeLinearOAuthRoute = async (req: Request, res: Response) => {
   try {
     const credentialDb = createServerDB(storage, schema);
     const outcome = await credentialDb.transaction(async ({ trx }) => {
-      const integration = await trx.integration
+      const initialIntegration = await trx.integration
         .one(parsed.data.integrationId)
         .get();
-      if (!integration || integration.type !== "linear") {
+      if (!initialIntegration || initialIntegration.type !== "linear") {
         return { error: "INTEGRATION_NOT_FOUND" as const, status: 404 };
       }
 
       await lockOwnedIntegration(
         trx,
-        integration.organizationId,
-        integration.id
+        initialIntegration.organizationId,
+        initialIntegration.id
       );
+      const integration = await trx.integration
+        .one(initialIntegration.id)
+        .get();
+      if (!integration || integration.type !== "linear") {
+        return { error: "INTEGRATION_NOT_FOUND" as const, status: 404 };
+      }
       const pendingState = (
         await trx.integrationOAuthState
           .where({ integrationId: integration.id })
