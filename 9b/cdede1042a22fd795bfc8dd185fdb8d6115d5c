@@ -1,0 +1,47 @@
+connectors/host/src/index.ts
+  s_2577b45ecb94e9::t_b0284dfe843a61 14,19-24,45,51-64
+connectors/host/src/linear-sync.test.ts
+  s_2577b45ecb94e9::t_6890d5ec5c5a09 67,148-151
+  s_2577b45ecb94e9::t_0900d1cff0b829 68-83,111-126,145,152-153
+connectors/host/src/linear-webhook.ts
+  s_2577b45ecb94e9::t_6f4cf1c384141a 42-45,54-55,60-66
+apps/api/src/live-state/router/external-entity.ts
+  s_2577b45ecb94e9::t_01829781ff070b 101-106,116-119,121-139,150-156,159-174
+  s_2577b45ecb94e9::t_7ab014e7b0eb60 82,100,107-110,113,115,145-149,157-158,175,599-605,607-625,627-630,642-649,655,665,668
+connectors/host/src/linear-sync.ts
+  s_2577b45ecb94e9::t_30ae8b87754835 115,117-143,145,151,157,161-172,175,188-190,192-197,212-214,235,238-242,262-269
+  s_2577b45ecb94e9::t_d2977c31bd8c15 158-160,215
+connectors/host/src/linear-client.test.ts
+  s_2577b45ecb94e9::t_50a48cfbed117f 93-142
+  s_2577b45ecb94e9::t_0900d1cff0b829 31-44,68-74
+  s_2577b45ecb94e9::t_42726151c9d675 77-80
+  s_2577b45ecb94e9::t_6890d5ec5c5a09 57-62,75-76,81-91
+connectors/host/.env.local.example
+  s_2577b45ecb94e9::t_2f0b4c29760619 10
+connectors/host/src/host.test.ts
+  s_2577b45ecb94e9::t_6890d5ec5c5a09 247-255
+  s_2577b45ecb94e9::t_0900d1cff0b829 24,29,232-234,256-258
+connectors/host/src/linear-webhook.test.ts
+  s_2577b45ecb94e9::t_50a48cfbed117f 66-70,96-99,101-104
+  s_2577b45ecb94e9::t_cf58622f05e1ed 100
+  s_2577b45ecb94e9::t_0900d1cff0b829 32-51,55-62,90,95
+connectors/host/src/linear-client.ts
+  s_2577b45ecb94e9::t_2f0b4c29760619 43,79,145
+  s_2577b45ecb94e9::t_fc6c42b37ac444 27,44,80,105-109,146
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "9bcdede1042a22fd795bfc8dd185fdb8d6115d5c",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
