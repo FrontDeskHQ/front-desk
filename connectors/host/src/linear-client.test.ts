@@ -1,8 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getLinearCredential } from "./linear-client";
 
 describe(getLinearCredential, () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("serializes concurrent credential refreshes per integration", async () => {
     const fetcher = vi
       .fn<typeof fetch>()
@@ -139,6 +143,5 @@ describe(getLinearCredential, () => {
       errorCalls: 1,
       refreshToken: "rotated-refresh",
     });
-    error.mockRestore();
   });
 });

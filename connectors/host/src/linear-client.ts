@@ -82,11 +82,11 @@ const loadLinearCredential = async (
   if (!refreshResponse.ok) throw new Error("LINEAR_TOKEN_REFRESH_FAILED");
   const refreshed = z
     .object({
-      access_token: z.string(),
+      access_token: z.string().min(1),
       expires_in: z.number().positive(),
-      refresh_token: z.string(),
+      refresh_token: z.string().min(1),
       scope: z.union([z.string(), z.array(z.string())]),
-      token_type: z.string(),
+      token_type: z.string().min(1),
     })
     .parse(await refreshResponse.json());
   const credential: LinearCredential = {

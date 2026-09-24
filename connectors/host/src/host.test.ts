@@ -204,17 +204,19 @@ describe(createConnectorHost, () => {
     const syncIssue = vi
       .fn<() => Promise<void>>()
       .mockRejectedValue(new Error("upstream unavailable"));
+    const integration = {
+      configStr: JSON.stringify({ workspaceId: "workspace-1" }),
+      enabled: true,
+      id: "integration-1",
+      organizationId: "organization-1",
+    };
     const fetchClient = {
       query: {
         integration: {
-          listByType: vi.fn<() => Promise<unknown[]>>().mockResolvedValue([
-            {
-              configStr: JSON.stringify({ workspaceId: "workspace-1" }),
-              enabled: true,
-              id: "integration-1",
-              organizationId: "organization-1",
-            },
-          ]),
+          byId: vi.fn<() => Promise<unknown>>().mockResolvedValue(integration),
+          listByType: vi
+            .fn<() => Promise<unknown[]>>()
+            .mockResolvedValue([integration]),
         },
       },
     } as unknown as LiveStateFetchClient;
@@ -222,6 +224,7 @@ describe(createConnectorHost, () => {
       connectors: [linearConnector],
       linearSync: {
         fetchClient,
+        removeIssue: vi.fn<() => Promise<void>>(),
         syncIntegration: vi.fn<() => Promise<void>>(),
         syncIssue,
         webhookSecret: "webhook-secret",
@@ -260,6 +263,7 @@ describe(createConnectorHost, () => {
       error: "WEBHOOK_PROCESSING_FAILED",
     });
     expect(error).toHaveBeenCalledTimes(2);
+    expect(syncIssue).toHaveBeenCalledWith("integration-1", "issue-1");
     error.mockRestore();
   });
 });

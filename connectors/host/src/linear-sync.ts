@@ -144,6 +144,7 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
     await dependencies.fetchClient.mutate.externalEntity.upsert({
       integrationId,
       organizationId,
+      restoreDeleted: true,
       ...buildLinearIssueFields(issue),
     });
   };
@@ -240,6 +241,18 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
       syncIssueUnlocked(integrationId, issueId)
     );
 
+  const removeIssue = (
+    integrationId: string,
+    organizationId: string,
+    issueId: string
+  ) =>
+    runExclusive(integrationId, async () => {
+      await dependencies.fetchClient.mutate.externalEntity.softDelete({
+        externalKey: linearExternalKey(issueId),
+        organizationId,
+      });
+    });
+
   const syncAll = async () => {
     const integrations =
       await dependencies.fetchClient.query.integration.listByType({
@@ -270,5 +283,5 @@ export const createLinearSync = (dependencies: LinearSyncDependencies) => {
     }
   };
 
-  return { syncAll, syncIntegration, syncIssue, upsertIssue };
+  return { removeIssue, syncAll, syncIntegration, syncIssue, upsertIssue };
 };

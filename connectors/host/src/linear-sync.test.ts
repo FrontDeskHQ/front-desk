@@ -24,6 +24,44 @@ const issue = (overrides: Partial<LinearIssue> = {}): LinearIssue => ({
   ...overrides,
 });
 
+const syncIssueHarness = (upstreamIssue: LinearIssue | null) => {
+  const softDelete = vi.fn<() => Promise<string>>().mockResolvedValue("row-id");
+  const upsert = vi.fn<() => Promise<string>>().mockResolvedValue("row-id");
+  const fetchClient = {
+    mutate: { externalEntity: { softDelete, upsert } },
+  } as unknown as LiveStateFetchClient;
+  const fetcher = vi
+    .fn<typeof fetch>()
+    .mockResolvedValueOnce(
+      Response.json({
+        credential: {
+          accessToken: "token",
+          expiresAt: "2099-01-01T00:00:00.000Z",
+          refreshToken: "refresh",
+          scope: "read issues:create",
+          tokenType: "Bearer",
+          viewerId: "viewer",
+        },
+        organizationId: "frontdesk-org",
+      })
+    )
+    .mockResolvedValueOnce(Response.json({ data: { issue: upstreamIssue } }));
+  return {
+    softDelete,
+    sync: createLinearSync({
+      environment: {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client",
+        clientSecret: "secret",
+        connectorSecret: "connector",
+      },
+      fetchClient,
+      fetcher,
+    }),
+    upsert,
+  };
+};
+
 describe(buildLinearIssueFields, () => {
   it("maps a Linear issue onto provider-neutral mirror fields", () => {
     expect(buildLinearIssueFields(issue())).toMatchObject({
@@ -69,7 +107,10 @@ describe(createLinearSync, () => {
         items: [
           { deletedAt: null, externalKey: "linear:missing", id: "row-1" },
         ],
-        nextCursor: "row-1",
+        nextCursor: {
+          idsAtTimestamp: ["row-1"],
+          lastSyncedAt: new Date("2026-09-21T12:00:00.000Z"),
+        },
       })
       .mockResolvedValueOnce({
         items: [
@@ -186,5 +227,31 @@ describe(createLinearSync, () => {
     await sync.syncAll();
 
     expect(fetcher).not.toHaveBeenCalled();
+  });
+
+  it("soft-deletes an archived issue returned by the webhook refetch", async () => {
+    const { softDelete, sync, upsert } = syncIssueHarness(
+      issue({ archivedAt: "2026-09-22T12:00:00.000Z" })
+    );
+
+    await sync.syncIssue("integration-archived", "linear-issue-id");
+
+    expect(softDelete).toHaveBeenCalledExactlyOnceWith({
+      externalKey: "linear:linear-issue-id",
+      organizationId: "frontdesk-org",
+    });
+    expect(upsert).not.toHaveBeenCalled();
+  });
+
+  it("soft-deletes an issue missing during the webhook refetch", async () => {
+    const { softDelete, sync, upsert } = syncIssueHarness(null);
+
+    await sync.syncIssue("integration-missing", "missing-id");
+
+    expect(softDelete).toHaveBeenCalledExactlyOnceWith({
+      externalKey: "linear:missing-id",
+      organizationId: "frontdesk-org",
+    });
+    expect(upsert).not.toHaveBeenCalled();
   });
 });

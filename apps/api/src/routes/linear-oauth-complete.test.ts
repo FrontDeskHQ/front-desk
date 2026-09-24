@@ -3,7 +3,6 @@ import { createHash } from "node:crypto";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  createServerDB: vi.fn<(...args: unknown[]) => unknown>(),
   credentialTransaction:
     vi.fn<
       (
@@ -14,9 +13,6 @@ const mocks = vi.hoisted(() => ({
   writeCredential: vi.fn<(...args: unknown[]) => Promise<void>>(),
 }));
 
-vi.mock(import("@live-state/sync/server"), () => ({
-  createServerDB: mocks.createServerDB,
-}));
 vi.mock(import("../lib/integration-credential"), () => ({
   lockOwnedIntegration: mocks.lockOwnedIntegration,
   writeIntegrationCredentialInTransaction: mocks.writeCredential,
@@ -26,7 +22,6 @@ vi.mock(import("../lib/integration-credential-storage"), () => ({
     transaction: mocks.credentialTransaction,
   },
 }));
-vi.mock(import("../live-state/storage"), () => ({ storage: {} }));
 
 import { completeLinearOAuthRoute } from "./linear-oauth-complete";
 
@@ -112,20 +107,10 @@ const database = ({
       }),
     },
   };
-  const db = {
-    transaction: vi.fn<
-      (
-        handler: (input: { trx: typeof trx }) => Promise<unknown>
-      ) => Promise<unknown>
-    >(async (handler: (input: { trx: typeof trx }) => Promise<unknown>) =>
-      handler({ trx })
-    ),
-  };
   mocks.credentialTransaction.mockImplementation(
     async (handler: (input: { trx: unknown }) => Promise<unknown>) =>
       handler({ trx })
   );
-  mocks.createServerDB.mockReturnValue(db);
   return { integrationUpdate, stateUpdate, trx };
 };
 
@@ -142,7 +127,7 @@ describe(completeLinearOAuthRoute, () => {
 
     expect(res.status).toHaveBeenCalledWith(401);
     expect(res.json).toHaveBeenCalledWith({ error: "UNAUTHORIZED" });
-    expect(mocks.createServerDB).not.toHaveBeenCalled();
+    expect(mocks.credentialTransaction).not.toHaveBeenCalled();
   });
 
   it("rejects a credential missing a required scope", async () => {
@@ -156,7 +141,7 @@ describe(completeLinearOAuthRoute, () => {
 
     expect(res.status).toHaveBeenCalledWith(400);
     expect(res.json).toHaveBeenCalledWith({ error: "INVALID_REQUEST" });
-    expect(mocks.createServerDB).not.toHaveBeenCalled();
+    expect(mocks.credentialTransaction).not.toHaveBeenCalled();
   });
 
   it("returns not found for an unknown integration", async () => {

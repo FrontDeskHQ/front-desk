@@ -87,6 +87,7 @@ const externalEntityFields = z.object({
   organizationId: z.string(),
   provider: z.string(),
   repoFullName: z.string(),
+  restoreDeleted: z.boolean().optional(),
   shortId: z.string().min(1),
   state: z.string(),
   title: z.string(),
@@ -601,6 +602,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       organizationId,
       externalKey,
       provider,
+      restoreDeleted = false,
       ...entityFields
     } = req.input;
     const now = new Date();
@@ -643,7 +645,9 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
         const existingUpdatedAt = existing.externalUpdatedAt.getTime();
         if (
           incomingUpdatedAt < existingUpdatedAt ||
-          (existing.deletedAt && incomingUpdatedAt <= existingUpdatedAt)
+          (existing.deletedAt &&
+            incomingUpdatedAt <= existingUpdatedAt &&
+            !restoreDeleted)
         ) {
           return { applied: false, id: existing.id, previous: existing };
         }

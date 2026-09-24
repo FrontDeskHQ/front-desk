@@ -29,6 +29,11 @@ export const handleLinearWebhook = async (
   rawBody: string,
   dependencies: {
     fetchClient: LiveStateFetchClient;
+    removeIssue: (
+      integrationId: string,
+      organizationId: string,
+      issueId: string
+    ) => Promise<void>;
     syncIssue: (integrationId: string, issueId: string) => Promise<void>;
   }
 ): Promise<void> => {
@@ -62,6 +67,14 @@ export const handleLinearWebhook = async (
         id: integration.id,
       });
       if (!latest || !matchesWorkspace(latest)) return;
+      if (event.action === "remove") {
+        await dependencies.removeIssue(
+          latest.id,
+          latest.organizationId,
+          issue.id
+        );
+        return;
+      }
       await dependencies.syncIssue(latest.id, issue.id);
     })
   );

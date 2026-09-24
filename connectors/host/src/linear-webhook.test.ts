@@ -28,6 +28,7 @@ const event = (overrides: Record<string, unknown> = {}) =>
   });
 
 const webhookDependencies = () => {
+  const removeIssue = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
   const syncIssue = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
   const integrations = [
     {
@@ -66,6 +67,7 @@ const webhookDependencies = () => {
   return {
     byId: fetchClient.query.integration.byId,
     fetchClient,
+    removeIssue,
     syncIssue,
   };
 };
@@ -87,12 +89,18 @@ describe(handleLinearWebhook, () => {
     );
   });
 
-  it("authoritatively re-syncs every matching integration on remove", async () => {
+  it("directly removes every matching integration without refetching", async () => {
     const dependencies = webhookDependencies();
 
     await handleLinearWebhook(event({ action: "remove" }), dependencies);
 
-    expect(dependencies.syncIssue).toHaveBeenCalledTimes(2);
+    expect(dependencies.removeIssue).toHaveBeenCalledTimes(2);
+    expect(dependencies.removeIssue).toHaveBeenCalledWith(
+      "integration-1",
+      "organization-1",
+      "issue-1"
+    );
+    expect(dependencies.syncIssue).not.toHaveBeenCalled();
   });
 
   it("skips a remove when the authoritative integration is no longer live", async () => {
@@ -101,7 +109,7 @@ describe(handleLinearWebhook, () => {
 
     await handleLinearWebhook(event({ action: "remove" }), dependencies);
 
-    expect(dependencies.syncIssue).not.toHaveBeenCalled();
+    expect(dependencies.removeIssue).not.toHaveBeenCalled();
   });
 
   it("acknowledges unrelated event types and unknown workspaces", async () => {

@@ -40,6 +40,7 @@ interface ConnectorHostOptions {
   linearOAuthEnvironment?: LinearOAuthEnvironment;
   linearSync?: {
     fetchClient: Parameters<typeof handleLinearWebhook>[1]["fetchClient"];
+    removeIssue: Parameters<typeof handleLinearWebhook>[1]["removeIssue"];
     syncIssue: Parameters<typeof handleLinearWebhook>[1]["syncIssue"];
     syncIntegration(integrationId: string): Promise<unknown>;
     webhookSecret?: string;
