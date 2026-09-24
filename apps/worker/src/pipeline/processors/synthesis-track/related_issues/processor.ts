@@ -50,16 +50,18 @@ export const relatedIssuesHintSpec: RetrievalHintSpec<
       .toSorted((a, b) => b.score - a.score)
       .slice(0, tuning.limit)
       .map((hit) => ({
-        containerLabel: hit.payload.containerLabel,
         externalKey: hit.payload.externalKey,
         issueId: hit.payload.externalEntityId,
         number: hit.payload.number,
         repoFullName: hit.payload.repoFullName,
         score: hit.score,
         state: hit.payload.state,
-        shortId: hit.payload.shortId,
         title: hit.payload.title,
         url: hit.payload.url,
+        ...(hit.payload.containerLabel
+          ? { containerLabel: hit.payload.containerLabel }
+          : {}),
+        ...(hit.payload.shortId ? { shortId: hit.payload.shortId } : {}),
       }));
     return issues.length > 0 ? { issues } : null;
   },
