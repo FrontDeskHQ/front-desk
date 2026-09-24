@@ -1,0 +1,24 @@
+apps/api/src/routes/linear-oauth-complete.test.ts
+  s_2577b45ecb94e9::t_0ac00ddaf1553d 159,177-184,237
+  s_2577b45ecb94e9::t_aa5649390b9d43 75,90-91,215-236
+apps/api/src/routes/linear-oauth-complete.ts
+  s_2577b45ecb94e9::t_0ac00ddaf1553d 70,73,79-80,82-87
+apps/api/src/live-state/router/integration.ts
+  s_2577b45ecb94e9::t_0ac00ddaf1553d 273-277
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "913eab915e13dd6bd4effc5b330b738ceb8815e2",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
