@@ -1,0 +1,66 @@
+apps/api/src/routes/linear-oauth-complete.test.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 120
+connectors/host/src/index.ts
+  s_b8bfc9e0d4b6ee::t_6b73f94700b931 8,38-45,50,54
+apps/api/src/index.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 35
+apps/worker/src/handlers/index-issue.test.ts
+  s_b8bfc9e0d4b6ee::t_a7edbba2ee412d 130
+  s_b8bfc9e0d4b6ee::t_aa943643cd05b6 1-2,111-122,127-129,131-154
+connectors/host/src/linear-client.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 43
+  s_b8bfc9e0d4b6ee::t_a7edbba2ee412d 148,166
+  s_b8bfc9e0d4b6ee::t_2789e01038ba7e 27,29-30,51,54-70,73-83,89,106-117,119-147,149-152,154,157-163,165,167
+connectors/host/src/host.test.ts
+  s_b8bfc9e0d4b6ee::t_d47aa15ca00e6a 205-207,229,241-249,251,255,260
+  s_b8bfc9e0d4b6ee::t_a7edbba2ee412d 204
+  s_b8bfc9e0d4b6ee::t_9ba43b99cc012c 265-286
+connectors/host/src/linear-client.test.ts
+  s_b8bfc9e0d4b6ee::t_a7edbba2ee412d 163-164
+  s_b8bfc9e0d4b6ee::t_debaf120edd0d7 123-126,149-162,165-166
+connectors/host/src/linear-webhook.test.ts
+  s_b8bfc9e0d4b6ee::t_d47aa15ca00e6a 27,130-140
+connectors/host/.env.local.example
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 4-5
+connectors/host/src/linear-oauth.test.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 80,156
+apps/api/src/routes/linear-oauth-complete.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 50-51
+apps/api/.env.local.example
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 7-9
+connectors/host/src/linear-oauth.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 45,171
+connectors/host/src/host.ts
+  s_b8bfc9e0d4b6ee::t_a7edbba2ee412d 18
+  s_b8bfc9e0d4b6ee::t_771bc739b9890d 19,42-43,128-129
+connectors/host/src/linear-webhook.ts
+  s_b8bfc9e0d4b6ee::t_a7edbba2ee412d 3
+  s_b8bfc9e0d4b6ee::t_9ace8eec3d5e8e 12,15-36,54,56-57,99-133
+apps/api/src/routes/linear-credential.ts
+  s_b8bfc9e0d4b6ee::t_0b628941a7d631 37-38
+apps/worker/src/lib/qdrant/issues.ts
+  s_b8bfc9e0d4b6ee::t_aa943643cd05b6 33,35
+apps/worker/src/handlers/index-issue.ts
+  s_b8bfc9e0d4b6ee::t_aa943643cd05b6 86-88,92-97
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e932dfa40fa35be319084068b7aa111f677c7539",
+  "prompts": {},
+  "humans": {
+    "h_79bcdd5201702b": {
+      "author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_b8bfc9e0d4b6ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d407-3d09-7593-b269-5541c7afb2c8",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
