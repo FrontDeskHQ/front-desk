@@ -1,7 +1,7 @@
-CONTEXT.md
-  s_808afbae2ff001::t_83744396b65734 39-42
 docs/adr/0019-one-evolving-thread-digest.md
   s_808afbae2ff001::t_83744396b65734 1-24
+CONTEXT.md
+  s_808afbae2ff001::t_83744396b65734 39-42
 ---
 {
   "schema_version": "authorship/3.0.0",
