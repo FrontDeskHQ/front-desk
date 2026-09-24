@@ -120,7 +120,10 @@ describe(getLinearCredential, () => {
           token_type: "Bearer",
         })
       )
-      .mockResolvedValueOnce(new Response(null, { status: 503 }));
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 503 }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }));
     const error = vi.spyOn(console, "error").mockReturnValue(undefined);
 
     const result = await getLinearCredential(
@@ -143,5 +146,23 @@ describe(getLinearCredential, () => {
       errorCalls: 1,
       refreshToken: "rotated-refresh",
     });
+
+    const recovered = await getLinearCredential(
+      "integration-2",
+      {
+        apiBaseUrl: "https://api.frontdesk.test",
+        clientId: "client",
+        clientSecret: "secret",
+        connectorSecret: "connector",
+      },
+      fetcher
+    );
+
+    expect(recovered).toBe(result);
+    expect(
+      fetcher.mock.calls.filter(([url]) =>
+        String(url).includes("/linear/credential")
+      )
+    ).toHaveLength(5);
   });
 });

@@ -30,9 +30,9 @@ export interface IssuePayload {
   externalEntityId: string;
   organizationId: string;
   provider: string;
-  containerLabel?: string;
+  containerLabel?: string | null;
   repoFullName: string;
-  shortId?: string;
+  shortId?: string | null;
   number: number;
   url: string;
   title: string;

@@ -34,8 +34,8 @@ const secretsMatch = (provided: string, expected: string): boolean => {
 };
 
 const fulfillLinearCredentialRoute = async (req: Request, res: Response) => {
-  const expectedSecret = process.env.DISCORD_BOT_KEY;
-  const providedSecret = req.header("x-discord-bot-key");
+  const expectedSecret = process.env.CONNECTOR_HOST_SECRET;
+  const providedSecret = req.header("x-connector-host-key");
   if (
     !(expectedSecret && providedSecret) ||
     !secretsMatch(providedSecret, expectedSecret)

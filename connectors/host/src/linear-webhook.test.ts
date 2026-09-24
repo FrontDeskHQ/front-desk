@@ -24,6 +24,7 @@ const event = (overrides: Record<string, unknown> = {}) =>
     data: { id: "issue-1" },
     organizationId: "workspace-1",
     type: "Issue",
+    webhookTimestamp: Date.now(),
     ...overrides,
   });
 
@@ -125,5 +126,17 @@ describe(handleLinearWebhook, () => {
       )
     ).resolves.toBeUndefined();
     expect(dependencies.syncIssue).not.toHaveBeenCalled();
+  });
+
+  it("drops stale signed events before processing them", async () => {
+    const dependencies = webhookDependencies();
+
+    await handleLinearWebhook(
+      event({ webhookTimestamp: Date.now() - 61_000 }),
+      dependencies
+    );
+
+    expect(dependencies.syncIssue).not.toHaveBeenCalled();
+    expect(dependencies.removeIssue).not.toHaveBeenCalled();
   });
 });

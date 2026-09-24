@@ -201,9 +201,10 @@ describe(createConnectorHost, () => {
   });
 
   it("distinguishes malformed webhooks from processing failures", async () => {
-    const syncIssue = vi
-      .fn<() => Promise<void>>()
-      .mockRejectedValue(new Error("upstream unavailable"));
+    const syncIssue = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const enqueueWebhook = vi
+      .fn<(rawBody: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const integration = {
       configStr: JSON.stringify({ workspaceId: "workspace-1" }),
       enabled: true,
@@ -225,6 +226,7 @@ describe(createConnectorHost, () => {
       linearSync: {
         fetchClient,
         removeIssue: vi.fn<() => Promise<void>>(),
+        enqueueWebhook,
         syncIntegration: vi.fn<() => Promise<void>>(),
         syncIssue,
         webhookSecret: "webhook-secret",
@@ -236,34 +238,53 @@ describe(createConnectorHost, () => {
       webhookRequest("{}", "wrong-secret")
     );
     const invalid = await webhookApp.handle(webhookRequest("{"));
+    const acceptedBody = JSON.stringify({
+      action: "update",
+      data: { id: "issue-1" },
+      organizationId: "workspace-1",
+      type: "Issue",
+      webhookTimestamp: Date.now(),
+    });
+    const accepted = await webhookApp.handle(webhookRequest(acceptedBody));
+    enqueueWebhook.mockRejectedValueOnce(new Error("queue unavailable"));
     const processingFailure = await webhookApp.handle(
-      webhookRequest(
-        JSON.stringify({
-          action: "update",
-          data: { id: "issue-1" },
-          organizationId: "workspace-1",
-          type: "Issue",
-        })
-      )
+      webhookRequest(acceptedBody)
     );
 
     expect({
+      acceptedStatus: accepted.status,
       invalidStatus: invalid.status,
       processingStatus: processingFailure.status,
       unauthorizedStatus: unauthorized.status,
     }).toStrictEqual({
+      acceptedStatus: 200,
       invalidStatus: 400,
       processingStatus: 500,
       unauthorizedStatus: 401,
     });
-    await expect(unauthorized.json()).resolves.toStrictEqual({
-      error: "INVALID_SIGNATURE",
+    const [unauthorizedBody, processingFailureBody, acceptedBodyResponse] =
+      await Promise.all([
+        unauthorized.json(),
+        processingFailure.json(),
+        accepted.json(),
+      ]);
+    expect({
+      acceptedBody: acceptedBodyResponse,
+      enqueuedBody: enqueueWebhook.mock.calls[0]?.[0],
+      enqueueCalls: enqueueWebhook.mock.calls.length,
+      errorCalls: error.mock.calls.length,
+      processingFailureBody,
+      syncCalls: syncIssue.mock.calls.length,
+      unauthorizedBody,
+    }).toStrictEqual({
+      acceptedBody: { ok: true },
+      enqueuedBody: acceptedBody,
+      enqueueCalls: 2,
+      errorCalls: 2,
+      processingFailureBody: { error: "WEBHOOK_PROCESSING_FAILED" },
+      syncCalls: 0,
+      unauthorizedBody: { error: "INVALID_SIGNATURE" },
     });
-    await expect(processingFailure.json()).resolves.toStrictEqual({
-      error: "WEBHOOK_PROCESSING_FAILED",
-    });
-    expect(error).toHaveBeenCalledTimes(2);
-    expect(syncIssue).toHaveBeenCalledWith("integration-1", "issue-1");
     error.mockRestore();
   });
 });

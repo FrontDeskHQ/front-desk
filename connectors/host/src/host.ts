@@ -15,7 +15,8 @@ import {
   readLinearOAuthEnvironment,
 } from "./linear-oauth";
 import type { LinearOAuthEnvironment } from "./linear-oauth";
-import { handleLinearWebhook, verifyLinearWebhook } from "./linear-webhook";
+import { parseLinearWebhook, verifyLinearWebhook } from "./linear-webhook";
+import type { LinearWebhookDependencies } from "./linear-webhook";
 
 export interface HostedConnectorResult {
   body: unknown;
@@ -38,10 +39,8 @@ interface ConnectorHostOptions {
   secret: string | undefined;
   fetcher?: typeof fetch;
   linearOAuthEnvironment?: LinearOAuthEnvironment;
-  linearSync?: {
-    fetchClient: Parameters<typeof handleLinearWebhook>[1]["fetchClient"];
-    removeIssue: Parameters<typeof handleLinearWebhook>[1]["removeIssue"];
-    syncIssue: Parameters<typeof handleLinearWebhook>[1]["syncIssue"];
+  linearSync?: LinearWebhookDependencies & {
+    enqueueWebhook(rawBody: string): Promise<unknown>;
     syncIntegration(integrationId: string): Promise<unknown>;
     webhookSecret?: string;
   };
@@ -126,7 +125,8 @@ export const createConnectorHost = ({
         return { error: "INVALID_SIGNATURE" };
       }
       try {
-        await handleLinearWebhook(rawBody, linearSync);
+        parseLinearWebhook(rawBody);
+        await linearSync.enqueueWebhook(rawBody);
         return { ok: true };
       } catch (error) {
         console.error("[Linear] Webhook failed:", error);

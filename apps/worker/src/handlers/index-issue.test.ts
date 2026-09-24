@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+
 import type { IssueIndexJobData } from "@workspace/schemas/signals";
 import type { Job } from "bullmq";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -106,9 +108,49 @@ describe(handleIndexIssue, () => {
       externalKey: "linear:issue-1",
       organizationId: "org-1",
     });
-    expect(mocks.issueIndex.upsert).toHaveBeenCalledOnce();
+    expect(mocks.buildIssueEmbedText).toHaveBeenCalledWith(restoredData);
+    expect(mocks.issueIndex.upsert).toHaveBeenCalledWith({
+      payload: expect.objectContaining({
+        containerLabel: restoredData.containerLabel,
+        externalEntityId: restoredData.externalEntityId,
+        externalKey: restoredData.externalKey,
+        shortId: restoredData.shortId,
+        state: restoredData.state,
+        title: restoredData.title,
+      }),
+      vector: [0.1],
+    });
     expect(
       mocks.fetchClient.query.externalEntity.issueIndexSnapshot
     ).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes and clears metadata without re-embedding unchanged content", async () => {
+    mocks.issueIndex.get.mockResolvedValue({
+      contentHash: createHash("sha256").update("Restored issue").digest("hex"),
+    });
+
+    await expect(
+      handleIndexIssue(
+        job({
+          ...restoredData,
+          containerLabel: undefined,
+          shortId: undefined,
+        })
+      )
+    ).resolves.toMatchObject({
+      action: "state",
+      externalKey: "linear:issue-1",
+    });
+
+    expect(mocks.issueIndex.patch).toHaveBeenCalledWith(
+      { externalKey: "linear:issue-1", organizationId: "org-1" },
+      expect.objectContaining({
+        containerLabel: null,
+        shortId: null,
+        state: "open",
+      })
+    );
+    expect(mocks.generateIssueEmbedding).not.toHaveBeenCalled();
   });
 });

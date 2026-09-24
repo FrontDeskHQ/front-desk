@@ -117,7 +117,7 @@ const database = ({
 describe(completeLinearOAuthRoute, () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.DISCORD_BOT_KEY = "connector-secret";
+    process.env.CONNECTOR_HOST_SECRET = "connector-secret";
   });
 
   it("rejects an invalid internal secret", async () => {

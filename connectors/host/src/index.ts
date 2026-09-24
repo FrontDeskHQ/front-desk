@@ -5,6 +5,7 @@ import { createConnectorHost } from "./host";
 import { linearConnector } from "./linear";
 import { readLinearOAuthEnvironment } from "./linear-oauth";
 import { createLinearSync } from "./linear-sync";
+import { createLinearWebhookQueue } from "./linear-webhook";
 
 dotenv.config({ path: [".env.local", ".env"] });
 
@@ -34,14 +35,23 @@ try {
 } catch (error) {
   console.error("[Linear] Linear integration disabled:", error);
 }
+const linearWebhookQueue =
+  linearSync && linearFetchClient
+    ? createLinearWebhookQueue({
+        fetchClient: linearFetchClient,
+        removeIssue: linearSync.removeIssue,
+        syncIssue: linearSync.syncIssue,
+      })
+    : undefined;
 const app = createConnectorHost({
   connectors: [linearConnector],
   linearOAuthEnvironment: oauthEnvironment,
   linearSync:
-    linearSync && linearFetchClient
+    linearSync && linearFetchClient && linearWebhookQueue
       ? {
           ...linearSync,
           fetchClient: linearFetchClient,
+          enqueueWebhook: linearWebhookQueue.enqueue,
           webhookSecret: linearWebhookSecret,
         }
       : undefined,

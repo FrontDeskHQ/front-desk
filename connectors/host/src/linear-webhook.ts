@@ -1,5 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { createQueue, createWorker } from "@connectors/framework/runtime";
 import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { z } from "zod";
 
@@ -8,7 +9,30 @@ const webhookSchema = z.object({
   data: z.unknown(),
   organizationId: z.string(),
   type: z.string(),
+  webhookTimestamp: z.number(),
 });
+
+export type LinearWebhookEvent = z.infer<typeof webhookSchema>;
+
+export interface LinearWebhookDependencies {
+  fetchClient: LiveStateFetchClient;
+  removeIssue: (
+    integrationId: string,
+    organizationId: string,
+    issueId: string
+  ) => Promise<void>;
+  syncIssue: (integrationId: string, issueId: string) => Promise<void>;
+}
+
+interface LinearWebhookJobData {
+  rawBody: string;
+}
+
+const LINEAR_WEBHOOK_QUEUE = "linear-webhook";
+const LINEAR_WEBHOOK_JOB = "process-webhook";
+
+export const parseLinearWebhook = (rawBody: string): LinearWebhookEvent =>
+  webhookSchema.parse(JSON.parse(rawBody));
 
 export const verifyLinearWebhook = (
   rawBody: string,
@@ -27,17 +51,10 @@ export const verifyLinearWebhook = (
 
 export const handleLinearWebhook = async (
   rawBody: string,
-  dependencies: {
-    fetchClient: LiveStateFetchClient;
-    removeIssue: (
-      integrationId: string,
-      organizationId: string,
-      issueId: string
-    ) => Promise<void>;
-    syncIssue: (integrationId: string, issueId: string) => Promise<void>;
-  }
+  dependencies: LinearWebhookDependencies
 ): Promise<void> => {
-  const event = webhookSchema.parse(JSON.parse(rawBody));
+  const event = parseLinearWebhook(rawBody);
+  if (Math.abs(Date.now() - event.webhookTimestamp) > 60_000) return;
   if (event.type !== "Issue") return;
 
   const integrations =
@@ -78,4 +95,40 @@ export const handleLinearWebhook = async (
       await dependencies.syncIssue(latest.id, issue.id);
     })
   );
+};
+
+/**
+ * Durable ingress for verified Linear webhook bodies. The HTTP handler only
+ * adds the raw signed body; this worker owns all network and mirror work so a
+ * slow reconciliation cannot make Linear retry the delivery.
+ */
+export const createLinearWebhookQueue = (
+  dependencies: LinearWebhookDependencies
+) => {
+  const queue = createQueue<LinearWebhookJobData>(LINEAR_WEBHOOK_QUEUE, {
+    defaultJobOptions: {
+      attempts: 5,
+      backoff: { delay: 5000, type: "exponential" },
+      removeOnComplete: { age: 24 * 3600, count: 1000 },
+      removeOnFail: { count: 1000 },
+    },
+  });
+  const worker = createWorker<LinearWebhookJobData>(
+    LINEAR_WEBHOOK_QUEUE,
+    async (job) => {
+      await handleLinearWebhook(job.data.rawBody, dependencies);
+    },
+    { concurrency: 4 }
+  );
+
+  return {
+    close: async () => {
+      await Promise.all([worker.close(), queue.close()]);
+    },
+    enqueue: async (rawBody: string) => {
+      parseLinearWebhook(rawBody);
+      const job = await queue.add(LINEAR_WEBHOOK_JOB, { rawBody });
+      return job.id;
+    },
+  };
 };

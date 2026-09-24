@@ -24,7 +24,10 @@ export interface LinearClientEnvironment {
 }
 
 const credentialLoads = new Map<string, Promise<LinearCredentialContext>>();
+const pendingCredentials = new Map<string, LinearCredentialContext>();
 const LINEAR_REQUEST_TIMEOUT_MS = 15_000;
+const CREDENTIAL_REFRESH_WINDOW_MS = 5 * 60_000;
+const CREDENTIAL_PERSIST_ATTEMPTS = 3;
 
 const requestCredential = async (
   environment: LinearClientEnvironment,
@@ -37,7 +40,7 @@ const requestCredential = async (
       body: JSON.stringify(body),
       headers: {
         "content-type": "application/json",
-        "x-discord-bot-key": environment.connectorSecret,
+        "x-connector-host-key": environment.connectorSecret,
       },
       method: "POST",
       redirect: "error",
@@ -45,34 +48,45 @@ const requestCredential = async (
     }
   );
 
-const loadLinearCredential = async (
+const persistCredential = async (
   integrationId: string,
   environment: LinearClientEnvironment,
-  fetcher: typeof fetch = fetch
-): Promise<LinearCredentialContext> => {
-  const response = await requestCredential(
-    environment,
-    { integrationId, operation: "read" },
-    fetcher
-  );
-  if (!response.ok) throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
-  const parsed = z
-    .object({ credential: credentialSchema, organizationId: z.string() })
-    .parse(await response.json());
-
-  if (
-    new Date(parsed.credential.expiresAt).getTime() >
-    Date.now() + 5 * 60_000
-  ) {
-    return parsed;
+  context: LinearCredentialContext,
+  fetcher: typeof fetch
+): Promise<boolean> => {
+  for (let attempt = 0; attempt < CREDENTIAL_PERSIST_ATTEMPTS; attempt++) {
+    try {
+      const response = await requestCredential(
+        environment,
+        { credential: context.credential, integrationId, operation: "write" },
+        fetcher
+      );
+      if (response.ok) {
+        return true;
+      }
+    } catch {
+      // A later attempt may succeed; retain the refreshed value if the broker
+      // remains unavailable after the bounded retry window.
+    }
   }
 
+  console.error(
+    `[Linear] Failed to persist refreshed credential for ${integrationId}`
+  );
+  return false;
+};
+
+const refreshLinearCredential = async (
+  context: LinearCredentialContext,
+  environment: LinearClientEnvironment,
+  fetcher: typeof fetch
+): Promise<LinearCredentialContext> => {
   const refreshResponse = await fetcher("https://api.linear.app/oauth/token", {
     body: new URLSearchParams({
       client_id: environment.clientId,
       client_secret: environment.clientSecret,
       grant_type: "refresh_token",
-      refresh_token: parsed.credential.refreshToken,
+      refresh_token: context.credential.refreshToken,
     }),
     headers: { "content-type": "application/x-www-form-urlencoded" },
     method: "POST",
@@ -89,25 +103,68 @@ const loadLinearCredential = async (
       token_type: z.string().min(1),
     })
     .parse(await refreshResponse.json());
-  const credential: LinearCredential = {
-    accessToken: refreshed.access_token,
-    expiresAt: new Date(Date.now() + refreshed.expires_in * 1000).toISOString(),
-    refreshToken: refreshed.refresh_token,
-    scope: refreshed.scope,
-    tokenType: refreshed.token_type,
-    viewerId: parsed.credential.viewerId,
+  return {
+    credential: {
+      accessToken: refreshed.access_token,
+      expiresAt: new Date(
+        Date.now() + refreshed.expires_in * 1000
+      ).toISOString(),
+      refreshToken: refreshed.refresh_token,
+      scope: refreshed.scope,
+      tokenType: refreshed.token_type,
+      viewerId: context.credential.viewerId,
+    },
+    organizationId: context.organizationId,
   };
-  const writeResponse = await requestCredential(
+};
+
+const isCredentialUsable = (context: LinearCredentialContext): boolean =>
+  new Date(context.credential.expiresAt).getTime() >
+  Date.now() + CREDENTIAL_REFRESH_WINDOW_MS;
+
+const persistOrRemember = async (
+  integrationId: string,
+  context: LinearCredentialContext,
+  environment: LinearClientEnvironment,
+  fetcher: typeof fetch
+): Promise<LinearCredentialContext> => {
+  if (await persistCredential(integrationId, environment, context, fetcher)) {
+    pendingCredentials.delete(integrationId);
+  } else {
+    pendingCredentials.set(integrationId, context);
+  }
+  return context;
+};
+
+const loadLinearCredential = async (
+  integrationId: string,
+  environment: LinearClientEnvironment,
+  fetcher: typeof fetch = fetch
+): Promise<LinearCredentialContext> => {
+  const pending = pendingCredentials.get(integrationId);
+  if (pending) {
+    const current = isCredentialUsable(pending)
+      ? pending
+      : await refreshLinearCredential(pending, environment, fetcher);
+    return persistOrRemember(integrationId, current, environment, fetcher);
+  }
+
+  const response = await requestCredential(
     environment,
-    { credential, integrationId, operation: "write" },
+    { integrationId, operation: "read" },
     fetcher
   );
-  if (!writeResponse.ok) {
-    console.error(
-      `[Linear] Failed to persist refreshed credential for ${integrationId}`
-    );
+  if (!response.ok) throw new Error("LINEAR_CREDENTIAL_READ_FAILED");
+  const parsed = z
+    .object({ credential: credentialSchema, organizationId: z.string() })
+    .parse(await response.json());
+
+  if (isCredentialUsable(parsed)) {
+    return parsed;
   }
-  return { credential, organizationId: parsed.organizationId };
+
+  const refreshed = await refreshLinearCredential(parsed, environment, fetcher);
+  return persistOrRemember(integrationId, refreshed, environment, fetcher);
 };
 
 export const getLinearCredential = (

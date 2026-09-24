@@ -32,6 +32,7 @@ const corsOptions = {
   allowedHeaders: [
     "Content-Type",
     "Authorization",
+    "x-connector-host-key",
     "x-discord-bot-key",
     "x-public-api-key",
   ],

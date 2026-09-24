@@ -83,12 +83,18 @@ export const handleIndexIssue = async (job: Job<IssueIndexJobData>) => {
     const contentHash = computeSha256(embedText);
     const now = Date.now();
 
-    // Content unchanged since the last index: no re-embed needed. Refresh the
-    // stored state (and updatedAt) on the existing point in place.
+    // Content unchanged since the last index: no re-embed needed. Refresh all
+    // mutable payload fields on the existing point in place. Null clears stale
+    // optional metadata when the mirror no longer provides it.
     if (existing && existing.contentHash === contentHash) {
       await issueIndex.patch(
         { externalKey, organizationId },
-        { state: data.state, updatedAt: now }
+        {
+          containerLabel: data.containerLabel ?? null,
+          shortId: data.shortId ?? null,
+          state: data.state,
+          updatedAt: now,
+        }
       );
       requestLog.set({
         outcome: {
