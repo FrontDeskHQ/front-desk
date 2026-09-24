@@ -120,13 +120,18 @@ export const decryptIntegrationCredential = <T>(
   return JSON.parse(plaintext) as T;
 };
 
-type CredentialDB = Pick<
+export type IntegrationCredentialDB = Pick<
   ServerDB<typeof schema>,
   "integration" | "integrationCredential" | "transaction"
 >;
 
+export type IntegrationCredentialTransactionDB = Pick<
+  ServerDB<typeof schema>,
+  "integration" | "integrationCredential"
+>;
+
 const requireOwnedIntegration = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   organizationId: string,
   integrationId: string
 ) => {
@@ -136,8 +141,8 @@ const requireOwnedIntegration = async (
   }
 };
 
-const lockOwnedIntegration = async (
-  db: CredentialDB,
+export const lockOwnedIntegration = async (
+  db: IntegrationCredentialTransactionDB,
   organizationId: string,
   integrationId: string
 ): Promise<void> => {
@@ -155,7 +160,21 @@ const lockOwnedIntegration = async (
 };
 
 export const writeIntegrationCredential = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
+  input: {
+    integrationId: string;
+    organizationId: string;
+    value: unknown;
+  },
+  keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
+): Promise<void> => {
+  await db.transaction(async ({ trx }) => {
+    await writeIntegrationCredentialInTransaction(trx, input, keyring);
+  });
+};
+
+export const writeIntegrationCredentialInTransaction = async (
+  db: IntegrationCredentialTransactionDB,
   input: {
     integrationId: string;
     organizationId: string;
@@ -164,40 +183,38 @@ export const writeIntegrationCredential = async (
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
 ): Promise<void> => {
   const encrypted = encryptIntegrationCredential(input.value, input, keyring);
-  await db.transaction(async ({ trx }) => {
-    await lockOwnedIntegration(trx, input.organizationId, input.integrationId);
-    const existing = (
-      await trx.integrationCredential
-        .where({ integrationId: input.integrationId })
-        .get()
-    )[0];
-    const now = new Date();
+  await lockOwnedIntegration(db, input.organizationId, input.integrationId);
+  const existing = (
+    await db.integrationCredential
+      .where({ integrationId: input.integrationId })
+      .get()
+  )[0];
+  const now = new Date();
 
-    if (existing) {
-      await trx.integrationCredential.update(existing.id, {
-        ...encrypted,
-        revokedAt: null,
-        updatedAt: now,
-        version: existing.version + 1,
-      });
-      return;
-    }
-
-    await trx.integrationCredential.insert({
+  if (existing) {
+    await db.integrationCredential.update(existing.id, {
       ...encrypted,
-      createdAt: now,
-      id: ulid().toLowerCase(),
-      integrationId: input.integrationId,
-      organizationId: input.organizationId,
       revokedAt: null,
       updatedAt: now,
-      version: 1,
+      version: existing.version + 1,
     });
+    return;
+  }
+
+  await db.integrationCredential.insert({
+    ...encrypted,
+    createdAt: now,
+    id: ulid().toLowerCase(),
+    integrationId: input.integrationId,
+    organizationId: input.organizationId,
+    revokedAt: null,
+    updatedAt: now,
+    version: 1,
   });
 };
 
 export const readIntegrationCredential = async <T>(
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   input: { integrationId: string; organizationId: string },
   keyring: IntegrationCredentialKeyring = readIntegrationCredentialKeyring()
 ): Promise<T | null> => {
@@ -222,7 +239,7 @@ export const readIntegrationCredential = async <T>(
 };
 
 export const clearIntegrationCredential = async (
-  db: CredentialDB,
+  db: IntegrationCredentialDB,
   input: { integrationId: string; organizationId: string }
 ): Promise<void> => {
   await db.transaction(async ({ trx }) => {

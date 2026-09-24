@@ -1,5 +1,6 @@
 import { typesProvidingCapability } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
+import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   readDefaultIssueTarget,
@@ -118,6 +119,23 @@ To get started, connect your GitHub account and select the repository you want t
     id: "github",
     label: "GitHub",
   },
+  {
+    description: "Link Linear issues to support threads",
+    fullDescription: `
+#### Overview
+Connect one Linear workspace to FrontDesk so your team can find and link Linear issues from support threads. Support Intelligence can also create issues in the team you choose as the default target.
+
+#### How it works
+FrontDesk requests read access plus permission to create issues. Linear remains the source of truth for engineering status: FrontDesk observes issue changes but never changes an issue's workflow state.
+`,
+    icon: (
+      <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-[#5E6AD2] font-semibold text-white">
+        L
+      </div>
+    ),
+    id: "linear",
+    label: "Linear",
+  },
   // Uncomment and complete these when their integrations are ready
   // {
   //   label: "Email",
@@ -168,9 +186,7 @@ function DefaultIssueTargetField({
   // otherwise a target pointing at a removed repo becomes unclearable while
   // `create_issue` stays available against it.
   const orphanCurrent =
-    current && !options.some((o) => o.label === current.label)
-      ? current
-      : null;
+    current && !options.some((o) => o.label === current.label) ? current : null;
 
   // Sentinel for clearing a stale orphan; never collides with a repo fullName.
   const clearValue = "__clear_default_issue_target__";
@@ -268,9 +284,7 @@ function DefaultIssueTargetField({
               <TooltipTrigger render={<span className="inline-flex" />}>
                 {select}
               </TooltipTrigger>
-              <TooltipContent>
-                Only one repository is connected.
-              </TooltipContent>
+              <TooltipContent>Only one repository is connected.</TooltipContent>
             </Tooltip>
           ) : (
             select
@@ -309,6 +323,7 @@ function IssueTrackingSection({
     (integration) =>
       integration.enabled &&
       integration.configStr &&
+      integration.type !== "linear" &&
       providerTypes.has(integration.type)
   );
 
@@ -405,6 +420,7 @@ function IssueTrackingSection({
 function RouteComponent() {
   const { activeOrganization } = useOrganizationSwitcher();
   const { integrations: integrationLimits } = usePlanLimits();
+  const { isEnabled: linearEnabled } = useFlag("linear-integration");
 
   const allIntegrations = useLiveQuery(
     query.integration.where({
@@ -412,7 +428,9 @@ function RouteComponent() {
     })
   );
 
-  const filteredIntegrationOptions = integrationOptions;
+  const filteredIntegrationOptions = integrationOptions.filter(
+    (option) => option.id !== "linear" || linearEnabled
+  );
 
   const activeIntegrations = filteredIntegrationOptions.filter((option) =>
     allIntegrations?.some((i) => i.type === option.id && i.enabled)
