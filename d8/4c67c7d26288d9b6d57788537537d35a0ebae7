@@ -1,0 +1,68 @@
+bun.lock
+  ai_agent 282-299,2391-2392
+connectors/host/src/linear.ts
+  s_38931219be2f43::t_876ba49db4b1a3 1,6,8-27
+  s_38931219be2f43::t_cc1904890f5867 2
+  s_38931219be2f43::t_fb5d547923be01 3-5,7,28-35
+apps/web/src/lib/issue-targets.ts
+  s_38931219be2f43::t_876ba49db4b1a3 2,66-72,76,80-97,99-115,117
+apps/web/src/components/threads/external-entities.ts
+  s_38931219be2f43::t_71e52944dac8cc 29-30,135-136,144,151
+connectors/host/package.json
+  s_38931219be2f43::t_fb5d547923be01 1-15,18-21,23-28
+  s_38931219be2f43::t_876ba49db4b1a3 16
+  s_38931219be2f43::t_7c98f8ad444032 17
+  s_38931219be2f43::t_7217e1a40aec4a 22
+apps/api/src/lib/issue-tracker.test.ts
+  s_38931219be2f43::t_51c3d032bd896d 23-25
+  s_38931219be2f43::t_cc1904890f5867 34,46,190
+  s_38931219be2f43::t_cc2b0a452d4986 58,79,93-130
+apps/worker/src/pipeline/processors/synthesis-track/synthesis/tools.ts
+  s_38931219be2f43::t_d16cad399769c4 178-180,183
+apps/web/src/components/threads/issues.tsx
+  s_38931219be2f43::t_71e52944dac8cc 47,72-73,143,391-395
+  s_38931219be2f43::t_e6089bbd5aec3f 226,233
+  s_38931219be2f43::t_cc1904890f5867 398
+apps/api/src/lib/issue-tracker.ts
+  s_38931219be2f43::t_073dccfa9e01a8 4,163-176
+apps/worker/src/pipeline/processors/synthesis-track/related_issues/processor.ts
+  s_38931219be2f43::t_073dccfa9e01a8 53,60
+  s_38931219be2f43::t_cc1904890f5867 70-72
+packages/schemas/src/signals.ts
+  s_38931219be2f43::t_f2b020af44bcbb 205,972
+  s_38931219be2f43::t_073dccfa9e01a8 634,644
+  s_38931219be2f43::t_f1d01ced6a5c24 1083,1088
+connectors/host/src/host.test.ts
+  s_2577b45ecb94e9::t_ecb9e943d4168e 1-3,24-31,213-220,222-261
+  s_38931219be2f43::t_93d06ec3ae95ec 4
+  s_38931219be2f43::t_fb5d547923be01 5-6,8-12,14-19,32-45,51-56,65-66,109-118,120-132,141,263
+  s_38931219be2f43::t_c77246cad14c7c 13,119
+  s_38931219be2f43::t_037ed94757e8f1 46-50,57-64
+  s_38931219be2f43::t_5db38cf41ec364 183-194,197-201,205-211,262
+  s_38931219be2f43::t_f5eed3cb3d3b36 195-196,202-204
+  s_2577b45ecb94e9::t_387400adde602f 221
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d84c67c7d26288d9b6d57788537537d35a0ebae7",
+  "prompts": {},
+  "sessions": {
+    "s_2577b45ecb94e9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d045-44b7-74f3-b65b-e6452fa8465d",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
