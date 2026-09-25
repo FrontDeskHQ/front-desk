@@ -1,0 +1,46 @@
+apps/web/src/lib/issue-targets.ts
+  s_38931219be2f43::t_876ba49db4b1a3 3,69-75,79,83,85-100,103-118,120
+  s_b8bfc9e0d4b6ee::t_737ff93bff491c 1,45-46,84,102
+apps/api/src/lib/issue-tracker.ts
+  s_38931219be2f43::t_073dccfa9e01a8 4,170-172,178-185,155
+  s_b8bfc9e0d4b6ee::t_737ff93bff491c 85,173-177
+  s_b8bfc9e0d4b6ee::t_24fdef0abce871 149-154
+apps/api/src/lib/issue-tracker.test.ts
+  s_38931219be2f43::t_51c3d032bd896d 23-25
+  s_38931219be2f43::t_cc1904890f5867 34,58,255
+  s_38931219be2f43::t_cc2b0a452d4986 75,96,110-115,121-151,52,208-211,214
+  s_b8bfc9e0d4b6ee::t_737ff93bff491c 40-42,45-49,116-120,171-181,183-185,189,191-206
+  s_b8bfc9e0d4b6ee::t_24fdef0abce871 43-44,50
+  s_b8bfc9e0d4b6ee::t_4b7b50c88e262c 51,182,186-188,190,207
+  s_b8bfc9e0d4b6ee::t_81063a4f84056c 59-64
+apps/web/src/routes/app/_workspace/settings/organization/integration/index.tsx
+  s_b8bfc9e0d4b6ee::t_737ff93bff491c 1,319
+connectors/framework/src/index.ts
+  s_b8bfc9e0d4b6ee::t_24fdef0abce871 67
+connectors/framework/src/manifest.ts
+  s_b8bfc9e0d4b6ee::t_737ff93bff491c 24-25,38,120-135
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7dcce477f43ff782b97f8b08242da8912292e695",
+  "prompts": {},
+  "sessions": {
+    "s_38931219be2f43": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c5b1-2fc1-77b1-8f91-9decf4cf6d7e",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    },
+    "s_b8bfc9e0d4b6ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d407-3d09-7593-b269-5541c7afb2c8",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
