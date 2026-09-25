@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import { createConnectorHost } from "./host";
 import { createLinearConnector } from "./linear";
 import { readLinearOAuthEnvironment } from "./linear-oauth";
+import { createLinearProvider } from "./linear-provider";
 import { createLinearSync } from "./linear-sync";
 import { createLinearWebhookQueue } from "./linear-webhook";
 
@@ -43,53 +44,38 @@ const linearWebhookQueue =
         syncIssue: linearSync.syncIssue,
       })
     : undefined;
-const app = createConnectorHost({
-  connectors: [createLinearConnector({ environment: oauthEnvironment })],
-  linearOAuthEnvironment: oauthEnvironment,
-  linearSync:
+
+const linearProvider = createLinearProvider({
+  connector: createLinearConnector({ environment: oauthEnvironment }),
+  environment: oauthEnvironment,
+  sync:
     linearSync && linearFetchClient && linearWebhookQueue
       ? {
           ...linearSync,
           fetchClient: linearFetchClient,
           enqueueWebhook: linearWebhookQueue.enqueue,
           webhookSecret: linearWebhookSecret,
+          close: linearWebhookQueue.close,
         }
       : undefined,
-  secret: process.env.DISCORD_BOT_KEY,
-}).listen(port);
+});
 
-const startupRetryDelaysMs = [1000, 5000, 30_000];
-const runStartupReconciliation = (attempt = 0): void => {
-  linearSync?.syncAll().catch((error) => {
-    console.error("[Linear] Startup reconciliation failed:", error);
-    const retryDelay = startupRetryDelaysMs[attempt];
-    if (retryDelay !== undefined) {
-      setTimeout(
-        () => runStartupReconciliation(attempt + 1),
-        retryDelay
-      ).unref();
-    }
-  });
-};
-runStartupReconciliation();
-setInterval(
-  () => {
-    linearSync?.syncAll().catch((error) => {
-      console.error("[Linear] Daily reconciliation failed:", error);
-    });
-  },
-  24 * 60 * 60 * 1000
-).unref();
+const connectorHost = createConnectorHost({
+  providers: [linearProvider],
+  secret: process.env.DISCORD_BOT_KEY,
+});
+const app = connectorHost.app.listen(port);
+void connectorHost.start();
 
 let shuttingDown = false;
 const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
   try {
+    await connectorHost.stop();
     await app.stop();
-    await linearWebhookQueue?.close();
   } catch (error) {
-    console.error("[Linear] Failed to close webhook queue:", error);
+    console.error("[connector-host] Failed to shut down:", error);
   }
   process.exit(0);
 };

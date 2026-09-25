@@ -4,8 +4,9 @@ import type { LiveStateFetchClient } from "@connectors/framework/runtime";
 import { describe, expect, it, vi } from "vitest";
 
 import { createConnectorHost } from "./host";
-import type { HostedConnector } from "./host";
+import type { HostedConnector, HostedConnectorProvider } from "./host";
 import { linearConnector } from "./linear";
+import { createLinearProvider } from "./linear-provider";
 
 const request = (
   path: string,
@@ -35,9 +36,9 @@ const webhookRequest = (body: string, secret = "webhook-secret") =>
 
 describe(createConnectorHost, () => {
   const app = createConnectorHost({
-    connectors: [linearConnector],
+    providers: [createLinearProvider({ connector: linearConnector })],
     secret: "connector-secret",
-  });
+  }).app;
 
   it("routes an authenticated invocation to its connector", async () => {
     const response = await app.handle(
@@ -88,9 +89,14 @@ describe(createConnectorHost, () => {
       type: "unsupported",
     };
     const unsupportedApp = createConnectorHost({
-      connectors: [unsupportedConnector],
+      providers: [
+        {
+          connector: unsupportedConnector,
+          registerRoutes() {},
+        },
+      ],
       secret: "connector-secret",
-    });
+    }).app;
     const response = await unsupportedApp.handle(
       request("/unsupported/api/capabilities/invoke", {
         capability: "issue-tracker",
@@ -140,6 +146,37 @@ describe(createConnectorHost, () => {
     expect(response.status).toBe(401);
   });
 
+  it("owns provider startup and shutdown", async () => {
+    const start = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const stop = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const provider: HostedConnectorProvider = {
+      connector: {
+        async invoke() {
+          return { body: {}, status: 200 };
+        },
+        async probe() {
+          return { live: true };
+        },
+        type: "lifecycle",
+      },
+      registerRoutes() {},
+      start,
+      stop,
+    };
+    const host = createConnectorHost({
+      providers: [provider],
+      secret: "connector-secret",
+    });
+
+    await host.start();
+    await host.start();
+    await host.stop();
+    await host.stop();
+
+    expect(start).toHaveBeenCalledOnce();
+    expect(stop).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ["invoke", "/broken/api/capabilities/invoke", "INVOKE_FAILED"],
     ["probe", "/broken/api/connection/probe", "PROBE_FAILED"],
@@ -156,9 +193,14 @@ describe(createConnectorHost, () => {
         type: "broken",
       };
       const brokenApp = createConnectorHost({
-        connectors: [connector],
+        providers: [
+          {
+            connector,
+            registerRoutes() {},
+          },
+        ],
         secret: "connector-secret",
-      });
+      }).app;
       const error = vi.spyOn(console, "error").mockReturnValue(undefined);
       const body =
         operation === "invoke"
@@ -184,19 +226,23 @@ describe(createConnectorHost, () => {
   it("rejects malformed Linear OAuth callbacks before exchanging a code", async () => {
     const fetcher = vi.fn<typeof fetch>();
     const oauthApp = createConnectorHost({
-      connectors: [linearConnector],
-      fetcher,
-      linearOAuthEnvironment: {
-        apiBaseUrl: "https://api.frontdesk.test",
-        clientId: "client-id",
-        clientSecret: "client-secret",
-        connectorSecret: "connector-secret",
-        frontendBaseUrl: "https://frontdesk.test",
-        redirectUri:
-          "https://connectors.frontdesk.test/linear/api/oauth/callback",
-      },
+      providers: [
+        createLinearProvider({
+          connector: linearConnector,
+          environment: {
+            apiBaseUrl: "https://api.frontdesk.test",
+            clientId: "client-id",
+            clientSecret: "client-secret",
+            connectorSecret: "connector-secret",
+            frontendBaseUrl: "https://frontdesk.test",
+            redirectUri:
+              "https://connectors.frontdesk.test/linear/api/oauth/callback",
+          },
+          fetcher,
+        }),
+      ],
       secret: "connector-secret",
-    });
+    }).app;
 
     const response = await oauthApp.handle(
       new Request(
@@ -233,17 +279,23 @@ describe(createConnectorHost, () => {
       },
     } as unknown as LiveStateFetchClient;
     const webhookApp = createConnectorHost({
-      connectors: [linearConnector],
-      linearSync: {
-        fetchClient,
-        removeIssue: vi.fn<() => Promise<void>>(),
-        enqueueWebhook,
-        syncIntegration: vi.fn<() => Promise<void>>(),
-        syncIssue,
-        webhookSecret: "webhook-secret",
-      },
+      providers: [
+        createLinearProvider({
+          connector: linearConnector,
+          sync: {
+            close: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+            fetchClient,
+            removeIssue: vi.fn<() => Promise<void>>(),
+            enqueueWebhook,
+            syncAll: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+            syncIntegration: vi.fn<() => Promise<void>>(),
+            syncIssue,
+            webhookSecret: "webhook-secret",
+          },
+        }),
+      ],
       secret: "connector-secret",
-    });
+    }).app;
     const error = vi.spyOn(console, "error").mockReturnValue(undefined);
     const unauthorized = await webhookApp.handle(
       webhookRequest("{}", "wrong-secret")
