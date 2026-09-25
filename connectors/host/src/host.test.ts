@@ -214,6 +214,45 @@ describe(createConnectorHost, () => {
     expect(start).toHaveBeenCalledTimes(2);
   });
 
+  it("does not restart providers that completed partial startup", async () => {
+    const firstStart = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const secondStart = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("startup failed"))
+      .mockResolvedValue(undefined);
+    const makeProvider = (
+      type: string,
+      start: () => Promise<void>
+    ): HostedConnectorProvider => ({
+      connector: {
+        async invoke() {
+          return { body: {}, status: 200 };
+        },
+        async probe() {
+          return { live: true };
+        },
+        type,
+      },
+      registerRoutes() {},
+      start,
+    });
+    const host = createConnectorHost({
+      providers: [
+        makeProvider("started", firstStart),
+        makeProvider("failed", secondStart),
+      ],
+      secret: "connector-secret",
+    });
+
+    await expect(host.start()).rejects.toThrow("startup failed");
+    await host.start();
+
+    expect(firstStart).toHaveBeenCalledOnce();
+    expect(secondStart).toHaveBeenCalledTimes(2);
+  });
+
   it("retries only providers whose shutdown failed", async () => {
     const failedStop = vi
       .fn<() => Promise<void>>()
@@ -251,6 +290,62 @@ describe(createConnectorHost, () => {
 
     expect(failedStop).toHaveBeenCalledTimes(2);
     expect(successfulStop).toHaveBeenCalledOnce();
+  });
+
+  it("does not restart after shutdown has begun", async () => {
+    const firstStart = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const secondStart = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("startup failed"));
+    const firstStop = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const secondStop = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("shutdown failed"))
+      .mockResolvedValue(undefined);
+    const makeProvider = (
+      type: string,
+      start: () => Promise<void>,
+      stop: () => Promise<void>
+    ): HostedConnectorProvider => ({
+      connector: {
+        async invoke() {
+          return { body: {}, status: 200 };
+        },
+        async probe() {
+          return { live: true };
+        },
+        type,
+      },
+      registerRoutes() {},
+      start,
+      stop,
+    });
+    const host = createConnectorHost({
+      providers: [
+        makeProvider("started", firstStart, firstStop),
+        makeProvider("failed", secondStart, secondStop),
+      ],
+      secret: "connector-secret",
+    });
+
+    await expect(host.start()).rejects.toThrow("startup failed");
+    await expect(host.stop()).rejects.toThrow("shutdown failed");
+    await host.start();
+    await host.stop();
+
+    expect({
+      firstStart: firstStart.mock.calls.length,
+      firstStop: firstStop.mock.calls.length,
+      secondStart: secondStart.mock.calls.length,
+      secondStop: secondStop.mock.calls.length,
+    }).toStrictEqual({
+      firstStart: 1,
+      firstStop: 1,
+      secondStart: 1,
+      secondStop: 2,
+    });
   });
 
   it("waits for Linear reconciliation before closing its sync", async () => {

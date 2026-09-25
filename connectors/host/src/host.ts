@@ -109,21 +109,29 @@ export const createConnectorHost = ({
   }
 
   let started = false;
+  let shutdownStarted = false;
   let stopped = false;
   let startPromise: Promise<void> | undefined;
   let stopPromise: Promise<void> | undefined;
+  const startedProviders = new Set<HostedConnectorProvider>();
   const stoppedProviders = new Set<HostedConnectorProvider>();
 
   return {
     app,
     start: () => {
-      if (started || stopped) return Promise.resolve();
+      if (started || shutdownStarted) return Promise.resolve();
       if (startPromise) return startPromise;
       if (stopPromise) return stopPromise;
 
       startPromise = (async () => {
+        const pendingProviders = providers.filter(
+          (provider) => !startedProviders.has(provider)
+        );
         const results = await Promise.allSettled(
-          providers.map((provider) => provider.start?.())
+          pendingProviders.map(async (provider) => {
+            await provider.start?.();
+            startedProviders.add(provider);
+          })
         );
         for (const result of results) {
           if (result.status === "rejected") {
@@ -139,6 +147,7 @@ export const createConnectorHost = ({
     stop: () => {
       if (stopped) return Promise.resolve();
       if (stopPromise) return stopPromise;
+      shutdownStarted = true;
 
       stopPromise = (async () => {
         if (startPromise) {
