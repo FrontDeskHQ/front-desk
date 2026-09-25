@@ -67,7 +67,9 @@ const issueResponseSchema = z.object({ issue: linearIssueSchema.nullable() });
 export const linearExternalKey = (id: string) => `linear:${id}`;
 
 const linearState = (type: string): "closed" | "open" =>
-  type === "completed" || type === "canceled" ? "closed" : "open";
+  type === "completed" || type === "canceled" || type === "duplicate"
+    ? "closed"
+    : "open";
 
 export const buildLinearIssueFields = (issue: LinearIssue) => ({
   assignees: issue.assignee ? [issue.assignee.name] : [],
