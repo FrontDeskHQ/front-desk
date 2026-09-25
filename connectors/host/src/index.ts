@@ -2,7 +2,7 @@ import { createLiveStateClient } from "@connectors/framework/runtime";
 import dotenv from "dotenv";
 
 import { createConnectorHost } from "./host";
-import { linearConnector } from "./linear";
+import { createLinearConnector } from "./linear";
 import { readLinearOAuthEnvironment } from "./linear-oauth";
 import { createLinearSync } from "./linear-sync";
 import { createLinearWebhookQueue } from "./linear-webhook";
@@ -44,7 +44,7 @@ const linearWebhookQueue =
       })
     : undefined;
 const app = createConnectorHost({
-  connectors: [linearConnector],
+  connectors: [createLinearConnector({ environment: oauthEnvironment })],
   linearOAuthEnvironment: oauthEnvironment,
   linearSync:
     linearSync && linearFetchClient && linearWebhookQueue

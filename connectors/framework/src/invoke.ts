@@ -32,6 +32,7 @@ export interface InvokeEnvelope<Payload = unknown> {
   capability: Capability;
   method: string;
   config: string | null;
+  integrationId?: string;
   payload: Payload;
 }
 
@@ -46,6 +47,7 @@ export interface ActionInvokeEnvelope<Payload = unknown> {
 export const invokeEnvelopeSchema = z.object({
   capability: z.string(),
   config: z.string().nullable(),
+  integrationId: z.string().optional(),
   method: z.string(),
   payload: z.unknown(),
 });

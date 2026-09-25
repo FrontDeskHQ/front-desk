@@ -248,6 +248,7 @@ export const runCreateIssue = async (
     {
       capability: "issue-tracker",
       config: target.integration.configStr,
+      integrationId: target.integration.id,
       method: "create",
       payload: {
         body: (args.body ?? "") + threadFooter(args.threadId),
