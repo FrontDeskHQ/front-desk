@@ -1,4 +1,6 @@
+import { typesSupportingIssueCreation } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
+import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import type { DefaultIssueTarget } from "@workspace/schemas/organization";
 import { z } from "zod";
 
@@ -40,6 +42,8 @@ const githubConfigSchema = z.object({
     .default([]),
 });
 
+const issueCreationTypes = new Set(typesSupportingIssueCreation());
+
 /**
  * The sub-resources an issue can be filed into, as options ready to hand to
  * `setDefaultIssueTarget` or `acceptRead`. `target` is opaque to core — only the
@@ -62,28 +66,56 @@ export function useIssueTargetOptions(
       type: "github",
     })
   );
+  const linearIntegration = useLiveQuery(
+    query.integration.first({
+      enabled: true,
+      organizationId,
+      type: "linear",
+    })
+  );
 
   // Guarded after the hook so hook order stays stable. Without an org id the
   // query is unscoped and could surface another organization's integration.
-  if (!(organizationId && githubIntegration?.configStr)) {
+  if (!organizationId) {
     return [];
   }
 
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(githubIntegration.configStr);
-  } catch {
-    return [];
+  const options: IssueTargetOption[] = [];
+  if (issueCreationTypes.has("github") && githubIntegration?.configStr) {
+    try {
+      const config = githubConfigSchema.safeParse(
+        JSON.parse(githubIntegration.configStr)
+      );
+      if (config.success) {
+        options.push(
+          ...config.data.repos.map((repo) => ({
+            integrationId: githubIntegration.id,
+            label: repo.fullName,
+            target: { owner: repo.owner, repo: repo.name },
+          }))
+        );
+      }
+    } catch {
+      // Ignore malformed provider config; it cannot produce a safe target.
+    }
   }
-
-  const config = githubConfigSchema.safeParse(parsed);
-  if (!config.success) {
-    return [];
+  if (issueCreationTypes.has("linear") && linearIntegration?.configStr) {
+    try {
+      const config = linearIntegrationSchema.safeParse(
+        JSON.parse(linearIntegration.configStr)
+      );
+      if (config.success) {
+        options.push(
+          ...config.data.teams.map((team) => ({
+            integrationId: linearIntegration.id,
+            label: `${team.key} — ${team.name}`,
+            target: { teamId: team.id },
+          }))
+        );
+      }
+    } catch {
+      // Ignore malformed provider config; it cannot produce a safe target.
+    }
   }
-
-  return config.data.repos.map((repo) => ({
-    integrationId: githubIntegration.id,
-    label: repo.fullName,
-    target: { owner: repo.owner, repo: repo.name },
-  }));
+  return options;
 }

@@ -21,6 +21,8 @@ export interface ConnectorManifest {
    * needs silent reconnect. See ADR-0010.
    */
   supportsConnectionProbe?: boolean;
+  /** Whether this connector implements the issue-tracker `create` method. */
+  supportsIssueCreation?: boolean;
 }
 
 /**
@@ -33,6 +35,7 @@ export const githubManifest: ConnectorManifest = {
   capabilities: ["issue-tracker", "pr-tracker"],
   defaultBaseUrl: "http://localhost:3334",
   supportsConnectionProbe: true,
+  supportsIssueCreation: true,
   type: "github",
 };
 
@@ -113,4 +116,21 @@ export function typesHaveCapability(
     }
   }
   return false;
+}
+
+/**
+ * The issue-tracker providers that can accept a new issue. Kept separate from
+ * the broad capability list because discovery and creation can land in
+ * different stack layers.
+ */
+export function typesSupportingIssueCreation(
+  manifestList: ConnectorManifest[] = manifests
+): string[] {
+  return manifestList
+    .filter(
+      (manifest) =>
+        manifest.supportsIssueCreation === true &&
+        manifest.capabilities.includes("issue-tracker")
+    )
+    .map((manifest) => manifest.type);
 }

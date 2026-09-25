@@ -631,6 +631,7 @@ export type RelatedPrsEvidence = z.infer<typeof relatedPrsEvidenceSchema>;
  * what the state means rather than the index deciding for it.
  */
 export const relatedIssueEvidenceItemSchema = z.object({
+  containerLabel: z.string().optional(),
   /** Provider-agnostic key `provider:owner/repo#number`. */
   externalKey: z.string(),
   /** Mirror row id (`externalEntity.id`). */
@@ -640,6 +641,7 @@ export const relatedIssueEvidenceItemSchema = z.object({
   score: z.number().min(0).max(1),
   /** Upstream issue state ("open" | "closed"); never an eligibility filter. */
   state: z.string(),
+  shortId: z.string().optional(),
   title: z.string(),
   url: z.string(),
 });
