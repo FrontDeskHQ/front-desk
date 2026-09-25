@@ -1,0 +1,19 @@
+connectors/host/src/linear.test.ts
+  s_b8bfc9e0d4b6ee::t_5a0205eb3a3708 210-211
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7c6bb6bc2583463fe66adf7a6649ce4e37e2829e",
+  "prompts": {},
+  "sessions": {
+    "s_b8bfc9e0d4b6ee": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d407-3d09-7593-b269-5541c7afb2c8",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
