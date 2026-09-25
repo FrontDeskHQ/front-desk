@@ -1,0 +1,19 @@
+connectors/host/railway.json
+  s_e933e403f7a733::t_f6d1e3bc96625b 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "73eb3f3ed25f7facb5f3fd0376a85d3a72680775",
+  "prompts": {},
+  "sessions": {
+    "s_e933e403f7a733": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d584-871b-7ac0-b53d-d99eb20797b1",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
