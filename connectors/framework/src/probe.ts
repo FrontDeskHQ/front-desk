@@ -28,11 +28,13 @@ const PROBE_TIMEOUT_MESSAGE = `CONNECTION_PROBE_TIMEOUT: no response after ${CON
  */
 export interface ProbeRequest {
   config: string | null;
+  integrationId?: string;
 }
 
 /** Runtime validator for the probe request body. */
 export const probeRequestSchema = z.object({
   config: z.string().nullable(),
+  integrationId: z.string().optional(),
 });
 
 /**

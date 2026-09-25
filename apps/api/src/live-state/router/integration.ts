@@ -1,7 +1,13 @@
+import { createHash, randomBytes } from "node:crypto";
+
 import {
+  invokeCapability,
   probeConnection,
   RemoteInvokeTimeoutError,
 } from "@connectors/framework";
+import type { InferLiveObject } from "@live-state/sync";
+import type { ServerDB } from "@live-state/sync/server";
+import type { IssueIndexJobData } from "@workspace/schemas/signals";
 import { ulid } from "ulid";
 import { z } from "zod";
 
@@ -11,8 +17,11 @@ import {
   getConnectorInvokeSecret,
 } from "../../lib/connector-registry";
 import { errors } from "../../lib/errors";
-import { lockOwnedIntegration } from "../../lib/integration-credential";
-import { enqueueGithubBackfill } from "../../lib/queue";
+import {
+  clearIntegrationCredential,
+  lockOwnedIntegration,
+} from "../../lib/integration-credential";
+import { enqueueGithubBackfill, enqueueIssueIndex } from "../../lib/queue";
 import { privateRoute } from "../factories";
 import { schema } from "../schema";
 import { slackChannelsCache } from "./slack-channels";
@@ -50,6 +59,58 @@ const LINEAR_OAUTH_STATE_TTL_MS = 10 * 60_000;
 
 const hashOAuthState = (state: string): string =>
   createHash("sha256").update(state).digest("hex");
+
+type IntegrationRow = InferLiveObject<typeof schema.integration>;
+
+const finalizeLinearDisconnect = async (
+  db: ServerDB<typeof schema>,
+  integration: IntegrationRow
+): Promise<void> => {
+  const deletedEntities = await db.transaction(async ({ trx }) => {
+    const entities = Object.values(
+      await trx.find(schema.externalEntity, {
+        where: {
+          deletedAt: null,
+          integrationId: integration.id,
+          organizationId: integration.organizationId,
+        },
+      })
+    );
+    const now = new Date();
+
+    await trx.update(schema.integration, integration.id, {
+      enabled: false,
+      updatedAt: now,
+    });
+    for (const entity of entities) {
+      await trx.update(schema.externalEntity, entity.id, {
+        deletedAt: now,
+        lastSyncedAt: now,
+      });
+    }
+    await clearIntegrationCredential(trx, {
+      integrationId: integration.id,
+      organizationId: integration.organizationId,
+    });
+    return entities;
+  });
+
+  for (const entity of deletedEntities) {
+    if (entity.type !== "issue") continue;
+    const jobData: IssueIndexJobData = {
+      deleted: true,
+      externalEntityId: entity.id,
+      externalKey: entity.externalKey,
+      organizationId: integration.organizationId,
+    };
+    enqueueIssueIndex(jobData).catch((error) => {
+      console.error(
+        `Failed to enqueue issue index delete for ${entity.externalKey}:`,
+        error
+      );
+    });
+  }
+};
 
 const githubBackfillConfigSchema = z.object({
   installationId: z.number().int().positive().optional(),
@@ -329,7 +390,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     const probedConfigStr = integration.configStr;
     const probeResult = await probeConnection(
       entry.probeUrl,
-      { config: probedConfigStr },
+      { config: probedConfigStr, integrationId: integration.id },
       { secret: getConnectorInvokeSecret() }
     ).catch((error: unknown) => {
       throw error instanceof RemoteInvokeTimeoutError
@@ -393,6 +454,71 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     return { outcome: "needs_connect" as const };
   }),
 
+  disconnectLinear: mutation(reenableInputSchema).handler(
+    async ({ req, db }) => {
+      const integration = await db.integration
+        .one(req.input.integrationId)
+        .get();
+      if (!integration || integration.type !== "linear") {
+        throw new Error("LINEAR_INTEGRATION_NOT_FOUND");
+      }
+      authorize(req, {
+        organizationId: integration.organizationId,
+        role: "owner",
+      });
+
+      const entry = connectorRegistry.getByType("linear");
+      if (!entry) throw new Error("LINEAR_CONNECTOR_NOT_REGISTERED");
+      const revokeResult = await invokeCapability<{
+        alreadyRevoked?: boolean;
+        ok: boolean;
+      }>(
+        entry.invokeUrl,
+        {
+          capability: "issue-tracker",
+          config: integration.configStr,
+          integrationId: integration.id,
+          method: "disconnect",
+          payload: {},
+        },
+        { secret: getConnectorInvokeSecret() }
+      );
+      if (!revokeResult.ok) {
+        throw new Error("LINEAR_REVOKE_FAILED");
+      }
+
+      // Revocation is a network round-trip. A reconnect can replace the
+      // credential and config while it is in flight; never finalize cleanup
+      // against that newer integration snapshot.
+      const current = await db.integration.one(integration.id).get();
+      if (!current) {
+        throw errors.notFound("integration");
+      }
+      if (
+        current.configStr !== integration.configStr ||
+        current.updatedAt.getTime() !== integration.updatedAt.getTime()
+      ) {
+        return { ok: true };
+      }
+      await finalizeLinearDisconnect(db, current);
+      return { ok: true };
+    }
+  ),
+
+  markLinearRevoked: mutation(reenableInputSchema).handler(
+    async ({ req, db }) => {
+      requireInternalApiKey(req.context);
+      const integration = await db.integration
+        .one(req.input.integrationId)
+        .get();
+      if (!integration || integration.type !== "linear") {
+        throw new Error("LINEAR_INTEGRATION_NOT_FOUND");
+      }
+      await finalizeLinearDisconnect(db, integration);
+      return { ok: true };
+    }
+  ),
+
   fetchSlackChannels: mutation(
     z.object({
       organizationId: z.string(),
@@ -454,4 +580,3 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     });
   }),
 }));
-import { createHash, randomBytes } from "node:crypto";

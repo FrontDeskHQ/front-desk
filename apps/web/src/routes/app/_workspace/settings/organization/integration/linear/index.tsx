@@ -2,6 +2,17 @@ import { useLiveQuery } from "@live-state/sync/client";
 import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute } from "@tanstack/react-router";
 import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@workspace/ui/components/alert-dialog";
 import { Button } from "@workspace/ui/components/button";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import {
@@ -77,7 +88,7 @@ function RouteComponent() {
   })();
   const config = parsed?.success ? parsed.data : null;
 
-  const connect = async () => {
+  const startOAuth = async () => {
     const clientId = import.meta.env.VITE_LINEAR_CLIENT_ID;
     const connectorBaseUrl =
       import.meta.env.VITE_BASE_LINEAR_CONNECTOR_URL ??
@@ -124,6 +135,51 @@ function RouteComponent() {
     window.location.href = `https://linear.app/oauth/authorize?${params.toString()}`;
   };
 
+  const enable = async () => {
+    if (integration) {
+      try {
+        const result = await fetchClient.mutate.integration.reenable({
+          integrationId: integration.id,
+        });
+        if (result?.outcome === "enabled") {
+          posthog?.capture("integration_enable", {
+            integration_type: "linear",
+            reconnect: true,
+          });
+          return;
+        }
+      } catch (error) {
+        console.error("[Linear] Re-enable probe failed:", error);
+        toast.error(
+          "Couldn't verify your Linear connection. Try again in a moment."
+        );
+        return;
+      }
+    }
+    try {
+      await startOAuth();
+    } catch (error) {
+      console.error("[Linear] OAuth setup failed:", error);
+      toast.error("Couldn't start Linear connection. Try again in a moment.");
+    }
+  };
+
+  const disconnect = async () => {
+    if (!integration) return;
+    try {
+      await fetchClient.mutate.integration.disconnectLinear({
+        integrationId: integration.id,
+      });
+      posthog?.capture("integration_disconnect", {
+        integration_type: "linear",
+      });
+      toast.success("Linear disconnected.");
+    } catch (error) {
+      console.error("[Linear] Disconnect failed:", error);
+      toast.error("Couldn't disconnect Linear. Try again in a moment.");
+    }
+  };
+
   const setDefaultTeam = async (teamId: string) => {
     if (!(integration && config)) return;
     try {
@@ -161,7 +217,9 @@ function RouteComponent() {
           </div>
         </div>
         {!integration?.enabled && (
-          <Button onClick={connect}>Connect Linear</Button>
+          <Button onClick={enable}>
+            {integration ? "Enable" : "Connect Linear"}
+          </Button>
         )}
       </div>
       <Card className="bg-muted/30">
@@ -206,7 +264,7 @@ function RouteComponent() {
               </div>
               <Separator />
               <div className="flex items-center gap-3">
-                <Button variant="outline" onClick={connect}>
+                <Button variant="outline" onClick={startOAuth}>
                   Reconnect
                 </Button>
                 <Button
@@ -216,6 +274,32 @@ function RouteComponent() {
                 >
                   Disable
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      className="text-red-700 dark:hover:text-red-500"
+                      variant="ghost"
+                    >
+                      Disconnect
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Disconnect Linear?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        FrontDesk will revoke its Linear access and remove
+                        Linear issues from discovery. Existing thread links
+                        remain visible as history.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction onClick={disconnect}>
+                        Disconnect
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
               </div>
             </>
           ) : (
