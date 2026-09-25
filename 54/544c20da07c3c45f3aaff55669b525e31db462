@@ -1,0 +1,22 @@
+connectors/host/src/host.ts
+  s_e933e403f7a733::t_c985ff52f45f1f 112,116,122,127-129,131-134,150
+connectors/host/src/host.test.ts
+  s_e933e403f7a733::t_c985ff52f45f1f 217-255,295-337
+  s_e933e403f7a733::t_da8dc119e64768 338-348
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "54544c20da07c3c45f3aaff55669b525e31db462",
+  "prompts": {},
+  "sessions": {
+    "s_e933e403f7a733": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0d584-871b-7ac0-b53d-d99eb20797b1",
+        "model": "gpt-5.6-luna"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
