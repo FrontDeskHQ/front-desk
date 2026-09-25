@@ -177,6 +177,117 @@ describe(createConnectorHost, () => {
     expect(stop).toHaveBeenCalledOnce();
   });
 
+  it("shares startup work and retries after a failed startup", async () => {
+    let shouldFail = true;
+    const start = vi.fn<() => Promise<void>>(() => {
+      if (shouldFail) return Promise.reject(new Error("startup failed"));
+      return Promise.resolve();
+    });
+    const provider: HostedConnectorProvider = {
+      connector: {
+        async invoke() {
+          return { body: {}, status: 200 };
+        },
+        async probe() {
+          return { live: true };
+        },
+        type: "startup-race",
+      },
+      registerRoutes() {},
+      start,
+    };
+    const host = createConnectorHost({
+      providers: [provider],
+      secret: "connector-secret",
+    });
+
+    const firstStart = host.start();
+    const secondStart = host.start();
+    expect(secondStart).toBe(firstStart);
+    expect(start).toHaveBeenCalledOnce();
+
+    await expect(Promise.all([firstStart, secondStart])).rejects.toThrow(
+      "startup failed"
+    );
+    shouldFail = false;
+    await host.start();
+    expect(start).toHaveBeenCalledTimes(2);
+  });
+
+  it("retries only providers whose shutdown failed", async () => {
+    const failedStop = vi
+      .fn<() => Promise<void>>()
+      .mockRejectedValueOnce(new Error("shutdown failed"))
+      .mockResolvedValue(undefined);
+    const successfulStop = vi
+      .fn<() => Promise<void>>()
+      .mockResolvedValue(undefined);
+    const makeProvider = (
+      type: string,
+      stop: () => Promise<void>
+    ): HostedConnectorProvider => ({
+      connector: {
+        async invoke() {
+          return { body: {}, status: 200 };
+        },
+        async probe() {
+          return { live: true };
+        },
+        type,
+      },
+      registerRoutes() {},
+      stop,
+    });
+    const host = createConnectorHost({
+      providers: [
+        makeProvider("failed-stop", failedStop),
+        makeProvider("successful-stop", successfulStop),
+      ],
+      secret: "connector-secret",
+    });
+
+    await expect(host.stop()).rejects.toThrow("shutdown failed");
+    await host.stop();
+
+    expect(failedStop).toHaveBeenCalledTimes(2);
+    expect(successfulStop).toHaveBeenCalledOnce();
+  });
+
+  it("waits for Linear reconciliation before closing its sync", async () => {
+    let resolveSync!: () => void;
+    const syncAll = vi.fn<() => Promise<void>>(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSync = resolve;
+        })
+    );
+    const close = vi.fn<() => Promise<void>>().mockResolvedValue(undefined);
+    const provider = createLinearProvider({
+      connector: linearConnector,
+      sync: {
+        close,
+        enqueueWebhook: vi
+          .fn<(rawBody: string) => Promise<void>>()
+          .mockResolvedValue(undefined),
+        fetchClient: {} as LiveStateFetchClient,
+        removeIssue: vi.fn<() => Promise<void>>(),
+        syncAll,
+        syncIntegration: vi.fn<() => Promise<unknown>>(),
+        syncIssue: vi.fn<() => Promise<void>>(),
+        webhookSecret: "webhook-secret",
+      },
+    });
+
+    provider.start?.();
+    expect(syncAll).toHaveBeenCalledOnce();
+    const stopPromise = provider.stop?.();
+    expect(close).not.toHaveBeenCalled();
+
+    resolveSync();
+    await stopPromise;
+    expect(close).toHaveBeenCalledOnce();
+  });
+
   it.each([
     ["invoke", "/broken/api/capabilities/invoke", "INVOKE_FAILED"],
     ["probe", "/broken/api/connection/probe", "PROBE_FAILED"],

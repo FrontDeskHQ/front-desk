@@ -64,25 +64,58 @@ const connectorHost = createConnectorHost({
   providers: [linearProvider],
   secret: process.env.DISCORD_BOT_KEY,
 });
-const app = connectorHost.app.listen(port);
-void connectorHost.start();
+const app = connectorHost.app;
+
+const start = async () => {
+  try {
+    await connectorHost.start();
+    if (shuttingDown) return;
+    app.listen(port);
+    console.log(`Connector host listening on port ${port}`);
+  } catch (error) {
+    console.error("[connector-host] Failed to start:", error);
+    try {
+      await app.stop();
+    } catch (stopError) {
+      console.error(
+        "[connector-host] Failed to stop after startup:",
+        stopError
+      );
+    }
+    try {
+      await connectorHost.stop();
+    } catch (stopError) {
+      console.error(
+        "[connector-host] Failed to clean up after startup:",
+        stopError
+      );
+    }
+    process.exit(1);
+  }
+};
+void start();
 
 let shuttingDown = false;
 const shutdown = async () => {
   if (shuttingDown) return;
   shuttingDown = true;
+  let shutdownFailed = false;
   try {
-    await connectorHost.stop();
     await app.stop();
   } catch (error) {
-    console.error("[connector-host] Failed to shut down:", error);
+    shutdownFailed = true;
+    console.error("[connector-host] Failed to stop listening:", error);
   }
-  process.exit(0);
+  try {
+    await connectorHost.stop();
+  } catch (error) {
+    shutdownFailed = true;
+    console.error("[connector-host] Failed to stop providers:", error);
+  }
+  process.exit(shutdownFailed ? 1 : 0);
 };
 
 process.on("SIGINT", shutdown);
 process.on("SIGTERM", shutdown);
-
-console.log(`Connector host listening on port ${port}`);
 
 export type App = typeof app;

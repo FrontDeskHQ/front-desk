@@ -110,18 +110,59 @@ export const createConnectorHost = ({
 
   let started = false;
   let stopped = false;
+  let startPromise: Promise<void> | undefined;
+  let stopPromise: Promise<void> | undefined;
+  const stoppedProviders = new Set<HostedConnectorProvider>();
 
   return {
     app,
-    start: async () => {
-      if (started || stopped) return;
-      started = true;
-      await Promise.all(providers.map((provider) => provider.start?.()));
+    start: () => {
+      if (started || stopped) return Promise.resolve();
+      if (startPromise) return startPromise;
+      if (stopPromise) return stopPromise;
+
+      startPromise = (async () => {
+        const results = await Promise.allSettled(
+          providers.map((provider) => provider.start?.())
+        );
+        for (const result of results) {
+          if (result.status === "rejected") {
+            throw result.reason;
+          }
+        }
+        started = true;
+      })().finally(() => {
+        startPromise = undefined;
+      });
+      return startPromise;
     },
-    stop: async () => {
-      if (stopped) return;
-      stopped = true;
-      await Promise.all(providers.map((provider) => provider.stop?.()));
+    stop: () => {
+      if (stopped) return Promise.resolve();
+      if (stopPromise) return stopPromise;
+
+      stopPromise = (async () => {
+        if (startPromise) {
+          try {
+            await startPromise;
+          } catch {
+            // A failed startup can still leave a provider with resources to close.
+          }
+        }
+
+        const pendingProviders = providers.filter(
+          (provider) => !stoppedProviders.has(provider)
+        );
+        await Promise.all(
+          pendingProviders.map(async (provider) => {
+            await provider.stop?.();
+            stoppedProviders.add(provider);
+          })
+        );
+        stopped = true;
+      })().finally(() => {
+        stopPromise = undefined;
+      });
+      return stopPromise;
     },
   };
 };

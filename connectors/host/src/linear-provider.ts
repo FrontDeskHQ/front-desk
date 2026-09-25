@@ -113,20 +113,41 @@ export const createLinearProvider = ({
 }: LinearProviderOptions): HostedConnectorProvider => {
   let reconciliationTimer: ReturnType<typeof setInterval> | undefined;
   const retryTimers = new Set<ReturnType<typeof setTimeout>>();
+  const inFlightReconciliations = new Set<Promise<void>>();
   const startupRetryDelaysMs = [1000, 5000, 30_000];
+  let stopped = false;
+
+  const trackReconciliation = (onFailure: (error: unknown) => void): void => {
+    if (!sync || stopped) return;
+    const reconciliation = (async () => {
+      if (stopped) return;
+      await sync.syncAll();
+    })();
+    inFlightReconciliations.add(reconciliation);
+    void reconciliation.catch(onFailure).finally(() => {
+      inFlightReconciliations.delete(reconciliation);
+    });
+  };
 
   const runStartupReconciliation = (attempt = 0): void => {
-    sync?.syncAll().catch((error) => {
+    trackReconciliation((error) => {
       console.error("[Linear] Startup reconciliation failed:", error);
+      if (stopped) return;
       const retryDelay = startupRetryDelaysMs[attempt];
       if (retryDelay === undefined) return;
 
       const timer = setTimeout(() => {
         retryTimers.delete(timer);
-        runStartupReconciliation(attempt + 1);
+        if (!stopped) runStartupReconciliation(attempt + 1);
       }, retryDelay);
       retryTimers.add(timer);
       timer.unref();
+    });
+  };
+
+  const runDailyReconciliation = (): void => {
+    trackReconciliation((error) => {
+      console.error("[Linear] Daily reconciliation failed:", error);
     });
   };
 
@@ -135,25 +156,26 @@ export const createLinearProvider = ({
     registerRoutes: (app) =>
       registerLinearRoutes(app, environment, fetcher, sync),
     start: () => {
-      if (!sync) return;
+      if (!sync || stopped) return;
       runStartupReconciliation();
       reconciliationTimer = setInterval(
         () => {
-          sync.syncAll().catch((error) => {
-            console.error("[Linear] Daily reconciliation failed:", error);
-          });
+          if (stopped) return;
+          runDailyReconciliation();
         },
         24 * 60 * 60 * 1000
       );
       reconciliationTimer.unref();
     },
     stop: async () => {
+      stopped = true;
       if (reconciliationTimer) {
         clearInterval(reconciliationTimer);
         reconciliationTimer = undefined;
       }
       for (const timer of retryTimers) clearTimeout(timer);
       retryTimers.clear();
+      await Promise.allSettled(inFlightReconciliations);
       await sync?.close();
     },
   };
