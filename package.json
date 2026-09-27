@@ -44,6 +44,7 @@
     "openai": "^6.32.0",
     "oxfmt": "^0.60.0",
     "oxlint": "^1.75.0",
+    "railway": "^3.11.0",
     "typescript": "catalog:",
     "ultracite": "7.9.4",
     "vitest": "^4.0.0"
