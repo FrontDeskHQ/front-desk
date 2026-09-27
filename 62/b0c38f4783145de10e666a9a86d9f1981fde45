@@ -1,0 +1,19 @@
+connectors/host/Dockerfile
+  s_3f079a98309323::t_460328071fed8c 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "62b0c38f4783145de10e666a9a86d9f1981fde45",
+  "prompts": {},
+  "sessions": {
+    "s_3f079a98309323": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "3437b683-38e6-41b9-a174-178a225c072a",
+        "model": "claude-opus-5-5"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
