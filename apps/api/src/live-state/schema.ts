@@ -154,6 +154,18 @@ const integrationCredential = object("integrationCredential", {
   version: number().default(1),
 });
 
+// Short-lived OAuth state. Server-only: no route or organization relation
+// exposes these rows to Live-State clients.
+const integrationOAuthState = object("integrationOAuthState", {
+  consumedAt: timestamp().nullable(),
+  createdAt: timestamp(),
+  expiresAt: timestamp(),
+  id: id(),
+  integrationId: reference("integration.id").unique().index(),
+  organizationId: reference("organization.id"),
+  stateHash: string(),
+});
+
 const update = object("update", {
   id: id(),
   threadId: reference("thread.id"),
@@ -550,6 +562,7 @@ export const schema = createSchema({
   invite,
   integration,
   integrationCredential,
+  integrationOAuthState,
   update,
   allowlist,
   earlyAccessRequest,

@@ -8,6 +8,13 @@ import {
   probeRequestSchema,
 } from "@connectors/framework";
 import Elysia from "elysia";
+import { z } from "zod";
+
+import {
+  completeLinearOAuth,
+  readLinearOAuthEnvironment,
+} from "./linear-oauth";
+import type { LinearOAuthEnvironment } from "./linear-oauth";
 
 export interface HostedConnectorResult {
   body: unknown;
@@ -28,7 +35,14 @@ export interface HostedConnector {
 interface ConnectorHostOptions {
   connectors: HostedConnector[];
   secret: string | undefined;
+  fetcher?: typeof fetch;
+  linearOAuthEnvironment?: LinearOAuthEnvironment;
 }
+
+const linearCallbackQuerySchema = z.object({
+  code: z.string().min(1),
+  state: z.string().min(1),
+});
 
 const authorized = (
   headers: Record<string, string | undefined>,
@@ -46,8 +60,45 @@ const authorized = (
 export const createConnectorHost = ({
   connectors,
   secret,
+  fetcher = fetch,
+  linearOAuthEnvironment,
 }: ConnectorHostOptions) => {
   const app = new Elysia().get("/health", () => ({ ok: true }));
+
+  app.get("/linear/api/oauth/callback", async ({ query, set }) => {
+    let environment: LinearOAuthEnvironment;
+    try {
+      environment = linearOAuthEnvironment ?? readLinearOAuthEnvironment();
+    } catch (error) {
+      console.error("[Linear] OAuth is not configured:", error);
+      set.status = 503;
+      return { error: "LINEAR_OAUTH_NOT_CONFIGURED" };
+    }
+
+    const parsed = linearCallbackQuerySchema.safeParse(query);
+    const settingsUrl = `${environment.frontendBaseUrl}/app/settings/organization/integration/linear`;
+    if (!parsed.success) {
+      return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
+    }
+    const separator = parsed.data.state.indexOf(".");
+    const integrationId = parsed.data.state.slice(0, separator);
+    const state = parsed.data.state.slice(separator + 1);
+    if (separator < 1 || !state) {
+      return Response.redirect(`${settingsUrl}?error=invalid_state`, 302);
+    }
+
+    try {
+      await completeLinearOAuth(
+        { code: parsed.data.code, integrationId, state },
+        environment,
+        fetcher
+      );
+      return Response.redirect(settingsUrl, 302);
+    } catch (error) {
+      console.error("[Linear] OAuth callback failed:", error);
+      return Response.redirect(`${settingsUrl}?error=callback_error`, 302);
+    }
+  });
 
   for (const connector of connectors) {
     const prefix = `/${connector.type}`;
