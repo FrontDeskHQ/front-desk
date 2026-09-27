@@ -77,7 +77,7 @@ describe(completeLinearOAuth, () => {
     expect(completion).toMatchObject([
       "https://api.frontdesk.test/api/internal/integrations/linear/oauth-complete",
       {
-        headers: { "x-discord-bot-key": "connector-secret" },
+        headers: { "x-connector-host-key": "connector-secret" },
         redirect: "error",
       },
     ]);
@@ -153,7 +153,7 @@ describe(completeLinearOAuth, () => {
 
 describe(readLinearOAuthEnvironment, () => {
   const credentials = {
-    DISCORD_BOT_KEY: "connector-secret",
+    CONNECTOR_HOST_SECRET: "connector-secret",
     LINEAR_CLIENT_ID: "linear-client",
     LINEAR_CLIENT_SECRET: "linear-secret",
   };

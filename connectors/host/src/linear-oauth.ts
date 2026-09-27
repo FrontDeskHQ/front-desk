@@ -42,7 +42,7 @@ export const readLinearOAuthEnvironment = (
       (development ? "http://localhost:3333" : undefined),
     clientId: env.LINEAR_CLIENT_ID,
     clientSecret: env.LINEAR_CLIENT_SECRET,
-    connectorSecret: env.DISCORD_BOT_KEY,
+    connectorSecret: env.CONNECTOR_HOST_SECRET,
     frontendBaseUrl:
       env.BASE_FRONTEND_URL ??
       (development ? "http://localhost:3000" : undefined),
@@ -168,7 +168,7 @@ export const completeLinearOAuth = async (
       }),
       headers: {
         "content-type": "application/json",
-        "x-discord-bot-key": environment.connectorSecret,
+        "x-connector-host-key": environment.connectorSecret,
       },
       method: "POST",
     }

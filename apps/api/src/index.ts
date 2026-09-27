@@ -23,6 +23,7 @@ import { router } from "./live-state/router";
 import { schema } from "./live-state/schema";
 import { storage } from "./live-state/storage";
 import { exchangeConnectionToken } from "./routes/connection-token";
+import { linearCredentialRoute } from "./routes/linear-credential";
 import { completeLinearOAuthRoute } from "./routes/linear-oauth-complete";
 
 const { app } = expressWs(express() as unknown as Express);
@@ -31,6 +32,7 @@ const corsOptions = {
   allowedHeaders: [
     "Content-Type",
     "Authorization",
+    "x-connector-host-key",
     "x-discord-bot-key",
     "x-public-api-key",
   ],
@@ -186,6 +188,7 @@ app.post(
   "/api/internal/integrations/linear/oauth-complete",
   completeLinearOAuthRoute
 );
+app.post("/api/internal/integrations/linear/credential", linearCredentialRoute);
 
 process.env.DODO_PAYMENTS_WEBHOOK_KEY &&
   app.post(

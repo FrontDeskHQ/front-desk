@@ -202,9 +202,7 @@ export const EXTERNAL_ENTITY_OUTCOMES = [
   "unknown",
 ] as const;
 export const externalEntityOutcomeSchema = z.enum(EXTERNAL_ENTITY_OUTCOMES);
-export type ExternalEntityOutcome = z.infer<
-  typeof externalEntityOutcomeSchema
->;
+export type ExternalEntityOutcome = z.infer<typeof externalEntityOutcomeSchema>;
 
 export const statusWitnessSchema = z
   .object({
@@ -969,8 +967,7 @@ export const normalizeThreadReadJobData = (
   // The pre-generational shape cannot carry authoritative entity evidence.
   // During a rolling deployment, degrade that incomplete cause to a manual
   // read instead of inventing a candidate or exhausting queue retries.
-  const legacyKind =
-    legacy.kind === "entity_finished" ? "manual" : legacy.kind;
+  const legacyKind = legacy.kind === "entity_finished" ? "manual" : legacy.kind;
   const triggers: ThreadReadTrigger[] = legacy.prMatched
     ? legacyKind === "pr_matched"
       ? [{ kind: "pr_matched", prMatched: legacy.prMatched }]
@@ -1081,10 +1078,12 @@ const issueIndexIdentity = {
 export const issueIndexUpsertSchema = z.object({
   ...issueIndexIdentity,
   body: z.string().nullable(),
+  containerLabel: z.string().optional(),
   deleted: z.literal(false).optional(),
   number: z.number(),
   provider: z.string(),
   repoFullName: z.string(),
+  shortId: z.string().optional(),
   /** Upstream issue state ("open" | "closed"); carried, never filtered on. */
   state: z.string(),
   title: z.string(),

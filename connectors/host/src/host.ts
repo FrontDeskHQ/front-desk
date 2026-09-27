@@ -15,6 +15,8 @@ import {
   readLinearOAuthEnvironment,
 } from "./linear-oauth";
 import type { LinearOAuthEnvironment } from "./linear-oauth";
+import { parseLinearWebhook, verifyLinearWebhook } from "./linear-webhook";
+import type { LinearWebhookDependencies } from "./linear-webhook";
 
 export interface HostedConnectorResult {
   body: unknown;
@@ -37,6 +39,11 @@ interface ConnectorHostOptions {
   secret: string | undefined;
   fetcher?: typeof fetch;
   linearOAuthEnvironment?: LinearOAuthEnvironment;
+  linearSync?: LinearWebhookDependencies & {
+    enqueueWebhook(rawBody: string): Promise<unknown>;
+    syncIntegration(integrationId: string): Promise<unknown>;
+    webhookSecret?: string;
+  };
 }
 
 const linearCallbackQuerySchema = z.object({
@@ -62,6 +69,7 @@ export const createConnectorHost = ({
   secret,
   fetcher = fetch,
   linearOAuthEnvironment,
+  linearSync,
 }: ConnectorHostOptions) => {
   const app = new Elysia().get("/health", () => ({ ok: true }));
 
@@ -93,12 +101,45 @@ export const createConnectorHost = ({
         environment,
         fetcher
       );
+      linearSync?.syncIntegration(integrationId).catch((error) => {
+        console.error("[Linear] Initial reconciliation failed:", error);
+      });
       return Response.redirect(settingsUrl, 302);
     } catch (error) {
       console.error("[Linear] OAuth callback failed:", error);
       return Response.redirect(`${settingsUrl}?error=callback_error`, 302);
     }
   });
+
+  app.post(
+    "/linear/api/webhook",
+    async ({ body, headers, set }) => {
+      const rawBody = typeof body === "string" ? body : "";
+      const signature = headers["linear-signature"];
+      if (
+        !linearSync?.webhookSecret ||
+        !signature ||
+        !verifyLinearWebhook(rawBody, signature, linearSync.webhookSecret)
+      ) {
+        set.status = 401;
+        return { error: "INVALID_SIGNATURE" };
+      }
+      try {
+        parseLinearWebhook(rawBody);
+        await linearSync.enqueueWebhook(rawBody);
+        return { ok: true };
+      } catch (error) {
+        console.error("[Linear] Webhook failed:", error);
+        if (error instanceof SyntaxError || error instanceof z.ZodError) {
+          set.status = 400;
+          return { error: "INVALID_WEBHOOK" };
+        }
+        set.status = 500;
+        return { error: "WEBHOOK_PROCESSING_FAILED" };
+      }
+    },
+    { parse: "text" }
+  );
 
   for (const connector of connectors) {
     const prefix = `/${connector.type}`;

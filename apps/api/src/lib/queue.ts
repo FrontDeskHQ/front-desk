@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 import {
   configureThreadReadQueue,
   createQueueRedisConnection,
@@ -242,7 +244,8 @@ const getIssueIndexQueue = (): Queue<IssueIndexJobData> | null => {
 };
 
 export const enqueueIssueIndex = async (
-  data: IssueIndexJobData
+  data: IssueIndexJobData,
+  options: { followUp?: boolean } = {}
 ): Promise<string | null> => {
   if (!areWorkerJobsEnabled(data.organizationId)) {
     return null;
@@ -265,12 +268,20 @@ export const enqueueIssueIndex = async (
   // custom job id unless it is colon-free or exactly three colon-separated
   // segments, and a lossy substitution could map two distinct keys onto one id,
   // letting one issue's enqueue delete another's pending job.
-  const jobId = `issue-index:${data.organizationId}:${encodeURIComponent(data.externalKey)}`;
-  const existing = await q.getJob(jobId);
+  const baseJobId = `issue-index:${data.organizationId}:${encodeURIComponent(data.externalKey)}`;
+  let jobId = baseJobId;
+  const existing = await q.getJob(baseJobId);
   if (existing) {
     const state = await existing.getState();
     if (state !== "active") {
       await existing.remove();
+    } else if (options.followUp) {
+      // A restore must survive an active delete job. Keep the follow-up
+      // distinct so BullMQ does not collapse it into that active job; the
+      // worker re-checks the mirror around the delete to preserve ordering.
+      jobId = `issue-index:${data.organizationId}:${encodeURIComponent(
+        `${data.externalKey}:${randomUUID()}`
+      )}`;
     }
   }
 
