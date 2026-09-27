@@ -670,6 +670,27 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
     };
 
     const write = await db.transaction(async ({ trx }) => {
+      // Re-check ownership inside the write transaction. The initial lookup
+      // happens before this transaction and can race a disconnect that disables
+      // the integration and deletes its mirror rows.
+      if (integration?.id) {
+        const activeIntegration = Object.values(
+          await trx.find(schema.integration, {
+            where: {
+              enabled: true,
+              id: integration.id,
+              organizationId,
+              type: provider,
+            },
+          })
+        )[0];
+        if (!activeIntegration) {
+          return { applied: false, id: null, previous: null };
+        }
+      } else {
+        return { applied: false, id: null, previous: null };
+      }
+
       const existing = Object.values(
         await trx.find(schema.externalEntity, {
           where: { organizationId, externalKey },
@@ -704,8 +725,8 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
       });
       return { applied: true, id: newId, previous: null };
     });
+    if (!write.applied || write.id === null) return write.id;
     const { id } = write;
-    if (!write.applied) return id;
 
     if (didExternalEntityFinish(write.previous, req.input)) {
       fanOutEntityFinished(db, req.input).catch((error) => {

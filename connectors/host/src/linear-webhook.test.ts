@@ -147,3 +147,64 @@ describe(handleLinearWebhook, () => {
     );
   });
 });
+
+describe(handleLinearWebhook, () => {
+  it("finalizes a disconnect when Linear revokes the OAuth app", async () => {
+    const markLinearRevoked = vi
+      .fn<(input: { integrationId: string }) => Promise<{ ok: boolean }>>()
+      .mockResolvedValue({ ok: true });
+    const integration = {
+      configStr: JSON.stringify({ workspaceId: "workspace-id" }),
+      enabled: true,
+      id: "integration-id",
+      organizationId: "organization-id",
+    };
+    const fetchClient = {
+      mutate: { integration: { markLinearRevoked } },
+      query: {
+        integration: {
+          byId: vi.fn<() => Promise<unknown>>().mockResolvedValue(integration),
+          listByType: vi
+            .fn<
+              (input: { type: string }) => Promise<
+                {
+                  configStr: string;
+                  enabled: boolean;
+                  id: string;
+                  organizationId: string;
+                }[]
+              >
+            >()
+            .mockResolvedValue([integration]),
+        },
+      },
+    } as unknown as LiveStateFetchClient;
+
+    await handleLinearWebhook(
+      JSON.stringify({
+        action: "revoked",
+        data: {},
+        organizationId: "workspace-id",
+        type: "OAuthApp",
+        webhookTimestamp: Date.now(),
+      }),
+      {
+        fetchClient,
+        removeIssue:
+          vi.fn<
+            (
+              integrationId: string,
+              organizationId: string,
+              issueId: string
+            ) => Promise<void>
+          >(),
+        syncIssue:
+          vi.fn<(integrationId: string, issueId: string) => Promise<void>>(),
+      }
+    );
+
+    expect(markLinearRevoked).toHaveBeenCalledWith({
+      integrationId: "integration-id",
+    });
+  });
+});
