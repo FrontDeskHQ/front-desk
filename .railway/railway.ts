@@ -14,8 +14,7 @@ export default defineRailway(() => {
   const postgresVolume = volume("postgres-volume", { alerts: { usage: { "100": {}, "80": {}, "95": {} } }, allowOnlineResize: true, region: "us-east4-eqdc4a", sizeMB: 5000 });
   const sharedConnector = service("shared-connector", {
     source: frontDesk,
-    build: { buildCommand: "bun run build -F connector-host...", builder: "RAILPACK", watchPatterns: ["apps/api/**", "packages/emails/**", "packages/queue/**", "packages/schemas/**", "packages/utils/**", "connectors/framework/**", "connectors/host/**"] },
-    start: "cd connectors/host && bun run start",
+    build: { builder: "DOCKERFILE", dockerfilePath: "connectors/host/Dockerfile", watchPatterns: ["apps/api/**", "packages/emails/**", "packages/queue/**", "packages/schemas/**", "packages/utils/**", "connectors/framework/**", "connectors/host/**", "bun.lock"] },
     deploy: { restartPolicyType: "ON_FAILURE", restartPolicyMaxRetries: 10 },
     replicas: { "us-east4-eqdc4a": 1 },
     env: { BASE_FRONTEND_URL: preserve(), CONNECTOR_HOST_SECRET: preserve(), DISCORD_BOT_KEY: preserve(), LINEAR_CLIENT_ID: preserve(), LINEAR_CLIENT_SECRET: preserve(), LINEAR_REDIRECT_URI: preserve(), LINEAR_WEBHOOK_SECRET: preserve(), LIVE_STATE_API_URL: preserve(), LIVE_STATE_WS_URL: preserve(), REDIS_URL: preserve() },
