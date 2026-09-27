@@ -27,6 +27,7 @@ export interface HostedConnector {
   invoke(input: {
     capability: string;
     config: string | null;
+    integrationId?: string;
     method: string;
     payload: unknown;
   }): Promise<HostedConnectorResult>;

@@ -1,6 +1,5 @@
 import { useLiveQuery } from "@live-state/sync/client";
 import { useMutation } from "@tanstack/react-query";
-import type { ExternalRepository } from "@workspace/schemas/external-issue";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -50,6 +49,7 @@ import { toast } from "sonner";
 
 import { activeOrganizationAtom } from "~/lib/atoms";
 import { useOrgCapability } from "~/lib/hooks/query/use-org-capability";
+import { useIssueTargetOptions } from "~/lib/issue-targets";
 import { fetchClient, mutate, query } from "~/lib/live-state";
 
 import {
@@ -95,7 +95,7 @@ export function IssuesSection({
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [issueTitle, setIssueTitle] = useState("");
   const [issueBody, setIssueBody] = useState("");
-  const [selectedRepo, setSelectedRepo] = useState<string>("");
+  const [selectedTargetLabel, setSelectedTargetLabel] = useState<string>("");
   const [search, setSearch] = useState("");
   const [optimisticIssue, setOptimisticIssue] = useState<LinkedIssue | null>(
     null
@@ -104,14 +104,7 @@ export function IssuesSection({
   // Gate the whole section on the capability, not on a named provider.
   const hasIssueTracker = useOrgCapability("issue-tracker");
 
-  // Provider-aware config read (repo enumeration) is allowed by design: the
-  // connect/config control plane stays provider-specific. Gating above is not.
-  const githubIntegration = useLiveQuery(
-    query.integration.first({
-      organizationId: currentOrg?.id,
-      type: "github",
-    })
-  );
+  const issueTargets = useIssueTargetOptions(currentOrg?.id);
 
   // Reactive mirror of the org's GitHub issues, synced via Live-State. Replaces
   // the on-demand `thread.fetchGithubIssues` fetch.
@@ -162,21 +155,10 @@ export function IssuesSection({
       ? optimisticIssue
       : undefined);
 
-  const repos: ExternalRepository[] = githubIntegration?.configStr
-    ? (() => {
-        try {
-          const config = JSON.parse(githubIntegration.configStr);
-          return config.repos ?? [];
-        } catch {
-          return [];
-        }
-      })()
-    : [];
-
   const handleOpenCreateDialog = () => {
     setIssueTitle(threadName ?? "");
     setIssueBody("");
-    setSelectedRepo(repos[0]?.fullName ?? "");
+    setSelectedTargetLabel(issueTargets[0]?.label ?? "");
     setShowCreateDialog(true);
   };
 
@@ -184,13 +166,13 @@ export function IssuesSection({
     mutationFn: async ({
       title,
       body,
-      owner,
-      repo,
+      integrationId,
+      target,
     }: {
       title: string;
       body: string;
-      owner: string;
-      repo: string;
+      integrationId: string;
+      target: Record<string, unknown>;
     }) => {
       if (!currentOrg) throw new Error("No organization selected");
 
@@ -199,7 +181,8 @@ export function IssuesSection({
         threadId,
         title: title.trim(),
         body,
-        target: { owner, repo },
+        integrationId,
+        target,
       });
 
       if (
@@ -207,32 +190,52 @@ export function IssuesSection({
         !result?.issue?.shortId ||
         !result?.issue?.url
       ) {
-        throw new Error("Invalid response from GitHub API");
+        throw new Error("Invalid response from issue tracker");
       }
 
       return result;
     },
     onError: (error) => {
       console.error("Failed to create issue:", error);
-      toast.error("Failed to create issue");
+      const reason =
+        error instanceof Error &&
+        "details" in error &&
+        typeof error.details === "object" &&
+        error.details !== null &&
+        "reason" in error.details &&
+        typeof error.details.reason === "string"
+          ? error.details.reason
+          : error instanceof Error
+            ? error.message
+            : undefined;
+      toast.error(
+        reason === "CREATE_OUTCOME_UNKNOWN" || reason === "CONNECTOR_TIMEOUT"
+          ? "Creation outcome unknown. Check your issue tracker before trying again."
+          : "Failed to create issue"
+      );
     },
     onSuccess: (result, variables) => {
-      const repo = repos.find((r) => r.fullName === selectedRepo);
-      if (!repo || !result?.issue || !currentOrg) return;
+      if (!result?.issue || !currentOrg) return;
+      const containerLabel =
+        result.issue.container?.label ?? selectedTargetLabel;
+      const externalNumber = result.issue.externalRef?.number;
 
       // Optimistic placeholder so the link shows immediately; the real mirror
       // row arrives shortly after via the GitHub webhook upsert.
       setOptimisticIssue({
         closedAt: null,
-        containerKind: result.issue.container?.kind ?? "repository",
-        containerLabel: result.issue.container?.label ?? repo.fullName,
+        containerKind: result.issue.container?.kind ?? "tracker",
+        containerLabel,
         externalKey: result.issue.id,
         // The mirror row is GitHub-shaped (numeric `number`); parse the neutral
         // `shortId` back to an int here in the GitHub-specific UI.
-        number: Number(result.issue.shortId),
-        provider: "github",
+        number:
+          typeof externalNumber === "number"
+            ? externalNumber
+            : Number(result.issue.shortId) || 0,
+        provider: result.issue.id.startsWith("linear:") ? "linear" : "github",
         title: result.issue.title || variables.title,
-        repoFullName: repo.fullName,
+        repoFullName: containerLabel,
         shortId: result.issue.shortId,
         url: result.issue.url,
       });
@@ -249,7 +252,7 @@ export function IssuesSection({
       toast.success("Issue created successfully", {
         duration: 10_000,
         action: {
-          label: "View on GitHub",
+          label: "View issue",
           onClick: () =>
             window.open(result.issue.url, "_blank", "noopener,noreferrer"),
         },
@@ -266,19 +269,21 @@ export function IssuesSection({
   });
 
   const handleCreateIssue = () => {
-    if (!currentOrg || !selectedRepo || !issueTitle.trim()) {
+    if (!currentOrg || !selectedTargetLabel || !issueTitle.trim()) {
       return;
     }
 
-    const repo = repos.find((r) => r.fullName === selectedRepo);
-    if (!repo) {
+    const selectedTarget = issueTargets.find(
+      (target) => target.label === selectedTargetLabel
+    );
+    if (!selectedTarget) {
       return;
     }
 
     createIssueMutation.mutate({
       body: issueBody,
-      owner: repo.owner,
-      repo: repo.name,
+      integrationId: selectedTarget.integrationId,
+      target: selectedTarget.target,
       title: issueTitle.trim(),
     });
   };
@@ -494,11 +499,13 @@ export function IssuesSection({
                 <BreadcrumbSeparator />
                 <BreadcrumbItem className="text-foreground-primary">
                   <Select
-                    value={selectedRepo}
-                    onValueChange={(value) => setSelectedRepo(value as string)}
+                    value={selectedTargetLabel}
+                    onValueChange={(value) =>
+                      setSelectedTargetLabel(value as string)
+                    }
                   >
                     <SelectTrigger
-                      id="repo"
+                      id="issue-target"
                       size="xs"
                       hideIcon
                       className="px-1"
@@ -506,9 +513,9 @@ export function IssuesSection({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {repos.map((repo) => (
-                        <SelectItem key={repo.fullName} value={repo.fullName}>
-                          {repo.fullName}
+                      {issueTargets.map((target) => (
+                        <SelectItem key={target.label} value={target.label}>
+                          {target.label}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -556,7 +563,7 @@ export function IssuesSection({
               disabled={
                 createIssueMutation.isPending ||
                 !issueTitle.trim() ||
-                !selectedRepo
+                !selectedTargetLabel
               }
             >
               {createIssueMutation.isPending && (
