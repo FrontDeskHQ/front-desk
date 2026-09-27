@@ -152,6 +152,12 @@ export const syncLinkedIssueState = async (
       return;
     }
 
+    // Linear owns engineering state. Closing or reopening a FrontDesk thread
+    // must never change the linked Linear issue.
+    if (entity.provider === "linear") {
+      return;
+    }
+
     const state = args.closed ? "closed" : "open";
     // Mirror already reflects the desired state — nothing to push.
     if (entity.state === state) {
