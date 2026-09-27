@@ -14,10 +14,15 @@ export async function runMigrations(storage: Storage) {
       continue;
     }
     console.log(`[migrations] running ${m.name}`);
-    await db.transaction(async ({ trx }) => {
-      await m.up({ db: trx });
-      await trx.migration.insert({ appliedAt: new Date(), id: m.name });
-    });
+    if (m.transactional === false) {
+      await m.up({ db });
+      await db.migration.insert({ appliedAt: new Date(), id: m.name });
+    } else {
+      await db.transaction(async ({ trx }) => {
+        await m.up({ db: trx });
+        await trx.migration.insert({ appliedAt: new Date(), id: m.name });
+      });
+    }
     console.log(`[migrations] applied ${m.name}`);
   }
 }

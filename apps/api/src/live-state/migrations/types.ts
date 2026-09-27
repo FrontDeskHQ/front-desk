@@ -6,5 +6,6 @@ export type MigrationDB = ServerDB<typeof schema>;
 
 export interface Migration {
   name: string;
+  transactional?: boolean;
   up: (opts: { db: MigrationDB }) => Promise<void>;
 }

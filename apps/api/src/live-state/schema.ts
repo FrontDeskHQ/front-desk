@@ -224,7 +224,7 @@ const documentationSource = object("documentationSource", {
 
 /**
  * A read-only mirror of an issue or pull request from an external developer
- * system (today only GitHub). The external system is authoritative; rows here
+ * system. The external system is authoritative; rows here
  * are only ever written from inbound webhooks/backfill/drift reconciliation,
  * never canonically from our side. See docs/adr/0007-mirror-external-issues-prs.md.
  *
@@ -235,11 +235,22 @@ const documentationSource = object("documentationSource", {
 const externalEntity = object("externalEntity", {
   id: id(),
   organizationId: reference("organization.id"),
+  /** Integration that owns provider calls for this entity. */
+  integrationId: reference("integration.id").nullable(),
   provider: string(),
-  /** Provider-agnostic key: `provider:owner/repo#number` (see formatGitHubId). */
+  /** Stable provider-scoped key. Core treats the format as opaque. */
   externalKey: string().index(),
   /** "issue" | "pull_request" */
   type: string(),
+  /** Mutable provider-local reference, e.g. `123` or `ENG-456`. */
+  shortId: string().nullable(),
+  /** Provider-neutral parent used for display and filtering. */
+  containerId: string().nullable(),
+  containerLabel: string().nullable(),
+  containerKind: string().nullable(),
+  /** Opaque provider address interpreted only by the owning connector. */
+  externalRef: json<Record<string, unknown>>().nullable(),
+  // Legacy GitHub address fields. Removed after neutral-reader cutover.
   number: number(),
   repoFullName: string(),
   url: string(),
