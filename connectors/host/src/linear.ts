@@ -7,7 +7,6 @@ import {
 import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import { z } from "zod";
 
-import type { HostedConnector } from "./host";
 import {
   getLinearCredential,
   linearGraphql,
@@ -15,6 +14,7 @@ import {
 } from "./linear-client";
 import type { LinearClientEnvironment } from "./linear-client";
 import { linearExternalKey } from "./linear-sync";
+import type { HostedConnector } from "./provider";
 
 const createResponseSchema = z.object({
   issueCreate: z.object({

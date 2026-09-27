@@ -8,52 +8,26 @@ import {
   probeRequestSchema,
 } from "@connectors/framework";
 import Elysia from "elysia";
-import { z } from "zod";
+import type { AnyElysia } from "elysia";
 
-import {
-  completeLinearOAuth,
-  readLinearOAuthEnvironment,
-} from "./linear-oauth";
-import type { LinearOAuthEnvironment } from "./linear-oauth";
-import { parseLinearWebhook, verifyLinearWebhook } from "./linear-webhook";
-import type { LinearWebhookDependencies } from "./linear-webhook";
+import type { HostedConnector, HostedConnectorProvider } from "./provider";
 
-export interface HostedConnectorResult {
-  body: unknown;
-  status: number;
-}
-
-export interface HostedConnector {
-  invoke(input: {
-    capability: string;
-    config: string | null;
-    integrationId?: string;
-    method: string;
-    payload: unknown;
-  }): Promise<HostedConnectorResult>;
-  probe(
-    config: string | null,
-    integrationId?: string
-  ): Promise<{ configStr?: string; live: boolean }>;
-  type: string;
-}
+export type {
+  HostedConnector,
+  HostedConnectorProvider,
+  HostedConnectorResult,
+} from "./provider";
 
 interface ConnectorHostOptions {
-  connectors: HostedConnector[];
+  providers: HostedConnectorProvider[];
   secret: string | undefined;
-  fetcher?: typeof fetch;
-  linearOAuthEnvironment?: LinearOAuthEnvironment;
-  linearSync?: LinearWebhookDependencies & {
-    enqueueWebhook(rawBody: string): Promise<unknown>;
-    syncIntegration(integrationId: string): Promise<unknown>;
-    webhookSecret?: string;
-  };
 }
 
-const linearCallbackQuerySchema = z.object({
-  code: z.string().min(1),
-  state: z.string().min(1),
-});
+export interface ConnectorHost {
+  app: AnyElysia;
+  start(): Promise<void>;
+  stop(): Promise<void>;
+}
 
 const authorized = (
   headers: Record<string, string | undefined>,
@@ -68,133 +42,136 @@ const authorized = (
   return timingSafeEqual(providedDigest, expectedDigest);
 };
 
-export const createConnectorHost = ({
-  connectors,
-  secret,
-  fetcher = fetch,
-  linearOAuthEnvironment,
-  linearSync,
-}: ConnectorHostOptions) => {
-  const app = new Elysia().get("/health", () => ({ ok: true }));
-
-  app.get("/linear/api/oauth/callback", async ({ query, set }) => {
-    let environment: LinearOAuthEnvironment;
-    try {
-      environment = linearOAuthEnvironment ?? readLinearOAuthEnvironment();
-    } catch (error) {
-      console.error("[Linear] OAuth is not configured:", error);
-      set.status = 503;
-      return { error: "LINEAR_OAUTH_NOT_CONFIGURED" };
-    }
-
-    const parsed = linearCallbackQuerySchema.safeParse(query);
-    const settingsUrl = `${environment.frontendBaseUrl}/app/settings/organization/integration/linear`;
-    if (!parsed.success) {
-      return Response.redirect(`${settingsUrl}?error=missing_params`, 302);
-    }
-    const separator = parsed.data.state.indexOf(".");
-    const integrationId = parsed.data.state.slice(0, separator);
-    const state = parsed.data.state.slice(separator + 1);
-    if (separator < 1 || !state) {
-      return Response.redirect(`${settingsUrl}?error=invalid_state`, 302);
-    }
-
-    try {
-      await completeLinearOAuth(
-        { code: parsed.data.code, integrationId, state },
-        environment,
-        fetcher
-      );
-      linearSync?.syncIntegration(integrationId).catch((error) => {
-        console.error("[Linear] Initial reconciliation failed:", error);
-      });
-      return Response.redirect(settingsUrl, 302);
-    } catch (error) {
-      console.error("[Linear] OAuth callback failed:", error);
-      return Response.redirect(`${settingsUrl}?error=callback_error`, 302);
-    }
-  });
-
+const registerConnectorRoutes = (
+  app: AnyElysia,
+  connector: HostedConnector,
+  secret: string | undefined
+) => {
+  const prefix = `/${connector.type}`;
   app.post(
-    "/linear/api/webhook",
+    `${prefix}${CAPABILITY_INVOKE_PATH}`,
     async ({ body, headers, set }) => {
-      const rawBody = typeof body === "string" ? body : "";
-      const signature = headers["linear-signature"];
-      if (
-        !linearSync?.webhookSecret ||
-        !signature ||
-        !verifyLinearWebhook(rawBody, signature, linearSync.webhookSecret)
-      ) {
+      if (!authorized(headers, secret)) {
         set.status = 401;
-        return { error: "INVALID_SIGNATURE" };
+        return { error: "UNAUTHORIZED" };
+      }
+      const parsed = invokeEnvelopeSchema.safeParse(body);
+      if (!parsed.success) {
+        set.status = 400;
+        return { error: "INVALID_INVOKE_ENVELOPE" };
       }
       try {
-        parseLinearWebhook(rawBody);
-        await linearSync.enqueueWebhook(rawBody);
-        return { ok: true };
+        const result = await connector.invoke(parsed.data);
+        set.status = result.status;
+        return result.body;
       } catch (error) {
-        console.error("[Linear] Webhook failed:", error);
-        if (error instanceof SyntaxError || error instanceof z.ZodError) {
-          set.status = 400;
-          return { error: "INVALID_WEBHOOK" };
-        }
+        console.error("[connector-host] invoke failed", error);
         set.status = 500;
-        return { error: "WEBHOOK_PROCESSING_FAILED" };
+        return { error: "INVOKE_FAILED" };
       }
-    },
-    { parse: "text" }
+    }
   );
+  app.post(
+    `${prefix}${CONNECTION_PROBE_PATH}`,
+    async ({ body, headers, set }) => {
+      if (!authorized(headers, secret)) {
+        set.status = 401;
+        return { error: "UNAUTHORIZED" };
+      }
+      const parsed = probeRequestSchema.safeParse(body);
+      if (!parsed.success) {
+        set.status = 400;
+        return { error: "INVALID_PROBE_REQUEST" };
+      }
+      try {
+        return await connector.probe(
+          parsed.data.config,
+          parsed.data.integrationId
+        );
+      } catch (error) {
+        console.error("[connector-host] probe failed", error);
+        set.status = 500;
+        return { error: "PROBE_FAILED" };
+      }
+    }
+  );
+};
 
-  for (const connector of connectors) {
-    const prefix = `/${connector.type}`;
-    app.post(
-      `${prefix}${CAPABILITY_INVOKE_PATH}`,
-      async ({ body, headers, set }) => {
-        if (!authorized(headers, secret)) {
-          set.status = 401;
-          return { error: "UNAUTHORIZED" };
-        }
-        const parsed = invokeEnvelopeSchema.safeParse(body);
-        if (!parsed.success) {
-          set.status = 400;
-          return { error: "INVALID_INVOKE_ENVELOPE" };
-        }
-        try {
-          const result = await connector.invoke(parsed.data);
-          set.status = result.status;
-          return result.body;
-        } catch (error) {
-          console.error("[connector-host] invoke failed", error);
-          set.status = 500;
-          return { error: "INVOKE_FAILED" };
-        }
-      }
-    );
-    app.post(
-      `${prefix}${CONNECTION_PROBE_PATH}`,
-      async ({ body, headers, set }) => {
-        if (!authorized(headers, secret)) {
-          set.status = 401;
-          return { error: "UNAUTHORIZED" };
-        }
-        const parsed = probeRequestSchema.safeParse(body);
-        if (!parsed.success) {
-          set.status = 400;
-          return { error: "INVALID_PROBE_REQUEST" };
-        }
-        try {
-          return await connector.probe(
-            parsed.data.config,
-            parsed.data.integrationId
-          );
-        } catch (error) {
-          console.error("[connector-host] probe failed", error);
-          set.status = 500;
-          return { error: "PROBE_FAILED" };
-        }
-      }
-    );
+export const createConnectorHost = ({
+  providers,
+  secret,
+}: ConnectorHostOptions): ConnectorHost => {
+  const app = new Elysia().get("/health", () => ({ ok: true }));
+
+  for (const provider of providers) {
+    provider.registerRoutes(app);
+    registerConnectorRoutes(app, provider.connector, secret);
   }
 
-  return app;
+  let started = false;
+  let shutdownStarted = false;
+  let stopped = false;
+  let startPromise: Promise<void> | undefined;
+  let stopPromise: Promise<void> | undefined;
+  const startedProviders = new Set<HostedConnectorProvider>();
+  const stoppedProviders = new Set<HostedConnectorProvider>();
+
+  return {
+    app,
+    start: () => {
+      if (started || shutdownStarted) return Promise.resolve();
+      if (startPromise) return startPromise;
+      if (stopPromise) return stopPromise;
+
+      startPromise = (async () => {
+        const pendingProviders = providers.filter(
+          (provider) => !startedProviders.has(provider)
+        );
+        const results = await Promise.allSettled(
+          pendingProviders.map(async (provider) => {
+            await provider.start?.();
+            startedProviders.add(provider);
+          })
+        );
+        for (const result of results) {
+          if (result.status === "rejected") {
+            throw result.reason;
+          }
+        }
+        started = true;
+      })().finally(() => {
+        startPromise = undefined;
+      });
+      return startPromise;
+    },
+    stop: () => {
+      if (stopped) return Promise.resolve();
+      if (stopPromise) return stopPromise;
+      shutdownStarted = true;
+
+      stopPromise = (async () => {
+        if (startPromise) {
+          try {
+            await startPromise;
+          } catch {
+            // A failed startup can still leave a provider with resources to close.
+          }
+        }
+
+        const pendingProviders = providers.filter(
+          (provider) => !stoppedProviders.has(provider)
+        );
+        await Promise.all(
+          pendingProviders.map(async (provider) => {
+            await provider.stop?.();
+            stoppedProviders.add(provider);
+          })
+        );
+        stopped = true;
+      })().finally(() => {
+        stopPromise = undefined;
+      });
+      return stopPromise;
+    },
+  };
 };

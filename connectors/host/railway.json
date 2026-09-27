@@ -1,0 +1,21 @@
+{
+  "$schema": "https://railway.com/railway.schema.json",
+  "build": {
+    "builder": "RAILPACK",
+    "buildCommand": "bun run build -F connector-host...",
+    "watchPatterns": [
+      "apps/api/**",
+      "packages/emails/**",
+      "packages/queue/**",
+      "packages/schemas/**",
+      "packages/utils/**",
+      "connectors/framework/**",
+      "connectors/host/**"
+    ]
+  },
+  "deploy": {
+    "startCommand": "cd connectors/host && bun run start",
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  }
+}
