@@ -59,6 +59,7 @@ export {
   type ConnectorManifest,
   discordManifest,
   githubManifest,
+  linearManifest,
   manifests,
   slackManifest,
   typesHaveCapability,
