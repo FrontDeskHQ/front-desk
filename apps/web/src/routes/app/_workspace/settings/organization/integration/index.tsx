@@ -1,4 +1,4 @@
-import { typesProvidingCapability } from "@connectors/framework";
+import { typesSupportingIssueCreation } from "@connectors/framework";
 import { useLiveQuery } from "@live-state/sync/client";
 import { useFlag } from "@reflag/react-sdk";
 import { createFileRoute, Link } from "@tanstack/react-router";
@@ -316,14 +316,13 @@ function IssueTrackingSection({
 }) {
   const org = useLiveQuery(query.organization.first({ id: organizationId }));
 
-  const providerTypes = new Set(typesProvidingCapability("issue-tracker"));
+  const providerTypes = new Set(typesSupportingIssueCreation());
   // Only offer configured integrations — an enabled-but-unconfigured tracker
   // can't actually receive an issue, so pinning it would break agent creates.
   const trackers = integrations.filter(
     (integration) =>
       integration.enabled &&
       integration.configStr &&
-      integration.type !== "linear" &&
       providerTypes.has(integration.type)
   );
 

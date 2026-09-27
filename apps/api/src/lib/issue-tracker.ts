@@ -1,6 +1,7 @@
 import type { NormalizedIssue } from "@connectors/framework";
 import type { InferLiveObject } from "@live-state/sync";
 import type { ServerDB } from "@live-state/sync/server";
+import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import type { DefaultIssueTarget } from "@workspace/schemas/organization";
 import {
   readCapabilityPrimary,
@@ -81,6 +82,7 @@ export const resolveIssueTrackerTarget = async (
   const providerTypes = new Set(
     connectorRegistry
       .providersOf("issue-tracker")
+      .filter((entry) => entry.manifest.supportsIssueCreation === true)
       .map((entry) => entry.manifest.type)
   );
 
@@ -144,17 +146,17 @@ export const resolveEffectiveDefaultIssueTarget = async (
 ): Promise<DefaultIssueTarget | null> => {
   const saved = readDefaultIssueTarget(settings);
   if (saved) {
-    return saved;
+    return (await resolveIssueTrackerTarget(
+      db,
+      organizationId,
+      saved.integrationId
+    ))
+      ? saved
+      : null;
   }
 
   const resolved = await resolveIssueTrackerTarget(db, organizationId);
   if (!resolved) {
-    return null;
-  }
-
-  // Only GitHub exposes listable targets today; other trackers must set an
-  // explicit default until they grow a config surface we can read.
-  if (resolved.integration.type !== "github") {
     return null;
   }
 
@@ -163,6 +165,24 @@ export const resolveEffectiveDefaultIssueTarget = async (
     parsed = JSON.parse(resolved.integration.configStr);
   } catch {
     return null;
+  }
+
+  if (resolved.integration.type === "linear") {
+    const config = linearIntegrationSchema.safeParse(parsed);
+    const selected = config.success
+      ? config.data.defaultTeamId
+        ? config.data.teams.find(
+            (team) => team.id === config.data.defaultTeamId
+          )
+        : config.data.teams[0]
+      : undefined;
+    return selected
+      ? {
+          integrationId: resolved.integration.id,
+          label: `${selected.key} — ${selected.name}`,
+          target: { teamId: selected.id },
+        }
+      : null;
   }
 
   const config = githubIssueTargetConfigSchema.safeParse(parsed);

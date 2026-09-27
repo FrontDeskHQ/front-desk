@@ -58,6 +58,10 @@ export const relatedIssuesHintSpec: RetrievalHintSpec<
         state: hit.payload.state,
         title: hit.payload.title,
         url: hit.payload.url,
+        ...(hit.payload.containerLabel
+          ? { containerLabel: hit.payload.containerLabel }
+          : {}),
+        ...(hit.payload.shortId ? { shortId: hit.payload.shortId } : {}),
       }));
     return issues.length > 0 ? { issues } : null;
   },
@@ -65,5 +69,6 @@ export const relatedIssuesHintSpec: RetrievalHintSpec<
   tuning: { limit: 5, scoreThreshold: ISSUE_MATCH_THRESHOLD },
 };
 
-export const relatedIssuesProcessor =
-  defineRetrievalHint(relatedIssuesHintSpec);
+export const relatedIssuesProcessor = defineRetrievalHint(
+  relatedIssuesHintSpec
+);

@@ -20,7 +20,9 @@ const savedTarget = {
 };
 
 const makeDb = (integrations: Record<string, unknown>[]) => ({
-  find: vi.fn(async (_table: unknown, _opts: unknown) => {
+  find: vi.fn<
+    (table: unknown, options: unknown) => Promise<Record<string, unknown>>
+  >(async (_table: unknown, _options: unknown) => {
     const byId: Record<string, unknown> = {};
     for (const row of integrations) {
       byId[String((row as { id: string }).id)] = row;
@@ -29,20 +31,37 @@ const makeDb = (integrations: Record<string, unknown>[]) => ({
   }),
 });
 
-describe("resolveEffectiveDefaultIssueTarget", () => {
+describe(resolveEffectiveDefaultIssueTarget, () => {
   beforeEach(() => {
     vi.restoreAllMocks();
   });
 
   it("returns the saved target when one is set", async () => {
-    const db = makeDb([]);
+    const db = makeDb([
+      {
+        configStr: JSON.stringify({
+          installationId: 1,
+          repos: [githubRepo],
+        }),
+        enabled: true,
+        id: integrationId,
+        organization: { id: organizationId, settings: {}, slug: "acme" },
+        organizationId,
+        type: "github",
+      },
+    ]);
 
     await expect(
       resolveEffectiveDefaultIssueTarget(db, organizationId, {
         defaultIssueTarget: savedTarget,
       })
-    ).resolves.toEqual(savedTarget);
-    expect(db.find).not.toHaveBeenCalled();
+    ).resolves.toStrictEqual(savedTarget);
+    expect(db.find).toHaveBeenCalledWith(
+      schema.integration,
+      expect.objectContaining({
+        where: { enabled: true, organizationId },
+      })
+    );
   });
 
   it("returns null when no issue tracker resolves", async () => {
@@ -53,7 +72,7 @@ describe("resolveEffectiveDefaultIssueTarget", () => {
     ).resolves.toBeNull();
   });
 
-  it("returns null for a non-GitHub tracker", async () => {
+  it("returns null for a Linear tracker without teams", async () => {
     const entry = connectorRegistry.getByType("github");
     if (!entry) {
       throw new Error("GitHub connector is not registered");
@@ -74,7 +93,7 @@ describe("resolveEffectiveDefaultIssueTarget", () => {
 
     const db = makeDb([
       {
-        configStr: JSON.stringify({ boards: [] }),
+        configStr: JSON.stringify({ teams: [], workspaceId: "workspace-1" }),
         enabled: true,
         id: integrationId,
         organization: { id: organizationId, settings: {}, slug: "acme" },
@@ -88,6 +107,50 @@ describe("resolveEffectiveDefaultIssueTarget", () => {
     ).resolves.toBeNull();
   });
 
+  it("uses the selected Linear team and pins its integration", async () => {
+    const entry = connectorRegistry.getByType("github");
+    if (!entry) throw new Error("GitHub connector is not registered");
+    vi.spyOn(connectorRegistry, "providersOf").mockReturnValue([
+      {
+        invokeUrl: entry.invokeUrl,
+        manifest: {
+          capabilities: ["issue-tracker"],
+          supportsIssueCreation: true,
+          type: "linear",
+        },
+      },
+    ] as ReturnType<typeof connectorRegistry.providersOf>);
+    vi.spyOn(connectorRegistry, "getByType").mockReturnValue({
+      ...entry,
+      manifest: { ...entry.manifest, type: "linear" },
+    });
+    const db = makeDb([
+      {
+        configStr: JSON.stringify({
+          defaultTeamId: "team-2",
+          teams: [
+            { id: "team-1", key: "ENG", name: "Engineering" },
+            { id: "team-2", key: "APP", name: "Applications" },
+          ],
+          workspaceId: "workspace-1",
+        }),
+        enabled: true,
+        id: integrationId,
+        organization: { id: organizationId, settings: {}, slug: "acme" },
+        organizationId,
+        type: "linear",
+      },
+    ]);
+
+    await expect(
+      resolveEffectiveDefaultIssueTarget(db, organizationId, {})
+    ).resolves.toStrictEqual({
+      integrationId,
+      label: "APP — Applications",
+      target: { teamId: "team-2" },
+    });
+  });
+
   it("returns null when GitHub config JSON is invalid", async () => {
     const db = makeDb([
       {
@@ -97,6 +160,50 @@ describe("resolveEffectiveDefaultIssueTarget", () => {
         organization: { id: organizationId, settings: {}, slug: "acme" },
         organizationId,
         type: "github",
+      },
+    ]);
+
+    await expect(
+      resolveEffectiveDefaultIssueTarget(db, organizationId, {})
+    ).resolves.toBeNull();
+  });
+
+  it("does not fall back when a configured Linear team is stale", async () => {
+    const entry = connectorRegistry.getByType("github");
+    if (!entry) throw new Error("GitHub connector is not registered");
+    vi.spyOn(connectorRegistry, "providersOf").mockReturnValue([
+      {
+        invokeUrl: entry.invokeUrl,
+        manifest: {
+          capabilities: ["issue-tracker"],
+          supportsIssueCreation: true,
+          type: "linear",
+        },
+      },
+    ] as ReturnType<typeof connectorRegistry.providersOf>);
+    vi.spyOn(connectorRegistry, "getByType").mockReturnValue({
+      ...entry,
+      manifest: {
+        ...entry.manifest,
+        supportsIssueCreation: true,
+        type: "linear",
+      },
+    });
+    const db = makeDb([
+      {
+        configStr: JSON.stringify({
+          defaultTeamId: "missing-team",
+          teams: [
+            { id: "team-1", key: "ENG", name: "Engineering" },
+            { id: "team-2", key: "APP", name: "Applications" },
+          ],
+          workspaceId: "workspace-1",
+        }),
+        enabled: true,
+        id: integrationId,
+        organization: { id: organizationId, settings: {}, slug: "acme" },
+        organizationId,
+        type: "linear",
       },
     ]);
 
@@ -145,7 +252,7 @@ describe("resolveEffectiveDefaultIssueTarget", () => {
 
     await expect(
       resolveEffectiveDefaultIssueTarget(db, organizationId, {})
-    ).resolves.toEqual({
+    ).resolves.toStrictEqual({
       integrationId,
       label: githubRepo.fullName,
       target: { owner: githubRepo.owner, repo: githubRepo.name },

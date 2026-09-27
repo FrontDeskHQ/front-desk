@@ -43,14 +43,25 @@ describe(createConnectorHost, () => {
     const response = await app.handle(
       request("/linear/api/capabilities/invoke", {
         capability: "issue-tracker",
-        config: null,
+        config: JSON.stringify({
+          teams: [{ id: "team-1", key: "ENG", name: "Engineering" }],
+          workspaceId: "workspace-1",
+          workspaceName: "Acme",
+        }),
         method: "listTargets",
         payload: {},
       })
     );
 
     expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toStrictEqual({ targets: [] });
+    await expect(response.json()).resolves.toStrictEqual({
+      targets: [
+        {
+          label: "ENG — Engineering",
+          target: { teamId: "team-1" },
+        },
+      ],
+    });
   });
 
   it("rejects a malformed invocation envelope", async () => {

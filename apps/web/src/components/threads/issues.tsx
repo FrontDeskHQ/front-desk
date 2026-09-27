@@ -44,7 +44,7 @@ import {
 } from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useAtomValue } from "jotai/react";
-import { ArrowRight, Github, Loader2, Plus } from "lucide-react";
+import { ArrowRight, CircleDot, Github, Loader2, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -69,6 +69,8 @@ type LinkedIssue = Pick<
   | "shortId"
   | "containerLabel"
   | "containerKind"
+  | "closedAt"
+  | "provider"
 >;
 
 interface IssuesSectionProps {
@@ -138,7 +140,7 @@ export function IssuesSection({
 
   // The link list only offers open issues; the linked issue itself resolves from
   // the full mirror so an already-linked closed issue still displays.
-  const openIssues = issues.filter((issue) => issue.state === "open");
+  const openIssues = issues.filter((issue) => !issue.closedAt);
 
   const comboboxItems = prepareFooter(
     openIssues.map((issue) => ({
@@ -221,12 +223,14 @@ export function IssuesSection({
       // Optimistic placeholder so the link shows immediately; the real mirror
       // row arrives shortly after via the GitHub webhook upsert.
       setOptimisticIssue({
+        closedAt: null,
         containerKind: result.issue.container?.kind ?? "repository",
         containerLabel: result.issue.container?.label ?? repo.fullName,
         externalKey: result.issue.id,
         // The mirror row is GitHub-shaped (numeric `number`); parse the neutral
         // `shortId` back to an int here in the GitHub-specific UI.
         number: Number(result.issue.shortId),
+        provider: "github",
         title: result.issue.title || variables.title,
         repoFullName: repo.fullName,
         shortId: result.issue.shortId,
@@ -384,7 +388,11 @@ export function IssuesSection({
                   >
                     {linkedIssue ? (
                       <>
-                        <Github className="size-4 shrink-0" />
+                        {linkedIssue.provider === "github" ? (
+                          <Github className="size-4 shrink-0" />
+                        ) : (
+                          <CircleDot className="size-4 shrink-0 text-[#5E6AD2]" />
+                        )}
                         <span className="truncate shrink grow text-left">
                           {formatMirrorEntityLabel(linkedIssue)}{" "}
                           {linkedIssue.title}

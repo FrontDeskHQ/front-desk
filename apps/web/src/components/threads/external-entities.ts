@@ -26,6 +26,8 @@ export interface MirrorEntity {
   containerId: string | null;
   containerLabel: string | null;
   containerKind: string | null;
+  closedAt: Date | null;
+  provider: string;
   url: string;
   title: string;
   body: string | null;
@@ -130,6 +132,8 @@ type MirrorEntityRow = Pick<
   | "draft"
   | "headRef"
   | "baseRef"
+  | "closedAt"
+  | "provider"
 >;
 
 const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
@@ -137,12 +141,14 @@ const toMirrorEntity = (row: MirrorEntityRow): MirrorEntity => ({
   authorLogin: row.authorLogin,
   baseRef: row.baseRef,
   body: row.body,
+  closedAt: row.closedAt,
   draft: row.draft,
   externalKey: row.externalKey,
   headRef: row.headRef,
   id: row.id,
   labels: row.labels,
   merged: row.merged,
+  provider: row.provider,
   number: row.number,
   shortId: row.shortId,
   containerId: row.containerId,
