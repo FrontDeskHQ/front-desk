@@ -1,15 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { enqueueThreadRead } from "./queue";
-
 import {
   didExternalEntityFinish,
   fanOutEntityFinished,
   isExternalEntityFinished,
-  type ExternalEntityFinishState,
 } from "./entity-finished";
+import type { ExternalEntityFinishState } from "./entity-finished";
+import { enqueueThreadRead } from "./queue";
 
-vi.mock("./queue", () => ({ enqueueThreadRead: vi.fn() }));
+vi.mock(import("./queue"), () => ({
+  enqueueThreadRead: vi.fn<typeof enqueueThreadRead>(),
+}));
 
 const issue = (state: string): ExternalEntityFinishState => ({
   externalKey: "github:acme/app#1",
@@ -36,21 +37,26 @@ describe("external entity finish detection", () => {
   beforeEach(() => {
     vi.mocked(enqueueThreadRead).mockReset();
   });
-  it("recognizes closed issues and merged pull requests", () => {
-    expect(isExternalEntityFinished(issue("closed"))).toBe(true);
-    expect(isExternalEntityFinished(pullRequest("closed", true))).toBe(true);
+  it("recognizes terminal issues and merged pull requests", () => {
+    expect(isExternalEntityFinished(issue("closed"))).toBeTruthy();
+    expect(isExternalEntityFinished(issue("completed"))).toBeTruthy();
+    expect(isExternalEntityFinished(issue("canceled"))).toBeTruthy();
+    expect(isExternalEntityFinished(issue("duplicate"))).toBeTruthy();
+    expect(isExternalEntityFinished(pullRequest("closed", true))).toBeTruthy();
   });
 
   it("does not treat a closed unmerged pull request as finished", () => {
-    expect(isExternalEntityFinished(pullRequest("closed", false))).toBe(false);
+    expect(isExternalEntityFinished(pullRequest("closed", false))).toBeFalsy();
   });
 
   it("only emits a transition for a previously known unfinished entity", () => {
-    expect(didExternalEntityFinish(issue("open"), issue("closed"))).toBe(true);
-    expect(didExternalEntityFinish(null, issue("closed"))).toBe(false);
-    expect(didExternalEntityFinish(issue("closed"), issue("closed"))).toBe(
-      false
-    );
+    expect(
+      didExternalEntityFinish(issue("open"), issue("closed"))
+    ).toBeTruthy();
+    expect(didExternalEntityFinish(null, issue("closed"))).toBeFalsy();
+    expect(
+      didExternalEntityFinish(issue("closed"), issue("closed"))
+    ).toBeFalsy();
   });
 
   it("fans out the entity payload only to linked live threads", async () => {
@@ -59,16 +65,17 @@ describe("external entity finish detection", () => {
       jobId: "thread:live:read",
     });
     const db = {
-      find: vi.fn().mockResolvedValue({
-        closed: { id: "closed", status: 2 },
-        live: { id: "live", status: 1 },
-      }),
+      find: vi
+        .fn<() => Promise<Record<string, { id: string; status: number }>>>()
+        .mockResolvedValue({
+          closed: { id: "closed", status: 2 },
+          live: { id: "live", status: 1 },
+        }),
     } as unknown as Parameters<typeof fanOutEntityFinished>[0];
 
     const result = await fanOutEntityFinished(db, issue("closed"));
 
-    expect(enqueueThreadRead).toHaveBeenCalledOnce();
-    expect(enqueueThreadRead).toHaveBeenCalledWith("live", {
+    expect(enqueueThreadRead).toHaveBeenCalledExactlyOnceWith("live", {
       entityFinished: {
         externalKey: "github:acme/app#1",
         type: "issue",
@@ -77,7 +84,7 @@ describe("external entity finish detection", () => {
       kind: "entity_finished",
       organizationId: "org-1",
     });
-    expect(result).toEqual({
+    expect(result).toStrictEqual({
       enqueued: 1,
       jobIds: ["thread:live:read"],
       unavailable: 0,

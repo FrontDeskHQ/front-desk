@@ -92,6 +92,11 @@ describe(buildLinearIssueFields, () => {
         issue({ state: { name: "Canceled", type: "canceled" } })
       ).state
     ).toBe("closed");
+    expect(
+      buildLinearIssueFields(
+        issue({ state: { name: "Duplicate", type: "duplicate" } })
+      ).state
+    ).toBe("closed");
   });
 });
 

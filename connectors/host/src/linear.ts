@@ -1,6 +1,8 @@
 import {
   issueTrackerCreatePayloadSchema,
   normalizedIssueSchema,
+  trackerReadOutcomePayloadSchema,
+  trackerReadOutcomeResultSchema,
 } from "@connectors/framework";
 import { linearIntegrationSchema } from "@workspace/schemas/integration/linear";
 import { z } from "zod";
@@ -38,7 +40,87 @@ const CREATE_MUTATION = `mutation FrontDeskIssueCreate($input: IssueCreateInput!
   }
 }`;
 
-const LINEAR_CREATE_TIMEOUT_MS = 8_000;
+const LINEAR_OPERATION_TIMEOUT_MS = 8_000;
+
+const OUTCOME_QUERY = `query FrontDeskIssueOutcome($id: String!, $after: String) {
+  issue(id: $id) {
+    id identifier title url
+    state { name type }
+    team { id key name }
+    relations(first: 50, after: $after) {
+      nodes { type relatedIssue {
+        id identifier title url
+        state { name type }
+        team { id key name }
+      } }
+      pageInfo { hasNextPage endCursor }
+    }
+  }
+}`;
+
+const outcomeIssueSchema = z.object({
+  id: z.string(),
+  identifier: z.string(),
+  state: z.object({ name: z.string(), type: z.string() }),
+  team: z.object({ id: z.string(), key: z.string(), name: z.string() }),
+  title: z.string(),
+  url: z.string(),
+});
+
+const outcomeResponseSchema = z.object({
+  issue: outcomeIssueSchema
+    .extend({
+      relations: z.object({
+        nodes: z.array(
+          z.object({
+            relatedIssue: outcomeIssueSchema,
+            type: z.string(),
+          })
+        ),
+        pageInfo: z.object({
+          endCursor: z.string().nullable(),
+          hasNextPage: z.boolean(),
+        }),
+      }),
+    })
+    .nullable(),
+});
+
+type OutcomeIssue = z.infer<typeof outcomeIssueSchema>;
+
+const outcomeForState = (stateType: string) => {
+  if (stateType === "completed") return "delivered" as const;
+  if (stateType === "canceled" || stateType === "duplicate") {
+    return "declined" as const;
+  }
+  return "unknown" as const;
+};
+
+const outcomeEntity = (issue: OutcomeIssue) => ({
+  entity: {
+    container: {
+      externalId: issue.team.id,
+      kind: "team",
+      label: issue.team.key,
+    },
+    externalKey: linearExternalKey(issue.id),
+    externalRef: {
+      id: issue.id,
+      identifier: issue.identifier,
+      teamId: issue.team.id,
+    },
+    shortId: issue.identifier,
+    url: issue.url,
+  },
+  finished:
+    issue.state.type === "completed" ||
+    issue.state.type === "canceled" ||
+    issue.state.type === "duplicate",
+  outcome: outcomeForState(issue.state.type),
+  state: issue.state.type,
+  title: issue.title,
+  type: "issue" as const,
+});
 
 export interface LinearConnectorDependencies {
   environment?: LinearClientEnvironment;
@@ -75,12 +157,96 @@ export const createLinearConnector = (
         status: 200,
       };
     }
-    if (method !== "create") {
+    if (method !== "create" && method !== "readOutcome") {
       return { body: { error: "METHOD_NOT_IMPLEMENTED" }, status: 501 };
     }
     if (!(integrationId && dependencies.environment)) {
       return { body: { error: "LINEAR_NOT_CONFIGURED" }, status: 503 };
     }
+    if (method === "readOutcome") {
+      const parsed = trackerReadOutcomePayloadSchema.safeParse(payload);
+      const externalId = parsed.success
+        ? z.string().safeParse(parsed.data.entity.externalRef.id)
+        : null;
+      if (!parsed.success || !externalId?.success) {
+        return { body: { error: "INVALID_OUTCOME_REQUEST" }, status: 400 };
+      }
+      try {
+        const timeoutSignal = AbortSignal.timeout(LINEAR_OPERATION_TIMEOUT_MS);
+        const { credential } = await getLinearCredential(
+          integrationId,
+          dependencies.environment,
+          dependencies.fetcher,
+          { signal: timeoutSignal }
+        );
+        const raw = await linearGraphql<unknown>(
+          credential.accessToken,
+          OUTCOME_QUERY,
+          { after: null, id: externalId.data },
+          dependencies.fetcher,
+          { signal: timeoutSignal }
+        );
+        let issue = outcomeResponseSchema.parse(raw).issue;
+        if (!issue) return { body: { error: "ISSUE_NOT_FOUND" }, status: 404 };
+        const relationNodes = issue.relations.nodes;
+        let pageInfo = issue.relations.pageInfo;
+        const mayHaveSuccessor =
+          issue.state.type === "canceled" || issue.state.type === "duplicate";
+        if (mayHaveSuccessor) {
+          while (
+            !relationNodes.some((relation) => relation.type === "duplicate") &&
+            pageInfo.hasNextPage &&
+            pageInfo.endCursor
+          ) {
+            const next = outcomeResponseSchema.parse(
+              await linearGraphql<unknown>(
+                credential.accessToken,
+                OUTCOME_QUERY,
+                { after: pageInfo.endCursor, id: externalId.data },
+                dependencies.fetcher,
+                { signal: timeoutSignal }
+              )
+            ).issue;
+            if (!next) break;
+            relationNodes.push(...next.relations.nodes);
+            pageInfo = next.relations.pageInfo;
+            issue = next;
+          }
+        }
+        const duplicate = relationNodes.find(
+          (relation) => relation.type === "duplicate"
+        )?.relatedIssue;
+        const result = outcomeEntity(issue);
+        const successor =
+          (issue.state.type === "canceled" ||
+            issue.state.type === "duplicate") &&
+          duplicate
+            ? outcomeEntity(duplicate)
+            : null;
+        return {
+          body: trackerReadOutcomeResultSchema.parse({
+            ...result,
+            ...(successor
+              ? { outcome: "superseded", successor }
+              : { successor: null }),
+          }),
+          status: 200,
+        };
+      } catch (error) {
+        console.error("[Linear] Outcome read failed:", error);
+        if (
+          error instanceof DOMException &&
+          (error.name === "TimeoutError" || error.name === "AbortError")
+        ) {
+          return {
+            body: { error: "LINEAR_OUTCOME_READ_TIMEOUT" },
+            status: 504,
+          };
+        }
+        return { body: { error: "LINEAR_OUTCOME_READ_FAILED" }, status: 503 };
+      }
+    }
+
     const parsedPayload = issueTrackerCreatePayloadSchema.safeParse(payload);
     const teamId = parsedPayload.success
       ? z.string().safeParse(parsedPayload.data.target.teamId)
@@ -93,7 +259,7 @@ export const createLinearConnector = (
     }
 
     try {
-      const timeoutSignal = AbortSignal.timeout(LINEAR_CREATE_TIMEOUT_MS);
+      const timeoutSignal = AbortSignal.timeout(LINEAR_OPERATION_TIMEOUT_MS);
       const { credential } = await getLinearCredential(
         integrationId,
         dependencies.environment,

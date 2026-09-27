@@ -446,6 +446,7 @@ export default privateRoute.withProcedures(({ mutation, query }) => ({
           {
             capability,
             config: target.integration.configStr,
+            integrationId: target.integration.id,
             method: "readOutcome",
             payload: { entity: buildEntityRef(entity) },
           },
