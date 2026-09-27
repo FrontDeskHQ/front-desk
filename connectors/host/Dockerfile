@@ -1,5 +1,5 @@
 # Build context is the repo root (workspace deps live across apps/, packages/, connectors/).
-FROM oven/bun:1.3.5
+FROM oven/bun:1.4.2
 
 WORKDIR /app
 COPY . .
