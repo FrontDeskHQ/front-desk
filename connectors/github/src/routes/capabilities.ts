@@ -11,6 +11,7 @@ import { formatGitHubId } from "@workspace/schemas/external-issue";
 import Elysia from "elysia";
 import { z } from "zod";
 
+import { resolveGitHubEntityReference } from "../lib/entity-reference";
 import {
   addComment,
   createIssue,
@@ -81,6 +82,18 @@ const findRepo = (
       `${repo.owner}/${repo.name}` === repoFullName
   );
 
+const resolveEntityRepo = (
+  config: GithubConfig,
+  entity: z.infer<typeof issueTrackerSetStatePayloadSchema>["entity"]
+): { repo: GithubRepo; number: number } | null => {
+  const reference = resolveGitHubEntityReference(entity);
+  if (!reference) {
+    return null;
+  }
+  const repo = findRepo(config, `${reference.owner}/${reference.repo}`);
+  return repo ? { number: reference.number, repo } : null;
+};
+
 const handleCreateIssue = async (
   config: GithubConfig,
   payload: unknown
@@ -110,6 +123,16 @@ const handleCreateIssue = async (
       body: {
         entity: {
           body: issue.body ?? "",
+          container: {
+            externalId: repo.fullName,
+            kind: "repository",
+            label: repo.fullName,
+          },
+          externalRef: {
+            number: issue.number,
+            owner: target.owner,
+            repo: target.repo,
+          },
           id: formatGitHubId(issue.id, target.owner, target.repo),
           label: `${target.owner}/${target.repo}#${issue.number}`,
           shortId: String(issue.number),
@@ -136,17 +159,18 @@ const handleSetIssueState = async (
   }
 
   const { entity, state } = parsed.data;
-  const repo = findRepo(config, entity.repoFullName);
-  if (!repo) {
+  const resolved = resolveEntityRepo(config, entity);
+  if (!resolved) {
     return err(400, "REPOSITORY_NOT_CONNECTED");
   }
+  const { repo, number } = resolved;
 
   try {
     await setIssueState(
       config.installationId,
       repo.owner,
       repo.name,
-      entity.number,
+      number,
       state
     );
     return { body: { ok: true }, status: 200 };
@@ -166,10 +190,11 @@ const handleLinkPullRequest = async (
   }
 
   const { entity, thread } = parsed.data;
-  const repo = findRepo(config, entity.repoFullName);
-  if (!repo) {
+  const resolved = resolveEntityRepo(config, entity);
+  if (!resolved) {
     return err(400, "REPOSITORY_NOT_CONNECTED");
   }
+  const { repo, number } = resolved;
 
   const body = `Linked to a FrontDesk support thread. [View the conversation](${thread.url}).`;
 
@@ -178,7 +203,7 @@ const handleLinkPullRequest = async (
       config.installationId,
       repo.owner,
       repo.name,
-      entity.number,
+      number,
       body
     );
     return { body: { ok: true }, status: 200 };
@@ -196,10 +221,11 @@ const handleReadOutcome =
       return err(400, parsed.error.issues[0]?.message ?? "Invalid payload");
     }
     const { entity } = parsed.data;
-    const repo = findRepo(config, entity.repoFullName);
-    if (!repo) {
+    const resolved = resolveEntityRepo(config, entity);
+    if (!resolved) {
       return err(400, "REPOSITORY_NOT_CONNECTED");
     }
+    const { repo, number } = resolved;
 
     try {
       const result =
@@ -209,7 +235,7 @@ const handleReadOutcome =
                 config.installationId,
                 repo.owner,
                 repo.name,
-                entity.number
+                number
               ),
               entity
             )
@@ -218,11 +244,14 @@ const handleReadOutcome =
                 config.installationId,
                 repo.owner,
                 repo.name,
-                entity.number
+                number
               ),
               entity
             );
-      return { body: trackerReadOutcomeResultSchema.parse(result), status: 200 };
+      return {
+        body: trackerReadOutcomeResultSchema.parse(result),
+        status: 200,
+      };
     } catch (error) {
       console.error(`Error reading ${type} outcome:`, error);
       return err(503, "Failed to read external outcome");

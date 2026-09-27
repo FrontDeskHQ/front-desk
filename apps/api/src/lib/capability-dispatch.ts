@@ -87,9 +87,19 @@ export const dispatchCapability = async <Result = unknown>(
 export const buildEntityRef = (
   entity: ExternalEntityRow
 ): CapabilityEntityRef => ({
+  container: {
+    externalId: entity.containerId ?? entity.repoFullName,
+    kind: entity.containerKind ?? "repository",
+    label: entity.containerLabel ?? entity.repoFullName,
+  },
   externalKey: entity.externalKey,
+  externalRef: entity.externalRef ?? {
+    number: entity.number,
+    repoFullName: entity.repoFullName,
+  },
   number: entity.number,
   repoFullName: entity.repoFullName,
+  shortId: entity.shortId ?? String(entity.number),
   url: entity.url,
 });
 

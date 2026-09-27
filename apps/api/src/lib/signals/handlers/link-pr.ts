@@ -1,3 +1,4 @@
+import { formatExternalEntityLabel } from "@workspace/schemas/external-issue";
 import type { LinkPrAction } from "@workspace/schemas/signals";
 
 import { schema } from "../../../live-state/schema";
@@ -7,6 +8,7 @@ import {
   resolveEntityCapabilityTarget,
 } from "../../capability-dispatch";
 import { errors } from "../../errors";
+import { resolveExternalEntityLabel } from "../../thread-mutations";
 import {
   buildWorkspaceThreadUrl,
   requireFrontendBaseUrl,
@@ -84,13 +86,19 @@ export const linkPrHandler: ActionHandler<LinkPrAction> = {
       externalPrId: entity.externalKey,
     });
 
-    const newPrLabel = `${entity.repoFullName}#${entity.number}`;
+    const newPrLabel = formatExternalEntityLabel(entity);
+    const oldPrLabel = await resolveExternalEntityLabel(
+      ctx.db,
+      ctx.organizationId,
+      oldPrId,
+      "pull_request"
+    );
     await runRecordActivity(ctx.db, {
       metadata: {
         newPrId: entity.externalKey,
         newPrLabel,
         oldPrId,
-        oldPrLabel: null,
+        oldPrLabel,
       },
       organizationId: ctx.organizationId,
       threadId: ctx.threadId,
