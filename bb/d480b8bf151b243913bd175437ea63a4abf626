@@ -1,0 +1,30 @@
+apps/web/src/components/threads/issues.tsx
+  s_f0f16d1ec5dbea::t_90528bec9dc5de 56-57
+  s_f0f16d1ec5dbea::t_5d10588df72125 526-528
+  s_f0f16d1ec5dbea::t_17b3c733183182 77
+  s_f0f16d1ec5dbea::t_4e864f85bc0869 308
+  s_f0f16d1ec5dbea::t_3551418bd57ecf 468-471
+apps/web/src/components/threads/issue-state.tsx
+  s_f0f16d1ec5dbea::t_b5e71bf42a6cb7 27-29
+  s_f0f16d1ec5dbea::t_edd32ee5a05795 1-26,30-46
+apps/web/src/components/chips.tsx
+  s_f0f16d1ec5dbea::t_270ed050f49f05 424
+  s_f0f16d1ec5dbea::t_bb9de4a403b7e8 458
+  s_f0f16d1ec5dbea::t_2bd33dc7c9e8bf 36-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "bbd480b8bf151b243913bd175437ea63a4abf626",
+  "prompts": {},
+  "sessions": {
+    "s_f0f16d1ec5dbea": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "30bdfae0-3c63-42fa-b926-ab8ff32c0910",
+        "model": "grok-4.7"
+      },
+      "human_author": "Pedro Costa <scosta.pedro.manoel@gmail.com>"
+    }
+  }
+}
