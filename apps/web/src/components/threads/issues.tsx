@@ -44,7 +44,14 @@ import {
 } from "@workspace/ui/components/select";
 import { Textarea } from "@workspace/ui/components/textarea";
 import { useAtomValue } from "jotai/react";
-import { ArrowRight, CircleDot, Github, Loader2, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  CircleDashed,
+  CircleDot,
+  Github,
+  Loader2,
+  Plus,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -86,7 +93,12 @@ type IssueOriginGroup = BaseItemGroup<string, IssueComboboxItem> & {
   provider: string;
 };
 
-type IssuePickerGroup = IssueOriginGroup | (BaseItemGroup & { footer: true });
+const NO_ISSUE_VALUE = "none:no_issue";
+
+type IssuePickerGroup =
+  | IssueOriginGroup
+  | (BaseItemGroup & { footer: true })
+  | (BaseItemGroup & { value: "none" });
 
 /** Container an issue lives in: a GitHub repo, a Linear team, and so on. */
 const issueOrigin = (
@@ -116,7 +128,42 @@ const formatIssuePickerReference = (
   return id ? `#${id}` : "";
 };
 
-const groupIssuesByOrigin = (issues: MirrorEntity[]): IssueOriginGroup[] => {
+const pinSelectedIssue = (
+  groups: IssueOriginGroup[],
+  selectedKey: string | null
+): IssueOriginGroup[] => {
+  if (!selectedKey) {
+    return groups;
+  }
+
+  const selectedGroup = groups.find((group) =>
+    group.items.some((item) => item.value === selectedKey)
+  );
+  const selectedItem = selectedGroup?.items.find(
+    (item) => item.value === selectedKey
+  );
+  if (!(selectedGroup && selectedItem)) {
+    return groups;
+  }
+
+  const pinnedGroup = {
+    ...selectedGroup,
+    items: [
+      selectedItem,
+      ...selectedGroup.items.filter((item) => item.value !== selectedKey),
+    ],
+  };
+
+  return [
+    pinnedGroup,
+    ...groups.filter((group) => group.value !== selectedGroup.value),
+  ];
+};
+
+const groupIssuesByOrigin = (
+  issues: MirrorEntity[],
+  selectedKey: string | null
+): IssueOriginGroup[] => {
   const groups = new Map<string, IssueOriginGroup>();
 
   for (const issue of issues) {
@@ -139,15 +186,20 @@ const groupIssuesByOrigin = (issues: MirrorEntity[]): IssueOriginGroup[] => {
     });
   }
 
-  return [...groups.values()].toSorted((a, b) =>
+  const sorted = [...groups.values()].toSorted((a, b) =>
     a.origin.localeCompare(b.origin)
   );
+
+  return pinSelectedIssue(sorted, selectedKey);
 };
 
 const isFooterGroup = (
   group: IssuePickerGroup
 ): group is BaseItemGroup & { footer: true } =>
   "footer" in group && group.footer === true;
+
+const isOriginGroup = (group: IssuePickerGroup): group is IssueOriginGroup =>
+  !isFooterGroup(group) && group.value !== "none";
 
 interface IssuesSectionProps {
   threadId: string;
@@ -207,18 +259,24 @@ export function IssuesSection({
     }
   }, [hasSyncedOptimisticIssue]);
 
-  // The link list only offers open issues; the linked issue itself resolves from
-  // the full mirror so an already-linked closed issue still displays.
-  const openIssues = issues.filter((issue) => !issue.closedAt);
-  const originGroups = groupIssuesByOrigin(openIssues);
+  const originGroups = groupIssuesByOrigin(issues, externalIssueId);
   const showOriginGroups = originGroups.length > 1;
 
-  const comboboxItems = prepareFooter(originGroups, [
-    {
-      label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
-      value: `footer:create_issue`,
-    },
-  ]);
+  const comboboxItems = prepareFooter(
+    [
+      {
+        items: [{ label: "No issue", value: NO_ISSUE_VALUE }],
+        value: "none",
+      },
+      ...originGroups,
+    ],
+    [
+      {
+        label: `Create issue ${search}`, // This forces item to always be shown even though it's not visible
+        value: `footer:create_issue`,
+      },
+    ]
+  );
 
   const linkedIssue: LinkedIssue | undefined =
     issues.find((issue) => issue.externalKey === externalIssueId) ??
@@ -392,7 +450,7 @@ export function IssuesSection({
           <div className="min-w-0 max-w-full overflow-hidden">
             <Combobox
               items={comboboxItems}
-              value={linkedIssue?.externalKey ?? ""}
+              value={linkedIssue?.externalKey ?? NO_ISSUE_VALUE}
               filter={(item, q) => {
                 const it = item as { value?: string; issue?: MirrorEntity };
                 if (
@@ -415,8 +473,11 @@ export function IssuesSection({
                 const oldIssue = issues.find(
                   (issue) => issue.externalKey === oldIssueId
                 );
-                // If clicking the same issue, unlink it
-                const newIssueId = oldIssueId === value ? null : value || null;
+                // Choosing "No issue", or the issue already linked, clears the link.
+                const newIssueId =
+                  value === NO_ISSUE_VALUE || oldIssueId === value
+                    ? null
+                    : value || null;
                 const newIssue = newIssueId
                   ? issues.find((issue) => issue.externalKey === newIssueId)
                   : undefined;
@@ -437,7 +498,7 @@ export function IssuesSection({
                     old_issue_number: oldIssue?.number,
                     repository: newIssue?.repoFullName,
                   });
-                } else {
+                } else if (oldIssueId) {
                   mutate.thread.unlinkIssue({
                     organizationId: currentOrg.id,
                     threadId,
@@ -476,7 +537,7 @@ export function IssuesSection({
                       </>
                     ) : (
                       <>
-                        <Github className="size-4 text-foreground-secondary" />
+                        <CircleDashed className="size-4 shrink-0 text-foreground-secondary" />
                         <span className="text-foreground-secondary">
                           Link issue
                         </span>
@@ -497,9 +558,13 @@ export function IssuesSection({
                     role="presentation"
                     className="min-h-0 shrink grow overflow-y-auto"
                   >
+                    <ComboboxItem value={NO_ISSUE_VALUE}>
+                      <CircleDashed className="size-3.5 shrink-0" />
+                      No issue
+                    </ComboboxItem>
                     <ComboboxGroupContent>
                       {(group: IssuePickerGroup) =>
-                        isFooterGroup(group) ? null : (
+                        isOriginGroup(group) ? (
                           <ComboboxGroup
                             key={group.value}
                             items={group.items}
@@ -536,7 +601,7 @@ export function IssuesSection({
                               )}
                             </ComboboxGroupContent>
                           </ComboboxGroup>
-                        )
+                        ) : null
                       }
                     </ComboboxGroupContent>
                   </div>
